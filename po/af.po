@@ -67,10 +67,8 @@ msgid "Some features:"
 msgstr ""
 
 #: ../share/appdata/virtaal.appdata.xml.in.h:4
-#, fuzzy
-#| msgid "Existing translations: %(translations)s"
 msgid "Translation reuse (translation memory)"
-msgstr "Bestaande vertalings: %(translations)s"
+msgstr "Vertalingsherbreuk (vertaalgehue)"
 
 #: ../share/appdata/virtaal.appdata.xml.in.h:5
 #: ../virtaal/views/widgets/welcomescreen.py:80
