@@ -1,26 +1,22 @@
-# South African English translations of Virtaal
-# Copyright (C) 2009 Zuza Software Foundation (Translate.org.za)
-# This file is distributed under the same license as the Virtaal package.
-# Dwayne Bailey <dwayne+translations@translate.org.za>, 2009.
-#: ../virtaal/support/native_widgets.py:49
-#: ../virtaal/support/native_widgets.py:50
 msgid ""
 msgstr ""
-"Project-Id-Version: Virtaal 0.4.0\n"
-"Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2014-02-11 21:11+0000\n"
-"PO-Revision-Date: 2010-08-04 00:43+0200\n"
-"Last-Translator: Robert <robert_readman@hotmail.com>\n"
-"Language-Team: English <translate-devel@lists.sourceforge.net>\n"
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2015-10-13 16:49+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: en_ZA\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Pootle 2.1.6\n"
+"X-Generator: Translate Toolkit 1.13.0\n"
+"X-Pootle-Path: /en_ZA/virtaal/en_ZA.po\n"
+"X-Pootle-Revision: 810\n"
 
 #: ../share/applications/virtaal.desktop.in.h:1
-#: ../share/virtaal/virtaal.ui.h:18 ../virtaal/support/native_widgets.py:103
+#: ../share/virtaal/virtaal.ui.h:18
+#: ../virtaal/support/native_widgets.py:103
 #: ../virtaal/views/mainview.py:842
 msgid "Virtaal"
 msgstr "Virtaal"
@@ -47,10 +43,6 @@ msgstr ""
 
 #: ../share/appdata/virtaal.appdata.xml.in.h:2
 #, fuzzy
-#| msgid ""
-#| "The initial focus is on software translation (localization or l10n), but "
-#| "we definitely intend it to be useful as a general purpose tool for "
-#| "Computer Aided Translation (CAT)."
 msgid ""
 "The initial focus is on software translation (localization or l10n), but is "
 "definitely meant to be useful as a general purpose tool for Computer Aided "
@@ -62,7 +54,7 @@ msgstr ""
 
 #: ../share/appdata/virtaal.appdata.xml.in.h:3
 msgid "Some features:"
-msgstr ""
+msgstr "Some features:"
 
 #: ../share/appdata/virtaal.appdata.xml.in.h:4
 msgid "Translation reuse (translation memory)"
@@ -440,8 +432,8 @@ msgstr ""
 
 #: ../virtaal/tips.py:32
 msgid ""
-"To mark the current translation as incomplete, simply press <Ctrl+Shift"
-"+Enter>."
+"To mark the current translation as incomplete, simply press "
+"<Ctrl+Shift+Enter>."
 msgstr ""
 
 #: ../virtaal/tips.py:33
@@ -692,7 +684,6 @@ msgstr ""
 #: ../virtaal/controllers/maincontroller.py:215
 #: ../virtaal/controllers/maincontroller.py:325
 #: ../virtaal/controllers/maincontroller.py:353
-#, python-format
 msgid ""
 "Could not open file.\n"
 "\n"
@@ -704,12 +695,12 @@ msgstr ""
 #: ../virtaal/controllers/maincontroller.py:238
 #: ../virtaal/support/native_widgets.py:145
 #: ../virtaal/support/native_widgets.py:204
-#: ../virtaal/support/native_widgets.py:255 ../virtaal/views/mainview.py:323
+#: ../virtaal/support/native_widgets.py:255
+#: ../virtaal/views/mainview.py:323
 msgid "Save"
 msgstr ""
 
 #: ../virtaal/controllers/maincontroller.py:258
-#, python-format
 msgid ""
 "Could not save file.\n"
 "\n"
@@ -719,7 +710,6 @@ msgid ""
 msgstr ""
 
 #: ../virtaal/controllers/maincontroller.py:264
-#, python-format
 msgid ""
 "Could not save file.\n"
 "\n"
@@ -735,7 +725,6 @@ msgid "Export"
 msgstr ""
 
 #: ../virtaal/controllers/maincontroller.py:292
-#, python-format
 msgid ""
 "Could not export file.\n"
 "\n"
@@ -745,7 +734,6 @@ msgid ""
 msgstr ""
 
 #: ../virtaal/controllers/maincontroller.py:298
-#, python-format
 msgid ""
 "Could not export file.\n"
 "\n"
@@ -908,22 +896,18 @@ msgid "After:"
 msgstr ""
 
 #: ../virtaal/controllers/storecontroller.py:438
-#, python-format
 msgid "Translated: %d"
 msgstr ""
 
 #: ../virtaal/controllers/storecontroller.py:439
-#, python-format
 msgid "Fuzzy: %d"
 msgstr ""
 
 #: ../virtaal/controllers/storecontroller.py:440
-#, python-format
 msgid "Untranslated: %d"
 msgstr ""
 
 #: ../virtaal/controllers/storecontroller.py:441
-#, python-format
 msgid "Total: %d"
 msgstr ""
 
@@ -978,7 +962,8 @@ msgstr ""
 msgid "Incomplete"
 msgstr ""
 
-#: ../virtaal/modes/searchmode.py:36 ../virtaal/modes/searchmode.py:68
+#: ../virtaal/modes/searchmode.py:36
+#: ../virtaal/modes/searchmode.py:68
 msgid "Search"
 msgstr ""
 
@@ -1065,7 +1050,6 @@ msgstr ""
 
 #. l10n: This refers to the spell checking dictionary
 #: ../virtaal/plugins/spellchecker.py:361
-#, python-format
 msgid "Add \"%s\" to Dictionary"
 msgstr ""
 
@@ -1092,7 +1076,6 @@ msgid "Select the services that should be used to perform look-ups"
 msgstr ""
 
 #: ../virtaal/plugins/lookup/lookupview.py:131
-#, python-format
 msgid "Look-up \"%(selection)s\""
 msgstr ""
 
@@ -1176,12 +1159,10 @@ msgid "Poedit settings"
 msgstr ""
 
 #: ../virtaal/plugins/migration.py:207
-#, python-format
 msgid "Poedit's Translation Memory: %(database_language_code)s"
 msgstr ""
 
 #: ../virtaal/plugins/migration.py:232
-#, python-format
 msgid "KBabel's Translation Memory: %(database_language_code)s"
 msgstr ""
 
@@ -1190,7 +1171,6 @@ msgid "Lokalize settings"
 msgstr ""
 
 #: ../virtaal/plugins/migration.py:274
-#, python-format
 msgid "Lokalize's Translation Memory: %(database_name)s"
 msgstr ""
 
@@ -1243,23 +1223,23 @@ msgid "Add Files"
 msgstr ""
 
 #: ../virtaal/plugins/terminology/models/localfile/localfileview.py:188
-#: ../virtaal/support/native_widgets.py:81 ../virtaal/views/mainview.py:268
+#: ../virtaal/support/native_widgets.py:81
+#: ../virtaal/views/mainview.py:268
 msgid "All Supported Files"
 msgstr ""
 
 #: ../virtaal/plugins/terminology/models/localfile/localfileview.py:215
 #: ../virtaal/support/native_widgets.py:171
-#: ../virtaal/support/native_widgets.py:201 ../virtaal/views/mainview.py:312
+#: ../virtaal/support/native_widgets.py:201
+#: ../virtaal/views/mainview.py:312
 msgid "All Files"
 msgstr ""
 
 #: ../virtaal/plugins/terminology/models/localfile/localfileview.py:256
-#, python-format
 msgid "\"%s\" is not a usable file."
 msgstr ""
 
 #: ../virtaal/plugins/terminology/models/localfile/localfileview.py:261
-#, python-format
 msgid ""
 "Unable to load %(filename)s:\n"
 "\n"
@@ -1271,12 +1251,10 @@ msgid "Error opening file"
 msgstr ""
 
 #: ../virtaal/plugins/terminology/models/localfile/localfileview.py:402
-#, python-format
 msgid "_Source term — %(langname)s"
 msgstr ""
 
 #: ../virtaal/plugins/terminology/models/localfile/localfileview.py:403
-#, python-format
 msgid "_Target term — %(langname)s"
 msgstr ""
 
@@ -1286,12 +1264,10 @@ msgstr ""
 
 #. l10n: The variable is an existing term formatted for emphasis. The default is bold formatting, but you can remove/change the markup if needed. Leave it unchanged if you are unsure.
 #: ../virtaal/plugins/terminology/models/localfile/localfileview.py:462
-#, python-format
 msgid "<b>%s</b>"
 msgstr ""
 
 #: ../virtaal/plugins/terminology/models/localfile/localfileview.py:463
-#, python-format
 msgid "Existing translations: %(translations)s"
 msgstr ""
 
@@ -1438,7 +1414,6 @@ msgid "Translation _Suggestions"
 msgstr ""
 
 #: ../virtaal/plugins/tm/tmview.py:151
-#, python-format
 msgid "Ctrl+%(number_key)d"
 msgstr ""
 
@@ -1454,8 +1429,9 @@ msgstr ""
 
 #. l10n: match quality column label
 #: ../virtaal/plugins/tm/tmwidgets.py:64
+#, fuzzy
 msgid "%"
-msgstr ""
+msgstr "%"
 
 #: ../virtaal/plugins/tm/tmwidgets.py:66
 msgid "Matches"
@@ -1467,18 +1443,19 @@ msgstr ""
 
 #. l10n: This message allows you to customize the appearance of the match percentage. Most languages can probably leave it unchanged.
 #: ../virtaal/plugins/tm/tmwidgets.py:138
-#, python-format
 msgid "%(match_quality)s%%"
 msgstr ""
 
 #. l10n: This indicates a suggestion from machine translation. It is displayed instead of the match percentage.
 #: ../virtaal/plugins/tm/tmwidgets.py:148
+#, fuzzy
 msgid "?"
-msgstr ""
+msgstr "?"
 
 #: ../virtaal/support/native_widgets.py:132
 #: ../virtaal/support/native_widgets.py:172
-#: ../virtaal/support/native_widgets.py:241 ../virtaal/views/mainview.py:261
+#: ../virtaal/support/native_widgets.py:241
+#: ../virtaal/views/mainview.py:261
 msgid "Choose a Translation File"
 msgstr ""
 
@@ -1610,8 +1587,8 @@ msgstr ""
 #: ../virtaal/support/tutorial.py:151
 msgid ""
 "This message marks the word \"now\" as important with bold tags. These tags "
-"can be transferred from the source with Alt+Right and Alt+Down. Leave the "
-"<b> and </b> in the translation around the part that corresponds to \"now\". "
+"can be transferred from the source with Alt+Right and Alt+Down. Leave the <b>"
+" and </b> in the translation around the part that corresponds to \"now\". "
 "Read more about XML markup here: http://en.wikipedia.org/wiki/XML"
 msgstr ""
 
@@ -1623,7 +1600,6 @@ msgid ""
 msgstr ""
 
 #: ../virtaal/support/tutorial.py:166
-#, python-format
 msgid ""
 "In this message \"%d\" is a placeholder (variable) that represents a number. "
 "Make sure your translation contains \"%d\" somewhere. In this case it refers "
@@ -1633,28 +1609,26 @@ msgid ""
 msgstr ""
 
 #: ../virtaal/support/tutorial.py:174
-#, python-format
 msgid ""
 "In this message, \"%d\" refers again to the number of files, but note how "
 "the \"(s)\" is used to show that we don't know how many it will be. This is "
 "often hard to translate well. If you encounter this in software translation, "
 "you might want to hear from developers if this can be avoided. Read more "
-"about this and decide how to do it in your language: http://docs."
-"translatehouse.org/projects/localization-guide/en/latest/guide/translation/"
-"plurals.html"
+"about this and decide how to do it in your language: "
+"http://docs.translatehouse.org/projects/localization-"
+"guide/en/latest/guide/translation/plurals.html"
 msgstr ""
 
 #: ../virtaal/support/tutorial.py:185
 msgid ""
 "In this message the proper way of translating plurals are seen. You need to "
 "enter between 1 and 6 different versions of the translation to ensure the "
-"correct grammar in your language. Read more about this here: http://docs."
-"translatehouse.org/projects/localization-guide/en/latest/guide/translation/"
-"plurals.html"
+"correct grammar in your language. Read more about this here: "
+"http://docs.translatehouse.org/projects/localization-"
+"guide/en/latest/guide/translation/plurals.html"
 msgstr ""
 
 #: ../virtaal/support/tutorial.py:196
-#, python-format
 msgid ""
 "In this message, \"%s\" is a placeholder (variable) that represents a file "
 "name. Make sure your translation contains %s somewhere. When this message is "
@@ -1663,7 +1637,6 @@ msgid ""
 msgstr ""
 
 #: ../virtaal/support/tutorial.py:204
-#, python-format
 msgid ""
 "In this message the variable is surrounded by double quotes. Make sure your "
 "translation contains the variable %s and surround it similarly with quotes "
@@ -1712,8 +1685,8 @@ msgstr ""
 #: ../virtaal/support/tutorial.py:248
 msgid ""
 "This translation contains an ambiguous word - it has two possible meanings. "
-"Make sure you can see the context information showing that this is a verb "
-"(an action as in \"click here to view it\")."
+"Make sure you can see the context information showing that this is a verb ("
+"an action as in \"click here to view it\")."
 msgstr ""
 
 #: ../virtaal/support/tutorial.py:255
@@ -1756,8 +1729,8 @@ msgstr ""
 
 #: ../virtaal/support/tutorial.py:295
 msgid ""
-"In the previous entry you have created one terminology entry for the the "
-"\"filter\" verb. Now do the same for \"filter\" noun."
+"In the previous entry you have created one terminology entry for the the \""
+"filter\" verb. Now do the same for \"filter\" noun."
 msgstr ""
 
 #: ../virtaal/support/tutorial.py:300
@@ -1815,7 +1788,6 @@ msgid ""
 msgstr ""
 
 #: ../virtaal/support/tutorial.py:354
-#, python-format
 msgid ""
 "This message contains a similar link, but the programmers decided to to "
 "rather insert the tags with variables so that translators can't change them. "
@@ -1832,11 +1804,11 @@ msgstr ""
 
 #: ../virtaal/support/tutorial.py:368
 msgid ""
-"This message contains a similar link that is contained within <span> and </"
-"span>. Make sure you maintain all the tags (<...>) correctly, and that the "
+"This message contains a similar link that is contained within <span> and "
+"</span>. Make sure you maintain all the tags (<...>) correctly, and that the "
 "link is contained completely inside the <span> and </span> tags in your "
-"translation. Make sure that the text inside the \"a\" tags correspond to "
-"\"help page\" and that your translation corresponding to the second sentence "
+"translation. Make sure that the text inside the \"a\" tags correspond to \""
+"help page\" and that your translation corresponding to the second sentence "
 "is contained in the <span> tags. Note how the full stop is still inside the "
 "</span> tag."
 msgstr ""
@@ -1859,7 +1831,6 @@ msgstr ""
 
 #. l10n: The label indicating the checker style (GNOME/KDE/whatever)
 #: ../virtaal/views/checksprojview.py:63
-#, python-format
 msgid "Checks: %(checker_name)s"
 msgstr ""
 
@@ -1886,7 +1857,6 @@ msgstr ""
 #. %(current_file)s is the file name of the current file
 #. most languages will not need to change this
 #: ../virtaal/views/mainview.py:430
-#, python-format
 msgid "%(modified_marker)s%(current_file)s - Virtaal"
 msgstr ""
 
@@ -1938,7 +1908,6 @@ msgstr ""
 
 #. l10n: This is the formatting for percentages in the file properties. If unsure, just copy the original.
 #: ../virtaal/views/propertiesview.py:64
-#, python-format
 msgid "(%04.1f%%)"
 msgstr ""
 
@@ -1949,16 +1918,15 @@ msgstr ""
 #. l10n: The total number of words. You can not use %Id at this stage. If unsure, just copy the original.
 #: ../virtaal/views/propertiesview.py:191
 #: ../virtaal/views/propertiesview.py:192
-#, python-format
 msgid "<b>%d</b>"
 msgstr ""
 
 #: ../virtaal/views/propertiesview.py:203
-#, python-format
 msgid "%.1f KB"
 msgstr ""
 
-#: ../virtaal/views/storeview.py:138 ../virtaal/views/storeview.py:147
+#: ../virtaal/views/storeview.py:138
+#: ../virtaal/views/storeview.py:147
 msgid "Export failed"
 msgstr ""
 
@@ -2207,7 +2175,6 @@ msgid "OmegaT Glossary"
 msgstr ""
 
 #: ../bin/virtaal:93
-#, c-format
 msgid "%prog [options] [translation_file]"
 msgstr ""
 
@@ -2260,17 +2227,14 @@ msgid "Could not open profile file '%(filename)s'"
 msgstr ""
 
 #: ../devsupport/optparse.py:134
-#, python-format
 msgid "no such option: %s"
 msgstr ""
 
 #: ../devsupport/optparse.py:145
-#, python-format
 msgid "ambiguous option: %s (%s?)"
 msgstr ""
 
 #: ../devsupport/optparse.py:368
-#, python-format
 msgid "Usage: %s\n"
 msgstr ""
 
@@ -2295,12 +2259,10 @@ msgid "complex"
 msgstr ""
 
 #: ../devsupport/optparse.py:423
-#, python-format
 msgid "option %s: invalid %s value: %r"
 msgstr ""
 
 #: ../devsupport/optparse.py:431
-#, python-format
 msgid "option %s: invalid choice: %r (choose from %s)"
 msgstr ""
 
@@ -2316,17 +2278,16 @@ msgstr ""
 msgid "%prog [options]"
 msgstr ""
 
-#: ../devsupport/optparse.py:1484 ../devsupport/optparse.py:1523
-#, python-format
+#: ../devsupport/optparse.py:1484
+#: ../devsupport/optparse.py:1523
 msgid "%s option requires an argument"
 msgstr ""
 
-#: ../devsupport/optparse.py:1486 ../devsupport/optparse.py:1525
-#, python-format
+#: ../devsupport/optparse.py:1486
+#: ../devsupport/optparse.py:1525
 msgid "%s option requires %d arguments"
 msgstr ""
 
 #: ../devsupport/optparse.py:1495
-#, python-format
 msgid "%s option does not take a value"
 msgstr ""
