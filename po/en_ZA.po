@@ -58,7 +58,7 @@ msgstr "Some features:"
 
 #: ../share/appdata/virtaal.appdata.xml.in.h:4
 msgid "Translation reuse (translation memory)"
-msgstr ""
+msgstr "Translation reuse (translation memories)"
 
 #: ../share/appdata/virtaal.appdata.xml.in.h:5
 #: ../virtaal/views/widgets/welcomescreen.py:80
