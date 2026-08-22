@@ -28,9 +28,10 @@ Homebrew Python 3.14 on macOS 26.)
 
 This creates `.venv/` with `--system-site-packages` (so it inherits
 the Homebrew GTK3/PyGObject bindings — a plain `venv` without that flag
-can't see `gi` at all) and installs the three PyPI deps `bin/virtaal`
-needs that aren't vendored: `translate-toolkit`, `pycurl`,
-`diff-match-patch`.
+can't see `gi` at all) and installs the PyPI deps `bin/virtaal` needs
+that aren't vendored: `translate-toolkit`, `pycurl`,
+`diff-match-patch`, `cheroot` (the WSGI server the vendored local
+`tmserver` — `virtaal/support/tmserver.py` — runs on).
 
 ## Run (agent path)
 
@@ -84,13 +85,31 @@ prerequisites as above.
   traceback almost always means `sys.exit(1)` from that same
   dependency checker** — check `driver.sh log` for `DEPENDENCY ERRORS`
   before assuming a crash.
-- **Startup prints several non-fatal `ERROR:root:` tracebacks that are
-  safe to ignore** for smoke-testing: `Couldn't find OSX_Leopard_theme`,
-  `Failed to load plugin "migration"`, `Failed to load plugin
-  "spellchecker"` (needs `enchant`, not installed), and `Failed to
-  start TM server` / `Failed to load plugin "localtm"` (needs a
-  `tmserver` script not on `PATH`). None of these stop the window from
-  opening.
+- **Startup prints a couple of non-fatal `ERROR:root:` tracebacks that
+  are safe to ignore** for smoke-testing: `Couldn't find
+  OSX_Leopard_theme`, `Failed to load plugin "migration"`, `Failed to
+  load plugin "spellchecker"` (needs `enchant`, not installed). None
+  of these stop the window from opening.
+- **`localtm` (the local, zero-config TM plugin) now actually works.**
+  It used to fail with `FileNotFoundError: 'tmserver'` because
+  translate-toolkit dropped that console script upstream between
+  3.18.1 and 3.19.0; `virtaal/support/tmserver.py` vendors it (plus
+  its `selector`/`wsgi`/`tmdb` dependencies) and `localtm.py` now
+  launches it via `python -m virtaal.support.tmserver` instead of
+  relying on a `tmserver` binary on `PATH`. If you see that error
+  again, `driver.sh setup` is probably missing `cheroot` (the WSGI
+  server `virtaal/support/wsgi.py` needs). A quiet launch (no
+  `ERROR:root:` about TM at all) means it worked - check
+  `ps aux | grep virtaal.support.tmserver` to confirm the child is
+  actually running.
+- **Killing the app hard (`driver.sh quit`, a bare `kill`) leaves the
+  `localtm` child process running.** `localtm.py`'s `destroy()` only
+  runs on a normal quit through the GTK main loop (File → Quit, or the
+  window close button) - a SIGTERM straight to the main process skips
+  it entirely, same as it would for any other cleanup code. Not a bug
+  introduced by vendoring tmserver, just newly visible now that
+  `localtm` actually spawns a live child to leak. `pkill -f
+  virtaal.support.tmserver` cleans up a stray one.
 - **Don't use System Events / AppleScript UI-scripting to click into
   this app.** Tried it: `tell application "System Events" to tell
   process "Python"` intermittently can't even resolve the process (by
