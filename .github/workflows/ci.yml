@@ -78,3 +78,79 @@ jobs:
 
       - name: Smoke test the CLI
         run: xvfb-run -a --server-args="-screen 0 1024x768x24" virtaal --help
+
+  test-macos:
+    runs-on: macos-latest
+    # Single Python version (whatever Homebrew currently ships), not the
+    # 3.10-3.14 matrix the Linux job runs: unlike apt, Homebrew doesn't
+    # provide an easy way to build PyGObject against several Python
+    # versions at once, and this job's whole approach hinges on using
+    # Homebrew's own Python (see the venv step below) rather than
+    # actions/setup-python's.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Install system dependencies (Homebrew)
+        # Mirrors .claude/skills/run-virtaal/SKILL.md's prerequisites,
+        # verified working manually on macOS during this project's py3
+        # port: pygobject3/gtk+3 for the app itself, gtk-mac-integration
+        # for native macOS menu-bar support, enchant/gtkspell3 for the
+        # spellchecker plugin. gobject-introspection/cairo/pkg-config/
+        # gettext/intltool are build-time needs `pip install pygobject`
+        # and ./maketranslations depend on that apt provides directly on
+        # the Linux job but Homebrew splits into separate formulae.
+        run: |
+          brew install pygobject3 gtk+3 gtk-mac-integration \
+            gobject-introspection cairo pkg-config gettext intltool \
+            enchant gtkspell3
+
+      - name: Create venv with system site-packages
+        # --system-site-packages so this venv's Python can see Homebrew's
+        # compiled `gi` module, the same reason
+        # .claude/skills/run-virtaal/driver.sh's setup uses it locally -
+        # a plain venv can't see Homebrew's gi at all. Appending to
+        # GITHUB_PATH (rather than `source .venv/bin/activate`, which
+        # only affects the shell it runs in) makes every later step in
+        # this job use the venv automatically.
+        run: |
+          python3 -m venv --system-site-packages .venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install setuptools wheel
+          pip install Sphinx
+          pip install translate-toolkit
+          pip install python-Levenshtein
+          pip install lxml
+          pip install pycurl
+          pip install diff_match_patch
+          pip install cheroot
+          pip install pyenchant
+          pip install pytest
+
+      - name: Update translations
+        run: ./maketranslations
+
+      - name: Build docs
+        run: make docs
+
+      - name: Install virtaal
+        run: pip install --no-build-isolation .
+
+      - name: Compile-check all Python files
+        run: find -name \*py -exec python -m py_compile {} +
+
+      - name: Run tests
+        # No xvfb-run equivalent: macOS's WindowServer is a real system
+        # daemon that's always running, even in CI, unlike X11 which has
+        # no display server at all without one. If that assumption turns
+        # out wrong for some GTK operation, this is the step that will
+        # show it.
+        run: pytest -rvxs virtaal
+
+      - name: Smoke test the CLI
+        run: virtaal --help
