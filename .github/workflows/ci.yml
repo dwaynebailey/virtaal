@@ -98,7 +98,7 @@ jobs:
         run: pip install --no-build-isolation .
 
       - name: Compile-check all Python files
-        run: find -name \*py -exec python -m py_compile {} +
+        run: find . -name "*.py" -exec python -m py_compile {} +
 
       - name: Run tests
         run: xvfb-run -a --server-args="-screen 0 1024x768x24" pytest -rvxs virtaal
@@ -162,7 +162,7 @@ jobs:
         run: pip install --no-build-isolation .
 
       - name: Compile-check all Python files
-        run: find -name \*py -exec python -m py_compile {} +
+        run: find . -name "*.py" -exec python -m py_compile {} +
 
       - name: Run tests
         # No xvfb-run equivalent: macOS's WindowServer is a real system
