@@ -40,3 +40,6 @@ assets/
 #vim
 .*.swp
 *~
+
+# venv
+.venv
