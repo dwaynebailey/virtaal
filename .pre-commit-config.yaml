@@ -1,0 +1,18 @@
+# See https://pre-commit.com for more information
+# Deliberately minimal for now: general hygiene checks only, no
+# formatter/linter (e.g. Black) yet - that's a separate decision, see
+# ISSUE_TRIAGE.md's "Evaluate adopting Black" item.
+exclude: ^po/
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-ast
+      - id: debug-statements
