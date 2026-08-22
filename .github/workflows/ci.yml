@@ -14,11 +14,11 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -39,7 +39,10 @@ jobs:
           pip install lxml
           pip install pycurl
           pip install diff_match_patch
-          pip install pygobject
+          # PyGObject >=3.52 requires girepository-2.0, which ubuntu-22.04's
+          # libgirepository1.0-dev doesn't provide (only girepository-1.0,
+          # via gobject-introspection-1.0.pc) - pin below that.
+          pip install "pygobject<3.52"
           pip install cheroot
           pip install pytest
 
