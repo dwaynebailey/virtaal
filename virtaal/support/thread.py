@@ -38,7 +38,7 @@ def run_in_thread(widget, target, args):
     # handle concurrently
     widget.set_sensitive(False)
     import time
-    while thread.isAlive():
+    while thread.is_alive():
         # let gtk process events while target is still running
         Gtk.main_iteration(block=False)
         # Since we are not blocking, we're spinning, which isn't nice. We could
