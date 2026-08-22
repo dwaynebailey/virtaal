@@ -6,6 +6,39 @@ on:
   pull_request:
 
 jobs:
+  pre-commit:
+    # Lints only the files that changed, not the whole tree: many
+    # pre-existing files don't pass .pre-commit-config.yaml's hooks yet
+    # (see ISSUE_TRIAGE.md), so `pre-commit run --all-files` would fail
+    # here on old, unrelated files rather than anything actually being
+    # worked on. Falls back to the parent commit, then to --all-files,
+    # if there's no usable diff base (first push to a branch, a force
+    # push, or a repo's very first commit).
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit on changed files
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base=$(git rev-parse HEAD^ 2>/dev/null || true)
+          fi
+          if [ -z "$base" ]; then
+            pre-commit run --all-files
+          else
+            pre-commit run --from-ref "$base" --to-ref HEAD
+          fi
+
   docs-and-translations:
     # ./maketranslations (merges po/ into .desktop/.metainfo/.mime XML via
     # intltool-merge) and `make docs` (Sphinx) aren't packaging- or
