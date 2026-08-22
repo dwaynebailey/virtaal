@@ -24,6 +24,9 @@ if not ctypes.util.find_library("translate"):
     raise ImportError("libtranslate not found")
 
 import logging
+
+from six import text_type as unicode
+
 from translate.misc import quote
 
 from virtaal.common import pan_app

@@ -18,6 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
+from six import text_type as unicode
+
 from virtaal.support import opentranclient
 
 from virtaal.common import pan_app

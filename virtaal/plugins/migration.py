@@ -34,6 +34,7 @@ import struct
 import sys
 from os import path
 
+from six import text_type as unicode
 from six.moves import cStringIO as StringIO
 from six.moves import configparser as ConfigParser
 
