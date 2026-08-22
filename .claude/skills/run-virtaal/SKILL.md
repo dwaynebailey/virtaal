@@ -20,6 +20,11 @@ python3 -c "import gi; gi.require_version('Gtk','3.0'); from gi.repository impor
 If that fails, `brew install pygobject3 gtk+3` first. (Verified on
 Homebrew Python 3.14 on macOS 26.)
 
+Optional: `brew install gtk-mac-integration` for native macOS menu-bar
+integration (`GtkosxApplication-1.0` typelib). Without it Virtaal still
+runs fine, just with an in-window GTK menu bar instead of the native
+top-of-screen one.
+
 ## Setup (run once)
 
 ```bash
@@ -85,11 +90,23 @@ prerequisites as above.
   traceback almost always means `sys.exit(1)` from that same
   dependency checker** — check `driver.sh log` for `DEPENDENCY ERRORS`
   before assuming a crash.
-- **Startup prints a couple of non-fatal `ERROR:root:` tracebacks that
-  are safe to ignore** for smoke-testing: `Couldn't find
-  OSX_Leopard_theme`, `Failed to load plugin "migration"`, `Failed to
-  load plugin "spellchecker"` (needs `enchant`, not installed). None
-  of these stop the window from opening.
+- **Startup prints a non-fatal `ERROR:root:` traceback that's safe to
+  ignore** for smoke-testing: `Failed to load plugin "spellchecker"`
+  (needs `enchant`, not installed). Doesn't stop the window from
+  opening. Two other errors used to be in this list too, both since
+  fixed: `Failed to load plugin "migration"` was a masked `ImportError`
+  (removed `translate.storage.tmdb`), fixed in `d2756bae`/`d6901285`;
+  `Couldn't find OSX_Leopard_theme` was dead GTK2 rc-theme-loading code
+  that never did anything on GTK3, removed entirely along with the
+  GTK2-only `gtk_osxapplication` menu-bar integration it sat next to —
+  replaced with GTK3's `GtkosxApplication` (native macOS menu bar) and
+  actual system dark/light detection. If you see either again, that's
+  a regression, not expected noise.
+- **Native macOS menu-bar integration needs `gtk-mac-integration`**
+  (`brew install gtk-mac-integration`) for its `GtkosxApplication-1.0`
+  typelib. Without it, Virtaal falls back to an in-window GTK menu bar
+  (same as Linux/Windows) and logs a debug-level message — not an
+  error, and nothing to worry about for smoke-testing.
 - **`localtm` (the local, zero-config TM plugin) now actually works.**
   It used to fail with `FileNotFoundError: 'tmserver'` because
   translate-toolkit dropped that console script upstream between
