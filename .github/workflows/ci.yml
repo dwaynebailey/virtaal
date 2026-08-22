@@ -28,7 +28,8 @@ jobs:
           sudo apt-get install -y \
             gir1.2-gtk-3.0 at-spi2-core gobject-introspection \
             libgirepository-2.0-dev libglib2.0-dev libcairo2-dev \
-            pkg-config python3-dev intltool libgnutls28-dev xvfb
+            pkg-config python3-dev intltool libgnutls28-dev xvfb \
+            gir1.2-gtkspell3-3.0 libenchant-2-dev hunspell-en-us
 
       - name: Install Python dependencies
         run: |
@@ -48,6 +49,7 @@ jobs:
           pip install diff_match_patch
           pip install pygobject
           pip install cheroot
+          pip install pyenchant
           pip install pytest
 
       - name: Update translations
