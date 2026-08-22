@@ -20,7 +20,8 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import urllib
+
+from six.moves.urllib.parse import quote_plus
 
 import pycurl
 
@@ -96,7 +97,7 @@ class TMModel(BaseTMModel):
         else:
             real_url = self.translate_url % {
                 'key':     self.config['api_key'],
-                'message': urllib.quote_plus(query_str.encode('utf-8')),
+                'message': quote_plus(query_str.encode('utf-8')),
                 'from':    source_lang,
                 'to':      target_lang,
             }
