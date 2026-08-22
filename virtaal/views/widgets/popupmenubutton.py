@@ -20,7 +20,7 @@
 
 from gi.repository import Gdk, Gtk, GObject
 
-from six import string_types as unicode
+from six import text_type as unicode
 
 # Positioning constants below:
 # POS_CENTER_BELOW: Centers the pop-up window below the button (default).
