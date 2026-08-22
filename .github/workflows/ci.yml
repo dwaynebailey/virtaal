@@ -33,6 +33,13 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
+          # Needed explicitly because "Install virtaal" below uses
+          # --no-build-isolation: pip normally provisions setuptools (the
+          # build backend setup.py-only projects use) into a throwaway
+          # isolated build env itself, but with isolation off it expects
+          # setuptools to already be here - recent Python/venvs no longer
+          # bundle it by default the way ensurepip used to.
+          pip install setuptools wheel
           pip install Sphinx
           pip install translate-toolkit
           pip install python-Levenshtein
