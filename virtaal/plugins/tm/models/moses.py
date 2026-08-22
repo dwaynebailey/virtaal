@@ -48,7 +48,7 @@ class TMModel(BaseTMModel):
         from virtaal.support.mosesclient import MosesClient
         # let's map servers to clients to detect duplicates
         client_map = {}
-        for lang_pair, server in self.config.iteritems():
+        for lang_pair, server in self.config.items():
             pair = lang_pair.split("->")
             if self.clients.get(pair[0]) is None:
                 self.clients[pair[0]] = {}

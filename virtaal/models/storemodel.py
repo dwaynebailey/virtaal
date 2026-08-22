@@ -246,7 +246,7 @@ class StoreModel(BaseModel):
         if isinstance(store, poheader) and not store.header():
             store.updateheader(add=True)
             new_stats = {}
-            for key, values in self.stats.iteritems():
+            for key, values in self.stats.items():
                 new_stats[key] = [value+1 for value in values]
             self.stats = new_stats
 
