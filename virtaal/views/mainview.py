@@ -25,7 +25,6 @@ import sys
 
 from gi.repository import Gdk
 from gi.repository import Gtk
-from six import string_types
 
 from virtaal.common import pan_app
 from virtaal.common.utils import get_unicode
@@ -482,7 +481,7 @@ class MainView(BaseView):
     def append_menu_item(self, name, menu, after=None):
         """Add a new menu item with the given name to the menu with the given
             name (C{menu})."""
-        if isinstance(after, (str, string_types)):
+        if isinstance(after, str):
             after = self.find_menu(after)
 
         parent_item = None

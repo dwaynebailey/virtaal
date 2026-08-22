@@ -19,7 +19,6 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 from __future__ import absolute_import, print_function, unicode_literals
 
-from six import text_type
 from translate.search import match
 
 from .basetmmodel import BaseTMModel
@@ -90,7 +89,7 @@ class TMModel(BaseTMModel):
         matches = []
 
         query_str = unit.source
-        if not isinstance(query_str, text_type):
+        if not isinstance(query_str, str):
             query_str = query_str.decode('utf-8')
 
         for candidate in self.matcher.matches(query_str):
