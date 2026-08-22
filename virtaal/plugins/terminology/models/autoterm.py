@@ -166,7 +166,7 @@ class TerminologyModel(BaseTerminologyModel):
             self.client.get(url, callback, etag, error_callback=error_log)
 
     def _get_ext_from_url(self, url):
-        from six.moves.urllib.parse import urlparse
+        from urllib.parse import urlparse
         parsed = urlparse(url)
         #dir, filename = os.path.split(parsed.path)
         #rewritten for compatibility with Python 2.4:

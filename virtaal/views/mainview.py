@@ -375,7 +375,7 @@ class MainView(BaseView):
             filename = get_unicode(data.get_data().split(b"\r\n")[0], 'utf-8')
             if filename.startswith("file://"):
                 # This is a URI, so we handle encoded characters like spaces:
-                from six.moves.urllib_parse import unquote
+                from urllib.parse import unquote
                 filename = unquote(filename)
                 #TODO: only bother if the extension is supported?
                 self.controller.open_file(filename)

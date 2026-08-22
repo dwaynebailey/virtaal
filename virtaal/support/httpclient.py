@@ -23,7 +23,7 @@ import logging
 import pycurl
 from gi.repository import GObject
 from six import BytesIO as StringIO
-from six.moves.urllib import request, parse
+from urllib import request, parse
 
 try:
     import libproxy

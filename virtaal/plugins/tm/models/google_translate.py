@@ -21,7 +21,7 @@
 
 import logging
 
-from six.moves.urllib.parse import quote_plus
+from urllib.parse import quote_plus
 
 import pycurl
 

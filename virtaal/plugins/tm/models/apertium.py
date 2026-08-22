@@ -24,7 +24,7 @@ Machine Translation.
 http://wiki.apertium.org/wiki/Apertium_web_service
 """
 
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 # These two json modules are API compatible
 try:
     import simplejson as json #should be a bit faster; needed for Python < 2.6

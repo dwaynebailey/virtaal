@@ -21,7 +21,7 @@
 """A TM provider that can query the web service for Micrsoft Translator
 Machine Translations."""
 
-from six.moves.urllib import parse as urllib
+from urllib import parse as urllib
 
 from .basetmmodel import BaseTMModel
 
