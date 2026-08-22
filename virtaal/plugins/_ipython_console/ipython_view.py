@@ -15,6 +15,7 @@ is available at U{http://www.opensource.org/licenses/bsd-license.php}
 import os
 import re
 import sys
+from functools import reduce
 
 from io import StringIO
 

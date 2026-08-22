@@ -30,7 +30,7 @@ from translate.misc import quote
 
 from virtaal.common import pan_app
 
-from basetmmodel import BaseTMModel
+from .basetmmodel import BaseTMModel
 
 
 class TMModel(BaseTMModel):

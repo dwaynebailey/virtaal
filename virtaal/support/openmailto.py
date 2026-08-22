@@ -240,7 +240,7 @@ def _fix_addersses(**kwargs):
 def mailto_format(**kwargs):
     # @TODO: implement utf8 option
 
-    from email.Utils import encode_rfc2231
+    from email.utils import encode_rfc2231
     kwargs = _fix_addersses(**kwargs)
     parts = []
     for headername in ('to', 'cc', 'bcc', 'subject', 'body', 'attach'):

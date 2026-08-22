@@ -24,7 +24,7 @@ from translate.storage.placeables.terminology import TerminologyPlaceable
 from translate.storage.base import TranslationUnit
 from translate.lang import data
 
-from basetermmodel import BaseTerminologyModel
+from .basetermmodel import BaseTerminologyModel
 
 MIN_TERM_LENGTH = 4
 
