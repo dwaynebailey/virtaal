@@ -1,0 +1,62 @@
+name: Tests
+
+on:
+  push:
+    branches: [master, py3]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gir1.2-gtk-3.0 at-spi2-core gobject-introspection \
+            libgirepository1.0-dev libglib2.0-dev libcairo2-dev \
+            pkg-config python3-dev intltool libgnutls28-dev xvfb
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install Sphinx
+          pip install translate-toolkit
+          pip install python-Levenshtein
+          pip install lxml
+          pip install pycurl
+          pip install diff_match_patch
+          pip install pygobject
+          pip install cheroot
+          pip install pytest
+
+      - name: Update translations
+        run: ./maketranslations
+
+      - name: Build docs
+        run: make docs
+
+      - name: Install virtaal
+        run: python setup.py install
+
+      - name: Compile-check all Python files
+        run: find -name \*py -exec python -m py_compile {} +
+
+      - name: Run tests
+        run: xvfb-run -a --server-args="-screen 0 1024x768x24" pytest -rvxs virtaal
+
+      - name: Smoke test the CLI
+        run: xvfb-run -a --server-args="-screen 0 1024x768x24" virtaal --help
