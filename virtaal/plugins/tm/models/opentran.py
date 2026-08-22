@@ -18,7 +18,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
-from six import text_type as unicode
 
 from virtaal.support import opentranclient
 
@@ -69,8 +68,8 @@ class TMModel(BaseTMModel):
     def _handle_matches(self, widget, query_str, matches):
         """Handle the matches when returned from self.tmclient."""
         for match in matches:
-            if not isinstance(match['target'], unicode):
-                match['target'] = unicode(match['target'], 'utf-8')
+            if not isinstance(match['target'], str):
+                match['target'] = str(match['target'], 'utf-8')
             if 'tmsource' in match:
                 # Try to replace some long names like "OpenOffice.org" which
                 # doesn't display nicely:

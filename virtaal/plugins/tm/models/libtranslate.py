@@ -25,7 +25,6 @@ if not ctypes.util.find_library("translate"):
 
 import logging
 
-from six import text_type as unicode
 
 from translate.misc import quote
 
@@ -95,8 +94,8 @@ class TMModel(BaseTMModel):
             # TODO handle errors and cleanup errors
             logging.warning("An error occured while getting a translation: %s" % err)
             return
-        if not isinstance(result, unicode):
-            result = unicode(result, 'utf-8') # XXX: The encoding is just a guess
+        if not isinstance(result, str):
+            result = str(result, 'utf-8') # XXX: The encoding is just a guess
         translation.append({
             'source': query_str,
             'target': quote.rstripeol(result),

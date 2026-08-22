@@ -24,7 +24,6 @@ import re
 
 from gi.repository import Gtk, Gdk
 from gi.repository.GObject import idle_add, PARAM_READWRITE, SIGNAL_RUN_FIRST, TYPE_PYOBJECT
-from six import text_type as unicode
 from translate.lang import factory
 
 from virtaal.common import GObjectWrapper
@@ -313,7 +312,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
     def _get_editing_start_pos(self, elem):
         if not elem:
             return 0
-        translation_start = self.first_word_re.match(unicode(elem)).span()[1]
+        translation_start = self.first_word_re.match(str(elem)).span()[1]
         start_elem = elem.elem_at_offset(translation_start)
         if not start_elem.iseditable:
             flattened = elem.flatten()

@@ -34,7 +34,6 @@ import struct
 import sys
 from os import path
 
-from six import text_type as unicode
 from six.moves import cStringIO as StringIO
 from six.moves import configparser as ConfigParser
 
@@ -53,7 +52,7 @@ from translate.storage import tmdb
 def _prepare_db_string(string):
     """Helper method needed by the Berkeley DB TM converters."""
     string = '"%s"' % string
-    string = unicode(extractpoline(string), 'utf-8')
+    string = str(extractpoline(string), 'utf-8')
     return string
 
 class Plugin(BasePlugin):

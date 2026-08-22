@@ -22,7 +22,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 
 from gi.repository.GObject import SIGNAL_RUN_FIRST
-from six import string_types as basestring
 
 from virtaal.common import GObjectWrapper, pan_app
 from virtaal.models.langmodel import LanguageModel
@@ -89,7 +88,7 @@ class LanguageController(BaseController):
     def _get_source_lang(self):
         return self._source_lang
     def _set_source_lang(self, lang):
-        if isinstance(lang, basestring):
+        if isinstance(lang, str):
             lang = LanguageModel(lang)
         if not lang or lang == self._source_lang:
             return
@@ -100,7 +99,7 @@ class LanguageController(BaseController):
     def _get_target_lang(self):
         return self._target_lang
     def _set_target_lang(self, lang):
-        if isinstance(lang, basestring):
+        if isinstance(lang, str):
             lang = LanguageModel(lang)
         if not lang or lang == self._target_lang:
             return
@@ -109,9 +108,9 @@ class LanguageController(BaseController):
     target_lang = property(_get_target_lang, _set_target_lang)
 
     def set_language_pair(self, srclang, tgtlang):
-        if isinstance(srclang, basestring):
+        if isinstance(srclang, str):
             srclang = LanguageModel(srclang)
-        if isinstance(tgtlang, basestring):
+        if isinstance(tgtlang, str):
             tgtlang = LanguageModel(tgtlang)
 
         pair = (srclang, tgtlang)
