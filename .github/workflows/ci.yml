@@ -129,6 +129,12 @@ jobs:
         # that apt provides directly on the Linux job but Homebrew splits
         # into separate formulae.
         run: |
+          # GitHub's macos-latest image comes with aws/tap pre-tapped but
+          # untrusted, which prints an "untrusted tap" warning on every
+          # `brew install` even though we never use it - untap it (not
+          # HOMEBREW_NO_REQUIRE_TAP_TRUST, which Homebrew's own message
+          # says is being removed) since nothing here needs it.
+          brew untap aws/tap || true
           brew install pygobject3 gtk+3 gtk-mac-integration \
             gobject-introspection cairo pkg-config gettext \
             enchant gtkspell3
