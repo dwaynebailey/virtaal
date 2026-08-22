@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +27,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             gir1.2-gtk-3.0 at-spi2-core gobject-introspection \
-            libgirepository1.0-dev libglib2.0-dev libcairo2-dev \
+            libgirepository-2.0-dev libglib2.0-dev libcairo2-dev \
             pkg-config python3-dev intltool libgnutls28-dev xvfb
 
       - name: Install Python dependencies
@@ -46,10 +46,7 @@ jobs:
           pip install lxml
           pip install pycurl
           pip install diff_match_patch
-          # PyGObject >=3.52 requires girepository-2.0, which ubuntu-22.04's
-          # libgirepository1.0-dev doesn't provide (only girepository-1.0,
-          # via gobject-introspection-1.0.pc) - pin below that.
-          pip install "pygobject<3.52"
+          pip install pygobject
           pip install cheroot
           pip install pytest
 
