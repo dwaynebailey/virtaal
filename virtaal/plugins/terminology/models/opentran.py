@@ -184,7 +184,7 @@ class TerminologyModel(BaseTerminologyModel):
         if not unit:
             return
         query_str = unit.source
-        if not self.cache.has_key(query_str):
+        if query_str not in self.cache:
             self.cache[query_str] = None
             logging.debug('Query string: %s (target lang: %s)' % (query_str, self.opentranclient.target_lang))
             self.opentranclient.translate_unit(query_str, lambda *args: self.add_last_suggestions(self.opentranclient))

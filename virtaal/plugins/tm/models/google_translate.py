@@ -91,7 +91,7 @@ class TMModel(BaseTMModel):
             logging.debug('language pair not supported: %s => %s' % (source_lang, target_lang))
             return
 
-        if self.cache.has_key(query_str):
+        if query_str in self.cache:
             self.emit('match-found', query_str, self.cache[query_str])
         else:
             real_url = self.translate_url % {
