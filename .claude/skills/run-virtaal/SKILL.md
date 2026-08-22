@@ -25,6 +25,11 @@ integration (`GtkosxApplication-1.0` typelib). Without it Virtaal still
 runs fine, just with an in-window GTK menu bar instead of the native
 top-of-screen one.
 
+Optional: `brew install enchant gtkspell3` for spell checking. Without
+them the spellchecker plugin fails to load (safe to ignore for
+smoke-testing that doesn't touch spelling) but `driver.sh setup` alone
+can't fix it — these are system libraries, not a PyPI package.
+
 ## Setup (run once)
 
 ```bash
@@ -36,7 +41,11 @@ the Homebrew GTK3/PyGObject bindings — a plain `venv` without that flag
 can't see `gi` at all) and installs the PyPI deps `bin/virtaal` needs
 that aren't vendored: `translate-toolkit`, `pycurl`,
 `diff-match-patch`, `cheroot` (the WSGI server the vendored local
-`tmserver` — `virtaal/support/tmserver.py` — runs on).
+`tmserver` — `virtaal/support/tmserver.py` — runs on), `pyenchant`
+(the Python binding for spell checking — needs the `enchant` and
+`gtkspell3` Homebrew formulae from Prerequisites above to actually do
+anything; `pip install pyenchant` alone gets you an importable module
+that still can't spell-check).
 
 ## Run (agent path)
 
@@ -90,18 +99,29 @@ prerequisites as above.
   traceback almost always means `sys.exit(1)` from that same
   dependency checker** — check `driver.sh log` for `DEPENDENCY ERRORS`
   before assuming a crash.
-- **Startup prints a non-fatal `ERROR:root:` traceback that's safe to
-  ignore** for smoke-testing: `Failed to load plugin "spellchecker"`
-  (needs `enchant`, not installed). Doesn't stop the window from
-  opening. Two other errors used to be in this list too, both since
-  fixed: `Failed to load plugin "migration"` was a masked `ImportError`
-  (removed `translate.storage.tmdb`), fixed in `d2756bae`/`d6901285`;
-  `Couldn't find OSX_Leopard_theme` was dead GTK2 rc-theme-loading code
-  that never did anything on GTK3, removed entirely along with the
-  GTK2-only `gtk_osxapplication` menu-bar integration it sat next to —
-  replaced with GTK3's `GtkosxApplication` (native macOS menu bar) and
-  actual system dark/light detection. If you see either again, that's
-  a regression, not expected noise.
+- **`Failed to load plugin "spellchecker"` is non-fatal but no longer
+  expected once `enchant`/`gtkspell3` (Homebrew) and `pyenchant`
+  (`driver.sh setup`) are all present** — with all three, the plugin
+  loads cleanly (verified: the error disappears, `import enchant` and
+  `GtkSpell 3.0` both work standalone with real dictionaries). If you
+  still see it, check which of the three is missing rather than
+  assuming it's expected noise. Two other errors used to be in this
+  list too, both since fixed: `Failed to load plugin "migration"` was
+  a masked `ImportError` (removed `translate.storage.tmdb`), fixed in
+  `d2756bae`/`d6901285`; `Couldn't find OSX_Leopard_theme` was dead
+  GTK2 rc-theme-loading code that never did anything on GTK3, removed
+  entirely along with the GTK2-only `gtk_osxapplication` menu-bar
+  integration it sat next to — replaced with GTK3's
+  `GtkosxApplication` (native macOS menu bar) and actual system
+  dark/light detection. If you see either again, that's a regression,
+  not expected noise.
+- **Two new harmless `WARNING` (not `ERROR`) lines appear at startup
+  once the spellchecker plugin loads:** `iso_639.xml`/`iso_3166.xml:
+  Failed to open file "/usr/share/xml/iso-codes/..."`. That's GtkSpell
+  or enchant trying to look up translated language/country display
+  names from the freedesktop `iso-codes` package, which doesn't exist
+  on macOS/Homebrew. Cosmetic only — doesn't affect spell-checking
+  itself.
 - **Native macOS menu-bar integration needs `gtk-mac-integration`**
   (`brew install gtk-mac-integration`) for its `GtkosxApplication-1.0`
   typelib. Without it, Virtaal falls back to an in-window GTK menu bar

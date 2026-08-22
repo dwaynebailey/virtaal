@@ -19,6 +19,7 @@ setup() {
   "$VENV/bin/python3" -c "import pycurl" 2>/dev/null || "$VENV/bin/pip" install pycurl
   "$VENV/bin/python3" -c "import diff_match_patch" 2>/dev/null || "$VENV/bin/pip" install diff-match-patch
   "$VENV/bin/python3" -c "import cheroot" 2>/dev/null || "$VENV/bin/pip" install cheroot
+  "$VENV/bin/python3" -c "import enchant" 2>/dev/null || "$VENV/bin/pip" install pyenchant
 }
 
 launch() {
