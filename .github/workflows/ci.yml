@@ -53,7 +53,16 @@ jobs:
         run: make docs
 
       - name: Install virtaal
-        run: python setup.py install
+        # Not `python setup.py install`: setup.py's first import is
+        # `from distutils.core import ...`, which is gone from the stdlib
+        # entirely on Python 3.12+, and invoking it directly (rather than
+        # through pip) is also unreliable about where it puts the script.
+        # pip loads setuptools first, which shims distutils back in before
+        # setup.py runs; --no-build-isolation so setup.py's own top-level
+        # `from translate.storage import factory` (and its dependency
+        # check) see the translate-toolkit etc. installed above, same as
+        # this ran in-process under the old invocation.
+        run: pip install --no-build-isolation .
 
       - name: Compile-check all Python files
         run: find -name \*py -exec python -m py_compile {} +
