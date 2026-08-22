@@ -19,4 +19,3 @@ Remember that the suggestions from the Moses plugin are unreviewed
 machine-generated translations, that could be wrong, inaccurate, or flawed in
 some other way. It is meant as a way to help you increase your productivity,
 not to substitute the expertise of a human translator.
-

@@ -63,7 +63,7 @@ doing :doc:`spell checking <spell_checking>`.
 For Windows, Virtaal will download a spell checker for active languages. If
 this is not working for your language, let us know about available spell
 checkers and their quality and license for the developers to consider providing
-to Virtaal users. 
+to Virtaal users.
 
 .. _localising_virtaal#autocorrect:
 

@@ -73,5 +73,5 @@ hdiutil detach $tmp
 # Make final DMG
 rm -rf $tmp
 rm -f $dmg_file
-hdiutil convert $raw_dmg_file -format UDZO -imagekey zlib-level=9 -o $dmg_file 
+hdiutil convert $raw_dmg_file -format UDZO -imagekey zlib-level=9 -o $dmg_file
 rm -f $raw_dmg_file

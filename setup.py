@@ -93,12 +93,12 @@ if os.name == 'nt' or sys.platform == 'darwin':
         app, lang = lang.rstrip().split('/')
         po_filename = path.join('po', 'lite', app, lang+'.po')
         mo_filename = path.join('mo', lang, app+'.mo')
-    
+
         if not path.exists(path.join('mo', lang)):
             os.makedirs(path.join('mo', lang))
-    
+
         convertmo(open(po_filename), open(mo_filename, 'w'), None)
-    
+
         mo_files.append(
             ( path.join(TARGET_DATA_DIR, 'locale', lang, 'LC_MESSAGES'), [mo_filename])
         )

@@ -150,4 +150,3 @@ for _arg in sys.argv:
 from virtaal.main import Virtaal
 prog = Virtaal(None)
 prog.run()
-

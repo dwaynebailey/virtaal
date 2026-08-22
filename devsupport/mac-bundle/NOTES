@@ -1,6 +1,6 @@
 Building
 --------
-# Setup jhbuild 
+# Setup jhbuild
 # Your .jhbuild-custom should contain the following
 setup_sdk(target="10.5", sdk_version="10.5", architectures=["i386"]) # Make sure there is only one of these.  Some compiles with two archs can't happen
 build_policy = "updated-deps"

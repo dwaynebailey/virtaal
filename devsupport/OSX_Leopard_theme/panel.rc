@@ -8,7 +8,7 @@ style "panelbg"
 #bg_pixmap[SELECTED]					= "Panel/panel-bg.png"
 #bg_pixmap[INSENSITIVE]					= "Panel/panel-bg.png"
 #bg_pixmap[PRELIGHT]					= "Panel/panel-bg.png"
- 
+
 
 
 }
@@ -26,8 +26,8 @@ style "panelbg2"
 
 style "panel"
 {
-	bg[NORMAL] 			= "#C1C1C0" 
-	fg[NORMAL] 			= "#000000" 
+	bg[NORMAL] 			= "#C1C1C0"
+	fg[NORMAL] 			= "#000000"
 	fg[PRELIGHT] 			= "#ffffff"
 	fg[ACTIVE] 			= "#ffffff"
 	fg[SELECTED] 			= "#ffffff"
@@ -59,7 +59,7 @@ style "my_color"
 			border	= { 2, 2, 2, 2 }
 			stretch	= TRUE
     	}
-    	
+
     	# Menubar item (selected item)
 		image
 		{
@@ -90,14 +90,14 @@ style "panelbuttons" = "default"
   fg[ACTIVE]        = "#333333" # text on unfocused tabs
   fg[SELECTED]      = "#000000" # selected text on lists
   fg[INSENSITIVE]   = "#333333" # greyed "unused" text
- 
+
  xthickness            			= 2
  ythickness            			= 1
 
 	GtkWidget::focus_padding = 0
 
 	engine "pixmap" {
-      
+
 		image
 		{
 			function        			= BOX
@@ -107,7 +107,7 @@ style "panelbuttons" = "default"
 			border          			= { 4, 4, 4, 4 }
 			stretch         				= TRUE
 		}
-		
+
 image
 		{
 			function        			= BOX
@@ -131,7 +131,7 @@ image
 			#overlay_border	= { 4, 4, 4, 4 }
 			#overlay_stretch	= TRUE
 		}
-		
+
 		image
 		{
 			function        			= BOX
@@ -145,7 +145,7 @@ image
 			#overlay_border	= { 4, 4, 4, 4 }
 			#overlay_stretch	= TRUE
 		}
-		
+
 		image
 		{
 			function        			= BOX
@@ -154,7 +154,7 @@ image
 			file            						= "Panel/panelbutton3.png"
 			border          			= { 4, 4, 4, 4 }
 			stretch         				= TRUE
-		}  
+		}
 image
 		{
 			function        			= BOX
@@ -163,12 +163,10 @@ image
 			file            						= "Panel/panelbutton2.png"
 			border          			= { 4, 4, 4, 4 }
 			stretch         				= TRUE
-		}  
+		}
 
 	}
 
 }
 widget_class "*Panel*GtkToggleButton" style "panelbuttons"
 widget_class "*Panel*GtkButton" style "panelbuttons"
-
-

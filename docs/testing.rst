@@ -58,4 +58,3 @@ External Links
 ==============
 - Some discussions on Dogtail:
   http://lists.freedesktop.org/archives/ldtp-dev/2006-October/000484.html
-

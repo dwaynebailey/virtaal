@@ -72,7 +72,7 @@
     </dependencies>
   </distutils>
 
-  <repository type="svn" name="abisource/enchant" 
+  <repository type="svn" name="abisource/enchant"
               href="http://svn.abisource.com/" />
    <autotools id="enchant" >
      <!-- No version. Doesn't seem to have been touched in a while. -->

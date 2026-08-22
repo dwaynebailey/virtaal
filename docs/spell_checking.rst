@@ -37,4 +37,3 @@ On Linux systems, you need to have the following packages installed:
 - pygtkspell (might be packaged as gnome-python-extras or something similar)
 - Spell checkers for the languages that you are interested in (all checkers
   supported by your enchant installation should be usable)
-

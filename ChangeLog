@@ -35,7 +35,7 @@
 	  changed the behavior of the select_mode_by_name() method to
 	  search on a mode's mode_name and not
 	  user_name.
-	  
+
 	  Before this change calling select_mode_by_name() with a
 	  hard-coded mode_name would result in an
 	  unknown mode if the mode_name and user_name is not the same (eg.
@@ -85,7 +85,7 @@
 
 	* virtaal/main_window.py: Added handling of sys.stdout and
 	  sys.stderr on windows systems to avoid error dialog.
-	  
+
 	  This fixes bug 543.
 
 2008-10-14 13:52  walter_l
@@ -94,7 +94,7 @@
 	  "~/.locamotion" to a more platform-appropriate
 	  "~/.virtaal" (or "C:\Documents and Settings\User\Application
 	  Data\Virtaal").
-	  
+
 	  This fixes bug 535.
 
 2008-10-14 13:32  friedelwolff
@@ -154,7 +154,7 @@
 
 	* setup.py: Create .mo files for each of po/*.po, before being
 	  added as data files.
-	  
+
 	  This fixes bug 544.
 
 2008-10-09 14:12  walter_l
@@ -164,7 +164,7 @@
 	  by UnitGrid.on_configure_event(). From a comment in the method:
 	  "# Horrible hack."
 	  Maybe so, but it works.
-	  
+
 	  This fixes bug 546.
 
 2008-10-09 13:39  walter_l
@@ -616,7 +616,7 @@
 	  observed. This has been fixed by having Cursor objects use the
 	  default index
 	  of 0 if the given index is beyond the range of its data set.
-	  
+
 	  Search mode also handles the cursor itself (in stead of calling
 	  document.refresh_cursor()), because it turns out that the Search
 	  mode (which
@@ -643,7 +643,7 @@
 
 	* virtaal/autocompletor.py: Massively improve the interaction with
 	  undo code.
-	  
+
 	  A suggestion should never go into the undo buffer, but accepting
 	  a suggestion should.
 
@@ -1047,7 +1047,7 @@
 	* virtaal/main_window.py, virtaal/mode_selector.py,
 	  virtaal/modes.py, virtaal/search_mode.py: Added keyboard shortcut
 	  (F3) for Search.
-	  
+
 	  WARNING: Ugly hack used to give focus to the search entry.
 
 2008-09-11 14:15  walter_l
@@ -1082,7 +1082,7 @@
 
 	* virtaal/document.py, virtaal/modes.py, virtaal/store_grid.py:
 	  Basic searching works!
-	  
+
 	  - Modes' refresh() method now takes a Document instance in stead
 	  of Document.stats
 	  - Searching is done by iterating through document.store.units;
@@ -1298,7 +1298,7 @@
 	  asking the user such a question. Virtaal will later include
 	  functionality
 	  to allow the user to change the target langauge.
-	  
+
 	  So now we only ask for the target language if it cannot be
 	  determined from
 	  the environment.
@@ -1314,7 +1314,7 @@
 	  into match_store. get_suggestion_stores will yield only
 	  match_store, if
 	  it is None.
-	  
+
 	  Also replaced the memoization with an explicit match dictionary
 	  (which
 	  maps language codes to terminology matchers).
@@ -1322,12 +1322,12 @@
 2008-07-28 16:13  winterstream
 
 	* run_virtaal.py, virtaal/terminology.py: Two things:
-	  
+
 	  1. If we set the terminology directory config option before the
 	  config file is read, it will be overwritten. This was changed in
 	  run_virtaal.py so that the terminology directory is only set
 	  after the config file has been read.
-	  
+
 	  2. The terminology matcher already has support for building a
 	  matcher from multiple files. So we don't need to build such a
 	  file; we only need to pass it a list of stores and it will do
@@ -1407,7 +1407,7 @@
 	  virtaal/unit_grid.py, virtaal/unit_renderer.py: Removed the
 	  unused profile code which was a hangover from the
 	  start of the project.
-	  
+
 	  Refactored document.py, since it was quite messy. Also did a
 	  bit of cosmetic work.
 
@@ -1671,7 +1671,7 @@
 
 	* virtaal/unit_layout.py, virtaal/unit_model.py,
 	  virtaal/widgets/util.py: Cosmetic change.
-	  
+
 	  Moved utility functions to widgets/util.py. Started adding
 	  __all__ module members so that only public members will be
 	  exposed.
@@ -1704,7 +1704,7 @@
 	* run_virtaal.py, virtaal/main_window.py: More cosmetic changes.
 	  Moved file system path related code
 	  to main_window.py.
-	  
+
 	  Let cProfile invoke runcall.
 
 2008-07-23 16:25  winterstream
@@ -1738,9 +1738,9 @@
 
 	* virtaal/unit_editor.py: Removed more of unwanted magic. Hopefully
 	  the code will be less of a pain to maintain.
-	  
+
 	  Conflicts:
-	  
+
 	  virtaal/unit_editor.py
 
 2008-07-23 10:49  winterstream
@@ -1749,7 +1749,7 @@
 	  make_widget at the top level, we need to pass
 	  parent.document.nplurals
 	  and not parent!
-	  
+
 	  Also, there is no reason to check for 'Plural-Forms' in the
 	  header before proceeding
 	  to get the plurals data. If there is no 'Plural-Forms'
@@ -1794,12 +1794,12 @@
 
 	* virtaal/unit_editor.py, virtaal/unit_grid.py,
 	  virtaal/unit_renderer.py: Cosmetic commit.
-	  
+
 	  Did one of three things:
 	  1. Prefixed private members with _
 	  2. Removed dead code
 	  3. Removed unused imports
-	  
+
 	  Also swapped two function names for keyboard
 	  handlers. Although this didn't cause any damage,
 	  it was confusing.
@@ -1828,25 +1828,25 @@
 
 	* virtaal/unit_editor.py, virtaal/unit_renderer.py: Got rid of the
 	  horrible height calculation code.
-	  
+
 	  Before, VirTaal computed the heights of the various widgets in
 	  the
 	  editing area so that it could set the editing area to the correct
 	  size.
-	  
+
 	  It turns out that one only needs to compute the and set the
 	  heights of the text boxes, since they have no way of knowing that
 	  one might want to display all the text in them.
-	  
+
 	  Then one simply calls size_request() on the top-most editing
 	  widget
 	  and presto! the correct height for the editing widget is
 	  computed.
-	  
+
 	  To set the heights of the widgets, we use the generic method
 	  system. We only bother setting heights on text boxes and comment
 	  labels.
-	  
+
 	  Also, please note that the code for creating editor widgets has
 	  been factored out into get_editor.
 
@@ -1878,7 +1878,7 @@
 	* gui_tests/test_open_and_close.py: The pot file which serves as
 	  input to the test is no
 	  longer generated by the strip_translations function.
-	  
+
 	  It's just directly specified now.
 
 2008-05-20 15:19  winterstream
@@ -1913,7 +1913,7 @@
 	  there is now a config option, which takes the filename of a
 	  config file
 	  to load.
-	  
+
 	  The open_and_close test generates an ini file before it runs so
 	  that
 	  it will correctly demand all the user details before saving the
@@ -1926,7 +1926,7 @@
 	  gui_tests/test_open_and_close.py: Moved open_and_close_file.py to
 	  test_open_and_close so that
 	  py.test will execute the tests within the file.
-	  
+
 	  Also added code to ensure that the working directory of the
 	  test is the directory in which it resides.
 
@@ -1934,7 +1934,7 @@
 
 	* gui_tests/open_and_close_file.py, virtaal/pan_app.py: Completed
 	  first dogtail GUI test and fixed a bug.
-	  
+
 	  Fixed a bug in the config options where no_config would
 	  fail because config sections were not added during config
 	  object creation.
@@ -1953,7 +1953,7 @@
 2008-05-16 15:23  winterstream
 
 	* setup.py: Just one or two cosmetic changes.
-	  
+
 	  I mostly actually want to test whether I can successfully push
 	  my git branch changes into an SVN branch and then later on I want
 	  to cherry pick changes from
@@ -1964,7 +1964,7 @@
 	* ., run_virtaal.py, virtaal/formats.py, virtaal/main_window.py,
 	  virtaal/pan_app.py, virtaal/unit_editor.py, virtaal/unit_grid.py,
 	  virtaal/unit_layout.py: Completely cosmetic.
-	  
+
 	  Mostly marked unused parameters by prepending them with
 	  underscores.
 
@@ -2004,7 +2004,7 @@
 2008-05-14 17:05  winterstream
 
 	* ., virtaal/unit_grid.py, virtaal/unit_layout.py: Fixed two bugs.
-	  
+
 	  1. After a resize, we run set_cursor on the UnitGrid to make sure
 	  that the edit widget is redrawn
 	  (and thus properly redrawn). We just use the path given by
@@ -2012,11 +2012,11 @@
 	  to redraw. Sometimes however, get_cursor returns None. So we just
 	  don't call set_cursor when
 	  we have a None path.
-	  
+
 	  2. Changes to the fuzzy status of an editing unit did not update
 	  the corresponding translation unit
 	  in the unit store.
-	  
+
 	  This is fixed. However, I really think it would be a good idea to
 	  start looking into something
 	  like pygtkmvc so that my brain damagedness can limit the brain
@@ -2025,7 +2025,7 @@
 2008-05-08 11:38  winterstream
 
 	* ., virtaal/main_window.py, virtaal/unit_grid.py: Fixed bug #389.
-	  
+
 	  Instead of attaching the CTRL-up and CTRL-down accelerators to
 	  the accelerator
 	  group of the Virtaal object (which is the top-level object of the
@@ -2033,7 +2033,7 @@
 	  an accelerator group is created for a UnitGrid. This group is
 	  then added to the
 	  main window in VirTaal.
-	  
+
 	  This group is deleted when the UnitGrid is destroyed. It seems
 	  necessary to invoke
 	  the destroy method explicitly for any GTK object removed from a
@@ -2045,7 +2045,7 @@
 	  virtaal.png: Fixed non-working win32 code in setup.py. Also fixed
 	  InnoSetup so that it will
 	  find the right things in the right places.
-	  
+
 	  Moved the icons to the data directory.
 
 2008-05-08 10:36  winterstream
@@ -2299,19 +2299,19 @@
 	  virtaal/unit_renderer.py: Followed Friedel's suggestion that the
 	  editor widget only be created once
 	  for every translation unit.
-	  
+
 	  Once created, (in unit_renderer.py:do_start_editing), the editor
 	  widget
 	  is cached under the private variable __editor of its
 	  corresponding
 	  translation unit.
-	  
+
 	  The next time do_start_editing is called, we simply re-use the
 	  widget
 	  in __editor and just reset the heights of its sub-widgets so that
 	  it
 	  will display correctly.
-	  
+
 	  In order to enumerate the sub-widgets to set their sizes, it was
 	  necessary
 	  for each layout object to keep references to its children and so
@@ -2418,14 +2418,14 @@
 	  a big commit. The changes are (mostly) interdependent, but can be
 	  described
 	  individually.
-	  
+
 	  1. Split the cursor functionality in
 	  virtaal.support.set_enumerator into its own
 	  class. The motivation is that it makes the code easier to
 	  understand; as a nice
 	  side effect, numerous cursors into a single UnionSetEnumerator
 	  can now be held.
-	  
+
 	  2. Added a mode box to the status bar. This required a minor
 	  change in virtaal.glade.
 	  It also necessitated the addition of a widget called ModeBox.
@@ -2436,7 +2436,7 @@
 	  2.1. Added mode switching code to virtaal.document. This code
 	  works along with the
 	  code described above.
-	  
+
 	  3. Various convenience methods added to virtaal.unit_grid; these
 	  make it less
 	  confusing to switch between the treeview paths and translation
@@ -2454,7 +2454,7 @@
 	  clicked around
 	  in the window to move from one translation unit to the next. This
 	  should be fixed now.
-	  
+
 	  The nagivation code was made tighter and unused code in the
 	  TreeView was removed.
 
@@ -2463,7 +2463,7 @@
 	* ., virtaal/unit_grid.py: Just a bit of code movement and a slight
 	  change in how _activate_editing_path
 	  obtains the current and next indices for scrolling.
-	  
+
 	  I just realized that one needs to be able to tell the model that
 	  we're switching
 	  the current index; this happens when the user clicks on another
@@ -2506,7 +2506,7 @@
 	  virtaal/widgets/entry_dialog.py: Renamed some files to follow the
 	  Python naming convention. In doing so
 	  it was necessary to update imports in files.
-	  
+
 	  Also move EntryDialog to the widgets package.
 
 2008-04-30 14:19  winterstream
@@ -2524,7 +2524,7 @@
 	  virtaal/support, virtaal/support/__init__.py,
 	  virtaal/support/set_enumerator.py, virtaal/support/sorted_set.py,
 	  virtaal/unitgrid.py: Fairly big changes to the mode system.
-	  
+
 	  We want to be able to use the toolkit's stats system to determine
 	  which translation units should be editable in the various modes
 	  that are envisaged for VirTaal. For example, during Quick
@@ -2535,7 +2535,7 @@
 	  translation
 	  stats system to tell us which of the units fall into this
 	  category.
-	  
+
 	  The toolkit's stat system returns arrays of indices into a
 	  translation
 	  unit store. In fact, it returns a dictionary with arrays, where
@@ -2545,7 +2545,7 @@
 	  the units which they point to. For example, we might have
 	  ("fuzzy", [1, 2, 3]) in the dictionary, which indicates that
 	  units at indices 1, 2 and 3 are fuzzy.
-	  
+
 	  Sometimes we want to be able to look at composite properties;
 	  thus, we
 	  are interested in two or more arrays at one time. For this
@@ -2554,7 +2554,7 @@
 	  SortedSets and updates itself whenever one of its sub-SortedSets
 	  is
 	  updated (via the GObject signal mechanism).
-	  
+
 	  Each mode is currently an extension of the UnionSetEnumerator.
 	  The methods
 	  next() and prev() should be used by the keyboard navigation
@@ -2566,7 +2566,7 @@
 	* ., virtaal/MainWindow.py, virtaal/document.py, virtaal/modes.py,
 	  virtaal/unitgrid.py: This contains the first bit of code which
 	  implements the mode mechanism.
-	  
+
 	  Currently, a mode object simply provides an iterator over all
 	  unit store
 	  indices which satisfy certian criteria. For example, objects of
@@ -2579,7 +2579,7 @@
 
 	* ., virtaal/MainWindow.py, virtaal/unitgrid.py,
 	  virtaal/unitrenderer.py: Removal of old code.
-	  
+
 	  Removed the modified flag. This is not currently handled. It
 	  should be stored in
 	  the Document class.
@@ -2595,7 +2595,7 @@
 	  virtaal/unitgrid.py, virtaal/unitrenderer.py: Factored out code
 	  which is related to a currently edited document but which is
 	  independent of GUI toolkit specifics.
-	  
+
 	  Thus, a new class called Document was created.
 
 2008-04-30 14:03  friedelwolff
@@ -2720,7 +2720,7 @@
 	  on the last editing unit, the editing unit would disappear and
 	  the strange
 	  behaviour would ensue.
-	  
+
 	  This is now fixed. When the user is on the last editing unit and
 	  he advances,
 	  nothing will happen.
@@ -2741,11 +2741,11 @@
 	  unless one is in the last text box, in which case it advances to
 	  the next translation
 	  unit.
-	  
+
 	  The cursor is now also placed at a sensible editing positiong
 	  when advancing to a text
 	  box.
-	  
+
 	  Finally, the fuzzy checkbox gained a keyboard shortcut.
 
 2008-04-23 09:37  winterstream
@@ -2810,7 +2810,7 @@
 	  boxes to store results when they are modified (this was broken by
 	  the
 	  previous few commits).
-	  
+
 	  Also added a partial function application module to ease some of
 	  the GUI programming.
 
@@ -2819,7 +2819,7 @@
 	* ., virtaal/unit_editor.py, virtaal/unit_layout.py,
 	  virtaal/unitrenderer.py: Moved geometry calculation code to
 	  unit_editor.py.
-	  
+
 	  The reasoning is that this code is intimitely linked with GTK
 	  implementation details.
 	  Thus, it should reside where all this code resides.
@@ -2831,10 +2831,10 @@
 	  virtaal/unitrenderer.py: The layouts of translation unit editors
 	  are now specified by structures which are
 	  built when the translation units are loaded.
-	  
+
 	  The editor implements methods for structures which construct GTK
 	  objects.
-	  
+
 	  This is a work in progress and this commit will be followed by
 	  commits which will
 	  fix what is currently broken.
@@ -2870,7 +2870,7 @@
 
 	* ., virtaal/unit_editor.py, virtaal/unitrenderer.py: Accidentally
 	  broke the gtkspell functionality in the previous commit.
-	  
+
 	  This caused the editor not to be displayed. It should be fixed
 	  now.
 
@@ -2978,10 +2978,10 @@
 	* ., virtaal/Globals.py, virtaal/undo_buffer.py,
 	  virtaal/unitrenderer.py: Changed the undo system to use a bounded
 	  queue to bound the number of undos.
-	  
+
 	  The number of undo steps is also stored in the settings system of
 	  VirTaal.
-	  
+
 	  Also removed the weakref associations in unitrenderer.py. With
 	  Python, one
 	  can just add arbitrary properties to almost any object, so why
@@ -3071,7 +3071,7 @@
 	* ., virtaal/unitgrid.py, virtaal/unitrenderer.py: When the window
 	  was resized, then any changes in the current editor window would
 	  be lost.
-	  
+
 	  This has been fixed now.
 
 2008-04-14 10:22  friedelwolff
@@ -3205,4 +3205,3 @@
 2008-04-04 15:13  winterstream
 
 	* .: The initial checkin of virtaal.
-

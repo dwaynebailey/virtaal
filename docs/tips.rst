@@ -131,4 +131,3 @@ lookups. You can do that by adding open-tran.eu into your :wp:`hosts file
 
 If you don't know about hosts files and their syntax, it might be best not to
 play with this setting.
-

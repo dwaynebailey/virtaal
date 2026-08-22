@@ -31,7 +31,7 @@
     <!-- TODO these should be automatically generated from Translate Toolkit and the mimetypes files -->
     <key>CFBundleDocumentTypes</key>
     <array>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>tmx</string>
@@ -47,7 +47,7 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>tbx</string>
@@ -63,7 +63,7 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>txt</string>
@@ -81,7 +81,7 @@
             <key>LSHandlerRank</key>
             <string>Alternate</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>ts</string>
@@ -97,7 +97,7 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>qm</string>
@@ -113,7 +113,7 @@
             <key>CFBundleTypeRole</key>
             <string>Viewer</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>qph</string>
@@ -129,7 +129,7 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>sdf</string>
@@ -145,7 +145,7 @@
             <key>CFBundleTypeRole</key>
             <string>None</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>xlf</string>
@@ -162,7 +162,7 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>pot</string>
@@ -179,7 +179,7 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>po</string>
@@ -197,7 +197,7 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>mo</string>
@@ -215,7 +215,7 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>ttx</string>
@@ -231,7 +231,7 @@
             <key>CFBundleTypeRole</key>
             <string>None</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>utx</string>
@@ -247,7 +247,7 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
         </dict>
-        <dict> 
+        <dict>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>tab</string>
@@ -264,6 +264,6 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
         </dict>
-    </array> 
+    </array>
 </dict>
 </plist>

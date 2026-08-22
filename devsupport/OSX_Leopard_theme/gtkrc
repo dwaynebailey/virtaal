@@ -47,12 +47,12 @@ style "default"
 #	GtkSpinButton::shadow_type			 = GTK_SHADOW_NONE
 
 	GtkWidget::focus_padding = 2
-	
+
 	GtkScrolledWindow::shadow_type = GTK_SHADOW_OUT
 	GtkMenuBar::shadow_type = GTK_SHADOW_ETCHED_IN
 	GtkToolbar::shadow_type = GTK_SHADOW_OUT
 	GtkStatusbar::shadow_type = GTK_SHADOW_ETCHED_OUT
-	
+
 ################################################################################
 # DEFAULT COLORS FOR LISTINGS AND TREEVIEWS
 ################################################################################
@@ -68,7 +68,7 @@ style "default"
 
 	 #xthickness = 0
 	 #ythickness = 0
-	
+
 ################################################################################
 ################################################################################
 
@@ -117,7 +117,7 @@ GtkMenuBar::horizontal-padding = 0
 	bg[PRELIGHT]     = "#FFFFFF"
 	bg[SELECTED]     = "#4285c7"
 	bg[INSENSITIVE]  = "#f0f0f0"
-	
+
 	# Remove comment if you want striped background
 	#bg_pixmap[NORMAL] = "Toolbar/bg.png"
 
@@ -126,7 +126,7 @@ GtkMenuBar::horizontal-padding = 0
 	base[PRELIGHT]   = "#FFFFFF"
 	base[INSENSITIVE]= "#f0f0f0"
 	base[SELECTED]   = "#358cdb"
-	    
+
 	text[INSENSITIVE]= "#747474"
 	text[SELECTED]   = "#ffffff"
 	text[ACTIVE]     = "#000000"
@@ -136,16 +136,16 @@ GtkMenuBar::horizontal-padding = 0
 ################################################################################
 # NAUTILUS COLORS
 ################################################################################
-	
+
 	#A semi-transparent hi-light for files selected in Nautilus
 	NautilusIconContainer::highlight_alpha=120
 
 	#This sets the color used for the text under the icons in nautilus when they are not highlighted.
 	NautilusIconContainer::dark_info_color="#1D4393"
-	
+
 	#This is the color of the text under an icon in Nautilus when it is highlighted.
 	NautilusIconContainer::light_info_color="#ffffff"
-	
+
 	# What are these?
 	GnomeHRef::link_color  ="#2f2e31"
 	GtkIMHtmlr::hyperlink-color ="#2f2e31"
@@ -165,7 +165,7 @@ GtkMenuBar::horizontal-padding = 0
 		    overlay_stretch	= FALSE
 		    orientation		= HORIZONTAL
 	    }
-	    
+
 	    # Handle image for vertical handel
 	    image
 	    {
@@ -208,7 +208,7 @@ GtkMenuBar::horizontal-padding = 0
        function			= SHADOW
        shadow			= ETCHED_IN
        recolorable		= TRUE
-       file				= "Frame-Gap/frame1.png"				
+       file				= "Frame-Gap/frame1.png"
        #border			= { 2, 2, 2, 2 }
        border			= { 10, 10, 10, 10 }
        stretch			= TRUE
@@ -238,8 +238,8 @@ GtkMenuBar::horizontal-padding = 0
 
 ################################################################################
 # SEPARATOR LINES
-################################################################################    
-    
+################################################################################
+
     # Vertical spearator
     image
     {
@@ -249,7 +249,7 @@ GtkMenuBar::horizontal-padding = 0
 		border			= { 1, 1, 0, 0 }
 		stretch			= TRUE
     }
-    
+
     # Horizontal separator
     image
     {
@@ -271,7 +271,7 @@ GtkMenuBar::horizontal-padding = 0
 		file			= "Others/focus.png"
 		border			= { 6, 0, 6, 0 }
 		stretch			= TRUE
-    }	
+    }
 
 ################################################################################
 # ARROWS
@@ -287,7 +287,7 @@ GtkMenuBar::horizontal-padding = 0
       overlay_stretch	= FALSE
       arrow_direction	= UP
     }
-    
+
     # Down arrow
     image
     {
@@ -298,7 +298,7 @@ GtkMenuBar::horizontal-padding = 0
       overlay_stretch	= FALSE
       arrow_direction	= DOWN
     }
-    
+
     # Down arrow (mouse over)
     image
     {
@@ -310,7 +310,7 @@ GtkMenuBar::horizontal-padding = 0
       overlay_stretch	= FALSE
       arrow_direction	= DOWN
     }
-    
+
     # Left arrow
     image
     {
@@ -321,7 +321,7 @@ GtkMenuBar::horizontal-padding = 0
       overlay_stretch	= FALSE
       arrow_direction	= LEFT
     }
-    
+
     # Right arrow
     image
     {
@@ -332,7 +332,7 @@ GtkMenuBar::horizontal-padding = 0
       overlay_stretch	= FALSE
       arrow_direction	= RIGHT
     }
-    
+
 
  	}
 }
@@ -366,7 +366,7 @@ style "button" = "default"
 		    border				= { 10,10,10,10 }
 		    stretch				= TRUE
 		}
-		
+
 		# Button (mouse over)
 		image
 		{
@@ -377,7 +377,7 @@ style "button" = "default"
 		    border				= { 10,10,10,10 }
 		    stretch				= TRUE
 		}
-		
+
 		# Button (pressed)
 		image
 		{
@@ -386,10 +386,10 @@ style "button" = "default"
 		    file				= "Buttons/button-pressed.png"
 		    border				= { 10,10,10,10 }
 		    stretch				= TRUE
-		}	
-		
+		}
+
 		# Button (disabled = user can't click)
-		image 
+		image
 		{
 		    function			= BOX
 		    state				= INSENSITIVE
@@ -397,15 +397,15 @@ style "button" = "default"
 		    border				= { 10,10,10,10 }
 		    stretch				= TRUE
 		}
-		
+
 		# Button (normal)
-		image 
+		image
 		{
 		    function			= BOX
-		    file				= "Buttons/button-normal.png"		
+		    file				= "Buttons/button-normal.png"
 		    border				= { 10,10,10,10 }
 		    stretch				= TRUE
-		}	
+		}
 	}
 }
 
@@ -415,11 +415,11 @@ class "GtkButton" style "button"
 # RADIOBUTTONS AND CHECKBUTTONS HIGHLIGHT (what is this?)
 ################################################################################
 
-style "checkradiobutton" 
+style "checkradiobutton"
 {
-	engine "pixmap" 
+	engine "pixmap"
 	{
-		image 
+		image
 		{
 			function = FLAT_BOX
 			recolorable = TRUE
@@ -455,7 +455,7 @@ style "optionmenu" = "default"
 			border			= { 22, 22, 5, 5}
 			stretch			= TRUE
 	    }
-	    
+
 	    # Combobox
 	    image
 	    {
@@ -466,7 +466,7 @@ style "optionmenu" = "default"
 		    border			= { 22, 22, 5, 5}
 		    stretch			= TRUE
 	    }
-		
+
 		# Combobox (clicked)
 	  	image
 	    {
@@ -477,7 +477,7 @@ style "optionmenu" = "default"
 		    border			= { 22, 22, 5, 5}
 		    stretch			= TRUE
 	    }
-	    
+
 	    # Combobox (insensitive == disabled?)
 	 	image
 	    {
@@ -488,7 +488,7 @@ style "optionmenu" = "default"
 		    border			= { 22, 22, 5, 5}
 		    stretch			= TRUE
 	    }
-	    
+
 	    # Combobox arrow (insensitive)
 	    image
 	    {
@@ -498,8 +498,8 @@ style "optionmenu" = "default"
 		    overlay_file	= "Combo/combo-arrow-insens.png"
 		    overlay_stretch	= FALSE
 	    }
-	    
-	    # Combobox arrow 
+
+	    # Combobox arrow
 	    image
 	    {
 		    function		= TAB
@@ -509,7 +509,7 @@ style "optionmenu" = "default"
 		    overlay_border	= { 0, 0, 0, 0 }
 		    overlay_stretch	= FALSE
 	    }
-	    
+
 	    # Combobox arrow (mouse over)
 	  	image
 	    {
@@ -541,7 +541,7 @@ style "combo" = "default"
 			border			= { 5, 5, 5, 5}
 			stretch			= TRUE
 	    }
-	    
+
 	    # Combobox
 	    image
 	    {
@@ -552,7 +552,7 @@ style "combo" = "default"
 		    border			= { 5, 5, 5, 5}
 		    stretch			= TRUE
 	    }
-		
+
 		# Combobox (clicked)
 	  	image
 	    {
@@ -563,7 +563,7 @@ style "combo" = "default"
 		    border			= { 5, 5, 5, 5}
 		    stretch			= TRUE
 	    }
-	    
+
 	    # Combobox (insensitive == disabled?)
 	 	image
 	    {
@@ -574,7 +574,7 @@ style "combo" = "default"
 		    border			= { 5, 5, 5, 5}
 		    stretch			= TRUE
 	    }
-	    
+
 	    # Combobox arrow (insensitive)
 	    image
 	    {
@@ -584,8 +584,8 @@ style "combo" = "default"
 		    overlay_file	= "Combo/combo-arrow-insens.png"
 		    overlay_stretch	= FALSE
 	    }
-	    
-	    # Combobox arrow 
+
+	    # Combobox arrow
 	    image
 	    {
 		    function		= TAB
@@ -595,7 +595,7 @@ style "combo" = "default"
 		    overlay_border	= { 0, 0, 0, 0 }
 		    overlay_stretch	= FALSE
 	    }
-	    
+
 	    # Combobox arrow (mouse over)
 	  	image
 	    {
@@ -619,10 +619,10 @@ widget_class "*GtkCombo*" style "combo"
 
 style "radiobutton"	= "default"
 {
-	engine "pixmap" 
+	engine "pixmap"
     {
 		# Not selected
-        image 
+        image
 		{
         	function        = OPTION
             recolorable     = TRUE
@@ -631,9 +631,9 @@ style "radiobutton"	= "default"
             overlay_file    = "Check-Radio/option1.png"
             overlay_stretch = FALSE
         }
-		
+
 		# Not selected (mouse over)
- 		image 
+ 		image
 		{
             function        = OPTION
             recolorable     = TRUE
@@ -642,9 +642,9 @@ style "radiobutton"	= "default"
             overlay_file    = "Check-Radio/option3.png"
             overlay_stretch = FALSE
         }
-		
+
 		# Not selected
- 		image 
+ 		image
 		{
             function        = OPTION
             recolorable     = TRUE
@@ -653,9 +653,9 @@ style "radiobutton"	= "default"
             overlay_file    = "Check-Radio/option1.png"
             overlay_stretch = FALSE
         }
-		
+
 		# Insensitive
- 		image 
+ 		image
 		{
             function        = OPTION
             recolorable     = TRUE
@@ -666,7 +666,7 @@ style "radiobutton"	= "default"
         }
 
 		# Selected
-        image 
+        image
 		{
             function        = OPTION
             recolorable     = TRUE
@@ -675,9 +675,9 @@ style "radiobutton"	= "default"
             overlay_file    = "Check-Radio/option2.png"
             overlay_stretch = FALSE
         }
-		
+
 		# Selected (mouse over)
-  		image 
+  		image
 		{
             function        = OPTION
             recolorable     = TRUE
@@ -686,9 +686,9 @@ style "radiobutton"	= "default"
             overlay_file    = "Check-Radio/option4.png"
             overlay_stretch = FALSE
         }
-		
+
 		# Selected
- 		image 
+ 		image
 		{
             function        = OPTION
             recolorable     = TRUE
@@ -699,7 +699,7 @@ style "radiobutton"	= "default"
         }
 
 		# Insensitive
-     	image 
+     	image
 		{
             function        = OPTION
             recolorable     = TRUE
@@ -711,7 +711,7 @@ style "radiobutton"	= "default"
 
 		#Use this image to draw the highlight when a line with a radiobutton
 		#is moused over.
-		image 
+		image
 		{
         	function        = FLAT_BOX
             recolorable     = TRUE
@@ -730,10 +730,10 @@ style "checkbutton"	= "default"
 	#xthickness = 4
 	ythickness = 4
 
-	engine "pixmap" 
+	engine "pixmap"
     {
 		# Unchecked
-        image 
+        image
 		{
             function = CHECK
             recolorable = TRUE
@@ -742,9 +742,9 @@ style "checkbutton"	= "default"
             overlay_file = "Check-Radio/check1.png"
             overlay_stretch = FALSE
         }
-		
+
 		# Unchecked (mouse over)
-		image 
+		image
 		{
             function = CHECK
             recolorable = TRUE
@@ -753,9 +753,9 @@ style "checkbutton"	= "default"
             overlay_file = "Check-Radio/check3.png"
             overlay_stretch = FALSE
         }
-		
+
 		# Unchecked
-		image 
+		image
 		{
             function        = CHECK
             recolorable     = TRUE
@@ -764,9 +764,9 @@ style "checkbutton"	= "default"
             overlay_file    = "Check-Radio/check1.png"
             overlay_stretch = FALSE
         }
-		
-		# Unchecked 
- 		image 
+
+		# Unchecked
+ 		image
 		{
             function        = CHECK
             recolorable     = TRUE
@@ -777,7 +777,7 @@ style "checkbutton"	= "default"
         }
 
 		# Checked
-		image 
+		image
 		{
             function        = CHECK
             recolorable     = TRUE
@@ -786,9 +786,9 @@ style "checkbutton"	= "default"
             overlay_file    = "Check-Radio/check2.png"
             overlay_stretch = FALSE
         }
-		
+
 		# Checked (mouse over)
- 		image 
+ 		image
 		{
             function        = CHECK
             recolorable     = TRUE
@@ -797,9 +797,9 @@ style "checkbutton"	= "default"
             overlay_file    = "Check-Radio/check6.png"
             overlay_stretch = FALSE
         }
-	
+
 		# Checked
- 		image 
+ 		image
 		{
             function        = CHECK
             recolorable     = TRUE
@@ -810,7 +810,7 @@ style "checkbutton"	= "default"
         }
 
 		# Unchecked
-     	image 
+     	image
 		{
             function        = CHECK
             recolorable     = TRUE
@@ -822,7 +822,7 @@ style "checkbutton"	= "default"
 
 		#Use this image to draw the highlight when a line with a check box
 		#is moused over.
-		image 
+		image
 		{
           	function        = FLAT_BOX
             recolorable     = TRUE
@@ -843,7 +843,7 @@ style "entry" = "default"
 	xthickness = 3
 	ythickness = 3
 
-    engine "clearlooks" 
+    engine "clearlooks"
     	{
 		#colorize_scrollbar = TRUE
 		menubarstyle      = 2      # 0 = flat, 1 = sunken, 2 = flat gradient
@@ -862,7 +862,7 @@ style "spinbutton" = "entry"
 {
 	xthickness = 4
 	ythickness = 5
-    engine "clearlooks" 
+    engine "clearlooks"
     	{
 		colorize_scrollbar = TRUE
 		menubarstyle      = 2      # 0 = flat, 1 = sunken, 2 = flat gradient
@@ -889,21 +889,21 @@ style "scrollbar" = "default"
     GtkRange::trough_border = 0
     GtkRange::slider_width = 15
 
-    # This sets the size of the steppers (arrow buttons on the end of the scrollbar). 
-    # The image I am using is 15x15 pixels, and if I dont set this a one pixel line 
+    # This sets the size of the steppers (arrow buttons on the end of the scrollbar).
+    # The image I am using is 15x15 pixels, and if I dont set this a one pixel line
     # gets cut off of the top of the "up" stepper.
     GtkRange::stepper_size = 15
 
-    # Set a minimum length for the slider. Since I set the border on the slider 
-    # image to 15 pixels on either end of the slider I want the min length to be 
-    # at least 30 pixels to avoid an ugly slider when gtk wants to make it smaller 
+    # Set a minimum length for the slider. Since I set the border on the slider
+    # image to 15 pixels on either end of the slider I want the min length to be
+    # at least 30 pixels to avoid an ugly slider when gtk wants to make it smaller
     # than 30 pixels.
     GtkScrollbar::min_slider_length = 30
 
-	engine "pixmap" 
+	engine "pixmap"
 	{
 		# Horizontal slider background
-		image 
+		image
 		{
             function        = BOX
             recolorable     = TRUE
@@ -913,9 +913,9 @@ style "scrollbar" = "default"
             stretch         = TRUE
             orientation     = HORIZONTAL
         }
-	    
+
 	    # Vertical slider background
-	    image 
+	    image
 		{
             function        = BOX
             recolorable     = TRUE
@@ -927,7 +927,7 @@ style "scrollbar" = "default"
         }
 
 		# Normal horizontal slider
-	    image 
+	    image
 		{
 	        function        = SLIDER
 	        recolorable     = TRUE
@@ -937,9 +937,9 @@ style "scrollbar" = "default"
 	        stretch         = TRUE
 	        orientation     = HORIZONTAL
 	    }
-		
+
 		# Horizontal slider (active)
-		image 
+		image
 		{
 	        function        = SLIDER
 	        recolorable     = TRUE
@@ -951,9 +951,9 @@ style "scrollbar" = "default"
 		}
 
 		# Horizontal slider (mouse over)
-	    image 
+	    image
 		{
-	        function        = SLIDER 
+	        function        = SLIDER
 	        recolorable     = TRUE
 	        state           = PRELIGHT
 	        file            = "Scrollbars/slider-horiz-prelight.png"
@@ -961,11 +961,11 @@ style "scrollbar" = "default"
 	        stretch         = TRUE
 	        orientation     = HORIZONTAL
 	    }
-	    
+
 	    # Horizontal slider (Insesitive)
-		image 
+		image
 		{
-	        function        = SLIDER 
+	        function        = SLIDER
 	        recolorable     = TRUE
 	        state           = INSENSITIVE
 	        file            = "Scrollbars/slider-horiz.png"
@@ -975,7 +975,7 @@ style "scrollbar" = "default"
 	    }
 
 	    # Normal vertical slider
-	    image 
+	    image
 		{
 	        function        = SLIDER
 	        recolorable     = TRUE
@@ -985,9 +985,9 @@ style "scrollbar" = "default"
 	        stretch         = TRUE
 	        orientation     = VERTICAL
 		}
-		
+
 		# Vertical slider (Active)
-		image 
+		image
 		{
 	        function        = SLIDER
 	        recolorable     = TRUE
@@ -999,9 +999,9 @@ style "scrollbar" = "default"
 		}
 
 		# Vertical slider (mouse over)
-	    image 
+	    image
 		{
-	        function        = SLIDER 
+	        function        = SLIDER
 	        recolorable     = TRUE
 	        state           = PRELIGHT
 	        file            = "Scrollbars/slider-vert-prelight.png"
@@ -1009,11 +1009,11 @@ style "scrollbar" = "default"
 	        stretch         = TRUE
 	        orientation     = VERTICAL
 	    }
-	    
+
 	    # Vertical slider (Insesitive)
-		image 
+		image
 		{
-	        function        = SLIDER 
+	        function        = SLIDER
 	        recolorable     = TRUE
 	        state           = INSENSITIVE
 	        file            = "Scrollbars/slider-vert-prelight.png"
@@ -1027,7 +1027,7 @@ style "scrollbar" = "default"
 ################################################################################
 
 	# Up
-    image 
+    image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1037,7 +1037,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= UP
     }
- 	image 
+ 	image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1047,7 +1047,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= UP
     }
- image 
+ image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1057,7 +1057,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= UP
     }
- image 
+ image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1071,7 +1071,7 @@ style "scrollbar" = "default"
  ######### DOWN ############
 
 
-    image 
+    image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1081,7 +1081,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= DOWN
     }
- image 
+ image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1091,7 +1091,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= DOWN
     }
- image 
+ image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1101,7 +1101,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= DOWN
     }
- image 
+ image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1114,7 +1114,7 @@ style "scrollbar" = "default"
 
 ############ RIGHT ################
 
-    image 
+    image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1124,7 +1124,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= RIGHT
     }
- image 
+ image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1134,7 +1134,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= RIGHT
     }
- image 
+ image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1144,7 +1144,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= RIGHT
     }
- image 
+ image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1158,7 +1158,7 @@ style "scrollbar" = "default"
 ############### LEFT ###################
 
 
-    image 
+    image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1168,7 +1168,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= LEFT
     }
-  image 
+  image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1178,7 +1178,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= LEFT
     }
-  image 
+  image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1188,7 +1188,7 @@ style "scrollbar" = "default"
       stretch			= TRUE
       arrow_direction	= LEFT
     }
-  image 
+  image
     {
       function			= STEPPER
       recolorable		= TRUE
@@ -1211,10 +1211,10 @@ style "progressbar"	= "default"
 	GtkProgressBar::trough_border = 0
 	ythickness = 0
 	xthickness = 0
-  	engine "pixmap" 
+  	engine "pixmap"
   	{
   		# Horizontal progressbar background
-  		image 
+  		image
 		{
             function        = BOX
             recolorable     = TRUE
@@ -1226,7 +1226,7 @@ style "progressbar"	= "default"
         }
 
 		# Horizontal progressbar
-		image 
+		image
 		{
             function        = BOX
             recolorable     = TRUE
@@ -1259,7 +1259,7 @@ style "progressbar"	= "default"
             border          = { 2, 2, 2, 2}
             stretch         = TRUE
 		    orientation		= VERTICAL
-	    } 
+	    }
 	}
 }
 
@@ -1270,10 +1270,10 @@ style "progressbar"	= "default"
 style "range" = "default"
 {
 	ythickness = 6
-	
-  engine "pixmap" 
+
+  engine "pixmap"
   {
-    image 
+    image
     {
       function			= BOX
       recolorable		= TRUE
@@ -1282,8 +1282,8 @@ style "range" = "default"
       border			= { 10, 10, 1, 19 }
       stretch			= TRUE
       orientation		= HORIZONTAL
-    }	
-    image 
+    }
+    image
     {
       function			= BOX
       recolorable		= TRUE
@@ -1295,7 +1295,7 @@ style "range" = "default"
     }
 ############### the sliders ###############
 
-    image 
+    image
     {
       function			= SLIDER
       recolorable		= TRUE
@@ -1307,7 +1307,7 @@ style "range" = "default"
       overlay_stretch	= FALSE
       orientation		= HORIZONTAL
     }
-    image 
+    image
     {
       function			= SLIDER
       recolorable		= TRUE
@@ -1319,7 +1319,7 @@ style "range" = "default"
       overlay_stretch	= FALSE
       orientation		= HORIZONTAL
     }
-    image 
+    image
     {
       function			= SLIDER
       recolorable		= TRUE
@@ -1334,7 +1334,7 @@ style "range" = "default"
 
 ######################### VERTICAL ###########################
 
-    image 
+    image
     {
       function			= SLIDER
       recolorable		= TRUE
@@ -1346,7 +1346,7 @@ style "range" = "default"
       overlay_stretch	= FALSE
       orientation		= VERTICAL
     }
-    image 
+    image
     {
       function			= SLIDER
       recolorable		= TRUE
@@ -1358,7 +1358,7 @@ style "range" = "default"
       overlay_stretch	= FALSE
       orientation		= VERTICAL
     }
-    image 
+    image
     {
       function			= SLIDER
       recolorable		= TRUE
@@ -1427,7 +1427,7 @@ style "toolbuttons" = "default"
 
 	GtkWidget::focus_padding = 0
 
-	engine "pixmap" 
+	engine "pixmap"
 	{
 		# Toolbar button
 		image
@@ -1439,7 +1439,7 @@ style "toolbuttons" = "default"
 			border          	= { 5, 5, 5, 5 }
 			stretch         	= TRUE
 		}
-		
+
 		# Toolbar button (mouse over)
 		image
 		{
@@ -1471,8 +1471,8 @@ style "toolbuttons" = "default"
 			file            	= "Toolbar/toolbutton-pressed.png"
 			border          	= { 5, 5, 5, 5 }
 			stretch         	= TRUE
-		}  
-		
+		}
+
 		# Toolbar button (disabled)
 		image
 		{
@@ -1482,7 +1482,7 @@ style "toolbuttons" = "default"
 			file          		= "Toolbar/toolbutton-normal.png"
 			border        		= { 5, 5, 5, 5 }
 			stretch       		= TRUE
-		}  
+		}
 	}
 }
 
@@ -1495,7 +1495,7 @@ widget_class "*Tool*GtkButton" style "toolbuttons"
 ################################################################################
 # MENUBAR
 ################################################################################
-style "menubar"		
+style "menubar"
 {
 	fg[PRELIGHT] = "#000000"
 	fg[ACTIVE]   = "#000000"
@@ -1514,7 +1514,7 @@ style "menubar"
 			border	= { 2, 2, 2, 2 }
 			stretch	= TRUE
     	}
-    	
+
     	# Menubar item (selected item)
 		image
 		{
@@ -1559,7 +1559,7 @@ style "menu" = "default"
 	}
 }
 
-#widget_class "*Menu*" style "menu" 
+#widget_class "*Menu*" style "menu"
 
 class "GtkMenu" style "menu"
 
@@ -1583,16 +1583,16 @@ style "MenuItem"
 	{
 		# Menuitem background (mouse over)
 		image
-		{	
+		{
 		    function = BOX
 		    recolorable = TRUE
 		    file = "Menu-Menubar/menuitem.png"
 		    border = { 0, 0, 0, 0 }
 		    stretch = TRUE
 		}
-		
+
 		# Menu separator
-		image 
+		image
         {
         	function        = HLINE
 	 		recolorable     = TRUE
@@ -1600,7 +1600,7 @@ style "MenuItem"
 			border          = { 0, 0, 0, 0 }
 			stretch         = TRUE
       	}
-		
+
 		# Submenu arrow
 		image
 		{
@@ -1611,7 +1611,7 @@ style "MenuItem"
 		    overlay_stretch	= FALSE
 		    arrow_direction	= RIGHT
 		}
-		
+
 		# Submenu arrow (mouse over)
 		image
 		{
@@ -1642,8 +1642,8 @@ style "statusbar"		= "default"
 
 	xthickness = 8
 	ythickness = 2
-	
-	engine "pixmap" 
+
+	engine "pixmap"
 	{
 
 	#This does not seem to be working. It seems that you can tell gtk how
@@ -1656,7 +1656,7 @@ style "statusbar"		= "default"
 		#state			= NORMAL
 		detail		= "statusbar"
 		overlay_file	= "Handles/resize_grip.png"
-		
+
 		overlay_border	= {1,1,1,1 }
 		overlay_stretch	= FALSE
 	    }
@@ -1672,15 +1672,15 @@ style "statusbar"		= "default"
 
 style "notebook" = "default"
 {
-	# These thickness settings make sure that we see the whole thin blue 
+	# These thickness settings make sure that we see the whole thin blue
 	# line at the top of the notebook page.
 	xthickness = 9
 	ythickness = 2
-  
-	engine "pixmap" 
+
+	engine "pixmap"
     {
 		# Top tab (current)
-		image 
+		image
 		{
 			function = EXTENSION
 			state = NORMAL
@@ -1692,7 +1692,7 @@ style "notebook" = "default"
 		}
 
 		# Top tab (background)
-		image 
+		image
 		{
 			function = EXTENSION
 			state = ACTIVE
@@ -1701,9 +1701,9 @@ style "notebook" = "default"
 			border = { 9, 9, 9, 9 }
 			stretch = TRUE
 		}
-		
+
 		# Bottom tab (current)
-		image 
+		image
 		{
 			function = EXTENSION
 			state = NORMAL
@@ -1714,7 +1714,7 @@ style "notebook" = "default"
 		}
 
 		# Bottom tab (background)
-		image 
+		image
 		{
 			function = EXTENSION
 			state = ACTIVE
@@ -1723,9 +1723,9 @@ style "notebook" = "default"
 			border = {9, 9, 9, 9}
 			stretch = TRUE
 		}
-		
+
 		# Right tab (current)
-		image 
+		image
 		{
 			function = EXTENSION
 			state = NORMAL
@@ -1736,7 +1736,7 @@ style "notebook" = "default"
 		}
 
 		# Right tab (background)
-		image 
+		image
 		{
 			function = EXTENSION
 			state = ACTIVE
@@ -1747,7 +1747,7 @@ style "notebook" = "default"
 		}
 
 		# Left tab (current)
-		image 
+		image
 		{
 			function = EXTENSION
 			state = NORMAL
@@ -1758,7 +1758,7 @@ style "notebook" = "default"
 		}
 
 		# Left tab (background)
-		image 
+		image
 		{
 			function = EXTENSION
 			state = ACTIVE
@@ -1769,7 +1769,7 @@ style "notebook" = "default"
 		}
 
 		#Use this image when the tabs are at the top of the notebook.
-		image 
+		image
 		{
 			function = BOX_GAP
 			gap_side = TOP
@@ -1779,7 +1779,7 @@ style "notebook" = "default"
 			stretch = TRUE
 		}
 		# use this image when the tabs are on the bottom of the notebook.
-		image 
+		image
 		{
 			function = BOX_GAP
 			gap_side = BOTTOM
@@ -1788,7 +1788,7 @@ style "notebook" = "default"
 			stretch = TRUE
 		}
 		# Use this when the tabs are on the left
-		image 
+		image
 		{
 			function = BOX_GAP
 			gap_side = LEFT
@@ -1797,7 +1797,7 @@ style "notebook" = "default"
 			stretch = TRUE
 		}
 		# Use this when the tabs are on the right
-		image 
+		image
 		{
 			function = BOX_GAP
 			gap_side = RIGHT
@@ -1806,7 +1806,7 @@ style "notebook" = "default"
 			stretch = TRUE
 		}
 	}
-}	
+}
 ################################################################################
 # TOOLTIPS
 ################################################################################
@@ -1823,9 +1823,9 @@ widget "gtk-tooltips" style "tooltips"
 ################################################################################
 style "ruler" = "default"
 {
-	engine "pixmap" 
+	engine "pixmap"
 	{
-		image 
+		image
 		{
 		    function		= BOX
 			recolorable		= TRUE
@@ -1834,8 +1834,8 @@ style "ruler" = "default"
 			border			= { 2, 2, 2, 2 }
 			stretch			= TRUE
 		}
-		
-		image 
+
+		image
 		{
 		    function		= BOX
 			recolorable		= TRUE
@@ -1918,7 +1918,7 @@ style "layout"	= "default"
 }
 
 
-style "gtktreeview" 
+style "gtktreeview"
 {
   base[NORMAL]     	= "#ffffff"
   base[ACTIVE]     	= "#007ed6"#d4d4d4"0060ca
@@ -1927,7 +1927,7 @@ style "gtktreeview"
   text[ACTIVE]		= "#FFFFFF"
 	GtkTreeView::odd_row_color = "#ffffff"  #e4ebf5
 	GtkTreeView::even_row_color = "#D5DCE4"
-    engine "clearlooks" 
+    engine "clearlooks"
     	{
 		colorize_scrollbar = TRUE
 		menubarstyle      = 2      # 0 = flat, 1 = sunken, 2 = flat gradient
@@ -1935,7 +1935,7 @@ style "gtktreeview"
 		animation         = FALSE
 		style             = GUMMY
     	}
-   
+
 }
 class "GtkTreeView" style "gtktreeview"
 
@@ -1947,7 +1947,7 @@ style "theme-tree" = "theme-tree"
 
 
 
-    engine "clearlooks" 
+    engine "clearlooks"
     	{
 		colorize_scrollbar = TRUE
 		menubarstyle      = 2      # 0 = flat, 1 = sunken, 2 = flat gradient
@@ -2007,7 +2007,7 @@ widget_class "*MenuBar.*" style "menubar"
 class "GtkNotebook"      		style "notebook"
 #class "GtkTextView"     		style "textview"
 #class "GtkTreeView"    		style "treeview"
-class "GtkToolbar"       		style "flat"					
+class "GtkToolbar"       		style "flat"
 class "GtkHandleBox"    		style "handlebox"
 class "GtkEventBox"    			style "flat"
 class "GtkPaned"       			style "handlebox"
@@ -2017,8 +2017,3 @@ class "GtkLayout"     			style "layout"
 
 # prevent Sodipodi from crashing
 class "SPColorSlider" 			style "unstyle"
-
-
-
-
-
