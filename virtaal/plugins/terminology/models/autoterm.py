@@ -179,7 +179,7 @@ class TerminologyModel(BaseTerminologyModel):
         return ext
 
     def _get_ext_from_store_guess(self, content):
-        from StringIO import StringIO
+        from io import StringIO
         from translate.storage.factory import _guessextention
         s = StringIO(content)
         try:

@@ -16,9 +16,10 @@ import os
 import re
 import sys
 
+from io import StringIO
+
 import IPython
 from gi.repository import Pango, Gtk
-from six.moves import cStringIO as StringIO
 
 
 class IterableIPShell:

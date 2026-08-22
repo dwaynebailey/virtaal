@@ -34,8 +34,8 @@ import struct
 import sys
 from os import path
 
-from six.moves import cStringIO as StringIO
-from six.moves import configparser as ConfigParser
+from io import StringIO
+import configparser as ConfigParser
 
 try:
     from sqlite3 import dbapi2
@@ -148,9 +148,9 @@ class Plugin(BasePlugin):
         else:
             self.poedit_config = ConfigParser.ConfigParser()
             poedit_config_file = open(config_filename, 'r')
-            contents = StringIO.StringIO('[poedit_headerless_file]\n' + poedit_config_file.read())
+            contents = StringIO('[poedit_headerless_file]\n' + poedit_config_file.read())
             poedit_config_file.close()
-            self.poedit_config.readfp(contents)
+            self.poedit_config.read_file(contents)
             def get_thing(section, item):
                 dictionary = dict(self.poedit_config.items(section or 'poedit_headerless_file'))
                 return dictionary.get(item, None)
