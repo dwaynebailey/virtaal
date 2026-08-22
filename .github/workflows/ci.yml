@@ -31,6 +31,14 @@ jobs:
         run: |
           base="${{ github.event.pull_request.base.sha || github.event.before }}"
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base=""
+          elif ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            # A force-push (e.g. after a rebase) can leave github.event.before
+            # pointing at a commit this checkout no longer has at all -
+            # confirmed via a real run: "fatal: Invalid revision range".
+            base=""
+          fi
+          if [ -z "$base" ]; then
             base=$(git rev-parse HEAD^ 2>/dev/null || true)
           fi
           if [ -z "$base" ]; then
