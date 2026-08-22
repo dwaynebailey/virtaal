@@ -40,7 +40,7 @@ def run_in_thread(widget, target, args):
     import time
     while thread.is_alive():
         # let gtk process events while target is still running
-        Gtk.main_iteration(block=False)
+        Gtk.main_iteration_do(False)
         # Since we are not blocking, we're spinning, which isn't nice. We could
         # set block=True, but then the window might stay insensitive when the
         # thread finished, and only exit this loop when it gets another event
