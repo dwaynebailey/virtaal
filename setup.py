@@ -647,7 +647,12 @@ if __name__ == '__main__':
     main(options)
     # For some reason, Resources/lib/python2.5/lib-dynload is not in the Python
     # path. We need to get it in, therefore this hack.
-    if sys.platform == 'darwin':
+    #
+    # Only applies to an actual py2app bundling run - dist/virtaal.app
+    # only exists afterwards. This used to run unconditionally on any
+    # darwin `pip install .`/`setup.py` invocation, crashing every one
+    # of them with FileNotFoundError since __boot__.py never existed.
+    if sys.platform == 'darwin' and 'py2app' in sys.argv:
         f = open('dist/virtaal.app/Contents/Resources/__boot__.py', "r+")
         s = f.read()
         f.truncate(0)
