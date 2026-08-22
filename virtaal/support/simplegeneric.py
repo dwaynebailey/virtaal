@@ -22,9 +22,8 @@
 from __future__ import absolute_import, print_function, unicode_literals
 __all__ = ["generic"]
 
-from six import class_types as ClassType
 from types import FunctionType
-classtypes = type, ClassType
+classtypes = (type,)
 
 
 def generic(func):
