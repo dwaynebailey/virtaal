@@ -261,50 +261,34 @@ class StoreTreeView(Gtk.TreeView):
         return None
 
     def _restore_cursor(self):
-        path, column = self.get_cursor()
-
-        before = self._window_size()
-        self.columns_autosize()
-        after = self._window_size()
-        logging.info(
-            "storetreeview: columns_autosize() window %s -> %s, column width=%s",
-            before, after, column.get_width() if column else None,
-        )
-        self._clamp_to_sane_width("after columns_autosize()")
-
-        if path != None:
-            def do_setcursor():
-                # 2026-08-23: dropped start_editing=True here specifically
-                # - see on_configure_event()'s history for how CI's own
-                # "Verify the bundle actually runs" step (made strict by
-                # 7f0fb1e3) reproduced the runaway-resize bug instantly
-                # and 100% reliably once this got real diagnostic logging
-                # instead of another guess. The paired before/after log
-                # showed columns_autosize() reporting a *stable* width
-                # each cycle, but the very next set_cursor(...,
-                # start_editing=True) call reporting a new, ~24px-wider
-                # one - consistently, cycle after cycle. Re-entering edit
-                # mode on a cell apparently makes GTK recompute a
-                # genuinely divergent natural size for the live editor
-                # widget on this Windows/gvsbuild build (plausibly the
-                # same class of font-metric issue as the rest of this
-                # saga, though not confirmed at that level of detail) -
-                # and doing that unconditionally on every single resize/
-                # focus settle is what turned one bad computation into a
-                # self-sustaining growth loop. Plain set_cursor() below
-                # still restores the selected row/column after a resize;
-                # it just no longer forces a fresh editor widget into
-                # existence to do it.
-                before = self._window_size()
-                self.set_cursor(path, column)
-                after = self._window_size()
-                logging.info(
-                    "storetreeview: set_cursor() window %s -> %s",
-                    before, after,
-                )
-                self._clamp_to_sane_width("after set_cursor()")
-
-            GObject.idle_add(do_setcursor)
+        # TEMPORARY, 2026-08-23: gutted to pure observation - no
+        # columns_autosize(), no set_cursor(), no resize() from the
+        # safety clamp. Two prior single-variable experiments (removing
+        # columns_autosize() entirely, then separately dropping
+        # start_editing=True from set_cursor()) each produced the exact
+        # same numeric growth sequence in CI (1036, 1060, 1084, 1108...,
+        # +24 each time) - identical down to the pixel, which means
+        # neither of those calls was actually the variable that mattered.
+        # The one thing unchanged across both attempts is this method's
+        # own safety-clamp calling window.resize() - a real suspect that
+        # hadn't been isolated yet: either that resize() call is itself
+        # triggering the next divergent layout pass, or window.resize()
+        # is simply async on this platform and every "after clamping"
+        # check has been reading an already-stale, still-growing value
+        # regardless of what triggered it.
+        #
+        # logging.warning(), not .info(): CI's verify step doesn't pass
+        # --log/--debug, so bin/virtaal never calls
+        # logging.basicConfig() and only WARNING+ reaches stderr at all
+        # (Python's default "last resort" handler). Using .info() here
+        # would make this build silently untestable in CI - no
+        # corrective action AND no visible signal either way.
+        #
+        # Whatever this shows, revert to real corrective behaviour
+        # afterwards - this build is diagnostic only.
+        size = self._window_size()
+        if size and size[0] > 1024:
+            logging.warning("storetreeview: [diagnostic] window width %d (no corrective action taken)", size[0])
 
     def _max_sane_width(self):
         # Screen-derived, not a fixed pixel constant, so this doesn't
