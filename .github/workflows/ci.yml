@@ -224,67 +224,98 @@ jobs:
 
   test-windows:
     runs-on: windows-latest
-    # First attempt at this job - deliberately deferred earlier in the
-    # session specifically because, unlike the macOS job (which mirrored
-    # a recipe already validated by hand on this Mac), there's no local
-    # Windows environment to dry-run any of this against. Expect more
-    # than the one or two fix-and-repush rounds the Linux/macOS jobs each
-    # needed - see ISSUE_TRIAGE.md.
+    # Second attempt - the first (MSYS2's own Python via pacman) got as
+    # far as installing GTK3/PyGObject fine, then broke on
+    # translate-toolkit's own dependency chain: unicode-segmentation-rs
+    # (a hard requirement, confirmed via `pip download --no-deps` +
+    # metadata inspection, not optional) ships prebuilt wheels only for
+    # the standard win32/win_amd64 CPython ABI, not MSYS2's
+    # mingw_x86_64_ucrt_gnu tag - falls back to a source build, which then
+    # fails because maturin doesn't support that platform either. MSYS2's
+    # Python and "regular" Windows Python are two separately-ABI'd
+    # ecosystems; mixing them (e.g. MSYS2 GTK + setup-python's Python)
+    # doesn't dodge this, it just relocates the same mismatch to
+    # PyGObject's own compiled _gi extension instead.
     #
-    # apt/Homebrew don't exist on Windows; the realistic way to get
-    # GTK3+PyGObject prebuilt (not compiled from source in CI) is MSYS2.
-    # Package names below verified to exist in the ucrt64 repo via
-    # packages.msys2.org before writing this (not guessed): python-gobject
-    # 3.56.3-1, python-pycurl 7.45.7-4, python-lxml 6.1.1-1, gtkspell3
-    # 3.0.10-4, enchant 2.8.19-2. Everything else (translate-toolkit,
-    # diff_match_patch, cheroot, pyenchant, pytest) is pure-Python or has
-    # its own wheel, so pip within the MSYS2 environment handles it the
-    # same way the Linux/macOS jobs do - no MSYS2 package needed.
-    defaults:
-      run:
-        shell: msys2 {0}
+    # This attempt uses gvsbuild instead: it publishes prebuilt GTK3
+    # binaries (GTK3_Gvsbuild_<version>_x64.zip, confirmed to exist via
+    # `gh api repos/wingtk/gvsbuild/releases/latest`) that a *regular*
+    # actions/setup-python CPython can build PyGObject against via MSVC
+    # (preinstalled on windows-latest runners) - staying in the standard
+    # wheel ecosystem for everything else (translate-toolkit, pycurl,
+    # etc.), unlike MSYS2. Pattern taken from a real project doing the
+    # same thing (gaphor/gaphor's full-build.yml), not reconstructed from
+    # docs alone.
+    #
+    # Spellchecker (enchant/gtkspell3) deliberately left out for this
+    # first attempt to keep scope down - the plugin degrades gracefully
+    # without it, same as it does today when those aren't installed
+    # locally (see the run-virtaal skill's notes).
+    env:
+      gvsbuild_version: "2026.8.0"
+      INCLUDE: 'C:\gtk\include;C:\gtk\include\cairo;C:\gtk\include\glib-2.0;C:\gtk\include\gobject-introspection-1.0;C:\gtk\lib\glib-2.0\include'
+      LIB: 'C:\gtk\lib'
+      PKG_CONFIG_PATH: 'C:\gtk\lib\pkgconfig'
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: true
 
-      - uses: msys2/setup-msys2@v2
+      - name: Cache GTK3 (gvsbuild)
+        id: cache-gtk
+        uses: actions/cache@v6
         with:
-          msystem: UCRT64
-          update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-python
-            mingw-w64-ucrt-x86_64-python-pip
-            mingw-w64-ucrt-x86_64-python-gobject
-            mingw-w64-ucrt-x86_64-gtk3
-            mingw-w64-ucrt-x86_64-python-pycurl
-            mingw-w64-ucrt-x86_64-python-lxml
-            mingw-w64-ucrt-x86_64-enchant
-            mingw-w64-ucrt-x86_64-gtkspell3
+          path: C:\gtk
+          key: windows-gvsbuild-${{ env.gvsbuild_version }}
+
+      - name: Download prebuilt GTK3 (gvsbuild)
+        if: steps.cache-gtk.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          gh release download --repo wingtk/gvsbuild "${{ env.gvsbuild_version }}" -p "GTK3_Gvsbuild_${{ env.gvsbuild_version }}_x64.zip"
+          7z x "GTK3_Gvsbuild_${{ env.gvsbuild_version }}_x64.zip" -oC:\gtk -y
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Add GTK3 to PATH
+        # Not a job-level `env: PATH:` entry - that would *replace* the
+        # runner's whole PATH for every step (including this one's own
+        # git/python/pwsh), not append to it. GITHUB_PATH is the correct
+        # mechanism: prepends for every step from here on, additively.
+        shell: pwsh
+        run: echo "C:\gtk\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
 
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           pip install setuptools wheel
+          pip install pycairo
+          pip install pygobject
           pip install translate-toolkit
           pip install python-Levenshtein
+          pip install pycurl
+          pip install lxml
           pip install diff_match_patch
           pip install cheroot
-          pip install pyenchant
           pip install pytest
 
       - name: Install virtaal
         run: pip install --no-build-isolation .
 
       - name: Compile-check all Python files
-        run: find . -name "*.py" -exec python -m py_compile {} +
+        run: |
+          Get-ChildItem -Recurse -Filter *.py | ForEach-Object { python -m py_compile $_.FullName }
 
       - name: Run tests
         # No xvfb-run equivalent, same reasoning as the macOS job: Windows
         # always has its own native windowing system available, even in a
         # non-interactive CI session, unlike X11. Unverified for this
-        # specific GTK-on-win32/MSYS2 combination though - if wrong, this
-        # is the step that will show it.
+        # specific GTK-on-win32 combination though - if wrong, this is
+        # the step that will show it.
         run: pytest -rvxs virtaal
 
       - name: Smoke test the CLI
