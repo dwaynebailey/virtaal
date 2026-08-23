@@ -331,10 +331,18 @@ jobs:
       - name: Run tests
         # No xvfb-run equivalent, same reasoning as the macOS job: Windows
         # always has its own native windowing system available, even in a
-        # non-interactive CI session, unlike X11. Unverified for this
-        # specific GTK-on-win32 combination though - if wrong, this is
-        # the step that will show it.
+        # non-interactive CI session, unlike X11. That assumption turned
+        # out fine (got here at all), but this step then fails with
+        # *zero* output at all - not even pytest's own collection
+        # banner, despite -s already disabling capture - which points at
+        # a genuine native crash (access violation) rather than a Python
+        # exception. PYTHONFAULTHANDLER makes CPython dump a C-level
+        # stack trace on exactly this kind of fault instead of just
+        # vanishing, needed to find out what's actually crashing rather
+        # than guessing blind.
         run: pytest -rvxs virtaal
+        env:
+          PYTHONFAULTHANDLER: "1"
 
       - name: Smoke test the CLI
         run: virtaal --help
