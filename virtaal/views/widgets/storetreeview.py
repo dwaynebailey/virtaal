@@ -204,27 +204,30 @@ class StoreTreeView(Gtk.TreeView):
         return True
 
     def on_configure_event(self, widget, event, *_user_args):
-        # Third report, 2026-08-23, Windows only - never reproduced on
-        # macOS despite trying with the real file involved (po/af.po,
-        # not just the synthetic checks.po) and zero interaction, so
-        # this now carries real diagnostic instrumentation rather than
-        # another blind guess at the mechanism. History: first attempt
-        # (12ef7605) deduped identical successive sizes - insufficient,
-        # a live drag fires genuinely-changing sizes on nearly every
-        # tick. Second attempt (009ce12d) debounced instead - reported
-        # still growing, this time continuously right after opening a
-        # real file, no drag involved at all, which the debounce alone
-        # doesn't explain. Every report so far is Windows-only; nothing
-        # here reproduces on macOS.
+        # RESOLVED 2026-08-23 - see _restore_cursor()'s do_setcursor() for
+        # the actual root cause and fix. Left as a debounce (rather than
+        # reverted to a plain direct call) since restoring cursor state
+        # on every single raw configure-event tick during a resize is
+        # still wasteful regardless of the growth bug being gone, and
+        # debouncing costs nothing on a healthy resize.
         #
-        # logging.info() (not .debug()) deliberately - bin/virtaal only
-        # calls logging.basicConfig() at all when -D/--debug or -l/--log
-        # is passed, and .debug()-level messages need -D specifically
-        # (see bin/virtaal's set_logging()) while -l/--log alone runs at
-        # INFO with real timestamps (%(asctime)s) and no extra flag
-        # needed. To capture this: run the packaged exe from a shell
-        # with `--log <path>`, e.g. `virtaal.exe --log C:\temp\resize-
-        # debug.log po\af.po`, reproduce the growth, send the file back.
+        # History, kept for the next time something in this area acts
+        # up: first attempt (12ef7605) deduped identical successive
+        # sizes - insufficient, a live drag fires genuinely-changing
+        # sizes on nearly every tick. Second attempt (009ce12d) debounced
+        # instead - reported still growing, this time right after
+        # opening a file with no drag at all. Third attempt (495bfc7a)
+        # added diagnostic logging instead of guessing again - and CI's
+        # own "Verify the bundle actually runs" step (made strict by
+        # 7f0fb1e3 specifically to stop silently passing over exactly
+        # this class of bug) reproduced it instantly and 100% reliably,
+        # no VM round-trip needed. The paired before/after log showed
+        # columns_autosize() reporting a *stable* width each cycle, but
+        # the very next set_cursor(..., start_editing=True) call
+        # reporting a new, ~24px-wider one - consistently, cycle after
+        # cycle, all within single-digit milliseconds (far too fast for
+        # the 200ms debounce to be a factor at all, ruling out timing
+        # entirely). See _restore_cursor()'s do_setcursor() for the fix.
         logging.info("storetreeview: configure-event %dx%d", event.width, event.height)
         if self._configure_timeout_id is not None:
             GObject.source_remove(self._configure_timeout_id)
@@ -234,7 +237,7 @@ class StoreTreeView(Gtk.TreeView):
     def _on_configure_settled(self):
         self._configure_timeout_id = None
         logging.info("storetreeview: debounce settled, window=%s", self._window_size())
-        self._restore_cursor(autosize=True)
+        self._restore_cursor()
         return False  # one-shot: don't repeat this GObject.timeout_add
 
     def _on_destroy(self, _widget):
@@ -244,13 +247,11 @@ class StoreTreeView(Gtk.TreeView):
 
     def _on_focus_in(self, widget, _event, *_user_args):
         # Restore cursor/editing state on refocus, same as
-        # on_configure_event() used to do for this signal too (they
-        # shared one handler) - but autosizing columns has nothing to
-        # do with regaining keyboard focus, and a GdkEventFocus has no
-        # width/height to dedupe against in the first place, so this is
-        # its own handler now rather than a second reason for
-        # on_configure_event() to run columns_autosize().
-        self._restore_cursor(autosize=False)
+        # on_configure_event() (they used to share one handler, split in
+        # 12ef7605) - a focus change was never a reason to touch column
+        # sizing, which is now moot anyway since _restore_cursor() no
+        # longer does that at all (see there).
+        self._restore_cursor()
         return False
 
     def _window_size(self):
@@ -259,29 +260,49 @@ class StoreTreeView(Gtk.TreeView):
             return window.get_size()
         return None
 
-    def _restore_cursor(self, autosize):
+    def _restore_cursor(self):
         path, column = self.get_cursor()
 
-        if autosize:
-            before = self._window_size()
-            self.columns_autosize()
-            after = self._window_size()
-            logging.info(
-                "storetreeview: columns_autosize() window %s -> %s, column width=%s",
-                before, after, column.get_width() if column else None,
-            )
-            self._clamp_to_sane_width("after columns_autosize()")
+        before = self._window_size()
+        self.columns_autosize()
+        after = self._window_size()
+        logging.info(
+            "storetreeview: columns_autosize() window %s -> %s, column width=%s",
+            before, after, column.get_width() if column else None,
+        )
+        self._clamp_to_sane_width("after columns_autosize()")
 
         if path != None:
             def do_setcursor():
+                # 2026-08-23: dropped start_editing=True here specifically
+                # - see on_configure_event()'s history for how CI's own
+                # "Verify the bundle actually runs" step (made strict by
+                # 7f0fb1e3) reproduced the runaway-resize bug instantly
+                # and 100% reliably once this got real diagnostic logging
+                # instead of another guess. The paired before/after log
+                # showed columns_autosize() reporting a *stable* width
+                # each cycle, but the very next set_cursor(...,
+                # start_editing=True) call reporting a new, ~24px-wider
+                # one - consistently, cycle after cycle. Re-entering edit
+                # mode on a cell apparently makes GTK recompute a
+                # genuinely divergent natural size for the live editor
+                # widget on this Windows/gvsbuild build (plausibly the
+                # same class of font-metric issue as the rest of this
+                # saga, though not confirmed at that level of detail) -
+                # and doing that unconditionally on every single resize/
+                # focus settle is what turned one bad computation into a
+                # self-sustaining growth loop. Plain set_cursor() below
+                # still restores the selected row/column after a resize;
+                # it just no longer forces a fresh editor widget into
+                # existence to do it.
                 before = self._window_size()
-                self.set_cursor(path, column, start_editing=True)
+                self.set_cursor(path, column)
                 after = self._window_size()
                 logging.info(
-                    "storetreeview: set_cursor(start_editing=True) window %s -> %s",
+                    "storetreeview: set_cursor() window %s -> %s",
                     before, after,
                 )
-                self._clamp_to_sane_width("after set_cursor(start_editing=True)")
+                self._clamp_to_sane_width("after set_cursor()")
 
             GObject.idle_add(do_setcursor)
 
