@@ -18,6 +18,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
+"""Manual, interactive demo for SelectDialog - opens a real dialog for a
+human to eyeball, not an automated test. Run directly:
+python demo_selectdialog.py
+(Renamed from test_selectdialog.py, which pytest was picking up by
+filename convention alone despite having no assertions.)"""
+
 from .selectdialog import SelectDialog
 
 
