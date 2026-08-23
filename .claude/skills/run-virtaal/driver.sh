@@ -171,6 +171,19 @@ APPLESCRIPT
   esac
 }
 
+# `keystroke`/`key code` are NOT scoped by the `tell process "X"` block
+# the way `click`/property reads are - System Events sends them to
+# whatever process is actually frontmost at the OS level, regardless of
+# which process's accessibility tree you're addressing. Confirmed live,
+# 2026-08-23: sending `keystroke Z` without activating Virtaal first
+# produced no visible effect at all - not even an error, just silently
+# went wherever actually had focus (almost certainly the calling
+# terminal). Activate the target process first, every time, rather than
+# assuming it already has focus.
+_activate() {
+  osascript -e "tell application \"System Events\" to set frontmost of process \"$AX_PROCESS\" to true"
+}
+
 # Sends a physical keystroke, e.g.:
 #   keystroke z command          -> Cmd+Z
 #   keystroke "Down" "control"   -> Ctrl+Down (use key-code form for
@@ -184,6 +197,7 @@ keystroke_cmd() {
   for m in "$@"; do
     mods="${mods}${mods:+, }${m} down"
   done
+  _activate
   if [ -n "$mods" ]; then
     osascript -e "tell application \"System Events\" to tell process \"$AX_PROCESS\" to keystroke \"$key\" using {$mods}"
   else
@@ -201,6 +215,7 @@ key_code_cmd() {
   for m in "$@"; do
     mods="${mods}${mods:+, }${m} down"
   done
+  _activate
   if [ -n "$mods" ]; then
     osascript -e "tell application \"System Events\" to tell process \"$AX_PROCESS\" to key code $code using {$mods}"
   else
