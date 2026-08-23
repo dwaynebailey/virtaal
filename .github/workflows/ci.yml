@@ -684,41 +684,52 @@ jobs:
 
       - name: Verify the bundle actually runs
         # Mirrors test-macos/build-macos-app's own launch-and-check
-        # pattern - a PyInstaller build succeeding is not the same thing
-        # as the result actually starting.
+        # pattern exactly - launch with a real file in the background,
+        # confirm the process is still *alive* after enough time for GTK/
+        # plugin init, then kill it. Two earlier attempts here tried to
+        # treat this as a console-app-style "run --version, check the
+        # exit code" smoke test instead, which is the wrong shape of test
+        # for a windowed-subsystem (console=False) GUI app entirely - it
+        # doesn't exit on its own, successfully or otherwise, so waiting
+        # for an exit code was never going to work. Confirmed live across
+        # two failed runs: `&` doesn't block for a GUI-subsystem process
+        # at all ($LASTEXITCODE came back blank), and even
+        # Start-Process -PassThru + WaitForExit() just times out after 30s
+        # instead of the process ever exiting - because it isn't crashing
+        # or hanging in a way that matters, it's just... running, like a
+        # GUI app does.
         #
-        # Not `& .\dist\virtaal\virtaal.exe --version` - confirmed live
-        # this doesn't work for a console=False (windowed-subsystem) exe,
-        # which is what this actually needs to be once shipped, so not
-        # something to change just to make this check easier. The `&`
-        # call operator doesn't block for a GUI-subsystem process the way
-        # it does for a console one, so $LASTEXITCODE was never
-        # meaningfully set (came back blank, not even 0) and no output
-        # was ever captured either.
-        #
-        # Start-Process -PassThru + $proc.WaitForExit(ms), not
-        # Start-Process -Wait: -Wait alone has no timeout at all, and a
-        # genuinely hung windowed-subsystem process (confirmed live: this
-        # step ran well past two minutes on a plain --version, versus a
-        # console app printing and exiting in well under a second) would
-        # otherwise just sit there for the whole job timeout, burning
-        # runner minutes with no useful log output either way.
-        # Redirecting stdout/stderr to files makes any real output
-        # visible in the job log.
+        # pan_app.py's stdout/stderr redirect (scoped to frozen builds
+        # only, cfdaae0a) means this build's own output never reaches
+        # whatever PowerShell captures anyway - it goes to
+        # %APPDATA%\Virtaal\*.log, so that's what gets read on failure,
+        # not process-level redirection.
         shell: pwsh
         run: |
-          $proc = Start-Process -FilePath .\dist\virtaal\virtaal.exe -ArgumentList "--version" `
-              -PassThru -RedirectStandardOutput out.log -RedirectStandardError err.log
-          $exited = $proc.WaitForExit(30000)
-          Write-Host "--- stdout ---"
-          Get-Content out.log -ErrorAction SilentlyContinue
-          Write-Host "--- stderr ---"
-          Get-Content err.log -ErrorAction SilentlyContinue
-          if (-not $exited) {
-              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-              throw "virtaal.exe --version did not exit within 30 seconds - likely hung, not a clean crash"
+          $proc = Start-Process -FilePath .\dist\virtaal\virtaal.exe -ArgumentList "devsupport\testfiles\checks.po" -PassThru
+          Start-Sleep -Seconds 8
+          $stillRunning = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
+          if (-not $stillRunning) {
+              Write-Host "::error::Bundle exited within 8s of launch"
+              Write-Host "--- stdout log ---"
+              Get-Content "$env:APPDATA\Virtaal\stdout_virtaal.log" -ErrorAction SilentlyContinue
+              Write-Host "--- stderr log ---"
+              Get-Content "$env:APPDATA\Virtaal\stderr_virtaal.log" -ErrorAction SilentlyContinue
+              exit 1
           }
-          if ($proc.ExitCode -ne 0) { throw "virtaal.exe --version failed with exit code $($proc.ExitCode)" }
+          Stop-Process -Id $proc.Id -Force
+          Get-Process -Name virtaal -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          # Printed for visibility/diagnosis on this first real run, not
+          # yet enforced as pass/fail - unlike test-macos's equivalent
+          # check, there's no established baseline yet for what's normal
+          # noise in a frozen Windows build's log (no depcheck warnings at
+          # all, since bin/virtaal's dependency check is skipped entirely
+          # for packaged=True builds - whatever shows up here is the
+          # first real data point, not something to gate on blind).
+          Write-Host "--- stdout log ---"
+          Get-Content "$env:APPDATA\Virtaal\stdout_virtaal.log" -ErrorAction SilentlyContinue
+          Write-Host "--- stderr log ---"
+          Get-Content "$env:APPDATA\Virtaal\stderr_virtaal.log" -ErrorAction SilentlyContinue
 
       - uses: actions/upload-artifact@v7
         with:
