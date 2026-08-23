@@ -106,84 +106,80 @@ def run_virtaal(startup_file):
 
 
 def main(argv):
-    options = None
-    parser = None
-    startup_file = None
+    # Always run through argparse, even with zero arguments - no
+    # len(argv) > 1 fast-path any more. That guard was an optparse-era
+    # micro-optimization ("save some time by avoiding all the things that
+    # could have happened on the command line"), but with zero arguments
+    # there's nothing for argparse to validate anyway (no positional, no
+    # flags) - parser.parse_args([]) is cheap and returns the same all-
+    # defaults result the old `else: pan_app.DEBUG = False` branch set up
+    # by hand. One code path instead of two, same behaviour either way.
+    import argparse
 
-    if len(argv) > 1:
-        import argparse
+    from virtaal import __version__
 
-        from virtaal import __version__
+    # No custom usage= string (optparse's "%prog [options]
+    # [translation_file]") - argparse auto-generates an equivalent one
+    # from the registered options/positional, one less translated
+    # string to maintain for no real benefit. Also no equivalent of
+    # optparse's `optparse._ = _` monkeypatch (which hooked virtaal's
+    # own gettext catalog into optparse's *own* built-in strings, e.g.
+    # "show this help message and exit") - argparse doesn't expose an
+    # equivalent supported hook, and this only ever affected argparse's
+    # own generated chrome, never virtaal's own help text below (which
+    # is still translated via the ordinary _() calls it always used).
+    # Accepted, minor, deliberate behaviour change.
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--version", action="version", version=__version__.ver)
+    parser.add_argument("-l", "--log", dest="log", metavar=_("LOG"),
+                         help=_("turn on logging, storing the result to the supplied filename."))
+    parser.add_argument("-c", "--config", dest="config", metavar=_("CONFIG"),
+                         help=_("use the configuration file given by the supplied filename."))
+    parser.add_argument("-D", "--debug", dest="debug", action="store_true", default=False,
+                         help=_("enable debugging features"))
+    # Profiling does not make sense in packaged versions.  Set to True to disable profiling.
+    if not packaged:
+        parser.add_argument("-P", "--profile", dest="profile", metavar=_("PROFILE"),
+                             #l10n: 'profiling' refers to performance testing
+                             help=_("perform profiling, storing the result to the supplied filename."))
+    # nargs='?' makes this genuinely optional and means argparse itself
+    # rejects more than one positional argument (with its own
+    # "unrecognized arguments" error) - no need for optparse's old
+    # manual get_startup_file()/len(args) check any more.
+    parser.add_argument("translation_file", nargs="?", default=None)
 
-        # No custom usage= string (optparse's "%prog [options]
-        # [translation_file]") - argparse auto-generates an equivalent one
-        # from the registered options/positional, one less translated
-        # string to maintain for no real benefit. Also no equivalent of
-        # optparse's `optparse._ = _` monkeypatch (which hooked virtaal's
-        # own gettext catalog into optparse's *own* built-in strings, e.g.
-        # "show this help message and exit") - argparse doesn't expose an
-        # equivalent supported hook, and this only ever affected argparse's
-        # own generated chrome, never virtaal's own help text below (which
-        # is still translated via the ordinary _() calls it always used).
-        # Accepted, minor, deliberate behaviour change.
-        parser = argparse.ArgumentParser()
-        parser.add_argument("-v", "--version", action="version", version=__version__.ver)
-        parser.add_argument("-l", "--log", dest="log", metavar=_("LOG"),
-                             help=_("turn on logging, storing the result to the supplied filename."))
-        parser.add_argument("-c", "--config", dest="config", metavar=_("CONFIG"),
-                             help=_("use the configuration file given by the supplied filename."))
-        parser.add_argument("-D", "--debug", dest="debug", action="store_true", default=False,
-                             help=_("enable debugging features"))
-        # Profiling does not make sense in packaged versions.  Set to True to disable profiling.
-        if not packaged:
-            parser.add_argument("-P", "--profile", dest="profile", metavar=_("PROFILE"),
-                                 #l10n: 'profiling' refers to performance testing
-                                 help=_("perform profiling, storing the result to the supplied filename."))
-        # nargs='?' makes this genuinely optional and means argparse itself
-        # rejects more than one positional argument (with its own
-        # "unrecognized arguments" error) - no need for optparse's old
-        # manual get_startup_file()/len(args) check any more.
-        parser.add_argument("translation_file", nargs="?", default=None)
+    def set_logging(options):
+        if options.log is None and not options.debug:
+            return
 
-
-        def set_logging(options):
-            if options.log is None and not options.debug:
-                return
-
-            import logging
-            level = options.debug and logging.DEBUG or logging.INFO
-            if options.debug:
-                format = '%(levelname)7s %(module)s.%(funcName)s:%(lineno)d: %(message)s'
-            else:
-                format = '%(asctime)s %(levelname)s %(message)s'
-            if options.log is None:
-                logging.basicConfig(level=level, format=format, stream=sys.stderr)
-            elif options.log.upper() in ('-', 'STDOUT'):
-                logging.basicConfig(level=level, format=format, stream=sys.stdout)
-            else:
-                try:
-                    logging.basicConfig(level=level, format=format, filename=path.abspath(options.log), filemode='w')
-                except IOError:
-                    parser.error(_("Could not open log file '%(filename)s'") % {"filename": options.log})
-
-
-        def set_config(options):
+        import logging
+        level = options.debug and logging.DEBUG or logging.INFO
+        if options.debug:
+            format = '%(levelname)7s %(module)s.%(funcName)s:%(lineno)d: %(message)s'
+        else:
+            format = '%(asctime)s %(levelname)s %(message)s'
+        if options.log is None:
+            logging.basicConfig(level=level, format=format, stream=sys.stderr)
+        elif options.log.upper() in ('-', 'STDOUT'):
+            logging.basicConfig(level=level, format=format, stream=sys.stdout)
+        else:
             try:
-                if options.config is not None:
-                    pan_app.settings = pan_app.Settings(path.abspath(options.config))
-            except Exception:
-                parser.error(_("Could not read configuration file '%(filename)s'") % {"filename": options.config})
+                logging.basicConfig(level=level, format=format, filename=path.abspath(options.log), filemode='w')
+            except IOError:
+                parser.error(_("Could not open log file '%(filename)s'") % {"filename": options.log})
 
+    def set_config(options):
+        try:
+            if options.config is not None:
+                pan_app.settings = pan_app.Settings(path.abspath(options.config))
+        except Exception:
+            parser.error(_("Could not read configuration file '%(filename)s'") % {"filename": options.config})
 
-        options = parser.parse_args(argv[1:])
-        pan_app.DEBUG = options.debug
-        set_config(options)
-        set_logging(options)
-        startup_file = options.translation_file
-    else:
-        # No arguments given, so we save some time by avoiding all the things
-        # that could have happened on the command line
-        pan_app.DEBUG = False
+    options = parser.parse_args(argv[1:])
+    pan_app.DEBUG = options.debug
+    set_config(options)
+    set_logging(options)
+    startup_file = options.translation_file
 
     def get_virtaal_runner(options):
         def profile_runner(startup_file):
@@ -226,7 +222,11 @@ def main(argv):
             import os
             os._exit(0)
 
-        if options and getattr(options, "profile", None) != None:
+        # options is always a real argparse.Namespace now (no more "no
+        # arguments given" fast path that left it None) - -P/--profile
+        # itself is still conditional (packaged builds never add it), so
+        # getattr()'s default still matters here.
+        if getattr(options, "profile", None) is not None:
             return profile_runner
         else:
             return default_runner
