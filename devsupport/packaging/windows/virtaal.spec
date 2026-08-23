@@ -161,6 +161,18 @@ exe = EXE(  # noqa: F821
     console=False,
     icon=str(ROOT / "share" / "icons" / "virtaal.ico"),
     version=version_info,
+    # PyInstaller 6.0 changed --onedir's default layout to collect
+    # everything (including `datas`, e.g. share/virtaal/virtaal.ui) into
+    # a _internal/ subdirectory instead of flat next to the exe.
+    # Confirmed live: translate-toolkit's file_discovery.py (third-party,
+    # not ours to edit) has its own frozen-mode data lookup that assumes
+    # the pre-6.0 flat layout (os.path.dirname(sys.executable) + "share"
+    # directly, no _internal/ level) - crashed with `ValueError: Could
+    # not find "virtaal\virtaal.ui"` because the actual bundled location
+    # was C:\...\dist\virtaal\_internal\share\virtaal\virtaal.ui, one
+    # level off from where it looked. contents_directory="." is
+    # PyInstaller's own documented way to opt back into the flat layout.
+    contents_directory=".",
 )
 
 coll = COLLECT(  # noqa: F821
