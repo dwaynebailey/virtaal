@@ -40,10 +40,31 @@ def _dialog_to_use():
     ui_language = pan_app.ui_language
 
     if sys.platform == 'win32':
-        from virtaal.support.libi18n.locale import get_win32_lang
-        win32_lang = get_win32_lang(system_ui=True)
-        if win32_lang == ui_language or ui_language == 'en' and win32_lang == 'C':
-            return 'win32'
+        # win32_open_dialog()/win32_save_dialog() need pywin32
+        # (winxpgui/win32con/pywintypes), which isn't a declared
+        # dependency anywhere (not in ci.yml's pip installs, not in
+        # virtaal.spec's PyInstaller hiddenimports) - confirmed live,
+        # 2026-08-23: without this guard, _dialog_to_use() picks 'win32'
+        # unconditionally whenever the Windows UI language matches
+        # Virtaal's (the common case), show_open_dialog() then runs
+        # win32_open_dialog() in a background thread via run_in_thread(),
+        # whose ImportError is never caught or logged anywhere - the
+        # thread just dies and the dialog silently never appears, no
+        # crash, nothing in the log. Same try/except-ImportError shape
+        # the darwin branch below already uses correctly - falls back to
+        # the always-available Gtk.FileChooserDialog instead of trying
+        # and silently failing.
+        try:
+            import winxpgui  # noqa: F401
+            import win32con  # noqa: F401
+            import pywintypes  # noqa: F401
+        except ImportError:
+            pass
+        else:
+            from virtaal.support.libi18n.locale import get_win32_lang
+            win32_lang = get_win32_lang(system_ui=True)
+            if win32_lang == ui_language or ui_language == 'en' and win32_lang == 'C':
+                return 'win32'
 
     elif os.environ.get('KDE_FULL_SESSION') == 'true' and ( \
                 pan_app.ui_language == 'en' or \
