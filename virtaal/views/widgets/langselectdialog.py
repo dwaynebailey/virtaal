@@ -33,7 +33,7 @@ class LanguageSelectDialog(object):
 
     # INITIALIZERS #
     def __init__(self, languages, parent=None):
-        super(LanguageSelectDialog, self).__init__()
+        super().__init__()
 
         self.gui = BaseView.load_builder_file(
             ["virtaal", "virtaal.ui"],
