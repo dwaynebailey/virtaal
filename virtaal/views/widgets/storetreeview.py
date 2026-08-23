@@ -60,6 +60,10 @@ class StoreTreeView(Gtk.TreeView):
         # to you.
         self._waiting_for_row_change = 0
 
+        # Tracks the last size on_configure_event() actually acted on -
+        # see that method for why.
+        self._last_configure_size = None
+
     def _enable_tooltips(self):
         if hasattr(self, "set_tooltip_column"):
             self.set_tooltip_column(COLUMN_NOTE)
@@ -69,7 +73,7 @@ class StoreTreeView(Gtk.TreeView):
         self.connect('key-press-event', self._on_key_press)
         self.connect("cursor-changed", self._on_cursor_changed)
         self.connect("button-press-event", self._on_button_press)
-        self.connect('focus-in-event', self.on_configure_event)
+        self.connect('focus-in-event', self._on_focus_in)
 
         # The following connections are necessary, because Gtk+ apparently *only* uses accelerators
         # to add pretty key-bindings next to menu items and does not really care if an accelerator
@@ -189,17 +193,52 @@ class StoreTreeView(Gtk.TreeView):
             return self._keyboard_move(1)
         return True
 
-    def on_configure_event(self, widget, _event, *_user_args):
+    def on_configure_event(self, widget, event, *_user_args):
+        # Reported 2026-08-23 (Windows): the main window kept growing a
+        # little wider on every resize and never settled, eventually
+        # covering the edit widget entirely. This handler used to run
+        # unconditionally on *every* configure-event - and GTK/the
+        # window manager fire several of those per resize tick, not one
+        # - redoing columns_autosize() (recompute the single column's
+        # ideal width from cell content) and restarting cell editing
+        # each time. With no default_width/default_height on MainWindow
+        # in virtaal.ui (only a minimum width_request/height_request),
+        # the window's actual size is driven by its children's natural
+        # size requests - repeatedly recomputing that on every tick of
+        # the same resize is exactly the shape of a configure ->
+        # autosize -> resize -> configure feedback loop. Guard against
+        # re-running the expensive part when the reported size hasn't
+        # actually changed since last time; a genuine size change still
+        # runs it exactly as before.
+        new_size = (event.width, event.height)
+        if new_size == self._last_configure_size:
+            return False
+        self._last_configure_size = new_size
+
+        self._restore_cursor(autosize=True)
+        return False
+
+    def _on_focus_in(self, widget, _event, *_user_args):
+        # Restore cursor/editing state on refocus, same as
+        # on_configure_event() used to do for this signal too (they
+        # shared one handler) - but autosizing columns has nothing to
+        # do with regaining keyboard focus, and a GdkEventFocus has no
+        # width/height to dedupe against in the first place, so this is
+        # its own handler now rather than a second reason for
+        # on_configure_event() to run columns_autosize().
+        self._restore_cursor(autosize=False)
+        return False
+
+    def _restore_cursor(self, autosize):
         path, column = self.get_cursor()
 
-        self.columns_autosize()
+        if autosize:
+            self.columns_autosize()
         if path != None:
             def do_setcursor():
                 self.set_cursor(path, column, start_editing=True)
 
             GObject.idle_add(do_setcursor)
-
-        return False
 
     def _on_cursor_changed(self, _treeview):
         path, _column = self.get_cursor()
