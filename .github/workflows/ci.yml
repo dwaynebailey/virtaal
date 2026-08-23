@@ -578,27 +578,16 @@ jobs:
         # non-interactive CI session, unlike X11 - confirmed fine, this
         # was never the problem.
         #
-        # KNOWN, UNRESOLVED: this step currently crashes here. Everything
-        # up to this point in the job (GTK3 build via MSVC, DLL loading
-        # via sitecustomize.py, a bare `from gi.repository import Gtk`)
-        # works and is verified - see the preceding several commits, each
-        # a real, confirmed root cause. What's left is narrower and
-        # harder: constructing the app's first real window
-        # (MainController.__init__ -> MainView(self), reached via
-        # virtaal/test/test_scaffolding.py's TestScaffolding.setup_class()
-        # - shared by 8 of the 23 collected tests, across
-        # test_{main,mode,store}*controller*.py / test_storecursor.py /
-        # test_storemodel.py / test_unitcontroller.py) crashes the whole
-        # process with *zero* output - not even a Python traceback, even
-        # with `pytest -x` (stop at first failure, forcing immediate
-        # reporting) and PYTHONFAULTHANDLER=1 (below) both active. That
-        # combination ruled out an ordinary Python exception and a
-        # faulthandler-catchable SEH access violation - what's left
-        # (a GLib-level abort()/hard process exit, or something else
-        # faulthandler doesn't intercept) needs an actual attached
-        # debugger on Windows to identify, which isn't available in this
-        # environment. See ISSUE_TRIAGE.md for the full diagnostic
-        # history before picking this back up.
+        # This step used to crash here with zero output - not even a
+        # Python traceback - constructing the app's first real window
+        # (MainController.__init__ -> MainView(self)). Root-caused and
+        # fixed: mainview.py's set_icon_from_file() loaded virtaal.ico,
+        # but the pinned gvsbuild GTK3 build only ships gdk-pixbuf's SVG
+        # loader plugin, no ICO loader - raising an uncaught GLib.GError
+        # that looked like a silent crash only because pan_app.py
+        # separately (also since fixed) redirected stdout/stderr to a log
+        # file nobody was reading. See ISSUE_TRIAGE.md's Windows CI crash
+        # entry for the full diagnostic history.
         run: pytest -rvxs virtaal
         env:
           PYTHONFAULTHANDLER: "1"
