@@ -221,3 +221,71 @@ jobs:
 
       - name: Smoke test the CLI
         run: virtaal --help
+
+  test-windows:
+    runs-on: windows-latest
+    # First attempt at this job - deliberately deferred earlier in the
+    # session specifically because, unlike the macOS job (which mirrored
+    # a recipe already validated by hand on this Mac), there's no local
+    # Windows environment to dry-run any of this against. Expect more
+    # than the one or two fix-and-repush rounds the Linux/macOS jobs each
+    # needed - see ISSUE_TRIAGE.md.
+    #
+    # apt/Homebrew don't exist on Windows; the realistic way to get
+    # GTK3+PyGObject prebuilt (not compiled from source in CI) is MSYS2.
+    # Package names below verified to exist in the ucrt64 repo via
+    # packages.msys2.org before writing this (not guessed): python-gobject
+    # 3.56.3-1, python-pycurl 7.45.7-4, python-lxml 6.1.1-1, gtkspell3
+    # 3.0.10-4, enchant 2.8.19-2. Everything else (translate-toolkit,
+    # diff_match_patch, cheroot, pyenchant, pytest) is pure-Python or has
+    # its own wheel, so pip within the MSYS2 environment handles it the
+    # same way the Linux/macOS jobs do - no MSYS2 package needed.
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-python-pip
+            mingw-w64-ucrt-x86_64-python-gobject
+            mingw-w64-ucrt-x86_64-gtk3
+            mingw-w64-ucrt-x86_64-python-pycurl
+            mingw-w64-ucrt-x86_64-python-lxml
+            mingw-w64-ucrt-x86_64-enchant
+            mingw-w64-ucrt-x86_64-gtkspell3
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install setuptools wheel
+          pip install translate-toolkit
+          pip install python-Levenshtein
+          pip install diff_match_patch
+          pip install cheroot
+          pip install pyenchant
+          pip install pytest
+
+      - name: Install virtaal
+        run: pip install --no-build-isolation .
+
+      - name: Compile-check all Python files
+        run: find . -name "*.py" -exec python -m py_compile {} +
+
+      - name: Run tests
+        # No xvfb-run equivalent, same reasoning as the macOS job: Windows
+        # always has its own native windowing system available, even in a
+        # non-interactive CI session, unlike X11. Unverified for this
+        # specific GTK-on-win32/MSYS2 combination though - if wrong, this
+        # is the step that will show it.
+        run: pytest -rvxs virtaal
+
+      - name: Smoke test the CLI
+        run: virtaal --help
