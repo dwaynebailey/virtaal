@@ -719,17 +719,43 @@ jobs:
           }
           Stop-Process -Id $proc.Id -Force
           Get-Process -Name virtaal -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-          # Printed for visibility/diagnosis on this first real run, not
-          # yet enforced as pass/fail - unlike test-macos's equivalent
-          # check, there's no established baseline yet for what's normal
-          # noise in a frozen Windows build's log (no depcheck warnings at
-          # all, since bin/virtaal's dependency check is skipped entirely
-          # for packaged=True builds - whatever shows up here is the
-          # first real data point, not something to gate on blind).
+
+          $stdoutLog = @(Get-Content "$env:APPDATA\Virtaal\stdout_virtaal.log" -ErrorAction SilentlyContinue)
+          $stderrLog = @(Get-Content "$env:APPDATA\Virtaal\stderr_virtaal.log" -ErrorAction SilentlyContinue)
           Write-Host "--- stdout log ---"
-          Get-Content "$env:APPDATA\Virtaal\stdout_virtaal.log" -ErrorAction SilentlyContinue
+          $stdoutLog
           Write-Host "--- stderr log ---"
-          Get-Content "$env:APPDATA\Virtaal\stderr_virtaal.log" -ErrorAction SilentlyContinue
+          $stderrLog
+
+          # Same allowlist-of-lines shape as test-macos/build-macos-app's
+          # equivalent check (grep -Eqv "spellchecker|enchant|..." above) -
+          # fail if either log contains a line the allowlist doesn't
+          # account for, instead of just printing for visibility like this
+          # step used to. Unlike macOS, the allowlist here starts empty:
+          # the first real clean-run baseline (2026-08-23, CI run
+          # 32658989469, the contents_directory="." fix) came back with
+          # both files completely empty - no depcheck output, no
+          # plugin-load noise at all, since bin/virtaal's dependency
+          # checker and most of its own logging setup are skipped entirely
+          # for packaged=True builds. That emptiness is exactly why three
+          # real, previously-invisible crashes on this same frozen-Windows
+          # startup path (fix_libintl's str/bytes mixing, PyInstaller 6's
+          # _internal/ layout mismatch, spellchecker.py's
+          # DICTDIR.decode() bug) went undetected here for as long as they
+          # did - this step printed the traceback right above for
+          # visibility but never failed on it, so a human had to hit each
+          # one by hand in the Windows 11 ARM64 VM instead. Add a regex to
+          # the allowlist below if/when a genuinely benign line shows up;
+          # until then, any line at all is unexpected.
+          $allowlistPatterns = @()
+          $unexpected = @($stdoutLog + $stderrLog) | Where-Object { $_ } | Where-Object {
+              $line = $_
+              -not ($allowlistPatterns | Where-Object { $line -match $_ })
+          }
+          if ($unexpected) {
+              Write-Host "::error::Unexpected output in the bundle's log - see above"
+              exit 1
+          }
 
       - uses: actions/upload-artifact@v7
         with:
