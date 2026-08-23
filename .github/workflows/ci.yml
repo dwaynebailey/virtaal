@@ -256,6 +256,17 @@ jobs:
       INCLUDE: 'C:\gtk\include;C:\gtk\include\cairo;C:\gtk\include\glib-2.0;C:\gtk\include\gobject-introspection-1.0;C:\gtk\lib\glib-2.0\include'
       LIB: 'C:\gtk\lib'
       PKG_CONFIG_PATH: 'C:\gtk\lib\pkgconfig'
+      # PATH (added via GITHUB_PATH, see below) covers DLL loading, but
+      # `import gi`/gi.require_version() needs this separately for
+      # resolving .typelib files - without it, `from gi.repository import
+      # Gtk` silently fails (caught by depcheck.py's broad `except
+      # Exception`), surfacing indirectly as "Failed dependencies: gtk"
+      # rather than the real underlying ImportError. Confirmed as the
+      # cause by elimination: pip install pygobject succeeded, but
+      # nothing had actually exercised a real `from gi.repository import
+      # Gtk` yet at that point - depcheck's test_gtk_version() was the
+      # first thing to actually try.
+      GI_TYPELIB_PATH: 'C:\gtk\lib\girepository-1.0'
     steps:
       - uses: actions/checkout@v7
         with:
