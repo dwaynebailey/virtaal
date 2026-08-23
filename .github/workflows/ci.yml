@@ -111,32 +111,36 @@ jobs:
           pip install --upgrade pip
           # Needed explicitly because "Install virtaal" below uses
           # --no-build-isolation: pip normally provisions setuptools (the
-          # build backend setup.py-only projects use) into a throwaway
-          # isolated build env itself, but with isolation off it expects
-          # setuptools to already be here - recent Python/venvs no longer
-          # bundle it by default the way ensurepip used to.
+          # build backend) into a throwaway isolated build env itself,
+          # but with isolation off it expects setuptools to already be
+          # here - recent Python/venvs no longer bundle it by default.
           pip install setuptools wheel
+          # translate-toolkit specifically has to be pre-installed, not
+          # just declared as a dependency below: setup.py's own top-level
+          # code imports it directly (for .mo compilation), which runs
+          # during "Install virtaal" itself, before pip has had a chance
+          # to satisfy pyproject.toml's declared dependencies.
           pip install translate-toolkit
-          pip install python-Levenshtein
-          pip install lxml
-          pip install pycurl
-          pip install diff_match_patch
+          # GTK3/PyGObject aren't declared in pyproject.toml at all -
+          # `pip install pygobject` only succeeds with GTK3 headers
+          # already present, which apt provides here but pyproject.toml
+          # can't express portably. See pyproject.toml's own comment.
           pip install pygobject
-          pip install cheroot
           pip install pyenchant
-          pip install pytest
 
       - name: Install virtaal
         # Not `python setup.py install`: setup.py's first import is
-        # `from distutils.core import ...`, which is gone from the stdlib
-        # entirely on Python 3.12+, and invoking it directly (rather than
-        # through pip) is also unreliable about where it puts the script.
-        # pip loads setuptools first, which shims distutils back in before
-        # setup.py runs; --no-build-isolation so setup.py's own top-level
-        # `from translate.storage import factory` (and its dependency
-        # check) see the translate-toolkit etc. installed above, same as
-        # this ran in-process under the old invocation.
-        run: pip install --no-build-isolation .
+        # `from setuptools import setup`, and invoking it directly
+        # (rather than through pip) is unreliable about where it puts
+        # the script. --no-build-isolation so setup.py's own top-level
+        # `from translate.tools.pocompile import convertmo` sees the
+        # translate-toolkit installed above. `.[test]` pulls in
+        # pyproject.toml's declared dependencies (pycurl, lxml,
+        # diff_match_patch, python-Levenshtein, cheroot, and
+        # translate-toolkit again - harmless, already satisfied) plus
+        # pytest, in one step instead of nine separate `pip install`
+        # lines.
+        run: pip install --no-build-isolation .[test]
 
       - name: Compile-check all Python files
         run: find . -name "*.py" -exec python -m py_compile {} +
@@ -196,17 +200,20 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install setuptools wheel
+          # Pre-installed for the same reason as the Linux job: setup.py
+          # imports it directly at the top level, before pyproject.toml's
+          # declared dependencies get a chance to be satisfied. GTK3/
+          # PyGObject need no separate pip install here (unlike Linux) -
+          # the --system-site-packages venv above already sees Homebrew's
+          # brew-installed `gi` module directly.
           pip install translate-toolkit
-          pip install python-Levenshtein
-          pip install lxml
-          pip install pycurl
-          pip install diff_match_patch
-          pip install cheroot
           pip install pyenchant
-          pip install pytest
 
       - name: Install virtaal
-        run: pip install --no-build-isolation .
+        # .[test] pulls in pyproject.toml's declared dependencies
+        # (pycurl, lxml, diff_match_patch, python-Levenshtein, cheroot)
+        # plus pytest, in one step instead of eight separate ones.
+        run: pip install --no-build-isolation .[test]
 
       - name: Compile-check all Python files
         run: find . -name "*.py" -exec python -m py_compile {} +
