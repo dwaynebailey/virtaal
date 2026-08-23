@@ -72,6 +72,27 @@ if ! command -v intltool-update >/dev/null 2>&1; then
     exit 0
 fi
 
+# Explicit check for entries pointing at files that no longer exist -
+# this is exactly the bug that motivated this hook (po/POTFILES.in
+# still listed three plugins removed in an earlier commit, silently
+# breaking `make pot` for everything after). Reported here, upfront
+# and by name, rather than relying on `make pot`/xgettext below: it
+# stops at the *first* missing file it hits and its error is easy to
+# miss among the routine intltool-update Perl warnings.
+missing=()
+while IFS= read -r potfile; do
+    case "$potfile" in
+        \[*|"") continue ;;
+    esac
+    [ -f "$potfile" ] || missing+=("$potfile")
+done < po/POTFILES.in
+if [ "${#missing[@]}" -gt 0 ]; then
+    echo "po/POTFILES.in lists file(s) that no longer exist on disk:" >&2
+    printf '  %s\n' "${missing[@]}" >&2
+    echo "Remove the stale entries (or restore the files, if that was unintentional)." >&2
+    exit 1
+fi
+
 strip_creation_date() {
     grep -v '^"POT-Creation-Date:' "$1" | git hash-object --stdin
 }
