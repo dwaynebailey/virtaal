@@ -21,6 +21,7 @@
 
 import logging
 
+from gi.repository import Gdk
 from gi.repository import GObject
 from gi.repository import Gtk
 
@@ -202,29 +203,29 @@ class StoreTreeView(Gtk.TreeView):
             return self._keyboard_move(1)
         return True
 
-    def on_configure_event(self, widget, _event, *_user_args):
-        # Reported 2026-08-23 (Windows), still reproducing after a first
-        # attempt at this fix (which only deduped *identical* successive
-        # sizes): the window keeps growing wider *during* a live
-        # right-edge drag, not just from redundant/duplicate events. A
-        # real interactive drag fires a genuinely-changing size on
-        # nearly every tick, so the earlier same-size guard still let
-        # columns_autosize() (recompute the single column's ideal width
-        # from cell content) run on every one of those - and each call
-        # can hand the window manager a natural-width hint wider than
-        # where the user is actively dragging to, which is how the
-        # window ends up fighting the drag instead of following it.
-        # (This is also why the local resize-check regression check
-        # kept passing while the live bug persisted: it drives discrete
-        # `set size of window to {...}` jumps, which isn't the same
-        # negotiation as a real continuous mouse-drag resize.)
+    def on_configure_event(self, widget, event, *_user_args):
+        # Third report, 2026-08-23, Windows only - never reproduced on
+        # macOS despite trying with the real file involved (po/af.po,
+        # not just the synthetic checks.po) and zero interaction, so
+        # this now carries real diagnostic instrumentation rather than
+        # another blind guess at the mechanism. History: first attempt
+        # (12ef7605) deduped identical successive sizes - insufficient,
+        # a live drag fires genuinely-changing sizes on nearly every
+        # tick. Second attempt (009ce12d) debounced instead - reported
+        # still growing, this time continuously right after opening a
+        # real file, no drag involved at all, which the debounce alone
+        # doesn't explain. Every report so far is Windows-only; nothing
+        # here reproduces on macOS.
         #
-        # Fix: debounce instead of dedupe. Every configure-event cancels
-        # any pending action and reschedules it - so nothing runs *while*
-        # the user is actively resizing, only once movement has actually
-        # stopped for 200ms. columns_autosize() then only ever
-        # renegotiates size after the fact, never mid-drag, so it can't
-        # fight a resize that's still happening.
+        # logging.info() (not .debug()) deliberately - bin/virtaal only
+        # calls logging.basicConfig() at all when -D/--debug or -l/--log
+        # is passed, and .debug()-level messages need -D specifically
+        # (see bin/virtaal's set_logging()) while -l/--log alone runs at
+        # INFO with real timestamps (%(asctime)s) and no extra flag
+        # needed. To capture this: run the packaged exe from a shell
+        # with `--log <path>`, e.g. `virtaal.exe --log C:\temp\resize-
+        # debug.log po\af.po`, reproduce the growth, send the file back.
+        logging.info("storetreeview: configure-event %dx%d", event.width, event.height)
         if self._configure_timeout_id is not None:
             GObject.source_remove(self._configure_timeout_id)
         self._configure_timeout_id = GObject.timeout_add(200, self._on_configure_settled)
@@ -232,6 +233,7 @@ class StoreTreeView(Gtk.TreeView):
 
     def _on_configure_settled(self):
         self._configure_timeout_id = None
+        logging.info("storetreeview: debounce settled, window=%s", self._window_size())
         self._restore_cursor(autosize=True)
         return False  # one-shot: don't repeat this GObject.timeout_add
 
@@ -251,16 +253,68 @@ class StoreTreeView(Gtk.TreeView):
         self._restore_cursor(autosize=False)
         return False
 
+    def _window_size(self):
+        window = self.get_toplevel()
+        if window and isinstance(window, Gtk.Window) and window.get_realized():
+            return window.get_size()
+        return None
+
     def _restore_cursor(self, autosize):
         path, column = self.get_cursor()
 
         if autosize:
+            before = self._window_size()
             self.columns_autosize()
+            after = self._window_size()
+            logging.info(
+                "storetreeview: columns_autosize() window %s -> %s, column width=%s",
+                before, after, column.get_width() if column else None,
+            )
+            self._clamp_to_sane_width("after columns_autosize()")
+
         if path != None:
             def do_setcursor():
+                before = self._window_size()
                 self.set_cursor(path, column, start_editing=True)
+                after = self._window_size()
+                logging.info(
+                    "storetreeview: set_cursor(start_editing=True) window %s -> %s",
+                    before, after,
+                )
+                self._clamp_to_sane_width("after set_cursor(start_editing=True)")
 
             GObject.idle_add(do_setcursor)
+
+    def _max_sane_width(self):
+        # Screen-derived, not a fixed pixel constant, so this doesn't
+        # need updating for different monitor sizes.
+        try:
+            display = Gdk.Display.get_default()
+            gdk_window = self.get_window()
+            monitor = (display.get_monitor_at_window(gdk_window) if gdk_window
+                       else display.get_primary_monitor())
+            return monitor.get_geometry().width
+        except Exception:
+            logging.exception("storetreeview: couldn't get screen width for the resize safety cap")
+            return 3000  # generous but bounded fallback
+
+    def _clamp_to_sane_width(self, when):
+        # Hard safety net for the runaway-resize bug above, not a fix
+        # for it - added 2026-08-23 alongside the diagnostic logging so
+        # the app stays usable (and the growth pattern still gets
+        # logged) while the real Windows-only mechanism is still being
+        # tracked down. Should be a no-op on a healthy resize.
+        window = self.get_toplevel()
+        if not window or not isinstance(window, Gtk.Window) or not window.get_realized():
+            return
+        width, height = window.get_size()
+        max_width = self._max_sane_width()
+        if width > max_width:
+            logging.warning(
+                "storetreeview: window width %d exceeded safety cap %d (%s) - clamping",
+                width, max_width, when,
+            )
+            window.resize(max_width, height)
 
     def _on_cursor_changed(self, _treeview):
         path, _column = self.get_cursor()
