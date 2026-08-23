@@ -351,6 +351,20 @@ jobs:
         run: |
           Get-ChildItem -Recurse -Filter *.py | ForEach-Object { python -m py_compile $_.FullName }
 
+      - name: Diagnostic - bare GTK3 import
+        # Bisecting the silent crash below: this isolates whether the
+        # native crash happens the instant GTK3's own DLLs/typelib get
+        # loaded at all (the first real `from gi.repository import Gtk`
+        # in the whole job - `py_compile` above is a syntax check only
+        # and never imports anything), independent of pytest or any of
+        # virtaal's own code. continue-on-error so a crash here doesn't
+        # block seeing the rest of the job's diagnostics in the same run.
+        continue-on-error: true
+        run: |
+          python -c "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk; print('GTK', Gtk.get_major_version(), Gtk.get_minor_version(), Gtk.get_micro_version())"
+        env:
+          PYTHONFAULTHANDLER: "1"
+
       - name: Run tests
         # No xvfb-run equivalent, same reasoning as the macOS job: Windows
         # always has its own native windowing system available, even in a
