@@ -343,9 +343,24 @@ def fix_libintl(main_dir):
     # See https://bugzilla.gnome.org/show_bug.cgi?id=574520
     from ctypes import cdll
     libintl = cdll.intl
-    # we need main_dir in the filesystem encoding:
-    main_dir = main_dir.encode(sys.getfilesystemencoding())
-    locale_dir = os.path.join(main_dir, "share", "locale")
-    libintl.bindtextdomain("virtaal", locale_dir)
-    libintl.bind_textdomain_codeset("virtaal", 'UTF-8')
+    # Join as str first (main_dir.encode() before the join, as this used
+    # to do, mixes bytes with the "share"/"locale" str literals - crashes
+    # with "Can't mix strings and bytes in path components", confirmed
+    # live in a real frozen Windows build), then encode the whole joined
+    # path to bytes for ctypes.
+    #
+    # Every argument passed to libintl below needs to be bytes, not str,
+    # for the same reason: ctypes does not auto-convert a plain Python
+    # str to bytes for a char* argument when a bare CDLL function is
+    # called with no argtypes declared - confirmed empirically (not
+    # platform-specific to libintl): it silently accepts a str without
+    # raising, but produces wrong/corrupted results rather than a clean
+    # error (ctypes.CDLL(None).strlen('hello') returns 1, not 5). "virtaal"
+    # and 'UTF-8' below were passed as plain str, same latent bug as
+    # main_dir's - never caught because this whole function was never
+    # actually exercised until a real frozen Windows build existed.
+    encoding = sys.getfilesystemencoding()
+    locale_dir = os.path.join(main_dir, "share", "locale").encode(encoding)
+    libintl.bindtextdomain(b"virtaal", locale_dir)
+    libintl.bind_textdomain_codeset(b"virtaal", b"UTF-8")
     del libintl
