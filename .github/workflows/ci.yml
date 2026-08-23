@@ -437,24 +437,28 @@ jobs:
         # non-interactive CI session, unlike X11 - confirmed fine, this
         # was never the problem.
         #
-        # Diagnostic history: this step used to fail with *zero* output at
-        # all (a genuine native crash, root-caused and fixed across the
-        # last several commits: MSVC vs. Strawberry Perl's gcc, then
-        # Python 3.8+'s stricter extension-module DLL search). Now it gets
-        # much further - 23 items collected, most pass - but 8 tests
-        # across virtaal/test/test_{main,mode,store}*controller*.py /
-        # test_storecursor.py / test_storemodel.py / test_unitcontroller.py
-        # error out (all share one TestScaffolding.setup_class() building
-        # a real MainController() - same failure across a class means
-        # *its* setup is raising, not each test individually), and then
-        # the process ends with no further output and exit code 1 - the
-        # same "vanished, no report printed" signature as before, this
-        # time seemingly during pytest's own session-finish/teardown
-        # rather than at import time. --tb=long forces full tracebacks;
-        # -x stops at the very first error so its traceback is forced out
-        # immediately, before whatever happens at the end has a chance to
-        # take the whole process down before printing anything.
-        run: pytest --tb=long -x -rvxs virtaal
+        # KNOWN, UNRESOLVED: this step currently crashes here. Everything
+        # up to this point in the job (GTK3 build via MSVC, DLL loading
+        # via sitecustomize.py, a bare `from gi.repository import Gtk`)
+        # works and is verified - see the preceding several commits, each
+        # a real, confirmed root cause. What's left is narrower and
+        # harder: constructing the app's first real window
+        # (MainController.__init__ -> MainView(self), reached via
+        # virtaal/test/test_scaffolding.py's TestScaffolding.setup_class()
+        # - shared by 8 of the 23 collected tests, across
+        # test_{main,mode,store}*controller*.py / test_storecursor.py /
+        # test_storemodel.py / test_unitcontroller.py) crashes the whole
+        # process with *zero* output - not even a Python traceback, even
+        # with `pytest -x` (stop at first failure, forcing immediate
+        # reporting) and PYTHONFAULTHANDLER=1 (below) both active. That
+        # combination ruled out an ordinary Python exception and a
+        # faulthandler-catchable SEH access violation - what's left
+        # (a GLib-level abort()/hard process exit, or something else
+        # faulthandler doesn't intercept) needs an actual attached
+        # debugger on Windows to identify, which isn't available in this
+        # environment. See ISSUE_TRIAGE.md for the full diagnostic
+        # history before picking this back up.
+        run: pytest -rvxs virtaal
         env:
           PYTHONFAULTHANDLER: "1"
 
