@@ -229,6 +229,104 @@ jobs:
       - name: Smoke test the CLI
         run: virtaal --help
 
+  build-macos-app:
+    runs-on: macos-latest
+    needs: test-macos
+    # Separate job from test-macos, not extra steps tacked onto it:
+    # PyInstaller has to trace and copy the whole dependency tree, which
+    # is genuinely slow, and this only needs to run once the fast pytest
+    # job has already confirmed the app itself works - no point spending
+    # the extra time building a bundle around a broken app.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      # Same Homebrew/venv setup as test-macos - PyInstaller needs a real,
+      # working GTK3/PyGObject environment to trace and bundle, not just
+      # virtaal's own pure-Python dependencies.
+      - name: Install system dependencies (Homebrew)
+        run: |
+          brew untap aws/tap || true
+          brew install pygobject3 gtk+3 gtk-mac-integration \
+            gobject-introspection cairo pkg-config gettext \
+            enchant gtkspell3
+
+      - name: Create venv with system site-packages
+        run: |
+          python3 -m venv --system-site-packages .venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install setuptools wheel
+          pip install translate-toolkit
+          pip install pyenchant
+          pip install pyinstaller
+
+      - name: Install virtaal
+        run: pip install --no-build-isolation .
+
+      - name: Build self-contained .app bundle
+        run: devsupport/packaging/macos/build_standalone.sh
+
+      - name: Verify the bundle launches cleanly
+        # Same shape of check as the run-virtaal skill's driver: launch
+        # with a real file in the background, confirm the process is
+        # still alive after enough time for GTK/plugin init, and confirm
+        # the log is clean - empty, not just "didn't crash". enchant is
+        # deliberately excluded from this bundle (see virtaal.spec's
+        # comment) so "Failed to load plugin spellchecker"-type lines
+        # are expected and fine; anything else in the log is not.
+        run: |
+          dist/Virtaal.app/Contents/MacOS/virtaal devsupport/testfiles/checks.po > /tmp/bundle-launch.log 2>&1 &
+          PID=$!
+          sleep 6
+          if ! kill -0 "$PID" 2>/dev/null; then
+            echo "::error::Bundle exited within 6s of launch"
+            cat /tmp/bundle-launch.log
+            exit 1
+          fi
+          kill "$PID"
+          pkill -f virtaal.support.tmserver || true
+          if grep -Eqv "spellchecker|enchant|GtkosxApplication" /tmp/bundle-launch.log; then
+            echo "::error::Unexpected output in the bundle's log"
+            cat /tmp/bundle-launch.log
+            exit 1
+          fi
+
+      - name: Package the bundle for upload
+        # Confirmed by hitting this for real: pointing upload-artifact
+        # straight at the dist/Virtaal.app *directory* lets its own
+        # zip/re-serve pipeline mangle the bundle - the code signature
+        # (embedded in Contents/_CodeSignature, hashes every file's exact
+        # bytes/permissions) came out invalid on download, which macOS
+        # reports as "Virtaal.app is damaged and can't be opened" -
+        # persists even after clearing the quarantine flag, since it's a
+        # broken signature, not a quarantine block. `ditto` is Apple's own
+        # tool for archiving app bundles for exactly this reason (it's
+        # what Apple's own notarization tooling recommends for zipping a
+        # .app before upload) - unlike a plain zip/tar, it's bundle-aware
+        # and preserves the signature, symlinks (including
+        # Contents/MacOS/share), and extended attributes faithfully.
+        run: ditto -c -k --sequesterRsrc --keepParent dist/Virtaal.app dist/Virtaal-macos-app.zip
+
+      - name: Verify the signature survives the archive step
+        # Cheap, immediate check that the fix above actually works,
+        # rather than only finding out from a user's download failing
+        # again - unzip with ditto (not plain unzip - same bundle-aware
+        # reasoning as packaging) and re-check codesign right here.
+        run: |
+          ditto -x -k dist/Virtaal-macos-app.zip /tmp/verify-signature
+          codesign -dv --verbose=4 /tmp/verify-signature/Virtaal.app
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Virtaal-macos-app
+          path: dist/Virtaal-macos-app.zip
+          if-no-files-found: error
+
   test-windows:
     runs-on: windows-latest
     # Second attempt - the first (MSYS2's own Python via pacman) got as

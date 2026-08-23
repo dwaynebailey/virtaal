@@ -33,4 +33,13 @@ PYTHON="$PWD/.venv/bin/python3"
 rm -rf build/virtaal dist/Virtaal.app
 "$PYTHON" -m PyInstaller -y devsupport/packaging/macos/virtaal.spec
 
+# PyInstaller's macOS BUNDLE step relocates data files (share/) into
+# Contents/Resources/ (proper Apple convention), but translate-toolkit's
+# frozen-mode data lookup (file_discovery.py) only checks next to the
+# executable (Contents/MacOS/) - a Windows/PyInstaller-flat-layout
+# assumption that doesn't hold for a macOS .app's split layout. A symlink
+# is the fix, not patching an external dependency - confirmed this is
+# needed by a real crash without it ("Could not find virtaal/virtaal.ui").
+ln -sf ../Resources/share dist/Virtaal.app/Contents/MacOS/share
+
 echo "Built dist/Virtaal.app (self-contained)"
