@@ -752,7 +752,10 @@ class MainView(BaseView):
         if not self.btn_app:
             self.btn_app = self.gui.get_object('btn_app')
             image = self.gui.get_object('img_app')
-            image.set_from_file(pan_app.get_abs_data_filename(['icons', 'hicolor', '24x24', 'mimetypes', 'x-translation.png']))
+            # Top-level icons/, not icons/hicolor/ - see welcomescreenview.py's
+            # update_recent_buttons() for why: this is a plain in-app icon,
+            # not Linux-only desktop/MIME integration data.
+            image.set_from_file(pan_app.get_abs_data_filename(['icons', 'x-translation.png']))
             self.app_menu = Gtk.Menu()
             self.btn_app.connect('pressed', self._on_app_pressed)
             self.btn_app.show()

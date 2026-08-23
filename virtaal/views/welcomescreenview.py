@@ -105,7 +105,13 @@ class WelcomeScreenView(BaseView):
         ]
         markup = '<span underline="single">%(name)s</span>'
 
-        iconfile = get_abs_data_filename(['icons', 'hicolor', '24x24', 'mimetypes', 'x-translation.png'])
+        # Top-level icons/ - shipped on every platform - not icons/hicolor/,
+        # which is freedesktop desktop-integration data setup.py only
+        # installs on Linux. This is a plain in-app button glyph, not
+        # desktop/MIME integration, so it needs the always-available copy.
+        # Only looked up when actually needed (items non-empty) - no point
+        # touching the filesystem for a button row that's about to be hidden.
+        iconfile = get_abs_data_filename(['icons', 'x-translation.png']) if items else None
         for i in range(len(items)):
             buttons[i].get_child().get_children()[0].set_from_file(iconfile)
             name = items[i]['name']
