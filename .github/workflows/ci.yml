@@ -694,19 +694,30 @@ jobs:
         # call operator doesn't block for a GUI-subsystem process the way
         # it does for a console one, so $LASTEXITCODE was never
         # meaningfully set (came back blank, not even 0) and no output
-        # was ever captured either. Start-Process -Wait -PassThru
-        # correctly waits for and reports the exit code of any process
-        # type; redirecting stdout/stderr to files makes the actual
-        # output visible in the job log too; instead of --version, which
-        # showed nothing.
+        # was ever captured either.
+        #
+        # Start-Process -PassThru + $proc.WaitForExit(ms), not
+        # Start-Process -Wait: -Wait alone has no timeout at all, and a
+        # genuinely hung windowed-subsystem process (confirmed live: this
+        # step ran well past two minutes on a plain --version, versus a
+        # console app printing and exiting in well under a second) would
+        # otherwise just sit there for the whole job timeout, burning
+        # runner minutes with no useful log output either way.
+        # Redirecting stdout/stderr to files makes any real output
+        # visible in the job log.
         shell: pwsh
         run: |
           $proc = Start-Process -FilePath .\dist\virtaal\virtaal.exe -ArgumentList "--version" `
-              -Wait -PassThru -RedirectStandardOutput out.log -RedirectStandardError err.log
+              -PassThru -RedirectStandardOutput out.log -RedirectStandardError err.log
+          $exited = $proc.WaitForExit(30000)
           Write-Host "--- stdout ---"
           Get-Content out.log -ErrorAction SilentlyContinue
           Write-Host "--- stderr ---"
           Get-Content err.log -ErrorAction SilentlyContinue
+          if (-not $exited) {
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              throw "virtaal.exe --version did not exit within 30 seconds - likely hung, not a clean crash"
+          }
           if ($proc.ExitCode -ne 0) { throw "virtaal.exe --version failed with exit code $($proc.ExitCode)" }
 
       - uses: actions/upload-artifact@v7
