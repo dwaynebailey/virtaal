@@ -1,0 +1,43 @@
+# Builds dist\virtaal\virtaal.exe as a real, self-contained bundle: Python,
+# GTK3/PyGObject's DLLs, and every dependency vendored inside dist\virtaal\
+# via PyInstaller - runs on a machine that never had this checkout or a
+# gvsbuild GTK3 install set up at all, unlike just running `python
+# bin\virtaal` from a checkout (see CONTRIBUTING.md's "Testing on Windows
+# locally" section for that whole toolchain).
+#
+# Mirrors devsupport/packaging/macos/build_standalone.sh's shape and
+# reasoning - see that script's header. One genuine simplification here:
+# no equivalent of its Contents/MacOS symlink workaround is needed -
+# PyInstaller's Windows --onedir output is already flat (everything next
+# to virtaal.exe), matching translate-toolkit's own frozen-mode data
+# lookup assumption exactly (confirmed by reading the installed package:
+# os.path.dirname(sys.executable), not a split Resources/ directory).
+#
+# Run from the repo root, in a shell that already has the gvsbuild/MSVC
+# environment set up (same PKG_CONFIG_PATH/GI_TYPELIB_PATH/INCLUDE/LIB/
+# PATH as CONTRIBUTING.md's local-testing section and ci.yml's
+# test-windows job) - this only builds the frozen bundle, it doesn't set
+# up the build environment itself.
+
+$ErrorActionPreference = "Stop"
+
+$RepoRoot = (git rev-parse --show-toplevel)
+Set-Location $RepoRoot
+
+$Python = "python"
+
+# setup.py's mo-compile step runs unconditionally as a side effect of
+# *any* setup.py invocation (see setup.py's own module docstring) - this
+# is the documented way to trigger it without going through pip/build.
+& $Python setup.py --version | Out-Null
+
+$pyinstallerInstalled = & $Python -m pip show pyinstaller 2>$null
+if (-not $pyinstallerInstalled) {
+    & $Python -m pip install pyinstaller
+}
+
+Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build\virtaal, dist\virtaal
+
+& $Python -m PyInstaller -y devsupport\packaging\windows\virtaal.spec
+
+Write-Host "Built dist\virtaal\virtaal.exe (self-contained)"
