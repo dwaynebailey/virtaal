@@ -137,6 +137,13 @@ class TMWindow(Gtk.Window):
         match_data = tree_model.get_value(iter, 0)
         if match_data.get('quality', None) is not None:
             quality = int(match_data['quality'])
+            # A percentage should never legitimately be outside 0-100, but a
+            # real, reproducible case has been seen where it isn't (root
+            # cause not yet found - see ISSUE_TRIAGE.md) - GtkCellRendererProgress's
+            # "value" property is a C gint, so an out-of-range quality
+            # crashes the whole app with OverflowError rather than just
+            # rendering wrong. Clamp defensively regardless of root cause.
+            quality = max(0, min(100, quality))
             cell_renderer.set_property('value', quality)
             #l10n: This message allows you to customize the appearance of the match percentage. Most languages can probably leave it unchanged.
             cell_renderer.set_property('text', _("%(match_quality)s%%") % \
