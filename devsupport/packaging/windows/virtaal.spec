@@ -88,10 +88,29 @@ mo_files = [
     for p in (ROOT / "mo").rglob("*.mo")
 ]
 
+# gvsbuild's own GTK3 install, from ci.yml's "Download prebuilt GTK3
+# (gvsbuild)" step (always C:\gtk - same convention the env vars there
+# use). PyInstaller's own build log for this spec warned "Could not
+# determine Gio modules path! / Bundling Gio modules is not supported on
+# your platform." - GIO modules cover things like network-monitor/D-Bus
+# backends, and a GTK app failing to find them is a known way for one to
+# hang (retrying a backend connection) rather than fail cleanly. Bundle
+# gvsbuild's own gio/modules directory explicitly rather than relying on
+# PyInstaller's own (apparently absent-on-this-platform) GIO-module
+# discovery. Guarded on the directory actually existing rather than a
+# hard path reference, in case a future gvsbuild layout changes this -
+# better to build without it (and re-hit the same warning) than hard-fail
+# the whole build over one optional directory.
+GTK_ROOT = Path(r"C:\gtk")
+gio_modules_dir = GTK_ROOT / "lib" / "gio" / "modules"
+binaries = []
+if gio_modules_dir.is_dir():
+    binaries.append((str(gio_modules_dir), "lib/gio/modules"))
+
 a = Analysis(  # noqa: F821
     [str(ROOT / "bin" / "virtaal")],
     pathex=[str(ROOT)],
-    binaries=[],
+    binaries=binaries,
     datas=[
         (str(ROOT / "share" / "virtaal"), "share/virtaal"),
         (str(ROOT / "share" / "icons"), "share/icons"),
