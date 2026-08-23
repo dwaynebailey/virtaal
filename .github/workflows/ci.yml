@@ -434,16 +434,27 @@ jobs:
       - name: Run tests
         # No xvfb-run equivalent, same reasoning as the macOS job: Windows
         # always has its own native windowing system available, even in a
-        # non-interactive CI session, unlike X11. That assumption turned
-        # out fine (got here at all), but this step then fails with
-        # *zero* output at all - not even pytest's own collection
-        # banner, despite -s already disabling capture - which points at
-        # a genuine native crash (access violation) rather than a Python
-        # exception. PYTHONFAULTHANDLER makes CPython dump a C-level
-        # stack trace on exactly this kind of fault instead of just
-        # vanishing, needed to find out what's actually crashing rather
-        # than guessing blind.
-        run: pytest -rvxs virtaal
+        # non-interactive CI session, unlike X11 - confirmed fine, this
+        # was never the problem.
+        #
+        # Diagnostic history: this step used to fail with *zero* output at
+        # all (a genuine native crash, root-caused and fixed across the
+        # last several commits: MSVC vs. Strawberry Perl's gcc, then
+        # Python 3.8+'s stricter extension-module DLL search). Now it gets
+        # much further - 23 items collected, most pass - but 8 tests
+        # across virtaal/test/test_{main,mode,store}*controller*.py /
+        # test_storecursor.py / test_storemodel.py / test_unitcontroller.py
+        # error out (all share one TestScaffolding.setup_class() building
+        # a real MainController() - same failure across a class means
+        # *its* setup is raising, not each test individually), and then
+        # the process ends with no further output and exit code 1 - the
+        # same "vanished, no report printed" signature as before, this
+        # time seemingly during pytest's own session-finish/teardown
+        # rather than at import time. --tb=long forces full tracebacks;
+        # -x stops at the very first error so its traceback is forced out
+        # immediately, before whatever happens at the end has a chance to
+        # take the whole process down before printing anything.
+        run: pytest --tb=long -x -rvxs virtaal
         env:
           PYTHONFAULTHANDLER: "1"
 
