@@ -4,6 +4,12 @@ on:
   push:
     branches: [master, py3]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      debug_windows:
+        description: "Open an SSH debug session (tmate) on the Windows job, right before the step that's been crashing with no output"
+        type: boolean
+        default: false
 
 jobs:
   pre-commit:
@@ -550,6 +556,21 @@ jobs:
           python -c "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk; print('GTK', Gtk.get_major_version(), Gtk.get_minor_version(), Gtk.get_micro_version())"
         env:
           PYTHONFAULTHANDLER: "1"
+
+      - name: Debug via tmate (manual trigger only)
+        # Opens an interactive SSH session into this exact runner, right
+        # before the step that's been crashing with zero output - only
+        # when manually dispatched with debug_windows=true, never on a
+        # normal push/PR. The point: a fresh local Windows VM likely
+        # wouldn't reproduce this crash at all (tied to this exact
+        # gvsbuild/MSVC/Python combination); this gets a shell in the
+        # actual environment where it does reproduce, to set up crash-dump
+        # collection (e.g. Windows Error Reporting LocalDumps) or attach a
+        # debugger before triggering it deliberately, rather than only
+        # finding out post-mortem.
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_windows }}
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 30
 
       - name: Run tests
         # No xvfb-run equivalent, same reasoning as the macOS job: Windows
