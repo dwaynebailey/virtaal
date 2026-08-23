@@ -60,9 +60,9 @@ class StoreTreeView(Gtk.TreeView):
         # to you.
         self._waiting_for_row_change = 0
 
-        # Tracks the last size on_configure_event() actually acted on -
-        # see that method for why.
-        self._last_configure_size = None
+        # GObject.timeout_add() id for the pending debounced
+        # on_configure_event() action - see that method for why.
+        self._configure_timeout_id = None
 
     def _enable_tooltips(self):
         if hasattr(self, "set_tooltip_column"):
@@ -74,6 +74,15 @@ class StoreTreeView(Gtk.TreeView):
         self.connect("cursor-changed", self._on_cursor_changed)
         self.connect("button-press-event", self._on_button_press)
         self.connect('focus-in-event', self._on_focus_in)
+        # on_configure_event()'s debounce timer outlives a single event,
+        # so it needs to be cancelled explicitly on teardown - otherwise
+        # a pending GObject.timeout_add() can fire after this widget is
+        # destroyed and call back into it (self.get_cursor() etc. on a
+        # dead widget). This app already has one known, reproducible
+        # teardown-related segfault (GTK widget-hierarchy teardown
+        # racing CPython's cyclic GC - see the run-virtaal skill's
+        # Gotchas); not adding to that risk.
+        self.connect('destroy', self._on_destroy)
 
         # The following connections are necessary, because Gtk+ apparently *only* uses accelerators
         # to add pretty key-bindings next to menu items and does not really care if an accelerator
@@ -193,30 +202,43 @@ class StoreTreeView(Gtk.TreeView):
             return self._keyboard_move(1)
         return True
 
-    def on_configure_event(self, widget, event, *_user_args):
-        # Reported 2026-08-23 (Windows): the main window kept growing a
-        # little wider on every resize and never settled, eventually
-        # covering the edit widget entirely. This handler used to run
-        # unconditionally on *every* configure-event - and GTK/the
-        # window manager fire several of those per resize tick, not one
-        # - redoing columns_autosize() (recompute the single column's
-        # ideal width from cell content) and restarting cell editing
-        # each time. With no default_width/default_height on MainWindow
-        # in virtaal.ui (only a minimum width_request/height_request),
-        # the window's actual size is driven by its children's natural
-        # size requests - repeatedly recomputing that on every tick of
-        # the same resize is exactly the shape of a configure ->
-        # autosize -> resize -> configure feedback loop. Guard against
-        # re-running the expensive part when the reported size hasn't
-        # actually changed since last time; a genuine size change still
-        # runs it exactly as before.
-        new_size = (event.width, event.height)
-        if new_size == self._last_configure_size:
-            return False
-        self._last_configure_size = new_size
-
-        self._restore_cursor(autosize=True)
+    def on_configure_event(self, widget, _event, *_user_args):
+        # Reported 2026-08-23 (Windows), still reproducing after a first
+        # attempt at this fix (which only deduped *identical* successive
+        # sizes): the window keeps growing wider *during* a live
+        # right-edge drag, not just from redundant/duplicate events. A
+        # real interactive drag fires a genuinely-changing size on
+        # nearly every tick, so the earlier same-size guard still let
+        # columns_autosize() (recompute the single column's ideal width
+        # from cell content) run on every one of those - and each call
+        # can hand the window manager a natural-width hint wider than
+        # where the user is actively dragging to, which is how the
+        # window ends up fighting the drag instead of following it.
+        # (This is also why the local resize-check regression check
+        # kept passing while the live bug persisted: it drives discrete
+        # `set size of window to {...}` jumps, which isn't the same
+        # negotiation as a real continuous mouse-drag resize.)
+        #
+        # Fix: debounce instead of dedupe. Every configure-event cancels
+        # any pending action and reschedules it - so nothing runs *while*
+        # the user is actively resizing, only once movement has actually
+        # stopped for 200ms. columns_autosize() then only ever
+        # renegotiates size after the fact, never mid-drag, so it can't
+        # fight a resize that's still happening.
+        if self._configure_timeout_id is not None:
+            GObject.source_remove(self._configure_timeout_id)
+        self._configure_timeout_id = GObject.timeout_add(200, self._on_configure_settled)
         return False
+
+    def _on_configure_settled(self):
+        self._configure_timeout_id = None
+        self._restore_cursor(autosize=True)
+        return False  # one-shot: don't repeat this GObject.timeout_add
+
+    def _on_destroy(self, _widget):
+        if self._configure_timeout_id is not None:
+            GObject.source_remove(self._configure_timeout_id)
+            self._configure_timeout_id = None
 
     def _on_focus_in(self, widget, _event, *_user_args):
         # Restore cursor/editing state on refocus, same as
