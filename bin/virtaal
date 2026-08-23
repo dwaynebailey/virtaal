@@ -238,4 +238,21 @@ def main(argv):
     runner(startup_file)
 
 if __name__ == "__main__":
-    main(sys.argv)
+    try:
+        main(sys.argv)
+    except KeyboardInterrupt:
+        # Ctrl-C from the CLI shouldn't dump a traceback - PyGObject's own
+        # Gtk.main() re-raises KeyboardInterrupt through its SIGINT fallback
+        # handling (gi/_ossighelper.py) rather than swallowing it, so this
+        # has to be caught here at the true top level to actually stop it.
+        # os._exit(), not sys.exit(): a normal Ctrl-C here skips
+        # default_runner()'s own os._exit(0) (that line is never reached
+        # once an exception is propagating), and sys.exit() would go
+        # through ordinary interpreter finalization - which forces a
+        # gc.collect() despite virtaal.main.Virtaal's gc.disable(), and
+        # reproduces the exact GTK teardown segfault that os._exit(0) was
+        # added to dodge on the normal-quit path (see main.py). 130 is the
+        # conventional shell exit code for "terminated by SIGINT" (128 +
+        # signal number 2).
+        import os
+        os._exit(130)
