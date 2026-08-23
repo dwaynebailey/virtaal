@@ -19,7 +19,7 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 """Generates Contents/Info.plist for the macOS .app bundle (see
-devsupport/macos-app/build.sh). Run with the same Python environment
+devsupport/packaging/macos/build.sh). Run with the same Python environment
 `bin/virtaal` runs with - CFBundleDocumentTypes is derived from
 translate-toolkit's factory.supported_files(), the same source the old
 (dead, py2app-based) devsupport/mac-bundle/Info.plist got its document
