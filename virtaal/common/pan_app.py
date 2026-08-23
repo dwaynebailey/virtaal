@@ -47,7 +47,14 @@ def get_config_dir():
 
     return confdir
 
-if os.name == 'nt':
+# Only for the packaged (frozen/PyInstaller) build - that's a windowed
+# subsystem executable with no console at all, so this is the only way to
+# get error messages out of it. Gating on os.name == 'nt' alone (as this
+# used to do) also caught ordinary interactive/CI runs, which already have
+# a perfectly good console - it just silently redirected their output into
+# these files instead, which is exactly what made a real Windows CI crash
+# here look like "no output at all" for a long time.
+if os.name == 'nt' and getattr(sys, 'frozen', False):
     filename_template = os.path.join(get_config_dir(), '%s_virtaal.log')
     sys.stdout = open(filename_template % ('stdout'), 'w')
     sys.stderr = open(filename_template % ('stderr'), 'w')
