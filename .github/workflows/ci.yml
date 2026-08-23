@@ -260,8 +260,24 @@ jobs:
     # locally (see the run-virtaal skill's notes).
     env:
       gvsbuild_version: "2026.8.0"
-      INCLUDE: 'C:\gtk\include;C:\gtk\include\cairo;C:\gtk\include\glib-2.0;C:\gtk\include\gobject-introspection-1.0;C:\gtk\lib\glib-2.0\include'
-      LIB: 'C:\gtk\lib'
+      # INCLUDE/LIB deliberately NOT set here as static job-level values
+      # any more: they need to be *appended to* whatever ilammy/msvc-dev-cmd
+      # computes below (its own INCLUDE/LIB, for the MSVC/Windows SDK
+      # headers and import libs cl.exe itself needs), not replace it - see
+      # the "Add GTK3 to MSVC build environment" step.
+      CC: cl
+      CXX: cl
+      # Force meson (pygobject's build backend) to use MSVC unambiguously.
+      # Without this, meson's own compiler auto-detection picked up
+      # Strawberry Perl's gcc/ccache from PATH instead (windows-latest
+      # runners ship it for Perl-dependent builds) - confirmed directly
+      # from a real build log: `"C:\Strawberry\c\bin\ccache.exe" "cc"`
+      # compiling gi/_gi's sources, failing with `fatal error: glib.h: No
+      # such file or directory` / `girepository/girepository.h: No such
+      # file or directory`. That's not a missing-file problem - it's that
+      # gcc doesn't consult the Windows INCLUDE env var the way cl.exe
+      # does, so C:\gtk\include was invisible to it regardless of how
+      # correctly INCLUDE was set.
       PKG_CONFIG_PATH: 'C:\gtk\lib\pkgconfig'
       # PATH (added via GITHUB_PATH, see below) covers DLL loading, but
       # `import gi`/gi.require_version() needs this separately for
@@ -302,6 +318,35 @@ jobs:
         # mechanism: prepends for every step from here on, additively.
         shell: pwsh
         run: echo "C:\gtk\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Set up MSVC build environment
+        # windows-latest has the MSVC toolchain (cl.exe) installed but not
+        # on PATH/INCLUDE/LIB by default - this is the standard action for
+        # running the equivalent of vcvarsall.bat and persisting the
+        # result (PATH, INCLUDE, LIB, LIBPATH) into $GITHUB_ENV/PATH for
+        # every later step. Needed so CC=cl/CXX=cl (above) actually
+        # resolves to a working compiler, not just a name meson can't find.
+        #
+        # Still on Node 20 as of the latest release (v1.13.0) - confirmed
+        # by checking that release's own action.yml, not assumed - unlike
+        # actions/cache and actions/upload-artifact above, there's no
+        # newer major version to bump to yet. GitHub currently force-runs
+        # it on Node 24 anyway, so this is a "wait for upstream" item, not
+        # something fixable from this side.
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Add GTK3 to MSVC build environment
+        # Must run *after* msvc-dev-cmd, appending to its INCLUDE/LIB
+        # rather than replacing them (a static job-level env: INCLUDE=...
+        # would instead get replaced *by* msvc-dev-cmd's own INCLUDE, per
+        # normal $GITHUB_ENV precedence - same clobbering pattern as
+        # PKG_CONFIG_PATH below, just the reverse order) - cl.exe needs
+        # its own CRT/Windows SDK headers/libs (from msvc-dev-cmd) *and*
+        # GTK3's (from gvsbuild) at once.
+        shell: pwsh
+        run: |
+          echo "INCLUDE=$env:INCLUDE;C:\gtk\include;C:\gtk\include\cairo;C:\gtk\include\glib-2.0;C:\gtk\include\gobject-introspection-1.0;C:\gtk\lib\glib-2.0\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "LIB=$env:LIB;C:\gtk\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - uses: actions/setup-python@v7
         with:
