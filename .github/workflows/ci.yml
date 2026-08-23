@@ -686,10 +686,28 @@ jobs:
         # Mirrors test-macos/build-macos-app's own launch-and-check
         # pattern - a PyInstaller build succeeding is not the same thing
         # as the result actually starting.
+        #
+        # Not `& .\dist\virtaal\virtaal.exe --version` - confirmed live
+        # this doesn't work for a console=False (windowed-subsystem) exe,
+        # which is what this actually needs to be once shipped, so not
+        # something to change just to make this check easier. The `&`
+        # call operator doesn't block for a GUI-subsystem process the way
+        # it does for a console one, so $LASTEXITCODE was never
+        # meaningfully set (came back blank, not even 0) and no output
+        # was ever captured either. Start-Process -Wait -PassThru
+        # correctly waits for and reports the exit code of any process
+        # type; redirecting stdout/stderr to files makes the actual
+        # output visible in the job log too; instead of --version, which
+        # showed nothing.
         shell: pwsh
         run: |
-          & .\dist\virtaal\virtaal.exe --version
-          if ($LASTEXITCODE -ne 0) { throw "virtaal.exe --version failed with exit code $LASTEXITCODE" }
+          $proc = Start-Process -FilePath .\dist\virtaal\virtaal.exe -ArgumentList "--version" `
+              -Wait -PassThru -RedirectStandardOutput out.log -RedirectStandardError err.log
+          Write-Host "--- stdout ---"
+          Get-Content out.log -ErrorAction SilentlyContinue
+          Write-Host "--- stderr ---"
+          Get-Content err.log -ErrorAction SilentlyContinue
+          if ($proc.ExitCode -ne 0) { throw "virtaal.exe --version failed with exit code $($proc.ExitCode)" }
 
       - uses: actions/upload-artifact@v7
         with:
