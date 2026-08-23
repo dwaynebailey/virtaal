@@ -327,6 +327,28 @@ jobs:
           path: dist/Virtaal-macos-app.zip
           if-no-files-found: error
 
+      - name: Build .dmg installer
+        run: devsupport/packaging/macos/build_dmg.sh
+
+      - name: Verify the .dmg mounts and contains a real app
+        # A .dmg is a single opaque file, unlike the raw .app directory
+        # above - no ditto-style archiving trick needed for the artifact
+        # upload itself, but still worth confirming the disk image is
+        # genuinely mountable and has what it should before shipping it
+        # as a build artifact, rather than assuming dmgbuild succeeding
+        # silently means the result is actually usable.
+        run: |
+          hdiutil attach dist/Virtaal.dmg -mountpoint /tmp/verify-dmg -nobrowse -quiet
+          test -x /tmp/verify-dmg/Virtaal.app/Contents/MacOS/virtaal
+          test -L /tmp/verify-dmg/Applications
+          hdiutil detach /tmp/verify-dmg -quiet
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Virtaal-macos-dmg
+          path: dist/Virtaal.dmg
+          if-no-files-found: error
+
   test-windows:
     runs-on: windows-latest
     # Second attempt - the first (MSYS2's own Python via pacman) got as

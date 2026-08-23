@@ -69,3 +69,17 @@ dev build that just wraps your own checkout):
 ```bash
 devsupport/packaging/macos/build_standalone.sh
 ```
+
+The same CI job also builds a real `.dmg` installer from that bundle
+(`Virtaal-macos-dmg` artifact) - a drag-to-Applications disk image with
+the app's own background art and icon, not just the raw `.app`. Build
+one locally the same way, after `build_standalone.sh`:
+
+```bash
+devsupport/packaging/macos/build_dmg.sh
+```
+
+Same signing caveat as the `.app` above applies here too - it's not
+notarized, so macOS will still block a first open (`xattr -cr` +
+`codesign --force --deep -s -` on the extracted `.app`, same as above,
+after mounting the `.dmg`).
