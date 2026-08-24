@@ -152,6 +152,8 @@ class SearchMode(BaseMode):
     def select_match(self, match):
         """Select the specified match in the GUI."""
         main_controller = self.controller.main_controller
+        logging.debug('select_match: unit=%r part=%s part_n=%d' % (
+            getattr(match.unit, 'source', match.unit), match.part, match.part_n))
         main_controller.select_unit(match.unit)
         view = main_controller.unit_controller.view
 
@@ -382,6 +384,13 @@ class SearchMode(BaseMode):
 
     def _move_match(self, offset):
         if self.controller.current_mode is not self:
+            # Confirmed live, 2026-08-24, to be a real silent no-op path:
+            # e.g. a keystroke intended for the search entry landing
+            # somewhere else first (losing Search mode) means Enter never
+            # gets here at all, but if it *does* land while some other
+            # mode is current, this is where it would quietly do nothing.
+            logging.debug('_move_match: not the current mode (%s is current) - ignoring' % (
+                self.controller.current_mode.name if self.controller.current_mode else None))
             return
 
         if getattr(self, 'matchcursor', None) is None:
@@ -391,6 +400,7 @@ class SearchMode(BaseMode):
 
         old_match_index = self.matchcursor.index
         if not self.matches or old_match_index != self.matchcursor.index:
+            logging.debug('_move_match: no matches or stale matchcursor - re-searching instead of moving')
             self.update_search()
             return
 
@@ -413,6 +423,12 @@ class SearchMode(BaseMode):
 
     # EVENT HANDLERS #
     def _on_entry_activate(self, entry):
+        # Confirmed live, 2026-08-24: whether Enter in ent_search actually
+        # reaches this handler at all (versus landing on some other widget
+        # because focus wasn't where it was assumed to be) was previously
+        # only inferable indirectly, by the absence of anything else in
+        # the log - this makes it directly checkable.
+        logging.debug('_on_entry_activate: Enter activated ent_search (text=%r)' % (entry.get_text()))
         self.update_search()
         self._move_match(0) # Select the current match.
 
