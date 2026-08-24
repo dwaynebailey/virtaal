@@ -757,6 +757,86 @@ jobs:
               exit 1
           }
 
+      - name: Verify repeated navigation doesn't grow the window
+        # Reported live on Windows, 2026-08-23, after the runaway-resize
+        # loop above was already fixed: opening a real file and
+        # repeatedly pressing Enter to advance to the next translation
+        # unit grows the window a little wider each time, and it never
+        # shrinks back - any file with more than ~20-30 strings ends up
+        # with an unusably wide window. Same root-cause family (this
+        # Windows/gvsbuild GTK3 build computing a divergent natural size
+        # each time a cell re-enters edit mode), but a different trigger
+        # the "Verify the bundle actually runs" step above never
+        # exercises at all - it opens a file and confirms the process is
+        # alive, it never navigates between units. The trigger is
+        # storetreeview.py's select_index() specifically - a separate,
+        # much older code path with its own start_editing=True calls,
+        # not touched by the resize/focus-triggered fix above. No local
+        # repro exists for this on macOS despite trying, so this is a
+        # real regression check on actual Windows (SendKeys + Win32
+        # GetWindowRect) rather than another blind guess verified only
+        # by a human in a VM.
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms
+          # A PowerShell here-string's closing "@ must start at column 1,
+          # which is incompatible with a YAML block scalar's requirement
+          # that every line stay indented - so this is one plain string
+          # instead, not a here-string.
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class VirtaalWin32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'
+
+          $proc = Start-Process -FilePath .\dist\virtaal\virtaal.exe -ArgumentList "po\af.po" -PassThru
+          Start-Sleep -Seconds 8
+
+          $hwnd = [IntPtr]::Zero
+          for ($i = 0; $i -lt 20; $i++) {
+              $proc.Refresh()
+              if ($proc.MainWindowHandle -ne [IntPtr]::Zero) {
+                  $hwnd = $proc.MainWindowHandle
+                  break
+              }
+              Start-Sleep -Milliseconds 500
+          }
+          if ($hwnd -eq [IntPtr]::Zero) {
+              Write-Host "::error::Never got a main window handle for virtaal.exe"
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              exit 1
+          }
+
+          function Get-VirtaalWidth {
+              $rect = New-Object VirtaalWin32+RECT
+              [VirtaalWin32]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
+              return $rect.Right - $rect.Left
+          }
+
+          [VirtaalWin32]::SetForegroundWindow($hwnd) | Out-Null
+          Start-Sleep -Milliseconds 500
+
+          $widthBefore = Get-VirtaalWidth
+          Write-Host "Window width before navigation: $widthBefore"
+
+          for ($i = 0; $i -lt 25; $i++) {
+              [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+              Start-Sleep -Milliseconds 200
+          }
+
+          $widthAfter = Get-VirtaalWidth
+          Write-Host "Window width after 25x Enter-to-advance: $widthAfter"
+
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          Get-Process -Name virtaal -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
+          $growth = $widthAfter - $widthBefore
+          Write-Host "Width growth after 25 navigations: $growth px"
+          if ($growth -gt 50) {
+              Write-Host "::error::Window grew by $growth px after 25x Enter-to-advance - see storetreeview.py's select_index()"
+              Write-Host "--- stdout log ---"
+              Get-Content "$env:APPDATA\Virtaal\stdout_virtaal.log" -ErrorAction SilentlyContinue
+              Write-Host "--- stderr log ---"
+              Get-Content "$env:APPDATA\Virtaal\stderr_virtaal.log" -ErrorAction SilentlyContinue
+              exit 1
+          }
+
       - uses: actions/upload-artifact@v7
         with:
           name: Virtaal-windows-bundle
