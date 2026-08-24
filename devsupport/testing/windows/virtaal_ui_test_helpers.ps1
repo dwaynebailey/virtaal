@@ -1,7 +1,9 @@
 # Reusable PowerShell helpers for driving the packaged Windows
 # virtaal.exe from CI (or a local Windows/VM session): launch, get a
-# real window handle via Win32, read its geometry, send keystrokes via
-# SendKeys, read the frozen-build log files, and clean up.
+# real window handle via Win32, read its geometry/title, send
+# keystrokes via SendKeys, detect and drive popup dialogs (file choosers,
+# Preferences, ...), simulate a mouse click, save a screenshot, read the
+# frozen-build log files, and clean up.
 #
 # Built 2026-08-24 by generalizing the ad-hoc script written directly
 # into ci.yml's "Verify repeated navigation doesn't grow the window"
@@ -30,6 +32,7 @@
 #   Stop-VirtaalTest $t
 
 Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
 # A PowerShell here-string's closing "@ must start at column 1, which is
 # incompatible with a YAML block scalar's indentation requirement when
@@ -37,7 +40,20 @@ Add-Type -AssemblyName System.Windows.Forms
 # as one plain string (not a here-string) here too, even though this
 # file itself isn't YAML, so a future copy-paste into a workflow step
 # doesn't reintroduce that exact bug.
-Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; using System.Text; public class VirtaalWin32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr hWnd); [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'
+#
+# GetForegroundWindow (added 2026-08-24): the simplest reliable way to
+# detect a newly-opened dialog (e.g. Preferences via Ctrl+P) without the
+# considerably more involved EnumWindows-plus-delegate-marshaling
+# dance - a GTK dialog on Windows takes the foreground when it opens, so
+# comparing GetForegroundWindow() against the main Instance.Hwnd after
+# sending the key that should open one is enough to detect it and read
+# its title.
+#
+# SetCursorPos/mouse_event (added 2026-08-24): for click-based
+# navigation checks. mouse_event is the older, simpler Win32 mouse
+# simulation API (vs. the newer SendInput) - sufficient here since
+# nothing needs multi-touch or precise timing, just a plain left click.
+Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; using System.Text; public class VirtaalWin32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr hWnd); [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount); [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y); [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'
 
 function Start-VirtaalTest {
     <#
@@ -101,6 +117,22 @@ function Get-VirtaalHeight {
     return $rect.Bottom - $rect.Top
 }
 
+function Get-VirtaalWindowText {
+    <#
+    .SYNOPSIS
+    Low-level: reads any window's title text via Win32 GetWindowText,
+    given a raw HWND (not a Start-VirtaalTest instance) - the primitive
+    Get-VirtaalTitle and the popup-dialog checks (Ctrl+P Preferences,
+    etc.) both build on.
+    #>
+    param([Parameter(Mandatory)][IntPtr]$Hwnd)
+    $len = [VirtaalWin32]::GetWindowTextLength($Hwnd)
+    if ($len -eq 0) { return "" }
+    $sb = New-Object System.Text.StringBuilder ($len + 1)
+    [VirtaalWin32]::GetWindowText($Hwnd, $sb, $sb.Capacity) | Out-Null
+    return $sb.ToString()
+}
+
 function Get-VirtaalTitle {
     <#
     .SYNOPSIS
@@ -114,11 +146,132 @@ function Get-VirtaalTitle {
     whether the app is alive.
     #>
     param([Parameter(Mandatory)]$Instance)
-    $len = [VirtaalWin32]::GetWindowTextLength($Instance.Hwnd)
-    if ($len -eq 0) { return "" }
-    $sb = New-Object System.Text.StringBuilder ($len + 1)
-    [VirtaalWin32]::GetWindowText($Instance.Hwnd, $sb, $sb.Capacity) | Out-Null
-    return $sb.ToString()
+    return Get-VirtaalWindowText $Instance.Hwnd
+}
+
+function Wait-VirtaalPopup {
+    <#
+    .SYNOPSIS
+    Waits for a *different* top-level window than the instance's main
+    one to take the foreground (e.g. after Ctrl+P for Preferences, or
+    any other action that opens a dialog) - GTK dialogs on Windows take
+    the foreground when they open, so this is simpler and more reliable
+    than enumerating all of a process's top-level windows. Returns the
+    popup's HWND, or $null if nothing new appeared within the timeout
+    (the caller's action didn't open a dialog, or it failed to).
+    #>
+    param([Parameter(Mandatory)]$Instance, [int]$TimeoutSeconds = 5)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        $fg = [VirtaalWin32]::GetForegroundWindow()
+        if ($fg -ne [IntPtr]::Zero -and $fg -ne $Instance.Hwnd) {
+            return $fg
+        }
+        Start-Sleep -Milliseconds 200
+    }
+    return $null
+}
+
+function Send-VirtaalPopupKeys {
+    <#
+    .SYNOPSIS
+    Like Send-VirtaalKeys, but activates an arbitrary HWND (typically one
+    from Wait-VirtaalPopup - a file-open dialog, Preferences, ...)
+    instead of always the instance's main window. Send-VirtaalKeys itself
+    can't be reused for this: it unconditionally forces the *main*
+    window to the foreground first, which would steal focus back off a
+    dialog that's supposed to be receiving these keys instead.
+    #>
+    param([Parameter(Mandatory)][IntPtr]$Hwnd, [Parameter(Mandatory)][string]$Keys, [int]$SettleMs = 300)
+    [VirtaalWin32]::SetForegroundWindow($Hwnd) | Out-Null
+    Start-Sleep -Milliseconds 300
+    [System.Windows.Forms.SendKeys]::SendWait($Keys)
+    Start-Sleep -Milliseconds $SettleMs
+}
+
+function Close-VirtaalPopup {
+    <#
+    .SYNOPSIS
+    Closes a popup/dialog window found via Wait-VirtaalPopup by
+    activating it and sending Escape, then gives focus back to the
+    instance's main window so subsequent Send-VirtaalKeys calls land in
+    the right place again.
+    #>
+    param([Parameter(Mandatory)]$Instance, [Parameter(Mandatory)][IntPtr]$PopupHwnd)
+    Send-VirtaalPopupKeys $PopupHwnd "{ESC}"
+    [VirtaalWin32]::SetForegroundWindow($Instance.Hwnd) | Out-Null
+    Start-Sleep -Milliseconds 200
+}
+
+function Send-VirtaalClick {
+    <#
+    .SYNOPSIS
+    Simulates a real left mouse click at a position within the
+    instance's window, given as fractions (0.0-1.0) of its current
+    width/height rather than absolute pixels, so it at least scales with
+    the window's own size instead of assuming a fixed one. This is
+    inherently best-effort: there's no UI Automation tree here to ask
+    "where is the treeview's second row", so a click check's coordinates
+    are a guess based on Virtaal's general layout (menu/toolbar at top,
+    the unit list as a strip below that, the source/target editor
+    filling most of the rest) - use Save-VirtaalScreenshot right after a
+    click to confirm/tune where it actually landed if a click-based
+    check isn't behaving as expected.
+    #>
+    param([Parameter(Mandatory)]$Instance, [Parameter(Mandatory)][double]$XFraction, [Parameter(Mandatory)][double]$YFraction, [int]$SettleMs = 300)
+    [VirtaalWin32]::SetForegroundWindow($Instance.Hwnd) | Out-Null
+    Start-Sleep -Milliseconds 300
+    $rect = Get-VirtaalRect $Instance
+    $x = [int]($rect.Left + ($rect.Right - $rect.Left) * $XFraction)
+    $y = [int]($rect.Top + ($rect.Bottom - $rect.Top) * $YFraction)
+    [VirtaalWin32]::SetCursorPos($x, $y) | Out-Null
+    Start-Sleep -Milliseconds 50
+    [VirtaalWin32]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero) # MOUSEEVENTF_LEFTDOWN
+    Start-Sleep -Milliseconds 50
+    [VirtaalWin32]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero) # MOUSEEVENTF_LEFTUP
+    Start-Sleep -Milliseconds $SettleMs
+}
+
+function Save-VirtaalScreenshot {
+    <#
+    .SYNOPSIS
+    Captures the instance's window to a PNG - the same role as the
+    run-virtaal skill's driver.sh screenshot on macOS: something to
+    actually look at when a check's result needs visual confirmation
+    (most usefully, tuning Send-VirtaalClick's coordinates). Defaults to
+    landing under devsupport\testing\windows\.local-test-runs\ - the
+    same gitignored, host-readable location Invoke-VirtaalLocalTestPass.
+    ps1's transcript uses when this repo checkout is itself a shared
+    folder.
+    #>
+    param([Parameter(Mandatory)]$Instance, [string]$Path)
+    if (-not $Path) {
+        # $PSScriptRoot, not $MyInvocation.MyCommand.Path - the latter is
+        # empty inside a function (confirmed locally: only reliable at a
+        # script's own top level, not from a function it defines, even
+        # though the function itself is still defined by, and dot-sourced
+        # from, this same .ps1 file).
+        $dir = Join-Path $PSScriptRoot ".local-test-runs"
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        $Path = Join-Path $dir "screenshot-$(Get-Date -Format 'yyyyMMdd-HHmmss').png"
+    }
+    $rect = Get-VirtaalRect $Instance
+    $width = $rect.Right - $rect.Left
+    $height = $rect.Bottom - $rect.Top
+    if ($width -le 0 -or $height -le 0) { return $null }
+    $bmp = New-Object System.Drawing.Bitmap $width, $height
+    try {
+        $graphics = [System.Drawing.Graphics]::FromImage($bmp)
+        try {
+            $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bmp.Size)
+        } finally {
+            $graphics.Dispose()
+        }
+        $bmp.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+    } finally {
+        $bmp.Dispose()
+    }
+    return $Path
 }
 
 function Send-VirtaalKeys {

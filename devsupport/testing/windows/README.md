@@ -85,7 +85,41 @@ logs (`%APPDATA%\Virtaal\std{out,err}_virtaal.log`) and the installer's
 log (`%TEMP%\virtaal-install-*.log`) live outside the repo tree and
 aren't captured this way on their own - but their content gets printed
 to the console (and so into the transcript too) automatically whenever
-a check that reads them fails.
+a check that reads them fails. The click-navigation check also saves
+before/after screenshots to the same `.local-test-runs\` directory
+regardless of outcome, for the same reason - readable from the host
+side without anything needing to be copied out by hand.
+
+### What the battery covers
+
+- App launches cleanly (both with a file argument and from a bare
+  welcome screen - genuinely different startup code paths, see
+  `virtaal/main.py`'s `_open_with_file` vs `_open_with_welcome`).
+- A fresh install shows no modified marker on an untouched file.
+- Repeated navigation doesn't grow the window.
+- Type + Ctrl+Z clears the modified marker.
+- Common shortcuts (Ctrl+Z/X/C/V/O) don't crash.
+- Menu navigation (every top-level menu opens/closes cleanly).
+- Welcome screen -> a real File > Open dialog (not a CLI argument) ->
+  File > Recent Files reopens the same file.
+- Ctrl+P opens Preferences and it closes cleanly.
+- Ctrl+F's search/filter (`modes/searchmode.py`) doesn't crash.
+- F8's quality-checks panel doesn't crash or log an error against a
+  file built to exercise several checks.
+- Placeable navigation/transfer (Alt+Left/Right/Down) - Alt+Down
+  specifically verified to copy source into an empty target.
+- Click navigation (best-effort - see `Send-VirtaalClick`'s own
+  comments for why this one is inherently a guess without a UI
+  Automation tree available).
+
+None of this reaches into a check's *content* (e.g. what the checks
+panel actually lists, or whether the "right" recent file reopened
+beyond its filename appearing in the title) - there's no UI Automation
+tree wired up here, just Win32 window geometry/title/foreground-window
+plus SendKeys and a plain Win32 mouse click. That's enough to catch
+crashes, hangs, and the specific modified-flag/resize regressions this
+session was about; deeper content assertions would need a real
+Automation-tree library (e.g. FlaUI) wired in as a bigger follow-up.
 
 ## Using the pieces separately
 

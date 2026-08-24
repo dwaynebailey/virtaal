@@ -209,6 +209,251 @@ try {
     if ($t) { Stop-VirtaalTest $t }
 }
 
+# --- Check: welcome screen launches cleanly with no file argument ---
+# Every other check above passes a file on the command line, which
+# Virtaal opens synchronously before the event loop even starts
+# (virtaal/main.py's _open_with_file) - plugin loading (checks, undo,
+# TM, ...) is deferred to run afterwards via GObject.idle_add. With no
+# file argument at all, main.py instead takes the _open_with_welcome
+# path, where *everything* (UnitController, ModeController, ..., and
+# the same deferred plugin loading) is queued via the same idle_add
+# mechanism - a genuinely different startup code path none of the
+# file-argument checks above ever touch.
+$t = $null
+try {
+    $t = Start-VirtaalTest -ExePath $install.ExePath
+    if (-not $t) {
+        Add-Result "Welcome screen launches cleanly" "Fail" "app didn't launch"
+    } else {
+        $logsClean = Assert-VirtaalLogsClean
+        Add-Result "Welcome screen launches cleanly" $(if ($logsClean) { "Pass" } else { "Fail" }) $(if (-not $logsClean) { "unexpected log output - see above" })
+    }
+} finally {
+    if ($t) { Stop-VirtaalTest $t }
+}
+
+# --- Check: menu navigation ---
+# Opens and closes each top-level menu via its Alt+mnemonic (see
+# share\virtaal\virtaal.ui's "_File"/"_Edit"/"_View"/"_Navigation"/
+# "_Help" labels) - a cheap way to exercise menu construction/rendering
+# for every menu, not just the handful of items the shortcut checks
+# activate directly.
+$t = $null
+try {
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
+    if (-not $t) {
+        Add-Result "Menu navigation" "Fail" "app didn't launch"
+    } else {
+        foreach ($mnemonic in @("f", "e", "v", "n", "h")) {
+            Send-VirtaalKeys $t "%$mnemonic"
+            Send-VirtaalKeys $t "{ESC}"
+        }
+        $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+        $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
+        Add-Result "Menu navigation" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) $(if (-not $stillAlive) { "process exited" } elseif (-not $logsClean) { "unexpected log output - see above" })
+    }
+} finally {
+    if ($t) { Stop-VirtaalTest $t }
+}
+
+# --- Check: welcome screen -> Open dialog -> Recent Files reopens it ---
+# Covers two asks at once (they're the same underlying flow): opening
+# from the welcome screen via a real file-open dialog (not a CLI
+# argument), and reopening via File > Recent Files afterwards. Also the
+# closest thing in this battery to the exact sequence behind this
+# session's reopen-modified-flag bug family (change, close, reopen a
+# *different* file) - this variant reopens the *same* file, so it won't
+# catch that specific bug, but exercises the same dialog/menu machinery.
+#
+# The file-open dialog is a separate top-level window - Send-VirtaalKeys
+# can't be used once it's open (it always forces the *main* window
+# foreground first, which would steal focus back off the dialog);
+# Send-VirtaalPopupKeys targets the dialog's own HWND instead. Typing a
+# filename with no field explicitly focused relies on GTK's built-in
+# interactive/type-ahead search in the file list, the same mechanism the
+# run-virtaal skill's macOS driver relies on for its native NSOpenPanel.
+#
+# The "r" mnemonic jump for Recent Files (rather than counting Down-
+# arrow presses to it) is deliberately order-independent - it'll keep
+# working even if virtaal.ui's File menu items get reordered, as long as
+# "_Recent Files" keeps that mnemonic. Assumes the Recent Files submenu
+# auto-highlights its most-recent (topmost) entry when opened, which
+# {ENTER} then activates.
+$t = $null
+try {
+    $t = Start-VirtaalTest -ExePath $install.ExePath
+    if (-not $t) {
+        Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "^o"
+        $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 8
+        if (-not $dlg) {
+            Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "Ctrl+O never opened a file dialog"
+        } else {
+            Send-VirtaalPopupKeys $dlg "af.po"
+            Start-Sleep -Milliseconds 500
+            Send-VirtaalPopupKeys $dlg "{ENTER}"
+            Start-Sleep -Milliseconds 1000
+            $titleAfterOpen = Get-VirtaalTitle $t
+            if ($titleAfterOpen -notmatch "af\.po") {
+                Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "title after Open dialog=`"$titleAfterOpen`" - expected it to mention af.po"
+            } else {
+                Send-VirtaalKeys $t "^w"
+                Start-Sleep -Milliseconds 500
+                Send-VirtaalKeys $t "%f"
+                Send-VirtaalKeys $t "r"
+                Send-VirtaalKeys $t "{RIGHT}"
+                Send-VirtaalKeys $t "{ENTER}"
+                Start-Sleep -Milliseconds 1000
+                $titleAfterRecent = Get-VirtaalTitle $t
+                Add-Result "Welcome screen: open dialog + Recent Files" $(if ($titleAfterRecent -match "af\.po") { "Pass" } else { "Fail" }) "title after Recent Files=`"$titleAfterRecent`""
+            }
+        }
+    }
+} finally {
+    if ($t) { Stop-VirtaalTest $t }
+}
+
+# --- Check: Ctrl+P opens Preferences and closes cleanly ---
+$t = $null
+try {
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
+    if (-not $t) {
+        Add-Result "Ctrl+P opens Preferences" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "^p"
+        $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 5
+        if (-not $dlg) {
+            Add-Result "Ctrl+P opens Preferences" "Fail" "no dialog appeared"
+        } else {
+            $dlgTitle = Get-VirtaalWindowText $dlg
+            Close-VirtaalPopup $t $dlg
+            $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+            $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
+            Add-Result "Ctrl+P opens Preferences" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) "dialog title=`"$dlgTitle`"$(if (-not $stillAlive) { ' - process exited after closing it' } elseif (-not $logsClean) { ' - unexpected log output' })"
+        }
+    }
+} finally {
+    if ($t) { Stop-VirtaalTest $t }
+}
+
+# --- Check: Ctrl+F search/filter ---
+# SearchMode ("Includes only units matching the given search string" -
+# modes\searchmode.py) is Virtaal's filter-by-string feature - embedded
+# in the main window (a mode swapped in by ModeController), not a
+# separate dialog, so no Wait-VirtaalPopup needed here.
+$t = $null
+try {
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
+    if (-not $t) {
+        Add-Result "Ctrl+F search/filter" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "^f"
+        Send-VirtaalKeys $t "test"
+        Send-VirtaalKeys $t "{ESC}"
+        $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+        $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
+        Add-Result "Ctrl+F search/filter" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) $(if (-not $stillAlive) { "process exited" } elseif (-not $logsClean) { "unexpected log output - see above" })
+    }
+} finally {
+    if ($t) { Stop-VirtaalTest $t }
+}
+
+# --- Check: F8 quality checks panel ---
+# Toggles the panel on and off against devsupport\testfiles\checks.po,
+# a file specifically built to exercise translate-toolkit's checks - if
+# any single check throws on real data, that's exactly the kind of thing
+# that lands as a traceback in the app's own log, which
+# Assert-VirtaalLogsClean would catch (this doesn't read the checks
+# panel's actual *contents*, no UI Automation tree available here to do
+# that - just that showing/hiding it and running checks against a file
+# designed to trigger several of them doesn't crash or log an error).
+$t = $null
+try {
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
+    if (-not $t) {
+        Add-Result "F8 quality checks panel" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "{F8}"
+        Send-VirtaalKeys $t "{F8}"
+        $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+        $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
+        Add-Result "F8 quality checks panel" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) $(if (-not $stillAlive) { "process exited" } elseif (-not $logsClean) { "unexpected log output - see above" })
+    }
+} finally {
+    if ($t) { Stop-VirtaalTest $t }
+}
+
+# --- Check: placeable navigation/transfer shortcuts (Alt+Left/Right/Down) ---
+# <Virtaal>/Edit/Prev Placeable, Next Placeable (Alt+Left/Right - jump
+# between placeables in the target) and Transfer (Alt+Down - copies
+# source to an empty target) - see unitview.py's _setup_key_bindings.
+# Only Alt+Down has an observable effect worth checking for (copying
+# into an *empty* target sets the modified marker); like "Type + Ctrl+Z"
+# above, this is Skipped rather than Failed if the current unit's target
+# already had text (transfer then does nothing) rather than assuming
+# every test file's first unit is untranslated.
+$t = $null
+try {
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
+    if (-not $t) {
+        Add-Result "Placeable navigation/transfer shortcuts" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "%{RIGHT}"
+        Send-VirtaalKeys $t "%{LEFT}"
+        $titleBefore = Get-VirtaalTitle $t
+        Send-VirtaalKeys $t "%{DOWN}"
+        $titleAfter = Get-VirtaalTitle $t
+        $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+        if (-not $stillAlive) {
+            Add-Result "Placeable navigation/transfer shortcuts" "Fail" "process exited"
+        } elseif ($titleAfter.StartsWith("*") -and -not $titleBefore.StartsWith("*")) {
+            Add-Result "Placeable navigation/transfer shortcuts" "Pass" "Alt+Down transferred source to an empty target"
+        } else {
+            $logsClean = Assert-VirtaalLogsClean
+            Add-Result "Placeable navigation/transfer shortcuts" $(if ($logsClean) { "Skip" } else { "Fail" }) $(if ($logsClean) { "no crash; Alt+Down had no observable effect - target likely wasn't empty" } else { "unexpected log output - see above" })
+        }
+    }
+} finally {
+    if ($t) { Stop-VirtaalTest $t }
+}
+
+# --- Check: click navigation (best-effort) ---
+# No UI Automation tree is available here to ask "where is row 2", so
+# this clicks at a guessed position (fractions of the window's own
+# rect - roughly where the unit-list strip sits, per Virtaal's general
+# layout: menu/toolbar at top, a compact list of units below that, the
+# source/target editor filling the rest) and checks for a plausible
+# *effect* (typing afterwards sets the modified marker, meaning the
+# click landed in an editable target field) rather than verifying the
+# click precisely. Screenshots are saved either way, specifically so a
+# human (or a future Claude session with this same repo shared back)
+# can look at where the click actually landed and retune XFraction/
+# YFraction if this keeps Skipping.
+$t = $null
+try {
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "po\af.po"
+    if (-not $t) {
+        Add-Result "Click navigation" "Fail" "app didn't launch"
+    } else {
+        $shotBefore = Save-VirtaalScreenshot $t
+        Send-VirtaalClick $t -XFraction 0.5 -YFraction 0.15
+        Send-VirtaalKeys $t "x"
+        $title = Get-VirtaalTitle $t
+        $shotAfter = Save-VirtaalScreenshot $t
+        $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+        if (-not $stillAlive) {
+            Add-Result "Click navigation" "Fail" "process exited - screenshots: $shotBefore, $shotAfter"
+        } elseif ($title.StartsWith("*")) {
+            Add-Result "Click navigation" "Pass" "click appears to have focused an editable field - screenshots: $shotBefore, $shotAfter"
+        } else {
+            Add-Result "Click navigation" "Skip" "click at (0.5, 0.15) didn't land in an editable field (title=`"$title`") - see $shotBefore / $shotAfter to retune the coordinates"
+        }
+    }
+} finally {
+    if ($t) { Stop-VirtaalTest $t }
+}
+
 Write-Host "`n=== 4. Tear down ==="
 if (-not $KeepInstalled) {
     Uninstall-Virtaal | Out-Null
