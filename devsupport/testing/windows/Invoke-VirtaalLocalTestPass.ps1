@@ -863,17 +863,21 @@ Invoke-VirtaalCheck "Click: check-type (Project Type) selector" {
     # the way a real Gtk.Dialog does) - Escape closes it either way
     # (harmless even if nothing was open), and this only confirms no
     # crash/log error, the same honest bar as "Click navigation" above.
-    # The status bar is a fixed-height strip flush against the bottom
-    # edge regardless of window size, so a Y-fraction close to 1.0 should
-    # be a *more* reliable guess than the unit-list click's Y-fraction
-    # (which scales with total window height) - still just a guess
-    # without a UI Automation tree, hence the saved screenshots.
+    # Coordinates calibrated against a real screenshot, 2026-08-24 (the
+    # original 0.12/0.98 guess was wrong on both axes - confirmed
+    # missing entirely, no popup ever appeared in either the before or
+    # after capture across two separate reviews). "Checks: GNOME" itself
+    # actually sits at roughly x=0.67, y=0.92 of the window - well right
+    # of centre, not near the left edge as pack_start's *code-level*
+    # position among the status bar's children had suggested, and the
+    # status bar's real height means 0.98 was clipping below its visible
+    # text into the window's bottom border/resize-grip area entirely.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
         Add-Result "Click: check-type (Project Type) selector" "Fail" "app didn't launch"
     } else {
         $shotBefore = Save-VirtaalScreenshot $t
-        Send-VirtaalClick $t -XFraction 0.12 -YFraction 0.98
+        Send-VirtaalClick $t -XFraction 0.67 -YFraction 0.92
         $shotAfter = Save-VirtaalScreenshot $t
         Send-VirtaalKeys $t "{ESC}"
         $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
@@ -886,13 +890,15 @@ Invoke-VirtaalCheck "Click: language-pair selector" {
     # LanguageView's "<source> -> <target>" PopupMenuButton -
     # langview.py packs it into the status bar via pack_end, so this one
     # genuinely is bottom-right. Same best-effort approach and caveats as
-    # the check-type selector check above.
+    # the check-type selector check above - coordinates likewise
+    # recalibrated, 2026-08-24, against a real screenshot: the label
+    # actually sits at roughly x=0.83, y=0.92, not 0.9/0.98.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
         Add-Result "Click: language-pair selector" "Fail" "app didn't launch"
     } else {
         $shotBefore = Save-VirtaalScreenshot $t
-        Send-VirtaalClick $t -XFraction 0.9 -YFraction 0.98
+        Send-VirtaalClick $t -XFraction 0.83 -YFraction 0.92
         $shotAfter = Save-VirtaalScreenshot $t
         Send-VirtaalKeys $t "{ESC}"
         $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
