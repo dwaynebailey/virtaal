@@ -181,9 +181,29 @@ class StoreTreeView(Gtk.TreeView):
             # modified, prompting to save on close despite no real edit.
             self.set_cursor(newpath, self.get_columns()[0], start_editing=True)
             self.get_model().set_editable(newpath)
+            # Reported live, 2026-08-24, hard to reproduce (exact idle-queue
+            # timing dependent): typing a change, undoing it, closing the
+            # file, then opening a *different* file could prompt to
+            # discard changes on the new file despite no real edit there.
+            # change_cursor() below is deferred via GObject.idle_add() and
+            # re-runs set_cursor(..., start_editing=True) on this path -
+            # unguarded, it used to run against whatever model happens to
+            # be current when the main loop finally gets to it, which
+            # isn't necessarily this one if a file was closed and a new
+            # one opened in the meantime. Re-running set_cursor() against
+            # a stale path on a different file's model can start editing
+            # an arbitrary unit there and (via the same
+            # populating-fires-"changed" mechanism already fixed for the
+            # synchronous call above, see this method's history) spuriously
+            # mark the *new* file modified. Capture the model this was
+            # scheduled against and skip if it's no longer current, rather
+            # than acting on stale data.
+            scheduled_model = model
             def change_cursor():
-                self.set_cursor(newpath, self.get_columns()[0], start_editing=True)
                 self._waiting_for_row_change -= 1
+                if self.get_model() is not scheduled_model:
+                    return
+                self.set_cursor(newpath, self.get_columns()[0], start_editing=True)
             self._waiting_for_row_change += 1
             GObject.idle_add(change_cursor, priority=GObject.PRIORITY_DEFAULT_IDLE)
 
