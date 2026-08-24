@@ -157,33 +157,43 @@ function Set-VirtaalTranslatorInfo {
 function Open-VirtaalFileViaDialog {
     <#
     .SYNOPSIS
-    Sends Ctrl+O, waits for the file-open dialog, types $FileNameToFind
-    via GTK's interactive/type-ahead search (the same mechanism the
-    run-virtaal skill's macOS driver relies on for its native
-    NSOpenPanel), and presses Enter. Returns the dialog's HWND on
-    success or $null if Ctrl+O never opened one - doesn't verify the
-    resulting title itself, since different callers want different
-    filename checks.
+    Sends Ctrl+O, waits for the file-open dialog, navigates to
+    $FullPath via GTK's Ctrl+L location bar, and presses Enter. Returns
+    the dialog's HWND on success or $null if Ctrl+O never opened one -
+    doesn't verify the resulting title itself, since different callers
+    want different filename checks.
 
-    Confirmed live, 2026-08-24: this exact type-ahead-then-Enter
-    sequence succeeded in one run and failed to actually select
-    anything in another, immediately after the *same* code change, on
-    the *same* machine - consistent with a race between the dialog
-    reporting itself as foreground (which Wait-VirtaalPopup already
-    waits for) and its internal widget layout/keyboard focus actually
-    finishing settling, rather than a real app bug. Extracted into one
-    place (was duplicated across three checks) specifically so a
-    reliability fix here - the added settle delay below - benefits all
-    of them at once, and so a future failure has one call site to add
-    more diagnostics to instead of three.
+    Takes a *full* path, not a bare filename - see the history below for
+    why. Extracted into one place (was duplicated across three checks)
+    specifically so a reliability fix here benefits all of them at once,
+    and so a future failure has one call site to add more diagnostics
+    to instead of three.
+
+    History: originally typed a bare filename directly into the file
+    list, relying on GTK's interactive/type-ahead search (the same
+    mechanism the run-virtaal skill's macOS driver relies on for its
+    native NSOpenPanel) - reasoned, at the time, to be flaky from a race
+    between the dialog reporting itself foreground and its internal
+    focus settling. That diagnosis was wrong: a saved screenshot from a
+    live failure (2026-08-24) showed the dialog's search UI itself
+    active with "af.po" typed and "No Results Found" - GTK3's file
+    chooser search is a broader, non-recursive-by-default search
+    feature, not a simple filter of the currently-browsed directory's
+    contents, so a bare filename only works if the dialog already
+    happens to be browsing the right folder (recent files, mostly by
+    luck). Ctrl+L's location bar takes an unambiguous full path
+    instead and doesn't depend on whatever directory the dialog opened
+    to.
     #>
-    param([Parameter(Mandatory)]$Instance, [Parameter(Mandatory)][string]$FileNameToFind, [int]$DialogTimeoutSeconds = 8)
+    param([Parameter(Mandatory)]$Instance, [Parameter(Mandatory)][string]$FullPath, [int]$DialogTimeoutSeconds = 8)
     Send-VirtaalKeys $Instance "^o"
     $dlg = Wait-VirtaalPopup $Instance -TimeoutSeconds $DialogTimeoutSeconds
     if (-not $dlg) { return $null }
     Start-Sleep -Milliseconds 500
-    Send-VirtaalPopupKeys $dlg $FileNameToFind
-    Start-Sleep -Milliseconds 500
+    Send-VirtaalPopupKeys $dlg "^l"
+    Start-Sleep -Milliseconds 300
+    Send-VirtaalPopupKeys $dlg $FullPath
+    Start-Sleep -Milliseconds 300
     Send-VirtaalPopupKeys $dlg "{ENTER}"
     Start-Sleep -Milliseconds 1000
     return $dlg
@@ -529,7 +539,7 @@ Invoke-VirtaalCheck "Welcome screen: open dialog + Recent Files" {
     if (-not $t) {
         Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "app didn't launch"
     } else {
-        $dlg = Open-VirtaalFileViaDialog $t "af.po"
+        $dlg = Open-VirtaalFileViaDialog $t (Resolve-Path "po\af.po").Path
         if (-not $dlg) {
             Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "Ctrl+O never opened a file dialog"
         } else {
@@ -888,9 +898,9 @@ Invoke-VirtaalCheck "Change file A, discard, open different file B: no spurious 
     # dfb2a447, 297f0aaa). "Welcome screen: open dialog + Recent Files"
     # above reopens the *same* file, which doesn't exercise this at all
     # - this check is the real regression test for that bug family.
-    # Both scratch copies live in the same directory, so the file-open
-    # dialog (which defaults to the last-used directory - wherever A
-    # was) can type-ahead-find B's filename directly.
+    # Open-VirtaalFileViaDialog navigates straight to B's full scratch
+    # path via the dialog's own Ctrl+L location bar, so it doesn't
+    # matter which directory the dialog happens to be browsing.
     $scratchA = New-VirtaalScratchFile -SourceRelativePath "po\af.po" -Suffix "reopen-A"
     $scratchB = New-VirtaalScratchFile -SourceRelativePath "po\ar.po" -Suffix "reopen-B"
     $scratchBName = Split-Path -Leaf $scratchB
@@ -910,7 +920,7 @@ Invoke-VirtaalCheck "Change file A, discard, open different file B: no spurious 
             } else {
                 Send-VirtaalPopupKeys $dlg "%d"
                 Start-Sleep -Milliseconds 500
-                $openDlg = Open-VirtaalFileViaDialog $t $scratchBName
+                $openDlg = Open-VirtaalFileViaDialog $t $scratchB
                 if (-not $openDlg) {
                     Add-Result "Change file A, discard, open different file B: no spurious modified" "Fail" "Ctrl+O never opened a file dialog after discarding A"
                 } else {
@@ -952,12 +962,20 @@ Invoke-VirtaalCheck "Layout glitch diagnostic screenshot (File>Open path)" {
         } else {
             # Deliberately not using Open-VirtaalFileViaDialog here - its
             # settle delay after Enter (1s) is tuned for reliable
-            # type-ahead, but this check specifically wants a screenshot
+            # navigation, but this check specifically wants a screenshot
             # as soon as possible after opening, before the glitch (if
-            # present) potentially clears on its own.
+            # present) potentially clears on its own. Ctrl+L + full path,
+            # not a bare filename typed into the file list - see
+            # Open-VirtaalFileViaDialog's own history notes for why a
+            # bare filename isn't reliable (GTK3's file-chooser search is
+            # a broader search feature, not a same-directory filter, and
+            # returned "No Results Found" against this exact sequence in
+            # a saved screenshot from a live run, 2026-08-24).
             Start-Sleep -Milliseconds 500
-            Send-VirtaalPopupKeys $dlg "af.po"
-            Start-Sleep -Milliseconds 500
+            Send-VirtaalPopupKeys $dlg "^l"
+            Start-Sleep -Milliseconds 300
+            Send-VirtaalPopupKeys $dlg (Resolve-Path "po\af.po").Path
+            Start-Sleep -Milliseconds 300
             Send-VirtaalPopupKeys $dlg "{ENTER}"
             Start-Sleep -Milliseconds 300
             $shot = Save-VirtaalScreenshot $t
