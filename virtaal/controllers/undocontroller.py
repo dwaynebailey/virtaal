@@ -143,7 +143,21 @@ class UndoController(BaseController):
         self._enable_unit_signals()
 
         textbox = self.unit_controller.view.targets[undo_info['targetn']]
+        # Reported live, 2026-08-24: change a file, Ctrl+Z, close (discard),
+        # open a *different* file - the freshly-opened file could still show
+        # as modified. This closure captures the unit the undo happened
+        # against; by the time it fires (see below) a different file may
+        # already be open and load_unit() may already have repopulated this
+        # same, reused textbox widget for a *different* unit - proceeding
+        # then would stomp that unit's text with this stale undo's cursor
+        # position and, worse, still fire 'changed' on the reused widget.
+        # Mirrors the scheduled_model guard added to
+        # StoreTreeView.select_index()'s deferred change_cursor() for the
+        # same class of bug.
+        scheduled_unit = undo_info['unit']
         def refresh():
+            if self.unit_controller.current_unit is not scheduled_unit:
+                return
             textbox.refresh_cursor_pos = undo_info['cursorpos']
             # TODO: try to avoid full refresh
             #
