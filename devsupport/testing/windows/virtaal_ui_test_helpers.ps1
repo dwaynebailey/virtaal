@@ -316,43 +316,47 @@ function Send-VirtaalClick {
     Wait-VirtaalForHuman
 }
 
-function Save-VirtaalScreenshot {
+function Get-VirtaalScreenshotPath {
+    # $PSScriptRoot, not $MyInvocation.MyCommand.Path - the latter is
+    # empty inside a function (confirmed locally: only reliable at a
+    # script's own top level, not from a function it defines, even
+    # though the function itself is still defined by, and dot-sourced
+    # from, this same .ps1 file).
+    $dir = Join-Path $PSScriptRoot ".local-test-runs"
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    # Millisecond precision, not just yyyyMMdd-HHmmss - a check that
+    # takes a before/after pair (or two checks running back to back) can
+    # easily land in the same second otherwise, and two Saves racing for
+    # the same filename is a plausible contributor to the GDI+ error
+    # Save-RectToScreenshot works around below.
+    return Join-Path $dir "screenshot-$(Get-Date -Format 'yyyyMMdd-HHmmss-fff').png"
+}
+
+function Save-RectToScreenshot {
     <#
     .SYNOPSIS
-    Captures the instance's window to a PNG - the same role as the
-    run-virtaal skill's driver.sh screenshot on macOS: something to
-    actually look at when a check's result needs visual confirmation
-    (most usefully, tuning Send-VirtaalClick's coordinates). Defaults to
-    landing under devsupport\testing\windows\.local-test-runs\ - the
-    same gitignored, host-readable location Invoke-VirtaalLocalTestPass.
-    ps1's transcript uses when this repo checkout is itself a shared
-    folder.
+    Captures an arbitrary screen rectangle (a VirtaalWin32+RECT or a
+    System.Drawing.Rectangle - anything with Left/Top and either
+    Right/Bottom or Width/Height) to a PNG. The shared primitive behind
+    Save-VirtaalScreenshot (a window's own rect) and
+    Save-VirtaalFullScreenScreenshot (the whole virtual desktop).
     #>
-    param([Parameter(Mandatory)]$Instance, [string]$Path)
-    if (-not $Path) {
-        # $PSScriptRoot, not $MyInvocation.MyCommand.Path - the latter is
-        # empty inside a function (confirmed locally: only reliable at a
-        # script's own top level, not from a function it defines, even
-        # though the function itself is still defined by, and dot-sourced
-        # from, this same .ps1 file).
-        $dir = Join-Path $PSScriptRoot ".local-test-runs"
-        New-Item -ItemType Directory -Path $dir -Force | Out-Null
-        # Millisecond precision, not just yyyyMMdd-HHmmss - a check that
-        # takes a before/after pair (or two checks running back to back)
-        # can easily land in the same second otherwise, and two Saves
-        # racing for the same filename is a plausible contributor to the
-        # GDI+ error below.
-        $Path = Join-Path $dir "screenshot-$(Get-Date -Format 'yyyyMMdd-HHmmss-fff').png"
+    param([Parameter(Mandatory)]$Rect, [string]$Path)
+    if (-not $Path) { $Path = Get-VirtaalScreenshotPath }
+    if ($Rect.PSObject.Properties.Name -contains 'Right') {
+        $left = $Rect.Left; $top = $Rect.Top
+        $width = $Rect.Right - $Rect.Left
+        $height = $Rect.Bottom - $Rect.Top
+    } else {
+        $left = $Rect.X; $top = $Rect.Y
+        $width = $Rect.Width; $height = $Rect.Height
     }
-    $rect = Get-VirtaalRect $Instance
-    $width = $rect.Right - $rect.Left
-    $height = $rect.Bottom - $rect.Top
     if ($width -le 0 -or $height -le 0) { return $null }
     $bmp = New-Object System.Drawing.Bitmap $width, $height
     try {
         $graphics = [System.Drawing.Graphics]::FromImage($bmp)
         try {
-            $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bmp.Size)
+            $graphics.CopyFromScreen($left, $top, 0, 0, $bmp.Size)
         } finally {
             $graphics.Dispose()
         }
@@ -380,6 +384,41 @@ function Save-VirtaalScreenshot {
         $bmp.Dispose()
     }
     return $Path
+}
+
+function Save-VirtaalScreenshot {
+    <#
+    .SYNOPSIS
+    Captures the instance's window to a PNG - the same role as the
+    run-virtaal skill's driver.sh screenshot on macOS: something to
+    actually look at when a check's result needs visual confirmation
+    (most usefully, tuning Send-VirtaalClick's coordinates). Defaults to
+    landing under devsupport\testing\windows\.local-test-runs\ - the
+    same gitignored, host-readable location Invoke-VirtaalLocalTestPass.
+    ps1's transcript uses when this repo checkout is itself a shared
+    folder.
+    #>
+    param([Parameter(Mandatory)]$Instance, [string]$Path)
+    return Save-RectToScreenshot -Rect (Get-VirtaalRect $Instance) -Path $Path
+}
+
+function Save-VirtaalFullScreenScreenshot {
+    <#
+    .SYNOPSIS
+    Captures the *entire* virtual desktop (all monitors), not just the
+    instance's own window rect. A GTK popup menu (PopupMenuButton, e.g.
+    the status-bar check-type/language-pair selectors) is a separate
+    top-level window that isn't guaranteed to stay within its parent
+    window's bounding rect, especially one anchored near a window edge
+    (POS_SW_NW-style positioning, popupmenubutton.py) - confirmed live,
+    2026-08-24: two separate click checks' before/after screenshots
+    (window-rect only) never showed an open menu despite click
+    coordinates independently confirmed correct against the button's
+    real position in a *different* screenshot, consistent with the menu
+    rendering outside the captured rect rather than the click failing.
+    #>
+    param([string]$Path)
+    return Save-RectToScreenshot -Rect ([System.Windows.Forms.SystemInformation]::VirtualScreen) -Path $Path
 }
 
 function Send-VirtaalKeys {

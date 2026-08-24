@@ -636,6 +636,13 @@ Invoke-VirtaalCheck "Welcome screen: open dialog + Recent Files" {
 }
 
 Invoke-VirtaalCheck "Ctrl+P opens Preferences" {
+    # Reported live, 2026-08-24: the gallery review for this check only
+    # had the launch-moment screenshot, taken before Ctrl+P was even
+    # sent - couldn't confirm the dialog actually rendered correctly
+    # either way. Preferences is a real separate top-level window, not
+    # part of the main one, so Save-VirtaalScreenshot (which reads
+    # $Instance.Hwnd) needs a lightweight synthetic "instance" wrapping
+    # the dialog's own HWND rather than the main window's.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
         Add-Result "Ctrl+P opens Preferences" "Fail" "app didn't launch"
@@ -646,10 +653,11 @@ Invoke-VirtaalCheck "Ctrl+P opens Preferences" {
             Add-Result "Ctrl+P opens Preferences" "Fail" "no dialog appeared"
         } else {
             $dlgTitle = Get-VirtaalWindowText $dlg
+            $shot = Save-VirtaalScreenshot ([PSCustomObject]@{ Hwnd = $dlg })
             Close-VirtaalPopup $t $dlg
             $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
             $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
-            Add-Result "Ctrl+P opens Preferences" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) "dialog title=`"$dlgTitle`"$(if (-not $stillAlive) { ' - process exited after closing it' } elseif (-not $logsClean) { ' - unexpected log output' })"
+            Add-Result "Ctrl+P opens Preferences" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) "dialog title=`"$dlgTitle`"$(if (-not $stillAlive) { ' - process exited after closing it' } elseif (-not $logsClean) { ' - unexpected log output' }) - screenshot: $shot"
         }
     }
 }
@@ -659,16 +667,23 @@ Invoke-VirtaalCheck "Ctrl+F search/filter" {
     # - modes\searchmode.py) is Virtaal's filter-by-string feature -
     # embedded in the main window (a mode swapped in by ModeController),
     # not a separate dialog, so no Wait-VirtaalPopup needed here.
+    #
+    # Reported live, 2026-08-24: the gallery review for this check only
+    # had the launch-moment screenshot, taken before Ctrl+F was even
+    # sent - couldn't confirm the search bar actually rendered correctly
+    # either way. Screenshots now taken with the search bar actually
+    # active, before Escape closes it again.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
         Add-Result "Ctrl+F search/filter" "Fail" "app didn't launch"
     } else {
         Send-VirtaalKeys $t "^f"
         Send-VirtaalKeys $t "test"
+        $shot = Save-VirtaalScreenshot $t
         Send-VirtaalKeys $t "{ESC}"
         $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
         $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
-        Add-Result "Ctrl+F search/filter" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) $(if (-not $stillAlive) { "process exited" } elseif (-not $logsClean) { "unexpected log output - see above" })
+        Add-Result "Ctrl+F search/filter" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) "$(if (-not $stillAlive) { 'process exited' } elseif (-not $logsClean) { 'unexpected log output - see above' } else { "screenshot: $shot" })"
     }
 }
 
@@ -872,13 +887,25 @@ Invoke-VirtaalCheck "Click: check-type (Project Type) selector" {
     # position among the status bar's children had suggested, and the
     # status bar's real height means 0.98 was clipping below its visible
     # text into the window's bottom border/resize-grip area entirely.
+    #
+    # Reported live, 2026-08-24, even after that recalibration: still no
+    # visible menu in either screenshot. Switched to a full-*screen*
+    # capture (Save-VirtaalFullScreenScreenshot), not just the window's
+    # own rect - a GTK popup menu is a separate top-level window that
+    # isn't guaranteed to stay within its parent's bounding box,
+    # especially one anchored this close to a window edge (see that
+    # function's own comments) - if the click is landing correctly (the
+    # coordinates were independently confirmed against the button's real
+    # position in a different screenshot) but the menu still isn't
+    # visible in a full-screen capture, that would be real evidence of
+    # an actual click-mechanism problem rather than a capture-area one.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
         Add-Result "Click: check-type (Project Type) selector" "Fail" "app didn't launch"
     } else {
-        $shotBefore = Save-VirtaalScreenshot $t
+        $shotBefore = Save-VirtaalFullScreenScreenshot
         Send-VirtaalClick $t -XFraction 0.67 -YFraction 0.92
-        $shotAfter = Save-VirtaalScreenshot $t
+        $shotAfter = Save-VirtaalFullScreenScreenshot
         Send-VirtaalKeys $t "{ESC}"
         $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
         $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
@@ -892,14 +919,15 @@ Invoke-VirtaalCheck "Click: language-pair selector" {
     # genuinely is bottom-right. Same best-effort approach and caveats as
     # the check-type selector check above - coordinates likewise
     # recalibrated, 2026-08-24, against a real screenshot: the label
-    # actually sits at roughly x=0.83, y=0.92, not 0.9/0.98.
+    # actually sits at roughly x=0.83, y=0.92, not 0.9/0.98. Also
+    # switched to a full-screen capture, same reasoning as that check.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
         Add-Result "Click: language-pair selector" "Fail" "app didn't launch"
     } else {
-        $shotBefore = Save-VirtaalScreenshot $t
+        $shotBefore = Save-VirtaalFullScreenScreenshot
         Send-VirtaalClick $t -XFraction 0.83 -YFraction 0.92
-        $shotAfter = Save-VirtaalScreenshot $t
+        $shotAfter = Save-VirtaalFullScreenScreenshot
         Send-VirtaalKeys $t "{ESC}"
         $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
         $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
