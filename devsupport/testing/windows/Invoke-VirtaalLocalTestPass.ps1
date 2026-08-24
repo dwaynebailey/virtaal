@@ -121,6 +121,39 @@ function New-VirtaalScratchFile {
     return $destPath
 }
 
+function Set-VirtaalTranslatorInfo {
+    <#
+    .SYNOPSIS
+    Directly writes (or removes) %APPDATA%\Virtaal\virtaal.ini's
+    [translator] section, so a check can force a deterministic "header
+    info already known" or "header info missing" state instead of
+    depending on whatever this VM's config happens to already have from
+    earlier runs. storemodel.py's _update_header() (called on every
+    save of a PO file) prompts for name/email/team individually via
+    maincontroller.py's get_translator_*() whenever
+    pan_app.settings.translator[...] is empty - Settings' own Python-
+    level default already fills "name" from the OS, so on a genuinely
+    untouched profile only email and team are actually missing, but
+    -Missing here removes the whole file for a fully clean state rather
+    than surgically clearing two keys, since that's the more faithful
+    simulation of "this machine has never had Virtaal configured", and
+    simpler to reason about.
+
+    Must be called *before* launching Virtaal - Settings is read once
+    at startup, so changing the file while an instance is already
+    running has no effect on it.
+    #>
+    param([switch]$Missing)
+    $configDir = Join-Path $env:APPDATA "Virtaal"
+    New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+    $iniPath = Join-Path $configDir "virtaal.ini"
+    if ($Missing) {
+        Remove-Item -Path $iniPath -Force -ErrorAction SilentlyContinue
+    } else {
+        Set-Content -Path $iniPath -Value "[translator]`nname = Virtaal Test`nemail = virtaal-test@example.invalid`nteam = Virtaal Test Team`n" -NoNewline
+    }
+}
+
 function Open-VirtaalFileViaDialog {
     <#
     .SYNOPSIS
@@ -194,6 +227,12 @@ if (-not $install) {
 }
 
 Write-Host "`n=== 3. UI regression battery ==="
+
+# Known-good baseline for every check below, not just the two Ctrl+S
+# checks that explicitly re-set it - a check whose failure has nothing
+# to do with saving shouldn't depend on whatever pan_app.settings.
+# translator[...] this VM happens to already have from earlier runs.
+Set-VirtaalTranslatorInfo
 
 Invoke-VirtaalCheck "Launches cleanly" {
     # Mirrors CI's "Verify the bundle actually runs" step, against the
@@ -690,55 +729,118 @@ Invoke-VirtaalCheck "Click: language-pair selector" {
     }
 }
 
-Invoke-VirtaalCheck "Ctrl+S actually saves and clears modified marker" {
+Invoke-VirtaalCheck "Ctrl+S with known translator info saves directly" {
     # Never tested before this - every earlier check either undoes a
     # change before closing or never leaves the file dirty at all. Uses
     # a scratch copy (see New-VirtaalScratchFile) and checks the file's
     # own LastWriteTime actually changed on disk, not just that the UI
     # marker cleared - directly relevant given this whole session was
     # about the modified marker not always reflecting reality.
+    #
+    # Explicitly forces "translator info already known" via
+    # Set-VirtaalTranslatorInfo first - a real live failure here
+    # (2026-08-24) turned out to be storemodel.py's own legitimate
+    # "Header information" prompt (mainview.py's EntryDialog, shown by
+    # _update_header() whenever name/email/team are unset) blocking the
+    # save, not a bug - correct behaviour when that info really is
+    # missing, but this check specifically wants the direct-save path,
+    # so it no longer depends on whatever this VM's config happens to
+    # have from earlier runs. See the next check for the "info is
+    # genuinely missing" path, which the prompt exists for.
+    Set-VirtaalTranslatorInfo
     $scratch = New-VirtaalScratchFile -SourceRelativePath "po\af.po" -Suffix "save-test"
     $mtimeBefore = (Get-Item $scratch).LastWriteTimeUtc
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "`"$scratch`""
     if (-not $t) {
-        Add-Result "Ctrl+S actually saves and clears modified marker" "Fail" "app didn't launch"
+        Add-Result "Ctrl+S with known translator info saves directly" "Fail" "app didn't launch"
     } else {
         Send-VirtaalKeys $t "x"
         $titleAfterType = Get-VirtaalTitle $t
         if (-not $titleAfterType.StartsWith("*")) {
-            Add-Result "Ctrl+S actually saves and clears modified marker" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus"
+            Add-Result "Ctrl+S with known translator info saves directly" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus"
         } else {
             Send-VirtaalKeys $t "^s" -SettleMs 800
-            # Confirmed live, 2026-08-24: this failed once with the
-            # marker still set *and* the file unwritten - i.e. Ctrl+S
-            # appeared to do nothing at all. A blocking dialog this
-            # check wasn't checking for (e.g. storemodel.py's
-            # translator-details prompt, or a real error) sitting
-            # unhandled in front of the main window would produce
-            # exactly that combination - check for one before assuming
-            # the save simply didn't happen, and if the failure recurs
-            # without a popup either, at least leave a screenshot to
-            # look at instead of just two data points and no context.
+            # Kept as a safety net even with translator info forced
+            # known above - if it fires now, that's itself worth
+            # knowing (something *else* is blocking the save).
             $blockingDlg = Wait-VirtaalPopup $t -TimeoutSeconds 2
             if ($blockingDlg) {
                 $blockingDlgTitle = Get-VirtaalWindowText $blockingDlg
                 $shot = Save-VirtaalScreenshot $t
                 Close-VirtaalPopup $t $blockingDlg
-                Add-Result "Ctrl+S actually saves and clears modified marker" "Fail" "an unexpected dialog (title=`"$blockingDlgTitle`") blocked the save - screenshot: $shot"
+                Add-Result "Ctrl+S with known translator info saves directly" "Fail" "an unexpected dialog (title=`"$blockingDlgTitle`") blocked the save despite translator info being pre-set - screenshot: $shot"
             } else {
                 $titleAfterSave = Get-VirtaalTitle $t
                 $mtimeAfter = (Get-Item $scratch).LastWriteTimeUtc
                 $markerCleared = -not $titleAfterSave.StartsWith("*")
                 $fileWritten = $mtimeAfter -gt $mtimeBefore
                 if ($markerCleared -and $fileWritten) {
-                    Add-Result "Ctrl+S actually saves and clears modified marker" "Pass" "title after save=`"$titleAfterSave`", file written=$fileWritten"
+                    Add-Result "Ctrl+S with known translator info saves directly" "Pass" "title after save=`"$titleAfterSave`", file written=$fileWritten"
                 } else {
                     $shot = Save-VirtaalScreenshot $t
-                    Add-Result "Ctrl+S actually saves and clears modified marker" "Fail" "title after save=`"$titleAfterSave`", file written=$fileWritten - screenshot: $shot"
+                    Add-Result "Ctrl+S with known translator info saves directly" "Fail" "title after save=`"$titleAfterSave`", file written=$fileWritten - screenshot: $shot"
                 }
             }
         }
     }
+}
+
+Invoke-VirtaalCheck "Ctrl+S with missing translator info prompts, then saves" {
+    # The other half of the case above, requested 2026-08-24: force
+    # translator info to genuinely be missing (Set-VirtaalTranslatorInfo
+    # -Missing), confirm mainview.py's "Header information" EntryDialog
+    # actually appears, drive through it, and confirm the save still
+    # completes afterward. The dialog's own text entry has
+    # set_activates_default(True) with Save as the default response, so
+    # {ENTER} alone submits it - even with an empty entry, since
+    # _update_header() only raises SaveCancelled on an outright Cancel
+    # (None), not an empty string. Settings' own Python-level default
+    # already fills "name" from the OS, so on a genuinely fresh profile
+    # only email and team are actually empty - loops up to 3 times
+    # (name/email/team) rather than assuming exactly 2, so it still
+    # works correctly if that default ever stops applying (e.g. a
+    # locked-down account with no resolvable OS username).
+    Set-VirtaalTranslatorInfo -Missing
+    $scratch = New-VirtaalScratchFile -SourceRelativePath "po\af.po" -Suffix "save-test-missing-header"
+    $mtimeBefore = (Get-Item $scratch).LastWriteTimeUtc
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "`"$scratch`""
+    if (-not $t) {
+        Add-Result "Ctrl+S with missing translator info prompts, then saves" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "x"
+        $titleAfterType = Get-VirtaalTitle $t
+        if (-not $titleAfterType.StartsWith("*")) {
+            Add-Result "Ctrl+S with missing translator info prompts, then saves" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus"
+        } else {
+            Send-VirtaalKeys $t "^s" -SettleMs 500
+            $promptCount = 0
+            for ($i = 0; $i -lt 3; $i++) {
+                $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 3
+                if (-not $dlg) { break }
+                $dlgTitle = Get-VirtaalWindowText $dlg
+                if ($dlgTitle -ne "Header information") { break }
+                $promptCount++
+                Send-VirtaalPopupKeys $dlg "{ENTER}"
+            }
+            if ($promptCount -eq 0) {
+                Add-Result "Ctrl+S with missing translator info prompts, then saves" "Fail" "no 'Header information' prompt appeared despite translator info being cleared - Set-VirtaalTranslatorInfo -Missing may not have taken effect"
+            } else {
+                $titleAfterSave = Get-VirtaalTitle $t
+                $mtimeAfter = (Get-Item $scratch).LastWriteTimeUtc
+                $markerCleared = -not $titleAfterSave.StartsWith("*")
+                $fileWritten = $mtimeAfter -gt $mtimeBefore
+                if ($markerCleared -and $fileWritten) {
+                    Add-Result "Ctrl+S with missing translator info prompts, then saves" "Pass" "$promptCount prompt(s) answered, title after save=`"$titleAfterSave`", file written=$fileWritten"
+                } else {
+                    $shot = Save-VirtaalScreenshot $t
+                    Add-Result "Ctrl+S with missing translator info prompts, then saves" "Fail" "$promptCount prompt(s) answered, title after save=`"$titleAfterSave`", file written=$fileWritten - screenshot: $shot"
+                }
+            }
+        }
+    }
+    # Restore known-good state for hygiene, so this doesn't affect
+    # whatever check runs next.
+    Set-VirtaalTranslatorInfo
 }
 
 Invoke-VirtaalCheck "Real unsaved-changes dialog appears and Discard works" {

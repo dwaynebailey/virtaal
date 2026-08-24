@@ -186,3 +186,29 @@ Uninstall-Virtaal | Out-Null
 read-only status check - "is Virtaal currently installed, from where,
 what version" - with no side effects, useful before deciding whether to
 touch anything.
+
+## Future work: macOS and Linux
+
+None of this is reusable on macOS or Linux as-is - it's Windows
+technology throughout (Win32 P/Invoke, .NET `SendKeys`, Inno Setup's
+install/uninstall mechanics). The *list of what to test* (modified-flag
+correctness, undo behaviour, menu/dialog coverage, an install/uninstall
+cycle) is portable; the implementation isn't.
+
+- **macOS** already has a parallel, but much more limited: the
+  `run-virtaal` skill's `driver.sh` (launch + screenshot verification
+  only). Its own notes rule out AppleScript/System Events UI-scripting
+  as unreliable on this app (windows/processes it tries to address
+  intermittently don't resolve, or report 0 windows for one plainly on
+  screen) - there's no macOS equivalent yet of "click a button, type
+  text, read a dialog title back". Building one would need real
+  Accessibility API driving instead (e.g. via `atomac`/`ApplicationServices`
+  directly, not AppleScript's System Events layer).
+- **Linux** has no equivalent at all - CI's Linux job runs `pytest`
+  under Xvfb (headless unit/GUI tests), not an interactive UI battery.
+  Something similar here would need `xdotool`/`wmctrl` for a SendKeys-
+  equivalent, or AT-SPI accessibility driving for something closer to
+  real UI Automation.
+
+Neither is a small lift - not started, just noted here so it isn't
+lost.
