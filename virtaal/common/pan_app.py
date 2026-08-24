@@ -54,10 +54,21 @@ def get_config_dir():
 # a perfectly good console - it just silently redirected their output into
 # these files instead, which is exactly what made a real Windows CI crash
 # here look like "no output at all" for a long time.
+#
+# buffering=1 (line buffering) matters here, confirmed live 2026-08-24:
+# plain open(path, 'w') block-buffers a non-TTY file (~8KB by default), so
+# a traceback PyGObject prints from inside a GTK signal handler - the app
+# itself doesn't crash or exit, GTK just swallows it and keeps running -
+# sat in this buffer, invisible on disk, for the entire rest of the
+# session. That's exactly what let a real, 100%-reproducing crash (every
+# search under Python 3.14, see virtaal/support/pogrep_compat.py) read as
+# "no output at all" both to a user checking these logs and to the
+# Windows local UI-testing battery's Assert-VirtaalLogsClean, which reads
+# this same file mid-run, long before anything would trigger a flush.
 if os.name == 'nt' and getattr(sys, 'frozen', False):
     filename_template = os.path.join(get_config_dir(), '%s_virtaal.log')
-    sys.stdout = open(filename_template % ('stdout'), 'w')
-    sys.stderr = open(filename_template % ('stderr'), 'w')
+    sys.stdout = open(filename_template % ('stdout'), 'w', buffering=1)
+    sys.stderr = open(filename_template % ('stderr'), 'w', buffering=1)
 
 
 # Ok, now we can continue with what we actually wanted to do
