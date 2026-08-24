@@ -100,6 +100,41 @@ function New-VirtaalScratchFile {
     return $destPath
 }
 
+function Open-VirtaalFileViaDialog {
+    <#
+    .SYNOPSIS
+    Sends Ctrl+O, waits for the file-open dialog, types $FileNameToFind
+    via GTK's interactive/type-ahead search (the same mechanism the
+    run-virtaal skill's macOS driver relies on for its native
+    NSOpenPanel), and presses Enter. Returns the dialog's HWND on
+    success or $null if Ctrl+O never opened one - doesn't verify the
+    resulting title itself, since different callers want different
+    filename checks.
+
+    Confirmed live, 2026-08-24: this exact type-ahead-then-Enter
+    sequence succeeded in one run and failed to actually select
+    anything in another, immediately after the *same* code change, on
+    the *same* machine - consistent with a race between the dialog
+    reporting itself as foreground (which Wait-VirtaalPopup already
+    waits for) and its internal widget layout/keyboard focus actually
+    finishing settling, rather than a real app bug. Extracted into one
+    place (was duplicated across three checks) specifically so a
+    reliability fix here - the added settle delay below - benefits all
+    of them at once, and so a future failure has one call site to add
+    more diagnostics to instead of three.
+    #>
+    param([Parameter(Mandatory)]$Instance, [Parameter(Mandatory)][string]$FileNameToFind, [int]$DialogTimeoutSeconds = 8)
+    Send-VirtaalKeys $Instance "^o"
+    $dlg = Wait-VirtaalPopup $Instance -TimeoutSeconds $DialogTimeoutSeconds
+    if (-not $dlg) { return $null }
+    Start-Sleep -Milliseconds 500
+    Send-VirtaalPopupKeys $dlg $FileNameToFind
+    Start-Sleep -Milliseconds 500
+    Send-VirtaalPopupKeys $dlg "{ENTER}"
+    Start-Sleep -Milliseconds 1000
+    return $dlg
+}
+
 # Everything below (all Write-Host output, ::error:: lines, and the
 # stdout/stderr log dumps Assert-VirtaalLogsClean/Install-Virtaal print
 # on failure) also goes to a transcript file *inside the repo tree*,
@@ -405,18 +440,14 @@ Invoke-VirtaalCheck "Welcome screen: open dialog + Recent Files" {
     if (-not $t) {
         Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "app didn't launch"
     } else {
-        Send-VirtaalKeys $t "^o"
-        $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 8
+        $dlg = Open-VirtaalFileViaDialog $t "af.po"
         if (-not $dlg) {
             Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "Ctrl+O never opened a file dialog"
         } else {
-            Send-VirtaalPopupKeys $dlg "af.po"
-            Start-Sleep -Milliseconds 500
-            Send-VirtaalPopupKeys $dlg "{ENTER}"
-            Start-Sleep -Milliseconds 1000
             $titleAfterOpen = Get-VirtaalTitle $t
             if ($titleAfterOpen -notmatch "af\.po") {
-                Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "title after Open dialog=`"$titleAfterOpen`" - expected it to mention af.po"
+                $shot = Save-VirtaalScreenshot $t
+                Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "title after Open dialog=`"$titleAfterOpen`" - expected it to mention af.po - screenshot: $shot"
             } else {
                 Send-VirtaalKeys $t "^w"
                 Start-Sleep -Milliseconds 500
@@ -426,7 +457,12 @@ Invoke-VirtaalCheck "Welcome screen: open dialog + Recent Files" {
                 Send-VirtaalKeys $t "{ENTER}"
                 Start-Sleep -Milliseconds 1000
                 $titleAfterRecent = Get-VirtaalTitle $t
-                Add-Result "Welcome screen: open dialog + Recent Files" $(if ($titleAfterRecent -match "af\.po") { "Pass" } else { "Fail" }) "title after Recent Files=`"$titleAfterRecent`""
+                if ($titleAfterRecent -match "af\.po") {
+                    Add-Result "Welcome screen: open dialog + Recent Files" "Pass" "title after Recent Files=`"$titleAfterRecent`""
+                } else {
+                    $shot = Save-VirtaalScreenshot $t
+                    Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "title after Recent Files=`"$titleAfterRecent`" - screenshot: $shot"
+                }
             }
         }
     }
@@ -623,11 +659,34 @@ Invoke-VirtaalCheck "Ctrl+S actually saves and clears modified marker" {
             Add-Result "Ctrl+S actually saves and clears modified marker" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus"
         } else {
             Send-VirtaalKeys $t "^s" -SettleMs 800
-            $titleAfterSave = Get-VirtaalTitle $t
-            $mtimeAfter = (Get-Item $scratch).LastWriteTimeUtc
-            $markerCleared = -not $titleAfterSave.StartsWith("*")
-            $fileWritten = $mtimeAfter -gt $mtimeBefore
-            Add-Result "Ctrl+S actually saves and clears modified marker" $(if ($markerCleared -and $fileWritten) { "Pass" } else { "Fail" }) "title after save=`"$titleAfterSave`", file written=$fileWritten"
+            # Confirmed live, 2026-08-24: this failed once with the
+            # marker still set *and* the file unwritten - i.e. Ctrl+S
+            # appeared to do nothing at all. A blocking dialog this
+            # check wasn't checking for (e.g. storemodel.py's
+            # translator-details prompt, or a real error) sitting
+            # unhandled in front of the main window would produce
+            # exactly that combination - check for one before assuming
+            # the save simply didn't happen, and if the failure recurs
+            # without a popup either, at least leave a screenshot to
+            # look at instead of just two data points and no context.
+            $blockingDlg = Wait-VirtaalPopup $t -TimeoutSeconds 2
+            if ($blockingDlg) {
+                $blockingDlgTitle = Get-VirtaalWindowText $blockingDlg
+                $shot = Save-VirtaalScreenshot $t
+                Close-VirtaalPopup $t $blockingDlg
+                Add-Result "Ctrl+S actually saves and clears modified marker" "Fail" "an unexpected dialog (title=`"$blockingDlgTitle`") blocked the save - screenshot: $shot"
+            } else {
+                $titleAfterSave = Get-VirtaalTitle $t
+                $mtimeAfter = (Get-Item $scratch).LastWriteTimeUtc
+                $markerCleared = -not $titleAfterSave.StartsWith("*")
+                $fileWritten = $mtimeAfter -gt $mtimeBefore
+                if ($markerCleared -and $fileWritten) {
+                    Add-Result "Ctrl+S actually saves and clears modified marker" "Pass" "title after save=`"$titleAfterSave`", file written=$fileWritten"
+                } else {
+                    $shot = Save-VirtaalScreenshot $t
+                    Add-Result "Ctrl+S actually saves and clears modified marker" "Fail" "title after save=`"$titleAfterSave`", file written=$fileWritten - screenshot: $shot"
+                }
+            }
         }
     }
 }
@@ -699,19 +758,19 @@ Invoke-VirtaalCheck "Change file A, discard, open different file B: no spurious 
             } else {
                 Send-VirtaalPopupKeys $dlg "%d"
                 Start-Sleep -Milliseconds 500
-                Send-VirtaalKeys $t "^o"
-                $openDlg = Wait-VirtaalPopup $t -TimeoutSeconds 8
+                $openDlg = Open-VirtaalFileViaDialog $t $scratchBName
                 if (-not $openDlg) {
                     Add-Result "Change file A, discard, open different file B: no spurious modified" "Fail" "Ctrl+O never opened a file dialog after discarding A"
                 } else {
-                    Send-VirtaalPopupKeys $openDlg $scratchBName
-                    Start-Sleep -Milliseconds 500
-                    Send-VirtaalPopupKeys $openDlg "{ENTER}"
-                    Start-Sleep -Milliseconds 1000
                     $titleAfterOpenB = Get-VirtaalTitle $t
                     $bOpened = $titleAfterOpenB -match [regex]::Escape($scratchBName)
                     $bModified = $titleAfterOpenB.StartsWith("*")
-                    Add-Result "Change file A, discard, open different file B: no spurious modified" $(if ($bOpened -and -not $bModified) { "Pass" } else { "Fail" }) "title after opening B=`"$titleAfterOpenB`""
+                    if ($bOpened -and -not $bModified) {
+                        Add-Result "Change file A, discard, open different file B: no spurious modified" "Pass" "title after opening B=`"$titleAfterOpenB`""
+                    } else {
+                        $shot = Save-VirtaalScreenshot $t
+                        Add-Result "Change file A, discard, open different file B: no spurious modified" "Fail" "title after opening B=`"$titleAfterOpenB`" - screenshot: $shot"
+                    }
                 }
             }
         }
@@ -739,6 +798,12 @@ Invoke-VirtaalCheck "Layout glitch diagnostic screenshot (File>Open path)" {
         if (-not $dlg) {
             Add-Result "Layout glitch diagnostic screenshot (File>Open path)" "Fail" "Ctrl+O never opened a file dialog"
         } else {
+            # Deliberately not using Open-VirtaalFileViaDialog here - its
+            # settle delay after Enter (1s) is tuned for reliable
+            # type-ahead, but this check specifically wants a screenshot
+            # as soon as possible after opening, before the glitch (if
+            # present) potentially clears on its own.
+            Start-Sleep -Milliseconds 500
             Send-VirtaalPopupKeys $dlg "af.po"
             Start-Sleep -Milliseconds 500
             Send-VirtaalPopupKeys $dlg "{ENTER}"
