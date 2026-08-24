@@ -75,6 +75,9 @@ class StoreTreeView(Gtk.TreeView):
         self.connect("cursor-changed", self._on_cursor_changed)
         self.connect("button-press-event", self._on_button_press)
         self.connect('focus-in-event', self._on_focus_in)
+        # Keeps the FIXED-sizing column's width tied to this treeview's
+        # own real allocation - see _make_column() for why this exists.
+        self.connect('size-allocate', self._on_size_allocate)
         # on_configure_event()'s debounce timer outlives a single event,
         # so it needs to be cancelled explicitly on teardown - otherwise
         # a pending GObject.timeout_add() can fire after this widget is
@@ -102,8 +105,45 @@ class StoreTreeView(Gtk.TreeView):
 
     def _make_column(self, renderer):
         column = Gtk.TreeViewColumn(None, renderer, unit=COLUMN_UNIT, editable=COLUMN_EDITABLE)
-        column.set_expand(True)
+        # 2026-08-24: switched from set_expand(True) to FIXED sizing tied
+        # directly to the treeview's own real allocated width via
+        # _on_size_allocate() below - see on_configure_event()'s and
+        # select_index()'s history for the full investigation. With
+        # set_expand(True), this column's width came from GTK's own
+        # natural-size renegotiation - and on this Windows/gvsbuild GTK3
+        # build specifically, that renegotiation computed a slightly
+        # wider value on every single reallocation, not just when
+        # columns_autosize()/set_cursor(start_editing=True) were called
+        # directly, but seemingly whenever *any* reallocation touched
+        # this column - including reallocations caused by correcting a
+        # previous over-grown size, which is why three separate
+        # after-the-fact Python-level correction attempts each failed
+        # for a different subtle reason: the correction's own resize()
+        # was itself fuel for the next growth cycle, a loop no amount of
+        # chasing it after the fact could win. FIXED sizing sidesteps
+        # the whole renegotiation mechanism instead of trying to
+        # out-correct it - this column's width becomes something set
+        # explicitly and deterministically from the treeview's real
+        # allocation, never something GTK computes from cell content.
+        column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
+        column.set_fixed_width(1)  # corrected on the first real size-allocate
         return column
+
+    def _on_size_allocate(self, _widget, allocation):
+        # Keeps the FIXED-sizing column's width tied to the treeview's
+        # own real allocated width - see _make_column() for why
+        # set_expand(True) was replaced with this. A few pixels of
+        # margin avoids a vertical scrollbar (if one appears) fighting
+        # the column for the same space it just claimed. Guarded on the
+        # width actually changing so this doesn't itself queue a
+        # pointless reallocation on every single size-allocate,
+        # including ones this same call just caused.
+        column = self.get_columns()[0] if self.get_columns() else None
+        if not column:
+            return
+        new_width = max(1, allocation.width - 2)
+        if column.get_fixed_width() != new_width:
+            column.set_fixed_width(new_width)
 
 
     # METHODS #
