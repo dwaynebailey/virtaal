@@ -699,63 +699,31 @@ jobs:
         # or hanging in a way that matters, it's just... running, like a
         # GUI app does.
         #
-        # pan_app.py's stdout/stderr redirect (scoped to frozen builds
-        # only, cfdaae0a) means this build's own output never reaches
-        # whatever PowerShell captures anyway - it goes to
-        # %APPDATA%\Virtaal\*.log, so that's what gets read on failure,
-        # not process-level redirection.
+        # Uses devsupport/testing/windows/virtaal_ui_test_helpers.ps1
+        # (2026-08-24) rather than inline Start-Process/Get-Content calls -
+        # see that file's own header for why it exists. The allowlist
+        # here starts empty: the first real clean-run baseline
+        # (2026-08-23, CI run 32658989469, the contents_directory="."
+        # fix) came back with both log files completely empty - no
+        # depcheck output, no plugin-load noise at all, since bin/
+        # virtaal's dependency checker and most of its own logging setup
+        # are skipped entirely for packaged=True builds. That emptiness
+        # is exactly why three real, previously-invisible crashes on this
+        # same frozen-Windows startup path (fix_libintl's str/bytes
+        # mixing, PyInstaller 6's _internal/ layout mismatch,
+        # spellchecker.py's DICTDIR.decode() bug) went undetected here for
+        # as long as they did - a human had to hit each one by hand in
+        # the Windows 11 ARM64 VM instead. Add a regex to the allowlist
+        # below if/when a genuinely benign line shows up; until then, any
+        # line at all is unexpected.
         shell: pwsh
         run: |
-          $proc = Start-Process -FilePath .\dist\virtaal\virtaal.exe -ArgumentList "devsupport\testfiles\checks.po" -PassThru
-          Start-Sleep -Seconds 8
-          $stillRunning = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
-          if (-not $stillRunning) {
-              Write-Host "::error::Bundle exited within 8s of launch"
-              Write-Host "--- stdout log ---"
-              Get-Content "$env:APPDATA\Virtaal\stdout_virtaal.log" -ErrorAction SilentlyContinue
-              Write-Host "--- stderr log ---"
-              Get-Content "$env:APPDATA\Virtaal\stderr_virtaal.log" -ErrorAction SilentlyContinue
-              exit 1
-          }
-          Stop-Process -Id $proc.Id -Force
-          Get-Process -Name virtaal -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-
-          $stdoutLog = @(Get-Content "$env:APPDATA\Virtaal\stdout_virtaal.log" -ErrorAction SilentlyContinue)
-          $stderrLog = @(Get-Content "$env:APPDATA\Virtaal\stderr_virtaal.log" -ErrorAction SilentlyContinue)
-          Write-Host "--- stdout log ---"
-          $stdoutLog
-          Write-Host "--- stderr log ---"
-          $stderrLog
-
-          # Same allowlist-of-lines shape as test-macos/build-macos-app's
-          # equivalent check (grep -Eqv "spellchecker|enchant|..." above) -
-          # fail if either log contains a line the allowlist doesn't
-          # account for, instead of just printing for visibility like this
-          # step used to. Unlike macOS, the allowlist here starts empty:
-          # the first real clean-run baseline (2026-08-23, CI run
-          # 32658989469, the contents_directory="." fix) came back with
-          # both files completely empty - no depcheck output, no
-          # plugin-load noise at all, since bin/virtaal's dependency
-          # checker and most of its own logging setup are skipped entirely
-          # for packaged=True builds. That emptiness is exactly why three
-          # real, previously-invisible crashes on this same frozen-Windows
-          # startup path (fix_libintl's str/bytes mixing, PyInstaller 6's
-          # _internal/ layout mismatch, spellchecker.py's
-          # DICTDIR.decode() bug) went undetected here for as long as they
-          # did - this step printed the traceback right above for
-          # visibility but never failed on it, so a human had to hit each
-          # one by hand in the Windows 11 ARM64 VM instead. Add a regex to
-          # the allowlist below if/when a genuinely benign line shows up;
-          # until then, any line at all is unexpected.
-          $allowlistPatterns = @()
-          $unexpected = @($stdoutLog + $stderrLog) | Where-Object { $_ } | Where-Object {
-              $line = $_
-              -not ($allowlistPatterns | Where-Object { $line -match $_ })
-          }
-          if ($unexpected) {
-              Write-Host "::error::Unexpected output in the bundle's log - see above"
-              exit 1
-          }
+          . .\devsupport\testing\windows\virtaal_ui_test_helpers.ps1
+          $t = Start-VirtaalTest -Arguments "devsupport\testfiles\checks.po"
+          if (-not $t) { exit 1 }
+          Stop-VirtaalTest $t
+          Write-VirtaalLogs
+          if (-not (Assert-VirtaalLogsClean)) { exit 1 }
 
       - name: Verify repeated navigation doesn't grow the window
         # Reported live on Windows, 2026-08-23, after the runaway-resize
@@ -774,66 +742,31 @@ jobs:
         # not touched by the resize/focus-triggered fix above. No local
         # repro exists for this on macOS despite trying, so this is a
         # real regression check on actual Windows (SendKeys + Win32
-        # GetWindowRect) rather than another blind guess verified only
-        # by a human in a VM.
+        # GetWindowRect, via the same helpers module as the step above)
+        # rather than another blind guess verified only by a human in a
+        # VM.
         shell: pwsh
         run: |
-          Add-Type -AssemblyName System.Windows.Forms
-          # A PowerShell here-string's closing "@ must start at column 1,
-          # which is incompatible with a YAML block scalar's requirement
-          # that every line stay indented - so this is one plain string
-          # instead, not a here-string.
-          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class VirtaalWin32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'
+          . .\devsupport\testing\windows\virtaal_ui_test_helpers.ps1
+          $t = Start-VirtaalTest -Arguments "po\af.po"
+          if (-not $t) { exit 1 }
 
-          $proc = Start-Process -FilePath .\dist\virtaal\virtaal.exe -ArgumentList "po\af.po" -PassThru
-          Start-Sleep -Seconds 8
-
-          $hwnd = [IntPtr]::Zero
-          for ($i = 0; $i -lt 20; $i++) {
-              $proc.Refresh()
-              if ($proc.MainWindowHandle -ne [IntPtr]::Zero) {
-                  $hwnd = $proc.MainWindowHandle
-                  break
-              }
-              Start-Sleep -Milliseconds 500
-          }
-          if ($hwnd -eq [IntPtr]::Zero) {
-              Write-Host "::error::Never got a main window handle for virtaal.exe"
-              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-              exit 1
-          }
-
-          function Get-VirtaalWidth {
-              $rect = New-Object VirtaalWin32+RECT
-              [VirtaalWin32]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
-              return $rect.Right - $rect.Left
-          }
-
-          [VirtaalWin32]::SetForegroundWindow($hwnd) | Out-Null
-          Start-Sleep -Milliseconds 500
-
-          $widthBefore = Get-VirtaalWidth
+          $widthBefore = Get-VirtaalWidth $t
           Write-Host "Window width before navigation: $widthBefore"
 
           for ($i = 0; $i -lt 25; $i++) {
-              [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-              Start-Sleep -Milliseconds 200
+              Send-VirtaalKeys $t "{ENTER}"
           }
 
-          $widthAfter = Get-VirtaalWidth
+          $widthAfter = Get-VirtaalWidth $t
           Write-Host "Window width after 25x Enter-to-advance: $widthAfter"
-
-          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-          Get-Process -Name virtaal -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Stop-VirtaalTest $t
 
           $growth = $widthAfter - $widthBefore
           Write-Host "Width growth after 25 navigations: $growth px"
           if ($growth -gt 50) {
               Write-Host "::error::Window grew by $growth px after 25x Enter-to-advance - see storetreeview.py's select_index()"
-              Write-Host "--- stdout log ---"
-              Get-Content "$env:APPDATA\Virtaal\stdout_virtaal.log" -ErrorAction SilentlyContinue
-              Write-Host "--- stderr log ---"
-              Get-Content "$env:APPDATA\Virtaal\stderr_virtaal.log" -ErrorAction SilentlyContinue
+              Write-VirtaalLogs
               exit 1
           }
 
