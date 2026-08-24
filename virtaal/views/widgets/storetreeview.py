@@ -21,7 +21,6 @@
 
 import logging
 
-from gi.repository import Gdk
 from gi.repository import GObject
 from gi.repository import Gtk
 
@@ -166,33 +165,24 @@ class StoreTreeView(Gtk.TreeView):
             #      to be the correct GTK black magic incantation to make it
             #      "work".
             #
-            # 2026-08-23: on this Windows/gvsbuild GTK3 build specifically,
-            # each start_editing=True call below computes a slightly wider
-            # "natural" size for the live cell editor than the one before -
-            # confirmed via the same class of investigation as the
-            # resize/focus-triggered version of this bug (see
-            # on_configure_event()'s history) - and since select_index()
-            # runs on every single navigation (arrow keys, Page Up/Down,
-            # Enter-to-advance), that compounds into a window that gets
-            # measurably wider on every unit and never shrinks back -
-            # unusable within 20-30 units on a real translation. Not
-            # touching the two set_cursor() calls themselves (2008-era
-            # code, historically fragile per the comment above, protecting
-            # against at least two other old bugs) - instead, restore the
-            # window's width immediately after each one if it grew. This
-            # is a direct, one-shot correction in the same call stack, not
-            # a signal-reactive handler - it can't recreate the
-            # configure-event feedback loop the resize/focus version of
-            # this bug had, since it isn't triggered by a configure-event
-            # itself.
-            width_before = self._window_size()
+            # 2026-08-23/24: this used to also call a _restore_width_if_grown()
+            # correction after each set_cursor() below, to fix the column
+            # growing wider on every navigation on Windows (see
+            # on_configure_event()'s history for the full saga). Removed
+            # (2026-08-24) now that _make_column() pins the column to FIXED
+            # sizing instead - that fixed the growth at its source, making
+            # this correction (and the Gtk.main_iteration() flush it forced
+            # on every single navigation) not just unnecessary but actively
+            # risky: forcing the main loop to process pending events from
+            # inside select_index() plausibly re-entered UnitView.load_unit()
+            # /disable_signals()'s careful signal-blocking window at an
+            # unexpected point, which lines up with a real regression found
+            # live (2026-08-24): opening a file immediately marked it
+            # modified, prompting to save on close despite no real edit.
             self.set_cursor(newpath, self.get_columns()[0], start_editing=True)
-            self._restore_width_if_grown(width_before, "select_index() (immediate)")
             self.get_model().set_editable(newpath)
             def change_cursor():
-                width_before_idle = self._window_size()
                 self.set_cursor(newpath, self.get_columns()[0], start_editing=True)
-                self._restore_width_if_grown(width_before_idle, "select_index() (idle)")
                 self._waiting_for_row_change -= 1
             self._waiting_for_row_change += 1
             GObject.idle_add(change_cursor, priority=GObject.PRIORITY_DEFAULT_IDLE)
@@ -309,60 +299,6 @@ class StoreTreeView(Gtk.TreeView):
             GObject.source_remove(self._configure_timeout_id)
             self._configure_timeout_id = None
 
-    def _restore_width_if_grown(self, width_before, when):
-        # Direct, one-shot correction - see select_index()'s call sites
-        # for why. Not a signal handler, so it can't recreate the
-        # configure-event feedback loop the earlier version of this bug
-        # had (see on_configure_event()'s history).
-        #
-        # 2026-08-24: first version of this call just did
-        # window.resize(...) and returned - confirmed via CI's own
-        # navigation-growth check that this did *not* work: the window
-        # still grew by the exact same ~24px per navigation as before
-        # this fix existed. window.resize() on a GtkWindow doesn't apply
-        # synchronously - it queues a resize for the next main-loop
-        # iteration. select_index() runs back-to-back on rapid
-        # navigation (Enter-to-advance) with no yield to the main loop
-        # in between, so the queued resize from one call had never
-        # actually taken effect by the time the *next* call took its own
-        # "before" measurement - it was reading the same still-grown
-        # size again and again, growing further on top of it each time.
-        # Forcing the pending resize to actually apply before returning
-        # (the standard GTK "flush the event queue now" idiom) is what
-        # makes this a real correction instead of a queued one that
-        # never catches up.
-        #
-        # 2026-08-24, second round: that alone still wasn't enough -
-        # confirmed via CI again, same ~24px/navigation growth, but this
-        # time with *zero* WARNING lines logged at all, meaning the
-        # `current_width > width_before[0]` check below never even
-        # fired. Cause: the growth itself is *also* queued, not applied
-        # synchronously within set_cursor() - a widget requisition change
-        # calls gtk_widget_queue_resize() internally, which the toplevel
-        # only actually reallocates on a later main-loop iteration. So
-        # window.get_size() read immediately after set_cursor() returns
-        # was reading the *old*, not-yet-grown size - correctly finding
-        # nothing to correct, because from its own perspective nothing
-        # had grown yet. Need to flush pending events *before* measuring
-        # too, not just after correcting, so the measurement reflects
-        # what actually happened.
-        if not width_before:
-            return
-        window = self.get_toplevel()
-        if not window or not isinstance(window, Gtk.Window) or not window.get_realized():
-            return
-        while Gtk.events_pending():
-            Gtk.main_iteration()
-        current_width, current_height = window.get_size()
-        if current_width > width_before[0]:
-            logging.warning(
-                "storetreeview: %s grew window %d -> %d, restoring to %d",
-                when, width_before[0], current_width, width_before[0],
-            )
-            window.resize(width_before[0], current_height)
-            while Gtk.events_pending():
-                Gtk.main_iteration()
-
     def _on_focus_in(self, widget, _event, *_user_args):
         # Restore cursor/editing state on refocus, same as
         # on_configure_event() (they used to share one handler, split in
@@ -379,65 +315,25 @@ class StoreTreeView(Gtk.TreeView):
         return None
 
     def _restore_cursor(self):
-        # TEMPORARY, 2026-08-23: gutted to pure observation - no
-        # columns_autosize(), no set_cursor(), no resize() from the
-        # safety clamp. Two prior single-variable experiments (removing
-        # columns_autosize() entirely, then separately dropping
-        # start_editing=True from set_cursor()) each produced the exact
-        # same numeric growth sequence in CI (1036, 1060, 1084, 1108...,
-        # +24 each time) - identical down to the pixel, which means
-        # neither of those calls was actually the variable that mattered.
-        # The one thing unchanged across both attempts is this method's
-        # own safety-clamp calling window.resize() - a real suspect that
-        # hadn't been isolated yet: either that resize() call is itself
-        # triggering the next divergent layout pass, or window.resize()
-        # is simply async on this platform and every "after clamping"
-        # check has been reading an already-stale, still-growing value
-        # regardless of what triggered it.
-        #
-        # logging.warning(), not .info(): CI's verify step doesn't pass
-        # --log/--debug, so bin/virtaal never calls
-        # logging.basicConfig() and only WARNING+ reaches stderr at all
-        # (Python's default "last resort" handler). Using .info() here
-        # would make this build silently untestable in CI - no
-        # corrective action AND no visible signal either way.
-        #
-        # Whatever this shows, revert to real corrective behaviour
-        # afterwards - this build is diagnostic only.
+        # Deliberately does nothing corrective, as of 2026-08-24 -
+        # left as a lightweight safety-net log, not resolved into real
+        # column/cursor-fixup logic again. History: this used to call
+        # columns_autosize() + set_cursor(start_editing=True) here on
+        # every resize/focus settle, which turned out to be the whole
+        # runaway-resize saga's actual mechanism (see
+        # on_configure_event()'s history for the full investigation).
+        # Once _make_column() switched the column to FIXED sizing tied
+        # to real allocation, neither call was doing anything this
+        # method still needed - GTK's own size-allocate cycle handles
+        # column width now, and select_index() handles cursor/editing
+        # restoration on its own triggers (navigation, file load). The
+        # width check below is deliberately just a warning, not a
+        # resize() - see select_index()'s history for why calling
+        # window.resize() from a reactive path like this one is
+        # specifically what to avoid now.
         size = self._window_size()
         if size and size[0] > 1024:
-            logging.warning("storetreeview: [diagnostic] window width %d (no corrective action taken)", size[0])
-
-    def _max_sane_width(self):
-        # Screen-derived, not a fixed pixel constant, so this doesn't
-        # need updating for different monitor sizes.
-        try:
-            display = Gdk.Display.get_default()
-            gdk_window = self.get_window()
-            monitor = (display.get_monitor_at_window(gdk_window) if gdk_window
-                       else display.get_primary_monitor())
-            return monitor.get_geometry().width
-        except Exception:
-            logging.exception("storetreeview: couldn't get screen width for the resize safety cap")
-            return 3000  # generous but bounded fallback
-
-    def _clamp_to_sane_width(self, when):
-        # Hard safety net for the runaway-resize bug above, not a fix
-        # for it - added 2026-08-23 alongside the diagnostic logging so
-        # the app stays usable (and the growth pattern still gets
-        # logged) while the real Windows-only mechanism is still being
-        # tracked down. Should be a no-op on a healthy resize.
-        window = self.get_toplevel()
-        if not window or not isinstance(window, Gtk.Window) or not window.get_realized():
-            return
-        width, height = window.get_size()
-        max_width = self._max_sane_width()
-        if width > max_width:
-            logging.warning(
-                "storetreeview: window width %d exceeded safety cap %d (%s) - clamping",
-                width, max_width, when,
-            )
-            window.resize(max_width, height)
+            logging.warning("storetreeview: window width %d after a resize/focus settle - investigate if seen again", size[0])
 
     def _on_cursor_changed(self, _treeview):
         path, _column = self.get_cursor()
