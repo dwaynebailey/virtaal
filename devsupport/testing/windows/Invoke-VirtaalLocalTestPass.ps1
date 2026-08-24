@@ -215,36 +215,52 @@ function Open-VirtaalFileViaDialog {
 function Find-VirtaalUnit {
     <#
     .SYNOPSIS
-    Ctrl+F, types $SearchText, presses Enter to jump to the first match
-    (searchmode.py's _on_entry_activate: update_search() + _move_match(0)),
-    then Escape to leave Search mode again (searchmode.py's
+    Ctrl+F, types $SearchText and presses Enter in one go to jump to the
+    first match (searchmode.py's _on_entry_activate: update_search() +
+    _move_match(0)), then Escape to leave Search mode again (searchmode.py's
     _on_close_search - see f30dbac7). Used by any check that needs a
     *specific* unit (a real placeable, a unit that fails a specific
     quality check, ...) rather than whatever the file's first unit
     happens to be.
 
-    Confirmed live, 2026-08-24, *twice*: without a generous settle here,
-    Enter can fire before Search mode's own state has caught up with the
-    just-typed text - the search box shows the right text, but the
-    selected unit never actually moves (confirmed via two separate saved
-    screenshots on two different runs: search box read "XML tags"
-    correctly, but the currently-edited unit was still the file's first
-    one, and Search mode hadn't even been exited yet by the time the
-    screenshot was taken - meaning Escape hadn't landed either, despite
-    running *after* Enter in this same function). First attempt at a fix
-    used 800ms/500ms, confirmed live to still be too short on this VM.
-    Widened to match the timing that *has* reliably worked in every
-    -HumanDelayMs run so far (2000ms was the value used there) rather
-    than guess at a smaller number again - this VM has shown a
-    consistent pattern of being genuinely slower than expected across
-    several unrelated timing issues this session, not just this one.
+    Two real, distinct bugs previously hid behind the same "doesn't move
+    to unit" symptom here - both confirmed live, not guessed:
+
+    1. searchmode.py's update_search() crashed on *every* search under
+       Python 3.14 (translate-toolkit's GrepFilter.getmatches() ORs in
+       re.LOCALE, invalid for a str pattern - see
+       virtaal/support/pogrep_compat.py, fixed 7bc977aa). That exception
+       aborted _on_entry_activate before it ever reached _move_match(), so
+       Enter looked like it did nothing. Two earlier attempts to fix this
+       function by widening its settle times (800ms/500ms, then
+       2000ms/2000ms) never had a chance of working - the search wasn't
+       failing to catch up, it was throwing before it ever ran. Confirmed
+       both by a live manual repro (Ctrl+F "XML" in checks.po, same
+       traceback from Enter and from clicking Search) and by this
+       function's own log-clean checks going quiet in exactly the runs
+       where this was the cause.
+
+    2. With (1) fixed, the symptom *still* reproduced live. Root cause:
+       Send-VirtaalKeys calls SetForegroundWindow on every single
+       invocation, and this function called it three times back to back
+       (^f, then $SearchText, then {ENTER}) - each a separate window
+       re-activation that can disrupt which GTK widget currently holds
+       keyboard focus in between. If focus isn't still on ent_search by
+       the time {ENTER} is sent, GTK delivers it somewhere else entirely
+       and ent_search's 'activate' signal - the only thing that calls
+       _move_match() and actually moves the selection - never fires. The
+       500ms-debounced live-typing search (_on_search_text_changed) still
+       runs regardless, which is why the search box and highlighting look
+       right even when the unit never changes. Fixed by sending
+       $SearchText and {ENTER} as one combined SendKeys call, so there's
+       no window re-activation between finishing the text and the
+       keystroke meant to land in that same box.
     #>
     param([Parameter(Mandatory)]$Instance, [Parameter(Mandatory)][string]$SearchText)
     Send-VirtaalKeys $Instance "^f"
-    Send-VirtaalKeys $Instance $SearchText
-    Start-Sleep -Milliseconds 2000
-    Send-VirtaalKeys $Instance "{ENTER}"
-    Start-Sleep -Milliseconds 2000
+    Start-Sleep -Milliseconds 500
+    Send-VirtaalKeys $Instance "$SearchText{ENTER}"
+    Start-Sleep -Milliseconds 1000
     Send-VirtaalKeys $Instance "{ESC}"
     Start-Sleep -Milliseconds 800
 }
