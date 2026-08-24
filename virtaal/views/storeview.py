@@ -122,36 +122,6 @@ class StoreView(BaseView):
         self.parent_widget.show_all()
         if not self.controller.get_store():
             return
-        # Reported live, 2026-08-24: opening a file via the File > Open
-        # dialog specifically (not a CLI argument, not Recent Files)
-        # reliably shows a layout glitch (widgets overlapping) on the
-        # very first translation unit - pressing Enter to advance fixes
-        # it, since that creates a fresh, by-then-correctly-allocated
-        # editor for the *next* unit. Likely cause: StoreTreeView's
-        # column starts at a 1px placeholder FIXED width (7fd21615),
-        # corrected only once a real size-allocate lands via
-        # _on_size_allocate(). show_all() above schedules that
-        # reallocation but doesn't necessarily run it synchronously -
-        # so select_index(0) below, which creates the very first live
-        # cell editor, could run while the column is still at that 1px
-        # placeholder. The File>Open case is likely the most reliable
-        # trigger because a modal file-chooser dialog closing right
-        # before this runs adds its own timing pressure on top.
-        #
-        # A first attempt at this exact fix (2442589c) used an
-        # unbounded `while Gtk.events_pending(): Gtk.main_iteration()`
-        # here and had to be reverted (975c14ba): it hung test-macos for
-        # 20+ minutes in CI - GTK's real Quartz backend can apparently
-        # keep events_pending() returning True indefinitely with no user
-        # interacting (Linux's identical test, run under headless Xvfb,
-        # was unaffected). This version is capped at a fixed number of
-        # iterations specifically so it can *never* hang like that again
-        # - worst case it just doesn't finish flushing and behaves like
-        # the pre-fix code, rather than blocking forever.
-        for _ in range(50):
-            if not Gtk.events_pending():
-                break
-            Gtk.main_iteration()
         self._treeview.select_index(0)
 
     def _set_menu_items_sensitive(self, sensitive=True):
