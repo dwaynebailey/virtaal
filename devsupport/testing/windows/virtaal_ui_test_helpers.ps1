@@ -54,12 +54,35 @@ Add-Type -AssemblyName System.Drawing
 # simulation API (vs. the newer SendInput) - sufficient here since
 # nothing needs multi-touch or precise timing, just a plain left click.
 # Add-Type-compiled types live for the lifetime of the PowerShell
-# *session*, not this script - re-dot-sourcing this file a second time
-# in the same window (e.g. running Invoke-VirtaalLocalTestPass.ps1
-# twice without closing the terminal in between, confirmed live
-# 2026-08-24) throws "Cannot add type. The type name 'VirtaalWin32'
-# already exists." unless guarded like this.
-if (-not ([System.Management.Automation.PSTypeName]'VirtaalWin32').Type) {
+# *session*, not this script, and a .NET type - once compiled via
+# Add-Type in a process - can never be redefined in that same process
+# (a hard CLR limitation, not something any guard here can work around).
+# Re-dot-sourcing this file a second time in the same window (e.g.
+# running Invoke-VirtaalLocalTestPass.ps1 twice without closing the
+# terminal) throws "Cannot add type. The type name 'VirtaalWin32'
+# already exists." without a guard - but a plain existence guard
+# (tried first, 2026-08-24) creates a *worse*, silent failure mode:
+# confirmed live the same day, adding SetCursorPos/mouse_event/
+# GetForegroundWindow to this class in a later commit meant every
+# session that had already loaded the *older* VirtaalWin32 kept right on
+# "succeeding" at the guard (the type still exists!) while silently
+# missing the new methods - producing five separate, cryptic
+# "does not contain a method named '...'" failures scattered across
+# unrelated checks instead of one clear error. Check for the specific
+# members this version needs instead of mere existence, so a stale
+# session fails fast with one clear, actionable message instead. This
+# still can't *fix* a stale session - that's the unavoidable part, no
+# guard can redefine an already-compiled .NET type - it can only make
+# the failure obvious instead of confusing.
+$existingVirtaalWin32 = ([System.Management.Automation.PSTypeName]'VirtaalWin32').Type
+if ($existingVirtaalWin32) {
+    $requiredMethods = @('GetWindowRect', 'SetForegroundWindow', 'GetForegroundWindow', 'GetWindowTextLength', 'GetWindowText', 'SetCursorPos', 'mouse_event')
+    $existingMethodNames = @($existingVirtaalWin32.GetMethods() | ForEach-Object { $_.Name })
+    $missingMethods = @($requiredMethods | Where-Object { $existingMethodNames -notcontains $_ })
+    if ($missingMethods) {
+        throw "This PowerShell session already has an older VirtaalWin32 type loaded (missing: $($missingMethods -join ', ')) from before virtaal_ui_test_helpers.ps1 was last updated - a .NET type can't be redefined in the same process once compiled, so this session can't recover on its own. Close this PowerShell window, open a new one, and re-run."
+    }
+} else {
     Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; using System.Text; public class VirtaalWin32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr hWnd); [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount); [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y); [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'
 }
 
@@ -271,7 +294,12 @@ function Save-VirtaalScreenshot {
         # from, this same .ps1 file).
         $dir = Join-Path $PSScriptRoot ".local-test-runs"
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
-        $Path = Join-Path $dir "screenshot-$(Get-Date -Format 'yyyyMMdd-HHmmss').png"
+        # Millisecond precision, not just yyyyMMdd-HHmmss - a check that
+        # takes a before/after pair (or two checks running back to back)
+        # can easily land in the same second otherwise, and two Saves
+        # racing for the same filename is a plausible contributor to the
+        # GDI+ error below.
+        $Path = Join-Path $dir "screenshot-$(Get-Date -Format 'yyyyMMdd-HHmmss-fff').png"
     }
     $rect = Get-VirtaalRect $Instance
     $width = $rect.Right - $rect.Left
@@ -285,7 +313,26 @@ function Save-VirtaalScreenshot {
         } finally {
             $graphics.Dispose()
         }
-        $bmp.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+        # Bitmap.Save throwing a bare "A generic error occurred in GDI+"
+        # is a known-flaky .NET pattern, seen live 2026-08-24 - GDI+
+        # gives no detail on *why*, but a transient lock on a
+        # freshly-written file (e.g. antivirus real-time scanning, which
+        # this session has already found plausible evidence for on this
+        # same VM - see the eu.po "first launch after install is slow"
+        # investigation) is a typical cause. A short retry is cheap
+        # insurance against exactly that kind of transient failure.
+        $saved = $false
+        $lastError = $null
+        for ($attempt = 1; $attempt -le 3 -and -not $saved; $attempt++) {
+            try {
+                $bmp.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+                $saved = $true
+            } catch {
+                $lastError = $_
+                Start-Sleep -Milliseconds 300
+            }
+        }
+        if (-not $saved) { throw $lastError }
     } finally {
         $bmp.Dispose()
     }
