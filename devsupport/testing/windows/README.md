@@ -32,6 +32,16 @@ things:
 
 ## Running a local test pass
 
+Windows' default PowerShell execution policy (`Restricted`) blocks
+running any local `.ps1` file at all, including this one - if you hit
+`... cannot be loaded because running scripts is disabled on this
+system`, allow it for just the current window (reverts automatically
+when you close it, no permanent/system-wide change):
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+```
+
 From the repo root, in PowerShell, on Windows:
 
 ```powershell
