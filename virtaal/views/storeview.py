@@ -122,6 +122,28 @@ class StoreView(BaseView):
         self.parent_widget.show_all()
         if not self.controller.get_store():
             return
+        # Reported live, 2026-08-24: on first opening a file, widgets
+        # overlapped/overwrote each other near the top of the window
+        # briefly - a layout glitch on the very first render. Likely
+        # cause: StoreTreeView's column now starts at a 1px placeholder
+        # fixed width (see storetreeview.py's _make_column()/
+        # _on_size_allocate(), added the same day this was reported),
+        # only corrected once a real size-allocate actually lands.
+        # show_all() above schedules that reallocation but doesn't
+        # necessarily run it synchronously - so select_index(0) below,
+        # which creates the very first live cell editor, could
+        # previously run while the column was still at that 1px
+        # placeholder, sizing the new editor against the wrong area.
+        # Flushing here forces the real allocation (and the column-width
+        # correction it triggers) to land first. Unlike the
+        # Gtk.main_iteration() flush removed from select_index() in
+        # 111fce50 (which ran reactively on *every* navigation, deep
+        # inside GTK's own call stack, and caused a real regression),
+        # this one runs exactly once per file-open, before any editing
+        # has started - a different risk profile, not a reintroduction
+        # of that bug.
+        while Gtk.events_pending():
+            Gtk.main_iteration()
         self._treeview.select_index(0)
 
     def _set_menu_items_sensitive(self, sensitive=True):
