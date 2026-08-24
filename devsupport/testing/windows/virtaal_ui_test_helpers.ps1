@@ -53,7 +53,15 @@ Add-Type -AssemblyName System.Drawing
 # navigation checks. mouse_event is the older, simpler Win32 mouse
 # simulation API (vs. the newer SendInput) - sufficient here since
 # nothing needs multi-touch or precise timing, just a plain left click.
-Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; using System.Text; public class VirtaalWin32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr hWnd); [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount); [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y); [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'
+# Add-Type-compiled types live for the lifetime of the PowerShell
+# *session*, not this script - re-dot-sourcing this file a second time
+# in the same window (e.g. running Invoke-VirtaalLocalTestPass.ps1
+# twice without closing the terminal in between, confirmed live
+# 2026-08-24) throws "Cannot add type. The type name 'VirtaalWin32'
+# already exists." unless guarded like this.
+if (-not ([System.Management.Automation.PSTypeName]'VirtaalWin32').Type) {
+    Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; using System.Text; public class VirtaalWin32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr hWnd); [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount); [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y); [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'
+}
 
 function Start-VirtaalTest {
     <#
