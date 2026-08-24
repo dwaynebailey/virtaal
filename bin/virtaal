@@ -130,7 +130,20 @@ def main(argv):
     # is still translated via the ordinary _() calls it always used).
     # Accepted, minor, deliberate behaviour change.
     parser = argparse.ArgumentParser()
-    parser.add_argument("-v", "--version", action="version", version=__version__.ver)
+    # See virtaal.__version__.build_commit's own docstring for why this
+    # exists: a plain marketing version string alone couldn't answer
+    # "is this actually the build I just tested was supposed to be" -
+    # short (7-char) since a human's the one who'll read this, matching
+    # `git rev-parse --short`. Note for a packaged (frozen) Windows
+    # build specifically: pan_app's stdout/stderr redirection (see
+    # virtaal/common/pan_app.py) runs at import time, before this ever
+    # executes, so this text lands in %APPDATA%\Virtaal\stdout_virtaal.log,
+    # not on a caller's actual console - there is no console at all for
+    # a windowed-subsystem build regardless.
+    version_string = __version__.ver
+    if __version__.build_commit:
+        version_string += " (%s)" % __version__.build_commit[:7]
+    parser.add_argument("-v", "--version", action="version", version=version_string)
     parser.add_argument("-l", "--log", dest="log", metavar=_("LOG"),
                          help=_("turn on logging, storing the result to the supplied filename."))
     parser.add_argument("-c", "--config", dest="config", metavar=_("CONFIG"),
