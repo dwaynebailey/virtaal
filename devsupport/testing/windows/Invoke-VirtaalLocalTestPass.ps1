@@ -76,9 +76,20 @@ Write-Host "`n=== 3. UI regression battery ==="
 
 # --- Check: launches cleanly, no unexpected log output ---
 # Mirrors CI's "Verify the bundle actually runs" step, against the real
-# installed exe instead of the raw dist\virtaal\ bundle.
+# installed exe instead of the raw dist\virtaal\ bundle. Confirmed live,
+# 2026-08-24: this specific launch - the very first one right after a
+# fresh install, with nothing warm in any OS/AV file cache yet - can
+# genuinely take longer than Start-VirtaalTest's CI-tuned defaults
+# (8s + up to 10s more) allow for, especially on a slower/emulated local
+# VM rather than a GitHub Actions runner; every later launch in the same
+# run (same exe, same machine) got a window handle immediately. Give
+# this one specifically a more generous budget rather than either
+# widening the shared default (which would slow down every CI check
+# too, where the tighter budget has never actually been a problem) or
+# risking a false Fail here on a slow-but-fine cold start.
+$t = $null
 try {
-    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po" -WaitSeconds 20 -HandleTimeoutSeconds 20
     if (-not $t) {
         Add-Result "Launches cleanly" "Fail" "no window handle - see log above"
     } else {
