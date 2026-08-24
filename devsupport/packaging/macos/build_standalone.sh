@@ -31,6 +31,19 @@ PYTHON="$PWD/.venv/bin/python3"
 "$PYTHON" -m pip show pyinstaller >/dev/null 2>&1 || "$PYTHON" -m pip install pyinstaller
 
 rm -rf build/virtaal dist/Virtaal.app
+
+# See virtaal/__version__.py's build_commit docstring: a frozen build has
+# no .git directory or git binary to ask "which commit is this", so write
+# the answer down now, while both are still available, for
+# Virtaal.app --version (and anything scripted checking it) to read back
+# later. Not checked into git (see .gitignore) - virtaal.spec's own
+# sys.path.insert(0, ROOT) (repo root first) means this local-tree file
+# wins over any installed site-packages copy of virtaal when
+# collect_submodules("virtaal") picks it up below.
+commit="$(git rev-parse HEAD)"
+echo "commit = \"$commit\"" > virtaal/_build_info.py
+echo "Building from commit $commit"
+
 "$PYTHON" -m PyInstaller -y devsupport/packaging/macos/virtaal.spec
 
 # PyInstaller's macOS BUNDLE step relocates data files (share/) into

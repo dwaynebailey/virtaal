@@ -38,6 +38,19 @@ if (-not $pyinstallerInstalled) {
 
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build\virtaal, dist\virtaal
 
+# See virtaal/__version__.py's build_commit docstring: a frozen build has
+# no .git directory or git binary to ask "which commit is this", so write
+# the answer down now, while both are still available, for
+# virtaal.exe --version (and anything scripted checking it, e.g.
+# devsupport/testing/windows's Install-Virtaal) to read back later. Not
+# checked into git (see .gitignore) - virtaal.spec's own
+# sys.path.insert(0, ROOT) (repo root first) means this local-tree file
+# wins over any installed site-packages copy of virtaal when
+# collect_submodules("virtaal") picks it up below.
+$commit = (git rev-parse HEAD).Trim()
+"commit = `"$commit`"" | Set-Content -Path virtaal\_build_info.py -Encoding utf8
+Write-Host "Building from commit $commit"
+
 & $Python -m PyInstaller -y devsupport\packaging\windows\virtaal.spec
 
 Write-Host "Built dist\virtaal\virtaal.exe (self-contained)"
