@@ -151,6 +151,13 @@ side without anything needing to be copied out by hand.
 - Ctrl+F's search/filter (`modes/searchmode.py`) doesn't crash.
 - F8's quality-checks panel doesn't crash or log an error against a
   file built to exercise several checks.
+- Navigation-mode switching (`modes/`) to Incomplete, Quality Checks, and
+  Workflow - the "Navigation:" combo's other three modes (`All` and
+  `Search` are already covered by other checks) - verified via
+  `modecontroller.py`'s own log line that each mode was actually
+  reached, not just a screenshot. Doesn't yet verify a mode actually
+  narrows the visible unit list, or Workflow's own state-selector popup
+  - logged as a follow-up in `ISSUE_TRIAGE.md`.
 - Placeable navigation/transfer (Alt+Left/Right/Down) - Alt+Down
   specifically verified to copy source into an empty target.
 - Click navigation, and clicking the two status-bar `PopupMenuButton`s

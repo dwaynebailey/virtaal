@@ -945,6 +945,78 @@ Invoke-VirtaalCheck "F8 quality checks panel" {
     }
 }
 
+Invoke-VirtaalCheck "Navigation mode switching (Incomplete/Quality Checks/Workflow)" {
+    # The "Navigation:" combo (modeview.py's cmb_modes, a plain
+    # Gtk.ComboBoxText) offers 5 modes: All and Search are already
+    # exercised elsewhere (App launches on All by default; Ctrl+F has
+    # its own dedicated accelerator, tested by the search checks above) -
+    # this is the first coverage anywhere in this battery for the other
+    # three: Incomplete (quicktransmode.py), Quality Checks
+    # (qualitycheckmode.py), Workflow (workflowmode.py).
+    #
+    # Switches via the label's own mnemonic ("N_avigation:" ->
+    # set_mnemonic_widget(cmb_modes), so Alt+A focuses the combo) plus
+    # GtkComboBoxText's built-in type-ahead-to-select (a documented,
+    # stable feature of non-entry GTK combo boxes - typing a character
+    # while focused jumps to the first item starting with it) rather
+    # than counting arrow-key presses, which would need knowing this
+    # GTK/Windows backend's exact open/closed-combo key-binding
+    # semantics - untested territory, unlike type-ahead. Incomplete,
+    # Quality Checks, and Workflow all start with distinct letters
+    # (I/Q/W), so there's no ambiguity. Sent as one combined SendKeys
+    # string per mode ("%aq", not "%a" then "q" separately) - same
+    # lesson as Find-VirtaalUnit's own fix earlier this session:
+    # Send-VirtaalKeys calls SetForegroundWindow on every invocation,
+    # and two separate calls in a row risk losing focus off the combo
+    # in between them.
+    #
+    # Verified via modecontroller.py's own "Mode selected: %s" INFO log
+    # line (self.current_mode.name, the internal name - QuickTranslate/
+    # QualityCheck/Workflow, not the display name) rather than a
+    # screenshot - -DebugLog on just this one check (not the whole
+    # run's -AppDebugLog) turns Virtaal's own logging on for this
+    # launch only, so this doesn't depend on the whole battery being
+    # run with -AppDebugLog to self-verify.
+    #
+    # Deliberately not going deeper than "the mode was reached without
+    # crashing" here - actually selecting a specific Workflow state (its
+    # own separate "Select States" popup button, opened only once
+    # Workflow mode is active) or confirming Quality Checks/Incomplete
+    # genuinely narrow the visible unit list to the right ones would be
+    # real, valuable follow-ups, logged in ISSUE_TRIAGE.md rather than
+    # built here - same starting depth this battery used for Search
+    # mode itself, before the placeable-stepping check dug further in.
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po" -DebugLog
+    if (-not $t) {
+        Add-Result "Navigation mode switching (Incomplete/Quality Checks/Workflow)" "Fail" "app didn't launch"
+    } else {
+        $modes = @(
+            @{ Key = 'i'; DisplayName = 'Incomplete'; InternalName = 'QuickTranslate' },
+            @{ Key = 'q'; DisplayName = 'Quality Checks'; InternalName = 'QualityCheck' },
+            @{ Key = 'w'; DisplayName = 'Workflow'; InternalName = 'Workflow' }
+        )
+        $detail = @()
+        $allReached = $true
+        foreach ($mode in $modes) {
+            Send-VirtaalKeys $t "%a$($mode.Key)"
+            Start-Sleep -Milliseconds 800
+            $logs = Get-VirtaalLogs
+            $reached = @($logs.Stdout + $logs.Stderr) | Where-Object { $_ -match "Mode selected: $($mode.InternalName)$" }
+            if ($reached) {
+                $detail += "$($mode.DisplayName): reached"
+            } else {
+                $allReached = $false
+                $detail += "$($mode.DisplayName): NOT reached"
+            }
+        }
+        $shot = Save-VirtaalScreenshot $t
+        Send-VirtaalKeys $t "%aa" # back to All, tidy state before teardown
+        $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+        $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean -AllowDebugLog } else { $false }
+        Add-Result "Navigation mode switching (Incomplete/Quality Checks/Workflow)" $(if ($stillAlive -and $logsClean -and $allReached) { "Pass" } else { "Fail" }) "$(if (-not $stillAlive) { 'process exited' } elseif (-not $logsClean) { 'unexpected log output - see above' } else { ($detail -join '; ') + " - screenshot: $shot" })"
+    }
+}
+
 Invoke-VirtaalCheck "Placeable navigation/transfer shortcuts" {
     # <Virtaal>/Edit/Prev Placeable, Next Placeable (Alt+Left/Right -
     # jump between placeables in the target) and Transfer (Alt+Down -

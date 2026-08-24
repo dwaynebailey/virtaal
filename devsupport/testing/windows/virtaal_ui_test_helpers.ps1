@@ -133,14 +133,22 @@ function Start-VirtaalTest {
         [string]$ExePath = ".\dist\virtaal\virtaal.exe",
         [string]$Arguments = "",
         [int]$WaitSeconds = 8,
-        [int]$HandleTimeoutSeconds = 10
+        [int]$HandleTimeoutSeconds = 10,
+        # Per-call opt-in, independent of -AppDebugLog/Set-VirtaalAppDebugLog:
+        # a check that needs to read back e.g. modecontroller.py's own
+        # "Mode selected: X" INFO line to verify its own outcome shouldn't
+        # have to turn on debug logging (and Assert-VirtaalLogsClean's
+        # matching allowlist relaxation) for every *other* check in the
+        # same run too - that global switch is script-scoped and would
+        # otherwise leak forward into every check launched after it.
+        [switch]$DebugLog
     )
 
     # See Set-VirtaalAppDebugLog above - -D/--debug is a plain argparse
     # flag (bin/virtaal), order relative to the file argument doesn't
     # matter, so it's safe to just prepend it here regardless of what
     # $Arguments already is.
-    if ($script:VirtaalAppDebugLog) {
+    if ($script:VirtaalAppDebugLog -or $DebugLog) {
         $Arguments = if ($Arguments) { "--debug $Arguments" } else { "--debug" }
     }
 
@@ -514,8 +522,8 @@ function Assert-VirtaalLogsClean {
     (an array of regex strings). Starts with no allowlist by default -
     the known-clean baseline for this frozen build is empty logs.
     #>
-    param([string[]]$AllowlistPatterns = @())
-    if ($script:VirtaalAppDebugLog) {
+    param([string[]]$AllowlistPatterns = @(), [switch]$AllowDebugLog)
+    if ($script:VirtaalAppDebugLog -or $AllowDebugLog) {
         # bin\virtaal's -D/--debug format is '%(levelname)7s
         # %(module)s...' - levelname right-justified to 7 chars, so
         # DEBUG/INFO lines have 2/3 leading spaces before the level
