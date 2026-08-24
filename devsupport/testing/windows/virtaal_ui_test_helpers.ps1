@@ -372,11 +372,29 @@ function Get-VirtaalLogs {
 }
 
 function Write-VirtaalLogs {
+    <#
+    .SYNOPSIS
+    Displays the frozen build's log files to the host/transcript.
+    #>
     $logs = Get-VirtaalLogs
     Write-Host "--- stdout log ---"
-    $logs.Stdout
+    # Explicit Write-Host per line, not a bare "$logs.Stdout" expression -
+    # confirmed live 2026-08-24, a bare expression statement in
+    # PowerShell doesn't just *display* to the host, it also becomes
+    # part of this function's own output stream (its "return value").
+    # Assert-VirtaalLogsClean calls this function right before its own
+    # `return $false`, so that leaked log content turned its actual
+    # return value into a multi-element array (the leaked lines plus
+    # $false) instead of a bare $false - and PowerShell treats any
+    # *non-empty* array as truthy in a boolean context regardless of
+    # what's in it, so every `$stillAlive -and $logsClean` check in this
+    # whole battery silently evaluated true even when real unexpected
+    # log content had just been found and printed right above it.
+    # Confirmed directly against this exact PASS-when-it-should-Fail
+    # outcome via a standalone repro before fixing.
+    $logs.Stdout | ForEach-Object { Write-Host $_ }
     Write-Host "--- stderr log ---"
-    $logs.Stderr
+    $logs.Stderr | ForEach-Object { Write-Host $_ }
 }
 
 function Assert-VirtaalLogsClean {
