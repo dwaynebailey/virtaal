@@ -69,6 +69,13 @@ function Invoke-VirtaalCheck {
     only adds one itself if $Body throws before getting there.
     #>
     param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][scriptblock]$Body)
+    # A plain text transcript can't rewrite an earlier line in place, so
+    # this is a second line ([TESTING] now, [PASS]/[FAIL]/[SKIP] later
+    # from Add-Result) rather than an actual in-place update - still
+    # useful for watching a run live, since some checks take many
+    # seconds and there was previously no way to tell what was currently
+    # in flight versus just... nothing happening yet.
+    Write-Host "[TESTING] $Name"
     $t = $null
     try {
         . $Body
