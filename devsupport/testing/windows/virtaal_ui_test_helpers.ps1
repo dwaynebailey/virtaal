@@ -37,7 +37,7 @@ Add-Type -AssemblyName System.Windows.Forms
 # as one plain string (not a here-string) here too, even though this
 # file itself isn't YAML, so a future copy-paste into a workflow step
 # doesn't reintroduce that exact bug.
-Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class VirtaalWin32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'
+Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; using System.Text; public class VirtaalWin32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr hWnd); [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'
 
 function Start-VirtaalTest {
     <#
@@ -99,6 +99,26 @@ function Get-VirtaalHeight {
     param([Parameter(Mandatory)]$Instance)
     $rect = Get-VirtaalRect $Instance
     return $rect.Bottom - $rect.Top
+}
+
+function Get-VirtaalTitle {
+    <#
+    .SYNOPSIS
+    Reads the instance's window title via Win32 GetWindowText - not the
+    same as $Instance.Process.MainWindowTitle, which is a one-time
+    snapshot .NET took right after the process's main window first
+    appeared and does *not* update as the title changes afterwards (e.g.
+    the "*" modified-marker mainview.py's set_saveable() prepends - see
+    ISSUE_TRIAGE.md's reopen-modified-flag bug family). Needed for any
+    check that has to observe the modified marker rather than just
+    whether the app is alive.
+    #>
+    param([Parameter(Mandatory)]$Instance)
+    $len = [VirtaalWin32]::GetWindowTextLength($Instance.Hwnd)
+    if ($len -eq 0) { return "" }
+    $sb = New-Object System.Text.StringBuilder ($len + 1)
+    [VirtaalWin32]::GetWindowText($Instance.Hwnd, $sb, $sb.Capacity) | Out-Null
+    return $sb.ToString()
 }
 
 function Send-VirtaalKeys {
