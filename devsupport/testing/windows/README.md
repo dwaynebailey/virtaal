@@ -71,6 +71,12 @@ Useful switches:
 - `-KeepInstalled` - leave Virtaal installed afterwards instead of
   tearing back down to a clean slate. Useful when you want to keep
   poking at it by hand right after the automated battery finishes.
+- `-HumanDelayMs <n>` - runs at full speed by default; some dialogs
+  open and close within a few hundred milliseconds, real but too fast
+  to actually watch. `-HumanDelayMs 2000` adds a pause after every
+  interaction (keystroke, click, dialog appearing) uniformly, so you
+  can follow a run happening live instead of only reading its
+  transcript afterward.
 
 The script exits 0 if every check passed, 1 otherwise - safe to use as
 a gate in a self-hosted Windows CI runner later, not just interactively.

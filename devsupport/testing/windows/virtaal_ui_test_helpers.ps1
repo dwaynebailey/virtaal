@@ -86,6 +86,25 @@ if ($existingVirtaalWin32) {
     Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; using System.Text; public class VirtaalWin32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr hWnd); [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount); [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y); [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'
 }
 
+# Runs fast (no extra pauses) by default - everything here already has
+# its own short, tuned settle delays. Set via Set-VirtaalHumanDelay for
+# a human who wants to actually *watch* a run rather than just read its
+# transcript afterward (raised live, 2026-08-24: dialogs that open and
+# close within a few hundred milliseconds are real, but too fast to see
+# - confirmed via GetWindowText reading back a real title, not a
+# detection bug). One switch instead of threading a parameter through
+# every call site: applied inside Send-VirtaalKeys, Send-VirtaalPopupKeys,
+# Send-VirtaalClick, and right after Wait-VirtaalPopup finds a dialog, so
+# turning it on slows every interaction uniformly.
+$script:VirtaalHumanDelayMs = 0
+function Set-VirtaalHumanDelay {
+    param([Parameter(Mandatory)][int]$Milliseconds)
+    $script:VirtaalHumanDelayMs = $Milliseconds
+}
+function Wait-VirtaalForHuman {
+    if ($script:VirtaalHumanDelayMs -gt 0) { Start-Sleep -Milliseconds $script:VirtaalHumanDelayMs }
+}
+
 function Start-VirtaalTest {
     <#
     .SYNOPSIS
@@ -206,6 +225,11 @@ function Wait-VirtaalPopup {
     while ((Get-Date) -lt $deadline) {
         $fg = [VirtaalWin32]::GetForegroundWindow()
         if ($fg -ne [IntPtr]::Zero -and $fg -ne $Instance.Hwnd) {
+            # Extra pause here specifically (not just at the end of every
+            # Send-* call) so a human watching with Set-VirtaalHumanDelay
+            # on actually gets to see the dialog appear before whatever
+            # the calling check does next (usually closing it).
+            Wait-VirtaalForHuman
             return $fg
         }
         Start-Sleep -Milliseconds 200
@@ -228,6 +252,7 @@ function Send-VirtaalPopupKeys {
     Start-Sleep -Milliseconds 300
     [System.Windows.Forms.SendKeys]::SendWait($Keys)
     Start-Sleep -Milliseconds $SettleMs
+    Wait-VirtaalForHuman
 }
 
 function Close-VirtaalPopup {
@@ -271,6 +296,7 @@ function Send-VirtaalClick {
     Start-Sleep -Milliseconds 50
     [VirtaalWin32]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero) # MOUSEEVENTF_LEFTUP
     Start-Sleep -Milliseconds $SettleMs
+    Wait-VirtaalForHuman
 }
 
 function Save-VirtaalScreenshot {
@@ -356,6 +382,7 @@ function Send-VirtaalKeys {
     Start-Sleep -Milliseconds 300
     [System.Windows.Forms.SendKeys]::SendWait($Keys)
     Start-Sleep -Milliseconds $SettleMs
+    Wait-VirtaalForHuman
 }
 
 function Get-VirtaalLogs {

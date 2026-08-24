@@ -31,22 +31,36 @@ Don't uninstall Virtaal again at the end of the run. Default tears back
 down to a clean slate so repeated runs stay comparable and don't leave
 a test install cluttering a real machine.
 
+.PARAMETER HumanDelayMs
+Runs at full speed (0, the default) unless set - every dialog, click,
+and keystroke already has its own short, tuned settle delay, and a
+dialog that opens and closes within a few hundred milliseconds is real
+but too fast for a human to actually see. Set this (e.g. 2000 for a
+2-second pause) to watch a run happen instead of only reading its
+transcript afterward - applies uniformly to every interaction, not
+just one check.
+
 .EXAMPLE
 .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1
 
 .EXAMPLE
 .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1 -InstallerPath C:\Downloads\virtaal-1.0.0-beta1-setup.exe -KeepInstalled
+
+.EXAMPLE
+.\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1 -HumanDelayMs 2000
 #>
 param(
     [string]$InstallerPath,
     [switch]$SkipInitialUninstall,
-    [switch]$KeepInstalled
+    [switch]$KeepInstalled,
+    [int]$HumanDelayMs = 0
 )
 
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here "virtaal_install_helpers.ps1")
 . (Join-Path $here "virtaal_ui_test_helpers.ps1")
+if ($HumanDelayMs -gt 0) { Set-VirtaalHumanDelay -Milliseconds $HumanDelayMs }
 
 $results = @()
 function Add-Result([string]$Name, [string]$Status, [string]$Detail = "") {
