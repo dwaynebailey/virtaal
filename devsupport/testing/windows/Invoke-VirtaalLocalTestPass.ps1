@@ -53,6 +53,20 @@ on the same install rather than reinstalling every time. Meant for
 drilling into or validating a fix for one or two specific checks;
 omit for a real full pass.
 
+.PARAMETER AppDebugLog
+Launches Virtaal with its own -D/--debug flag and relaxes
+Assert-VirtaalLogsClean's allowlist to match (DEBUG/INFO lines are
+expected noise then, not failures - WARNING/ERROR still fail a check
+same as always). Without this, the app's logging module is never
+configured at all, so every logging.debug()/logging.info() call
+already in the codebase - mode changes, search match counts, which
+unit a match actually selected, and more - is silently discarded
+before it's ever written anywhere, not just hidden. Off by default,
+same reasoning as -HumanDelayMs: a full battery run should stay
+exactly as strict as it's always been. Most useful paired with
+-RunTest when a check's *result* makes sense but you need to see why a
+specific interaction inside it did or didn't happen.
+
 .EXAMPLE
 .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1
 
@@ -64,13 +78,17 @@ omit for a real full pass.
 
 .EXAMPLE
 .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1 -RunTest 18,24 -SkipInitialUninstall -KeepInstalled
+
+.EXAMPLE
+.\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1 -RunTest 18 -AppDebugLog -SkipInitialUninstall -KeepInstalled
 #>
 param(
     [string]$InstallerPath,
     [switch]$SkipInitialUninstall,
     [switch]$KeepInstalled,
     [int]$HumanDelayMs = 0,
-    [string[]]$RunTest
+    [string[]]$RunTest,
+    [switch]$AppDebugLog
 )
 
 $ErrorActionPreference = "Stop"
@@ -78,6 +96,7 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here "virtaal_install_helpers.ps1")
 . (Join-Path $here "virtaal_ui_test_helpers.ps1")
 if ($HumanDelayMs -gt 0) { Set-VirtaalHumanDelay -Milliseconds $HumanDelayMs }
+if ($AppDebugLog) { Set-VirtaalAppDebugLog; Write-Host "-AppDebugLog: Virtaal launches with --debug, DEBUG/INFO log lines are expected" }
 
 # -RunTest 18,24 -> a lookup set of check numbers to actually run;
 # $null means no filter, i.e. a real full run. [string[]] (not

@@ -101,6 +101,23 @@ function Set-VirtaalHumanDelay {
     param([Parameter(Mandatory)][int]$Milliseconds)
     $script:VirtaalHumanDelayMs = $Milliseconds
 }
+
+# Enables Virtaal's own -D/--debug flag (bin/virtaal) for every check
+# launched after this is called, and relaxes Assert-VirtaalLogsClean's
+# default allowlist to match: without it, the app's logging module is
+# never configured at all (bin/virtaal only calls logging.basicConfig()
+# when -D/--log is passed), so every logging.debug()/logging.info() call
+# already in the codebase (mode changes, search match counts, which unit
+# a match actually selected - see searchmode.py) is silently discarded,
+# not just hidden - there was nothing to look at either way. Off by
+# default, same reasoning as -HumanDelayMs: full battery runs should stay
+# exactly as strict as they've always been (any unexpected line is a real
+# problem), this is for deliberately turning up the detail on a -RunTest
+# drill-down where "why didn't this happen" is exactly the question.
+$script:VirtaalAppDebugLog = $false
+function Set-VirtaalAppDebugLog {
+    $script:VirtaalAppDebugLog = $true
+}
 function Wait-VirtaalForHuman {
     if ($script:VirtaalHumanDelayMs -gt 0) { Start-Sleep -Milliseconds $script:VirtaalHumanDelayMs }
 }
@@ -118,6 +135,14 @@ function Start-VirtaalTest {
         [int]$WaitSeconds = 8,
         [int]$HandleTimeoutSeconds = 10
     )
+
+    # See Set-VirtaalAppDebugLog above - -D/--debug is a plain argparse
+    # flag (bin/virtaal), order relative to the file argument doesn't
+    # matter, so it's safe to just prepend it here regardless of what
+    # $Arguments already is.
+    if ($script:VirtaalAppDebugLog) {
+        $Arguments = if ($Arguments) { "--debug $Arguments" } else { "--debug" }
+    }
 
     # Windows PowerShell 5.1's Start-Process rejects -ArgumentList "" -
     # "Cannot validate argument on parameter 'ArgumentList'. The argument
@@ -490,6 +515,17 @@ function Assert-VirtaalLogsClean {
     the known-clean baseline for this frozen build is empty logs.
     #>
     param([string[]]$AllowlistPatterns = @())
+    if ($script:VirtaalAppDebugLog) {
+        # bin\virtaal's -D/--debug format is '%(levelname)7s
+        # %(module)s...' - levelname right-justified to 7 chars, so
+        # DEBUG/INFO lines have 2/3 leading spaces before the level
+        # name. Only matches those two levels deliberately - WARNING
+        # (exactly 7 chars, no leading space) and ERROR/CRITICAL still
+        # fail this check as real unexpected output, same as always;
+        # this only tolerates the *expected* extra noise from turning
+        # -D on, not genuine problems.
+        $AllowlistPatterns = $AllowlistPatterns + '^\s*(DEBUG|INFO)\s'
+    }
     $logs = Get-VirtaalLogs
     $lines = @($logs.Stdout + $logs.Stderr) | Where-Object { $_ }
     $unexpected = $lines | Where-Object {
