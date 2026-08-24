@@ -715,6 +715,61 @@ Invoke-VirtaalCheck "Placeable navigation/transfer shortcuts" {
     }
 }
 
+Invoke-VirtaalCheck "Placeable stepping and copy-into-target on a real placeable" {
+    # The check above exercises Alt+Left/Right/Down against whatever
+    # unit happens to be first in checks.po - which has no actual
+    # placeables (an XML tag, a printf %s, ...) to select, so it never
+    # touches unitview.py's real placeable-stepping/insert code path at
+    # all. Pointed out live, 2026-08-24: checks.po line 171
+    # ("XML tags are <b>fun</b>") genuinely has placeables the app
+    # would highlight and let you step between - and, confirmed by
+    # reading copy_original() (unitview.py): when a placeable is
+    # currently selected, Alt+Down takes a completely different branch
+    # than the "transfer whole source" one the existing check exercises
+    # - it inserts *just that placeable* into the target
+    # (textbox.insert_translation(selected_elem)) and auto-advances to
+    # the next one (move_elem_selection(1)) - a real, previously
+    # entirely untested code path.
+    #
+    # Navigates to that unit via Ctrl+F (searchmode.py's
+    # _on_entry_activate selects the first match on Enter) rather than
+    # counting Down-presses to it, so this keeps working regardless of
+    # where the unit sits in the file. No way to verify *which*
+    # placeable ends up selected/highlighted without a UI Automation
+    # tree - screenshots at each step are the only real evidence here,
+    # same honest bar as the click checks.
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
+    if (-not $t) {
+        Add-Result "Placeable stepping and copy-into-target on a real placeable" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "^f"
+        Send-VirtaalKeys $t "XML tags"
+        Send-VirtaalKeys $t "{ENTER}"
+        Send-VirtaalKeys $t "{ESC}"
+        $shotAtUnit = Save-VirtaalScreenshot $t
+        Send-VirtaalKeys $t "%{RIGHT}"
+        $shotAfterStep1 = Save-VirtaalScreenshot $t
+        Send-VirtaalKeys $t "%{RIGHT}"
+        $shotAfterStep2 = Save-VirtaalScreenshot $t
+        $titleBeforeInsert = Get-VirtaalTitle $t
+        Send-VirtaalKeys $t "%{DOWN}"
+        $titleAfterInsert = Get-VirtaalTitle $t
+        $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+        if (-not $stillAlive) {
+            Add-Result "Placeable stepping and copy-into-target on a real placeable" "Fail" "process exited - screenshots: $shotAtUnit, $shotAfterStep1, $shotAfterStep2"
+        } else {
+            $logsClean = Assert-VirtaalLogsClean
+            if (-not $logsClean) {
+                Add-Result "Placeable stepping and copy-into-target on a real placeable" "Fail" "unexpected log output - see above"
+            } elseif ($titleAfterInsert.StartsWith("*") -and -not $titleBeforeInsert.StartsWith("*")) {
+                Add-Result "Placeable stepping and copy-into-target on a real placeable" "Pass" "Alt+Down inserted a placeable - screenshots: $shotAtUnit, $shotAfterStep1, $shotAfterStep2"
+            } else {
+                Add-Result "Placeable stepping and copy-into-target on a real placeable" "Skip" "no crash; no observable modified-marker change from Alt+Down - see screenshots to confirm placeable selection actually happened: $shotAtUnit, $shotAfterStep1, $shotAfterStep2"
+            }
+        }
+    }
+}
+
 Invoke-VirtaalCheck "Click navigation" {
     # No UI Automation tree is available here to ask "where is row 2",
     # so this clicks at a guessed position (fractions of the window's
