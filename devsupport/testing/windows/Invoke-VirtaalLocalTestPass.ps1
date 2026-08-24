@@ -102,6 +102,13 @@ function Invoke-VirtaalCheck {
     } catch {
         Add-Result $Name "Fail" "unexpected error: $_"
     } finally {
+        # Start-VirtaalTest now screenshots every file-argument launch
+        # unconditionally (2026-08-24 - this glitch turned out to be far
+        # more common than its original "rare, hard to reproduce"
+        # characterization, just too fast to see without -HumanDelayMs).
+        # Surfaced here once, for every check, rather than needing each
+        # one to reference $t.OpenScreenshot in its own Add-Result call.
+        if ($t -and $t.OpenScreenshot) { Write-Host "  (open screenshot: $($t.OpenScreenshot))" }
         if ($t) { Stop-VirtaalTest $t }
     }
 }
@@ -296,24 +303,20 @@ Invoke-VirtaalCheck "Navigation doesn't grow window" {
     # Mirrors CI's own check for storetreeview.py's select_index() growth
     # bug (fixed 7fd21615) - kept here too since this is testing the real
     # installed build, not just whatever CI happened to build from.
+    #
+    # No longer takes its own screenshot at open - Start-VirtaalTest does
+    # that automatically now for every file-argument launch (see its own
+    # comments: this glitch turned out to be far more common than
+    # originally thought, not specific to this one check).
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "po\af.po"
     if (-not $t) {
         Add-Result "Navigation doesn't grow window" "Fail" "app didn't launch"
     } else {
-        # Screenshot right away, before anything else - reported live
-        # twice now (2026-08-24) that this specific check's first-open
-        # moment shows ISSUE_TRIAGE.md's still-open "widgets overlapping
-        # on first opening a file" glitch, but this check never captured
-        # anything at that moment before, so neither sighting had actual
-        # evidence. Taken unconditionally (not just on failure), same as
-        # the click checks, since there's no way to auto-detect "widgets
-        # are overlapping" from window geometry alone.
-        $shotAtOpen = Save-VirtaalScreenshot $t
         $widthBefore = Get-VirtaalWidth $t
         for ($i = 0; $i -lt 25; $i++) { Send-VirtaalKeys $t "{ENTER}" }
         $widthAfter = Get-VirtaalWidth $t
         $growth = $widthAfter - $widthBefore
-        Add-Result "Navigation doesn't grow window" $(if ($growth -gt 50) { "Fail" } else { "Pass" }) "grew ${growth}px after 25x Enter - screenshot at open: $shotAtOpen"
+        Add-Result "Navigation doesn't grow window" $(if ($growth -gt 50) { "Fail" } else { "Pass" }) "grew ${growth}px after 25x Enter"
     }
 }
 

@@ -155,7 +155,24 @@ function Start-VirtaalTest {
         return $null
     }
 
-    return [PSCustomObject]@{ Process = $proc; Hwnd = $hwnd }
+    $instance = [PSCustomObject]@{ Process = $proc; Hwnd = $hwnd; OpenScreenshot = $null }
+    if ($Arguments) {
+        # Reported live, 2026-08-24, across three separate checks
+        # opening three different files (po\af.po directly, and two
+        # different %TEMP% scratch copies) - not the rare, hard-to-
+        # reproduce event ISSUE_TRIAGE.md's "widgets overlapping on
+        # first opening a file" glitch was originally characterized as,
+        # just apparently too fast to see without -HumanDelayMs slowing
+        # things down. Capturing this unconditionally now, for every
+        # launch that opens a file (not the bare Welcome screen, where
+        # this glitch doesn't apply - there's no treeview/editor layout
+        # there yet), rather than only in the one check that happened to
+        # be instrumented for it - every check gets real evidence of
+        # this moment now, not just the ones a human happened to be
+        # watching live when it occurred.
+        $instance.OpenScreenshot = Save-VirtaalScreenshot $instance
+    }
+    return $instance
 }
 
 function Get-VirtaalRect {
