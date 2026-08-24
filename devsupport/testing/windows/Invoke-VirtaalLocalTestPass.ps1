@@ -416,7 +416,21 @@ if (-not $SkipCommitCheck) {
     # "cannot call a method on a null-valued expression" instead of a
     # useful message. Check $LASTEXITCODE explicitly and fail with git's
     # own remediation instead.
-    $gitOutput = (git -C $here rev-parse HEAD 2>&1 | Out-String).Trim()
+    # Confirmed live, 2026-08-24, on the real Windows PowerShell 5.1 this
+    # battery actually runs under (not reproducible with cross-platform
+    # PowerShell 7's git handling, which behaves differently here): with
+    # $ErrorActionPreference = "Stop" in effect (set at the top of this
+    # script), a native command's stderr output - even merged into the
+    # pipeline via 2>&1 - is itself an ErrorRecord, so the *terminating*
+    # dubious-ownership error still aborted this whole script, "2>&1"
+    # notwithstanding. Temporarily relax EAP just for this one call.
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $gitOutput = (git -C $here rev-parse HEAD 2>&1 | Out-String).Trim()
+    } finally {
+        $ErrorActionPreference = $prevEAP
+    }
     if ($LASTEXITCODE -ne 0) {
         Write-Host "::error::Could not read this checkout's own commit (git -C $here rev-parse HEAD failed):"
         Write-Host $gitOutput
