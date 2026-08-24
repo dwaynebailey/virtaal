@@ -223,22 +223,30 @@ function Find-VirtaalUnit {
     quality check, ...) rather than whatever the file's first unit
     happens to be.
 
-    Confirmed live, 2026-08-24: without the settle below, Enter can
-    fire before Search mode's own state has caught up with the just-
-    typed text - the search box shows the right text, but the selected
-    unit never actually moves (confirmed via a saved screenshot: search
-    box read "XML tags" correctly, but the currently-edited unit was
-    still the file's first one). Only reproduced without -HumanDelayMs
-    in play, i.e. exactly the gap this explicit sleep (independent of
-    that opt-in flag) exists to close.
+    Confirmed live, 2026-08-24, *twice*: without a generous settle here,
+    Enter can fire before Search mode's own state has caught up with the
+    just-typed text - the search box shows the right text, but the
+    selected unit never actually moves (confirmed via two separate saved
+    screenshots on two different runs: search box read "XML tags"
+    correctly, but the currently-edited unit was still the file's first
+    one, and Search mode hadn't even been exited yet by the time the
+    screenshot was taken - meaning Escape hadn't landed either, despite
+    running *after* Enter in this same function). First attempt at a fix
+    used 800ms/500ms, confirmed live to still be too short on this VM.
+    Widened to match the timing that *has* reliably worked in every
+    -HumanDelayMs run so far (2000ms was the value used there) rather
+    than guess at a smaller number again - this VM has shown a
+    consistent pattern of being genuinely slower than expected across
+    several unrelated timing issues this session, not just this one.
     #>
     param([Parameter(Mandatory)]$Instance, [Parameter(Mandatory)][string]$SearchText)
     Send-VirtaalKeys $Instance "^f"
     Send-VirtaalKeys $Instance $SearchText
-    Start-Sleep -Milliseconds 800
+    Start-Sleep -Milliseconds 2000
     Send-VirtaalKeys $Instance "{ENTER}"
-    Start-Sleep -Milliseconds 500
+    Start-Sleep -Milliseconds 2000
     Send-VirtaalKeys $Instance "{ESC}"
+    Start-Sleep -Milliseconds 800
 }
 
 # Everything below (all Write-Host output, ::error:: lines, and the
