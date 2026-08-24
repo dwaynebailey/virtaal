@@ -589,4 +589,19 @@ class StoreController(BaseController):
         # there's no file open at all - there's nothing to mark modified.
         if self.store is None:
             return
+        # Reported live again, 2026-08-24, in the exact shape this guard's
+        # own comment already predicted as a known gap: change file A,
+        # discard, open a *different* file B - B immediately showed
+        # modified despite no further edits there, confirmed via the
+        # window's own automated screenshot showing the target field
+        # focused with no keys sent to it after B opened. self.store is
+        # already B's store by the time this fires (not None - the guard
+        # above doesn't catch it), but `unit` is still one of A's unit
+        # objects, from a store that's since been replaced entirely - a
+        # stray "modified" signal from A's own teardown, landing late
+        # after B is already current. Compare the specific unit against
+        # the currently open store's own units, not just whether a store
+        # exists at all.
+        if unit not in self.store.get_units():
+            return
         self.set_modified(True)
