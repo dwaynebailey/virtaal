@@ -1062,7 +1062,7 @@ Invoke-VirtaalCheck "Change file A, discard, open different file B: no spurious 
     }
 }
 
-Invoke-VirtaalCheck "Layout glitch diagnostic screenshot (File>Open path)" {
+Invoke-VirtaalCheck "First open: no visual glitch (manual) or modified marker (auto)" {
     # Not a pass/fail check - ISSUE_TRIAGE.md's "widgets overlapping near
     # the top of the window on first opening a file" bug is still open
     # (two attempted fixes both caused real CI hangs and were reverted -
@@ -1076,12 +1076,12 @@ Invoke-VirtaalCheck "Layout glitch diagnostic screenshot (File>Open path)" {
     # when someone happens to notice it live.
     $t = Start-VirtaalTest -ExePath $install.ExePath
     if (-not $t) {
-        Add-Result "Layout glitch diagnostic screenshot (File>Open path)" "Fail" "app didn't launch"
+        Add-Result "First open: no visual glitch (manual) or modified marker (auto)" "Fail" "app didn't launch"
     } else {
         Send-VirtaalKeys $t "^o"
         $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 8
         if (-not $dlg) {
-            Add-Result "Layout glitch diagnostic screenshot (File>Open path)" "Fail" "Ctrl+O never opened a file dialog"
+            Add-Result "First open: no visual glitch (manual) or modified marker (auto)" "Fail" "Ctrl+O never opened a file dialog"
         } else {
             # Deliberately not using Open-VirtaalFileViaDialog here - its
             # settle delay after Enter (1s) is tuned for reliable
@@ -1102,7 +1102,27 @@ Invoke-VirtaalCheck "Layout glitch diagnostic screenshot (File>Open path)" {
             Send-VirtaalPopupKeys $dlg "{ENTER}"
             Start-Sleep -Milliseconds 300
             $shot = Save-VirtaalScreenshot $t
-            Add-Result "Layout glitch diagnostic screenshot (File>Open path)" "Skip" "diagnostic only, not auto-verified - inspect $shot for ISSUE_TRIAGE.md's open layout glitch"
+            # Confirmed live, 2026-08-24: this exact screenshot once
+            # showed *no* visible overlap at all, but did show the
+            # modified marker set on af.po despite zero interaction with
+            # the document (no typing anywhere in this check) - a
+            # different symptom than the visual glitch this check was
+            # built to catch, but plausibly the same root cause (the
+            # original theory here has always been select_index(0)'s
+            # first cell-editor racing with the treeview column's
+            # placeholder sizing - a race like that could as easily
+            # produce a stray "changed" signal as a visual glitch). Now a
+            # real assertion, not just a diagnostic Skip - the screenshot
+            # stays purely informational for the *visual* glitch (still
+            # no way to auto-detect "widgets are overlapping" from window
+            # geometry alone), but the modified-marker check doesn't need
+            # a human's eyes.
+            $title = Get-VirtaalTitle $t
+            if ($title.StartsWith("*")) {
+                Add-Result "First open: no visual glitch (manual) or modified marker (auto)" "Fail" "title=`"$title`" - modified marker set despite no interaction with the document - screenshot: $shot"
+            } else {
+                Add-Result "First open: no visual glitch (manual) or modified marker (auto)" "Skip" "modified marker correctly unset (title=`"$title`") - visual glitch itself not auto-verified, inspect $shot for ISSUE_TRIAGE.md's open layout glitch"
+            }
         }
     }
 }
