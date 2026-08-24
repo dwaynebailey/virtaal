@@ -770,6 +770,44 @@ jobs:
               exit 1
           }
 
+      - name: Verify common keyboard shortcuts don't crash the app
+        # Exercises Ctrl+Z (undo), Ctrl+X/C/V (cut/copy/paste), and
+        # Ctrl+O (File > Open). Not a functional check of what each
+        # shortcut actually *does* - confirming that needs real UI
+        # Automation tree inspection to read back selection/clipboard/
+        # dialog state, a bigger lift than this - just that sending them
+        # doesn't crash or hang the app. A cheap regression net for the
+        # crash-class of bug using the same helpers module as the checks
+        # above, and a real prerequisite for a future functional check
+        # (e.g. of the still-open "Navigation menu shortcuts don't work
+        # on Windows" report in ISSUE_TRIAGE.md) rather than a
+        # replacement for one.
+        shell: pwsh
+        run: |
+          . .\devsupport\testing\windows\virtaal_ui_test_helpers.ps1
+          $t = Start-VirtaalTest -Arguments "devsupport\testfiles\checks.po"
+          if (-not $t) { exit 1 }
+
+          foreach ($keys in @("^z", "^x", "^c", "^v")) {
+              Send-VirtaalKeys $t $keys
+          }
+          # Ctrl+O opens the file-open dialog - a real modal window that
+          # would otherwise block indefinitely waiting for input, so
+          # close it with Escape immediately rather than leaving it open
+          # for the rest of the job.
+          Send-VirtaalKeys $t "^o"
+          Send-VirtaalKeys $t "{ESC}"
+
+          $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+          Stop-VirtaalTest $t
+
+          if (-not $stillAlive) {
+              Write-Host "::error::Bundle crashed after sending Ctrl+Z/X/C/V/O"
+              Write-VirtaalLogs
+              exit 1
+          }
+          if (-not (Assert-VirtaalLogsClean)) { exit 1 }
+
       - uses: actions/upload-artifact@v7
         with:
           name: Virtaal-windows-bundle
