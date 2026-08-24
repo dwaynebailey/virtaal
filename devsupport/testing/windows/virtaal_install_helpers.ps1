@@ -133,13 +133,23 @@ function Install-Virtaal {
     .SYNOPSIS
     Silently installs Virtaal from an Inno Setup installer .exe. With no
     -InstallerPath, auto-discovers the newest .exe under dist\installer
-    (devsupport\packaging\windows\build_installer.ps1's own output dir)
-    or dist\Virtaal-windows-installer (the CI artifact name, if you
-    downloaded one with `gh run download`). Defaults -Tasks to disabling
-    both optional installer tasks (desktop icon, file associations) so
-    repeated test-cycle installs don't spam a real desktop or overwrite
-    real file associations on a tester's own machine - pass an explicit
-    -Tasks to opt back in.
+    (devsupport\packaging\windows\build_installer.ps1's own output dir),
+    dist\Virtaal-windows-installer (only if you deliberately downloaded a
+    CI artifact into a same-named subfolder), or a flat dist\*.exe -
+    confirmed live, 2026-08-24: `gh run download <run> -n
+    Virtaal-windows-installer -D dist` (the README's own documented
+    example) doesn't create a Virtaal-windows-installer subfolder at all,
+    it extracts straight into dist\ - the artifact's upload path was
+    dist\installer\*.exe on the CI side, but actions/upload-artifact
+    doesn't preserve that directory structure, so gh run download's -D
+    is the *only* directory involved, not -D plus the artifact name.
+    Both patterns are kept (rather than fixing just the flat one) so a
+    deliberately-organised download into a same-named subfolder still
+    works too. Defaults -Tasks to disabling both optional installer
+    tasks (desktop icon, file associations) so repeated test-cycle
+    installs don't spam a real desktop or overwrite real file
+    associations on a tester's own machine - pass an explicit -Tasks to
+    opt back in.
 
     Returns $null (with an ::error:: already written) on any failure, or
     a PSCustomObject with ExePath/InstallLocation/Version/LogPath on
@@ -153,10 +163,10 @@ function Install-Virtaal {
     )
 
     if (-not $InstallerPath) {
-        $candidates = @(Get-ChildItem -Path "dist\installer\*.exe", "dist\Virtaal-windows-installer\*.exe" -ErrorAction SilentlyContinue) |
+        $candidates = @(Get-ChildItem -Path "dist\installer\*.exe", "dist\Virtaal-windows-installer\*.exe", "dist\*.exe" -ErrorAction SilentlyContinue) |
             Sort-Object LastWriteTime -Descending
         if (-not $candidates) {
-            Write-Host "::error::No installer .exe found under dist\installer or dist\Virtaal-windows-installer - build one (devsupport\packaging\windows\build_installer.ps1) or download a Virtaal-windows-installer CI artifact first, or pass -InstallerPath explicitly."
+            Write-Host "::error::No installer .exe found under dist\installer, dist\Virtaal-windows-installer, or flat under dist - build one (devsupport\packaging\windows\build_installer.ps1) or download a Virtaal-windows-installer CI artifact first (gh run download <run> -n Virtaal-windows-installer -D dist), or pass -InstallerPath explicitly."
             return $null
         }
         $InstallerPath = $candidates[0].FullName

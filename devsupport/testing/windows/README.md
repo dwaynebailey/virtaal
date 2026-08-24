@@ -57,6 +57,13 @@ gh run download <run-id> -R dwaynebailey/virtaal -n Virtaal-windows-installer -D
 .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1
 ```
 
+That extracts the `.exe` flat into `dist\` (not into a
+`dist\Virtaal-windows-installer\` subfolder, despite the artifact's
+name - `gh run download -n <name> -D <dir>` uses `<dir>` as-is, it
+doesn't nest by artifact name) - auto-discovery checks a flat
+`dist\*.exe` too, alongside `dist\installer\` and
+`dist\Virtaal-windows-installer\`, so this just works either way.
+
 Or point at one directly:
 
 ```powershell
