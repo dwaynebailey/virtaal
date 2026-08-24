@@ -274,6 +274,23 @@ class StoreTreeView(Gtk.TreeView):
         # for why. Not a signal handler, so it can't recreate the
         # configure-event feedback loop the earlier version of this bug
         # had (see on_configure_event()'s history).
+        #
+        # 2026-08-24: first version of this call just did
+        # window.resize(...) and returned - confirmed via CI's own
+        # navigation-growth check that this did *not* work: the window
+        # still grew by the exact same ~24px per navigation as before
+        # this fix existed. window.resize() on a GtkWindow doesn't apply
+        # synchronously - it queues a resize for the next main-loop
+        # iteration. select_index() runs back-to-back on rapid
+        # navigation (Enter-to-advance) with no yield to the main loop
+        # in between, so the queued resize from one call had never
+        # actually taken effect by the time the *next* call took its own
+        # "before" measurement - it was reading the same still-grown
+        # size again and again, growing further on top of it each time.
+        # Forcing the pending resize to actually apply before returning
+        # (the standard GTK "flush the event queue now" idiom) is what
+        # makes this a real correction instead of a queued one that
+        # never catches up.
         if not width_before:
             return
         window = self.get_toplevel()
@@ -286,6 +303,8 @@ class StoreTreeView(Gtk.TreeView):
                 when, width_before[0], current_width, width_before[0],
             )
             window.resize(width_before[0], current_height)
+            while Gtk.events_pending():
+                Gtk.main_iteration()
 
     def _on_focus_in(self, widget, _event, *_user_args):
         # Restore cursor/editing state on refocus, same as
