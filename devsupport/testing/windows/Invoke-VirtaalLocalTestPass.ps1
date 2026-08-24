@@ -590,12 +590,22 @@ Invoke-VirtaalCheck "Welcome screen: open dialog + Recent Files" {
     # list, the same mechanism the run-virtaal skill's macOS driver
     # relies on for its native NSOpenPanel.
     #
-    # The "r" mnemonic jump for Recent Files (rather than counting
-    # Down-arrow presses to it) is deliberately order-independent -
-    # it'll keep working even if virtaal.ui's File menu items get
-    # reordered, as long as "_Recent Files" keeps that mnemonic. Assumes
-    # the Recent Files submenu auto-highlights its most-recent (topmost)
-    # entry when opened, which {ENTER} then activates.
+    # History: originally drove File > Recent Files via Alt+F, a "r"
+    # mnemonic jump, Right to open the submenu, Enter to activate its
+    # (assumed) auto-highlighted top entry - failed three separate times
+    # with three different symptoms (no dialog, wrong/no entry selected,
+    # no effect at all landing back on the bare Welcome screen). A saved
+    # screenshot from the third failure showed exactly where that left
+    # things: back on the Welcome screen, which turns out to have its
+    # *own* clickable Recent Files list right on the page
+    # (welcomescreen.py's _get_widgets(): btn_recent1..btn_recent5, real
+    # Gtk.Button widgets with 'clicked' connected) - not the finicky
+    # menu path at all. Clicking btn_recent1 (the most-recent slot, af.po
+    # here given this check's own earlier Ctrl+O) is both simpler and,
+    # per that same reference screenshot's real 848x633 dimensions,
+    # calibrated against an actual observed position rather than a blind
+    # guess - still best-effort without a UI Automation tree, hence the
+    # saved screenshots.
     $t = Start-VirtaalTest -ExePath $install.ExePath
     if (-not $t) {
         Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "app didn't launch"
@@ -611,17 +621,14 @@ Invoke-VirtaalCheck "Welcome screen: open dialog + Recent Files" {
             } else {
                 Send-VirtaalKeys $t "^w"
                 Start-Sleep -Milliseconds 500
-                Send-VirtaalKeys $t "%f"
-                Send-VirtaalKeys $t "r"
-                Send-VirtaalKeys $t "{RIGHT}"
-                Send-VirtaalKeys $t "{ENTER}"
-                Start-Sleep -Milliseconds 1000
+                $shotBeforeClick = Save-VirtaalScreenshot $t
+                Send-VirtaalClick $t -XFraction 0.10 -YFraction 0.436
                 $titleAfterRecent = Get-VirtaalTitle $t
                 if ($titleAfterRecent -match "af\.po") {
-                    Add-Result "Welcome screen: open dialog + Recent Files" "Pass" "title after Recent Files=`"$titleAfterRecent`""
+                    Add-Result "Welcome screen: open dialog + Recent Files" "Pass" "title after clicking Recent Files=`"$titleAfterRecent`""
                 } else {
-                    $shot = Save-VirtaalScreenshot $t
-                    Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "title after Recent Files=`"$titleAfterRecent`" - screenshot: $shot"
+                    $shotAfterClick = Save-VirtaalScreenshot $t
+                    Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "title after clicking Recent Files=`"$titleAfterRecent`" - screenshots: $shotBeforeClick, $shotAfterClick"
                 }
             }
         }
