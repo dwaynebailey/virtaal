@@ -129,7 +129,10 @@ side without anything needing to be copied out by hand.
   right after does - Copy/Paste were previously only checked for "don't
   crash", never that they get the modified flag right.
 - Alt+Enter opens Properties and closes cleanly (same shape as Ctrl+P).
-- F11 fullscreen toggles without crashing.
+- F11 fullscreen returns the window to its original size afterward
+  (reported live to differ, 2026-08-24 - `_on_fullscreen()` is a plain
+  passthrough to GTK's own fullscreen()/unfullscreen(), so this is
+  measuring a GTK/GDK Windows-backend quirk, not app code).
 - Multi-step undo (two edits, two Ctrl+Z) clears the modified marker -
   the existing single-step check can't distinguish "compares against a
   fixed start" from "correctly walks back an arbitrary number of

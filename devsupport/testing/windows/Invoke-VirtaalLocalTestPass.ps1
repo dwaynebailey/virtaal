@@ -325,21 +325,50 @@ Invoke-VirtaalCheck "Alt+Enter opens Properties and closes cleanly" {
     }
 }
 
-Invoke-VirtaalCheck "F11 fullscreen toggle doesn't crash" {
-    # mnu_fullscreen / F11 - present in virtaal.ui but never exercised by
-    # anything else in this battery. No precise geometry assertion (a
-    # real fullscreen size depends on the monitor/VM display config,
-    # nothing this battery controls) - same bar as menu navigation: no
-    # crash, no log error.
+Invoke-VirtaalCheck "F11 fullscreen restores the original window size" {
+    # mnu_fullscreen / F11 - _on_fullscreen() (mainview.py) is a plain
+    # passthrough to GTK's own main_window.fullscreen()/unfullscreen(),
+    # no custom geometry save/restore logic in Virtaal's own code at
+    # all - so if the size isn't restored correctly, that's GTK/GDK's
+    # Windows backend, not something to fix here directly (though
+    # Virtaal could still work around it by saving/restoring the size
+    # itself, the way this same session's window-growth saga eventually
+    # worked around a different GTK/Windows sizing quirk). Reported
+    # live, 2026-08-24: "F11 returns to a different size" - this used to
+    # only check for a crash; now measures the actual width/height
+    # before fullscreen and after returning from it, so this is a real,
+    # repeatable regression check instead of relying on catching it live
+    # each time. A few pixels of slop is allowed (window-manager/DPI
+    # rounding is a real, benign source of small differences) - the
+    # threshold is deliberately the same 50px this battery already uses
+    # for the navigation-growth check, not a tight pixel-exact match.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
-        Add-Result "F11 fullscreen toggle doesn't crash" "Fail" "app didn't launch"
+        Add-Result "F11 fullscreen restores the original window size" "Fail" "app didn't launch"
     } else {
+        $widthBefore = Get-VirtaalWidth $t
+        $heightBefore = Get-VirtaalHeight $t
         Send-VirtaalKeys $t "{F11}" -SettleMs 500
         Send-VirtaalKeys $t "{F11}" -SettleMs 500
         $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
-        $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
-        Add-Result "F11 fullscreen toggle doesn't crash" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) $(if (-not $stillAlive) { "process exited" } elseif (-not $logsClean) { "unexpected log output - see above" })
+        if (-not $stillAlive) {
+            Add-Result "F11 fullscreen restores the original window size" "Fail" "process exited"
+        } else {
+            $logsClean = Assert-VirtaalLogsClean
+            $widthAfter = Get-VirtaalWidth $t
+            $heightAfter = Get-VirtaalHeight $t
+            $widthDelta = [Math]::Abs($widthAfter - $widthBefore)
+            $heightDelta = [Math]::Abs($heightAfter - $heightBefore)
+            $sizeRestored = $widthDelta -le 50 -and $heightDelta -le 50
+            if (-not $logsClean) {
+                Add-Result "F11 fullscreen restores the original window size" "Fail" "unexpected log output - see above"
+            } elseif (-not $sizeRestored) {
+                $shot = Save-VirtaalScreenshot $t
+                Add-Result "F11 fullscreen restores the original window size" "Fail" "before=${widthBefore}x${heightBefore}, after=${widthAfter}x${heightAfter} - screenshot: $shot"
+            } else {
+                Add-Result "F11 fullscreen restores the original window size" "Pass" "before=${widthBefore}x${heightBefore}, after=${widthAfter}x${heightAfter}"
+            }
+        }
     }
 }
 
