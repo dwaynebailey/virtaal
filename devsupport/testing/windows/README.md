@@ -108,9 +108,10 @@ side without anything needing to be copied out by hand.
   file built to exercise several checks.
 - Placeable navigation/transfer (Alt+Left/Right/Down) - Alt+Down
   specifically verified to copy source into an empty target.
-- Click navigation (best-effort - see `Send-VirtaalClick`'s own
-  comments for why this one is inherently a guess without a UI
-  Automation tree available).
+- Click navigation, and clicking the two status-bar `PopupMenuButton`s
+  (check-type/"Project Type" bottom-left, language-pair bottom-right) -
+  all three best-effort (see `Send-VirtaalClick`'s own comments for why
+  these are inherently a guess without a UI Automation tree available).
 
 None of this reaches into a check's *content* (e.g. what the checks
 panel actually lists, or whether the "right" recent file reopened
