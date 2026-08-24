@@ -67,6 +67,18 @@ exactly as strict as it's always been. Most useful paired with
 -RunTest when a check's *result* makes sense but you need to see why a
 specific interaction inside it did or didn't happen.
 
+.PARAMETER SkipCommitCheck
+Skips verifying that the installed build's commit (virtaal.exe
+--version, via virtaal.__version__.build_commit - see that module and
+devsupport/packaging/*/build_standalone.*) matches this checkout's own
+`git rev-parse HEAD`. On by default (i.e. the check normally runs) -
+added 2026-08-24 after this exact session spent several rounds testing
+a stale installer built before that session's own fixes existed,
+nothing having ever checked *which commit* was actually installed. A
+mismatch aborts the run (after uninstalling, unless -KeepInstalled) -
+pass this switch only when deliberately testing a build that's not
+expected to match HEAD (e.g. a specific older release).
+
 .EXAMPLE
 .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1
 
@@ -88,7 +100,8 @@ param(
     [switch]$KeepInstalled,
     [int]$HumanDelayMs = 0,
     [string[]]$RunTest,
-    [switch]$AppDebugLog
+    [switch]$AppDebugLog,
+    [switch]$SkipCommitCheck
 )
 
 $ErrorActionPreference = "Stop"
@@ -379,6 +392,43 @@ $install = Install-Virtaal -InstallerPath $InstallerPath
 if (-not $install) {
     Write-Host "::error::Install failed - see above"
     exit 1
+}
+
+if (-not $SkipCommitCheck) {
+    # See virtaal/__version__.py's build_commit docstring and this
+    # param's own help text - this exists specifically because that
+    # exact silent-stale-install mistake happened, more than once, in
+    # the session that added it. --version exits almost immediately
+    # (argparse's own action="version" fires during parse_args(), well
+    # before any GUI/mainloop startup), so -Wait here is safe and fast,
+    # not the "never exits on its own" case every other launch in this
+    # script has to work around. For a packaged Windows build, its
+    # output lands in pan_app's redirected log (see virtaal/common/
+    # pan_app.py), not any console - there is no console for a
+    # windowed-subsystem exe - so read it back from there, not from
+    # Start-Process itself.
+    $expectedCommit = (git -C $here rev-parse HEAD).Trim()
+    Write-Host "Verifying installed build matches checkout commit $expectedCommit ..."
+    Start-Process -FilePath $install.ExePath -ArgumentList "--version" -Wait | Out-Null
+    Start-Sleep -Milliseconds 500
+    $verLogs = Get-VirtaalLogs
+    $actualCommit = $null
+    foreach ($line in ($verLogs.Stdout + $verLogs.Stderr)) {
+        if ($line -match '\(([0-9a-f]{7,40})\)') { $actualCommit = $Matches[1]; break }
+    }
+    if (-not $actualCommit) {
+        Write-Host "::error::Could not read the installed build's commit from --version output. Either this installer predates build_commit support (rebuild it) or something else is wrong - see the log dump below."
+        Write-VirtaalLogs
+        if (-not $KeepInstalled) { Uninstall-Virtaal | Out-Null }
+        exit 1
+    } elseif (-not $expectedCommit.StartsWith($actualCommit)) {
+        Write-Host "::error::Installed build is commit $actualCommit, but this checkout is at $expectedCommit - this installer is STALE. Rebuild (build_standalone.ps1 + build_installer.ps1) or download a fresh CI artifact for this commit, or pass -SkipCommitCheck to deliberately test an older build anyway."
+        if (-not $KeepInstalled) { Uninstall-Virtaal | Out-Null }
+        exit 1
+    }
+    Write-Host "Confirmed: installed build matches commit $actualCommit"
+} else {
+    Write-Host "`nSkipped commit verification (-SkipCommitCheck)"
 }
 
 Write-Host "`n=== 3. UI regression battery ==="
