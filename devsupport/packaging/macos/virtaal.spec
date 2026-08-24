@@ -34,6 +34,26 @@ from generate_info_plist import document_types  # noqa: E402
 
 COPYRIGHT = "Copyright 2007-2026 Translate.org.za. GNU General Public License."
 
+# translate-toolkit ships its own small data directory (translate/share/ -
+# langmodels/, the ngram language-model files translate.lang.identify.
+# LanguageIdentifier needs for auto-detection, plus stoplist-en) that
+# translate.misc.file_discovery's frozen-mode lookup expects to find
+# alongside virtaal's own share/virtaal and share/icons below - it's a
+# third-party package's data, not virtaal's own, so it was never in this
+# datas list at all. Confirmed live on Windows, 2026-08-24 (same
+# underlying gap, this platform's own spec just hadn't been exercised
+# yet): clicking the language-pair selector (which triggers
+# get_detected_langs(), langcontroller.py) crashed with
+# ValueError: Could not find "langmodels" - the only UI path that reaches
+# this particular translate-toolkit feature. Lands under the same "share"
+# destination as everything else below, so build_standalone.sh's existing
+# Contents/MacOS/share -> ../Resources/share symlink already covers it,
+# no extra workaround needed here. Located dynamically (not a hardcoded
+# venv path) via the actually-imported translate module, same style as
+# everything else in this file.
+import translate  # noqa: E402
+TRANSLATE_SHARE = Path(translate.__file__).parent / "share"
+
 mo_files = [
     (str(p), str(Path("share", "locale") / p.relative_to(ROOT / "mo").parent / "LC_MESSAGES"))
     for p in (ROOT / "mo").rglob("*.mo")
@@ -46,6 +66,7 @@ a = Analysis(  # noqa: F821
     datas=[
         (str(ROOT / "share" / "virtaal"), "share/virtaal"),
         (str(ROOT / "share" / "icons"), "share/icons"),
+        (str(TRANSLATE_SHARE), "share"),
     ]
     + mo_files,
     hiddenimports=collect_submodules("virtaal"),

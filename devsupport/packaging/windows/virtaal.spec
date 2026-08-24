@@ -39,6 +39,23 @@ ROOT = Path(os.getcwd())
 sys.path.insert(0, str(ROOT))
 from virtaal.__version__ import ver as virtaal_version  # noqa: E402
 
+# translate-toolkit ships its own small data directory (translate/share/ -
+# langmodels/, the ngram language-model files translate.lang.identify.
+# LanguageIdentifier needs for auto-detection, plus stoplist-en) that
+# translate.misc.file_discovery's frozen-mode lookup expects to find at
+# <exe_dir>/share/<name>, same flat layout as virtaal's own share/virtaal
+# and share/icons below - it's a third-party package's data, not
+# virtaal's own, so it was never in this datas list at all. Confirmed
+# live, 2026-08-24: clicking the language-pair selector (which triggers
+# get_detected_langs(), langcontroller.py) crashed with
+# ValueError: Could not find "langmodels" - the only UI path that reaches
+# this particular translate-toolkit feature, so it went unnoticed until
+# a Windows UI-testing battery specifically exercised that click. Located
+# dynamically (not a hardcoded venv path) via the actually-imported
+# translate module, same style as everything else in this file.
+import translate  # noqa: E402
+TRANSLATE_SHARE = Path(translate.__file__).parent / "share"
+
 COPYRIGHT = "Copyright 2007-2026 Translate.org.za. GNU General Public License."
 
 
@@ -114,6 +131,7 @@ a = Analysis(  # noqa: F821
     datas=[
         (str(ROOT / "share" / "virtaal"), "share/virtaal"),
         (str(ROOT / "share" / "icons"), "share/icons"),
+        (str(TRANSLATE_SHARE), "share"),
     ]
     + mo_files,
     hiddenimports=collect_submodules("virtaal"),
