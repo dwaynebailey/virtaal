@@ -63,10 +63,11 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ($HumanDelayMs -gt 0) { Set-VirtaalHumanDelay -Milliseconds $HumanDelayMs }
 
 $results = @()
+$script:checkCount = 0
 function Add-Result([string]$Name, [string]$Status, [string]$Detail = "") {
-    $script:results += [PSCustomObject]@{ Name = $Name; Status = $Status; Detail = $Detail }
+    $script:results += [PSCustomObject]@{ Number = $script:currentCheckNumber; Name = $Name; Status = $Status; Detail = $Detail }
     $marker = switch ($Status) { "Pass" { "[PASS]" }; "Fail" { "[FAIL]" }; default { "[SKIP]" } }
-    Write-Host "$marker $Name $(if ($Detail) { "- $Detail" })"
+    Write-Host "$marker #$($script:currentCheckNumber) $Name $(if ($Detail) { "- $Detail" })"
 }
 
 function Invoke-VirtaalCheck {
@@ -88,8 +89,13 @@ function Invoke-VirtaalCheck {
     # from Add-Result) rather than an actual in-place update - still
     # useful for watching a run live, since some checks take many
     # seconds and there was previously no way to tell what was currently
-    # in flight versus just... nothing happening yet.
-    Write-Host "[TESTING] $Name"
+    # in flight versus just... nothing happening yet. Numbered
+    # (requested 2026-08-24, after "3rd test has a rendering bug" needed
+    # cross-referencing against the check list by hand) so a live report
+    # can point at an exact check unambiguously.
+    $script:checkCount++
+    $script:currentCheckNumber = $script:checkCount
+    Write-Host "[TESTING] #$($script:currentCheckNumber) $Name"
     $t = $null
     try {
         . $Body
