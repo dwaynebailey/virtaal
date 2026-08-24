@@ -89,6 +89,19 @@ Useful switches:
   ```powershell
   .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1 -RunTest 18,24 -SkipInitialUninstall -KeepInstalled
   ```
+- `-AppDebugLog` - launches Virtaal with its own `-D`/`--debug` flag and
+  relaxes the log-content check to match, so the app's existing
+  `logging.debug()`/`logging.info()` calls (mode changes, search match
+  counts, which unit a match actually selected, ...) actually show up
+  in the transcript instead of being silently discarded (the logging
+  module is never configured at all without `-D`). `WARNING`/`ERROR`/
+  tracebacks still fail a check exactly as before - this only adds
+  tolerance for the expected extra detail. Most useful paired with
+  `-RunTest` when a check's pass/fail result makes sense but you need
+  to see *why* a specific interaction inside it did or didn't happen:
+  ```powershell
+  .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1 -RunTest 18 -AppDebugLog -SkipInitialUninstall -KeepInstalled
+  ```
 
 The script exits 0 if every check passed, 1 otherwise - safe to use as
 a gate in a self-hosted Windows CI runner later, not just interactively.
