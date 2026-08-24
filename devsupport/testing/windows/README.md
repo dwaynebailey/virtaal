@@ -75,6 +75,18 @@ Useful switches:
 The script exits 0 if every check passed, 1 otherwise - safe to use as
 a gate in a self-hosted Windows CI runner later, not just interactively.
 
+Every run's full console output is also written to a transcript under
+`.local-test-runs\<timestamp>.log` (gitignored) next to this README -
+if this repo checkout is itself a shared folder (e.g. a UTM share from
+a macOS host into a Windows VM), that transcript is readable directly
+from the host side afterwards without anything needing to be
+copy-pasted out of the Windows terminal. The app's own stdout/stderr
+logs (`%APPDATA%\Virtaal\std{out,err}_virtaal.log`) and the installer's
+log (`%TEMP%\virtaal-install-*.log`) live outside the repo tree and
+aren't captured this way on their own - but their content gets printed
+to the console (and so into the transcript too) automatically whenever
+a check that reads them fails.
+
 ## Using the pieces separately
 
 Both helper files are meant to be dot-sourced and driven directly too,

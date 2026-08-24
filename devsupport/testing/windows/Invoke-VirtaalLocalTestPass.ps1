@@ -55,6 +55,26 @@ function Add-Result([string]$Name, [string]$Status, [string]$Detail = "") {
     Write-Host "$marker $Name $(if ($Detail) { "- $Detail" })"
 }
 
+# Everything below (all Write-Host output, ::error:: lines, and the
+# stdout/stderr log dumps Assert-VirtaalLogsClean/Install-Virtaal print
+# on failure) also goes to a transcript file *inside the repo tree*,
+# not just the console - added 2026-08-24 specifically because this
+# repo checkout is shared from the Windows VM's Z:\ back to a real
+# filesystem path on the host (this is that same host), so a transcript
+# landing under devsupport\testing\windows\.local-test-runs\ can be read
+# directly afterwards without anything needing to be copy-pasted back.
+# Gitignored - these are ephemeral run records, not something to commit.
+$runLogDir = Join-Path $here ".local-test-runs"
+New-Item -ItemType Directory -Path $runLogDir -Force | Out-Null
+$transcriptPath = Join-Path $runLogDir "$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
+try {
+    Start-Transcript -Path $transcriptPath | Out-Null
+} catch {
+    Write-Host "(could not start transcript at $transcriptPath - continuing without one: $_)"
+}
+
+try {
+
 Write-Host "=== 1. Clean slate ==="
 if (-not $SkipInitialUninstall) {
     if (-not (Uninstall-Virtaal)) {
@@ -205,3 +225,7 @@ if ($failed) {
 }
 Write-Host "All checks passed (or were skipped with a stated reason)."
 exit 0
+
+} finally {
+    try { Stop-Transcript | Out-Null } catch { }
+}
