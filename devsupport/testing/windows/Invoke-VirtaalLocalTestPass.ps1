@@ -300,11 +300,20 @@ Invoke-VirtaalCheck "Navigation doesn't grow window" {
     if (-not $t) {
         Add-Result "Navigation doesn't grow window" "Fail" "app didn't launch"
     } else {
+        # Screenshot right away, before anything else - reported live
+        # twice now (2026-08-24) that this specific check's first-open
+        # moment shows ISSUE_TRIAGE.md's still-open "widgets overlapping
+        # on first opening a file" glitch, but this check never captured
+        # anything at that moment before, so neither sighting had actual
+        # evidence. Taken unconditionally (not just on failure), same as
+        # the click checks, since there's no way to auto-detect "widgets
+        # are overlapping" from window geometry alone.
+        $shotAtOpen = Save-VirtaalScreenshot $t
         $widthBefore = Get-VirtaalWidth $t
         for ($i = 0; $i -lt 25; $i++) { Send-VirtaalKeys $t "{ENTER}" }
         $widthAfter = Get-VirtaalWidth $t
         $growth = $widthAfter - $widthBefore
-        Add-Result "Navigation doesn't grow window" $(if ($growth -gt 50) { "Fail" } else { "Pass" }) "grew ${growth}px after 25x Enter"
+        Add-Result "Navigation doesn't grow window" $(if ($growth -gt 50) { "Fail" } else { "Pass" }) "grew ${growth}px after 25x Enter - screenshot at open: $shotAtOpen"
     }
 }
 
