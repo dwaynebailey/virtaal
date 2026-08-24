@@ -690,18 +690,23 @@ Invoke-VirtaalCheck "F8 quality checks panel" {
     # deliberately-broken one would. Every unit in this file is
     # purpose-built to trigger one specific named check (see its own
     # comments: "Should trigger 'unchanged'", 'blank', 'short', 'long',
-    # 'escapes', ...) - navigates to the "unchanged" one (source equals
-    # target verbatim, about as reliable a check failure as exists) via
+    # 'escapes', ...) - navigates to the "variables" one (source has
+    # "$(variable)", target has the misspelled "$(varyable)") via
     # Ctrl+F/Escape, the same navigation pattern already proven for the
-    # placeable check. Still can't read the panel's actual *contents*
-    # without a UI Automation tree - a screenshot is the real evidence
-    # here, same honest bar as the click checks.
+    # placeable check. A variable-mismatch check is a clearer, more
+    # representative failure than "unchanged" (source verbatim in
+    # target can legitimately happen for untranslatable strings, so
+    # Virtaal's workflow logic treats some "unchanged" cases specially -
+    # see the "untranslated" unit's own comment above). Still can't read
+    # the panel's actual *contents* without a UI Automation tree - a
+    # screenshot is the real evidence here, same honest bar as the click
+    # checks.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
         Add-Result "F8 quality checks panel" "Fail" "app didn't launch"
     } else {
         Send-VirtaalKeys $t "^f"
-        Send-VirtaalKeys $t "word1 word2"
+        Send-VirtaalKeys $t "Some kind of"
         Send-VirtaalKeys $t "{ENTER}"
         Send-VirtaalKeys $t "{ESC}"
         Send-VirtaalKeys $t "{F8}"
@@ -709,7 +714,7 @@ Invoke-VirtaalCheck "F8 quality checks panel" {
         Send-VirtaalKeys $t "{F8}"
         $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
         $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
-        Add-Result "F8 quality checks panel" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) "$(if (-not $stillAlive) { 'process exited' } elseif (-not $logsClean) { 'unexpected log output - see above' } else { "on the 'unchanged' unit - screenshot: $shot" })"
+        Add-Result "F8 quality checks panel" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) "$(if (-not $stillAlive) { 'process exited' } elseif (-not $logsClean) { 'unexpected log output - see above' } else { "on the 'variables' unit - screenshot: $shot" })"
     }
 }
 
