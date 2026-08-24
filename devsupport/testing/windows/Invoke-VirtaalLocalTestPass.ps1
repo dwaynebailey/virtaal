@@ -407,7 +407,26 @@ if (-not $SkipCommitCheck) {
     # pan_app.py), not any console - there is no console for a
     # windowed-subsystem exe - so read it back from there, not from
     # Start-Process itself.
-    $expectedCommit = (git -C $here rev-parse HEAD).Trim()
+    # Not just `(git ... rev-parse HEAD).Trim()` - confirmed live,
+    # 2026-08-24: git refuses to operate at all ("detected dubious
+    # ownership") against this checkout when it's reached via the
+    # UTM/WebDAV-mounted share path (//localhost@.../DavWWWRoot/virtaal)
+    # rather than a plain local path, printing its error to stdout and
+    # exiting non-zero - .Trim() on that then crashes with a cryptic
+    # "cannot call a method on a null-valued expression" instead of a
+    # useful message. Check $LASTEXITCODE explicitly and fail with git's
+    # own remediation instead.
+    $gitOutput = (git -C $here rev-parse HEAD 2>&1 | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "::error::Could not read this checkout's own commit (git -C $here rev-parse HEAD failed):"
+        Write-Host $gitOutput
+        if ($gitOutput -match "safe\.directory") {
+            Write-Host "::error::This looks like git's dubious-ownership check tripping on a network-mounted share path - run the 'git config --global --add safe.directory ...' line above once on this machine, then re-run."
+        }
+        if (-not $KeepInstalled) { Uninstall-Virtaal | Out-Null }
+        exit 1
+    }
+    $expectedCommit = $gitOutput
     Write-Host "Verifying installed build matches checkout commit $expectedCommit ..."
     Start-Process -FilePath $install.ExePath -ArgumentList "--version" -Wait | Out-Null
     Start-Sleep -Milliseconds 500
