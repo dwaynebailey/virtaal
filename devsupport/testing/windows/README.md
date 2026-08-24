@@ -112,6 +112,27 @@ side without anything needing to be copied out by hand.
   (check-type/"Project Type" bottom-left, language-pair bottom-right) -
   all three best-effort (see `Send-VirtaalClick`'s own comments for why
   these are inherently a guess without a UI Automation tree available).
+- Ctrl+S actually saves and clears the modified marker - verified
+  against the file's own on-disk write time, not just the UI marker.
+- The real Save/Discard/Cancel dialog (not exercised by any other
+  check) appears on a genuine unsaved change, and Discard genuinely
+  discards - verified the file's on-disk write time is untouched
+  afterward.
+- Change file A, discard, open a *different* file B: B shows no
+  spurious modified marker - the actual shape of this session's
+  headline reopen-modified-flag bug, not just a same-file reopen.
+- A diagnostic (not auto-verified) screenshot of the still-open
+  "widgets overlapping on first File>Open" layout glitch
+  (ISSUE_TRIAGE.md), taken at the exact moment the live repro
+  describes.
+
+The three checks above that risk an actual save (Ctrl+S, and anything
+that could hit the confirm dialog's default Save button by mistake) all
+run against a disposable scratch copy under `%TEMP%\virtaal-test-
+scratch\` (`New-VirtaalScratchFile`, cleaned up in Tear down) - never
+`po\af.po`/`po\ar.po` directly - so no combination of SendKeys timing,
+the wrong dialog response, or a real bug can leave a git-tracked file
+modified on disk.
 
 None of this reaches into a check's *content* (e.g. what the checks
 panel actually lists, or whether the "right" recent file reopened

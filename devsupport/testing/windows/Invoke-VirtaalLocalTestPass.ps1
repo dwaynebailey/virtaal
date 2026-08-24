@@ -79,6 +79,27 @@ function Invoke-VirtaalCheck {
     }
 }
 
+$script:scratchDir = Join-Path $env:TEMP "virtaal-test-scratch"
+function New-VirtaalScratchFile {
+    <#
+    .SYNOPSIS
+    Copies a repo-relative source file (e.g. "po\af.po") out to a
+    disposable scratch directory under %TEMP%, well outside the repo,
+    and returns the copy's full path. Any check that actually saves
+    (Ctrl+S) or otherwise risks writing must use a scratch copy, never a
+    checked-in file directly - so no combination of SendKeys timing,
+    the wrong dialog button, or a real bug can ever leave a git-tracked
+    file modified on disk. Cleaned up in Tear down.
+    #>
+    param([Parameter(Mandatory)][string]$SourceRelativePath, [Parameter(Mandatory)][string]$Suffix)
+    New-Item -ItemType Directory -Path $script:scratchDir -Force | Out-Null
+    $base = [IO.Path]::GetFileNameWithoutExtension($SourceRelativePath)
+    $ext = [IO.Path]::GetExtension($SourceRelativePath)
+    $destPath = Join-Path $script:scratchDir "$base-$Suffix$ext"
+    Copy-Item -Path $SourceRelativePath -Destination $destPath -Force
+    return $destPath
+}
+
 # Everything below (all Write-Host output, ::error:: lines, and the
 # stdout/stderr log dumps Assert-VirtaalLogsClean/Install-Virtaal print
 # on failure) also goes to a transcript file *inside the repo tree*,
@@ -483,7 +504,155 @@ Invoke-VirtaalCheck "Click: language-pair selector" {
     }
 }
 
+Invoke-VirtaalCheck "Ctrl+S actually saves and clears modified marker" {
+    # Never tested before this - every earlier check either undoes a
+    # change before closing or never leaves the file dirty at all. Uses
+    # a scratch copy (see New-VirtaalScratchFile) and checks the file's
+    # own LastWriteTime actually changed on disk, not just that the UI
+    # marker cleared - directly relevant given this whole session was
+    # about the modified marker not always reflecting reality.
+    $scratch = New-VirtaalScratchFile -SourceRelativePath "po\af.po" -Suffix "save-test"
+    $mtimeBefore = (Get-Item $scratch).LastWriteTimeUtc
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "`"$scratch`""
+    if (-not $t) {
+        Add-Result "Ctrl+S actually saves and clears modified marker" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "x"
+        $titleAfterType = Get-VirtaalTitle $t
+        if (-not $titleAfterType.StartsWith("*")) {
+            Add-Result "Ctrl+S actually saves and clears modified marker" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus"
+        } else {
+            Send-VirtaalKeys $t "^s" -SettleMs 800
+            $titleAfterSave = Get-VirtaalTitle $t
+            $mtimeAfter = (Get-Item $scratch).LastWriteTimeUtc
+            $markerCleared = -not $titleAfterSave.StartsWith("*")
+            $fileWritten = $mtimeAfter -gt $mtimeBefore
+            Add-Result "Ctrl+S actually saves and clears modified marker" $(if ($markerCleared -and $fileWritten) { "Pass" } else { "Fail" }) "title after save=`"$titleAfterSave`", file written=$fileWritten"
+        }
+    }
+}
+
+Invoke-VirtaalCheck "Real unsaved-changes dialog appears and Discard works" {
+    # Never tested before this either - every earlier check that closes
+    # a file either isn't actually dirty, or already undid its change
+    # first. mainview.py's confirm_dialog has three buttons (Save/
+    # _Discard/Cancel, Save is the *default* response) - explicitly
+    # activating Discard via its own Alt+D mnemonic rather than
+    # Enter/the default button, since accidentally hitting Save here
+    # would write real content (mitigated anyway by using a scratch
+    # copy, but there's no reason to rely on that as the only
+    # safeguard). Confirms the scratch file's mtime is untouched
+    # afterward - proof Discard genuinely discarded rather than saving.
+    $scratch = New-VirtaalScratchFile -SourceRelativePath "po\af.po" -Suffix "discard-test"
+    $mtimeBefore = (Get-Item $scratch).LastWriteTimeUtc
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "`"$scratch`""
+    if (-not $t) {
+        Add-Result "Real unsaved-changes dialog appears and Discard works" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "x"
+        $titleAfterType = Get-VirtaalTitle $t
+        if (-not $titleAfterType.StartsWith("*")) {
+            Add-Result "Real unsaved-changes dialog appears and Discard works" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus"
+        } else {
+            Send-VirtaalKeys $t "^w"
+            $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 5
+            if (-not $dlg) {
+                Add-Result "Real unsaved-changes dialog appears and Discard works" "Fail" "no confirm dialog appeared despite a real unsaved change"
+            } else {
+                Send-VirtaalPopupKeys $dlg "%d"
+                Start-Sleep -Milliseconds 500
+                $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+                $mtimeAfter = if (Test-Path $scratch) { (Get-Item $scratch).LastWriteTimeUtc } else { $null }
+                $fileUntouched = $mtimeAfter -eq $mtimeBefore
+                Add-Result "Real unsaved-changes dialog appears and Discard works" $(if ($stillAlive -and $fileUntouched) { "Pass" } else { "Fail" }) "$(if (-not $stillAlive) { 'process exited after Discard' } elseif (-not $fileUntouched) { 'file was modified on disk - Discard may have actually saved' } else { 'file untouched, process alive' })"
+            }
+        }
+    }
+}
+
+Invoke-VirtaalCheck "Change file A, discard, open different file B: no spurious modified" {
+    # The actual shape of this session's headline bug (reported live:
+    # change file A, close/discard, open a *different* file B - B showed
+    # modified with nothing changed there yet - fixed across 10a51457,
+    # dfb2a447, 297f0aaa). "Welcome screen: open dialog + Recent Files"
+    # above reopens the *same* file, which doesn't exercise this at all
+    # - this check is the real regression test for that bug family.
+    # Both scratch copies live in the same directory, so the file-open
+    # dialog (which defaults to the last-used directory - wherever A
+    # was) can type-ahead-find B's filename directly.
+    $scratchA = New-VirtaalScratchFile -SourceRelativePath "po\af.po" -Suffix "reopen-A"
+    $scratchB = New-VirtaalScratchFile -SourceRelativePath "po\ar.po" -Suffix "reopen-B"
+    $scratchBName = Split-Path -Leaf $scratchB
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "`"$scratchA`""
+    if (-not $t) {
+        Add-Result "Change file A, discard, open different file B: no spurious modified" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "x"
+        $titleAfterType = Get-VirtaalTitle $t
+        if (-not $titleAfterType.StartsWith("*")) {
+            Add-Result "Change file A, discard, open different file B: no spurious modified" "Skip" "typing didn't set the modified marker on A (title=`"$titleAfterType`") - target field may not have had default focus"
+        } else {
+            Send-VirtaalKeys $t "^w"
+            $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 5
+            if (-not $dlg) {
+                Add-Result "Change file A, discard, open different file B: no spurious modified" "Fail" "no confirm dialog appeared for A despite a real unsaved change"
+            } else {
+                Send-VirtaalPopupKeys $dlg "%d"
+                Start-Sleep -Milliseconds 500
+                Send-VirtaalKeys $t "^o"
+                $openDlg = Wait-VirtaalPopup $t -TimeoutSeconds 8
+                if (-not $openDlg) {
+                    Add-Result "Change file A, discard, open different file B: no spurious modified" "Fail" "Ctrl+O never opened a file dialog after discarding A"
+                } else {
+                    Send-VirtaalPopupKeys $openDlg $scratchBName
+                    Start-Sleep -Milliseconds 500
+                    Send-VirtaalPopupKeys $openDlg "{ENTER}"
+                    Start-Sleep -Milliseconds 1000
+                    $titleAfterOpenB = Get-VirtaalTitle $t
+                    $bOpened = $titleAfterOpenB -match [regex]::Escape($scratchBName)
+                    $bModified = $titleAfterOpenB.StartsWith("*")
+                    Add-Result "Change file A, discard, open different file B: no spurious modified" $(if ($bOpened -and -not $bModified) { "Pass" } else { "Fail" }) "title after opening B=`"$titleAfterOpenB`""
+                }
+            }
+        }
+    }
+}
+
+Invoke-VirtaalCheck "Layout glitch diagnostic screenshot (File>Open path)" {
+    # Not a pass/fail check - ISSUE_TRIAGE.md's "widgets overlapping near
+    # the top of the window on first opening a file" bug is still open
+    # (two attempted fixes both caused real CI hangs and were reverted -
+    # see storeview.py's show()) and has never reproduced locally on
+    # macOS despite direct attempts. There's no way to detect "widgets
+    # are overlapping" from window geometry/title alone - this just
+    # takes a screenshot at the exact moment the reported repro
+    # describes (fresh launch, Ctrl+O, type-ahead select, Enter) so a
+    # human - or a future Claude session with this same repo shared back
+    # - has something to actually look at on every run instead of only
+    # when someone happens to notice it live.
+    $t = Start-VirtaalTest -ExePath $install.ExePath
+    if (-not $t) {
+        Add-Result "Layout glitch diagnostic screenshot (File>Open path)" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "^o"
+        $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 8
+        if (-not $dlg) {
+            Add-Result "Layout glitch diagnostic screenshot (File>Open path)" "Fail" "Ctrl+O never opened a file dialog"
+        } else {
+            Send-VirtaalPopupKeys $dlg "af.po"
+            Start-Sleep -Milliseconds 500
+            Send-VirtaalPopupKeys $dlg "{ENTER}"
+            Start-Sleep -Milliseconds 300
+            $shot = Save-VirtaalScreenshot $t
+            Add-Result "Layout glitch diagnostic screenshot (File>Open path)" "Skip" "diagnostic only, not auto-verified - inspect $shot for ISSUE_TRIAGE.md's open layout glitch"
+        }
+    }
+}
+
 Write-Host "`n=== 4. Tear down ==="
+if (Test-Path $script:scratchDir) {
+    Remove-Item -Path $script:scratchDir -Recurse -Force -ErrorAction SilentlyContinue
+}
 if (-not $KeepInstalled) {
     Uninstall-Virtaal | Out-Null
 } else {
