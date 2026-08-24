@@ -442,6 +442,49 @@ Invoke-VirtaalCheck "F11 fullscreen restores the original window size" {
     }
 }
 
+Invoke-VirtaalCheck "F11 fullscreen restores size on the Welcome screen too" {
+    # A theory raised live, 2026-08-24, for why the check above might
+    # only show the bug sometimes: welcomescreenview.py's banner image
+    # (welcome_screen_banner*.png) is a real, confirmed 2000x80px -
+    # genuinely wide. If nothing constrains its width, a natural-size
+    # recalculation on unfullscreen() (the same general family as this
+    # session's original resize bug - set_expand(True)'s natural-size
+    # divergence on Windows/gvsbuild GTK3) could plausibly pull the
+    # window out toward something close to that width. The check above
+    # never actually shows the Welcome screen at all (it opens
+    # checks.po directly), so it can't exercise this specific mechanism
+    # either way - this one launches with no file argument instead,
+    # specifically to test the theory.
+    $t = Start-VirtaalTest -ExePath $install.ExePath
+    if (-not $t) {
+        Add-Result "F11 fullscreen restores size on the Welcome screen too" "Fail" "app didn't launch"
+    } else {
+        $widthBefore = Get-VirtaalWidth $t
+        $heightBefore = Get-VirtaalHeight $t
+        Send-VirtaalKeys $t "{F11}" -SettleMs 500
+        Send-VirtaalKeys $t "{F11}" -SettleMs 500
+        $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+        if (-not $stillAlive) {
+            Add-Result "F11 fullscreen restores size on the Welcome screen too" "Fail" "process exited"
+        } else {
+            $logsClean = Assert-VirtaalLogsClean
+            $widthAfter = Get-VirtaalWidth $t
+            $heightAfter = Get-VirtaalHeight $t
+            $widthDelta = [Math]::Abs($widthAfter - $widthBefore)
+            $heightDelta = [Math]::Abs($heightAfter - $heightBefore)
+            $sizeRestored = $widthDelta -le 50 -and $heightDelta -le 50
+            if (-not $logsClean) {
+                Add-Result "F11 fullscreen restores size on the Welcome screen too" "Fail" "unexpected log output - see above"
+            } elseif (-not $sizeRestored) {
+                $shot = Save-VirtaalScreenshot $t
+                Add-Result "F11 fullscreen restores size on the Welcome screen too" "Fail" "before=${widthBefore}x${heightBefore}, after=${widthAfter}x${heightAfter} - screenshot: $shot"
+            } else {
+                Add-Result "F11 fullscreen restores size on the Welcome screen too" "Pass" "before=${widthBefore}x${heightBefore}, after=${widthAfter}x${heightAfter}"
+            }
+        }
+    }
+}
+
 Invoke-VirtaalCheck "Multi-step undo clears modified marker" {
     # "Type + Ctrl+Z clears modified marker" above only ever tested a
     # single edit/undo pair. The actual fix this session made
