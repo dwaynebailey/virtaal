@@ -682,15 +682,34 @@ Invoke-VirtaalCheck "F8 quality checks panel" {
     # available here to do that - just that showing/hiding it and
     # running checks against a file designed to trigger several of them
     # doesn't crash or log an error).
+    #
+    # Pointed out live, 2026-08-24: F8 should specifically be tested
+    # where there's actually something to show, same gap as the
+    # placeable check before its own fix - checks.po's *first* unit
+    # ("word", untranslated) may not trigger the same range of checks a
+    # deliberately-broken one would. Every unit in this file is
+    # purpose-built to trigger one specific named check (see its own
+    # comments: "Should trigger 'unchanged'", 'blank', 'short', 'long',
+    # 'escapes', ...) - navigates to the "unchanged" one (source equals
+    # target verbatim, about as reliable a check failure as exists) via
+    # Ctrl+F/Escape, the same navigation pattern already proven for the
+    # placeable check. Still can't read the panel's actual *contents*
+    # without a UI Automation tree - a screenshot is the real evidence
+    # here, same honest bar as the click checks.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
         Add-Result "F8 quality checks panel" "Fail" "app didn't launch"
     } else {
+        Send-VirtaalKeys $t "^f"
+        Send-VirtaalKeys $t "word1 word2"
+        Send-VirtaalKeys $t "{ENTER}"
+        Send-VirtaalKeys $t "{ESC}"
         Send-VirtaalKeys $t "{F8}"
+        $shot = Save-VirtaalScreenshot $t
         Send-VirtaalKeys $t "{F8}"
         $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
         $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
-        Add-Result "F8 quality checks panel" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) $(if (-not $stillAlive) { "process exited" } elseif (-not $logsClean) { "unexpected log output - see above" })
+        Add-Result "F8 quality checks panel" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) "$(if (-not $stillAlive) { 'process exited' } elseif (-not $logsClean) { 'unexpected log output - see above' } else { "on the 'unchanged' unit - screenshot: $shot" })"
     }
 }
 
