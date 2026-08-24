@@ -77,6 +77,18 @@ Useful switches:
   interaction (keystroke, click, dialog appearing) uniformly, so you
   can follow a run happening live instead of only reading its
   transcript afterward.
+- `-RunTest <n,n,...>` - runs only the given check number(s), e.g.
+  `-RunTest 18,24`, instead of the full battery. Every check keeps the
+  same number it would have in a full run (the counter still advances
+  for skipped checks, it just doesn't run their bodies), so a number
+  from an earlier transcript or results table always points at the
+  same check. For drilling into or validating a fix for one or two
+  checks without waiting on a full pass - combine with
+  `-SkipInitialUninstall -KeepInstalled` to also skip reinstalling
+  between repeats:
+  ```powershell
+  .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1 -RunTest 18,24 -SkipInitialUninstall -KeepInstalled
+  ```
 
 The script exits 0 if every check passed, 1 otherwise - safe to use as
 a gate in a self-hosted Windows CI runner later, not just interactively.

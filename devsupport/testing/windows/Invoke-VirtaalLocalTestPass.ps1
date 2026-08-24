@@ -40,6 +40,19 @@ but too fast for a human to actually see. Set this (e.g. 2000 for a
 transcript afterward - applies uniformly to every interaction, not
 just one check.
 
+.PARAMETER RunTest
+Runs only the given check number(s) instead of the full battery - a
+comma-separated list, e.g. "18,24". Checks are still numbered exactly
+as they would be in a full run (the counter always advances, whether a
+check's body actually runs or not), so a number from a previous full
+run's transcript or the results table always means the same check.
+Install/uninstall still happen as normal around a filtered run - a
+check still needs a real install to test against - so combine with
+-SkipInitialUninstall/-KeepInstalled for a fast repeat-drill-down loop
+on the same install rather than reinstalling every time. Meant for
+drilling into or validating a fix for one or two specific checks;
+omit for a real full pass.
+
 .EXAMPLE
 .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1
 
@@ -48,12 +61,16 @@ just one check.
 
 .EXAMPLE
 .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1 -HumanDelayMs 2000
+
+.EXAMPLE
+.\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1 -RunTest 18,24 -SkipInitialUninstall -KeepInstalled
 #>
 param(
     [string]$InstallerPath,
     [switch]$SkipInitialUninstall,
     [switch]$KeepInstalled,
-    [int]$HumanDelayMs = 0
+    [int]$HumanDelayMs = 0,
+    [string[]]$RunTest
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,6 +78,41 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here "virtaal_install_helpers.ps1")
 . (Join-Path $here "virtaal_ui_test_helpers.ps1")
 if ($HumanDelayMs -gt 0) { Set-VirtaalHumanDelay -Milliseconds $HumanDelayMs }
+
+# -RunTest 18,24 -> a lookup set of check numbers to actually run;
+# $null means no filter, i.e. a real full run. [string[]] (not
+# [string]) so PowerShell's own array-literal parsing handles the
+# unquoted form (-RunTest 18,24, which PowerShell hands us as two
+# array elements, "18" and "24", *before* it ever reaches a [string]
+# parameter - binding that straight to [string] instead silently
+# collapses it to the one string "18 24", space-joined, which then
+# fails to parse as a single number). Also split each element on comma
+# so the quoted form (-RunTest "18,24", one array element containing a
+# comma) works too - confirmed live, 2026-08-24: [int[]] alone binds
+# the unquoted form correctly but silently mis-binds a quoted
+# "18,24" as 1824 (PowerShell's string-to-int conversion treats the
+# comma as a thousands separator, no error at all), so this
+# deliberately stays [string[]] + explicit TryParse rather than
+# trusting PowerShell's own numeric coercion. Parsed once up front so
+# a typo (a non-numeric entry) fails fast, before any install/uninstall
+# work, rather than silently matching nothing partway through.
+$script:runTestFilter = $null
+if ($RunTest) {
+    $script:runTestFilter = [System.Collections.Generic.HashSet[int]]::new()
+    foreach ($token in $RunTest) {
+        foreach ($part in $token -split ',') {
+            $part = $part.Trim()
+            if (-not $part) { continue }
+            $n = 0
+            if (-not [int]::TryParse($part, [ref]$n)) {
+                Write-Host "::error::-RunTest entry '$part' is not a check number"
+                exit 1
+            }
+            [void]$script:runTestFilter.Add($n)
+        }
+    }
+    Write-Host "-RunTest: only running check(s) $(($script:runTestFilter | Sort-Object) -join ', ') - every other check is still numbered but skipped"
+}
 
 $results = @()
 $script:checkCount = 0
@@ -95,6 +147,14 @@ function Invoke-VirtaalCheck {
     # can point at an exact check unambiguously.
     $script:checkCount++
     $script:currentCheckNumber = $script:checkCount
+    # The counter above always advances, filtered or not, so a check's
+    # number stays identical whether -RunTest is used or not - a number
+    # quoted from a full run always means the same check in a filtered
+    # one.
+    if ($script:runTestFilter -and -not $script:runTestFilter.Contains($script:currentCheckNumber)) {
+        Write-Host "[SKIP] #$($script:currentCheckNumber) $Name - not in -RunTest"
+        return
+    }
     Write-Host "[TESTING] #$($script:currentCheckNumber) $Name"
     $t = $null
     try {
