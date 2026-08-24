@@ -77,7 +77,17 @@ function Start-VirtaalTest {
         [int]$HandleTimeoutSeconds = 10
     )
 
-    $proc = Start-Process -FilePath $ExePath -ArgumentList $Arguments -PassThru
+    # Windows PowerShell 5.1's Start-Process rejects -ArgumentList "" -
+    # "Cannot validate argument on parameter 'ArgumentList'. The argument
+    # is null or empty" - a *terminating* error, confirmed live
+    # 2026-08-24 (the welcome-screen checks, the first callers here that
+    # ever omitted -Arguments, crashed the whole battery: every check
+    # before them always passed a real file path, so this never got
+    # exercised until now). Only pass -ArgumentList at all when there's
+    # something non-empty to pass.
+    $startProcessArgs = @{ FilePath = $ExePath; PassThru = $true }
+    if ($Arguments) { $startProcessArgs['ArgumentList'] = $Arguments }
+    $proc = Start-Process @startProcessArgs
     Start-Sleep -Seconds $WaitSeconds
 
     $stillRunning = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
