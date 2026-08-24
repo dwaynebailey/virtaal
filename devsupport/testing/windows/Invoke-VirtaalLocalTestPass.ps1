@@ -212,6 +212,35 @@ function Open-VirtaalFileViaDialog {
     return $dlg
 }
 
+function Find-VirtaalUnit {
+    <#
+    .SYNOPSIS
+    Ctrl+F, types $SearchText, presses Enter to jump to the first match
+    (searchmode.py's _on_entry_activate: update_search() + _move_match(0)),
+    then Escape to leave Search mode again (searchmode.py's
+    _on_close_search - see f30dbac7). Used by any check that needs a
+    *specific* unit (a real placeable, a unit that fails a specific
+    quality check, ...) rather than whatever the file's first unit
+    happens to be.
+
+    Confirmed live, 2026-08-24: without the settle below, Enter can
+    fire before Search mode's own state has caught up with the just-
+    typed text - the search box shows the right text, but the selected
+    unit never actually moves (confirmed via a saved screenshot: search
+    box read "XML tags" correctly, but the currently-edited unit was
+    still the file's first one). Only reproduced without -HumanDelayMs
+    in play, i.e. exactly the gap this explicit sleep (independent of
+    that opt-in flag) exists to close.
+    #>
+    param([Parameter(Mandatory)]$Instance, [Parameter(Mandatory)][string]$SearchText)
+    Send-VirtaalKeys $Instance "^f"
+    Send-VirtaalKeys $Instance $SearchText
+    Start-Sleep -Milliseconds 800
+    Send-VirtaalKeys $Instance "{ENTER}"
+    Start-Sleep -Milliseconds 500
+    Send-VirtaalKeys $Instance "{ESC}"
+}
+
 # Everything below (all Write-Host output, ::error:: lines, and the
 # stdout/stderr log dumps Assert-VirtaalLogsClean/Install-Virtaal print
 # on failure) also goes to a transcript file *inside the repo tree*,
@@ -720,10 +749,7 @@ Invoke-VirtaalCheck "F8 quality checks panel" {
     if (-not $t) {
         Add-Result "F8 quality checks panel" "Fail" "app didn't launch"
     } else {
-        Send-VirtaalKeys $t "^f"
-        Send-VirtaalKeys $t "Just normal sentence case"
-        Send-VirtaalKeys $t "{ENTER}"
-        Send-VirtaalKeys $t "{ESC}"
+        Find-VirtaalUnit $t "Just normal sentence case"
         Send-VirtaalKeys $t "{F8}"
         $shot = Save-VirtaalScreenshot $t
         Send-VirtaalKeys $t "{F8}"
@@ -806,10 +832,7 @@ Invoke-VirtaalCheck "Placeable stepping and copy-into-target on a real placeable
     if (-not $t) {
         Add-Result "Placeable stepping and copy-into-target on a real placeable" "Fail" "app didn't launch"
     } else {
-        Send-VirtaalKeys $t "^f"
-        Send-VirtaalKeys $t "XML tags"
-        Send-VirtaalKeys $t "{ENTER}"
-        Send-VirtaalKeys $t "{ESC}"
+        Find-VirtaalUnit $t "XML tags"
         $shotAtUnit = Save-VirtaalScreenshot $t
         Send-VirtaalKeys $t "%{RIGHT}"
         $shotAfterStep1 = Save-VirtaalScreenshot $t
