@@ -291,11 +291,28 @@ class StoreTreeView(Gtk.TreeView):
         # (the standard GTK "flush the event queue now" idiom) is what
         # makes this a real correction instead of a queued one that
         # never catches up.
+        #
+        # 2026-08-24, second round: that alone still wasn't enough -
+        # confirmed via CI again, same ~24px/navigation growth, but this
+        # time with *zero* WARNING lines logged at all, meaning the
+        # `current_width > width_before[0]` check below never even
+        # fired. Cause: the growth itself is *also* queued, not applied
+        # synchronously within set_cursor() - a widget requisition change
+        # calls gtk_widget_queue_resize() internally, which the toplevel
+        # only actually reallocates on a later main-loop iteration. So
+        # window.get_size() read immediately after set_cursor() returns
+        # was reading the *old*, not-yet-grown size - correctly finding
+        # nothing to correct, because from its own perspective nothing
+        # had grown yet. Need to flush pending events *before* measuring
+        # too, not just after correcting, so the measurement reflects
+        # what actually happened.
         if not width_before:
             return
         window = self.get_toplevel()
         if not window or not isinstance(window, Gtk.Window) or not window.get_realized():
             return
+        while Gtk.events_pending():
+            Gtk.main_iteration()
         current_width, current_height = window.get_size()
         if current_width > width_before[0]:
             logging.warning(
