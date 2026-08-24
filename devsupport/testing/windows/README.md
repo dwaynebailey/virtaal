@@ -70,6 +70,13 @@ Or point at one directly:
 .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1 -InstallerPath C:\Downloads\virtaal-1.0.0-beta1-setup.exe
 ```
 
+Right after installing, the script runs `virtaal.exe --version` and
+checks the commit it reports (embedded at build time - see
+`virtaal/__version__.py`'s `build_commit`) against this checkout's own
+`git rev-parse HEAD`, aborting on a mismatch rather than silently
+testing a stale build. Pass `-SkipCommitCheck` to deliberately test a
+build that isn't expected to match HEAD (e.g. a specific old release).
+
 Useful switches:
 
 - `-SkipInitialUninstall` - test installing *on top of* whatever's
