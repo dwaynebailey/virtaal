@@ -570,5 +570,23 @@ class StoreController(BaseController):
         self.store.set_target_language(langcode)
 
     def _unit_modified(self, emitter, unit):
-        self._modified = True
-        self.main_controller.set_saveable(self._modified)
+        # Reported live, 2026-08-24: close a file with an active cell
+        # editor (Ctrl+W, Discard), then open a *different* file (even
+        # from Recent Files, which converges on this same open_file()
+        # path) - the new file could immediately show as modified with
+        # nothing actually changed yet, and could even re-trigger the
+        # discard-changes prompt for the file that was already closed.
+        # close_file() sets self.store = None and resets the modified
+        # flag, *then* calls self.view.hide() -> StoreView.hide() ->
+        # StoreTreeView.set_model(None) - tearing down the treeview's
+        # model while a cell is actively being edited can finalize/
+        # cancel that edit, and that teardown cascade can fire a late
+        # "modified" signal arriving *after* the reset above. Since this
+        # StoreController instance is a singleton reused across every
+        # file open (not recreated per-file), a stray True landing here
+        # with no file open persists and poisons whatever gets opened
+        # next. Guard against acting on a modification signal when
+        # there's no file open at all - there's nothing to mark modified.
+        if self.store is None:
+            return
+        self.set_modified(True)
