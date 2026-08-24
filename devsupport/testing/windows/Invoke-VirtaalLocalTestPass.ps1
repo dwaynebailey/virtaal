@@ -748,6 +748,21 @@ Invoke-VirtaalCheck "Placeable stepping and copy-into-target on a real placeable
     # placeable ends up selected/highlighted without a UI Automation
     # tree - screenshots at each step are the only real evidence here,
     # same honest bar as the click checks.
+    #
+    # {ESC} originally did NOT exit Search mode - confirmed live,
+    # 2026-08-24, via a saved screenshot showing the search bar still
+    # fully active with Alt+Right/Down having had no effect (this check
+    # reported Skip that run instead of Pass/Fail - not a false
+    # negative, a real gap this check hadn't accounted for). Traced to a
+    # genuine, separate accessibility bug rather than a wrong assumption
+    # in this script: there was no Escape binding anywhere in
+    # searchmode.py at all - the only way out of Search mode was the
+    # "Navigation:" mode dropdown, a mouse-only path, against Virtaal's
+    # own keyboard-only-navigation goal. Fixed at the source
+    # (searchmode.py's _on_close_search(), same commit as this comment) -
+    # Escape now calls back into ModeController.select_default_mode()
+    # when Search is the active mode. This check now doubles as that
+    # fix's own regression test.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
         Add-Result "Placeable stepping and copy-into-target on a real placeable" "Fail" "app didn't launch"
