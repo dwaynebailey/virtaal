@@ -236,6 +236,106 @@ Invoke-VirtaalCheck "Keyboard shortcuts don't crash" {
     }
 }
 
+Invoke-VirtaalCheck "Ctrl+C doesn't modify, Ctrl+V does" {
+    # "Keyboard shortcuts don't crash" above only ever checked that
+    # Ctrl+X/C/V don't crash, never that they do the *right* thing to
+    # the modified flag - the same signal-correctness theme as this
+    # session's real bugs (a mutating action failing to mark modified,
+    # or - just as easily, given how many of those bugs were about a
+    # signal firing when it *shouldn't* - a non-mutating one wrongly
+    # marking modified). Select-all + Copy from a clean state must
+    # leave the marker off; pasting straight back over that same
+    # selection must turn it on, since Paste is a real edit regardless
+    # of whether the resulting text happens to match.
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "po\af.po"
+    if (-not $t) {
+        Add-Result "Ctrl+C doesn't modify, Ctrl+V does" "Fail" "app didn't launch"
+    } else {
+        $titleClean = Get-VirtaalTitle $t
+        if ($titleClean.StartsWith("*")) {
+            Add-Result "Ctrl+C doesn't modify, Ctrl+V does" "Skip" "file already showed modified before any interaction (title=`"$titleClean`")"
+        } else {
+            Send-VirtaalKeys $t "^a"
+            Send-VirtaalKeys $t "^c"
+            $titleAfterCopy = Get-VirtaalTitle $t
+            if ($titleAfterCopy.StartsWith("*")) {
+                Add-Result "Ctrl+C doesn't modify, Ctrl+V does" "Fail" "Ctrl+C alone set the modified marker (title=`"$titleAfterCopy`") - Copy must not mutate"
+            } else {
+                Send-VirtaalKeys $t "^v"
+                $titleAfterPaste = Get-VirtaalTitle $t
+                Add-Result "Ctrl+C doesn't modify, Ctrl+V does" $(if ($titleAfterPaste.StartsWith("*")) { "Pass" } else { "Skip" }) "title after paste=`"$titleAfterPaste`"$(if (-not $titleAfterPaste.StartsWith('*')) { ' - Ctrl+V had no observable effect, possibly nothing was selected to copy' })"
+            }
+        }
+    }
+}
+
+Invoke-VirtaalCheck "Alt+Enter opens Properties and closes cleanly" {
+    # <Virtaal>/File/Properties (propertiesview.py) - same shape as the
+    # existing Ctrl+P Preferences check.
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
+    if (-not $t) {
+        Add-Result "Alt+Enter opens Properties and closes cleanly" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "%{ENTER}"
+        $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 5
+        if (-not $dlg) {
+            Add-Result "Alt+Enter opens Properties and closes cleanly" "Fail" "no dialog appeared"
+        } else {
+            $dlgTitle = Get-VirtaalWindowText $dlg
+            Close-VirtaalPopup $t $dlg
+            $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+            $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
+            Add-Result "Alt+Enter opens Properties and closes cleanly" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) "dialog title=`"$dlgTitle`"$(if (-not $stillAlive) { ' - process exited after closing it' } elseif (-not $logsClean) { ' - unexpected log output' })"
+        }
+    }
+}
+
+Invoke-VirtaalCheck "F11 fullscreen toggle doesn't crash" {
+    # mnu_fullscreen / F11 - present in virtaal.ui but never exercised by
+    # anything else in this battery. No precise geometry assertion (a
+    # real fullscreen size depends on the monitor/VM display config,
+    # nothing this battery controls) - same bar as menu navigation: no
+    # crash, no log error.
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
+    if (-not $t) {
+        Add-Result "F11 fullscreen toggle doesn't crash" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "{F11}" -SettleMs 500
+        Send-VirtaalKeys $t "{F11}" -SettleMs 500
+        $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+        $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
+        Add-Result "F11 fullscreen toggle doesn't crash" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) $(if (-not $stillAlive) { "process exited" } elseif (-not $logsClean) { "unexpected log output - see above" })
+    }
+}
+
+Invoke-VirtaalCheck "Multi-step undo clears modified marker" {
+    # "Type + Ctrl+Z clears modified marker" above only ever tested a
+    # single edit/undo pair. The actual fix this session made
+    # (UndoModel's clean_index/is_at_clean_position(), 4a10f77a) is
+    # about the undo *stack position* matching where it was at open -
+    # a single-step test can't distinguish "compares against a fixed
+    # start" from "correctly walks back an arbitrary number of steps",
+    # so this exercises two edits and two undos.
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "po\af.po"
+    if (-not $t) {
+        Add-Result "Multi-step undo clears modified marker" "Fail" "app didn't launch"
+    } else {
+        Send-VirtaalKeys $t "x"
+        Send-VirtaalKeys $t "y"
+        $titleAfterTwoEdits = Get-VirtaalTitle $t
+        if (-not $titleAfterTwoEdits.StartsWith("*")) {
+            Add-Result "Multi-step undo clears modified marker" "Skip" "typing didn't set the modified marker (title=`"$titleAfterTwoEdits`") - target field may not have had default focus"
+        } else {
+            Send-VirtaalKeys $t "^z"
+            $titleAfterOneUndo = Get-VirtaalTitle $t
+            Send-VirtaalKeys $t "^z"
+            $titleAfterTwoUndos = Get-VirtaalTitle $t
+            $stillModified = $titleAfterTwoUndos.StartsWith("*")
+            Add-Result "Multi-step undo clears modified marker" $(if ($stillModified) { "Fail" } else { "Pass" }) "after 1 undo=`"$titleAfterOneUndo`", after 2 undos=`"$titleAfterTwoUndos`""
+        }
+    }
+}
+
 Invoke-VirtaalCheck "Welcome screen launches cleanly" {
     # Every other check above passes a file on the command line, which
     # Virtaal opens synchronously before the event loop even starts

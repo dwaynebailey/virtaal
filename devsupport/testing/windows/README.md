@@ -125,6 +125,15 @@ side without anything needing to be copied out by hand.
   "widgets overlapping on first File>Open" layout glitch
   (ISSUE_TRIAGE.md), taken at the exact moment the live repro
   describes.
+- Ctrl+C from a clean state doesn't set the modified marker; Ctrl+V
+  right after does - Copy/Paste were previously only checked for "don't
+  crash", never that they get the modified flag right.
+- Alt+Enter opens Properties and closes cleanly (same shape as Ctrl+P).
+- F11 fullscreen toggles without crashing.
+- Multi-step undo (two edits, two Ctrl+Z) clears the modified marker -
+  the existing single-step check can't distinguish "compares against a
+  fixed start" from "correctly walks back an arbitrary number of
+  steps".
 
 The three checks above that risk an actual save (Ctrl+S, and anything
 that could hit the confirm dialog's default Save button by mistake) all
