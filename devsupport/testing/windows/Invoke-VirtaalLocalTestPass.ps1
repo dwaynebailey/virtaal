@@ -469,8 +469,23 @@ if (-not $SkipCommitCheck) {
         # (fails safe - if in doubt, still requires a rebuild).
         $appPaths = @("virtaal", "share", "po", "bin", "setup.py", "devsupport/packaging")
         git diff --quiet $actualCommit $expectedCommit -- $appPaths 2>$null
-        $appPathsChanged = $LASTEXITCODE -ne 0
-        if (-not $appPathsChanged -and $LASTEXITCODE -ne 1) {
+        # Confirmed live, 2026-08-25: the previous version of this check
+        # (`$appPathsChanged = $LASTEXITCODE -ne 0` then a guard that
+        # only cleared it back on a *non*-0/1 exit code) had an inverted
+        # condition - "-ne 1" is also true when the exit code is 0 (the
+        # good, no-diff case), so that guard fired and flipped
+        # $appPathsChanged back to $true on literally every single
+        # no-diff result, hard-blocking a pure test-script-only commit
+        # exactly like the case this whole check exists to allow
+        # through. Never actually exercised end-to-end before landing -
+        # only the bare `git diff --quiet` exit codes were checked
+        # directly, not this script's own control flow around them.
+        # Explicit three-way branch this time, no double-negatives.
+        if ($LASTEXITCODE -eq 0) {
+            $appPathsChanged = $false
+        } elseif ($LASTEXITCODE -eq 1) {
+            $appPathsChanged = $true
+        } else {
             # git diff --quiet's contract is exit 0 (no diff) or 1 (diff
             # found) - anything else (128, a bad revision, etc.) means
             # the check itself failed, not that the paths are clean.
