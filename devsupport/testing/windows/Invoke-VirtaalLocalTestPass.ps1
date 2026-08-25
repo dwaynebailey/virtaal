@@ -971,29 +971,43 @@ Invoke-VirtaalCheck "Navigation mode switching (Incomplete/Quality Checks/Workfl
     # three: Incomplete (quicktransmode.py), Quality Checks
     # (qualitycheckmode.py), Workflow (workflowmode.py).
     #
-    # Switches via the label's own mnemonic ("N_avigation:" ->
-    # set_mnemonic_widget(cmb_modes), so Alt+A focuses the combo) plus
-    # GtkComboBoxText's built-in type-ahead-to-select (a documented,
-    # stable feature of non-entry GTK combo boxes - typing a character
-    # while focused jumps to the first item starting with it) rather
-    # than counting arrow-key presses, which would need knowing this
-    # GTK/Windows backend's exact open/closed-combo key-binding
-    # semantics - untested territory, unlike type-ahead. Incomplete,
-    # Quality Checks, and Workflow all start with distinct letters
-    # (I/Q/W), so there's no ambiguity. Sent as one combined SendKeys
-    # string per mode ("%aq", not "%a" then "q" separately) - same
-    # lesson as Find-VirtaalUnit's own fix earlier this session:
-    # Send-VirtaalKeys calls SetForegroundWindow on every invocation,
-    # and two separate calls in a row risk losing focus off the combo
-    # in between them.
+    # First attempt (Alt+A mnemonic focus + type-ahead) confirmed live,
+    # 2026-08-25, to fail identically for all three modes - "Incomplete:
+    # NOT reached; Quality Checks: NOT reached; Workflow: NOT reached",
+    # screenshot showing "Navigation: All" untouched. That's consistent
+    # with the mnemonic focus step itself never landing (if the combo
+    # never gets focus, none of the type-ahead presses that follow do
+    # anything) - not re-guessing at why *that* specific mechanism
+    # failed (no menu-bar equivalent exists to cross-check against
+    # either - confirmed by reading virtaal.ui's own menu_navigation
+    # contents: just Up/Down/Page Up/Page Down, nothing about these
+    # three modes).
+    #
+    # Switched to a mechanism already proven live elsewhere in this
+    # battery instead: a real mouse click (coordinates read directly off
+    # a real saved screenshot of this exact combo, not guessed) to open
+    # the popup, then Home (jump to the first item, "All", removing any
+    # dependency on knowing what was selected before) + Down N times +
+    # Enter to reach the target mode by absolute position - arrow-key
+    # navigation *within an already-open* GTK combo popup is standard,
+    # well-established behaviour, unlike the closed-combo mnemonic/
+    # type-ahead path that just failed. Combo order confirmed by reading
+    # modes/__init__.py's modeclasses list: 0=All, 1=Incomplete,
+    # 2=Search, 3=Quality Checks, 4=Workflow.
+    #
+    # Screenshots the open popup itself for the *first* mode only (not
+    # all three, to keep this check's output manageable) - if this still
+    # doesn't work, that one screenshot tells us directly whether the
+    # click even opened the popup at all, isolating that from whether
+    # the keyboard selection within it worked, rather than having to
+    # guess between two possible failure points again.
     #
     # Verified via modecontroller.py's own "Mode selected: %s" INFO log
     # line (self.current_mode.name, the internal name - QuickTranslate/
-    # QualityCheck/Workflow, not the display name) rather than a
-    # screenshot - -DebugLog on just this one check (not the whole
-    # run's -AppDebugLog) turns Virtaal's own logging on for this
-    # launch only, so this doesn't depend on the whole battery being
-    # run with -AppDebugLog to self-verify.
+    # QualityCheck/Workflow, not the display name) - -DebugLog on just
+    # this one check (not the whole run's -AppDebugLog) turns Virtaal's
+    # own logging on for this launch only, so this doesn't depend on the
+    # whole battery being run with -AppDebugLog to self-verify.
     #
     # Deliberately not going deeper than "the mode was reached without
     # crashing" here - actually selecting a specific Workflow state (its
@@ -1007,15 +1021,32 @@ Invoke-VirtaalCheck "Navigation mode switching (Incomplete/Quality Checks/Workfl
     if (-not $t) {
         Add-Result "Navigation mode switching (Incomplete/Quality Checks/Workflow)" "Fail" "app didn't launch"
     } else {
+        # Combo box "Navigation: All" - coordinates read directly off a
+        # real saved screenshot (848x633, this battery's standard
+        # window size), not guessed.
+        $comboX = 0.177
+        $comboY = 0.160
         $modes = @(
-            @{ Key = 'i'; DisplayName = 'Incomplete'; InternalName = 'QuickTranslate' },
-            @{ Key = 'q'; DisplayName = 'Quality Checks'; InternalName = 'QualityCheck' },
-            @{ Key = 'w'; DisplayName = 'Workflow'; InternalName = 'Workflow' }
+            @{ DownPresses = 1; DisplayName = 'Incomplete'; InternalName = 'QuickTranslate' },
+            @{ DownPresses = 3; DisplayName = 'Quality Checks'; InternalName = 'QualityCheck' },
+            @{ DownPresses = 4; DisplayName = 'Workflow'; InternalName = 'Workflow' }
         )
         $detail = @()
         $allReached = $true
+        $firstPopupShot = $null
         foreach ($mode in $modes) {
-            Send-VirtaalKeys $t "%a$($mode.Key)"
+            Send-VirtaalClick $t $comboX $comboY
+            Start-Sleep -Milliseconds 500
+            if (-not $firstPopupShot) {
+                $firstPopupShot = Save-VirtaalScreenshot $t
+            }
+            Send-VirtaalKeys $t "{HOME}"
+            Start-Sleep -Milliseconds 300
+            if ($mode.DownPresses -gt 0) {
+                Send-VirtaalKeys $t ("{DOWN}" * $mode.DownPresses)
+                Start-Sleep -Milliseconds 300
+            }
+            Send-VirtaalKeys $t "{ENTER}"
             Start-Sleep -Milliseconds 800
             $logs = Get-VirtaalLogs
             $reached = @($logs.Stdout + $logs.Stderr) | Where-Object { $_ -match "Mode selected: $($mode.InternalName)$" }
@@ -1027,10 +1058,16 @@ Invoke-VirtaalCheck "Navigation mode switching (Incomplete/Quality Checks/Workfl
             }
         }
         $shot = Save-VirtaalScreenshot $t
-        Send-VirtaalKeys $t "%aa" # back to All, tidy state before teardown
+        # Back to All, tidy state before teardown - same click+Home+Enter
+        # mechanism, no Down presses needed since All is index 0.
+        Send-VirtaalClick $t $comboX $comboY
+        Start-Sleep -Milliseconds 500
+        Send-VirtaalKeys $t "{HOME}"
+        Start-Sleep -Milliseconds 300
+        Send-VirtaalKeys $t "{ENTER}"
         $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
         $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean -AllowDebugLog } else { $false }
-        Add-Result "Navigation mode switching (Incomplete/Quality Checks/Workflow)" $(if ($stillAlive -and $logsClean -and $allReached) { "Pass" } else { "Fail" }) "$(if (-not $stillAlive) { 'process exited' } elseif (-not $logsClean) { 'unexpected log output - see above' } else { ($detail -join '; ') + " - screenshot: $shot" })"
+        Add-Result "Navigation mode switching (Incomplete/Quality Checks/Workflow)" $(if ($stillAlive -and $logsClean -and $allReached) { "Pass" } else { "Fail" }) "$(if (-not $stillAlive) { 'process exited' } elseif (-not $logsClean) { 'unexpected log output - see above' } else { ($detail -join '; ') + " - popup screenshot: $firstPopupShot - final screenshot: $shot" })"
     }
 }
 
@@ -1387,6 +1424,18 @@ Invoke-VirtaalCheck "Ctrl+S with missing translator info prompts, then saves" {
                     Add-Result "Ctrl+S with missing translator info prompts, then saves" "Pass" "$promptCount prompt(s) answered, title after save=`"$titleAfterSave`", file written=$fileWritten"
                 } else {
                     $shot = Save-VirtaalScreenshot $t
+                    # This check doesn't otherwise call Assert-VirtaalLogsClean
+                    # (it fails on title/mtime state, not log content), so
+                    # -AppDebugLog's instrumentation (searchmode.py/
+                    # unitcontroller.py/storecontroller.py's signal-chain
+                    # tracing, added investigating this exact marker-not-
+                    # clearing bug) was never actually surfaced here before -
+                    # confirmed live, 2026-08-25: a real run with -AppDebugLog
+                    # active reproduced this exact failure with zero debug
+                    # lines visible anywhere in the transcript. Dump the logs
+                    # unconditionally on failure now so the trace is actually
+                    # readable, not just known to exist somewhere on the VM.
+                    Write-VirtaalLogs
                     Add-Result "Ctrl+S with missing translator info prompts, then saves" "Fail" "$promptCount prompt(s) answered, title after save=`"$titleAfterSave`", file written=$fileWritten - screenshot: $shot"
                 }
             }
@@ -1475,6 +1524,16 @@ Invoke-VirtaalCheck "Change file A, discard, open different file B: no spurious 
                         Add-Result "Change file A, discard, open different file B: no spurious modified" "Pass" "title after opening B=`"$titleAfterOpenB`""
                     } else {
                         $shot = Save-VirtaalScreenshot $t
+                        # Same reasoning as the missing-translator-info check
+                        # above: this check doesn't otherwise call
+                        # Assert-VirtaalLogsClean, so -AppDebugLog's
+                        # signal-chain tracing (added investigating this
+                        # exact spurious-modified-marker bug) was never
+                        # actually surfaced here before. Dump unconditionally
+                        # on failure so it's readable when -AppDebugLog is
+                        # active for the run, not just present somewhere on
+                        # the VM's own disk.
+                        Write-VirtaalLogs
                         Add-Result "Change file A, discard, open different file B: no spurious modified" "Fail" "title after opening B=`"$titleAfterOpenB`" - screenshot: $shot"
                     }
                 }
@@ -1540,6 +1599,13 @@ Invoke-VirtaalCheck "First open: no visual glitch (manual) or modified marker (a
             # a human's eyes.
             $title = Get-VirtaalTitle $t
             if ($title.StartsWith("*")) {
+                # Same reasoning as the other two spurious-modified-marker
+                # checks: this one doesn't otherwise call
+                # Assert-VirtaalLogsClean, so -AppDebugLog's signal-chain
+                # tracing was never actually surfaced here before. Dump
+                # unconditionally on failure so it's readable when
+                # -AppDebugLog is active, not just present on the VM's disk.
+                Write-VirtaalLogs
                 Add-Result "First open: no visual glitch (manual) or modified marker (auto)" "Fail" "title=`"$title`" - modified marker set despite no interaction with the document - screenshot: $shot"
             } else {
                 Add-Result "First open: no visual glitch (manual) or modified marker (auto)" "Skip" "modified marker correctly unset (title=`"$title`") - visual glitch itself not auto-verified, inspect $shot for ISSUE_TRIAGE.md's open layout glitch"
