@@ -504,6 +504,34 @@ if (-not $SkipCommitCheck) {
     Write-Host "`nSkipped commit verification (-SkipCommitCheck)"
 }
 
+# Confirmed live, 2026-08-25: right after a fresh install, the first
+# one or two checks failed with "Never got a main window handle" -
+# not the mid/late-run cascade already tracked (that one correlated
+# with -AppDebugLog and is a separate, cumulative-load issue) - this
+# one happened at the very *start* of a clean run, before any check
+# had a chance to leave anything stale behind. The commit-verification
+# step above already runs virtaal.exe --version once, but that exits
+# during argparse, well before GTK/Pango/PyGObject/translate-toolkit
+# and the rest of the bundle's DLLs ever get touched - a real antivirus
+# on-access scan of a freshly-written executable's *actual* working set
+# (hundreds of DLLs a full GUI launch loads, not the handful --version
+# does) is a well-known source of exactly this "first real launch is
+# much slower than every later one" pattern. One throwaway warm-up
+# launch+kill here, off the clock before any check's own timing budget
+# starts, should pay that cost once instead of risking check #1 (or #2)
+# eating it under a tight timeout. Cheap even if this theory is wrong -
+# worst case it's a few extra seconds once per run.
+if ($install) {
+    Write-Host "`nWarm-up launch (first real GUI launch after install can be slower - antivirus scanning a freshly-written executable, not a Virtaal problem) ..."
+    $warmup = Start-VirtaalTest -ExePath $install.ExePath -WaitSeconds 15 -HandleTimeoutSeconds 20
+    if ($warmup) {
+        Stop-VirtaalTest $warmup
+        Write-Host "Warm-up launch got a window handle - continuing."
+    } else {
+        Write-Host "::warning::Warm-up launch itself never got a window handle - the underlying slowness may be worse than this warm-up step can absorb."
+    }
+}
+
 Write-Host "`n=== 3. UI regression battery ==="
 
 # Known-good baseline for every check below, not just the two Ctrl+S
