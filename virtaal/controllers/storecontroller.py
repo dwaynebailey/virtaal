@@ -304,7 +304,20 @@ class StoreController(BaseController):
                         self.main_controller.open_file(filename)
                         self.cursor.pos = cursor_pos
                     self._proj_file_saved_id = self.connect('store-saved', post_save)
+        # Investigating 2026-08-25: a real Windows run (Ctrl+S with
+        # missing translator info, prompting the "Header information"
+        # dialogs) confirmed the file genuinely gets written but the
+        # modified marker stays on afterward - direct API-level testing
+        # (bypassing real keystrokes/modal-dialog timing) couldn't
+        # reproduce it, the save/header-update logic checked out clean
+        # there. This line is the only thing that's supposed to clear
+        # the marker after a save - log whether it's actually reached
+        # and what set_saveable() sees, so the next real run settles
+        # whether this call is skipped/exceptioned before it runs, or
+        # whether it runs fine and something *later* re-marks modified.
+        logging.debug('StoreController.save_file: about to set_modified(False), current is_modified()=%r' % (self.is_modified(),))
         self.set_modified(False)
+        logging.debug('StoreController.save_file: set_modified(False) done, is_modified()=%r' % (self.is_modified(),))
         # A save doesn't clear the undo stack (you can still undo past a
         # save point) - unlike open_file()/close_file(), which do get a
         # fresh clean_index for free from UndoModel.clear() (see
