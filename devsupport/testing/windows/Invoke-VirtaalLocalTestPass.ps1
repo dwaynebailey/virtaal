@@ -550,7 +550,19 @@ Invoke-VirtaalCheck "Type + Ctrl+Z clears modified marker" {
         Send-VirtaalKeys $t "x"
         $titleAfterType = Get-VirtaalTitle $t
         if (-not $titleAfterType.StartsWith("*")) {
-            Add-Result "Type + Ctrl+Z clears modified marker" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus"
+            # Confirmed live, 2026-08-25, reproducing consistently (not
+            # VM-load noise - seen on a run confirmed otherwise clean) on
+            # this check and both Ctrl+S checks below, all of which type
+            # immediately after Start-VirtaalTest returns with zero
+            # additional settle. Rather than guess-widen the timing again
+            # (that exact move already failed once this session for a
+            # different check - see Find-VirtaalUnit's own history).
+            # screenshot what's actually on screen at the moment typing
+            # was attempted, so the next occurrence shows real evidence
+            # (is a cell editor even visible/focused?) instead of just
+            # the same "maybe timing, maybe not" guess again.
+            $shot = Save-VirtaalScreenshot $t
+            Add-Result "Type + Ctrl+Z clears modified marker" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus - screenshot: $shot"
         } else {
             Send-VirtaalKeys $t "^z"
             $titleAfterUndo = Get-VirtaalTitle $t
@@ -751,7 +763,9 @@ Invoke-VirtaalCheck "Multi-step undo clears modified marker" {
         Send-VirtaalKeys $t "y"
         $titleAfterTwoEdits = Get-VirtaalTitle $t
         if (-not $titleAfterTwoEdits.StartsWith("*")) {
-            Add-Result "Multi-step undo clears modified marker" "Skip" "typing didn't set the modified marker (title=`"$titleAfterTwoEdits`") - target field may not have had default focus"
+            # See "Type + Ctrl+Z clears modified marker"'s own comment.
+            $shot = Save-VirtaalScreenshot $t
+            Add-Result "Multi-step undo clears modified marker" "Skip" "typing didn't set the modified marker (title=`"$titleAfterTwoEdits`") - target field may not have had default focus - screenshot: $shot"
         } else {
             Send-VirtaalKeys $t "^z"
             $titleAfterOneUndo = Get-VirtaalTitle $t
@@ -1348,7 +1362,11 @@ Invoke-VirtaalCheck "Ctrl+S with known translator info saves directly" {
         Send-VirtaalKeys $t "x"
         $titleAfterType = Get-VirtaalTitle $t
         if (-not $titleAfterType.StartsWith("*")) {
-            Add-Result "Ctrl+S with known translator info saves directly" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus"
+            # See "Type + Ctrl+Z clears modified marker"'s own comment on
+            # this exact symptom - screenshotting here too rather than
+            # guess-widening the timing again.
+            $shot = Save-VirtaalScreenshot $t
+            Add-Result "Ctrl+S with known translator info saves directly" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus - screenshot: $shot"
         } else {
             Send-VirtaalKeys $t "^s" -SettleMs 800
             # Kept as a safety net even with translator info forced
@@ -1401,7 +1419,9 @@ Invoke-VirtaalCheck "Ctrl+S with missing translator info prompts, then saves" {
         Send-VirtaalKeys $t "x"
         $titleAfterType = Get-VirtaalTitle $t
         if (-not $titleAfterType.StartsWith("*")) {
-            Add-Result "Ctrl+S with missing translator info prompts, then saves" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus"
+            # See "Type + Ctrl+Z clears modified marker"'s own comment.
+            $shot = Save-VirtaalScreenshot $t
+            Add-Result "Ctrl+S with missing translator info prompts, then saves" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus - screenshot: $shot"
         } else {
             Send-VirtaalKeys $t "^s" -SettleMs 500
             $promptCount = 0
@@ -1466,7 +1486,9 @@ Invoke-VirtaalCheck "Real unsaved-changes dialog appears and Discard works" {
         Send-VirtaalKeys $t "x"
         $titleAfterType = Get-VirtaalTitle $t
         if (-not $titleAfterType.StartsWith("*")) {
-            Add-Result "Real unsaved-changes dialog appears and Discard works" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus"
+            # See "Type + Ctrl+Z clears modified marker"'s own comment.
+            $shot = Save-VirtaalScreenshot $t
+            Add-Result "Real unsaved-changes dialog appears and Discard works" "Skip" "typing didn't set the modified marker (title=`"$titleAfterType`") - target field may not have had default focus - screenshot: $shot"
         } else {
             Send-VirtaalKeys $t "^w"
             $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 5
@@ -1504,7 +1526,9 @@ Invoke-VirtaalCheck "Change file A, discard, open different file B: no spurious 
         Send-VirtaalKeys $t "x"
         $titleAfterType = Get-VirtaalTitle $t
         if (-not $titleAfterType.StartsWith("*")) {
-            Add-Result "Change file A, discard, open different file B: no spurious modified" "Skip" "typing didn't set the modified marker on A (title=`"$titleAfterType`") - target field may not have had default focus"
+            # See "Type + Ctrl+Z clears modified marker"'s own comment.
+            $shot = Save-VirtaalScreenshot $t
+            Add-Result "Change file A, discard, open different file B: no spurious modified" "Skip" "typing didn't set the modified marker on A (title=`"$titleAfterType`") - target field may not have had default focus - screenshot: $shot"
         } else {
             Send-VirtaalKeys $t "^w"
             $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 5
