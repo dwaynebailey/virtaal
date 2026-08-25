@@ -260,6 +260,11 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
     def do_start_editing(self, *_args):
         """C{Gtk.CellEditable.start_editing()}"""
+        logging.debug('TRACE do_start_editing: len(self.targets)=%d, targets[0].get_mapped()=%r, targets[0].get_allocation()=%r' % (
+            len(self.targets),
+            self.targets[0].get_mapped() if self.targets else None,
+            (self.targets[0].get_allocation().width, self.targets[0].get_allocation().height) if self.targets else None,
+        ))
         self.focus_text_view(self.targets[0])
 
     def do_editing_done(self, *_args):
@@ -267,6 +272,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
     def focus_text_view(self, textbox):
         textbox.grab_focus()
+        logging.debug('TRACE focus_text_view: after grab_focus, textbox.is_focus()=%r, get_mapped()=%r' % (
+            textbox.is_focus(), textbox.get_mapped()))
 
         text = textbox.get_text()
         translation_start = self._get_editing_start_pos(textbox.elem)

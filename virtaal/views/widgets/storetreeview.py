@@ -141,6 +141,8 @@ class StoreTreeView(Gtk.TreeView):
         if not column:
             return
         new_width = max(1, allocation.width - 2)
+        logging.debug('TRACE _on_size_allocate: allocation.width=%d, column.get_fixed_width()=%d, new_width=%d' % (
+            allocation.width, column.get_fixed_width(), new_width))
         if column.get_fixed_width() != new_width:
             column.set_fixed_width(new_width)
 
@@ -179,6 +181,8 @@ class StoreTreeView(Gtk.TreeView):
             # unexpected point, which lines up with a real regression found
             # live (2026-08-24): opening a file immediately marked it
             # modified, prompting to save on close despite no real edit.
+            logging.debug('TRACE select_index: sync set_cursor, column.get_fixed_width()=%d' % (
+                self.get_columns()[0].get_fixed_width()))
             self.set_cursor(newpath, self.get_columns()[0], start_editing=True)
             self.get_model().set_editable(newpath)
             # Reported live, 2026-08-24, hard to reproduce (exact idle-queue
@@ -203,6 +207,8 @@ class StoreTreeView(Gtk.TreeView):
                 self._waiting_for_row_change -= 1
                 if self.get_model() is not scheduled_model:
                     return
+                logging.debug('TRACE select_index: idle set_cursor, column.get_fixed_width()=%d' % (
+                    self.get_columns()[0].get_fixed_width()))
                 self.set_cursor(newpath, self.get_columns()[0], start_editing=True)
             self._waiting_for_row_change += 1
             GObject.idle_add(change_cursor, priority=GObject.PRIORITY_DEFAULT_IDLE)
