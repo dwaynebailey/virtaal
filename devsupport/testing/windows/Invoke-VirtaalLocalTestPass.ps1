@@ -657,19 +657,36 @@ Invoke-VirtaalCheck "F11 fullscreen restores the original window size" {
         if (-not $stillAlive) {
             Add-Result "F11 fullscreen restores the original window size" "Fail" "process exited"
         } else {
+            # Confirmed live, 2026-08-24: this used to report just
+            # "unexpected log output" and stop there whenever
+            # storetreeview.py's own diagnostic logging.warning()
+            # (_restore_cursor() - a deliberately-left-in tripwire from
+            # an earlier, since-fixed runaway-resize bug, "investigate
+            # if seen again", not itself a crash) fired - which it does
+            # here. That meant the width/height comparison below,
+            # computed either way, never actually got reported when it
+            # mattered most: we genuinely didn't know whether the
+            # window was overshooting-then-correctly-settling (benign)
+            # or ending up genuinely stuck wide (a real regression) -
+            # ISSUE_TRIAGE.md's own long-standing gap on this exact
+            # check. Report both facts every time now, regardless of
+            # which one is the reason for an eventual Fail - the log
+            # warning still fails the check on its own (it's a real
+            # tripwire, not something to blanket-allow), but no longer
+            # at the cost of hiding the size data alongside it.
             $logsClean = Assert-VirtaalLogsClean
             $widthAfter = Get-VirtaalWidth $t
             $heightAfter = Get-VirtaalHeight $t
             $widthDelta = [Math]::Abs($widthAfter - $widthBefore)
             $heightDelta = [Math]::Abs($heightAfter - $heightBefore)
             $sizeRestored = $widthDelta -le 50 -and $heightDelta -le 50
-            if (-not $logsClean) {
-                Add-Result "F11 fullscreen restores the original window size" "Fail" "unexpected log output - see above"
-            } elseif (-not $sizeRestored) {
+            $sizeDetail = "before=${widthBefore}x${heightBefore}, after=${widthAfter}x${heightAfter} ($(if ($sizeRestored) { 'restored' } else { 'NOT restored' }))"
+            if (-not $logsClean -or -not $sizeRestored) {
                 $shot = Save-VirtaalScreenshot $t
-                Add-Result "F11 fullscreen restores the original window size" "Fail" "before=${widthBefore}x${heightBefore}, after=${widthAfter}x${heightAfter} - screenshot: $shot"
+                $reason = if (-not $logsClean -and -not $sizeRestored) { "unexpected log output AND size not restored" } elseif (-not $logsClean) { "unexpected log output (size itself was fine)" } else { "size not restored (logs were otherwise clean)" }
+                Add-Result "F11 fullscreen restores the original window size" "Fail" "$reason - $sizeDetail - screenshot: $shot"
             } else {
-                Add-Result "F11 fullscreen restores the original window size" "Pass" "before=${widthBefore}x${heightBefore}, after=${widthAfter}x${heightAfter}"
+                Add-Result "F11 fullscreen restores the original window size" "Pass" $sizeDetail
             }
         }
     }
