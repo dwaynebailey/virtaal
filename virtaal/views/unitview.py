@@ -303,7 +303,14 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
     def modified(self):
         self._modified = True
-        #logging.debug('emit("modified")')
+        # Added 2026-08-25 while investigating the still-reproducing
+        # spurious-modified-marker-on-open bug (ISSUE_TRIAGE.md) -
+        # confirms/denies whether a stray emission here (self.unit,
+        # the view's *own* idea of the currently loaded unit, may not
+        # match whichever unit a listener further up the chain still
+        # thinks is current) is the actual mechanism, rather than
+        # continuing to guess from static reading alone.
+        logging.debug('UnitView.modified: self.unit=%r' % (getattr(self.unit, 'source', self.unit),))
         self.emit('modified')
 
     def show(self):

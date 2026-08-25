@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import os
 
 from gi.repository import GObject
@@ -588,6 +589,8 @@ class StoreController(BaseController):
         # next. Guard against acting on a modification signal when
         # there's no file open at all - there's nothing to mark modified.
         if self.store is None:
+            logging.debug('StoreController._unit_modified: no store open - ignoring stray signal for unit=%r' % (
+                getattr(unit, 'source', unit),))
             return
         # Reported live again, 2026-08-24, in the exact shape this guard's
         # own comment already predicted as a known gap: change file A,
@@ -603,5 +606,9 @@ class StoreController(BaseController):
         # the currently open store's own units, not just whether a store
         # exists at all.
         if unit not in self.store.get_units():
+            logging.debug('StoreController._unit_modified: unit=%r not in current store - ignoring stray signal (see UnitController._unit_modified\'s own comment - this only ever receives current_unit, so this branch specifically means current_unit itself was stale relative to self.store, not that a genuinely different unit was reported)' % (
+                getattr(unit, 'source', unit),))
             return
+        logging.debug('StoreController._unit_modified: accepted, unit=%r - setting modified' % (
+            getattr(unit, 'source', unit),))
         self.set_modified(True)

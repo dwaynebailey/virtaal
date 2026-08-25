@@ -18,6 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from gi.repository.GLib import timeout_add
 from gi.repository.GObject import SignalFlags
 from translate.storage import workflow
@@ -145,6 +147,26 @@ class UnitController(BaseController):
         self.emit('unit-paste-start', self.current_unit, old_text, offsets, target_num)
 
     def _unit_modified(self, *args):
+        # Added 2026-08-25 while investigating the still-reproducing
+        # spurious-modified-marker-on-open bug (ISSUE_TRIAGE.md): the
+        # 'modified' signal this responds to is declared with zero
+        # arguments (unitview.py's __gsignals__: (SIGNAL_RUN_FIRST,
+        # None, ())), so *args is always empty - there is structurally
+        # no way for this method to know which unit the view that fired
+        # it actually thought was current at fire-time. It always
+        # trusts self.current_unit instead, unconditionally. If a
+        # view's own stray/deferred 'modified' emission (from a
+        # just-closed file's teardown, or some other timing skew) fires
+        # *after* this controller's own current_unit has already moved
+        # on to a different file's unit, this reports that new unit as
+        # modified regardless of whether it actually was - a real gap
+        # one level above storecontroller.py's own unit-membership guard
+        # (ed2a9a77), which only ever receives self.current_unit here,
+        # never the originating view's own (possibly stale) idea of its
+        # unit - it structurally can't distinguish this case from a
+        # real edit.
+        logging.debug('UnitController._unit_modified: current_unit=%r' % (
+            getattr(self.current_unit, 'source', self.current_unit),))
         self.emit('unit-modified', self.current_unit)
         self.current_unit._modified = True
         if self.current_unit.STATE and not self.current_unit._state_sticky:
