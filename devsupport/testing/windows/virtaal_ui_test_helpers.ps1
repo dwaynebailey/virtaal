@@ -556,4 +556,23 @@ function Stop-VirtaalTest {
     # Belt-and-suspenders, same as ci.yml's existing steps: catches any
     # child/renamed process Stop-Process on the original PID missed.
     Get-Process -Name virtaal -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    # Confirmed live, 2026-08-25 (real screenshot evidence): Stop-Process
+    # -Force requests termination but returns before the process (and
+    # its window) has actually finished going away - the next check's
+    # Start-VirtaalTest could launch a fresh instance while the previous
+    # one's window was still tearing down, producing two live
+    # "<file>.po - Virtaal" windows on screen at once (check #7's own
+    # "no dialog appeared" screenshot showed a stray af.po window,
+    # left over from an earlier check, still sitting behind checks.po's
+    # brand new one - Alt+Enter could easily have gone to the wrong
+    # window). Poll for "virtaal" to actually disappear from the
+    # process list instead of trusting Stop-Process's return to mean
+    # "gone" - bounded, so a genuinely stuck process can't hang the
+    # whole battery.
+    $deadline = (Get-Date).AddSeconds(10)
+    while ((Get-Date) -lt $deadline) {
+        if (-not (Get-Process -Name virtaal -ErrorAction SilentlyContinue)) { return }
+        Start-Sleep -Milliseconds 200
+    }
+    Write-Host "::warning::virtaal.exe still running 10s after Stop-VirtaalTest - a later check may see a stale window"
 }
