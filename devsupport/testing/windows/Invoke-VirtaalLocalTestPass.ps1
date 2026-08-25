@@ -629,7 +629,16 @@ Invoke-VirtaalCheck "Alt+Enter opens Properties and closes cleanly" {
         Send-VirtaalKeys $t "%{ENTER}"
         $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 5
         if (-not $dlg) {
-            Add-Result "Alt+Enter opens Properties and closes cleanly" "Fail" "no dialog appeared"
+            # Confirmed live, 2026-08-25 - same "keystroke fired before
+            # the window's own accelerator wiring finished settling"
+            # shape as the "no default focus" checks elsewhere in this
+            # file (Wait-VirtaalPopup already polls for 5s looking for a
+            # dialog, so the issue isn't waiting long enough *after*
+            # sending the keystroke - if Alt+Enter itself never landed,
+            # no amount of waiting afterward would help). Screenshot for
+            # the next occurrence rather than guess-widening timing.
+            $shot = Save-VirtaalScreenshot $t
+            Add-Result "Alt+Enter opens Properties and closes cleanly" "Fail" "no dialog appeared - screenshot: $shot"
         } else {
             $dlgTitle = Get-VirtaalWindowText $dlg
             Close-VirtaalPopup $t $dlg
