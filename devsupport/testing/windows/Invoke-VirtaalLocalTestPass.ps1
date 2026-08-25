@@ -901,14 +901,34 @@ Invoke-VirtaalCheck "Welcome screen: open dialog + Recent Files" {
             } else {
                 Send-VirtaalKeys $t "^w"
                 Start-Sleep -Milliseconds 500
-                $shotBeforeClick = Save-VirtaalScreenshot $t
-                Send-VirtaalClick $t -XFraction 0.10 -YFraction 0.436
-                $titleAfterRecent = Get-VirtaalTitle $t
-                if ($titleAfterRecent -match "af\.po") {
-                    Add-Result "Welcome screen: open dialog + Recent Files" "Pass" "title after clicking Recent Files=`"$titleAfterRecent`""
+                # Confirmed live, 2026-08-25: af.po opened via this exact
+                # dialog path (not a CLI argument) still shows the
+                # standing spurious-modified-on-open bug (ISSUE_TRIAGE.md)
+                # - "title after clicking Recent Files=`"*af.po -
+                # Virtaal`"" slipped through as a Pass before this fix,
+                # because the old assertion only checked the filename
+                # appeared, never the leading '*'. A real edit *there*
+                # would also mean this Ctrl+W opens a genuine
+                # unsaved-changes dialog instead of just closing - check
+                # for one defensively rather than blindly clicking
+                # through and risking the click landing on the dialog
+                # instead of the Welcome screen's own Recent Files list.
+                $unexpectedDlg = Wait-VirtaalPopup $t -TimeoutSeconds 2
+                if ($unexpectedDlg) {
+                    $dlgTitle = Get-VirtaalWindowText $unexpectedDlg
+                    $shot = Save-VirtaalScreenshot $t
+                    Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "unexpected dialog after Ctrl+W (title=`"$dlgTitle`") - af.po was likely spuriously marked modified on open - screenshot: $shot"
+                    Close-VirtaalPopup $t $unexpectedDlg
                 } else {
-                    $shotAfterClick = Save-VirtaalScreenshot $t
-                    Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "title after clicking Recent Files=`"$titleAfterRecent`" - screenshots: $shotBeforeClick, $shotAfterClick"
+                    $shotBeforeClick = Save-VirtaalScreenshot $t
+                    Send-VirtaalClick $t -XFraction 0.10 -YFraction 0.436
+                    $titleAfterRecent = Get-VirtaalTitle $t
+                    if ($titleAfterRecent -match "af\.po" -and -not $titleAfterRecent.StartsWith("*")) {
+                        Add-Result "Welcome screen: open dialog + Recent Files" "Pass" "title after clicking Recent Files=`"$titleAfterRecent`""
+                    } else {
+                        $shotAfterClick = Save-VirtaalScreenshot $t
+                        Add-Result "Welcome screen: open dialog + Recent Files" "Fail" "title after clicking Recent Files=`"$titleAfterRecent`" - screenshots: $shotBeforeClick, $shotAfterClick"
+                    }
                 }
             }
         }
