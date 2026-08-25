@@ -1017,6 +1017,56 @@ Invoke-VirtaalCheck "Navigation mode switching (Incomplete/Quality Checks/Workfl
     }
 }
 
+Invoke-VirtaalCheck "Plural-form units load cleanly (nplurals=3 and nplurals=1)" {
+    # Neither checks.po, af.po, ar.po, nor anything else this battery
+    # uses has a single genuine msgid_plural unit - confirmed by
+    # grepping every file under devsupport/testfiles and po/af.po,
+    # po/ar.po before writing this - so unitview.py's plural-form
+    # target-widget layout (_layout_update_units(): one target textbox
+    # per plural form, shown/hidden based on
+    # lang_controller.target_lang.nplurals, not by how many msgstr[]
+    # entries the raw file happens to have) had never been exercised by
+    # anything in this test battery until now.
+    #
+    # Two fixtures, two genuinely different code paths, not the same
+    # thing twice: plurals.po (Language: pl, nplurals=3) should show
+    # *three* target textboxes for its plural units; plurals-zero.po
+    # (Language: ja, nplurals=1) should show only *one*, despite being
+    # an equally genuine msgid_plural unit - confirmed via
+    # translate.lang.factory.getlanguage('pl'/'ja').nplurals before
+    # building each file. Both also carry one ordinary non-plural unit,
+    # to confirm plural and non-plural units coexist in the same file
+    # without issue.
+    #
+    # Same "confirm it doesn't crash and nothing unexpected is logged"
+    # baseline depth as this session's other brand-new coverage today
+    # (navigation-mode switching) - actually verifying which/how many
+    # target textboxes are visually present needs a human looking at
+    # the screenshot, no UI Automation tree available here to do that
+    # directly.
+    $allOk = $true
+    $detail = @()
+    foreach ($file in @("devsupport\testfiles\plurals.po", "devsupport\testfiles\plurals-zero.po")) {
+        $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments $file
+        if (-not $t) {
+            $allOk = $false
+            $detail += "$file - app didn't launch"
+            continue
+        }
+        $shot = Save-VirtaalScreenshot $t
+        $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+        $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
+        if ($stillAlive -and $logsClean) {
+            $detail += "$file - loaded cleanly, screenshot: $shot"
+        } else {
+            $allOk = $false
+            $detail += "$file - $(if (-not $stillAlive) { 'process exited' } else { 'unexpected log output - see above' })"
+        }
+        Stop-VirtaalTest $t
+    }
+    Add-Result "Plural-form units load cleanly (nplurals=3 and nplurals=1)" $(if ($allOk) { "Pass" } else { "Fail" }) ($detail -join "; ")
+}
+
 Invoke-VirtaalCheck "Placeable navigation/transfer shortcuts" {
     # <Virtaal>/Edit/Prev Placeable, Next Placeable (Alt+Left/Right -
     # jump between placeables in the target) and Transfer (Alt+Down -

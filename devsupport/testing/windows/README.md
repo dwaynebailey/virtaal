@@ -158,6 +158,13 @@ side without anything needing to be copied out by hand.
   reached, not just a screenshot. Doesn't yet verify a mode actually
   narrows the visible unit list, or Workflow's own state-selector popup
   - logged as a follow-up in `ISSUE_TRIAGE.md`.
+- Plural-form units (`msgid_plural`) load cleanly, in both an
+  nplurals=3 file (`plurals.po`, Polish) and an nplurals=1 file
+  (`plurals-zero.po`, Japanese) - genuinely different code paths in
+  `unitview.py`'s target-widget layout, not the same case twice.
+  Nothing in this repo had a real plural-form unit to test against
+  before today. Doesn't yet verify the right *number* of target
+  textboxes actually renders - needs a human looking at the screenshot.
 - Placeable navigation/transfer (Alt+Left/Right/Down) - Alt+Down
   specifically verified to copy source into an empty target.
 - Click navigation, and clicking the two status-bar `PopupMenuButton`s
