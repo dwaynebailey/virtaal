@@ -60,6 +60,51 @@ class Plugin(BasePlugin):
         self._init_plugin()
 
     def _init_plugin(self):
+        # Set up the source paths before deciding anything - both the
+        # up-front "is there real evidence" check below and the actual
+        # import methods need these, and previously the paths (and the
+        # existence checks that use them) were only ever computed
+        # *after* the user had already said yes to a completely
+        # unconditional prompt.
+        if sys.platform == "darwin":
+            self.poedit_dir = path.expanduser('~/Library/Preferences')
+        else:
+            self.poedit_dir = path.expanduser('~/.poedit')
+
+        # KDE moved app configs/data from ~/.kde/share/{config,apps}/ to
+        # the XDG base dirs with the KDE4->Frameworks 5 transition
+        # (~2014) - these are the current locations, not the ~/.kde/...
+        # ones this code originally targeted.
+        xdg_config_home = os.environ.get('XDG_CONFIG_HOME') or path.expanduser('~/.config')
+        xdg_data_home = os.environ.get('XDG_DATA_HOME') or path.expanduser('~/.local/share')
+        self.lokalize_rc = path.join(xdg_config_home, 'lokalizerc')
+        self.lokalize_tm_dir = path.join(xdg_data_home, 'lokalize')
+
+        # Confirmed live, 2026-08-25: this prompted unconditionally on
+        # *every* launch, regardless of whether Poedit/Lokalize were
+        # even installed - not because anything actively re-enables the
+        # plugin, but because pan_app.settings.plugin_state[...] =
+        # "disabled" further down was only ever set in memory, never
+        # persisted (nothing called pan_app.settings.write() after it -
+        # the write() calls inside poedit_settings_import()/
+        # lokalize_settings_import() only ever cover *their own*
+        # settings, conditionally, and only run at all if the user had
+        # already said yes). Every launch re-read a config file that
+        # had never actually been updated, so the plugin was never
+        # really "disabled" as far as disk was concerned.
+        #
+        # Also now gated on real evidence before ever prompting at all
+        # (the other half of the same complaint - ISSUE_TRIAGE.md's
+        # "migration plugin should stay silent unless there's actually
+        # something to migrate"): no Poedit/Lokalize config or TM data
+        # found at all means no prompt, not just "prompt then find
+        # nothing" - see _has_anything_to_migrate().
+        if not self._has_anything_to_migrate():
+            logging.debug('Migration: nothing found to import - staying silent')
+            pan_app.settings.plugin_state[self.internal_name] = "disabled"
+            pan_app.settings.write()
+            return
+
         message = _('Should Virtaal try to import settings and data from other applications?')
         must_migrate = self.main_controller.show_prompt(_('Import data from other applications?'), message)
         if not must_migrate:
@@ -69,20 +114,6 @@ class Plugin(BasePlugin):
             self.tmdb = tmdb.TMDB(self.config["tmdb"])
             # We actually need source, target, context, targetlanguage
             self.migrated = []
-
-            if sys.platform == "darwin":
-                self.poedit_dir = path.expanduser('~/Library/Preferences')
-            else:
-                self.poedit_dir = path.expanduser('~/.poedit')
-
-            # KDE moved app configs/data from ~/.kde/share/{config,apps}/ to
-            # the XDG base dirs with the KDE4->Frameworks 5 transition
-            # (~2014) - these are the current locations, not the ~/.kde/...
-            # ones this code originally targeted.
-            xdg_config_home = os.environ.get('XDG_CONFIG_HOME') or path.expanduser('~/.config')
-            xdg_data_home = os.environ.get('XDG_DATA_HOME') or path.expanduser('~/.local/share')
-            self.lokalize_rc = path.join(xdg_config_home, 'lokalizerc')
-            self.lokalize_tm_dir = path.join(xdg_data_home, 'lokalize')
 
             self.poedit_settings_import()
             self.lokalize_settings_import()
@@ -100,6 +131,40 @@ class Plugin(BasePlugin):
             logging.debug('Migration plugin executed')
 
         pan_app.settings.plugin_state[self.internal_name] = "disabled"
+        pan_app.settings.write()
+
+    def _has_anything_to_migrate(self):
+        """Cheap existence-only checks (no parsing) for whether *any*
+            supported source has real data to offer - the gate for
+            whether to prompt at all."""
+        if self._poedit_config_exists():
+            return True
+        if path.exists(self.lokalize_rc):
+            return True
+        if path.isdir(self.lokalize_tm_dir):
+            if any(name.endswith('.db') and not name.endswith('-journal.db')
+                   for name in os.listdir(self.lokalize_tm_dir)):
+                return True
+        return False
+
+    def _poedit_config_exists(self):
+        if sys.platform == 'darwin':
+            config_filename = path.join(self.poedit_dir, 'net.poedit.Poedit.cfg')
+        else:
+            config_filename = path.join(self.poedit_dir, 'config')
+        if path.exists(config_filename):
+            return True
+        if sys.platform != 'win32':
+            return False
+        try:
+            import winreg
+        except ImportError:
+            return False
+        try:
+            winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Vaclav Slavik\Poedit")
+            return True
+        except OSError:
+            return False
 
     def poedit_settings_import(self):
         """Attempt to import the settings from Poedit."""
@@ -109,15 +174,20 @@ class Plugin(BasePlugin):
             config_filename = path.join(self.poedit_dir, 'config')
         get_thing = None
         if not path.exists(config_filename):
+            # Confirmed live, 2026-08-25: this was `import _winreg`, the
+            # Python 2 name - renamed to `winreg` (no underscore) in
+            # Python 3, so this always raised ImportError and silently
+            # returned, on Windows included. Windows registry-based
+            # Poedit detection has been dead code this whole time.
             try:
-                import _winreg
+                import winreg
             except Exception as e:
                 return
 
             def get_thing(section, item):
                 key = None
                 try:
-                    key = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, r"Software\Vaclav Slavik\Poedit\%s" % section)
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Vaclav Slavik\Poedit\%s" % section)
                 except WindowsError:
                     return
 
@@ -125,7 +195,7 @@ class Plugin(BasePlugin):
                 try:
                     # This is very inefficient, but who cares?
                     for i in range(100):
-                        name, data, type = _winreg.EnumValue(key, i)
+                        name, data, type = winreg.EnumValue(key, i)
                         if name == item:
                             break
                 except EnvironmentError as e:
