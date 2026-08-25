@@ -19,6 +19,7 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 from gi.repository import Gtk
+from gi.repository.GObject import idle_add
 
 from virtaal.views.widgets.popupmenubutton import PopupMenuButton, POS_NW_SW
 from .basemode import BaseMode
@@ -123,11 +124,42 @@ class WorkflowMode(BaseMode):
 
     # EVENT HANDLERS #
     def _on_state_menuitem_toggled(self, checkmenuitem):
+        # Investigating a real macOS segfault, 2026-08-25 (Dwayne, not
+        # yet confirmed reproducible): a real crash report showed
+        # EXC_BAD_ACCESS inside GTK's own gtk_grab_notify widget-tree
+        # walk, triggered by a *new* popup opening, descending into an
+        # *existing* menu shell's children before hitting a NULL
+        # pointer - while Dwayne was "changing the checks dialog
+        # selector... the cluster of stepper modes on the top left",
+        # which matches this "Select States" popup specifically.
+        # Gtk.CheckMenuItem (unlike a plain Gtk.MenuItem) doesn't close
+        # its parent menu on toggle - it's meant to support toggling
+        # several states in one open session - so this handler
+        # previously ran update_indices() synchronously, mid-toggle,
+        # while the popup's own grab is still held. update_indices()
+        # sets self.storecursor.indices, which triggers a full
+        # store/treeview refilter - real widget creation/destruction -
+        # while GTK is still mid-processing this same menu's own signal.
+        # That's a plausible, if not yet confirmed, source of exactly
+        # the kind of "GTK re-enters its own grab-notify machinery
+        # while a menu it's tracking is being mutated underneath it"
+        # crash reported. Deferred to idle_add so the treeview rebuild
+        # happens only after the toggle's own signal processing (and
+        # the menu's own event handling) has fully unwound - not
+        # verified as the actual fix (can't reproduce a native segfault
+        # via this session's own macOS automation), but a reasoned,
+        # low-risk improvement regardless of whether it's confirmed as
+        # the root cause. filter_states/the button label are cheap,
+        # local-state-only updates and stay synchronous.
         self.filter_states = []
         for menuitem in self.btn_popup.menu:
             if not isinstance(menuitem, Gtk.CheckMenuItem) or not menuitem.get_active():
                 continue
             if menuitem in self._menuitem_states:
                 self.filter_states.append(self._menuitem_states[menuitem])
-        self.update_indices()
+        idle_add(self._apply_filter_states)
         self._update_button_label()
+
+    def _apply_filter_states(self):
+        self.update_indices()
+        return False
