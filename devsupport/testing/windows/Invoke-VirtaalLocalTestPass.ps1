@@ -468,7 +468,24 @@ if (-not $SkipCommitCheck) {
         # Fail when it does, or when the diff itself can't be computed
         # (fails safe - if in doubt, still requires a rebuild).
         $appPaths = @("virtaal", "share", "po", "bin", "setup.py", "devsupport/packaging")
-        git diff --quiet $actualCommit $expectedCommit -- $appPaths 2>$null
+        # Confirmed live, 2026-08-25: same "native stderr treated as
+        # terminating under $ErrorActionPreference = 'Stop'" class of
+        # bug as the git rev-parse HEAD call above (c9673a12) - this
+        # call site was added later and missed the same guard. This
+        # time the actual stderr text was "unable to open loose object
+        # ...: Function not implemented" (a WebDAV-mount quirk reading
+        # a just-pushed object, not the dubious-ownership error the
+        # first guard was written for) - a different underlying cause,
+        # same PowerShell-level symptom, same proven fix: temporarily
+        # relax EAP just for this one call, same as the established
+        # pattern above.
+        $prevEAP = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        try {
+            git diff --quiet $actualCommit $expectedCommit -- $appPaths 2>$null
+        } finally {
+            $ErrorActionPreference = $prevEAP
+        }
         # Confirmed live, 2026-08-25: the previous version of this check
         # (`$appPathsChanged = $LASTEXITCODE -ne 0` then a guard that
         # only cleared it back on a *non*-0/1 exit code) had an inverted
