@@ -455,11 +455,36 @@ if (-not $SkipCommitCheck) {
         if (-not $KeepInstalled) { Uninstall-Virtaal | Out-Null }
         exit 1
     } elseif (-not $expectedCommit.StartsWith($actualCommit)) {
-        Write-Host "::error::Installed build is commit $actualCommit, but this checkout is at $expectedCommit - this installer is STALE. Rebuild (build_standalone.ps1 + build_installer.ps1) or download a fresh CI artifact for this commit, or pass -SkipCommitCheck to deliberately test an older build anyway."
-        if (-not $KeepInstalled) { Uninstall-Virtaal | Out-Null }
-        exit 1
+        # Confirmed live, 2026-08-25: a commit mismatch alone isn't
+        # necessarily a real problem - a run right after several
+        # PowerShell-only commits (this script itself, read live from
+        # the shared checkout, never baked into the installer at all)
+        # got hard-blocked here even though nothing that actually ships
+        # in the installer had changed. Only the paths that genuinely
+        # get built into it matter for whether a mismatch is real - see
+        # virtaal.spec's own datas/hiddenimports for what that actually
+        # is. Downgrade to a warning (and keep going) when the diff
+        # between the two commits touches none of them; still a hard
+        # Fail when it does, or when the diff itself can't be computed
+        # (fails safe - if in doubt, still requires a rebuild).
+        $appPaths = @("virtaal", "share", "po", "bin", "setup.py", "devsupport/packaging")
+        git diff --quiet $actualCommit $expectedCommit -- $appPaths 2>$null
+        $appPathsChanged = $LASTEXITCODE -ne 0
+        if (-not $appPathsChanged -and $LASTEXITCODE -ne 1) {
+            # git diff --quiet's contract is exit 0 (no diff) or 1 (diff
+            # found) - anything else (128, a bad revision, etc.) means
+            # the check itself failed, not that the paths are clean.
+            $appPathsChanged = $true
+        }
+        if ($appPathsChanged) {
+            Write-Host "::error::Installed build is commit $actualCommit, but this checkout is at $expectedCommit - real app-source changes exist between them, this installer is STALE. Rebuild (build_standalone.ps1 + build_installer.ps1) or download a fresh CI artifact for this commit, or pass -SkipCommitCheck to deliberately test an older build anyway."
+            if (-not $KeepInstalled) { Uninstall-Virtaal | Out-Null }
+            exit 1
+        }
+        Write-Host "Installed build is commit $actualCommit, checkout is at $expectedCommit - different commits, but nothing under virtaal/share/po/bin/setup.py/devsupport/packaging actually differs between them (confirmed via git diff), so this installer is still good to test against - continuing."
+    } else {
+        Write-Host "Confirmed: installed build matches commit $actualCommit"
     }
-    Write-Host "Confirmed: installed build matches commit $actualCommit"
 } else {
     Write-Host "`nSkipped commit verification (-SkipCommitCheck)"
 }
