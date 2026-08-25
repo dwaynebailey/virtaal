@@ -1509,7 +1509,14 @@ Invoke-VirtaalCheck "Ctrl+S with missing translator info prompts, then saves" {
     Set-VirtaalTranslatorInfo -Missing
     $scratch = New-VirtaalScratchFile -SourceRelativePath "po\af.po" -Suffix "save-test-missing-header"
     $mtimeBefore = (Get-Item $scratch).LastWriteTimeUtc
-    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "`"$scratch`""
+    # -DebugLog (this check only, not the whole run - see
+    # -AppDebugLog's own cascade finding above) surfaces
+    # storecontroller.py's save_file() trace (92a6ed5d, added
+    # investigating this exact marker-not-clearing bug) so a failure
+    # here finally shows whether set_modified(False) is reached/
+    # succeeds, or something fires after it - no run has captured that
+    # trace for this check yet.
+    $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "`"$scratch`"" -DebugLog
     if (-not $t) {
         Add-Result "Ctrl+S with missing translator info prompts, then saves" "Fail" "app didn't launch"
     } else {
