@@ -851,7 +851,7 @@ jobs:
       - name: Install flatpak and flatpak-builder
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
+          sudo apt-get install -y flatpak flatpak-builder xvfb
           flatpak remote-add --if-not-exists --user flathub \
             https://dl.flathub.org/repo/flathub.flatpakrepo
 
@@ -867,8 +867,17 @@ jobs:
 
       - name: Smoke test - the built app actually runs
         working-directory: devsupport/packaging/flatpak
+        # No display server on this runner at all (same headless gap the
+        # regular Linux `test` job's own `xvfb-run ... virtaal --help`
+        # step already solves - matching that established pattern here).
+        # Without it even `--version` crashes (SIGSEGV, exit 139) on
+        # Gtk-CRITICAL _gtk_style_provider_private_get_settings before
+        # argparse's action="version" ever gets a chance to print and
+        # exit - some import in the chain touches GTK style/settings as
+        # a side effect, well before main()'s own parser.parse_args().
         run: |
-          flatpak-builder --run build-dir io.github.dwaynebailey.Virtaal.yml \
+          xvfb-run -a --server-args="-screen 0 1024x768x24" \
+            flatpak-builder --run build-dir io.github.dwaynebailey.Virtaal.yml \
             virtaal --version
 
   release:
