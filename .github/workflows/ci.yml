@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [master, py3]
+    branches: [main, py3]
     # Confirmed live, 2026-08-26: pushing a v* tag alone triggered
     # nothing at all - branches: and tags: are independent filters
     # under the same push: trigger (an OR, not additive scoping), so
