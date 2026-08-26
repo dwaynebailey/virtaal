@@ -16,9 +16,16 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/33/6b/5ee7fab140e1bea5d09b0096fb7f6cf0cb84a56ef0d91c45992a0f557b46/translate_toolkit-3.19.18-py3-none-any.whl
         sha256: fd454595230c158e46017c446ab6359a2f50246345f821ca4e90fe0855e7f48e
+      # Rust extension (maturin PEP 517 backend) - the sdist can't build
+      # from source in this sandboxed --no-index --no-build-isolation
+      # pip env (`Cannot import 'maturin'`, confirmed in build-flatpak
+      # CI run 33001676163). Swapped for the real manylinux wheel from
+      # PyPI's own JSON API, hash independently re-verified by a second,
+      # direct download + `shasum -a 256` (not just trusted from the
+      # JSON metadata) - see FEATURE-FLATPAK.md.
       - type: file
-        url: https://files.pythonhosted.org/packages/0b/02/e5804acc54945ecf29a280f5f173db61c019166bfe3adeee386f4c135f17/unicode_segmentation_rs-0.3.3.tar.gz
-        sha256: d6625b2d3435ca814c9dd6590d39ae58ebeb8a4891eecb81446ad8b3e917f39b
+        url: https://files.pythonhosted.org/packages/ac/3e/1098f0173c72842abb9ed0c290c4ce431efbe72e735423091653e1414e8a/unicode_segmentation_rs-0.3.3-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+        sha256: 2cc0bdaf83102e048b71e39229642854f3661a0a3377b302f1d807e16a390eb3
   - name: python3-pycurl
     buildsystem: simple
     build-commands:
