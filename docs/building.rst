@@ -4,146 +4,117 @@
 Building
 ********
 
-To build Virtaal yourself, you will need a packaged archive of the Virtaal
-source code, or obtain it directly from Git.
+.. note:: This describes `dwaynebailey/virtaal
+   <https://github.com/dwaynebailey/virtaal>`_'s ``py3`` branch - the
+   active fork, GTK3 and Python 3 throughout. It replaces an older
+   version of this page describing PyGTK/GTK2 and py2exe, neither of
+   which apply to this codebase any more.
 
-To get the source code direction from Git use this command::
+Get the source from the ``py3`` branch::
 
-  git clone git@github.com:translate/virtaal.git
+  git clone --branch py3 https://github.com/dwaynebailey/virtaal.git
 
-.. _building#required_packages:
+The definitive, always-current reference for every command below is
+``.github/workflows/ci.yml`` - CI runs the real build on every push,
+so if something here ever drifts from what's actually in that file,
+trust the workflow.
 
-Required Packages
-=================
+.. _building#running_from_source:
 
-- `GTK+ <http://www.gtk.org/download/index.php>`_ runtime (for Windows download
-  the `latest bundle <http://www.gtk.org/download/win32.php>`_)
-- `PyGTK <http://pygtk.org/downloads.html>`_
-- `lxml <https://pypi.python.org/pypi/lxml/>`_
-- libglade and its python bindings (might be called something like
-  pygtk2.0-libglade on your Linux distribution)
-- Translate-toolkit (if a current enough version is packaged, it might be
-  called python-translate on your Linux distribution)
-- simplejson (might be called something like python-simplejson on your Linux
-  distribution)
-- PyCurl (might be called something like python-curl or python-pycurl on your
-  Linux distribution)
-- sqlite3 (only required if using Python 2.4)
-- wsgiref (only required if using Python 2.4)
+Running From Source
+====================
 
-.. _building#optional_packages:
+System prerequisites (not installable via pip - see
+``pyproject.toml``'s own comment on why GTK3/PyGObject specifically
+aren't declared as a normal dependency):
 
-Optional Packages
-=================
+- GTK3 and PyGObject - install via your system's package manager
+  (``apt``/``dnf``/``brew``/`gvsbuild
+  <https://github.com/wingtk/gvsbuild>`_ on Windows), not pip
+- Enchant + gtkspell3 (optional, only needed for spell checking)
 
-These are not build dependencies but usually improve the user experience.
+Then, from the checkout::
 
-- psyco -- provides a nice speedup
-- Enchant, pyenchant, gtkspell and pygtkspell (might be packaged as
-  gnome-python-extras or something similar) -- provides all :doc:`spell
-  checking <spell_checking>` functionality.  For Windows:
+  pip install --no-build-isolation .[test]
+  python bin/virtaal
 
-  - See `Gramps
-    <http://gramps-project.org/wiki/index.php?title=Windows_installer>`_ and
-    `PyEnchant <http://pythonhosted.org/pyenchant/>`_ for Windows installers
-  - While gtkspell expects libenchant.dll, copy libenchant-1.dll to the
-    alternate name (`setup.py` expects both while this is the case)
-  - Remove the .dll files of dependencies shipped with pyenchant (iconv, glib,
-    gmodule, intl) -- they conflict with the ones coming from GTK but are
-    picked up by setup.py for some reason
+The ``--no-build-isolation`` matters: ``setup.py`` imports
+translate-toolkit directly at the top level (to compile ``.mo``
+files), so translate-toolkit needs to already be importable before
+setup.py itself runs - install it first if a plain ``pip install .``
+doesn't work::
 
-- iso-codes -- if you want translated language names
-- libproxy and its Python binding, which might be called something like
-  python-libproxy on your system -- improved support for proxies on Linux
-  (since Virtaal 1.0)
-- The optional fts3 module for sqlite3 will be used if it is available -
-  provides speedups with TM retrieval  (it is safe to just overwrite a better
-  sqlite library over the one available in Python for Windows)
-- libtranslate -- used by Machine Translation plugin
-- psycopg2 -- for TinyTM plugin
-- python-Levenshtein -- speeds up Levenshtein distance measures, if not present
-  we'll use a pure Python version.
+  pip install translate-toolkit
+  pip install --no-build-isolation .
 
-.. _building#unix:
+macOS specifically: a plain ``python3 -m venv`` can't see Homebrew's
+GTK3/PyGObject at all - create the venv with
+``--system-site-packages`` instead. The ``run-virtaal`` Claude Code
+skill (``.claude/skills/run-virtaal/``) documents a fully worked
+macOS setup, including every gotcha found running this app for real
+during this fork's Python 3 port - worth reading even if you're not
+using Claude Code, the underlying commands are just as valid run by
+hand.
 
-UNIX
-====
+.. _building#building_distributable_packages:
 
-You should be able to run Virtaal from the source tree. If you would like to
-install Virtaal, you can build it using ::
+Building Distributable Packages
+================================
 
-  ./setup.py build
-
-and then you can install it with ::
-
-  sudo ./setup.py install
-
-.. _building#distribution_packagers:
-
-Distribution Packagers
-----------------------
-For users running from a tarball, we do some dependency checking when starting
-Virtaal to be able to give accurate error messages in case of missing
-dependencies. However, if you have all of these sorted out in your package
-dependencies, there is no need for Virtaal to do this any more. In the file
-`bin/virtaal`, uncomment the line
-
-.. code-block:: python
-
-   #packaged = True
-
-by removing the hash sign. This way Virtaal can start a bit quicker with no
-loss of functionality.
-
-.. _building#windows:
+Both platforms use `PyInstaller <https://pyinstaller.org/>`_ to
+freeze the app, then a platform-native installer format on top. CI's
+``build-windows-installer``/``build-macos-app`` jobs run these exact
+scripts and upload the results as workflow artifacts on every push -
+see :doc:`the Installation section of the front page <index>` for
+where to grab a pre-built one instead of building your own.
 
 Windows
-=======
+-------
 
-.. note:: For the translate-toolkit, be sure to get the Python library -- the
-   one marked ``win32.exe`` -- and not the stand-alone Windows installer, which
-   is labelled ``setup.exe``.  You might need to create this yourself with ::
+Requires `gvsbuild <https://github.com/wingtk/gvsbuild>`_'s GTK3
+build and `Inno Setup <https://jrsoftware.org/isinfo.php>`_, in
+addition to the running-from-source prerequisites above::
 
-       python setup.py bdist_wininst
+  devsupport\packaging\windows\build_standalone.ps1
+  devsupport\packaging\windows\build_installer.ps1
 
-   or just ensure that the Translate Toolkit is in your :envvar:`PYTHONPATH`.
+The first produces a frozen ``dist\virtaal\`` tree (PyInstaller,
+one-dir mode - see that script's own comments for why not
+``--onefile``); the second wraps it into a single
+``virtaal-<version>-setup.exe`` via Inno Setup
+(``devsupport/packaging/windows/virtaal.iss``).
 
-If you would like to build a stand-alone Windows installer, you will also need
-to get:
-
-- `Py2exe <http://py2exe.org>`_
-- `InnoSetup <http://www.jrsoftware.org/isinfo.php>`_
-
-.. _building#osx:
-
-OSX
-===
-This is just some notes -- it is incomplete and might be entirely off the mark.
-Virtaal and all dependencies run on OSX, but we still need help to document the
-simplest process, and to build installable packages.
-
-This was tried so far on Mac OSX Tiger (10.5):
-
-Install the "inst" directory from this disk image somewhere:
-http://www.immunityinc.com/downloads/CANVAS_OSX_SUPPORT.dmg
-
-This GTK+ port does not need X11.
-
-add ``inst/lib/python2.5/site-packages`` to :envvar:`PYTHONPATH`
-
-run python bin/virtaal
-
-If you want, get the OS X Leopard theme: http://kims-area.com/?q=node/4 Install
-it into `inst/share/themes/` and add an environment variable::
-
-   export GTK2_RC_FILES=inst/share/themes/OS\ X\ Leopard/gtk-2.0/gtkrc
-
-.. image:: /_static/virtaal-osx.png
-
-Older
+macOS
 -----
-Older attempt, no success yet using this way:
 
-Install the Gtk+ Mac OSX framework: https://www.gtk.org/download/macos.php
-Install pygtk and pygobject from the GNOME FTP mirrors: ftp://ftp.gnome.org./pub/GNOME/sources/
-(extract, still need to get pygobject installed)
+::
+
+  devsupport/packaging/macos/build_standalone.sh
+  devsupport/packaging/macos/build_dmg.sh
+
+The first produces ``Virtaal.app`` (PyInstaller); the second wraps it
+into a ``.dmg`` via `dmgbuild
+<https://dmgbuild.readthedocs.io/>`_ (settings in
+``devsupport/packaging/macos/dmgbuild-settings.py``).
+
+Linux
+-----
+
+No frozen/installer build exists for Linux in this fork - run from
+source (above), or package it yourself using the "Running From
+Source" dependencies as your spec.
+
+.. _building#building_the_docs:
+
+Building These Docs
+====================
+
+::
+
+  pip install Sphinx
+  cd docs
+  make html
+
+CI builds these same docs with ``-W`` (warnings treated as errors) -
+run the same way locally before pushing a docs change, rather than
+finding out from a failed CI run.
