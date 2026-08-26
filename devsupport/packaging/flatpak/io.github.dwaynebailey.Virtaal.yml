@@ -70,6 +70,20 @@ modules:
         > virtaal.desktop
       - sed -E 's/<(\/?)_([a-z]+)/<\1\2/g' share/metainfo/virtaal.metainfo.xml.in
         > virtaal.metainfo.xml
+      # The shared .desktop.in's Icon=virtaal key is correct for the
+      # regular (non-Flatpak) Linux install, which keeps the icon's
+      # original, unrenamed basename (see setup.py's flat
+      # share/icons/*.* install) - deliberately not changed there.
+      # Inside the sandbox the icon IS renamed to the app-id (below),
+      # so this build's own copy of the desktop file needs its Icon=
+      # key updated to match, or appstreamcli compose (part of
+      # flatpak-builder's finish stage) fails with icon-not-found:
+      # confirmed directly against the real build-flatpak CI failure
+      # (run 33004835693) - Flatpak's own desktop-file conventions
+      # require Icon= to equal the application ID after a rename like
+      # this. Scoped to this build's own copy only.
+      - sed -i 's/^Icon=virtaal$/Icon=io.github.dwaynebailey.Virtaal/'
+        virtaal.desktop
       # Desktop/metainfo/icon renamed to match this manifest's own
       # app-id, same pattern flathub/org.gnome.meld's own manifest uses
       # (rename-appdata-file) - see share/metainfo/virtaal.metainfo.xml.in's
