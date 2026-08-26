@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Copyright 2013,2016 F Wolff <friedel _at_ translate.org.za> -->
-<component>
- <id type="desktop">org.virtaal.desktop</id>
+<component type="desktop-application">
+ <id>io.github.dwaynebailey.Virtaal</id>
  <metadata_license>CC-BY-SA-3.0</metadata_license>
- <project_license>GPL-2.0+</project_license>
+ <project_license>GPL-2.0-or-later</project_license>
  <!-- l10n: The name should be less than 30 characters -->
  <_name>Virtaal Translation Tool</_name>
  <!-- l10n: The summary should be less than 100 characters -->
@@ -27,20 +27,31 @@
  </description>
  <screenshots>
   <screenshot type="default">
-    <image>https://raw.github.com/translate/virtaal/master/docs/_static/appdata/welcome.png</image>
+    <image>https://raw.githubusercontent.com/dwaynebailey/virtaal/py3/docs/_static/appdata/welcome.png</image>
     <!-- l10n: Captions should be shorter than 50 characters -->
     <_caption>Easy access to recent files and documentation</_caption>
   </screenshot>
   <screenshot>
-    <image>https://raw.github.com/translate/virtaal/master/docs/_static/appdata/placeable.png</image>
+    <image>https://raw.githubusercontent.com/dwaynebailey/virtaal/py3/docs/_static/appdata/placeable.png</image>
     <_caption>Recognized elements don't need to be typed</_caption>
   </screenshot>
   <screenshot>
-    <image>https://raw.github.com/translate/virtaal/master/docs/_static/appdata/window.png</image>
+    <image>https://raw.githubusercontent.com/dwaynebailey/virtaal/py3/docs/_static/appdata/window.png</image>
     <_caption>Quality checks while you type</_caption>
   </screenshot>
  </screenshots>
- <url type="homepage">http://virtaal.org/</url>
+ <url type="homepage">https://virtaal.translatehouse.org</url>
+ <url type="bugtracker">https://github.com/dwaynebailey/virtaal/issues</url>
+ <url type="vcs-browser">https://github.com/dwaynebailey/virtaal</url>
  <update_contact>dev _at_ translate.org.za</update_contact>
  <translation type="gettext">virtaal</translation>
+ <launchable type="desktop-id">io.github.dwaynebailey.Virtaal.desktop</launchable>
+ <!-- No objectionable content of any kind - a translation editor. -->
+ <content_rating type="oars-1.1"/>
+ <releases>
+  <!-- Kept in sync by hand with virtaal/__version__.py's own `ver` -
+       see FEATURE-FLATPAK.md. Date is this entry's own last edit, not
+       necessarily today's build date. -->
+  <release version="1.0.0-beta1" date="2026-08-26"/>
+ </releases>
 </component>
