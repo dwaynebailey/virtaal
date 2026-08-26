@@ -1,60 +1,109 @@
 
-.. _testing#gui_tests:
+.. _testing#testing:
 
-GUI Tests
-*********
+Testing
+*******
 
-.. note:: This page describes an out-of-date method for running automated tests
-   for Virtaal. The testing framework for Virtaal will probably change into
-   something entirely different. This page is only left as a reference.
+.. note:: This replaces a page that described running Dogtail/Accerciser
+   GUI tests against Python 2.5 (2008) - none of that tooling is used
+   any more. Three real, current layers exist instead, covering
+   different things.
 
-.. _testing#required_packages:
+.. _testing#unit_tests:
 
-Required Packages
-=================
+1. The pytest Suite
+====================
 
-* Dogtail
-* Gnome's accessibility framework
+Real, automated, runs in CI on every push across Python 3.10 through
+3.14 (Linux) and macOS - see ``.github/workflows/ci.yml``'s ``test``/
+``test-macos`` jobs. Lives under ``virtaal/`` as ``test_*.py`` files
+next to the code they cover (e.g. ``virtaal/test/test_storemodel.py``,
+``virtaal/plugins/test_spellchecker.py``), plus a couple of
+``demo_*.py`` files (``virtaal/views/widgets/demo_textbox.py`` and
+siblings) that are deliberately *not* picked up by pytest - those are
+manual, interactive GTK demo runners predating the automated suite,
+kept for hands-on widget debugging, not real coverage.
 
-.. _testing#running_the_tests:
+Run it the same way CI does::
 
-Running the Tests
-=================
+  pip install --no-build-isolation .[test]
+  pytest -rvxs virtaal
 
-.. note:: For KDE users: You must run ``gnome-session`` before you can run any
-   of the GUI tests. ``gnome-session`` might complain that another session
-   manager is already running, but it will nevertheless start up the
-   accessibility services which you need to run the GUI tests.
+On Linux without a real display, wrap it in ``xvfb-run`` (CI does)::
 
-The tests are located under the directory called ``gui_tests``. Currently, the
-tests must be executed from within ``gui_tests``.
+  xvfb-run -a --server-args="-screen 0 1024x768x24" pytest -rvxs virtaal
 
-.. _testing#writing_gui_tests:
+.. _testing#run_virtaal:
 
-Writing GUI Tests
-=================
+2. Driving a Real Instance (``run-virtaal``)
+=============================================
 
-`Accerciser <https://live.gnome.org/Accerciser>`_ allows you to inspect the GUI
-of a running application that was started using the Gnome at-spi framework.
-Dogtail does this when it launches an application; the easiest way to do this
-is to launch a Python shell. The following Python session shows the necessary
-steps and the expected output::
+For anything the pytest suite can't reach - does the app actually
+*launch*, does a real file open correctly, does a plugin load without
+error - there's a small bash driver at
+``.claude/skills/run-virtaal/driver.sh`` that launches a real Virtaal
+instance in the background, screenshots it, and reads its log, without
+needing to sit and watch a window::
 
-  Python 2.5.2 (r252:60911, Apr 21 2008, 11:12:42)
-  [GCC 4.2.3 (Ubuntu 4.2.3-2ubuntu7)] on linux2
-  Type "help", "copyright", "credits" or "license" for more information.
-  >>> from dogtail.utils import run
-  Creating logfile at /tmp/dogtail/logs/log_20080516-115347_debug ...
-  >>> run("./run_virtaal.py")
-  Detecting distribution: Ubuntu (or derived distribution)
+  .claude/skills/run-virtaal/driver.sh setup    # once, creates .venv
+  .claude/skills/run-virtaal/driver.sh launch devsupport/testfiles/checks.po
+  .claude/skills/run-virtaal/driver.sh alive     # "yes"/"no"
+  .claude/skills/run-virtaal/driver.sh screenshot /tmp/shot.png
+  .claude/skills/run-virtaal/driver.sh log
+  .claude/skills/run-virtaal/driver.sh quit
 
-You will now see ``run_virtaal.py`` in Accerciser's left column. You can now
-use Accerciser to find the names of various widgets which you can use to write
-Dogtail tests for Virtaal.
+Despite living under ``.claude/skills/`` (written for/by Claude Code
+agents working on this fork), every command above is a plain shell
+script - equally usable by hand. Its own ``SKILL.md`` documents a long
+list of real gotchas found running this app for real (missing-
+dependency failure modes, a known native teardown segfault, why plain
+``python3 -m venv`` doesn't work on macOS) worth reading regardless of
+whether you're using Claude Code.
 
-.. _testing#external_links:
+Real translation files for manual testing live under
+``devsupport/testfiles/`` - ``checks.po`` (exercises most quality
+checks), ``plurals.po``/``plurals-zero.po`` (nplurals=3 and nplurals=1
+respectively), and others added as specific bugs were found and fixed.
 
-External Links
-==============
-- Some discussions on Dogtail:
-  http://lists.freedesktop.org/archives/ldtp-dev/2006-October/000484.html
+.. _testing#windows_battery:
+
+3. The Windows UI Regression Battery
+======================================
+
+A PowerShell script,
+``devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1``, drives
+a real installed Windows build through a real UI regression battery -
+install, launch, send real keystrokes/clicks via Win32 APIs, screenshot,
+assert on window titles and log content, uninstall. Windows-specific
+because it exercises real Windows behaviour (installer, window
+management, antivirus-on-first-launch timing) that can't be
+represented any other way.
+
+Run the full battery::
+
+  .\devsupport\testing\windows\Invoke-VirtaalLocalTestPass.ps1
+
+Useful flags, found worth having while chasing specific bugs:
+
+- ``-RunTest <N>`` (or a comma list, e.g. ``-RunTest 8,17``) - run only
+  specific checks by number, instead of the whole battery. Much faster
+  for iterating on one fix; save the full unfiltered run for a final
+  "did anything else regress" pass.
+- ``-DebugLog`` on an individual check's own ``Start-VirtaalTest`` call
+  (already wired into specific checks in the script) surfaces that
+  one launch's Python-level debug logging.
+- ``-AppDebugLog`` turns debug logging on for *every* launch in the
+  run. Confirmed live to sometimes cause its own cascading slowdown
+  across a full run (extra log output competing for I/O with the
+  transcript capture) - useful for a targeted ``-RunTest`` drill-down,
+  not recommended as the default for a full run.
+- ``-HumanDelayMs <N>`` slows every scripted interaction so a human
+  can actually watch the run happen, at the cost of a much longer
+  total run time.
+
+The script's own extensive inline comments document a long history of
+real bugs found and fixed through this exact tool - worth reading
+before changing it, several non-obvious Windows/PowerShell gotchas are
+explained there in detail (native stderr handling under strict
+``ErrorActionPreference``, WebDAV-mounted shared-folder quirks,
+``git diff --quiet``'s exact exit-code contract).
