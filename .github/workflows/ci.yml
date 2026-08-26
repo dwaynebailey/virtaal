@@ -834,6 +834,43 @@ jobs:
           path: dist\installer\*.exe
           if-no-files-found: error
 
+  build-flatpak:
+    # Distro-independent Linux build - see FEATURE-FLATPAK.md for the
+    # full design. flatpak-builder is Linux-only tooling (bubblewrap/
+    # OSTree) - this job is the *only* place this manifest can actually
+    # be built/tested at all, unlike the Windows/macOS packaging this
+    # session could verify locally too. Not gated on tag pushes like
+    # release: - build-and-smoke-test on every push for now, matching
+    # the "prove it works, not just that it parses" standard the other
+    # packaging jobs already meet, while this is still being proven out
+    # (test on dwaynebailey first, not Flathub yet).
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install flatpak and flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --if-not-exists --user flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Install the GNOME runtime/SDK
+        run: |
+          flatpak install --user -y flathub org.gnome.Platform//50 org.gnome.Sdk//50
+
+      - name: Build the Flatpak
+        working-directory: devsupport/packaging/flatpak
+        run: |
+          flatpak-builder --user --install-deps-from=flathub --force-clean \
+            --repo=repo build-dir io.github.dwaynebailey.Virtaal.yml
+
+      - name: Smoke test - the built app actually runs
+        working-directory: devsupport/packaging/flatpak
+        run: |
+          flatpak-builder --run build-dir io.github.dwaynebailey.Virtaal.yml \
+            virtaal --version
+
   release:
     # Fires only on a `v*` tag push (e.g. v1.0.0-beta2) - see
     # FEATURE-RELEASE-PROCESS.md for the design this implements.
