@@ -1,0 +1,85 @@
+# Generated with flatpak-pip-generator --yaml --requirements-file=requirements.txt --output virtaal-python-deps
+name: virtaal-python-deps
+buildsystem: simple
+build-commands: []
+modules:
+  - name: python3-translate-toolkit
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "translate-toolkit" --no-build-isolation
+    sources:
+      - &id001
+        type: file
+        url: https://files.pythonhosted.org/packages/ad/a9/970b8fa0ecc4fbf1dfaed0d89bbc1fc1421b25ec26a2038c91e872dc6c8e/lxml-6.1.2.tar.gz
+        sha256: 1055241852f2b02068af4a625a5d32c087db193c12251928af2562ecd2239f18
+      - type: file
+        url: https://files.pythonhosted.org/packages/33/6b/5ee7fab140e1bea5d09b0096fb7f6cf0cb84a56ef0d91c45992a0f557b46/translate_toolkit-3.19.18-py3-none-any.whl
+        sha256: fd454595230c158e46017c446ab6359a2f50246345f821ca4e90fe0855e7f48e
+      - type: file
+        url: https://files.pythonhosted.org/packages/0b/02/e5804acc54945ecf29a280f5f173db61c019166bfe3adeee386f4c135f17/unicode_segmentation_rs-0.3.3.tar.gz
+        sha256: d6625b2d3435ca814c9dd6590d39ae58ebeb8a4891eecb81446ad8b3e917f39b
+  - name: python3-pycurl
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "pycurl" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/81/bc/705aa3bc36b99946a128d068e1afd4b6f3eebb36c6b97f551f3d2d740460/pycurl-7.47.0.tar.gz
+        sha256: 5e3cf357939da8d4ceefe3c7f305afcf9b47cba66cfd95e7768ca43b38445e14
+  - name: python3-diff_match_patch
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "diff_match_patch" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/f7/bb/2aa9b46a01197398b901e458974c20ed107935c26e44e37ad5b0e5511e44/diff_match_patch-20241021-py3-none-any.whl
+        sha256: 93cea333fb8b2bc0d181b0de5e16df50dd344ce64828226bda07728818936782
+  - name: python3-lxml
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "lxml" --no-build-isolation
+    sources:
+      - *id001
+  - name: python3-python-Levenshtein
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "python-Levenshtein" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/ca/d9/5acd910cb9527d6aeba8dbc0a5d1093e72921f2d0ca586a4594660615688/levenshtein-0.27.4.tar.gz
+        sha256: 3df1c12bf5e485774d6387f3894271ef3724414ecc20dd238ae4d2333e093c83
+      - type: file
+        url: https://files.pythonhosted.org/packages/c0/76/a14c46a124ec1cb731087d05e85dfdd09835a297473e6de52a049dbb8f2c/python_levenshtein-0.27.4-py3-none-any.whl
+        sha256: cf956834cffa7690e2242eec385b77805fe256d164015583ba45649dc75144e1
+      - type: file
+        url: https://files.pythonhosted.org/packages/2c/21/ef6157213316e85790041254259907eb722e00b03480256c0545d98acd33/rapidfuzz-3.14.5.tar.gz
+        sha256: ba10ac57884ce82112f7ed910b67e7fb6072d8ef2c06e30dc63c0f604a112e0e
+  - name: python3-cheroot
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "cheroot" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/41/99/af65511a10c4212438ac52bc5e45e486e7a04d292201ad84dfd9208fe9a8/cheroot-11.1.2-py3-none-any.whl
+        sha256: 0f6c0ba05c00fbc869fb46b1de4ec2384e1d85418ae963d3bc10ae83b688dbfa
+      - type: file
+        url: https://files.pythonhosted.org/packages/02/36/ecc85bc96c273dc8a11273ed4782272975e6338d4a3e9228621175edf0e3/jaraco_functools-4.6.0-py3-none-any.whl
+        sha256: 99e3dc0060c5cbe8fcd1cdb36258e2a65ca40f1566b2033b12abb1bb44dd3c30
+      - type: file
+        url: https://files.pythonhosted.org/packages/e8/3d/1087453384dbde46a8c7f9356eead2c58be8a7bf156bca40243377c85715/more_itertools-11.1.0-py3-none-any.whl
+        sha256: 4b65538ae22f6fed0ce4874efd317463a7489796a0939fa66824dd542125a192
+  - name: python3-pyenchant
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "pyenchant" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/38/b0/35926bad6885fb7bc24aa7e1b45e6d86540c6c57ee4abc4fed1ef58d4ec0/pyenchant-3.3.0-py3-none-any.whl
+        sha256: 3da00b1d01314d85aac733bb997415d7a3e875666dc81735ddcf320aa36b7a70

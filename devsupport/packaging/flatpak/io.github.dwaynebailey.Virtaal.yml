@@ -1,0 +1,88 @@
+id: io.github.dwaynebailey.Virtaal
+# Reverse-DNS convention for a project without a dedicated domain
+# (docs.flatpak.org's own naming guidance) - honest about this being
+# dwaynebailey/virtaal's own fork build, not an official
+# translatehouse.org release. See FEATURE-FLATPAK.md for the full
+# reasoning and the "test on dwaynebailey first, not Flathub yet"
+# scope this manifest is deliberately built for.
+runtime: org.gnome.Platform
+runtime-version: "50"
+sdk: org.gnome.Sdk
+command: virtaal
+
+finish-args:
+  # Deliberately minimal - no --filesystem=host. Gtk.FileChooserDialog
+  # (already what Ctrl+O/Save use) works through the portal-provided
+  # file picker automatically inside a sandbox; only widen this if
+  # real testing shows the portal-based picker genuinely isn't enough
+  # (see FEATURE-FLATPAK.md).
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  # TM/terminology plugins do real HTTP lookups (virtaal/plugins/tm/,
+  # virtaal/plugins/terminology/) - genuinely needed, not a default.
+  - --share=network
+
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /share/gir-1.0
+  - /share/man
+  - "*.la"
+  - "*.a"
+
+modules:
+  # Real, hash-pinned Python dependencies, generated (not hand-written)
+  # via flatpak/flatpak-builder-tools' own flatpak-pip-generator against
+  # this repo's actual pyproject.toml dependency list. Confirmed live,
+  # 2026-08-26: correctly picked source tarballs (not prebuilt wheels)
+  # for everything with a compiled extension (lxml, pycurl, Levenshtein/
+  # rapidfuzz), so this builds cleanly on Linux regardless of having
+  # been generated on macOS - only genuinely universal py3-none-any
+  # wheels were kept as-is.
+  - virtaal-python-deps.yaml
+
+  - name: virtaal
+    buildsystem: simple
+    build-commands:
+      # --no-build-isolation: same reasoning as ci.yml's own "Install
+      # virtaal" step - setup.py imports translate-toolkit directly at
+      # the top level (to compile .mo files), which needs it already
+      # installed (the module above) rather than pip provisioning its
+      # own isolated build env.
+      - pip3 install --verbose --exists-action=i --no-build-isolation
+        --prefix=${FLATPAK_DEST} .
+      # The real .desktop/.metainfo.xml need `./maketranslations`
+      # (intltool-merge, pulling in po/'s translations) to exist at
+      # all - skipped here deliberately for this first testing pass
+      # (see FEATURE-FLATPAK.md's own scope note): building intltool
+      # itself needs a Perl 5.26+ compatibility patch
+      # (flathub/shared-modules' own intltool-0.51.json module), more
+      # than warranted before this manifest has even been proven to
+      # build at all. `_Key=`/`<_tag>` is intltool's own convention for
+      # marking a translatable string - stripping the leading
+      # underscore directly produces a valid, English-only .desktop/
+      # metainfo file without needing the real merge tool. Real
+      # translation merging is a follow-up once the manifest itself is
+      # proven working, not a blocker to a first working build.
+      - sed -E 's/^_([A-Za-z]+)=/\1=/' share/applications/virtaal.desktop.in
+        > virtaal.desktop
+      - sed -E 's/<(\/?)_([a-z]+)/<\1\2/g' share/metainfo/virtaal.metainfo.xml.in
+        > virtaal.metainfo.xml
+      # Desktop/metainfo/icon renamed to match this manifest's own
+      # app-id, same pattern flathub/org.gnome.meld's own manifest uses
+      # (rename-appdata-file) - see share/metainfo/virtaal.metainfo.xml.in's
+      # own <launchable> tag, which already names the renamed form.
+      - install -Dm644 virtaal.desktop
+        ${FLATPAK_DEST}/share/applications/io.github.dwaynebailey.Virtaal.desktop
+      - install -Dm644 virtaal.metainfo.xml
+        ${FLATPAK_DEST}/share/metainfo/io.github.dwaynebailey.Virtaal.metainfo.xml
+      - install -Dm644 share/icons/virtaal.png
+        ${FLATPAK_DEST}/share/icons/hicolor/64x64/apps/io.github.dwaynebailey.Virtaal.png
+    sources:
+      # CI already has the full checkout right there - a local dir
+      # source always builds exactly the commit under test, no lag
+      # against whatever's been pushed to GitHub separately.
+      - type: dir
+        path: ../../..
