@@ -1,8 +1,16 @@
+:orphan:
 
 .. _fedora_custom_repo#fedora_custom_repo:
 
 Fedora Custom Repo
 ==================
+
+.. note:: Left in place as a historical record, not linked from any
+   current page (2026-08-26 docs review) - this repo was for the
+   original upstream ``translate/virtaal`` project, before this fork.
+   No equivalent exists for ``dwaynebailey/virtaal`` - see
+   :doc:`the current install instructions <index>` instead.
+
 
 Fedora package policy limits updates to security and bufix releases.  Thus new
 versions of Virtaal won't make it into the official repository.  But if you

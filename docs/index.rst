@@ -40,46 +40,41 @@ people who want to customise their installation.
 
 Installation
 ============
-.. toctree::
-   :maxdepth: 1
-   :hidden:
 
-   fedora_custom_repo
+.. note:: This documents `dwaynebailey/virtaal
+   <https://github.com/dwaynebailey/virtaal>`_, an active fork
+   continuing development (including a Python 3 port) after the
+   original `translate/virtaal
+   <https://github.com/translate/virtaal>`_ project archived. There's
+   no polished download page or distro packages for this fork yet -
+   the options below are what's actually available today.
 
-+-----------------+--------------------------------------------------------------+---------------------------------------------+
-| Platform        | Instructions                                                 |  Notes                                      |
-+=================+==============================================================+=============================================+
-| Windows         | `Download Virtaal setup.exe                                  | Includes all dependencies                   |
-|                 | <http://sourceforge.net/projects/translate/files/Virtaal/>`_ |                                             |
-+-----------------+--------------------------------------------------------------+---------------------------------------------+
-| Mac OS X        | `Download Virtaal .dmg                                       | Beta release. OS X 10.5 and greater         |
-|                 | <http://sourceforge.net/projects/translate/files/Virtaal/>`_ |                                             |
-+-----------------+--------------------------------------------------------------+---------------------------------------------+
-| Ubuntu          | `Translate.org.za Tools PPA                                  | Also available in software center           |
-|                 | <https://launchpad.net/~translate.org.za/+archive/ppa>`_     |                                             |
-+-----------------+--------------------------------------------------------------+---------------------------------------------+
-| Fedora          | yum install virtaal                                          | Or use the graphical package manager.       |
-|                 |                                                              | For older Fedora releases use the           |
-|                 |                                                              | :doc:`custom repo <fedora_custom_repo>`     |
-+-----------------+--------------------------------------------------------------+---------------------------------------------+
-| Mandriva        | urpmi virtaal                                                | Or simply use the graphical package manager |
-+-----------------+--------------------------------------------------------------+---------------------------------------------+
-| Debian Squeeze  | apt-get install virtaal                                      | Or simply use the graphical package manager |
-+-----------------+--------------------------------------------------------------+---------------------------------------------+
-| openSUSE        | zypper install virtaal                                       | Or simply use the graphical package manager |
-+-----------------+--------------------------------------------------------------+---------------------------------------------+
-| Other           | `Download source .zip or .tar.bz2                            | Make sure you have all the dependencies     |
-|                 | <http://sourceforge.net/projects/translate/files/Virtaal>`_  | including the latest Translate Toolkit      |
-+-----------------+--------------------------------------------------------------+---------------------------------------------+
++-----------------+------------------------------------------------------------------------+-----------------------------------------------+
+| Platform        | Instructions                                                           | Notes                                         |
++=================+========================================================================+===============================================+
+| Windows         | Grab the latest ``Virtaal-windows-installer`` artifact from a          | Built fresh on every commit to ``py3``        |
+|                 | successful `Actions run                                                |                                               |
+|                 | <https://github.com/dwaynebailey/virtaal/actions>`_, or build it       |                                               |
+|                 | yourself - see :doc:`building`                                         |                                               |
++-----------------+------------------------------------------------------------------------+-----------------------------------------------+
+| macOS           | Grab the latest ``Virtaal-macos-dmg`` artifact the same way, or build  | Built fresh on every commit to ``py3``        |
+|                 | it yourself - see :doc:`building`                                      |                                               |
++-----------------+------------------------------------------------------------------------+-----------------------------------------------+
+| Linux and other | Run from a checkout, or build it yourself - see :doc:`building`        | No distro packages exist for this fork        |
++-----------------+------------------------------------------------------------------------+-----------------------------------------------+
 
 .. _index#contact:
 
 Contact
 =======
-- Chat in our `channel <https://gitter.im/translate/pootle>`_
-- `Report bugs <https://github.com/translate/virtaal/issues/new>`_
-- Join the `Translate-devel mailing list
-  <https://lists.sourceforge.net/lists/listinfo/translate-devel>`_
+- `Report bugs or request features on this fork
+  <https://github.com/dwaynebailey/virtaal/issues/new>`_ - the
+  primary, actively-watched channel for this fork specifically.
+- The wider Translate community (covers the whole Translate Toolkit/
+  Pootle/Virtaal family, not just this fork) still has a `Gitter
+  channel <https://gitter.im/translate/pootle>`_ and a `Translate-devel
+  mailing list <https://lists.sourceforge.net/lists/listinfo/translate-devel>`_ -
+  both confirmed still reachable, though quieter than they once were.
 
 .. _index#contributing:
 
