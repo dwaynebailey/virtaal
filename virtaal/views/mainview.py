@@ -172,6 +172,30 @@ class MainView(BaseView):
                 import logging
                 logging.debug("GtkosxApplication not found (brew install gtk-mac-integration for native macOS menu-bar integration). Expect zero integration with the Mac desktop.")
 
+        elif sys.platform == 'win32':
+            # Follow Windows' own light/dark app theme setting - same
+            # reasoning and shape as the macOS block above (GTK3 themes
+            # already derive their colours from gtk-application-prefer-
+            # dark-theme, this is the one piece that was missing on
+            # Windows specifically). AppsUseLightTheme is the standard,
+            # widely-used registry value for this (same one the
+            # `darkdetect` package and many other cross-toolkit apps
+            # read) - 0 means dark, 1 (or the key being absent, e.g. on
+            # a Windows version too old to have per-app theming) means
+            # light.
+            try:
+                import winreg
+                key = winreg.OpenKey(
+                    winreg.HKEY_CURRENT_USER,
+                    r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+                apps_use_light_theme, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+                winreg.CloseKey(key)
+                Gtk.Settings.get_default().set_property(
+                    "gtk-application-prefer-dark-theme", apps_use_light_theme == 0)
+            except OSError:
+                import logging
+                logging.exception("Couldn't determine Windows theme")
+
         self.main_window.connect('destroy', self._on_quit)
         self.main_window.connect('delete-event', self._on_quit)
         # File menu signals
