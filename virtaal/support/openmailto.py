@@ -58,7 +58,7 @@ class Controller(BaseController):
     '''Controller for a generic open program.'''
 
     def __init__(self, *args):
-        super().__init__(os.path.basename(args[0]))
+        super(Controller, self).__init__(os.path.basename(args[0]))
         self.args = list(args)
 
     def _invoke(self, cmdline):
@@ -143,7 +143,7 @@ else:
         '''Controller for the KDE kfmclient program.'''
 
         def __init__(self, kfmclient='kfmclient'):
-            super().__init__(kfmclient, 'exec')
+            super(KfmClient, self).__init__(kfmclient, 'exec')
 
 
     def detect_desktop_environment():
