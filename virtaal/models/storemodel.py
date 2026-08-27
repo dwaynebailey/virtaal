@@ -66,7 +66,7 @@ class StoreModel(BaseModel):
 
     # INITIALIZERS #
     def __init__(self, fileobj, controller):
-        super(StoreModel, self).__init__()
+        super().__init__()
         self.controller = controller
         self.load_file(fileobj)
 
