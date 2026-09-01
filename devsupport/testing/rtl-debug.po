@@ -1,0 +1,2556 @@
+# A synthetic RTL translation of Virtaal's own UI catalog (po/virtaal.pot),
+# for testing whether the app's whole chrome (menus, toolbar, panels - not
+# just editor text) actually mirrors under a right-to-left UI language.
+# Dwayne's suggestion, 2026-08-25, as the fuller version of testing bidi
+# support - devsupport/testfiles/rtl.po covers RTL *content* inside the
+# editor; this covers RTL *layout*, a currently entirely untested,
+# different risk area.
+#
+# Generated via translate-toolkit's own podebug (--rewrite=flipped, same
+# mechanism as rtl.po - see that file's own header for what it does and
+# why), run against po/virtaal.pot directly rather than any real
+# community translation, so it has full, current coverage of every UI
+# string - not a real language, deliberately: legible-ish (flipped
+# Unicode glyphs) for a non-Arabic/Farsi-reading developer to sanity-check
+# against the real English UI, unlike real Arabic/Farsi content would be.
+#
+# Tagged Language: fa (Farsi/Persian) rather than the more obvious `ar` -
+# both are genuinely RTL-recognised by GTK/Pango's own language-direction
+# tables, but `ar` already ships a real community translation (po/ar.po,
+# listed in po/LINGUAS) that this would otherwise shadow/clobber if
+# compiled into the same installed slot; `fa` has no real Virtaal
+# translation at all, so there's nothing to collide with.
+#
+# NOT a real translation - never add to po/LINGUAS or ship this in a
+# release build. Compile with translate.tools.pocompile.convertmo (same
+# pure-Python compiler setup.py's own mo-compile step uses, no external
+# msgfmt needed) into share/locale/fa/LC_MESSAGES/virtaal.mo relative to
+# a virtaal.exe, then launch with LANG=fa_IR.UTF-8/LANGUAGE=fa - see
+# devsupport/testing/windows/Enable-VirtaalRtlDebug.ps1 for the actual
+# Windows procedure (the only platform whose frozen build has the
+# fix_libintl locale-binding this needs already wired up and exercised -
+# see virtaal/common/pan_app.py). Regenerate by re-running podebug
+# against a fresh po/virtaal.pot and re-applying this same header fixup
+# (Language: fa, clear the header's own fuzzy flag, a real Plural-Forms
+# line) if virtaal's own UI strings change enough to matter.
+#
+# Copyright (C) YEAR Zuza Software Foundation (Translate.org.za)
+# This file is distributed under the same license as the Virtaal package.
+#: ../virtaal/support/native_widgets.py:50
+#: ../virtaal/support/native_widgets.py:51
+msgid ""
+msgstr ""
+"Project-Id-Version: Virtaal 1.0.0-beta1\n"
+"Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
+"POT-Creation-Date: 2026-08-23 00:33+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: podebug --rewrite=flipped\n"
+"Language-Team: Virtaal test suite (synthetic RTL debug catalog, not a real "
+"translation)\n"
+"Language: fa\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: ../share/applications/virtaal.desktop.in.h:1
+#: ../share/virtaal/virtaal.ui.h:18 ../virtaal/views/mainview.py:855
+msgid "Virtaal"
+msgstr "‮Ʌıɹʇɐɐʅ"
+
+#: ../share/applications/virtaal.desktop.in.h:2
+msgid "Translation Tool"
+msgstr "‮⊥ɹɐusʅɐʇıou ⊥ooʅ"
+
+#. l10n: The summary should be less than 100 characters
+#: ../share/applications/virtaal.desktop.in.h:3
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:4
+msgid ""
+"A translation tool to help a human translator translate files into other "
+"languages"
+msgstr ""
+"‮∀ ʇɹɐusʅɐʇıou ʇooʅ ʇo ɥǝʅd ɐ ɥnɯɐu ʇɹɐusʅɐʇoɹ ʇɹɐusʅɐʇǝ ɟıʅǝs ıuʇo oʇɥǝɹ "
+"ʅɐuƃnɐƃǝs"
+
+#. l10n: The name should be less than 30 characters
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:2
+msgid "Virtaal Translation Tool"
+msgstr "‮Ʌıɹʇɐɐʅ ⊥ɹɐusʅɐʇıou ⊥ooʅ"
+
+#. l10n: Paragraphs should be less than 600 characters
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:6
+msgid ""
+"Virtaal is a program for doing translation. It aims for a delightful "
+"combination of simplicity and power. It integrates with selected online "
+"resources to make translation fun, while helping to improve translation "
+"quality."
+msgstr ""
+"‮Ʌıɹʇɐɐʅ ıs ɐ dɹoƃɹɐɯ ɟoɹ poıuƃ ʇɹɐusʅɐʇıou˙ Iʇ ɐıɯs ɟoɹ ɐ pǝʅıƃɥʇɟnʅ "
+"ɔoɯqıuɐʇıou oɟ sıɯdʅıɔıʇʎ ɐup doʍǝɹ˙ Iʇ ıuʇǝƃɹɐʇǝs ʍıʇɥ sǝʅǝɔʇǝp ouʅıuǝ "
+"ɹǝsonɹɔǝs ʇo ɯɐʞǝ ʇɹɐusʅɐʇıou ɟnu´ ʍɥıʅǝ ɥǝʅdıuƃ ʇo ıɯdɹoʌǝ ʇɹɐusʅɐʇıou "
+"bnɐʅıʇʎ˙"
+
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:7
+msgid ""
+"The initial focus is on software translation (localization or l10n), but is "
+"definitely meant to be useful as a general purpose tool for Computer Aided "
+"Translation (CAT)."
+msgstr ""
+"‮⊥ɥǝ ıuıʇıɐʅ ɟoɔns ıs ou soɟʇʍɐɹǝ ʇɹɐusʅɐʇıou (ʅoɔɐʅızɐʇıou oɹ ʅ10‮u)´ qnʇ ıs "
+"pǝɟıuıʇǝʅʎ ɯǝɐuʇ ʇo qǝ nsǝɟnʅ ɐs ɐ ƃǝuǝɹɐʅ dnɹdosǝ ʇooʅ ɟoɹ Ↄoɯdnʇǝɹ ∀ıpǝp ⊥"
+"ɹɐusʅɐʇıou (Ↄ∀⊥)˙"
+
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:8
+msgid "Some features:"
+msgstr "‮Soɯǝ ɟǝɐʇnɹǝs:"
+
+#. l10n: These list items should be less than 100 characters
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:10
+msgid "Translation reuse (translation memory)"
+msgstr "‮⊥ɹɐusʅɐʇıou ɹǝnsǝ (ʇɹɐusʅɐʇıou ɯǝɯoɹʎ)"
+
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:11
+#: ../virtaal/views/widgets/welcomescreen.py:97
+msgid "Terminology assistance"
+msgstr "‮⊥ǝɹɯıuoʅoƃʎ ɐssısʇɐuɔǝ"
+
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:12
+msgid "AutoCompletor and AutoCorrector"
+msgstr "‮∀nʇoↃoɯdʅǝʇoɹ ɐup ∀nʇoↃoɹɹǝɔʇoɹ"
+
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:13
+msgid "Quality checks with customization for many languages"
+msgstr "‮Ònɐʅıʇʎ ɔɥǝɔʞs ʍıʇɥ ɔnsʇoɯızɐʇıou ɟoɹ ɯɐuʎ ʅɐuƃnɐƃǝs"
+
+#. l10n: Captions should be shorter than 50 characters
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:15
+msgid "Easy access to recent files and documentation"
+msgstr "‮Ǝɐsʎ ɐɔɔǝss ʇo ɹǝɔǝuʇ ɟıʅǝs ɐup poɔnɯǝuʇɐʇıou"
+
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:16
+msgid "Recognized elements don't need to be typed"
+msgstr "‮ᴚǝɔoƃuızǝp ǝʅǝɯǝuʇs pou,ʇ uǝǝp ʇo qǝ ʇʎdǝp"
+
+#: ../share/metainfo/virtaal.metainfo.xml.in.h:17
+msgid "Quality checks while you type"
+msgstr "‮Ònɐʅıʇʎ ɔɥǝɔʞs ʍɥıʅǝ ʎon ʇʎdǝ"
+
+#: ../share/virtaal/virtaal.ui.h:1
+msgid "Add Missing Language"
+msgstr "‮∀pp Wıssıuƃ ⅂ɐuƃnɐƃǝ"
+
+#: ../share/virtaal/virtaal.ui.h:2
+msgid "Language name:"
+msgstr "‮⅂ɐuƃnɐƃǝ uɐɯǝ:"
+
+#: ../share/virtaal/virtaal.ui.h:3
+msgid "ISO code:"
+msgstr "‮ISO ɔopǝ:"
+
+#: ../share/virtaal/virtaal.ui.h:4
+msgid "Plural expression:"
+msgstr "‮Ԁʅnɹɐʅ ǝxdɹǝssıou:"
+
+#: ../share/virtaal/virtaal.ui.h:5
+msgid "Number of plurals:"
+msgstr "‮Nnɯqǝɹ oɟ dʅnɹɐʅs:"
+
+#: ../share/virtaal/virtaal.ui.h:6
+msgid ""
+"Depending on the translation task, the plural information might be optional."
+msgstr ""
+"‮ᗡǝdǝupıuƃ ou ʇɥǝ ʇɹɐusʅɐʇıou ʇɐsʞ´ ʇɥǝ dʅnɹɐʅ ıuɟoɹɯɐʇıou ɯıƃɥʇ qǝ odʇıouɐʅ˙"
+
+#: ../share/virtaal/virtaal.ui.h:7
+msgid "<b>Language Information</b>"
+msgstr "<b>‮⅂ɐuƃnɐƃǝ Iuɟoɹɯɐʇıou</b>"
+
+#: ../share/virtaal/virtaal.ui.h:8
+msgid "New Language Pair"
+msgstr "‮Nǝʍ ⅂ɐuƃnɐƃǝ Ԁɐıɹ"
+
+#: ../share/virtaal/virtaal.ui.h:9
+msgid ""
+"The <b>Original</b> is the language from which you are translating, also "
+"called the source language.\n"
+"\n"
+"If you are translating from English to French then English would be your "
+"original or source language."
+msgstr ""
+"‮⊥ɥǝ <b>‮Oɹıƃıuɐʅ</b>‮ ıs ʇɥǝ ʅɐuƃnɐƃǝ ɟɹoɯ ʍɥıɔɥ ʎon ɐɹǝ ʇɹɐusʅɐʇıuƃ´ ɐʅso "
+"ɔɐʅʅǝp ʇɥǝ sonɹɔǝ ʅɐuƃnɐƃǝ˙\n"
+"\n"
+"‮Iɟ ʎon ɐɹǝ ʇɹɐusʅɐʇıuƃ ɟɹoɯ Ǝuƃʅısɥ ʇo Ⅎɹǝuɔɥ ʇɥǝu Ǝuƃʅısɥ ʍonʅp qǝ ʎonɹ "
+"oɹıƃıuɐʅ oɹ sonɹɔǝ ʅɐuƃnɐƃǝ˙"
+
+#: ../share/virtaal/virtaal.ui.h:12
+msgid "<b>Original</b>"
+msgstr "<b>‮Oɹıƃıuɐʅ</b>"
+
+#: ../share/virtaal/virtaal.ui.h:13
+msgid ""
+"The <b>Translation</b> is the language into which you are translating, also "
+"called the target language.\n"
+"\n"
+"If you are translating from English to French then French would be your "
+"translation or target language."
+msgstr ""
+"‮⊥ɥǝ <b>‮⊥ɹɐusʅɐʇıou</b>‮ ıs ʇɥǝ ʅɐuƃnɐƃǝ ıuʇo ʍɥıɔɥ ʎon ɐɹǝ ʇɹɐusʅɐʇıuƃ´ ɐʅso "
+"ɔɐʅʅǝp ʇɥǝ ʇɐɹƃǝʇ ʅɐuƃnɐƃǝ˙\n"
+"\n"
+"‮Iɟ ʎon ɐɹǝ ʇɹɐusʅɐʇıuƃ ɟɹoɯ Ǝuƃʅısɥ ʇo Ⅎɹǝuɔɥ ʇɥǝu Ⅎɹǝuɔɥ ʍonʅp qǝ ʎonɹ "
+"ʇɹɐusʅɐʇıou oɹ ʇɐɹƃǝʇ ʅɐuƃnɐƃǝ˙"
+
+#: ../share/virtaal/virtaal.ui.h:16
+msgid "<b>Translation</b>"
+msgstr "<b>‮⊥ɹɐusʅɐʇıou</b>"
+
+#: ../share/virtaal/virtaal.ui.h:17
+msgid "_Add Missing Language..."
+msgstr "‮_∀pp Wıssıuƃ ⅂ɐuƃnɐƃǝ˙˙˙"
+
+#: ../share/virtaal/virtaal.ui.h:19
+msgid "_File"
+msgstr "‮_Ⅎıʅǝ"
+
+#: ../share/virtaal/virtaal.ui.h:20
+msgid "_Update from Template"
+msgstr "‮_∩dpɐʇǝ ɟɹoɯ ⊥ǝɯdʅɐʇǝ"
+
+#: ../share/virtaal/virtaal.ui.h:21
+msgid "_Export"
+msgstr "‮_Ǝxdoɹʇ"
+
+#: ../share/virtaal/virtaal.ui.h:22
+msgid "_Recent Files"
+msgstr "‮_ᴚǝɔǝuʇ Ⅎıʅǝs"
+
+#: ../share/virtaal/virtaal.ui.h:23
+msgid "_Edit"
+msgstr "‮_Ǝpıʇ"
+
+#. l10n: Activating this menu item copies the whole source (or part thereof) to the target. The "copy" is not necessarily the same as the source: terminology placeables are translated when copied and language-specific punctionation changes are made automatically.
+#: ../share/virtaal/virtaal.ui.h:25
+msgid "Transfer From Source"
+msgstr "‮⊥ɹɐusɟǝɹ Ⅎɹoɯ Sonɹɔǝ"
+
+#. l10n: More information about placeables: http://translate.sourceforge.net/wiki/virtaal/placeables
+#: ../share/virtaal/virtaal.ui.h:27
+msgid "P_revious Placeable"
+msgstr "‮Ԁ_ɹǝʌıons Ԁʅɐɔǝɐqʅǝ"
+
+#: ../share/virtaal/virtaal.ui.h:28
+msgid "_Next Placeable"
+msgstr "‮_Nǝxʇ Ԁʅɐɔǝɐqʅǝ"
+
+#: ../share/virtaal/virtaal.ui.h:29
+msgid "_View"
+msgstr "‮_Ʌıǝʍ"
+
+#: ../share/virtaal/virtaal.ui.h:30
+msgid "_Full Screen"
+msgstr "‮_Ⅎnʅʅ Sɔɹǝǝu"
+
+#: ../share/virtaal/virtaal.ui.h:31
+msgid "_Quality Checks"
+msgstr "‮_Ònɐʅıʇʎ Ↄɥǝɔʞs"
+
+#: ../share/virtaal/virtaal.ui.h:32
+msgid "_Navigation"
+msgstr "‮_Nɐʌıƃɐʇıou"
+
+#: ../share/virtaal/virtaal.ui.h:33
+msgid "P_age Up"
+msgstr "‮Ԁ_ɐƃǝ ∩d"
+
+#: ../share/virtaal/virtaal.ui.h:34
+msgid "_Page Down"
+msgstr "‮_Ԁɐƃǝ ᗡoʍu"
+
+#: ../share/virtaal/virtaal.ui.h:35
+msgid "_Help"
+msgstr "‮_Hǝʅd"
+
+#: ../share/virtaal/virtaal.ui.h:36
+msgid "_Online Help"
+msgstr "‮_Ouʅıuǝ Hǝʅd"
+
+#: ../share/virtaal/virtaal.ui.h:37
+msgid "_Tutorial"
+msgstr "‮_⊥nʇoɹıɐʅ"
+
+#: ../share/virtaal/virtaal.ui.h:38
+msgid "_Localization Guide"
+msgstr "‮_⅂oɔɐʅızɐʇıou ⅁nıpǝ"
+
+#: ../share/virtaal/virtaal.ui.h:39
+msgid "Report a _Bug"
+msgstr "‮ᴚǝdoɹʇ ɐ _Ԑnƃ"
+
+#: ../share/virtaal/virtaal.ui.h:40
+msgid "Virtaal Preferences"
+msgstr "‮Ʌıɹʇɐɐʅ Ԁɹǝɟǝɹǝuɔǝs"
+
+#: ../share/virtaal/virtaal.ui.h:41
+msgid "The name stored in the file header"
+msgstr "‮⊥ɥǝ uɐɯǝ sʇoɹǝp ıu ʇɥǝ ɟıʅǝ ɥǝɐpǝɹ"
+
+#. l10n: This label is for the name of the translator
+#: ../share/virtaal/virtaal.ui.h:43
+msgid "Name:"
+msgstr "‮Nɐɯǝ:"
+
+#: ../share/virtaal/virtaal.ui.h:44
+msgid "The e-mail address stored in the file header"
+msgstr "‮⊥ɥǝ ǝ-ɯɐıʅ ɐppɹǝss sʇoɹǝp ıu ʇɥǝ ɟıʅǝ ɥǝɐpǝɹ"
+
+#: ../share/virtaal/virtaal.ui.h:45
+msgid "E-mail address:"
+msgstr "‮Ǝ-ɯɐıʅ ɐppɹǝss:"
+
+#: ../share/virtaal/virtaal.ui.h:46
+msgid ""
+"The team information stored in the file header. This can be an e-mail "
+"address or a URL, for example."
+msgstr ""
+"‮⊥ɥǝ ʇǝɐɯ ıuɟoɹɯɐʇıou sʇoɹǝp ıu ʇɥǝ ɟıʅǝ ɥǝɐpǝɹ˙ ⊥ɥıs ɔɐu qǝ ɐu ǝ-ɯɐıʅ "
+"ɐppɹǝss oɹ ɐ ∩ᴚ⅂´ ɟoɹ ǝxɐɯdʅǝ˙"
+
+#: ../share/virtaal/virtaal.ui.h:47
+msgid "Team:"
+msgstr "‮⊥ǝɐɯ:"
+
+#: ../share/virtaal/virtaal.ui.h:48
+msgid "<b>Translator Information</b>"
+msgstr "<b>‮⊥ɹɐusʅɐʇoɹ Iuɟoɹɯɐʇıou</b>"
+
+#: ../share/virtaal/virtaal.ui.h:49
+msgid "Source text:"
+msgstr "‮Sonɹɔǝ ʇǝxʇ:"
+
+#: ../share/virtaal/virtaal.ui.h:50
+msgid "Target text:"
+msgstr "‮⊥ɐɹƃǝʇ ʇǝxʇ:"
+
+#: ../share/virtaal/virtaal.ui.h:51
+msgid "Use _Default Fonts"
+msgstr "‮∩sǝ _ᗡǝɟɐnʅʇ Ⅎouʇs"
+
+#: ../share/virtaal/virtaal.ui.h:52
+msgid "<b>Fonts</b>"
+msgstr "<b>‮Ⅎouʇs</b>"
+
+#. l10n: This tab label refers to the general preferences
+#: ../share/virtaal/virtaal.ui.h:54
+msgid "General"
+msgstr "‮⅁ǝuǝɹɐʅ"
+
+#: ../share/virtaal/virtaal.ui.h:55
+msgid ""
+"Placeables are special parts of the text that can be automatically "
+"highlighted and easily inserted into the translation."
+msgstr ""
+"‮Ԁʅɐɔǝɐqʅǝs ɐɹǝ sdǝɔıɐʅ dɐɹʇs oɟ ʇɥǝ ʇǝxʇ ʇɥɐʇ ɔɐu qǝ ɐnʇoɯɐʇıɔɐʅʅʎ "
+"ɥıƃɥʅıƃɥʇǝp ɐup ǝɐsıʅʎ ıusǝɹʇǝp ıuʇo ʇɥǝ ʇɹɐusʅɐʇıou˙"
+
+#: ../share/virtaal/virtaal.ui.h:56
+msgid "Placeables"
+msgstr "‮Ԁʅɐɔǝɐqʅǝs"
+
+#: ../share/virtaal/virtaal.ui.h:57
+msgid "Plug-ins"
+msgstr "‮Ԁʅnƃ-ıus"
+
+#: ../share/virtaal/virtaal.ui.h:58
+msgid "Properties"
+msgstr "‮Ԁɹodǝɹʇıǝs"
+
+#: ../share/virtaal/virtaal.ui.h:59
+msgid "<b>Words</b> (total):"
+msgstr "<b>‮Ｍoɹps</b>‮ (ʇoʇɐʅ):"
+
+#: ../share/virtaal/virtaal.ui.h:60
+msgid "<b>Strings</b> (total):"
+msgstr "<b>‮Sʇɹıuƃs</b>‮ (ʇoʇɐʅ):"
+
+#: ../share/virtaal/virtaal.ui.h:61
+msgid "File type:"
+msgstr "‮Ⅎıʅǝ ʇʎdǝ:"
+
+#: ../share/virtaal/virtaal.ui.h:62
+msgid "File size:"
+msgstr "‮Ⅎıʅǝ sızǝ:"
+
+#: ../share/virtaal/virtaal.ui.h:63
+msgid "Location:"
+msgstr "‮⅂oɔɐʇıou:"
+
+#: ../share/virtaal/virtaal.ui.h:64
+msgid "Add Term"
+msgstr "‮∀pp ⊥ǝɹɯ"
+
+#. l10n: This label refers to comments about a new term that is added
+#: ../share/virtaal/virtaal.ui.h:66
+msgid "C_omments"
+msgstr "‮Ↄ_oɯɯǝuʇs"
+
+#: ../share/virtaal/virtaal.ui.h:67
+msgid "Terminology _file:"
+msgstr "‮⊥ǝɹɯıuoʅoƃʎ _ɟıʅǝ:"
+
+#: ../share/virtaal/virtaal.ui.h:68
+msgid "Terminology Files"
+msgstr "‮⊥ǝɹɯıuoʅoƃʎ Ⅎıʅǝs"
+
+#: ../share/virtaal/virtaal.ui.h:69
+msgid "Add URL"
+msgstr "‮∀pp ∩ᴚ⅂"
+
+#: ../share/virtaal/virtaal.ui.h:70
+msgid "URL:"
+msgstr "‮∩ᴚ⅂:"
+
+#: ../share/virtaal/virtaal.ui.h:71
+msgid "Put queries in quotes"
+msgstr "‮Ԁnʇ bnǝɹıǝs ıu bnoʇǝs"
+
+#: ../share/virtaal/virtaal.ui.h:72
+msgid "<b>Options</b>"
+msgstr "<b>‮Odʇıous</b>"
+
+#: ../share/virtaal/virtaal.ui.h:73
+msgid "Web Look-ups"
+msgstr "‮Ｍǝq ⅂ooʞ-nds"
+
+#. l10n: Remove the tags if underlining is unsuitable for your language. Most languages won
+#: ../share/virtaal/virtaal.ui.h:75
+msgid "<u>Open</u>"
+msgstr "<u>‮Odǝu</u>"
+
+#: ../share/virtaal/virtaal.ui.h:76
+msgid "<b><big>Recent Files</big></b>"
+msgstr "<b><big>‮ᴚǝɔǝuʇ Ⅎıʅǝs</big></b>"
+
+#: ../share/virtaal/virtaal.ui.h:77
+msgid "<u>Tutorial</u>"
+msgstr "<u>‮⊥nʇoɹıɐʅ</u>"
+
+#: ../share/virtaal/virtaal.ui.h:78
+msgid "<u>Cheat Sheet</u>"
+msgstr "<u>‮Ↄɥǝɐʇ Sɥǝǝʇ</u>"
+
+#. l10n: Only change this URL if there is a translated version in your language, or if the default English is really unsuitable for users in your language
+#: ../share/virtaal/virtaal.ui.h:80
+#: ../virtaal/controllers/welcomescreencontroller.py:39
+msgid "http://translate.sourceforge.net/wiki/virtaal/features"
+msgstr "http://translate.sourceforge.net/wiki/virtaal/features"
+
+#: ../share/virtaal/virtaal.ui.h:81
+msgid "<u>More...</u>"
+msgstr "<u>‮Woɹǝ˙˙˙</u>"
+
+#: ../share/virtaal/virtaal.ui.h:82
+msgid "<u>Features</u>"
+msgstr "<u>‮Ⅎǝɐʇnɹǝs</u>"
+
+#: ../share/virtaal/virtaal.ui.h:83
+msgid "<b><big>Getting Started</big></b>"
+msgstr "<b><big>‮⅁ǝʇʇıuƃ Sʇɐɹʇǝp</big></b>"
+
+#. l10n: Only change this URL if there is a translated version in your language, or if the default English is really unsuitable for users in your language
+#: ../share/virtaal/virtaal.ui.h:85
+#: ../virtaal/controllers/welcomescreencontroller.py:35
+msgid "http://translate.sourceforge.net/wiki/virtaal/using_virtaal"
+msgstr "http://translate.sourceforge.net/wiki/virtaal/using_virtaal"
+
+#: ../share/virtaal/virtaal.ui.h:86
+msgid "<u>Manual</u>"
+msgstr "<u>‮Wɐunɐʅ</u>"
+
+#. l10n: Only change this URL if there is a translated version in your language, or if the default English is really unsuitable for users in your language
+#: ../share/virtaal/virtaal.ui.h:88
+#: ../virtaal/controllers/welcomescreencontroller.py:36
+msgid "http://translate.sourceforge.net/wiki/guide/start"
+msgstr "http://translate.sourceforge.net/wiki/guide/start"
+
+#: ../share/virtaal/virtaal.ui.h:89
+msgid "<u>Localization Guide</u>"
+msgstr "<u>‮⅂oɔɐʅızɐʇıou ⅁nıpǝ</u>"
+
+#. l10n: Only change this URL if there is a translated version in your language, or if the default English is really unsuitable for users in your language
+#: ../share/virtaal/virtaal.ui.h:91
+#: ../virtaal/controllers/welcomescreencontroller.py:38
+msgid "http://translate.sourceforge.net/wiki/virtaal/index#contact"
+msgstr "http://translate.sourceforge.net/wiki/virtaal/index#contact"
+
+#: ../share/virtaal/virtaal.ui.h:92
+msgid "<u>Feedback</u>"
+msgstr "<u>‮Ⅎǝǝpqɐɔʞ</u>"
+
+#: ../share/virtaal/virtaal.ui.h:93
+msgid "<b><big>Support</big></b>"
+msgstr "<b><big>‮Snddoɹʇ</big></b>"
+
+#: ../virtaal/tips.py:27
+msgid ""
+"At the end of a translation, simply press <Enter> to continue with the next "
+"one."
+msgstr ""
+"‮∀ʇ ʇɥǝ ǝup oɟ ɐ ʇɹɐusʅɐʇıou´ sıɯdʅʎ dɹǝss <Enter>‮ ʇo ɔouʇıunǝ ʍıʇɥ ʇɥǝ uǝxʇ "
+"ouǝ˙"
+
+#: ../virtaal/tips.py:28
+msgid ""
+"To copy the original string into the target field, simply press <Alt+Down>."
+msgstr ""
+"‮⊥o ɔodʎ ʇɥǝ oɹıƃıuɐʅ sʇɹıuƃ ıuʇo ʇɥǝ ʇɐɹƃǝʇ ɟıǝʅp´ sıɯdʅʎ dɹǝss <∀ʅʇ+ᗡoʍu>˙"
+
+#. l10n: Refer to the translation of "Fuzzy" to find the appropriate shortcut key to recommend
+#: ../virtaal/tips.py:31
+msgid "To mark the current translation as fuzzy, simply press <Alt+U>."
+msgstr "‮⊥o ɯɐɹʞ ʇɥǝ ɔnɹɹǝuʇ ʇɹɐusʅɐʇıou ɐs ɟnzzʎ´ sıɯdʅʎ dɹǝss <∀ʅʇ+∩>˙"
+
+#: ../virtaal/tips.py:32
+msgid ""
+"To mark the current translation as incomplete, simply press "
+"<Ctrl+Shift+Enter>."
+msgstr ""
+"‮⊥o ɯɐɹʞ ʇɥǝ ɔnɹɹǝuʇ ʇɹɐusʅɐʇıou ɐs ıuɔoɯdʅǝʇǝ´ sıɯdʅʎ dɹǝss "
+"<Ↄʇɹʅ+Sɥıɟʇ+Ǝuʇǝɹ>˙"
+
+#: ../virtaal/tips.py:33
+msgid "To mark the current translation as complete, simply press <Ctrl+Enter>."
+msgstr ""
+"‮⊥o ɯɐɹʞ ʇɥǝ ɔnɹɹǝuʇ ʇɹɐusʅɐʇıou ɐs ɔoɯdʅǝʇǝ´ sıɯdʅʎ dɹǝss <Ↄʇɹʅ+Ǝuʇǝɹ>˙"
+
+#: ../virtaal/tips.py:34
+msgid "Use Ctrl+Up or Ctrl+Down to move between translations."
+msgstr "‮∩sǝ Ↄʇɹʅ+∩d oɹ Ↄʇɹʅ+ᗡoʍu ʇo ɯoʌǝ qǝʇʍǝǝu ʇɹɐusʅɐʇıous˙"
+
+#: ../virtaal/tips.py:35
+msgid ""
+"Use Ctrl+PgUp or Ctrl+PgDown to move in large steps between translations."
+msgstr ""
+"‮∩sǝ Ↄʇɹʅ+Ԁƃ∩d oɹ Ↄʇɹʅ+Ԁƃᗡoʍu ʇo ɯoʌǝ ıu ʅɐɹƃǝ sʇǝds qǝʇʍǝǝu ʇɹɐusʅɐʇıous˙"
+
+#: ../virtaal/controllers/checkscontroller.py:29
+msgid "Fuzzy"
+msgstr "‮Ⅎnzzʎ"
+
+#: ../virtaal/controllers/checkscontroller.py:30
+#: ../virtaal/controllers/unitcontroller.py:84
+msgid "Untranslated"
+msgstr "‮∩uʇɹɐusʅɐʇǝp"
+
+#: ../virtaal/controllers/checkscontroller.py:31
+msgid "Accelerators"
+msgstr "‮∀ɔɔǝʅǝɹɐʇoɹs"
+
+#: ../virtaal/controllers/checkscontroller.py:32
+msgid "Acronyms"
+msgstr "‮∀ɔɹouʎɯs"
+
+#: ../virtaal/controllers/checkscontroller.py:33
+msgid "Blank"
+msgstr "‮Ԑʅɐuʞ"
+
+#: ../virtaal/controllers/checkscontroller.py:34
+msgid "Brackets"
+msgstr "‮Ԑɹɐɔʞǝʇs"
+
+#: ../virtaal/controllers/checkscontroller.py:35
+msgid "Compendium conflict"
+msgstr "‮Ↄoɯdǝupınɯ ɔouɟʅıɔʇ"
+
+#: ../virtaal/controllers/checkscontroller.py:36
+msgid "Translator credits"
+msgstr "‮⊥ɹɐusʅɐʇoɹ ɔɹǝpıʇs"
+
+#: ../virtaal/controllers/checkscontroller.py:37
+msgid "Double quotes"
+msgstr "‮ᗡonqʅǝ bnoʇǝs"
+
+#: ../virtaal/controllers/checkscontroller.py:38
+msgid "Double spaces"
+msgstr "‮ᗡonqʅǝ sdɐɔǝs"
+
+#: ../virtaal/controllers/checkscontroller.py:39
+msgid "Repeated word"
+msgstr "‮ᴚǝdǝɐʇǝp ʍoɹp"
+
+#: ../virtaal/controllers/checkscontroller.py:40
+#: ../virtaal/controllers/placeablescontroller.py:98
+msgid "E-mail"
+msgstr "‮Ǝ-ɯɐıʅ"
+
+#: ../virtaal/controllers/checkscontroller.py:41
+msgid "Ending punctuation"
+msgstr "‮Ǝupıuƃ dnuɔʇnɐʇıou"
+
+#: ../virtaal/controllers/checkscontroller.py:42
+msgid "Ending whitespace"
+msgstr "‮Ǝupıuƃ ʍɥıʇǝsdɐɔǝ"
+
+#: ../virtaal/controllers/checkscontroller.py:43
+msgid "Escapes"
+msgstr "‮Ǝsɔɐdǝs"
+
+#: ../virtaal/controllers/checkscontroller.py:44
+msgid "File paths"
+msgstr "‮Ⅎıʅǝ dɐʇɥs"
+
+#: ../virtaal/controllers/checkscontroller.py:45
+msgid "Functions"
+msgstr "‮Ⅎnuɔʇıous"
+
+#: ../virtaal/controllers/checkscontroller.py:46
+msgid "GConf values"
+msgstr "‮⅁Ↄouɟ ʌɐʅnǝs"
+
+#: ../virtaal/controllers/checkscontroller.py:47
+msgid "Old KDE comment"
+msgstr "‮Oʅp ӼᗡƎ ɔoɯɯǝuʇ"
+
+#: ../virtaal/controllers/checkscontroller.py:48
+msgid "Long"
+msgstr "‮⅂ouƃ"
+
+#: ../virtaal/controllers/checkscontroller.py:49
+msgid "Must translate words"
+msgstr "‮Wnsʇ ʇɹɐusʅɐʇǝ ʍoɹps"
+
+#: ../virtaal/controllers/checkscontroller.py:50
+msgid "Newlines"
+msgstr "‮Nǝʍʅıuǝs"
+
+#: ../virtaal/controllers/checkscontroller.py:51
+msgid "Number of plurals"
+msgstr "‮Nnɯqǝɹ oɟ dʅnɹɐʅs"
+
+#: ../virtaal/controllers/checkscontroller.py:52
+msgid "Don't translate words"
+msgstr "‮ᗡou,ʇ ʇɹɐusʅɐʇǝ ʍoɹps"
+
+#: ../virtaal/controllers/checkscontroller.py:53
+#: ../virtaal/controllers/placeablescontroller.py:122
+msgid "Numbers"
+msgstr "‮Nnɯqǝɹs"
+
+#: ../virtaal/controllers/checkscontroller.py:54 ../devsupport/optparse.py:1607
+msgid "Options"
+msgstr "‮Odʇıous"
+
+#: ../virtaal/controllers/checkscontroller.py:55
+msgid "printf()"
+msgstr "‮dɹıuʇɟ()"
+
+#: ../virtaal/controllers/checkscontroller.py:56
+msgid "Punctuation spacing"
+msgstr "‮Ԁnuɔʇnɐʇıou sdɐɔıuƃ"
+
+#: ../virtaal/controllers/checkscontroller.py:57
+msgid "Pure punctuation"
+msgstr "‮Ԁnɹǝ dnuɔʇnɐʇıou"
+
+#: ../virtaal/controllers/checkscontroller.py:58
+msgid "Number of sentences"
+msgstr "‮Nnɯqǝɹ oɟ sǝuʇǝuɔǝs"
+
+#: ../virtaal/controllers/checkscontroller.py:59
+msgid "Short"
+msgstr "‮Sɥoɹʇ"
+
+#: ../virtaal/controllers/checkscontroller.py:60
+msgid "Simple capitalization"
+msgstr "‮Sıɯdʅǝ ɔɐdıʇɐʅızɐʇıou"
+
+#: ../virtaal/controllers/checkscontroller.py:61
+msgid "Simple plural(s)"
+msgstr "‮Sıɯdʅǝ dʅnɹɐʅ(s)"
+
+#: ../virtaal/controllers/checkscontroller.py:62
+msgid "Single quotes"
+msgstr "‮Sıuƃʅǝ bnoʇǝs"
+
+#: ../virtaal/controllers/checkscontroller.py:63
+msgid "Spelling"
+msgstr "‮Sdǝʅʅıuƃ"
+
+#: ../virtaal/controllers/checkscontroller.py:64
+msgid "Starting capitalization"
+msgstr "‮Sʇɐɹʇıuƃ ɔɐdıʇɐʅızɐʇıou"
+
+#: ../virtaal/controllers/checkscontroller.py:65
+msgid "Starting punctuation"
+msgstr "‮Sʇɐɹʇıuƃ dnuɔʇnɐʇıou"
+
+#: ../virtaal/controllers/checkscontroller.py:66
+msgid "Starting whitespace"
+msgstr "‮Sʇɐɹʇıuƃ ʍɥıʇǝsdɐɔǝ"
+
+#: ../virtaal/controllers/checkscontroller.py:67
+msgid "Tabs"
+msgstr "‮⊥ɐqs"
+
+#: ../virtaal/controllers/checkscontroller.py:68
+msgid "Unchanged"
+msgstr "‮∩uɔɥɐuƃǝp"
+
+#: ../virtaal/controllers/checkscontroller.py:69
+#: ../virtaal/controllers/placeablescontroller.py:131
+msgid "URLs"
+msgstr "‮∩ᴚ⅂s"
+
+#: ../virtaal/controllers/checkscontroller.py:70
+msgid "Valid characters"
+msgstr "‮Ʌɐʅıp ɔɥɐɹɐɔʇǝɹs"
+
+#: ../virtaal/controllers/checkscontroller.py:71
+msgid "Placeholders"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs"
+
+#: ../virtaal/controllers/checkscontroller.py:72
+msgid "XML tags"
+msgstr "‮XW⅂ ʇɐƃs"
+
+#: ../virtaal/controllers/checkscontroller.py:111
+msgid "Default"
+msgstr "‮ᗡǝɟɐnʅʇ"
+
+#: ../virtaal/controllers/checkscontroller.py:114
+msgid "LibreOffice"
+msgstr "‮⅂ıqɹǝOɟɟıɔǝ"
+
+#: ../virtaal/controllers/checkscontroller.py:115
+msgid "Mozilla"
+msgstr "‮Wozıʅʅɐ"
+
+#: ../virtaal/controllers/checkscontroller.py:116
+msgid "KDE"
+msgstr "‮ӼᗡƎ"
+
+#: ../virtaal/controllers/checkscontroller.py:117
+msgid "GNOME"
+msgstr "‮⅁NOWƎ"
+
+#: ../virtaal/controllers/checkscontroller.py:118
+msgid "Drupal"
+msgstr "‮ᗡɹndɐʅ"
+
+#: ../virtaal/controllers/maincontroller.py:82
+#: ../virtaal/controllers/maincontroller.py:91
+#: ../virtaal/controllers/maincontroller.py:100
+msgid "Header information"
+msgstr "‮Hǝɐpǝɹ ıuɟoɹɯɐʇıou"
+
+#: ../virtaal/controllers/maincontroller.py:83
+msgid "Please enter your name"
+msgstr "‮Ԁʅǝɐsǝ ǝuʇǝɹ ʎonɹ uɐɯǝ"
+
+#: ../virtaal/controllers/maincontroller.py:92
+msgid "Please enter your e-mail address"
+msgstr "‮Ԁʅǝɐsǝ ǝuʇǝɹ ʎonɹ ǝ-ɯɐıʅ ɐppɹǝss"
+
+#: ../virtaal/controllers/maincontroller.py:101
+msgid "Please enter your team's information"
+msgstr "‮Ԁʅǝɐsǝ ǝuʇǝɹ ʎonɹ ʇǝɐɯ,s ıuɟoɹɯɐʇıou"
+
+#: ../virtaal/controllers/maincontroller.py:205
+#: ../virtaal/controllers/maincontroller.py:343
+msgid ""
+"You selected the currently open file for opening. Do you want to reload the "
+"file?"
+msgstr ""
+"‮⅄on sǝʅǝɔʇǝp ʇɥǝ ɔnɹɹǝuʇʅʎ odǝu ɟıʅǝ ɟoɹ odǝuıuƃ˙ ᗡo ʎon ʍɐuʇ ʇo ɹǝʅoɐp ʇɥǝ "
+"ɟıʅǝ¿"
+
+#: ../virtaal/controllers/maincontroller.py:217
+#: ../virtaal/controllers/maincontroller.py:327
+#: ../virtaal/controllers/maincontroller.py:355
+#, python-format
+msgid ""
+"Could not open file.\n"
+"\n"
+"%(error_message)s\n"
+"\n"
+"Try opening a different file."
+msgstr ""
+"‮Ↄonʅp uoʇ odǝu ɟıʅǝ˙\n"
+"\n"
+"%(error_message)s\n"
+"\n"
+"‮⊥ɹʎ odǝuıuƃ ɐ pıɟɟǝɹǝuʇ ɟıʅǝ˙"
+
+#: ../virtaal/controllers/maincontroller.py:240
+#: ../virtaal/support/native_widgets.py:153
+#: ../virtaal/support/native_widgets.py:212
+#: ../virtaal/support/native_widgets.py:263 ../virtaal/views/mainview.py:337
+msgid "Save"
+msgstr "‮Sɐʌǝ"
+
+#: ../virtaal/controllers/maincontroller.py:260
+#, python-format
+msgid ""
+"Could not save file.\n"
+"\n"
+"%(error_message)s\n"
+"\n"
+"Try saving to a different location."
+msgstr ""
+"‮Ↄonʅp uoʇ sɐʌǝ ɟıʅǝ˙\n"
+"\n"
+"%(error_message)s\n"
+"\n"
+"‮⊥ɹʎ sɐʌıuƃ ʇo ɐ pıɟɟǝɹǝuʇ ʅoɔɐʇıou˙"
+
+#: ../virtaal/controllers/maincontroller.py:266
+#, python-format
+msgid ""
+"Could not save file.\n"
+"\n"
+"%(error_message)s"
+msgstr ""
+"‮Ↄonʅp uoʇ sɐʌǝ ɟıʅǝ˙\n"
+"\n"
+"%(error_message)s"
+
+#: ../virtaal/controllers/maincontroller.py:277
+msgid "Can only export Gettext PO files"
+msgstr "‮Ↄɐu ouʅʎ ǝxdoɹʇ ⅁ǝʇʇǝxʇ ԀO ɟıʅǝs"
+
+#: ../virtaal/controllers/maincontroller.py:286
+msgid "Export"
+msgstr "‮Ǝxdoɹʇ"
+
+#: ../virtaal/controllers/maincontroller.py:294
+#, python-format
+msgid ""
+"Could not export file.\n"
+"\n"
+"%(error_message)s\n"
+"\n"
+"Try saving to a different location."
+msgstr ""
+"‮Ↄonʅp uoʇ ǝxdoɹʇ ɟıʅǝ˙\n"
+"\n"
+"%(error_message)s\n"
+"\n"
+"‮⊥ɹʎ sɐʌıuƃ ʇo ɐ pıɟɟǝɹǝuʇ ʅoɔɐʇıou˙"
+
+#: ../virtaal/controllers/maincontroller.py:300
+#, python-format
+msgid ""
+"Could not export file.\n"
+"\n"
+"%(error_message)s"
+msgstr ""
+"‮Ↄonʅp uoʇ ǝxdoɹʇ ɟıʅǝ˙\n"
+"\n"
+"%(error_message)s"
+
+#: ../virtaal/controllers/maincontroller.py:316
+msgid "Reload File"
+msgstr "‮ᴚǝʅoɐp Ⅎıʅǝ"
+
+#: ../virtaal/controllers/maincontroller.py:316
+msgid "Reload file from last saved copy and lose all changes?"
+msgstr "‮ᴚǝʅoɐp ɟıʅǝ ɟɹoɯ ʅɐsʇ sɐʌǝp ɔodʎ ɐup ʅosǝ ɐʅʅ ɔɥɐuƃǝs¿"
+
+#. l10n: See http://en.wikipedia.org/wiki/CamelCase
+#: ../virtaal/controllers/placeablescontroller.py:85
+msgid "CamelCase"
+msgstr "‮ↃɐɯǝʅↃɐsǝ"
+
+#: ../virtaal/controllers/placeablescontroller.py:86
+msgid ""
+"Words with internal capitalization, such as some brand names and WikiWords"
+msgstr ""
+"‮Ｍoɹps ʍıʇɥ ıuʇǝɹuɐʅ ɔɐdıʇɐʅızɐʇıou´ snɔɥ ɐs soɯǝ qɹɐup uɐɯǝs ɐup ＭıʞıＭoɹps"
+
+#: ../virtaal/controllers/placeablescontroller.py:89
+msgid "Capitals"
+msgstr "‮Ↄɐdıʇɐʅs"
+
+#. l10n: this refers to "UPPERCASE" / "CAPITAL" letters
+#: ../virtaal/controllers/placeablescontroller.py:91
+msgid "Words containing uppercase letters only"
+msgstr "‮Ｍoɹps ɔouʇɐıuıuƃ nddǝɹɔɐsǝ ʅǝʇʇǝɹs ouʅʎ"
+
+#: ../virtaal/controllers/placeablescontroller.py:94
+msgid "Command Line Options"
+msgstr "‮Ↄoɯɯɐup ⅂ıuǝ Odʇıous"
+
+#: ../virtaal/controllers/placeablescontroller.py:95
+msgid "Application command line options, such as --help, -h and -I"
+msgstr "‮∀ddʅıɔɐʇıou ɔoɯɯɐup ʅıuǝ odʇıous´ snɔɥ ɐs --help‮´ -h‮ ɐup -I"
+
+#: ../virtaal/controllers/placeablescontroller.py:99
+msgid "E-mail addresses"
+msgstr "‮Ǝ-ɯɐıʅ ɐppɹǝssǝs"
+
+#: ../virtaal/controllers/placeablescontroller.py:102
+msgid "File Names"
+msgstr "‮Ⅎıʅǝ Nɐɯǝs"
+
+#: ../virtaal/controllers/placeablescontroller.py:103
+msgid "Paths referring to file locations"
+msgstr "‮Ԁɐʇɥs ɹǝɟǝɹɹıuƃ ʇo ɟıʅǝ ʅoɔɐʇıous"
+
+#: ../virtaal/controllers/placeablescontroller.py:106
+msgid "Placeholders (printf)"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs (dɹıuʇɟ)"
+
+#: ../virtaal/controllers/placeablescontroller.py:107
+msgid "Placeholders used in \"printf\" strings"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs nsǝp ıu „dɹıuʇɟ„ sʇɹıuƃs"
+
+#: ../virtaal/controllers/placeablescontroller.py:110
+msgid "Placeholders (Python)"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs (Ԁʎʇɥou)"
+
+#: ../virtaal/controllers/placeablescontroller.py:111
+msgid "Placeholders in Python strings"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs ıu Ԁʎʇɥou sʇɹıuƃs"
+
+#: ../virtaal/controllers/placeablescontroller.py:114
+msgid "Placeholders (Java)"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs (ſɐʌɐ)"
+
+#: ../virtaal/controllers/placeablescontroller.py:115
+msgid "Placeholders in Java strings"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs ıu ſɐʌɐ sʇɹıuƃs"
+
+#: ../virtaal/controllers/placeablescontroller.py:118
+msgid "Placeholders (Qt)"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs (Òʇ)"
+
+#: ../virtaal/controllers/placeablescontroller.py:119
+msgid "Placeholders in Qt strings"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs ıu Òʇ sʇɹıuƃs"
+
+#. l10n: 'decimal fractions' refer to numbers like 0.2 or 499,99
+#: ../virtaal/controllers/placeablescontroller.py:124
+msgid "Integer numbers and decimal fractions"
+msgstr "‮Iuʇǝƃǝɹ unɯqǝɹs ɐup pǝɔıɯɐʅ ɟɹɐɔʇıous"
+
+#: ../virtaal/controllers/placeablescontroller.py:127
+msgid "Punctuation"
+msgstr "‮Ԁnuɔʇnɐʇıou"
+
+#: ../virtaal/controllers/placeablescontroller.py:128
+msgid "Symbols and less frequently used punctuation marks"
+msgstr "‮Sʎɯqoʅs ɐup ʅǝss ɟɹǝbnǝuʇʅʎ nsǝp dnuɔʇnɐʇıou ɯɐɹʞs"
+
+#: ../virtaal/controllers/placeablescontroller.py:132
+msgid "URLs, hostnames and IP addresses"
+msgstr "‮∩ᴚ⅂s´ ɥosʇuɐɯǝs ɐup IԀ ɐppɹǝssǝs"
+
+#. l10n: see http://en.wikipedia.org/wiki/Character_entity_reference
+#: ../virtaal/controllers/placeablescontroller.py:136
+msgid "XML Entities"
+msgstr "‮XW⅂ Ǝuʇıʇıǝs"
+
+#: ../virtaal/controllers/placeablescontroller.py:137
+msgid "Entity references, such as &amp; and &#169;"
+msgstr "‮Ǝuʇıʇʎ ɹǝɟǝɹǝuɔǝs´ snɔɥ ɐs &amp;‮ ɐup &#169;"
+
+#: ../virtaal/controllers/placeablescontroller.py:140
+msgid "XML Tags"
+msgstr "‮XW⅂ ⊥ɐƃs"
+
+#: ../virtaal/controllers/placeablescontroller.py:141
+msgid "XML tags, such as <b> and </i>"
+msgstr "‮XW⅂ ʇɐƃs´ snɔɥ ɐs <b>‮ ɐup </i>"
+
+#: ../virtaal/controllers/placeablescontroller.py:155
+msgid "Spaces"
+msgstr "‮Sdɐɔǝs"
+
+#: ../virtaal/controllers/placeablescontroller.py:156
+msgid "Double spaces and spaces in unexpected positions"
+msgstr "‮ᗡonqʅǝ sdɐɔǝs ɐup sdɐɔǝs ıu nuǝxdǝɔʇǝp dosıʇıous"
+
+#: ../virtaal/controllers/placeablescontroller.py:157
+msgid "\"alt\" Attributes"
+msgstr "‮„ɐʅʇ„ ∀ʇʇɹıqnʇǝs"
+
+#: ../virtaal/controllers/placeablescontroller.py:158
+msgid "Placeable for \"alt\" attributes (as found in HTML)"
+msgstr "‮Ԁʅɐɔǝɐqʅǝ ɟoɹ „ɐʅʇ„ ɐʇʇɹıqnʇǝs (ɐs ɟonup ıu H⊥W⅂)"
+
+#: ../virtaal/controllers/placeablescontroller.py:159
+msgid "Placeholders (Drupal)"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs (ᗡɹndɐʅ)"
+
+#: ../virtaal/controllers/placeablescontroller.py:160
+msgid "Placeholders in Drupal strings"
+msgstr "‮Ԁʅɐɔǝɥoʅpǝɹs ıu ᗡɹndɐʅ sʇɹıuƃs"
+
+#: ../virtaal/controllers/storecontroller.py:199
+msgid "No source or translatable files in bundle"
+msgstr "‮No sonɹɔǝ oɹ ʇɹɐusʅɐʇɐqʅǝ ɟıʅǝs ıu qnupʅǝ"
+
+#: ../virtaal/controllers/storecontroller.py:231
+msgid "The file contains nothing to translate."
+msgstr "‮⊥ɥǝ ɟıʅǝ ɔouʇɐıus uoʇɥıuƃ ʇo ʇɹɐusʅɐʇǝ˙"
+
+#. l10n: The heading of statistics before updating to the new template
+#: ../virtaal/controllers/storecontroller.py:436
+msgid "Before:"
+msgstr "‮Ԑǝɟoɹǝ:"
+
+#. l10n: The heading of statistics after updating to the new template
+#: ../virtaal/controllers/storecontroller.py:438
+msgid "After:"
+msgstr "‮∀ɟʇǝɹ:"
+
+#: ../virtaal/controllers/storecontroller.py:439
+#, python-format
+msgid "Translated: %d"
+msgstr "‮⊥ɹɐusʅɐʇǝp: %d"
+
+#: ../virtaal/controllers/storecontroller.py:440
+#, python-format
+msgid "Fuzzy: %d"
+msgstr "‮Ⅎnzzʎ: %d"
+
+#: ../virtaal/controllers/storecontroller.py:441
+#, python-format
+msgid "Untranslated: %d"
+msgstr "‮∩uʇɹɐusʅɐʇǝp: %d"
+
+#: ../virtaal/controllers/storecontroller.py:442
+#, python-format
+msgid "Total: %d"
+msgstr "‮⊥oʇɐʅ: %d"
+
+#. l10n: this refers to updating a file to a new template (POT file)
+#: ../virtaal/controllers/storecontroller.py:460
+msgid "File Updated"
+msgstr "‮Ⅎıʅǝ ∩dpɐʇǝp"
+
+#: ../virtaal/controllers/unitcontroller.py:85
+msgid "Needs work"
+msgstr "‮Nǝǝps ʍoɹʞ"
+
+#: ../virtaal/controllers/unitcontroller.py:86
+msgid "Rejected"
+msgstr "‮ᴚǝɾǝɔʇǝp"
+
+#: ../virtaal/controllers/unitcontroller.py:87
+msgid "Needs review"
+msgstr "‮Nǝǝps ɹǝʌıǝʍ"
+
+#: ../virtaal/controllers/unitcontroller.py:88
+msgid "Translated"
+msgstr "‮⊥ɹɐusʅɐʇǝp"
+
+#: ../virtaal/controllers/unitcontroller.py:89
+msgid "Reviewed"
+msgstr "‮ᴚǝʌıǝʍǝp"
+
+#: ../virtaal/controllers/welcomescreencontroller.py:66
+msgid "http://translate.sourceforge.net/wiki/virtaal/cheatsheet"
+msgstr "http://translate.sourceforge.net/wiki/virtaal/cheatsheet"
+
+#: ../virtaal/modes/defaultmode.py:28
+msgid "All"
+msgstr "‮∀ʅʅ"
+
+#: ../virtaal/modes/qualitycheckmode.py:33
+msgid "Quality Checks"
+msgstr "‮Ònɐʅıʇʎ Ↄɥǝɔʞs"
+
+#. l10n: This is the button where the user can select units by failing quality checks
+#: ../virtaal/modes/qualitycheckmode.py:131
+msgid "Select Checks"
+msgstr "‮Sǝʅǝɔʇ Ↄɥǝɔʞs"
+
+#. l10n: This refers to quality checks
+#: ../virtaal/modes/qualitycheckmode.py:134
+msgid "All Checks"
+msgstr "‮∀ʅʅ Ↄɥǝɔʞs"
+
+#: ../virtaal/modes/quicktransmode.py:30
+msgid "Incomplete"
+msgstr "‮Iuɔoɯdʅǝʇǝ"
+
+#: ../virtaal/modes/searchmode.py:35 ../virtaal/modes/searchmode.py:68
+msgid "Search"
+msgstr "‮Sǝɐɹɔɥ"
+
+#: ../virtaal/modes/searchmode.py:70
+msgid "_Case sensitive"
+msgstr "‮_Ↄɐsǝ sǝusıʇıʌǝ"
+
+#. l10n: To read about what regular expressions are, see
+#. http://en.wikipedia.org/wiki/Regular_expression
+#: ../virtaal/modes/searchmode.py:74
+msgid "_Regular expression"
+msgstr "‮_ᴚǝƃnʅɐɹ ǝxdɹǝssıou"
+
+#. l10n: This text label shows in front of the text box where the replacement
+#. text is typed. Keep in mind that the text box will appear after this text.
+#. If this sentence construction is hard to use, consdider translating this as
+#. "Replacement"
+#: ../virtaal/modes/searchmode.py:82
+msgid "Replace with"
+msgstr "‮ᴚǝdʅɐɔǝ ʍıʇɥ"
+
+#. l10n: Button text
+#: ../virtaal/modes/searchmode.py:85
+msgid "Replace"
+msgstr "‮ᴚǝdʅɐɔǝ"
+
+#. l10n: Check box
+#: ../virtaal/modes/searchmode.py:88
+msgid "Replace _All"
+msgstr "‮ᴚǝdʅɐɔǝ _∀ʅʅ"
+
+#: ../virtaal/modes/workflowmode.py:32
+msgid "Workflow"
+msgstr "‮Ｍoɹʞɟʅoʍ"
+
+#. l10n: This is the button where the user can select units by workflow state
+#: ../virtaal/modes/workflowmode.py:110
+msgid "Select States"
+msgstr "‮Sǝʅǝɔʇ Sʇɐʇǝs"
+
+#. l10n: This refers to workflow states
+#: ../virtaal/modes/workflowmode.py:113
+msgid "All States"
+msgstr "‮∀ʅʅ Sʇɐʇǝs"
+
+#: ../virtaal/plugins/autocompletor.py:216
+msgid "Automatically complete long words while you type"
+msgstr "‮∀nʇoɯɐʇıɔɐʅʅʎ ɔoɯdʅǝʇǝ ʅouƃ ʍoɹps ʍɥıʅǝ ʎon ʇʎdǝ"
+
+#: ../virtaal/plugins/autocompletor.py:217
+msgid "AutoCompletor"
+msgstr "‮∀nʇoↃoɯdʅǝʇoɹ"
+
+#: ../virtaal/plugins/autocorrector.py:262
+msgid "Automatically correct text while you type"
+msgstr "‮∀nʇoɯɐʇıɔɐʅʅʎ ɔoɹɹǝɔʇ ʇǝxʇ ʍɥıʅǝ ʎon ʇʎdǝ"
+
+#: ../virtaal/plugins/autocorrector.py:263
+msgid "AutoCorrector"
+msgstr "‮∀nʇoↃoɹɹǝɔʇoɹ"
+
+#: ../virtaal/plugins/spellchecker.py:41
+msgid "Spell Checker"
+msgstr "‮Sdǝʅʅ Ↄɥǝɔʞǝɹ"
+
+#: ../virtaal/plugins/spellchecker.py:42
+msgid "Check spelling and provide suggestions"
+msgstr "‮Ↄɥǝɔʞ sdǝʅʅıuƃ ɐup dɹoʌıpǝ snƃƃǝsʇıous"
+
+#. l10n: This refers to spell checking
+#: ../virtaal/plugins/spellchecker.py:336
+msgid "<i>(no suggestions)</i>"
+msgstr "<i>‮(uo snƃƃǝsʇıous)</i>"
+
+#. l10n: This refers to spell checking
+#: ../virtaal/plugins/spellchecker.py:340
+msgid "Ignore All"
+msgstr "‮Iƃuoɹǝ ∀ʅʅ"
+
+#. l10n: This refers to spelling suggestions
+#: ../virtaal/plugins/spellchecker.py:344
+msgid "More..."
+msgstr "‮Woɹǝ˙˙˙"
+
+#. l10n: This refers to the spell checking dictionary
+#: ../virtaal/plugins/spellchecker.py:350
+#, python-format
+msgid "Add \"%s\" to Dictionary"
+msgstr "‮∀pp „%s‮„ ʇo ᗡıɔʇıouɐɹʎ"
+
+#: ../virtaal/plugins/spellchecker.py:353
+msgid "Languages"
+msgstr "‮⅂ɐuƃnɐƃǝs"
+
+#: ../virtaal/plugins/lookup/__init__.py:28
+msgid "Perform look-ups on selected text"
+msgstr "‮Ԁǝɹɟoɹɯ ʅooʞ-nds ou sǝʅǝɔʇǝp ʇǝxʇ"
+
+#: ../virtaal/plugins/lookup/__init__.py:29
+msgid "External Look-up"
+msgstr "‮Ǝxʇǝɹuɐʅ ⅂ooʞ-nd"
+
+#. l10n: The 'services' here refer to different look-up plugins,
+#. such as web look-up, etc.
+#: ../virtaal/plugins/lookup/lookupview.py:72
+msgid "Select Look-up Services"
+msgstr "‮Sǝʅǝɔʇ ⅂ooʞ-nd Sǝɹʌıɔǝs"
+
+#: ../virtaal/plugins/lookup/lookupview.py:73
+msgid "Select the services that should be used to perform look-ups"
+msgstr "‮Sǝʅǝɔʇ ʇɥǝ sǝɹʌıɔǝs ʇɥɐʇ sɥonʅp qǝ nsǝp ʇo dǝɹɟoɹɯ ʅooʞ-nds"
+
+#. l10n: The menu entry when looking up a very long selection of text. Here start and end are snippets from the start and end of the long selection.
+#: ../virtaal/plugins/lookup/lookupview.py:133
+#, python-format
+msgid "Look-up \"%(start)s … %(end)s\""
+msgstr "‮⅂ooʞ-nd „%(start)s‮ …‮ %(end)s‮„"
+
+#: ../virtaal/plugins/lookup/lookupview.py:135
+#, python-format
+msgid "Look-up \"%(selection)s\""
+msgstr "‮⅂ooʞ-nd „%(selection)s‮„"
+
+#. l10n: plugin name
+#: ../virtaal/plugins/lookup/models/weblookup.py:42
+msgid "Web Look-up"
+msgstr "‮Ｍǝq ⅂ooʞ-nd"
+
+#: ../virtaal/plugins/lookup/models/weblookup.py:43
+msgid "Look-up the selected text on a web site"
+msgstr "‮⅂ooʞ-nd ʇɥǝ sǝʅǝɔʇǝp ʇǝxʇ ou ɐ ʍǝq sıʇǝ"
+
+#. l10n: Try to keep this as short as possible. Feel free to transliterate.
+#: ../virtaal/plugins/lookup/models/weblookup.py:47
+#: ../virtaal/plugins/tm/models/google_translate.py:147
+msgid "Google"
+msgstr "‮⅁ooƃʅǝ"
+
+#: ../virtaal/plugins/lookup/models/weblookup.py:52
+msgid "Wikipedia"
+msgstr "‮Ｍıʞıdǝpıɐ"
+
+#: ../virtaal/plugins/lookup/models/weblookup.py:168
+#: ../virtaal/views/widgets/selectview.py:84
+msgid "Name"
+msgstr "‮Nɐɯǝ"
+
+#: ../virtaal/plugins/lookup/models/weblookup.py:177
+msgid "URL"
+msgstr "‮∩ᴚ⅂"
+
+#. l10n: Whether the selected text should be surrounded by "quotes"
+#: ../virtaal/plugins/lookup/models/weblookup.py:188
+msgid "Quote Query"
+msgstr "‮Ònoʇǝ Ònǝɹʎ"
+
+#: ../virtaal/plugins/migration.py:48
+msgid "Migrate settings from KBabel, Lokalize and/or Poedit to Virtaal."
+msgstr "‮Wıƃɹɐʇǝ sǝʇʇıuƃs ɟɹoɯ ӼԐɐqǝʅ´ ⅂oʞɐʅızǝ ɐup/oɹ Ԁoǝpıʇ ʇo Ʌıɹʇɐɐʅ˙"
+
+#: ../virtaal/plugins/migration.py:49
+msgid "Migration Assistant"
+msgstr "‮Wıƃɹɐʇıou ∀ssısʇɐuʇ"
+
+#: ../virtaal/plugins/migration.py:63
+msgid "Should Virtaal try to import settings and data from other applications?"
+msgstr ""
+"‮Sɥonʅp Ʌıɹʇɐɐʅ ʇɹʎ ʇo ıɯdoɹʇ sǝʇʇıuƃs ɐup pɐʇɐ ɟɹoɯ oʇɥǝɹ ɐddʅıɔɐʇıous¿"
+
+#: ../virtaal/plugins/migration.py:64
+msgid "Import data from other applications?"
+msgstr "‮Iɯdoɹʇ pɐʇɐ ɟɹoɯ oʇɥǝɹ ɐddʅıɔɐʇıous¿"
+
+#: ../virtaal/plugins/migration.py:92
+msgid "Migration was successfully completed"
+msgstr "‮Wıƃɹɐʇıou ʍɐs snɔɔǝssɟnʅʅʎ ɔoɯdʅǝʇǝp"
+
+#: ../virtaal/plugins/migration.py:93
+msgid "The following items were migrated:"
+msgstr "‮⊥ɥǝ ɟoʅʅoʍıuƃ ıʇǝɯs ʍǝɹǝ ɯıƃɹɐʇǝp:"
+
+#: ../virtaal/plugins/migration.py:96
+msgid "Migration completed"
+msgstr "‮Wıƃɹɐʇıou ɔoɯdʅǝʇǝp"
+
+#: ../virtaal/plugins/migration.py:98
+msgid "Virtaal was not able to migrate any settings or data"
+msgstr "‮Ʌıɹʇɐɐʅ ʍɐs uoʇ ɐqʅǝ ʇo ɯıƃɹɐʇǝ ɐuʎ sǝʇʇıuƃs oɹ pɐʇɐ"
+
+#: ../virtaal/plugins/migration.py:99
+msgid "Nothing migrated"
+msgstr "‮Noʇɥıuƃ ɯıƃɹɐʇǝp"
+
+#: ../virtaal/plugins/migration.py:163
+msgid "Poedit settings"
+msgstr "‮Ԁoǝpıʇ sǝʇʇıuƃs"
+
+#: ../virtaal/plugins/migration.py:192
+msgid "Lokalize settings"
+msgstr "‮⅂oʞɐʅızǝ sǝʇʇıuƃs"
+
+#: ../virtaal/plugins/migration.py:249
+#, python-format
+msgid "Lokalize's Translation Memory: %(database_name)s"
+msgstr "‮⅂oʞɐʅızǝ,s ⊥ɹɐusʅɐʇıou Wǝɯoɹʎ: %(database_name)s"
+
+#: ../virtaal/plugins/terminology/__init__.py:27
+msgid "Terminology Help"
+msgstr "‮⊥ǝɹɯıuoʅoƃʎ Hǝʅd"
+
+#: ../virtaal/plugins/terminology/__init__.py:28
+msgid "Terminology suggestions"
+msgstr "‮⊥ǝɹɯıuoʅoƃʎ snƃƃǝsʇıous"
+
+#: ../virtaal/plugins/terminology/models/autoterm.py:41
+msgid "Localization Terminology"
+msgstr "‮⅂oɔɐʅızɐʇıou ⊥ǝɹɯıuoʅoƃʎ"
+
+#: ../virtaal/plugins/terminology/models/autoterm.py:42
+msgid "Selected localization terminology"
+msgstr "‮Sǝʅǝɔʇǝp ʅoɔɐʅızɐʇıou ʇǝɹɯıuoʅoƃʎ"
+
+#: ../virtaal/plugins/terminology/models/localfile/__init__.py:44
+msgid "Local Files"
+msgstr "‮⅂oɔɐʅ Ⅎıʅǝs"
+
+#: ../virtaal/plugins/terminology/models/localfile/__init__.py:45
+msgid "Local terminology files"
+msgstr "‮⅂oɔɐʅ ʇǝɹɯıuoʅoƃʎ ɟıʅǝs"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:54
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:56
+msgid "Terminology _Files..."
+msgstr "‮⊥ǝɹɯıuoʅoƃʎ _Ⅎıʅǝs˙˙˙"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:62
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:64
+msgid "Add _Term..."
+msgstr "‮∀pp _⊥ǝɹɯ˙˙˙"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:147
+msgid "File"
+msgstr "‮Ⅎıʅǝ"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:157
+msgid "Extendable"
+msgstr "‮Ǝxʇǝupɐqʅǝ"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:183
+msgid "Add Files"
+msgstr "‮∀pp Ⅎıʅǝs"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:190
+#: ../virtaal/support/native_widgets.py:90 ../virtaal/views/mainview.py:282
+msgid "All Supported Files"
+msgstr "‮∀ʅʅ Snddoɹʇǝp Ⅎıʅǝs"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:216
+#: ../virtaal/support/native_widgets.py:179
+#: ../virtaal/support/native_widgets.py:209 ../virtaal/views/mainview.py:326
+msgid "All Files"
+msgstr "‮∀ʅʅ Ⅎıʅǝs"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:257
+#, python-format
+msgid "\"%s\" is not a usable file."
+msgstr "‮„%s‮„ ıs uoʇ ɐ nsɐqʅǝ ɟıʅǝ˙"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:262
+#, python-format
+msgid ""
+"Unable to load %(filename)s:\n"
+"\n"
+"%(errormsg)s"
+msgstr ""
+"‮∩uɐqʅǝ ʇo ʅoɐp %(filename)s‮:\n"
+"\n"
+"%(errormsg)s"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:263
+msgid "Error opening file"
+msgstr "‮Ǝɹɹoɹ odǝuıuƃ ɟıʅǝ"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:406
+#, python-format
+msgid "_Source term — %(langname)s"
+msgstr "‮_Sonɹɔǝ ʇǝɹɯ —‮ %(langname)s"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:407
+#, python-format
+msgid "_Target term — %(langname)s"
+msgstr "‮_⊥ɐɹƃǝʇ ʇǝɹɯ —‮ %(langname)s"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:451
+msgid "Identical entry already exists."
+msgstr "‮Ipǝuʇıɔɐʅ ǝuʇɹʎ ɐʅɹǝɐpʎ ǝxısʇs˙"
+
+#. l10n: The variable is an existing term formatted for emphasis. The default is bold formatting, but you can remove/change the markup if needed. Leave it unchanged if you are unsure.
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:466
+#, python-format
+msgid "<b>%s</b>"
+msgstr "<b>%s</b>"
+
+#: ../virtaal/plugins/terminology/models/localfile/localfileview.py:467
+#, python-format
+msgid "Existing translations: %(translations)s"
+msgstr "‮Ǝxısʇıuƃ ʇɹɐusʅɐʇıous: %(translations)s"
+
+#: ../virtaal/plugins/terminology/termview.py:167
+msgid "Select Terminology Sources"
+msgstr "‮Sǝʅǝɔʇ ⊥ǝɹɯıuoʅoƃʎ Sonɹɔǝs"
+
+#: ../virtaal/plugins/terminology/termview.py:168
+msgid "Select the sources of terminology suggestions"
+msgstr "‮Sǝʅǝɔʇ ʇɥǝ sonɹɔǝs oɟ ʇǝɹɯıuoʅoƃʎ snƃƃǝsʇıous"
+
+#: ../virtaal/plugins/tm/__init__.py:27
+msgid "Translation Memory"
+msgstr "‮⊥ɹɐusʅɐʇıou Wǝɯoɹʎ"
+
+#: ../virtaal/plugins/tm/__init__.py:28
+msgid "Translation memory suggestions"
+msgstr "‮⊥ɹɐusʅɐʇıou ɯǝɯoɹʎ snƃƃǝsʇıous"
+
+#. l10n: Try to keep this as short as possible.
+#: ../virtaal/plugins/tm/models/amagama.py:29
+#: ../virtaal/plugins/tm/models/amagama.py:32
+msgid "Amagama"
+msgstr "‮∀ɯɐƃɐɯɐ"
+
+#: ../virtaal/plugins/tm/models/amagama.py:30
+msgid "Previous translations for Free and Open Source Software"
+msgstr "‮Ԁɹǝʌıons ʇɹɐusʅɐʇıous ɟoɹ Ⅎɹǝǝ ɐup Odǝu Sonɹɔǝ Soɟʇʍɐɹǝ"
+
+#: ../virtaal/plugins/tm/models/currentfile.py:30
+msgid "Current File"
+msgstr "‮Ↄnɹɹǝuʇ Ⅎıʅǝ"
+
+#: ../virtaal/plugins/tm/models/currentfile.py:31
+msgid "Translated units from the currently open file"
+msgstr "‮⊥ɹɐusʅɐʇǝp nuıʇs ɟɹoɯ ʇɥǝ ɔnɹɹǝuʇʅʎ odǝu ɟıʅǝ"
+
+#. l10n: Try to keep this as short as possible.
+#: ../virtaal/plugins/tm/models/currentfile.py:97
+#: ../virtaal/plugins/tm/models/currentfile.py:117
+msgid "This file"
+msgstr "‮⊥ɥıs ɟıʅǝ"
+
+#. l10n: The name of Google Translate in your language (translated in most languages). See http://translate.google.com/
+#: ../virtaal/plugins/tm/models/google_translate.py:59
+msgid "Google Translate"
+msgstr "‮⅁ooƃʅǝ ⊥ɹɐusʅɐʇǝ"
+
+#: ../virtaal/plugins/tm/models/google_translate.py:60
+msgid "Unreviewed machine translations from Google's translation service"
+msgstr "‮∩uɹǝʌıǝʍǝp ɯɐɔɥıuǝ ʇɹɐusʅɐʇıous ɟɹoɯ ⅁ooƃʅǝ,s ʇɹɐusʅɐʇıou sǝɹʌıɔǝ"
+
+#: ../virtaal/plugins/tm/models/localtm.py:35
+msgid "Local Translation Memory"
+msgstr "‮⅂oɔɐʅ ⊥ɹɐusʅɐʇıou Wǝɯoɹʎ"
+
+#: ../virtaal/plugins/tm/models/localtm.py:36
+msgid "Previous translations you have made"
+msgstr "‮Ԁɹǝʌıons ʇɹɐusʅɐʇıous ʎon ɥɐʌǝ ɯɐpǝ"
+
+#. l10n: Try to keep this as short as possible.
+#: ../virtaal/plugins/tm/models/localtm.py:38
+msgid "Local TM"
+msgstr "‮⅂oɔɐʅ ⊥W"
+
+#. l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for vertical display optimization.
+#: ../virtaal/plugins/tm/models/moses.py:32
+#: ../virtaal/plugins/tm/models/moses.py:82
+msgid "Moses"
+msgstr "‮Wosǝs"
+
+#: ../virtaal/plugins/tm/models/moses.py:33
+msgid "Unreviewed machine translations from a Moses server"
+msgstr "‮∩uɹǝʌıǝʍǝp ɯɐɔɥıuǝ ʇɹɐusʅɐʇıous ɟɹoɯ ɐ Wosǝs sǝɹʌǝɹ"
+
+#: ../virtaal/plugins/tm/models/remotetm.py:29
+msgid "Remote Server"
+msgstr "‮ᴚǝɯoʇǝ Sǝɹʌǝɹ"
+
+#: ../virtaal/plugins/tm/models/remotetm.py:30
+msgid "A translation memory server"
+msgstr "‮∀ ʇɹɐusʅɐʇıou ɯǝɯoɹʎ sǝɹʌǝɹ"
+
+#. l10n: Try to keep this as short as possible.
+#: ../virtaal/plugins/tm/models/remotetm.py:32
+msgid "Remote TM"
+msgstr "‮ᴚǝɯoʇǝ ⊥W"
+
+#: ../virtaal/plugins/tm/models/tinytm.py:42
+msgid "TinyTM"
+msgstr "‮⊥ıuʎ⊥W"
+
+#: ../virtaal/plugins/tm/models/tinytm.py:43
+msgid "A TinyTM translation memory server"
+msgstr "‮∀ ⊥ıuʎ⊥W ʇɹɐusʅɐʇıou ɯǝɯoɹʎ sǝɹʌǝɹ"
+
+#. l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for optimal vertical display.
+#: ../virtaal/plugins/tm/models/apertium.py:48
+#: ../virtaal/plugins/tm/models/apertium.py:125
+msgid "Apertium"
+msgstr "‮∀dǝɹʇınɯ"
+
+#: ../virtaal/plugins/tm/models/apertium.py:49
+msgid "Unreviewed machine translations from Apertium"
+msgstr "‮∩uɹǝʌıǝʍǝp ɯɐɔɥıuǝ ʇɹɐusʅɐʇıous ɟɹoɯ ∀dǝɹʇınɯ"
+
+#: ../virtaal/plugins/tm/tmview.py:109
+msgid "Translation _Suggestions"
+msgstr "‮⊥ɹɐusʅɐʇıou _Snƃƃǝsʇıous"
+
+#: ../virtaal/plugins/tm/tmview.py:150
+#, python-format
+msgid "Ctrl+%(number_key)d"
+msgstr "‮Ↄʇɹʅ+%(number_key)d"
+
+#. l10n: The 'sources' here refer to different translation memory plugins,
+#. such as local tm, open-tran.eu, the current file, etc.
+#: ../virtaal/plugins/tm/tmview.py:174
+msgid "Select sources of Translation Memory"
+msgstr "‮Sǝʅǝɔʇ sonɹɔǝs oɟ ⊥ɹɐusʅɐʇıou Wǝɯoɹʎ"
+
+#: ../virtaal/plugins/tm/tmview.py:175
+msgid "Select the sources that should be queried for translation memory"
+msgstr "‮Sǝʅǝɔʇ ʇɥǝ sonɹɔǝs ʇɥɐʇ sɥonʅp qǝ bnǝɹıǝp ɟoɹ ʇɹɐusʅɐʇıou ɯǝɯoɹʎ"
+
+#. l10n: match quality column label
+#: ../virtaal/plugins/tm/tmwidgets.py:66
+msgid "%"
+msgstr "‮%"
+
+#: ../virtaal/plugins/tm/tmwidgets.py:68
+msgid "Matches"
+msgstr "‮Wɐʇɔɥǝs"
+
+#: ../virtaal/plugins/tm/tmwidgets.py:70
+msgid "TM Source"
+msgstr "‮⊥W Sonɹɔǝ"
+
+#. l10n: This message allows you to customize the appearance of the match percentage. Most languages can probably leave it unchanged.
+#: ../virtaal/plugins/tm/tmwidgets.py:142
+#, python-format
+msgid "%(match_quality)s%%"
+msgstr "%(match_quality)s%%"
+
+#. l10n: This indicates a suggestion from machine translation. It is displayed instead of the match percentage.
+#: ../virtaal/plugins/tm/tmwidgets.py:152
+msgid "?"
+msgstr "‮¿"
+
+#: ../virtaal/support/native_widgets.py:140
+#: ../virtaal/support/native_widgets.py:180
+#: ../virtaal/support/native_widgets.py:249 ../virtaal/views/mainview.py:275
+msgid "Choose a Translation File"
+msgstr "‮Ↄɥoosǝ ɐ ⊥ɹɐusʅɐʇıou Ⅎıʅǝ"
+
+#: ../virtaal/support/native_widgets.py:160
+msgid ""
+"A file named \"%1\" already exists. Are you sure you want to overwrite it?"
+msgstr ""
+"‮∀ ɟıʅǝ uɐɯǝp „%1‮„ ɐʅɹǝɐpʎ ǝxısʇs˙ ∀ɹǝ ʎon snɹǝ ʎon ʍɐuʇ ʇo oʌǝɹʍɹıʇǝ ıʇ¿"
+
+#: ../virtaal/support/tutorial.py:38
+msgid ""
+"Welcome to the Virtaal tutorial. You can do the first translation by typing "
+"just the translation for \"Welcome\". Then press Enter."
+msgstr ""
+"‮Ｍǝʅɔoɯǝ ʇo ʇɥǝ Ʌıɹʇɐɐʅ ʇnʇoɹıɐʅ˙ ⅄on ɔɐu po ʇɥǝ ɟıɹsʇ ʇɹɐusʅɐʇıou qʎ ʇʎdıuƃ "
+"ɾnsʇ ʇɥǝ ʇɹɐusʅɐʇıou ɟoɹ „Ｍǝʅɔoɯǝ„˙ ⊥ɥǝu dɹǝss Ǝuʇǝɹ˙"
+
+#: ../virtaal/support/tutorial.py:43
+msgid ""
+"Translate this slightly longer message. If a spell checker is available, "
+"spelling mistakes are indicated similarly to word processors. Make sure the "
+"correct language is selected in the bottom right of the window."
+msgstr ""
+"‮⊥ɹɐusʅɐʇǝ ʇɥıs sʅıƃɥʇʅʎ ʅouƃǝɹ ɯǝssɐƃǝ˙ Iɟ ɐ sdǝʅʅ ɔɥǝɔʞǝɹ ıs ɐʌɐıʅɐqʅǝ´ "
+"sdǝʅʅıuƃ ɯısʇɐʞǝs ɐɹǝ ıupıɔɐʇǝp sıɯıʅɐɹʅʎ ʇo ʍoɹp dɹoɔǝssoɹs˙ Wɐʞǝ snɹǝ ʇɥǝ "
+"ɔoɹɹǝɔʇ ʅɐuƃnɐƃǝ ıs sǝʅǝɔʇǝp ıu ʇɥǝ qoʇʇoɯ ɹıƃɥʇ oɟ ʇɥǝ ʍıupoʍ˙"
+
+#: ../virtaal/support/tutorial.py:50
+msgid ""
+"This tutorial will show you some of the things you might want to pay "
+"attention to while translating software programs. It will help you to avoid "
+"some problems and produce translations of a higher quality."
+msgstr ""
+"‮⊥ɥıs ʇnʇoɹıɐʅ ʍıʅʅ sɥoʍ ʎon soɯǝ oɟ ʇɥǝ ʇɥıuƃs ʎon ɯıƃɥʇ ʍɐuʇ ʇo dɐʎ "
+"ɐʇʇǝuʇıou ʇo ʍɥıʅǝ ʇɹɐusʅɐʇıuƃ soɟʇʍɐɹǝ dɹoƃɹɐɯs˙ Iʇ ʍıʅʅ ɥǝʅd ʎon ʇo ɐʌoıp "
+"soɯǝ dɹoqʅǝɯs ɐup dɹopnɔǝ ʇɹɐusʅɐʇıous oɟ ɐ ɥıƃɥǝɹ bnɐʅıʇʎ˙"
+
+#: ../virtaal/support/tutorial.py:57
+msgid ""
+"Some of the advice will only be relevant to some languages. For example, if "
+"your language does not use the Latin alphabet, some of the advice might not "
+"be relevant to translation in your language. For many languages there are "
+"established translation rules."
+msgstr ""
+"‮Soɯǝ oɟ ʇɥǝ ɐpʌıɔǝ ʍıʅʅ ouʅʎ qǝ ɹǝʅǝʌɐuʇ ʇo soɯǝ ʅɐuƃnɐƃǝs˙ Ⅎoɹ ǝxɐɯdʅǝ´ ıɟ "
+"ʎonɹ ʅɐuƃnɐƃǝ poǝs uoʇ nsǝ ʇɥǝ ⅂ɐʇıu ɐʅdɥɐqǝʇ´ soɯǝ oɟ ʇɥǝ ɐpʌıɔǝ ɯıƃɥʇ uoʇ "
+"qǝ ɹǝʅǝʌɐuʇ ʇo ʇɹɐusʅɐʇıou ıu ʎonɹ ʅɐuƃnɐƃǝ˙ Ⅎoɹ ɯɐuʎ ʅɐuƃnɐƃǝs ʇɥǝɹǝ ɐɹǝ "
+"ǝsʇɐqʅısɥǝp ʇɹɐusʅɐʇıou ɹnʅǝs˙"
+
+#: ../virtaal/support/tutorial.py:64
+msgid ""
+"The correct use of capital letters are important in many languages. "
+"Translate this message with careful attention to write \"Virtaal\" with a "
+"capital letter."
+msgstr ""
+"‮⊥ɥǝ ɔoɹɹǝɔʇ nsǝ oɟ ɔɐdıʇɐʅ ʅǝʇʇǝɹs ɐɹǝ ıɯdoɹʇɐuʇ ıu ɯɐuʎ ʅɐuƃnɐƃǝs˙ ⊥"
+"ɹɐusʅɐʇǝ ʇɥıs ɯǝssɐƃǝ ʍıʇɥ ɔɐɹǝɟnʅ ɐʇʇǝuʇıou ʇo ʍɹıʇǝ „Ʌıɹʇɐɐʅ„ ʍıʇɥ ɐ "
+"ɔɐdıʇɐʅ ʅǝʇʇǝɹ˙"
+
+#: ../virtaal/support/tutorial.py:70
+msgid ""
+"In this message the English uses a capital letter for almost every word. "
+"Almost no other language uses this style. Unless your language definitely "
+"needs to follow the English style (also called Title Case), translate this "
+"by following the normal capitalisation rules for your language. If your "
+"language does not use capital letters, simply translate it normally."
+msgstr ""
+"‮Iu ʇɥıs ɯǝssɐƃǝ ʇɥǝ Ǝuƃʅısɥ nsǝs ɐ ɔɐdıʇɐʅ ʅǝʇʇǝɹ ɟoɹ ɐʅɯosʇ ǝʌǝɹʎ ʍoɹp˙ ∀"
+"ʅɯosʇ uo oʇɥǝɹ ʅɐuƃnɐƃǝ nsǝs ʇɥıs sʇʎʅǝ˙ ∩uʅǝss ʎonɹ ʅɐuƃnɐƃǝ pǝɟıuıʇǝʅʎ "
+"uǝǝps ʇo ɟoʅʅoʍ ʇɥǝ Ǝuƃʅısɥ sʇʎʅǝ (ɐʅso ɔɐʅʅǝp ⊥ıʇʅǝ Ↄɐsǝ)´ ʇɹɐusʅɐʇǝ ʇɥıs "
+"qʎ ɟoʅʅoʍıuƃ ʇɥǝ uoɹɯɐʅ ɔɐdıʇɐʅısɐʇıou ɹnʅǝs ɟoɹ ʎonɹ ʅɐuƃnɐƃǝ˙ Iɟ ʎonɹ "
+"ʅɐuƃnɐƃǝ poǝs uoʇ nsǝ ɔɐdıʇɐʅ ʅǝʇʇǝɹs´ sıɯdʅʎ ʇɹɐusʅɐʇǝ ıʇ uoɹɯɐʅʅʎ˙"
+
+#: ../virtaal/support/tutorial.py:79
+msgid ""
+"If you translated the previous message you should see a window with that "
+"translation and a percentage indicating how similar the source strings "
+"(English) are. It is Virtaal's translation memory at work. Press Ctrl+1 to "
+"copy the suggested translation to the current translation. Remember to "
+"always review suggestions before you use them."
+msgstr ""
+"‮Iɟ ʎon ʇɹɐusʅɐʇǝp ʇɥǝ dɹǝʌıons ɯǝssɐƃǝ ʎon sɥonʅp sǝǝ ɐ ʍıupoʍ ʍıʇɥ ʇɥɐʇ "
+"ʇɹɐusʅɐʇıou ɐup ɐ dǝɹɔǝuʇɐƃǝ ıupıɔɐʇıuƃ ɥoʍ sıɯıʅɐɹ ʇɥǝ sonɹɔǝ sʇɹıuƃs "
+"(Ǝuƃʅısɥ) ɐɹǝ˙ Iʇ ıs Ʌıɹʇɐɐʅ,s ʇɹɐusʅɐʇıou ɯǝɯoɹʎ ɐʇ ʍoɹʞ˙ Ԁɹǝss Ↄʇɹʅ+1‮ ʇo "
+"ɔodʎ ʇɥǝ snƃƃǝsʇǝp ʇɹɐusʅɐʇıou ʇo ʇɥǝ ɔnɹɹǝuʇ ʇɹɐusʅɐʇıou˙ ᴚǝɯǝɯqǝɹ ʇo "
+"ɐʅʍɐʎs ɹǝʌıǝʍ snƃƃǝsʇıous qǝɟoɹǝ ʎon nsǝ ʇɥǝɯ˙"
+
+#: ../virtaal/support/tutorial.py:88
+msgid ""
+"This is a simple message that starts with a capital letter in English. If "
+"your language uses capital letters, you almost definitely want to start your "
+"translation with a capital letter as well."
+msgstr ""
+"‮⊥ɥıs ıs ɐ sıɯdʅǝ ɯǝssɐƃǝ ʇɥɐʇ sʇɐɹʇs ʍıʇɥ ɐ ɔɐdıʇɐʅ ʅǝʇʇǝɹ ıu Ǝuƃʅısɥ˙ Iɟ "
+"ʎonɹ ʅɐuƃnɐƃǝ nsǝs ɔɐdıʇɐʅ ʅǝʇʇǝɹs´ ʎon ɐʅɯosʇ pǝɟıuıʇǝʅʎ ʍɐuʇ ʇo sʇɐɹʇ ʎonɹ "
+"ʇɹɐusʅɐʇıou ʍıʇɥ ɐ ɔɐdıʇɐʅ ʅǝʇʇǝɹ ɐs ʍǝʅʅ˙"
+
+#: ../virtaal/support/tutorial.py:95
+msgid ""
+"This is a simple message that starts with a lower case letter in English. If "
+"your language uses capital letters, you almost definitely want to start your "
+"translation with a lower case letter as well."
+msgstr ""
+"‮⊥ɥıs ıs ɐ sıɯdʅǝ ɯǝssɐƃǝ ʇɥɐʇ sʇɐɹʇs ʍıʇɥ ɐ ʅoʍǝɹ ɔɐsǝ ʅǝʇʇǝɹ ıu Ǝuƃʅısɥ˙ Iɟ "
+"ʎonɹ ʅɐuƃnɐƃǝ nsǝs ɔɐdıʇɐʅ ʅǝʇʇǝɹs´ ʎon ɐʅɯosʇ pǝɟıuıʇǝʅʎ ʍɐuʇ ʇo sʇɐɹʇ ʎonɹ "
+"ʇɹɐusʅɐʇıou ʍıʇɥ ɐ ʅoʍǝɹ ɔɐsǝ ʅǝʇʇǝɹ ɐs ʍǝʅʅ˙"
+
+#: ../virtaal/support/tutorial.py:102
+msgid ""
+"This message is a question. Make sure that you use the correct question mark "
+"in your translation as well."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ıs ɐ bnǝsʇıou˙ Wɐʞǝ snɹǝ ʇɥɐʇ ʎon nsǝ ʇɥǝ ɔoɹɹǝɔʇ bnǝsʇıou ɯɐɹʞ "
+"ıu ʎonɹ ʇɹɐusʅɐʇıou ɐs ʍǝʅʅ˙"
+
+#: ../virtaal/support/tutorial.py:107
+msgid ""
+"This message is a label as part of a form. Note how it ends with a colon (:)."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ıs ɐ ʅɐqǝʅ ɐs dɐɹʇ oɟ ɐ ɟoɹɯ˙ Noʇǝ ɥoʍ ıʇ ǝups ʍıʇɥ ɐ ɔoʅou (:)˙"
+
+#: ../virtaal/support/tutorial.py:112
+msgid ""
+"If the source will remain mostly or completely unchanged it is convenient to "
+"copy the entire source string with Alt+Down. Here is almost nothing to "
+"translate, so just press Alt+Down and make corrections if necessary."
+msgstr ""
+"‮Iɟ ʇɥǝ sonɹɔǝ ʍıʅʅ ɹǝɯɐıu ɯosʇʅʎ oɹ ɔoɯdʅǝʇǝʅʎ nuɔɥɐuƃǝp ıʇ ıs ɔouʌǝuıǝuʇ ʇo "
+"ɔodʎ ʇɥǝ ǝuʇıɹǝ sonɹɔǝ sʇɹıuƃ ʍıʇɥ ∀ʅʇ+ᗡoʍu˙ Hǝɹǝ ıs ɐʅɯosʇ uoʇɥıuƃ ʇo "
+"ʇɹɐusʅɐʇǝ´ so ɾnsʇ dɹǝss ∀ʅʇ+ᗡoʍu ɐup ɯɐʞǝ ɔoɹɹǝɔʇıous ıɟ uǝɔǝssɐɹʎ˙"
+
+#: ../virtaal/support/tutorial.py:119
+msgid ""
+"Placeables are special parts of the text, like the © symbol, that can be "
+"automatically highlighted and easily inserted into the translation. Select "
+"the © with Alt+Right and transfer it to the target with Alt+Down."
+msgstr ""
+"‮Ԁʅɐɔǝɐqʅǝs ɐɹǝ sdǝɔıɐʅ dɐɹʇs oɟ ʇɥǝ ʇǝxʇ´ ʅıʞǝ ʇɥǝ ©‮ sʎɯqoʅ´ ʇɥɐʇ ɔɐu qǝ "
+"ɐnʇoɯɐʇıɔɐʅʅʎ ɥıƃɥʅıƃɥʇǝp ɐup ǝɐsıʅʎ ıusǝɹʇǝp ıuʇo ʇɥǝ ʇɹɐusʅɐʇıou˙ Sǝʅǝɔʇ "
+"ʇɥǝ ©‮ ʍıʇɥ ∀ʅʇ+ᴚıƃɥʇ ɐup ʇɹɐusɟǝɹ ıʇ ʇo ʇɥǝ ʇɐɹƃǝʇ ʍıʇɥ ∀ʅʇ+ᗡoʍu˙"
+
+#: ../virtaal/support/tutorial.py:126
+msgid ""
+"Recognised placeables include special symbols, numbers, variable "
+"placeholders, acronyms and many more. Move to each one with Alt+Right and "
+"transfer it down with Alt+Down."
+msgstr ""
+"‮ᴚǝɔoƃuısǝp dʅɐɔǝɐqʅǝs ıuɔʅnpǝ sdǝɔıɐʅ sʎɯqoʅs´ unɯqǝɹs´ ʌɐɹıɐqʅǝ dʅɐɔǝɥoʅpǝɹs"
+"´ ɐɔɹouʎɯs ɐup ɯɐuʎ ɯoɹǝ˙ Woʌǝ ʇo ǝɐɔɥ ouǝ ʍıʇɥ ∀ʅʇ+ᴚıƃɥʇ ɐup ʇɹɐusɟǝɹ ıʇ "
+"poʍu ʍıʇɥ ∀ʅʇ+ᗡoʍu˙"
+
+#: ../virtaal/support/tutorial.py:132
+msgid ""
+"This message ends with ... to indicate that clicking on this text will cause "
+"a dialogue to appear instead of just performing an action. Be sure to end "
+"your message with ... as well."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ǝups ʍıʇɥ ˙˙˙ ʇo ıupıɔɐʇǝ ʇɥɐʇ ɔʅıɔʞıuƃ ou ʇɥıs ʇǝxʇ ʍıʅʅ ɔɐnsǝ "
+"ɐ pıɐʅoƃnǝ ʇo ɐddǝɐɹ ıusʇǝɐp oɟ ɾnsʇ dǝɹɟoɹɯıuƃ ɐu ɐɔʇıou˙ Ԑǝ snɹǝ ʇo ǝup "
+"ʎonɹ ɯǝssɐƃǝ ʍıʇɥ ˙˙˙ ɐs ʍǝʅʅ˙"
+
+#: ../virtaal/support/tutorial.py:138
+msgid ""
+"This message ends with a special character that looks like three dots. "
+"Select the special character with Alt+Right and copy it to your translation "
+"with Alt+Down. Don't just type three dot characters."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ǝups ʍıʇɥ ɐ sdǝɔıɐʅ ɔɥɐɹɐɔʇǝɹ ʇɥɐʇ ʅooʞs ʅıʞǝ ʇɥɹǝǝ poʇs˙ "
+"Sǝʅǝɔʇ ʇɥǝ sdǝɔıɐʅ ɔɥɐɹɐɔʇǝɹ ʍıʇɥ ∀ʅʇ+ᴚıƃɥʇ ɐup ɔodʎ ıʇ ʇo ʎonɹ ʇɹɐusʅɐʇıou "
+"ʍıʇɥ ∀ʅʇ+ᗡoʍu˙ ᗡou,ʇ ɾnsʇ ʇʎdǝ ʇɥɹǝǝ poʇ ɔɥɐɹɐɔʇǝɹs˙"
+
+#: ../virtaal/support/tutorial.py:145
+msgid ""
+"This message has two sentences. Translate them and make sure you start each "
+"with a capital letter if your language uses them, and end each sentence "
+"properly."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɥɐs ʇʍo sǝuʇǝuɔǝs˙ ⊥ɹɐusʅɐʇǝ ʇɥǝɯ ɐup ɯɐʞǝ snɹǝ ʎon sʇɐɹʇ ǝɐɔɥ "
+"ʍıʇɥ ɐ ɔɐdıʇɐʅ ʅǝʇʇǝɹ ıɟ ʎonɹ ʅɐuƃnɐƃǝ nsǝs ʇɥǝɯ´ ɐup ǝup ǝɐɔɥ sǝuʇǝuɔǝ "
+"dɹodǝɹʅʎ˙"
+
+#: ../virtaal/support/tutorial.py:151
+msgid ""
+"This message marks the word \"now\" as important with bold tags. These tags "
+"can be transferred from the source with Alt+Right and Alt+Down. Leave the "
+"<b> and </b> in the translation around the part that corresponds to \"now\". "
+"Read more about XML markup here: http://en.wikipedia.org/wiki/XML"
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɯɐɹʞs ʇɥǝ ʍoɹp „uoʍ„ ɐs ıɯdoɹʇɐuʇ ʍıʇɥ qoʅp ʇɐƃs˙ ⊥ɥǝsǝ ʇɐƃs "
+"ɔɐu qǝ ʇɹɐusɟǝɹɹǝp ɟɹoɯ ʇɥǝ sonɹɔǝ ʍıʇɥ ∀ʅʇ+ᴚıƃɥʇ ɐup ∀ʅʇ+ᗡoʍu˙ ⅂ǝɐʌǝ ʇɥǝ "
+"<b>‮ ɐup </b>‮ ıu ʇɥǝ ʇɹɐusʅɐʇıou ɐɹonup ʇɥǝ dɐɹʇ ʇɥɐʇ ɔoɹɹǝsdoups ʇo „uoʍ„˙ "
+"ᴚǝɐp ɯoɹǝ ɐqonʇ XW⅂ ɯɐɹʞnd ɥǝɹǝ: http://en.wikipedia.org/wiki/XML"
+
+#: ../virtaal/support/tutorial.py:159
+msgid ""
+"This message is very similar to the previous message. Use the suggestion of "
+"the previous translation with Ctrl+1. Note how the only difference is that "
+"this one ends with a full stop after the last tag."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ıs ʌǝɹʎ sıɯıʅɐɹ ʇo ʇɥǝ dɹǝʌıons ɯǝssɐƃǝ˙ ∩sǝ ʇɥǝ snƃƃǝsʇıou oɟ "
+"ʇɥǝ dɹǝʌıons ʇɹɐusʅɐʇıou ʍıʇɥ Ↄʇɹʅ+1‮˙ Noʇǝ ɥoʍ ʇɥǝ ouʅʎ pıɟɟǝɹǝuɔǝ ıs ʇɥɐʇ "
+"ʇɥıs ouǝ ǝups ʍıʇɥ ɐ ɟnʅʅ sʇod ɐɟʇǝɹ ʇɥǝ ʅɐsʇ ʇɐƃ˙"
+
+#: ../virtaal/support/tutorial.py:166
+#, python-format
+msgid ""
+"In this message \"%d\" is a placeholder (variable) that represents a number. "
+"Make sure your translation contains \"%d\" somewhere. In this case it refers "
+"a number of files. When this message is used the \"%d\" will be replaced "
+"with a number e.g. 'Number of files copied: 5'.  Note that \"%d\" does not "
+"refer to a percentage."
+msgstr ""
+"‮Iu ʇɥıs ɯǝssɐƃǝ „%d‮„ ıs ɐ dʅɐɔǝɥoʅpǝɹ (ʌɐɹıɐqʅǝ) ʇɥɐʇ ɹǝdɹǝsǝuʇs ɐ unɯqǝɹ˙ "
+"Wɐʞǝ snɹǝ ʎonɹ ʇɹɐusʅɐʇıou ɔouʇɐıus „%d‮„ soɯǝʍɥǝɹǝ˙ Iu ʇɥıs ɔɐsǝ ıʇ ɹǝɟǝɹs ɐ "
+"unɯqǝɹ oɟ ɟıʅǝs˙ Ｍɥǝu ʇɥıs ɯǝssɐƃǝ ıs nsǝp ʇɥǝ „%d‮„ ʍıʅʅ qǝ ɹǝdʅɐɔǝp ʍıʇɥ ɐ "
+"unɯqǝɹ ǝ˙ƃ˙ ,Nnɯqǝɹ oɟ ɟıʅǝs ɔodıǝp: 5‮,˙  Noʇǝ ʇɥɐʇ „%d‮„ poǝs uoʇ ɹǝɟǝɹ ʇo ɐ "
+"dǝɹɔǝuʇɐƃǝ˙"
+
+#: ../virtaal/support/tutorial.py:174
+#, python-format
+msgid ""
+"In this message, \"%d\" refers again to the number of files, but note how "
+"the \"(s)\" is used to show that we don't know how many it will be. This is "
+"often hard to translate well. If you encounter this in software translation, "
+"you might want to hear from developers if this can be avoided. Read more "
+"about this and decide how to do it in your language: http://"
+"docs.translatehouse.org/projects/localization-guide/en/latest/guide/"
+"translation/plurals.html"
+msgstr ""
+"‮Iu ʇɥıs ɯǝssɐƃǝ´ „%d‮„ ɹǝɟǝɹs ɐƃɐıu ʇo ʇɥǝ unɯqǝɹ oɟ ɟıʅǝs´ qnʇ uoʇǝ ɥoʍ ʇɥǝ „"
+"(s)„ ıs nsǝp ʇo sɥoʍ ʇɥɐʇ ʍǝ pou,ʇ ʞuoʍ ɥoʍ ɯɐuʎ ıʇ ʍıʅʅ qǝ˙ ⊥ɥıs ıs oɟʇǝu "
+"ɥɐɹp ʇo ʇɹɐusʅɐʇǝ ʍǝʅʅ˙ Iɟ ʎon ǝuɔonuʇǝɹ ʇɥıs ıu soɟʇʍɐɹǝ ʇɹɐusʅɐʇıou´ ʎon "
+"ɯıƃɥʇ ʍɐuʇ ʇo ɥǝɐɹ ɟɹoɯ pǝʌǝʅodǝɹs ıɟ ʇɥıs ɔɐu qǝ ɐʌoıpǝp˙ ᴚǝɐp ɯoɹǝ ɐqonʇ "
+"ʇɥıs ɐup pǝɔıpǝ ɥoʍ ʇo po ıʇ ıu ʎonɹ ʅɐuƃnɐƃǝ: http://"
+"docs.translatehouse.org/projects/localization-guide/en/latest/guide/"
+"translation/plurals.html"
+
+#: ../virtaal/support/tutorial.py:185
+msgid ""
+"In this message the proper way of translating plurals are seen. You need to "
+"enter between 1 and 6 different versions of the translation to ensure the "
+"correct grammar in your language. Read more about this here: http://"
+"docs.translatehouse.org/projects/localization-guide/en/latest/guide/"
+"translation/plurals.html"
+msgstr ""
+"‮Iu ʇɥıs ɯǝssɐƃǝ ʇɥǝ dɹodǝɹ ʍɐʎ oɟ ʇɹɐusʅɐʇıuƃ dʅnɹɐʅs ɐɹǝ sǝǝu˙ ⅄on uǝǝp ʇo "
+"ǝuʇǝɹ qǝʇʍǝǝu 1‮ ɐup 6‮ pıɟɟǝɹǝuʇ ʌǝɹsıous oɟ ʇɥǝ ʇɹɐusʅɐʇıou ʇo ǝusnɹǝ ʇɥǝ "
+"ɔoɹɹǝɔʇ ƃɹɐɯɯɐɹ ıu ʎonɹ ʅɐuƃnɐƃǝ˙ ᴚǝɐp ɯoɹǝ ɐqonʇ ʇɥıs ɥǝɹǝ: http://"
+"docs.translatehouse.org/projects/localization-guide/en/latest/guide/"
+"translation/plurals.html"
+
+#: ../virtaal/support/tutorial.py:196
+#, python-format
+msgid ""
+"In this message, \"%s\" is a placeholder (variable) that represents a file "
+"name. Make sure your translation contains %s somewhere. When this message is "
+"used, the %s will be replaced with a file name e.g. 'The file will be saved "
+"as example.odt'.  Note that \"%s\" does not refer to a percentage."
+msgstr ""
+"‮Iu ʇɥıs ɯǝssɐƃǝ´ „%s‮„ ıs ɐ dʅɐɔǝɥoʅpǝɹ (ʌɐɹıɐqʅǝ) ʇɥɐʇ ɹǝdɹǝsǝuʇs ɐ ɟıʅǝ uɐɯǝ"
+"˙ Wɐʞǝ snɹǝ ʎonɹ ʇɹɐusʅɐʇıou ɔouʇɐıus %s‮ soɯǝʍɥǝɹǝ˙ Ｍɥǝu ʇɥıs ɯǝssɐƃǝ ıs "
+"nsǝp´ ʇɥǝ %s‮ ʍıʅʅ qǝ ɹǝdʅɐɔǝp ʍıʇɥ ɐ ɟıʅǝ uɐɯǝ ǝ˙ƃ˙ ,⊥ɥǝ ɟıʅǝ ʍıʅʅ qǝ sɐʌǝp "
+"ɐs ǝxɐɯdʅǝ˙opʇ,˙  Noʇǝ ʇɥɐʇ „%s‮„ poǝs uoʇ ɹǝɟǝɹ ʇo ɐ dǝɹɔǝuʇɐƃǝ˙"
+
+#: ../virtaal/support/tutorial.py:204
+#, python-format
+msgid ""
+"In this message the variable is surrounded by double quotes. Make sure your "
+"translation contains the variable %s and surround it similarly with quotes "
+"in the way required by your language. If your language uses the same quotes "
+"as English, type it exactly as shown for the English. If your language uses "
+"different quoting characters you can just type them around the variable."
+msgstr ""
+"‮Iu ʇɥıs ɯǝssɐƃǝ ʇɥǝ ʌɐɹıɐqʅǝ ıs snɹɹonupǝp qʎ ponqʅǝ bnoʇǝs˙ Wɐʞǝ snɹǝ ʎonɹ "
+"ʇɹɐusʅɐʇıou ɔouʇɐıus ʇɥǝ ʌɐɹıɐqʅǝ %s‮ ɐup snɹɹonup ıʇ sıɯıʅɐɹʅʎ ʍıʇɥ bnoʇǝs "
+"ıu ʇɥǝ ʍɐʎ ɹǝbnıɹǝp qʎ ʎonɹ ʅɐuƃnɐƃǝ˙ Iɟ ʎonɹ ʅɐuƃnɐƃǝ nsǝs ʇɥǝ sɐɯǝ bnoʇǝs "
+"ɐs Ǝuƃʅısɥ´ ʇʎdǝ ıʇ ǝxɐɔʇʅʎ ɐs sɥoʍu ɟoɹ ʇɥǝ Ǝuƃʅısɥ˙ Iɟ ʎonɹ ʅɐuƃnɐƃǝ nsǝs "
+"pıɟɟǝɹǝuʇ bnoʇıuƃ ɔɥɐɹɐɔʇǝɹs ʎon ɔɐu ɾnsʇ ʇʎdǝ ʇɥǝɯ ɐɹonup ʇɥǝ ʌɐɹıɐqʅǝ˙"
+
+#: ../virtaal/support/tutorial.py:213
+msgid ""
+"In this message, \"%(name)s\" is a placeholder (variable). Note that the 's' "
+"is part of the variable, and the whole variable from '%' to the 's' should "
+"appear unchanged somewhere in your translation. These type of variables give "
+"you an idea of what they will contain. In this case, it will contain a name."
+msgstr ""
+"‮Iu ʇɥıs ɯǝssɐƃǝ´ „%(name)s‮„ ıs ɐ dʅɐɔǝɥoʅpǝɹ (ʌɐɹıɐqʅǝ)˙ Noʇǝ ʇɥɐʇ ʇɥǝ ,s, "
+"ıs dɐɹʇ oɟ ʇɥǝ ʌɐɹıɐqʅǝ´ ɐup ʇɥǝ ʍɥoʅǝ ʌɐɹıɐqʅǝ ɟɹoɯ ,%, ʇo ʇɥǝ ,s, sɥonʅp "
+"ɐddǝɐɹ nuɔɥɐuƃǝp soɯǝʍɥǝɹǝ ıu ʎonɹ ʇɹɐusʅɐʇıou˙ ⊥ɥǝsǝ ʇʎdǝ oɟ ʌɐɹıɐqʅǝs ƃıʌǝ "
+"ʎon ɐu ıpǝɐ oɟ ʍɥɐʇ ʇɥǝʎ ʍıʅʅ ɔouʇɐıu˙ Iu ʇɥıs ɔɐsǝ´ ıʇ ʍıʅʅ ɔouʇɐıu ɐ uɐɯǝ˙"
+
+#: ../virtaal/support/tutorial.py:221
+msgid ""
+"In this message the user of the software is asked to do something. Make sure "
+"you translate it by being as polite or respectful as is necessary for your "
+"culture."
+msgstr ""
+"‮Iu ʇɥıs ɯǝssɐƃǝ ʇɥǝ nsǝɹ oɟ ʇɥǝ soɟʇʍɐɹǝ ıs ɐsʞǝp ʇo po soɯǝʇɥıuƃ˙ Wɐʞǝ snɹǝ "
+"ʎon ʇɹɐusʅɐʇǝ ıʇ qʎ qǝıuƃ ɐs doʅıʇǝ oɹ ɹǝsdǝɔʇɟnʅ ɐs ıs uǝɔǝssɐɹʎ ɟoɹ ʎonɹ "
+"ɔnʅʇnɹǝ˙"
+
+#: ../virtaal/support/tutorial.py:227
+msgid ""
+"In this message there is reference to \"Linux\" (a product name). Many "
+"languages will not translate it, but your language might use a "
+"transliteration if you don't use the Latin script for your language."
+msgstr ""
+"‮Iu ʇɥıs ɯǝssɐƃǝ ʇɥǝɹǝ ıs ɹǝɟǝɹǝuɔǝ ʇo „⅂ıunx„ (ɐ dɹopnɔʇ uɐɯǝ)˙ Wɐuʎ "
+"ʅɐuƃnɐƃǝs ʍıʅʅ uoʇ ʇɹɐusʅɐʇǝ ıʇ´ qnʇ ʎonɹ ʅɐuƃnɐƃǝ ɯıƃɥʇ nsǝ ɐ "
+"ʇɹɐusʅıʇǝɹɐʇıou ıɟ ʎon pou,ʇ nsǝ ʇɥǝ ⅂ɐʇıu sɔɹıdʇ ɟoɹ ʎonɹ ʅɐuƃnɐƃǝ˙"
+
+#: ../virtaal/support/tutorial.py:234
+msgid ""
+"This message contains the URL (web address) of the project website. It must "
+"be transferred as a placeable or typed over exactly."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɔouʇɐıus ʇɥǝ ∩ᴚ⅂ (ʍǝq ɐppɹǝss) oɟ ʇɥǝ dɹoɾǝɔʇ ʍǝqsıʇǝ˙ Iʇ ɯnsʇ "
+"qǝ ʇɹɐusɟǝɹɹǝp ɐs ɐ dʅɐɔǝɐqʅǝ oɹ ʇʎdǝp oʌǝɹ ǝxɐɔʇʅʎ˙"
+
+#: ../virtaal/support/tutorial.py:239
+msgid ""
+"This message refers to a website with more information. Sometimes you might "
+"be allowed or encouraged to change the URL (web address) to a website in "
+"your language. In this case, replace the \"en\" at the start of the address "
+"to your language code so that the address points to the corresponding "
+"article in your language about XML."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɹǝɟǝɹs ʇo ɐ ʍǝqsıʇǝ ʍıʇɥ ɯoɹǝ ıuɟoɹɯɐʇıou˙ Soɯǝʇıɯǝs ʎon ɯıƃɥʇ "
+"qǝ ɐʅʅoʍǝp oɹ ǝuɔonɹɐƃǝp ʇo ɔɥɐuƃǝ ʇɥǝ ∩ᴚ⅂ (ʍǝq ɐppɹǝss) ʇo ɐ ʍǝqsıʇǝ ıu "
+"ʎonɹ ʅɐuƃnɐƃǝ˙ Iu ʇɥıs ɔɐsǝ´ ɹǝdʅɐɔǝ ʇɥǝ „ǝu„ ɐʇ ʇɥǝ sʇɐɹʇ oɟ ʇɥǝ ɐppɹǝss ʇo "
+"ʎonɹ ʅɐuƃnɐƃǝ ɔopǝ so ʇɥɐʇ ʇɥǝ ɐppɹǝss doıuʇs ʇo ʇɥǝ ɔoɹɹǝsdoupıuƃ ɐɹʇıɔʅǝ "
+"ıu ʎonɹ ʅɐuƃnɐƃǝ ɐqonʇ XW⅂˙"
+
+#: ../virtaal/support/tutorial.py:248
+msgid ""
+"This translation contains an ambiguous word - it has two possible meanings. "
+"Make sure you can see the context information showing that this is a verb "
+"(an action as in \"click here to view it\")."
+msgstr ""
+"‮⊥ɥıs ʇɹɐusʅɐʇıou ɔouʇɐıus ɐu ɐɯqıƃnons ʍoɹp - ıʇ ɥɐs ʇʍo dossıqʅǝ ɯǝɐuıuƃs˙ "
+"Wɐʞǝ snɹǝ ʎon ɔɐu sǝǝ ʇɥǝ ɔouʇǝxʇ ıuɟoɹɯɐʇıou sɥoʍıuƃ ʇɥɐʇ ʇɥıs ıs ɐ ʌǝɹq "
+"(ɐu ɐɔʇıou ɐs ıu „ɔʅıɔʞ ɥǝɹǝ ʇo ʌıǝʍ ıʇ„)˙"
+
+#: ../virtaal/support/tutorial.py:255
+msgid ""
+"This translation contains an ambiguous word - it has two possible meanings. "
+"Make sure you can see the context information showing that this is a noun (a "
+"thing as in \"click to change the view to full screen\"). If Virtaal gives "
+"your previous translation as a suggestion, take care to only use it if it is "
+"definitely appropriate in this case as well."
+msgstr ""
+"‮⊥ɥıs ʇɹɐusʅɐʇıou ɔouʇɐıus ɐu ɐɯqıƃnons ʍoɹp - ıʇ ɥɐs ʇʍo dossıqʅǝ ɯǝɐuıuƃs˙ "
+"Wɐʞǝ snɹǝ ʎon ɔɐu sǝǝ ʇɥǝ ɔouʇǝxʇ ıuɟoɹɯɐʇıou sɥoʍıuƃ ʇɥɐʇ ʇɥıs ıs ɐ uonu (ɐ "
+"ʇɥıuƃ ɐs ıu „ɔʅıɔʞ ʇo ɔɥɐuƃǝ ʇɥǝ ʌıǝʍ ʇo ɟnʅʅ sɔɹǝǝu„)˙ Iɟ Ʌıɹʇɐɐʅ ƃıʌǝs "
+"ʎonɹ dɹǝʌıons ʇɹɐusʅɐʇıou ɐs ɐ snƃƃǝsʇıou´ ʇɐʞǝ ɔɐɹǝ ʇo ouʅʎ nsǝ ıʇ ıɟ ıʇ ıs "
+"pǝɟıuıʇǝʅʎ ɐddɹodɹıɐʇǝ ıu ʇɥıs ɔɐsǝ ɐs ʍǝʅʅ˙"
+
+#: ../virtaal/support/tutorial.py:264
+msgid ""
+"An accelerator key is a key on your keyboard that you can press to quickly "
+"access a menu or function. It is also called a hot key, access key or "
+"mnemonic. In program interfaces they are shown as an underlined letter in "
+"the text label. In the translatable text they are marked using some "
+"character like the underscore here, but other characters are used for this "
+"as well. In this case the accelerator key is \"f\" since the underscore is "
+"before this letter and it means that this accelerator could be triggered by "
+"pressing Alt+F."
+msgstr ""
+"‮∀u ɐɔɔǝʅǝɹɐʇoɹ ʞǝʎ ıs ɐ ʞǝʎ ou ʎonɹ ʞǝʎqoɐɹp ʇɥɐʇ ʎon ɔɐu dɹǝss ʇo bnıɔʞʅʎ "
+"ɐɔɔǝss ɐ ɯǝun oɹ ɟnuɔʇıou˙ Iʇ ıs ɐʅso ɔɐʅʅǝp ɐ ɥoʇ ʞǝʎ´ ɐɔɔǝss ʞǝʎ oɹ "
+"ɯuǝɯouıɔ˙ Iu dɹoƃɹɐɯ ıuʇǝɹɟɐɔǝs ʇɥǝʎ ɐɹǝ sɥoʍu ɐs ɐu nupǝɹʅıuǝp ʅǝʇʇǝɹ ıu "
+"ʇɥǝ ʇǝxʇ ʅɐqǝʅ˙ Iu ʇɥǝ ʇɹɐusʅɐʇɐqʅǝ ʇǝxʇ ʇɥǝʎ ɐɹǝ ɯɐɹʞǝp nsıuƃ soɯǝ "
+"ɔɥɐɹɐɔʇǝɹ ʅıʞǝ ʇɥǝ nupǝɹsɔoɹǝ ɥǝɹǝ´ qnʇ oʇɥǝɹ ɔɥɐɹɐɔʇǝɹs ɐɹǝ nsǝp ɟoɹ ʇɥıs "
+"ɐs ʍǝʅʅ˙ Iu ʇɥıs ɔɐsǝ ʇɥǝ ɐɔɔǝʅǝɹɐʇoɹ ʞǝʎ ıs „ɟ„ sıuɔǝ ʇɥǝ nupǝɹsɔoɹǝ ıs "
+"qǝɟoɹǝ ʇɥıs ʅǝʇʇǝɹ ɐup ıʇ ɯǝɐus ʇɥɐʇ ʇɥıs ɐɔɔǝʅǝɹɐʇoɹ ɔonʅp qǝ ʇɹıƃƃǝɹǝp qʎ "
+"dɹǝssıuƃ ∀ʅʇ+Ⅎ˙"
+
+#: ../virtaal/support/tutorial.py:276
+msgid "In this entry you can see other kind of accelerator."
+msgstr "‮Iu ʇɥıs ǝuʇɹʎ ʎon ɔɐu sǝǝ oʇɥǝɹ ʞıup oɟ ɐɔɔǝʅǝɹɐʇoɹ˙"
+
+#: ../virtaal/support/tutorial.py:280
+msgid "And another kind of accelerator."
+msgstr "‮∀up ɐuoʇɥǝɹ ʞıup oɟ ɐɔɔǝʅǝɹɐʇoɹ˙"
+
+#: ../virtaal/support/tutorial.py:285
+msgid ""
+"Virtaal is able to provide suggestions from several terminology glossaries "
+"and provides easy shortcuts to allow paste them in the translation field. "
+"Right now Virtaal has only one empty terminology glossary, but you can start "
+"filling it. In order to do that select the original text, press Ctrl+T, "
+"provide a translation for your language."
+msgstr ""
+"‮Ʌıɹʇɐɐʅ ıs ɐqʅǝ ʇo dɹoʌıpǝ snƃƃǝsʇıous ɟɹoɯ sǝʌǝɹɐʅ ʇǝɹɯıuoʅoƃʎ ƃʅossɐɹıǝs "
+"ɐup dɹoʌıpǝs ǝɐsʎ sɥoɹʇɔnʇs ʇo ɐʅʅoʍ dɐsʇǝ ʇɥǝɯ ıu ʇɥǝ ʇɹɐusʅɐʇıou ɟıǝʅp˙ "
+"ᴚıƃɥʇ uoʍ Ʌıɹʇɐɐʅ ɥɐs ouʅʎ ouǝ ǝɯdʇʎ ʇǝɹɯıuoʅoƃʎ ƃʅossɐɹʎ´ qnʇ ʎon ɔɐu sʇɐɹʇ "
+"ɟıʅʅıuƃ ıʇ˙ Iu oɹpǝɹ ʇo po ʇɥɐʇ sǝʅǝɔʇ ʇɥǝ oɹıƃıuɐʅ ʇǝxʇ´ dɹǝss Ↄʇɹʅ+⊥´ "
+"dɹoʌıpǝ ɐ ʇɹɐusʅɐʇıou ɟoɹ ʎonɹ ʅɐuƃnɐƃǝ˙"
+
+#: ../virtaal/support/tutorial.py:295
+msgid ""
+"In the previous entry you have created one terminology entry for the "
+"\"filter\" verb. Now do the same for \"filter\" noun."
+msgstr ""
+"‮Iu ʇɥǝ dɹǝʌıons ǝuʇɹʎ ʎon ɥɐʌǝ ɔɹǝɐʇǝp ouǝ ʇǝɹɯıuoʅoƃʎ ǝuʇɹʎ ɟoɹ ʇɥǝ „ɟıʅʇǝɹ"
+"„ ʌǝɹq˙ Noʍ po ʇɥǝ sɐɯǝ ɟoɹ „ɟıʅʇǝɹ„ uonu˙"
+
+#: ../virtaal/support/tutorial.py:300
+msgid ""
+"If you have created any terminology in the previous entries you may now see "
+"some of the words with a green background (or other color depending on your "
+"theme). This means that Virtaal has terminology suggestions for that word. "
+"Use Alt+Right to select the highlighted word, and then press Alt+Down. If "
+"only one suggestion is provided then Alt+Down just copies the suggestion to "
+"the translation field. But if several suggestions are available Alt+Down "
+"shows a suggestion list which you can navigate using Down and Up keys. Once "
+"you have selected the desired suggestion press Enter to copy it to the "
+"translation field."
+msgstr ""
+"‮Iɟ ʎon ɥɐʌǝ ɔɹǝɐʇǝp ɐuʎ ʇǝɹɯıuoʅoƃʎ ıu ʇɥǝ dɹǝʌıons ǝuʇɹıǝs ʎon ɯɐʎ uoʍ sǝǝ "
+"soɯǝ oɟ ʇɥǝ ʍoɹps ʍıʇɥ ɐ ƃɹǝǝu qɐɔʞƃɹonup (oɹ oʇɥǝɹ ɔoʅoɹ pǝdǝupıuƃ ou ʎonɹ "
+"ʇɥǝɯǝ)˙ ⊥ɥıs ɯǝɐus ʇɥɐʇ Ʌıɹʇɐɐʅ ɥɐs ʇǝɹɯıuoʅoƃʎ snƃƃǝsʇıous ɟoɹ ʇɥɐʇ ʍoɹp˙ ∩"
+"sǝ ∀ʅʇ+ᴚıƃɥʇ ʇo sǝʅǝɔʇ ʇɥǝ ɥıƃɥʅıƃɥʇǝp ʍoɹp´ ɐup ʇɥǝu dɹǝss ∀ʅʇ+ᗡoʍu˙ Iɟ "
+"ouʅʎ ouǝ snƃƃǝsʇıou ıs dɹoʌıpǝp ʇɥǝu ∀ʅʇ+ᗡoʍu ɾnsʇ ɔodıǝs ʇɥǝ snƃƃǝsʇıou ʇo "
+"ʇɥǝ ʇɹɐusʅɐʇıou ɟıǝʅp˙ Ԑnʇ ıɟ sǝʌǝɹɐʅ snƃƃǝsʇıous ɐɹǝ ɐʌɐıʅɐqʅǝ ∀ʅʇ+ᗡoʍu "
+"sɥoʍs ɐ snƃƃǝsʇıou ʅısʇ ʍɥıɔɥ ʎon ɔɐu uɐʌıƃɐʇǝ nsıuƃ ᗡoʍu ɐup ∩d ʞǝʎs˙ Ouɔǝ "
+"ʎon ɥɐʌǝ sǝʅǝɔʇǝp ʇɥǝ pǝsıɹǝp snƃƃǝsʇıou dɹǝss Ǝuʇǝɹ ʇo ɔodʎ ıʇ ʇo ʇɥǝ "
+"ʇɹɐusʅɐʇıou ɟıǝʅp˙"
+
+#: ../virtaal/support/tutorial.py:313
+msgid ""
+"This message has two lines. Make sure that your translation also contains "
+"two lines. You can separate lines with Shift+Enter or copy newline "
+"placeables (displayed as ¶)."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɥɐs ʇʍo ʅıuǝs˙ Wɐʞǝ snɹǝ ʇɥɐʇ ʎonɹ ʇɹɐusʅɐʇıou ɐʅso ɔouʇɐıus "
+"ʇʍo ʅıuǝs˙ ⅄on ɔɐu sǝdɐɹɐʇǝ ʅıuǝs ʍıʇɥ Sɥıɟʇ+Ǝuʇǝɹ oɹ ɔodʎ uǝʍʅıuǝ "
+"dʅɐɔǝɐqʅǝs (pısdʅɐʎǝp ɐs ¶)˙"
+
+#: ../virtaal/support/tutorial.py:320
+msgid ""
+"This message contains tab characters to separate some headings. Make sure "
+"you separate your translations in the same way."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɔouʇɐıus ʇɐq ɔɥɐɹɐɔʇǝɹs ʇo sǝdɐɹɐʇǝ soɯǝ ɥǝɐpıuƃs˙ Wɐʞǝ snɹǝ "
+"ʎon sǝdɐɹɐʇǝ ʎonɹ ʇɹɐusʅɐʇıous ıu ʇɥǝ sɐɯǝ ʍɐʎ˙"
+
+#: ../virtaal/support/tutorial.py:325
+msgid ""
+"This message contains a large number that is formatted according to the "
+"American convention. Translate this but make sure to format the number "
+"according to your language's convention. You might need to change the comma "
+"(,) and full stop (.) to other characters, and you also might need to use a "
+"different number system. Make sure that you understand the American "
+"formatting: this number is bigger than one thousand."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɔouʇɐıus ɐ ʅɐɹƃǝ unɯqǝɹ ʇɥɐʇ ıs ɟoɹɯɐʇʇǝp ɐɔɔoɹpıuƃ ʇo ʇɥǝ ∀"
+"ɯǝɹıɔɐu ɔouʌǝuʇıou˙ ⊥ɹɐusʅɐʇǝ ʇɥıs qnʇ ɯɐʞǝ snɹǝ ʇo ɟoɹɯɐʇ ʇɥǝ unɯqǝɹ "
+"ɐɔɔoɹpıuƃ ʇo ʎonɹ ʅɐuƃnɐƃǝ,s ɔouʌǝuʇıou˙ ⅄on ɯıƃɥʇ uǝǝp ʇo ɔɥɐuƃǝ ʇɥǝ ɔoɯɯɐ "
+"(´) ɐup ɟnʅʅ sʇod (˙) ʇo oʇɥǝɹ ɔɥɐɹɐɔʇǝɹs´ ɐup ʎon ɐʅso ɯıƃɥʇ uǝǝp ʇo nsǝ ɐ "
+"pıɟɟǝɹǝuʇ unɯqǝɹ sʎsʇǝɯ˙ Wɐʞǝ snɹǝ ʇɥɐʇ ʎon nupǝɹsʇɐup ʇɥǝ ∀ɯǝɹıɔɐu "
+"ɟoɹɯɐʇʇıuƃ: ʇɥıs unɯqǝɹ ıs qıƃƃǝɹ ʇɥɐu ouǝ ʇɥonsɐup˙"
+
+#: ../virtaal/support/tutorial.py:335
+msgid ""
+"This message refers to miles. If the programmers encourage it, you might "
+"want to change this to kilometres in your translation, if kilometers are "
+"more commonly used in your language. Note that 1 mile is about 1.6 "
+"kilometres. Note that automated tests for \"numbers\" will complain if the "
+"number is changed, but in this case it is safe to do so."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɹǝɟǝɹs ʇo ɯıʅǝs˙ Iɟ ʇɥǝ dɹoƃɹɐɯɯǝɹs ǝuɔonɹɐƃǝ ıʇ´ ʎon ɯıƃɥʇ "
+"ʍɐuʇ ʇo ɔɥɐuƃǝ ʇɥıs ʇo ʞıʅoɯǝʇɹǝs ıu ʎonɹ ʇɹɐusʅɐʇıou´ ıɟ ʞıʅoɯǝʇǝɹs ɐɹǝ "
+"ɯoɹǝ ɔoɯɯouʅʎ nsǝp ıu ʎonɹ ʅɐuƃnɐƃǝ˙ Noʇǝ ʇɥɐʇ 1‮ ɯıʅǝ ıs ɐqonʇ 1.6‮ ʞıʅoɯǝʇɹǝs"
+"˙ Noʇǝ ʇɥɐʇ ɐnʇoɯɐʇǝp ʇǝsʇs ɟoɹ „unɯqǝɹs„ ʍıʅʅ ɔoɯdʅɐıu ıɟ ʇɥǝ unɯqǝɹ ıs "
+"ɔɥɐuƃǝp´ qnʇ ıu ʇɥıs ɔɐsǝ ıʇ ıs sɐɟǝ ʇo po so˙"
+
+#: ../virtaal/support/tutorial.py:344
+msgid ""
+"This message contains a link that the user will be able to click on to visit "
+"the help page. Make sure you correctly keep the information between the "
+"angle brackets (<...>). The double quotes (\") should never be changed in "
+"tags, even if your language uses a different type of quotation marks."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɔouʇɐıus ɐ ʅıuʞ ʇɥɐʇ ʇɥǝ nsǝɹ ʍıʅʅ qǝ ɐqʅǝ ʇo ɔʅıɔʞ ou ʇo ʌısıʇ "
+"ʇɥǝ ɥǝʅd dɐƃǝ˙ Wɐʞǝ snɹǝ ʎon ɔoɹɹǝɔʇʅʎ ʞǝǝd ʇɥǝ ıuɟoɹɯɐʇıou qǝʇʍǝǝu ʇɥǝ "
+"ɐuƃʅǝ qɹɐɔʞǝʇs (<...>‮)˙ ⊥ɥǝ ponqʅǝ bnoʇǝs („) sɥonʅp uǝʌǝɹ qǝ ɔɥɐuƃǝp ıu ʇɐƃs"
+"´ ǝʌǝu ıɟ ʎonɹ ʅɐuƃnɐƃǝ nsǝs ɐ pıɟɟǝɹǝuʇ ʇʎdǝ oɟ bnoʇɐʇıou ɯɐɹʞs˙"
+
+#: ../virtaal/support/tutorial.py:354
+#, python-format
+msgid ""
+"This message contains a similar link, but the programmers decided to rather "
+"insert the tags by using variables so that translators can't change them. "
+"Make sure you position the two variables (%s) so that they correspond to the "
+"opening and closing tags of the previous translation."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɔouʇɐıus ɐ sıɯıʅɐɹ ʅıuʞ´ qnʇ ʇɥǝ dɹoƃɹɐɯɯǝɹs pǝɔıpǝp ʇo ɹɐʇɥǝɹ "
+"ıusǝɹʇ ʇɥǝ ʇɐƃs qʎ nsıuƃ ʌɐɹıɐqʅǝs so ʇɥɐʇ ʇɹɐusʅɐʇoɹs ɔɐu,ʇ ɔɥɐuƃǝ ʇɥǝɯ˙ "
+"Wɐʞǝ snɹǝ ʎon dosıʇıou ʇɥǝ ʇʍo ʌɐɹıɐqʅǝs (%s‮) so ʇɥɐʇ ʇɥǝʎ ɔoɹɹǝsdoup ʇo ʇɥǝ "
+"odǝuıuƃ ɐup ɔʅosıuƃ ʇɐƃs oɟ ʇɥǝ dɹǝʌıons ʇɹɐusʅɐʇıou˙"
+
+#: ../virtaal/support/tutorial.py:362
+msgid ""
+"This message contains the <b> and </b> tags to emphasize a word, while "
+"everything is within the <p> and </p> tags. Make sure your whole translation "
+"is within the <p> and </p> tags."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɔouʇɐıus ʇɥǝ <b>‮ ɐup </b>‮ ʇɐƃs ʇo ǝɯdɥɐsızǝ ɐ ʍoɹp´ ʍɥıʅǝ "
+"ǝʌǝɹʎʇɥıuƃ ıs ʍıʇɥıu ʇɥǝ <p>‮ ɐup </p>‮ ʇɐƃs˙ Wɐʞǝ snɹǝ ʎonɹ ʍɥoʅǝ ʇɹɐusʅɐʇıou "
+"ıs ʍıʇɥıu ʇɥǝ <p>‮ ɐup </p>‮ ʇɐƃs˙"
+
+#: ../virtaal/support/tutorial.py:368
+msgid ""
+"This message contains a similar link that is contained within <span> and </"
+"span>. Make sure you correctly keep all the tags (<...>), and that the link "
+"is completely contained within the <span> and </span> tags in your "
+"translation. Make sure that the text inside the \"a\" tags correspond to "
+"\"help page\" and that your translation corresponding to the second sentence "
+"is contained in the <span> tags. Note how the full stop is still inside the "
+"</span> tag."
+msgstr ""
+"‮⊥ɥıs ɯǝssɐƃǝ ɔouʇɐıus ɐ sıɯıʅɐɹ ʅıuʞ ʇɥɐʇ ıs ɔouʇɐıuǝp ʍıʇɥıu <span>‮ ɐup </"
+"span>‮˙ Wɐʞǝ snɹǝ ʎon ɔoɹɹǝɔʇʅʎ ʞǝǝd ɐʅʅ ʇɥǝ ʇɐƃs (<...>‮)´ ɐup ʇɥɐʇ ʇɥǝ ʅıuʞ "
+"ıs ɔoɯdʅǝʇǝʅʎ ɔouʇɐıuǝp ʍıʇɥıu ʇɥǝ <span>‮ ɐup </span>‮ ʇɐƃs ıu ʎonɹ "
+"ʇɹɐusʅɐʇıou˙ Wɐʞǝ snɹǝ ʇɥɐʇ ʇɥǝ ʇǝxʇ ıusıpǝ ʇɥǝ „ɐ„ ʇɐƃs ɔoɹɹǝsdoup ʇo „ɥǝʅd "
+"dɐƃǝ„ ɐup ʇɥɐʇ ʎonɹ ʇɹɐusʅɐʇıou ɔoɹɹǝsdoupıuƃ ʇo ʇɥǝ sǝɔoup sǝuʇǝuɔǝ ıs "
+"ɔouʇɐıuǝp ıu ʇɥǝ <span>‮ ʇɐƃs˙ Noʇǝ ɥoʍ ʇɥǝ ɟnʅʅ sʇod ıs sʇıʅʅ ıusıpǝ ʇɥǝ </"
+"span>‮ ʇɐƃ˙"
+
+#: ../virtaal/views/checksunitview.py:72
+msgid "No issues"
+msgstr "‮No ıssnǝs"
+
+#: ../virtaal/views/checksunitview.py:79
+msgid "Quality Check"
+msgstr "‮Ònɐʅıʇʎ Ↄɥǝɔʞ"
+
+#: ../virtaal/views/checksunitview.py:85
+msgid "Description"
+msgstr "‮ᗡǝsɔɹıdʇıou"
+
+#: ../virtaal/views/checksprojview.py:39
+msgid "Project Type"
+msgstr "‮Ԁɹoɾǝɔʇ ⊥ʎdǝ"
+
+#. l10n: The label indicating the checker style (GNOME/KDE/whatever)
+#: ../virtaal/views/checksprojview.py:65
+#, python-format
+msgid "Checks: %(checker_name)s"
+msgstr "‮Ↄɥǝɔʞs: %(checker_name)s"
+
+#: ../virtaal/views/langview.py:73
+msgid "_New Language Pair..."
+msgstr "‮_Nǝʍ ⅂ɐuƃnɐƃǝ Ԁɐıɹ˙˙˙"
+
+#: ../virtaal/views/mainview.py:244
+msgid "Error"
+msgstr "‮Ǝɹɹoɹ"
+
+#: ../virtaal/views/mainview.py:356
+msgid ""
+"The current file has been modified.\n"
+"Do you want to save your changes?"
+msgstr ""
+"‮⊥ɥǝ ɔnɹɹǝuʇ ɟıʅǝ ɥɐs qǝǝu ɯopıɟıǝp˙\n"
+"‮ᗡo ʎon ʍɐuʇ ʇo sɐʌǝ ʎonɹ ɔɥɐuƃǝs¿"
+
+#: ../virtaal/views/mainview.py:359
+msgid "_Discard"
+msgstr "‮_ᗡısɔɐɹp"
+
+#. l10n: This is the title of the main window of Virtaal
+#. %(modified_marker)s is a star that is displayed if the file is modified, and should be at the start of the window title
+#. %(current_file)s is the file name of the current file
+#. most languages will not need to change this
+#: ../virtaal/views/mainview.py:444
+#, python-format
+msgid "%(modified_marker)s%(current_file)s - Virtaal"
+msgstr "%(modified_marker)s%(current_file)s‮ - Ʌıɹʇɐɐʅ"
+
+#: ../virtaal/views/mainview.py:469
+msgid "Please enter the number of noun forms (plurals) to use"
+msgstr "‮Ԁʅǝɐsǝ ǝuʇǝɹ ʇɥǝ unɯqǝɹ oɟ uonu ɟoɹɯs (dʅnɹɐʅs) ʇo nsǝ"
+
+#: ../virtaal/views/mainview.py:475
+msgid "Please enter the plural equation to use"
+msgstr "‮Ԁʅǝɐsǝ ǝuʇǝɹ ʇɥǝ dʅnɹɐʅ ǝbnɐʇıou ʇo nsǝ"
+
+#. l10n: This refers to the 'mode' that determines how Virtaal moves
+#. between units.
+#: ../virtaal/views/modeview.py:61
+msgid "N_avigation:"
+msgstr "‮N_ɐʌıƃɐʇıou:"
+
+#: ../virtaal/views/propertiesview.py:32
+msgid "Untranslated:"
+msgstr "‮∩uʇɹɐusʅɐʇǝp:"
+
+#: ../virtaal/views/propertiesview.py:33
+msgid "Needs work:"
+msgstr "‮Nǝǝps ʍoɹʞ:"
+
+#: ../virtaal/views/propertiesview.py:34
+msgid "Rejected:"
+msgstr "‮ᴚǝɾǝɔʇǝp:"
+
+#: ../virtaal/views/propertiesview.py:35
+msgid "Needs review:"
+msgstr "‮Nǝǝps ɹǝʌıǝʍ:"
+
+#: ../virtaal/views/propertiesview.py:36
+msgid "Translated:"
+msgstr "‮⊥ɹɐusʅɐʇǝp:"
+
+#: ../virtaal/views/propertiesview.py:37
+msgid "Reviewed:"
+msgstr "‮ᴚǝʌıǝʍǝp:"
+
+#: ../virtaal/views/propertiesview.py:59
+msgid "(0%)"
+msgstr "‮(0‮%)"
+
+#: ../virtaal/views/propertiesview.py:61
+msgid "(100%)"
+msgstr "‮(100‮%)"
+
+#. l10n: This is the formatting for percentages in the file properties. If unsure, just copy the original.
+#: ../virtaal/views/propertiesview.py:64
+#, python-format
+msgid "(%04.1f%%)"
+msgstr "‮(%04.1f%%‮)"
+
+#: ../virtaal/views/propertiesview.py:134
+msgid "Save the file for up-to-date information"
+msgstr "‮Sɐʌǝ ʇɥǝ ɟıʅǝ ɟoɹ nd-ʇo-pɐʇǝ ıuɟoɹɯɐʇıou"
+
+#. l10n: The total number of words. You can not use %Id at this stage. If unsure, just copy the original.
+#: ../virtaal/views/propertiesview.py:191
+#: ../virtaal/views/propertiesview.py:192
+#, python-format
+msgid "<b>%d</b>"
+msgstr "<b>%d</b>"
+
+#: ../virtaal/views/propertiesview.py:203
+#, python-format
+msgid "%.1f KB"
+msgstr "%.1f‮ ӼԐ"
+
+#: ../virtaal/views/storeview.py:142 ../virtaal/views/storeview.py:151
+msgid "Export failed"
+msgstr "‮Ǝxdoɹʇ ɟɐıʅǝp"
+
+#: ../virtaal/views/storeview.py:160
+msgid "Preview failed"
+msgstr "‮Ԁɹǝʌıǝʍ ɟɐıʅǝp"
+
+#: ../virtaal/views/unitview.py:612
+msgid "Move one step back in the workflow (Ctrl+Shift+Enter)"
+msgstr "‮Woʌǝ ouǝ sʇǝd qɐɔʞ ıu ʇɥǝ ʍoɹʞɟʅoʍ (Ↄʇɹʅ+Sɥıɟʇ+Ǝuʇǝɹ)"
+
+#: ../virtaal/views/unitview.py:613
+msgid "Click to move to a specific state in the workflow"
+msgstr "‮Ↄʅıɔʞ ʇo ɯoʌǝ ʇo ɐ sdǝɔıɟıɔ sʇɐʇǝ ıu ʇɥǝ ʍoɹʞɟʅoʍ"
+
+#: ../virtaal/views/unitview.py:614
+msgid "Move one step forward in the workflow (Ctrl+Enter)"
+msgstr "‮Woʌǝ ouǝ sʇǝd ɟoɹʍɐɹp ıu ʇɥǝ ʍoɹʞɟʅoʍ (Ↄʇɹʅ+Ǝuʇǝɹ)"
+
+#: ../virtaal/views/widgets/aboutdialog.py:34
+msgid "Copyright © 2007-2010 Zuza Software Foundation"
+msgstr "‮Ↄodʎɹıƃɥʇ ©‮ 2007-2010‮ Znzɐ Soɟʇʍɐɹǝ Ⅎonupɐʇıou"
+
+#. l10n: Please retain the literal name "Virtaal", but feel free to
+#. additionally transliterate the name and to add a translation of "For Language", which is what the name means.
+#: ../virtaal/views/widgets/aboutdialog.py:37
+msgid "Virtaal is a program for doing translation."
+msgstr "‮Ʌıɹʇɐɐʅ ıs ɐ dɹoƃɹɐɯ ɟoɹ poıuƃ ʇɹɐusʅɐʇıou˙"
+
+#: ../virtaal/views/widgets/aboutdialog.py:38
+msgid ""
+"The initial focus is on software translation (localization or l10n), but we "
+"definitely intend it to be useful as a general purpose tool for Computer "
+"Aided Translation (CAT)."
+msgstr ""
+"‮⊥ɥǝ ıuıʇıɐʅ ɟoɔns ıs ou soɟʇʍɐɹǝ ʇɹɐusʅɐʇıou (ʅoɔɐʅızɐʇıou oɹ ʅ10‮u)´ qnʇ ʍǝ "
+"pǝɟıuıʇǝʅʎ ıuʇǝup ıʇ ʇo qǝ nsǝɟnʅ ɐs ɐ ƃǝuǝɹɐʅ dnɹdosǝ ʇooʅ ɟoɹ Ↄoɯdnʇǝɹ ∀"
+"ıpǝp ⊥ɹɐusʅɐʇıou (Ↄ∀⊥)˙"
+
+#: ../virtaal/views/widgets/aboutdialog.py:52
+msgid "Virtaal website"
+msgstr "‮Ʌıɹʇɐɐʅ ʍǝqsıʇǝ"
+
+#: ../virtaal/views/widgets/aboutdialog.py:65
+msgid "We thank our donors:"
+msgstr "‮Ｍǝ ʇɥɐuʞ onɹ pouoɹs:"
+
+#: ../virtaal/views/widgets/aboutdialog.py:66
+msgid "The International Development Research Centre"
+msgstr "‮⊥ɥǝ Iuʇǝɹuɐʇıouɐʅ ᗡǝʌǝʅodɯǝuʇ ᴚǝsǝɐɹɔɥ Ↄǝuʇɹǝ"
+
+#: ../virtaal/views/widgets/aboutdialog.py:68
+msgid "Mozilla Corporation"
+msgstr "‮Wozıʅʅɐ Ↄoɹdoɹɐʇıou"
+
+#. l10n: Rather than translating, fill in the names of the translators
+#: ../virtaal/views/widgets/aboutdialog.py:73
+msgid "translator-credits"
+msgstr "‮ʇɹɐusʅɐʇoɹ-ɔɹǝpıʇs"
+
+#: ../virtaal/views/widgets/langadddialog.py:102
+msgid "Language code must be an ASCII string."
+msgstr "‮⅂ɐuƃnɐƃǝ ɔopǝ ɯnsʇ qǝ ɐu ∀SↃII sʇɹıuƃ˙"
+
+#: ../virtaal/views/widgets/langadddialog.py:105
+msgid "Language code must be at least 2 characters long."
+msgstr "‮⅂ɐuƃnɐƃǝ ɔopǝ ɯnsʇ qǝ ɐʇ ʅǝɐsʇ 2‮ ɔɥɐɹɐɔʇǝɹs ʅouƃ˙"
+
+#: ../virtaal/views/widgets/langselectdialog.py:79
+#: ../virtaal/views/widgets/langselectdialog.py:86
+msgid "Language"
+msgstr "‮⅂ɐuƃnɐƃǝ"
+
+#. l10n: This is the column heading for the language code
+#: ../virtaal/views/widgets/langselectdialog.py:94
+#: ../virtaal/views/widgets/langselectdialog.py:101
+msgid "Code"
+msgstr "‮Ↄopǝ"
+
+#: ../virtaal/views/widgets/selectview.py:72
+msgid "Enabled"
+msgstr "‮Ǝuɐqʅǝp"
+
+#: ../virtaal/views/widgets/selectview.py:133
+msgid "Configure..."
+msgstr "‮Ↄouɟıƃnɹǝ˙˙˙"
+
+#: ../virtaal/views/widgets/welcomescreen.py:96
+msgid "Translation memory"
+msgstr "‮⊥ɹɐusʅɐʇıou ɯǝɯoɹʎ"
+
+#: ../virtaal/views/widgets/welcomescreen.py:98
+msgid "Quality checks"
+msgstr "‮Ònɐʅıʇʎ ɔɥǝɔʞs"
+
+#: ../virtaal/views/widgets/welcomescreen.py:99
+msgid "Machine translation"
+msgstr "‮Wɐɔɥıuǝ ʇɹɐusʅɐʇıou"
+
+#: ../virtaal/views/widgets/welcomescreen.py:100
+msgid "Highlighting and insertion of placeables"
+msgstr "‮Hıƃɥʅıƃɥʇıuƃ ɐup ıusǝɹʇıou oɟ dʅɐɔǝɐqʅǝs"
+
+#: ../virtaal/views/widgets/welcomescreen.py:101
+msgid "Many plugins and options for customization"
+msgstr "‮Wɐuʎ dʅnƃıus ɐup odʇıous ɟoɹ ɔnsʇoɯızɐʇıou"
+
+#: ../virtaal/models/storemodel.py:132
+msgid "The file does not exist."
+msgstr "‮⊥ɥǝ ɟıʅǝ poǝs uoʇ ǝxısʇ˙"
+
+#: ../virtaal/models/storemodel.py:134
+msgid "Not a valid file."
+msgstr "‮Noʇ ɐ ʌɐʅıp ɟıʅǝ˙"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:1
+msgid "TMX Translation Memory"
+msgstr "‮⊥WX ⊥ɹɐusʅɐʇıou Wǝɯoɹʎ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:2
+msgid "TMX"
+msgstr "‮⊥WX"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:3
+msgid "Translation Memory eXchange"
+msgstr "‮⊥ɹɐusʅɐʇıou Wǝɯoɹʎ ǝXɔɥɐuƃǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:4
+msgid "TBX Glossary"
+msgstr "‮⊥ԐX ⅁ʅossɐɹʎ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:5
+msgid "TBX"
+msgstr "‮⊥ԐX"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:6
+msgid "TermBase eXchange"
+msgstr "‮⊥ǝɹɯԐɐsǝ ǝXɔɥɐuƃǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:7
+msgid "Wordfast Translation Memory"
+msgstr "‮Ｍoɹpɟɐsʇ ⊥ɹɐusʅɐʇıou Wǝɯoɹʎ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:8
+msgid "Qt Linguist Translation File"
+msgstr "‮Òʇ ⅂ıuƃnısʇ ⊥ɹɐusʅɐʇıou Ⅎıʅǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:9
+msgid "Qt Message File"
+msgstr "‮Òʇ Wǝssɐƃǝ Ⅎıʅǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:10
+msgid "Qt Phrase Book"
+msgstr "‮Òʇ Ԁɥɹɐsǝ Ԑooʞ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:11
+msgid "INI File"
+msgstr "‮INI Ⅎıʅǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:12
+msgid "INI"
+msgstr "‮INI"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:13
+msgid "Initialization"
+msgstr "‮Iuıʇıɐʅızɐʇıou"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:14
+msgid "Java Properties File"
+msgstr "‮ſɐʌɐ Ԁɹodǝɹʇıǝs Ⅎıʅǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:15
+msgid "OpenOffice.org Translation File"
+msgstr "‮OdǝuOɟɟıɔǝ˙oɹƃ ⊥ɹɐusʅɐʇıou Ⅎıʅǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:16
+msgid "XLIFF Translation File"
+msgstr "‮X⅂IℲℲ ⊥ɹɐusʅɐʇıou Ⅎıʅǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:17
+msgid "XLIFF"
+msgstr "‮X⅂IℲℲ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:18
+msgid "XML Localization Interchange File Format"
+msgstr "‮XW⅂ ⅂oɔɐʅızɐʇıou Iuʇǝɹɔɥɐuƃǝ Ⅎıʅǝ Ⅎoɹɯɐʇ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:19
+msgid "C++ RC File"
+msgstr "‮Ↄ++ ᴚↃ Ⅎıʅǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:20
+msgid "RC"
+msgstr "‮ᴚↃ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:21
+msgid "Resource Compiler"
+msgstr "‮ᴚǝsonɹɔǝ Ↄoɯdıʅǝɹ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:22
+msgid "Tcl Translation File"
+msgstr "‮⊥ɔʅ ⊥ɹɐusʅɐʇıou Ⅎıʅǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:23
+msgid "JavaScript error message file"
+msgstr "‮ſɐʌɐSɔɹıdʇ ǝɹɹoɹ ɯǝssɐƃǝ ɟıʅǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:24
+msgid "Gettext Translation Template"
+msgstr "‮⅁ǝʇʇǝxʇ ⊥ɹɐusʅɐʇıou ⊥ǝɯdʅɐʇǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:25
+msgid "Trados Tag Editor"
+msgstr "‮⊥ɹɐpos ⊥ɐƃ Ǝpıʇoɹ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:26
+msgid "OS X Strings File"
+msgstr "‮OS X Sʇɹıuƃs Ⅎıʅǝ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:27
+msgid "UTX Dictionary"
+msgstr "‮∩⊥X ᗡıɔʇıouɐɹʎ"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:28
+msgid "UTX"
+msgstr "‮∩⊥X"
+
+#: ../share/mime/packages/virtaal-mimetype.xml.in.h:29
+msgid "Universal Terminology eXchange"
+msgstr "‮∩uıʌǝɹsɐʅ ⊥ǝɹɯıuoʅoƃʎ ǝXɔɥɐuƃǝ"
+
+#: ../devsupport/tmp_strings.py:23
+msgid "Gettext PO file"
+msgstr "‮⅁ǝʇʇǝxʇ ԀO ɟıʅǝ"
+
+#: ../devsupport/tmp_strings.py:24
+msgid "Gettext MO file"
+msgstr "‮⅁ǝʇʇǝxʇ WO ɟıʅǝ"
+
+#: ../devsupport/tmp_strings.py:25
+msgid "Qt .qm file"
+msgstr "‮Òʇ ˙bɯ ɟıʅǝ"
+
+#: ../devsupport/tmp_strings.py:26
+msgid "OmegaT Glossary"
+msgstr "‮Oɯǝƃɐ⊥ ⅁ʅossɐɹʎ"
+
+#: ../bin/virtaal:94
+#, c-format
+msgid "%prog [options] [translation_file]"
+msgstr "%p‮ɹoƃ [odʇıous] [ʇɹɐusʅɐʇıou_ɟıʅǝ]"
+
+#: ../bin/virtaal:97
+msgid "LOG"
+msgstr "‮⅂O⅁"
+
+#: ../bin/virtaal:98
+msgid "turn on logging, storing the result to the supplied filename."
+msgstr "‮ʇnɹu ou ʅoƃƃıuƃ´ sʇoɹıuƃ ʇɥǝ ɹǝsnʅʇ ʇo ʇɥǝ snddʅıǝp ɟıʅǝuɐɯǝ˙"
+
+#: ../bin/virtaal:100
+msgid "CONFIG"
+msgstr "‮ↃONℲI⅁"
+
+#: ../bin/virtaal:101
+msgid "use the configuration file given by the supplied filename."
+msgstr "‮nsǝ ʇɥǝ ɔouɟıƃnɹɐʇıou ɟıʅǝ ƃıʌǝu qʎ ʇɥǝ snddʅıǝp ɟıʅǝuɐɯǝ˙"
+
+#: ../bin/virtaal:104
+msgid "enable debugging features"
+msgstr "‮ǝuɐqʅǝ pǝqnƃƃıuƃ ɟǝɐʇnɹǝs"
+
+#: ../bin/virtaal:110
+msgid "PROFILE"
+msgstr "‮ԀᴚOℲI⅂Ǝ"
+
+#: ../bin/virtaal:112
+msgid "perform profiling, storing the result to the supplied filename."
+msgstr "‮dǝɹɟoɹɯ dɹoɟıʅıuƃ´ sʇoɹıuƃ ʇɥǝ ɹǝsnʅʇ ʇo ʇɥǝ snddʅıǝp ɟıʅǝuɐɯǝ˙"
+
+#: ../bin/virtaal:136
+msgid "Could not open log file '%(filename)s'"
+msgstr "‮Ↄonʅp uoʇ odǝu ʅoƃ ɟıʅǝ ,%(filename)s‮,"
+
+#: ../bin/virtaal:144
+msgid "Could not read configuration file '%(filename)s'"
+msgstr "‮Ↄonʅp uoʇ ɹǝɐp ɔouɟıƃnɹɐʇıou ɟıʅǝ ,%(filename)s‮,"
+
+#: ../bin/virtaal:148
+msgid "invalid number of arguments"
+msgstr "‮ıuʌɐʅıp unɯqǝɹ oɟ ɐɹƃnɯǝuʇs"
+
+#: ../bin/virtaal:174
+msgid "Profiling support is not available"
+msgstr "‮Ԁɹoɟıʅıuƃ snddoɹʇ ıs uoʇ ɐʌɐıʅɐqʅǝ"
+
+#: ../bin/virtaal:186
+msgid "Could not open profile file '%(filename)s'"
+msgstr "‮Ↄonʅp uoʇ odǝu dɹoɟıʅǝ ɟıʅǝ ,%(filename)s‮,"
+
+#: ../devsupport/optparse.py:134
+#, python-format
+msgid "no such option: %s"
+msgstr "‮uo snɔɥ odʇıou: %s"
+
+#: ../devsupport/optparse.py:145
+#, python-format
+msgid "ambiguous option: %s (%s?)"
+msgstr "‮ɐɯqıƃnons odʇıou: %s‮ (%s‮¿)"
+
+#: ../devsupport/optparse.py:368
+#, python-format
+msgid "Usage: %s\n"
+msgstr "‮∩sɐƃǝ: %s\n"
+
+#: ../devsupport/optparse.py:387
+msgid "Usage"
+msgstr "‮∩sɐƃǝ"
+
+#: ../devsupport/optparse.py:412
+msgid "integer"
+msgstr "‮ıuʇǝƃǝɹ"
+
+#: ../devsupport/optparse.py:413
+msgid "long integer"
+msgstr "‮ʅouƃ ıuʇǝƃǝɹ"
+
+#: ../devsupport/optparse.py:414
+msgid "floating-point"
+msgstr "‮ɟʅoɐʇıuƃ-doıuʇ"
+
+#: ../devsupport/optparse.py:415
+msgid "complex"
+msgstr "‮ɔoɯdʅǝx"
+
+#: ../devsupport/optparse.py:423
+#, python-format
+msgid "option %s: invalid %s value: %r"
+msgstr "‮odʇıou %s‮: ıuʌɐʅıp %s‮ ʌɐʅnǝ: %r"
+
+#: ../devsupport/optparse.py:431
+#, python-format
+msgid "option %s: invalid choice: %r (choose from %s)"
+msgstr "‮odʇıou %s‮: ıuʌɐʅıp ɔɥoıɔǝ: %r‮ (ɔɥoosǝ ɟɹoɯ %s‮)"
+
+#: ../devsupport/optparse.py:1241
+msgid "show this help message and exit"
+msgstr "‮sɥoʍ ʇɥıs ɥǝʅd ɯǝssɐƃǝ ɐup ǝxıʇ"
+
+#: ../devsupport/optparse.py:1246
+msgid "show program's version number and exit"
+msgstr "‮sɥoʍ dɹoƃɹɐɯ,s ʌǝɹsıou unɯqǝɹ ɐup ǝxıʇ"
+
+#: ../devsupport/optparse.py:1269
+msgid "%prog [options]"
+msgstr "%p‮ɹoƃ [odʇıous]"
+
+#: ../devsupport/optparse.py:1479 ../devsupport/optparse.py:1518
+#, python-format
+msgid "%s option requires an argument"
+msgstr "%s‮ odʇıou ɹǝbnıɹǝs ɐu ɐɹƃnɯǝuʇ"
+
+#: ../devsupport/optparse.py:1481 ../devsupport/optparse.py:1520
+#, python-format
+msgid "%s option requires %d arguments"
+msgstr "%s‮ odʇıou ɹǝbnıɹǝs %d‮ ɐɹƃnɯǝuʇs"
+
+#: ../devsupport/optparse.py:1490
+#, python-format
+msgid "%s option does not take a value"
+msgstr "%s‮ odʇıou poǝs uoʇ ʇɐʞǝ ɐ ʌɐʅnǝ"
