@@ -10,6 +10,8 @@ name: Windows installer (test-only, pr-1-port verification)
 # VM pass is done - it should never be part of an actual PR diff.
 
 on:
+  push:
+    branches: [winvm-check/pr-1-port-plus-tooling]
   workflow_dispatch:
 
 jobs:
