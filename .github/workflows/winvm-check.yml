@@ -1,0 +1,488 @@
+name: Windows installer (test-only, pr-1-port verification)
+
+# NOT part of the PR-1 sequence's own CI - ci.yml (PR-2) and the
+# build-windows-installer job (PR-3) don't exist yet on the pr-1-port
+# chain. This standalone workflow exists only to produce a real
+# Windows installer .exe from this branch's content (pr-1-port +
+# borrowed packaging tooling) for a pre-merge VM smoke test, without
+# running the full macOS/Linux/Flatpak matrix from py3's real ci.yml.
+# Delete this file (and the winvm-check/* branch it lives on) once the
+# VM pass is done - it should never be part of an actual PR diff.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-windows:
+    runs-on: windows-latest
+    # Second attempt - the first (MSYS2's own Python via pacman) got as
+    # far as installing GTK3/PyGObject fine, then broke on
+    # translate-toolkit's own dependency chain: unicode-segmentation-rs
+    # (a hard requirement, confirmed via `pip download --no-deps` +
+    # metadata inspection, not optional) ships prebuilt wheels only for
+    # the standard win32/win_amd64 CPython ABI, not MSYS2's
+    # mingw_x86_64_ucrt_gnu tag - falls back to a source build, which then
+    # fails because maturin doesn't support that platform either. MSYS2's
+    # Python and "regular" Windows Python are two separately-ABI'd
+    # ecosystems; mixing them (e.g. MSYS2 GTK + setup-python's Python)
+    # doesn't dodge this, it just relocates the same mismatch to
+    # PyGObject's own compiled _gi extension instead.
+    #
+    # This attempt uses gvsbuild instead: it publishes prebuilt GTK3
+    # binaries (GTK3_Gvsbuild_<version>_x64.zip, confirmed to exist via
+    # `gh api repos/wingtk/gvsbuild/releases/latest`) that a *regular*
+    # actions/setup-python CPython can build PyGObject against via MSVC
+    # (preinstalled on windows-latest runners) - staying in the standard
+    # wheel ecosystem for everything else (translate-toolkit, pycurl,
+    # etc.), unlike MSYS2. Pattern taken from a real project doing the
+    # same thing (gaphor/gaphor's full-build.yml), not reconstructed from
+    # docs alone.
+    #
+    # Spellchecker (enchant/gtkspell3) deliberately left out for this
+    # first attempt to keep scope down - the plugin degrades gracefully
+    # without it, same as it does today when those aren't installed
+    # locally (see the run-virtaal skill's notes).
+    env:
+      gvsbuild_version: "2026.8.0"
+      # INCLUDE/LIB deliberately NOT set here as static job-level values
+      # any more: they need to be *appended to* whatever ilammy/msvc-dev-cmd
+      # computes below (its own INCLUDE/LIB, for the MSVC/Windows SDK
+      # headers and import libs cl.exe itself needs), not replace it - see
+      # the "Add GTK3 to MSVC build environment" step.
+      CC: cl
+      CXX: cl
+      # Force meson (pygobject's build backend) to use MSVC unambiguously.
+      # Without this, meson's own compiler auto-detection picked up
+      # Strawberry Perl's gcc/ccache from PATH instead (windows-latest
+      # runners ship it for Perl-dependent builds) - confirmed directly
+      # from a real build log: `"C:\Strawberry\c\bin\ccache.exe" "cc"`
+      # compiling gi/_gi's sources, failing with `fatal error: glib.h: No
+      # such file or directory` / `girepository/girepository.h: No such
+      # file or directory`. That's not a missing-file problem - it's that
+      # gcc doesn't consult the Windows INCLUDE env var the way cl.exe
+      # does, so C:\gtk\include was invisible to it regardless of how
+      # correctly INCLUDE was set.
+      PKG_CONFIG_PATH: 'C:\gtk\lib\pkgconfig'
+      # PATH (added via GITHUB_PATH, see below) covers DLL loading, but
+      # `import gi`/gi.require_version() needs this separately for
+      # resolving .typelib files - without it, `from gi.repository import
+      # Gtk` silently fails (caught by depcheck.py's broad `except
+      # Exception`), surfacing indirectly as "Failed dependencies: gtk"
+      # rather than the real underlying ImportError. Confirmed as the
+      # cause by elimination: pip install pygobject succeeded, but
+      # nothing had actually exercised a real `from gi.repository import
+      # Gtk` yet at that point - depcheck's test_gtk_version() was the
+      # first thing to actually try.
+      GI_TYPELIB_PATH: 'C:\gtk\lib\girepository-1.0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Cache GTK3 (gvsbuild)
+        id: cache-gtk
+        uses: actions/cache@v6
+        with:
+          path: C:\gtk
+          key: windows-gvsbuild-${{ env.gvsbuild_version }}
+
+      - name: Download prebuilt GTK3 (gvsbuild)
+        if: steps.cache-gtk.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          gh release download --repo wingtk/gvsbuild "${{ env.gvsbuild_version }}" -p "GTK3_Gvsbuild_${{ env.gvsbuild_version }}_x64.zip"
+          7z x "GTK3_Gvsbuild_${{ env.gvsbuild_version }}_x64.zip" -oC:\gtk -y
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Add GTK3 to PATH
+        # Not a job-level `env: PATH:` entry - that would *replace* the
+        # runner's whole PATH for every step (including this one's own
+        # git/python/pwsh), not append to it. GITHUB_PATH is the correct
+        # mechanism: prepends for every step from here on, additively.
+        shell: pwsh
+        run: echo "C:\gtk\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Set up MSVC build environment
+        # windows-latest has the MSVC toolchain (cl.exe) installed but not
+        # on PATH/INCLUDE/LIB by default - this is the standard action for
+        # running the equivalent of vcvarsall.bat and persisting the
+        # result (PATH, INCLUDE, LIB, LIBPATH) into $GITHUB_ENV/PATH for
+        # every later step. Needed so CC=cl/CXX=cl (above) actually
+        # resolves to a working compiler, not just a name meson can't find.
+        #
+        # Still on Node 20 as of the latest release (v1.13.0) - confirmed
+        # by checking that release's own action.yml, not assumed - unlike
+        # actions/cache and actions/upload-artifact above, there's no
+        # newer major version to bump to yet. GitHub currently force-runs
+        # it on Node 24 anyway, so this is a "wait for upstream" item, not
+        # something fixable from this side.
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Add GTK3 to MSVC build environment
+        # Must run *after* msvc-dev-cmd, appending to its INCLUDE/LIB
+        # rather than replacing them (a static job-level env: INCLUDE=...
+        # would instead get replaced *by* msvc-dev-cmd's own INCLUDE, per
+        # normal $GITHUB_ENV precedence - same clobbering pattern as
+        # PKG_CONFIG_PATH below, just the reverse order) - cl.exe needs
+        # its own CRT/Windows SDK headers/libs (from msvc-dev-cmd) *and*
+        # GTK3's (from gvsbuild) at once.
+        shell: pwsh
+        run: |
+          echo "INCLUDE=$env:INCLUDE;C:\gtk\include;C:\gtk\include\cairo;C:\gtk\include\glib-2.0;C:\gtk\include\gobject-introspection-1.0;C:\gtk\lib\glib-2.0\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "LIB=$env:LIB;C:\gtk\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Restore PKG_CONFIG_PATH after setup-python
+        # actions/setup-python writes its own PKG_CONFIG_PATH (pointing at
+        # its own interpreter's pkgconfig dir, for finding python3.pc) via
+        # $GITHUB_ENV during setup - confirmed via the job's own env dumps
+        # in the Actions log: still C:\gtk\lib\pkgconfig going into the
+        # setup-python step, already clobbered to
+        # .../hostedtoolcache/.../lib/pkgconfig by the very next step. Per
+        # GitHub Actions precedence, a step writing $GITHUB_ENV overrides
+        # the job-level `env:` for every step from that point on, so
+        # without this, `pip install pygobject`'s meson build loses
+        # pkg-config's ability to find glib/gobject-introspection/gtk3's
+        # .pc files right when it matters - INCLUDE/LIB (MSVC) still find
+        # headers/import libs, so the build doesn't hard-fail, but the
+        # resulting _gi extension is suspected to end up with broken/
+        # partial GTK bindings, surfacing later as a silent, no-output
+        # native crash in "Run tests" the moment `from gi.repository
+        # import Gtk` is actually exercised for real (pytest collection is
+        # the first thing in the job that does - `py_compile` is a syntax
+        # check only, never imports anything, which is why it stayed
+        # clean).
+        shell: pwsh
+        run: echo "PKG_CONFIG_PATH=C:\gtk\lib\pkgconfig" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Ensure GTK3 DLLs are found by Python's extension loader
+        # Python 3.8+ deliberately no longer searches PATH for an
+        # extension module's own dependent DLLs (SetDefaultDllDirectories
+        # at interpreter startup drops the default search dirs down to
+        # just the app dir, System32, and os.add_dll_directory()-added
+        # ones) - confirmed as the cause of a real, reproducible failure:
+        # `from gi.repository import Gtk` raising `ImportError: DLL load
+        # failed while importing _gi: The specified module could not be
+        # found.`, even with C:\gtk\bin correctly on PATH and _gi.pyd
+        # itself built fine. A sitecustomize.py is the standard fix for
+        # this exact, well-known class of problem - Python auto-imports
+        # it at interpreter startup, so this covers every later step and
+        # process in the job (pytest, the CLI smoke test) without
+        # touching virtaal's own platform-neutral source.
+        shell: pwsh
+        run: |
+          $sitepkgs = python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])"
+          $content = "import os`nif os.name == 'nt':`n    os.add_dll_directory(r'C:\gtk\bin')`n"
+          Set-Content -Path "$sitepkgs\sitecustomize.py" -Value $content -NoNewline
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install setuptools wheel
+          pip install pycairo
+          pip install pygobject
+          pip install translate-toolkit
+          pip install python-Levenshtein
+          pip install pycurl
+          pip install lxml
+          pip install diff_match_patch
+          pip install cheroot
+          pip install pytest
+
+      - name: Install virtaal
+        run: pip install --no-build-isolation .
+
+      - name: Compile-check all Python files
+        run: |
+          Get-ChildItem -Recurse -Filter *.py | ForEach-Object { python -m py_compile $_.FullName }
+
+      - name: Smoke test the GTK3 import
+        # Cheap, fast canary that isolates GTK3 DLL/typelib loading (the
+        # first real `from gi.repository import Gtk` in the whole job -
+        # `py_compile` above is a syntax check only and never imports
+        # anything) from pytest and virtaal's own code - originally added
+        # to bisect a silent native-crash failure in "Run tests" down to
+        # this exact import (an ImportError from Python 3.8+'s stricter
+        # extension-module DLL search, fixed by the sitecustomize.py step
+        # above). Kept as a permanent, fast-failing check for the same
+        # class of regression.
+        run: |
+          python -c "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk; print('GTK', Gtk.get_major_version(), Gtk.get_minor_version(), Gtk.get_micro_version())"
+        env:
+          PYTHONFAULTHANDLER: "1"
+
+      - name: Debug via tmate (manual trigger only)
+        # Opens an interactive SSH session into this exact runner, right
+        # before the step that's been crashing with zero output - only
+        # when manually dispatched with debug_windows=true, never on a
+        # normal push/PR. The point: a fresh local Windows VM likely
+        # wouldn't reproduce this crash at all (tied to this exact
+        # gvsbuild/MSVC/Python combination); this gets a shell in the
+        # actual environment where it does reproduce, to set up crash-dump
+        # collection (e.g. Windows Error Reporting LocalDumps) or attach a
+        # debugger before triggering it deliberately, rather than only
+        # finding out post-mortem.
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_windows }}
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 30
+
+      - name: Run tests
+        # No xvfb-run equivalent, same reasoning as the macOS job: Windows
+        # always has its own native windowing system available, even in a
+        # non-interactive CI session, unlike X11 - confirmed fine, this
+        # was never the problem.
+        #
+        # This step used to crash here with zero output - not even a
+        # Python traceback - constructing the app's first real window
+        # (MainController.__init__ -> MainView(self)). Root-caused and
+        # fixed: mainview.py's set_icon_from_file() loaded virtaal.ico,
+        # but the pinned gvsbuild GTK3 build only ships gdk-pixbuf's SVG
+        # loader plugin, no ICO loader - raising an uncaught GLib.GError
+        # that looked like a silent crash only because pan_app.py
+        # separately (also since fixed) redirected stdout/stderr to a log
+        # file nobody was reading. See ISSUE_TRIAGE.md's Windows CI crash
+        # entry for the full diagnostic history.
+        run: pytest -rvxs virtaal
+        env:
+          PYTHONFAULTHANDLER: "1"
+
+      - name: Smoke test the CLI
+        run: virtaal --help
+
+  build-windows-installer:
+    runs-on: windows-latest
+    needs: test-windows
+    # Separate job from test-windows, not extra steps tacked onto it -
+    # same reasoning as build-macos-app vs test-macos: PyInstaller has to
+    # trace and copy the whole dependency tree, which is genuinely slow,
+    # and this only needs to run once the fast pytest job has already
+    # confirmed the app itself works.
+    env:
+      gvsbuild_version: "2026.8.0"
+      CC: cl
+      CXX: cl
+      PKG_CONFIG_PATH: 'C:\gtk\lib\pkgconfig'
+      GI_TYPELIB_PATH: 'C:\gtk\lib\girepository-1.0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      # Same GTK3/MSVC/DLL-loading setup as test-windows - see that job's
+      # own step comments for the reasoning behind each one. PyInstaller
+      # needs a real, working GTK3/PyGObject environment to trace and
+      # bundle, not just virtaal's own pure-Python dependencies.
+      - name: Cache GTK3 (gvsbuild)
+        id: cache-gtk
+        uses: actions/cache@v6
+        with:
+          path: C:\gtk
+          key: windows-gvsbuild-${{ env.gvsbuild_version }}
+
+      - name: Download prebuilt GTK3 (gvsbuild)
+        if: steps.cache-gtk.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          gh release download --repo wingtk/gvsbuild "${{ env.gvsbuild_version }}" -p "GTK3_Gvsbuild_${{ env.gvsbuild_version }}_x64.zip"
+          7z x "GTK3_Gvsbuild_${{ env.gvsbuild_version }}_x64.zip" -oC:\gtk -y
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Add GTK3 to PATH
+        shell: pwsh
+        run: echo "C:\gtk\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Add GTK3 to MSVC build environment
+        shell: pwsh
+        run: |
+          echo "INCLUDE=$env:INCLUDE;C:\gtk\include;C:\gtk\include\cairo;C:\gtk\include\glib-2.0;C:\gtk\include\gobject-introspection-1.0;C:\gtk\lib\glib-2.0\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "LIB=$env:LIB;C:\gtk\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Restore PKG_CONFIG_PATH after setup-python
+        shell: pwsh
+        run: echo "PKG_CONFIG_PATH=C:\gtk\lib\pkgconfig" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Ensure GTK3 DLLs are found by Python's extension loader
+        shell: pwsh
+        run: |
+          $sitepkgs = python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])"
+          $content = "import os`nif os.name == 'nt':`n    os.add_dll_directory(r'C:\gtk\bin')`n"
+          Set-Content -Path "$sitepkgs\sitecustomize.py" -Value $content -NoNewline
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install setuptools wheel
+          pip install pycairo
+          pip install pygobject
+          pip install translate-toolkit
+          pip install python-Levenshtein
+          pip install pycurl
+          pip install lxml
+          pip install diff_match_patch
+          pip install cheroot
+          pip install pyinstaller
+
+      - name: Install virtaal
+        run: pip install --no-build-isolation .
+
+      - name: Build self-contained bundle
+        shell: pwsh
+        run: devsupport\packaging\windows\build_standalone.ps1
+
+      - name: Verify the bundle actually runs
+        # Mirrors test-macos/build-macos-app's own launch-and-check
+        # pattern exactly - launch with a real file in the background,
+        # confirm the process is still *alive* after enough time for GTK/
+        # plugin init, then kill it. Two earlier attempts here tried to
+        # treat this as a console-app-style "run --version, check the
+        # exit code" smoke test instead, which is the wrong shape of test
+        # for a windowed-subsystem (console=False) GUI app entirely - it
+        # doesn't exit on its own, successfully or otherwise, so waiting
+        # for an exit code was never going to work. Confirmed live across
+        # two failed runs: `&` doesn't block for a GUI-subsystem process
+        # at all ($LASTEXITCODE came back blank), and even
+        # Start-Process -PassThru + WaitForExit() just times out after 30s
+        # instead of the process ever exiting - because it isn't crashing
+        # or hanging in a way that matters, it's just... running, like a
+        # GUI app does.
+        #
+        # Uses devsupport/testing/windows/virtaal_ui_test_helpers.ps1
+        # (2026-08-24) rather than inline Start-Process/Get-Content calls -
+        # see that file's own header for why it exists. The allowlist
+        # here starts empty: the first real clean-run baseline
+        # (2026-08-23, CI run 32658989469, the contents_directory="."
+        # fix) came back with both log files completely empty - no
+        # depcheck output, no plugin-load noise at all, since bin/
+        # virtaal's dependency checker and most of its own logging setup
+        # are skipped entirely for packaged=True builds. That emptiness
+        # is exactly why three real, previously-invisible crashes on this
+        # same frozen-Windows startup path (fix_libintl's str/bytes
+        # mixing, PyInstaller 6's _internal/ layout mismatch,
+        # spellchecker.py's DICTDIR.decode() bug) went undetected here for
+        # as long as they did - a human had to hit each one by hand in
+        # the Windows 11 ARM64 VM instead. Add a regex to the allowlist
+        # below if/when a genuinely benign line shows up; until then, any
+        # line at all is unexpected.
+        shell: pwsh
+        run: |
+          . .\devsupport\testing\windows\virtaal_ui_test_helpers.ps1
+          $t = Start-VirtaalTest -Arguments "devsupport\testfiles\checks.po"
+          if (-not $t) { exit 1 }
+          Stop-VirtaalTest $t
+          Write-VirtaalLogs
+          if (-not (Assert-VirtaalLogsClean)) { exit 1 }
+
+      - name: Verify repeated navigation doesn't grow the window
+        # Reported live on Windows, 2026-08-23, after the runaway-resize
+        # loop above was already fixed: opening a real file and
+        # repeatedly pressing Enter to advance to the next translation
+        # unit grows the window a little wider each time, and it never
+        # shrinks back - any file with more than ~20-30 strings ends up
+        # with an unusably wide window. Same root-cause family (this
+        # Windows/gvsbuild GTK3 build computing a divergent natural size
+        # each time a cell re-enters edit mode), but a different trigger
+        # the "Verify the bundle actually runs" step above never
+        # exercises at all - it opens a file and confirms the process is
+        # alive, it never navigates between units. The trigger is
+        # storetreeview.py's select_index() specifically - a separate,
+        # much older code path with its own start_editing=True calls,
+        # not touched by the resize/focus-triggered fix above. No local
+        # repro exists for this on macOS despite trying, so this is a
+        # real regression check on actual Windows (SendKeys + Win32
+        # GetWindowRect, via the same helpers module as the step above)
+        # rather than another blind guess verified only by a human in a
+        # VM.
+        shell: pwsh
+        run: |
+          . .\devsupport\testing\windows\virtaal_ui_test_helpers.ps1
+          $t = Start-VirtaalTest -Arguments "po\af.po"
+          if (-not $t) { exit 1 }
+
+          $widthBefore = Get-VirtaalWidth $t
+          Write-Host "Window width before navigation: $widthBefore"
+
+          for ($i = 0; $i -lt 25; $i++) {
+              Send-VirtaalKeys $t "{ENTER}"
+          }
+
+          $widthAfter = Get-VirtaalWidth $t
+          Write-Host "Window width after 25x Enter-to-advance: $widthAfter"
+          Stop-VirtaalTest $t
+
+          $growth = $widthAfter - $widthBefore
+          Write-Host "Width growth after 25 navigations: $growth px"
+          if ($growth -gt 50) {
+              Write-Host "::error::Window grew by $growth px after 25x Enter-to-advance - see storetreeview.py's select_index()"
+              Write-VirtaalLogs
+              exit 1
+          }
+
+      - name: Verify common keyboard shortcuts don't crash the app
+        # Exercises Ctrl+Z (undo), Ctrl+X/C/V (cut/copy/paste), and
+        # Ctrl+O (File > Open). Not a functional check of what each
+        # shortcut actually *does* - confirming that needs real UI
+        # Automation tree inspection to read back selection/clipboard/
+        # dialog state, a bigger lift than this - just that sending them
+        # doesn't crash or hang the app. A cheap regression net for the
+        # crash-class of bug using the same helpers module as the checks
+        # above, and a real prerequisite for a future functional check
+        # (e.g. of the still-open "Navigation menu shortcuts don't work
+        # on Windows" report in ISSUE_TRIAGE.md) rather than a
+        # replacement for one.
+        shell: pwsh
+        run: |
+          . .\devsupport\testing\windows\virtaal_ui_test_helpers.ps1
+          $t = Start-VirtaalTest -Arguments "devsupport\testfiles\checks.po"
+          if (-not $t) { exit 1 }
+
+          foreach ($keys in @("^z", "^x", "^c", "^v")) {
+              Send-VirtaalKeys $t $keys
+          }
+          # Ctrl+O opens the file-open dialog - a real modal window that
+          # would otherwise block indefinitely waiting for input, so
+          # close it with Escape immediately rather than leaving it open
+          # for the rest of the job.
+          Send-VirtaalKeys $t "^o"
+          Send-VirtaalKeys $t "{ESC}"
+
+          $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
+          Stop-VirtaalTest $t
+
+          if (-not $stillAlive) {
+              Write-Host "::error::Bundle crashed after sending Ctrl+Z/X/C/V/O"
+              Write-VirtaalLogs
+              exit 1
+          }
+          if (-not (Assert-VirtaalLogsClean)) { exit 1 }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Virtaal-windows-bundle
+          path: dist\virtaal
+          if-no-files-found: error
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y
+
+      - name: Build installer
+        shell: pwsh
+        run: devsupport\packaging\windows\build_installer.ps1
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Virtaal-windows-installer
+          path: dist\installer\*.exe
+          if-no-files-found: error
+
