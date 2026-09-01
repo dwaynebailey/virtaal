@@ -24,4 +24,3 @@ minor fork or rebrand of a listed tool doesn't count as new).
 |------|-------------|------------------------|-------|
 | Gtranslator (GNOME Translation Editor) | 2026-09 | SQLite-backed "translation memory" plugin, learned from open PO files | GNOME's native gettext PO editor; actively maintained. TM is local/per-user rather than a portable TMX file, so interop would likely mean reading its SQLite schema directly rather than a standard exchange format. |
 | Autshumato Integrated Translation Environment (ITE) | 2026-09 | TMX | South African (translate.org.za-adjacent) open-source CAT tool bundling TM, glossary and MT lookup. TMX is a format translate-toolkit already reads/writes, so importing an Autshumato TM into Virtaal is plausible in principle; project's maintenance activity should be re-checked before relying on it. |
-
