@@ -121,6 +121,14 @@ jobs:
             python3-dev \
             xvfb
 
+      - name: Print GTK/GLib/gdk-pixbuf package versions
+        # Diagnostic only, temporary - none of these are pinned, so
+        # a routine Ubuntu archive bump is a live suspect for the
+        # test(3.13)-only segfault in ISSUE_TRIAGE.md. Keep this
+        # output around for comparing a passing run against a
+        # failing one.
+        run: dpkg -l | grep -E 'libgtk-3-0|libglib2.0-0|libgdk-pixbuf|libgirepository|libcairo-gobject2'
+
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
