@@ -136,7 +136,7 @@ jobs:
           # GTK3/PyGObject aren't declared in pyproject.toml at all -
           # pip install pygobject only succeeds with GTK3 headers
           # already present, which apt provides here.
-          pip install pygobject
+          pip install 'pygobject<3.58'
           pip install pyenchant
 
       - name: Install virtaal
