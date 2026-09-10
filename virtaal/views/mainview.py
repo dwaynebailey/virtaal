@@ -921,6 +921,23 @@ class MainView(BaseView):
         logging.debug(
             "fullscreen: window-state-event new=%s changed=%s size=%s",
             event.new_window_state, event.changed_mask, self.main_window.get_size())
+        entered_fullscreen = (
+            event.changed_mask & Gdk.WindowState.FULLSCREEN
+            and event.new_window_state & Gdk.WindowState.FULLSCREEN
+        )
+        if entered_fullscreen and getattr(self, '_osxapp', None):
+            # macOS's own native fullscreen (the green button) bypasses
+            # our _on_fullscreen()/GtkosxApplication entirely - without
+            # this, revealing the menu bar while fullscreen shows only
+            # the bare app-name menu. sync_menubar() alone doesn't help
+            # (it just resyncs the existing NSMenu in place); set_menu_bar()
+            # re-does gtk-mac-integration's own setMainMenu unset/reset
+            # dance, which is what actually forces AppKit to pick it up
+            # again. Deferred like the resize restore below - fired
+            # immediately, this is still mid-transition.
+            from gi.repository import GLib
+            GLib.timeout_add(300, self._resync_osx_menu_bar)
+
         # React to the real, confirmed transition, not the unfullscreen()
         # call itself (which doesn't reliably take effect synchronously
         # on Windows).
@@ -950,6 +967,10 @@ class MainView(BaseView):
         logging.debug("fullscreen: resizing to %s (get_size() was %s)", target_size, self.main_window.get_size())
         self.main_window.resize(*target_size)
         logging.debug("fullscreen: get_size() now reports %s", self.main_window.get_size())
+        return False  # one-shot: don't repeat this GLib.timeout_add
+
+    def _resync_osx_menu_bar(self):
+        self._osxapp.set_menu_bar(self.menubar)
         return False  # one-shot: don't repeat this GLib.timeout_add
 
     def _on_app_pressed(self, btn):
