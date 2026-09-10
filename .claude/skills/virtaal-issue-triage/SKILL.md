@@ -87,3 +87,20 @@ against the repo's own history instead of the dead external link:
 Label the whole category `bugzilla-import` alongside its normal type/
 platform/l10n labels, so it stays visibly distinct from an issue with a
 real, contactable reporter.
+
+## Uninformative titles
+
+Plenty of old reports carry a title that says nothing ("Error in
+virtaal", "Virtaal 0.7.1", "I have a problem") - the real content is
+only in the body. Rewrite these so the backlog is actually scannable
+by title:
+
+- **Bugzilla-import or otherwise unreachable reporter**: rewrite the
+  title directly, no comment needed - there's no one to notify.
+- **A real, contactable reporter**: rewrite the title, but leave a
+  short comment saying so ("Adjusted the title to make this easier to
+  find - let us know if it doesn't capture your report correctly") -
+  don't silently change a live user's own words without saying so.
+
+Base the new title on the actual bug/request in the body, not a
+paraphrase of the bad title itself.
