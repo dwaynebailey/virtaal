@@ -184,16 +184,22 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
         if item is None:
             self.get_selection().unselect_all()
             return
+        # Matched on 'data' alone, not the whole item - re-selecting
+        # after a refresh (e.g. toggling a row's own checkbox rebuilds
+        # the model from scratch) compared against a stale snapshot
+        # whose 'enabled' had already changed, so it could never match
+        # itself and silently lost the selection on every toggle.
         found = False
         itr = self._model.get_iter_first()
         while itr is not None and self._model.iter_is_valid(itr):
-            if self.get_item(itr) == item:
+            current = self.get_item(itr)
+            if current['data'] == item['data']:
                 found = True
                 break
             itr = self._model.iter_next(itr)
         if found and itr and self._model.iter_is_valid(itr):
             self.get_selection().select_iter(itr)
-            self.selected_item = item
+            self.selected_item = current
         else:
             self.selected_item = None
 
