@@ -272,6 +272,16 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
             self._on_item_toggled(None, path)
             return True
         if event.keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
-            self.do_row_activated(path, self.namedesc_col)
+            # Configure... only exists as a real, clickable widget once
+            # the row's in GTK's editing state - entering it alone left
+            # Enter needing a second press to actually reach it. Call
+            # straight through instead, the same as a mouse click on
+            # the button itself does.
+            iter = self._model.get_iter(path)
+            item = self.get_item(iter) if iter else None
+            if item and 'config' in item:
+                item['config'](self.get_toplevel())
+            else:
+                self.do_row_activated(path, self.namedesc_col)
             return True
         return False
