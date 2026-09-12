@@ -47,9 +47,9 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
         self.selected_item = None
         if not items:
             items = Gtk.ListStore(bool, str, str, TYPE_PYOBJECT, TYPE_PYOBJECT)
-        self.set_model(items)
 
         self._add_columns()
+        self.set_model(items)
         self._set_defaults()
         self._connect_events()
 
@@ -210,14 +210,26 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
             self._model = Gtk.ListStore(bool, str, str, TYPE_PYOBJECT, TYPE_PYOBJECT)
             items = list(items)
             items.sort(key=lambda x: strxfrm(x.get('name', '')))
+            # CellRendererWidget.do_get_size() only ever measures
+            # whichever row's widget happens to be assigned to it at
+            # query time, not every row - the column's own width never
+            # accounted for a wider row (e.g. one with a "Configure..."
+            # button) that just hadn't been rendered yet. Measure every
+            # row's real widget upfront instead.
+            widest = 0
             for row in items:
+                widget = self._create_widget_for_item(row)
+                widget.show_all()
+                widest = max(widest, widget.get_preferred_width()[1])
                 self._model.append([
                     row.get('enabled', False),
                     row.get('name', ''),
                     row.get('desc', ''),
                     row.get('data', None),
-                    self._create_widget_for_item(row)
+                    widget
                 ])
+            if widest:
+                self.namedesc_col.set_min_width(widest)
 
         super().set_model(self._model)
 
