@@ -151,6 +151,12 @@ class WebLookupConfigDialog:
         self.add_dialog = WebLookupAddDialog(self.dialog)
 
     def _init_treeview(self):
+        # The .ui file marks this focusable, which swallows Tab/Down
+        # meant for the treeview inside it (same issue as
+        # prefsview.py's plugin/placeables lists) - the scroller
+        # chrome has no reason to be a stop in the focus chain.
+        self.tvw_urls.get_parent().set_can_focus(False)
+
         self.lst_urls = Gtk.ListStore(str, str, bool, object)
         self.tvw_urls.set_model(self.lst_urls)
 
