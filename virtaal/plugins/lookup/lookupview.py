@@ -161,7 +161,10 @@ class LookupView(BaseView):
         menu.append(sep)
 
         for i in top_level_items:
-            i.show()
+            # Recursive - a plain show() left a top-level item's own
+            # submenu (e.g. Thesaurus's actual synonym entries) built
+            # but never shown, an empty-looking flyout.
+            i.show_all()
             menu.append(i)
 
         if nested_items:
