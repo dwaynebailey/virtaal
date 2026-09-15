@@ -79,6 +79,16 @@ def _make_model(source_lang=None, target_lang=None):
     return LookupModel('thesaurus', _FakeController(source_lang, target_lang))
 
 
+def test_configure_func_is_none_by_default():
+    # select_backends() (Select Look-up Services) reads .configure_func
+    # off every enabled model, not just ones with something to
+    # configure - a real crash (AttributeError) before BaseLookupModel
+    # declared a default, since this model never sets one itself.
+    model = _make_model()
+
+    assert model.configure_func is None
+
+
 def _write_dat(cache_dir, locale_code, content):
     folder = cache_dir / locale_code
     folder.mkdir(parents=True, exist_ok=True)

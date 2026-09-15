@@ -19,6 +19,13 @@ class BaseLookupModel:
     holds everyone else's - for something specific enough (e.g.
     thesaurus synonyms) that nesting it one level deeper, alongside
     unrelated web look-ups, would just make it slower to reach."""
+    configure_func = None
+    """A callable(parent_window) opening this model's own settings
+    dialog, offered in the Select Look-up Services list - None (the
+    default) if there's nothing to configure. weblookup.py is the
+    only model that currently sets its own; every model needs this
+    attribute to exist at all, not just the ones with something to
+    configure - select_backends() reads it off every enabled model."""
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
