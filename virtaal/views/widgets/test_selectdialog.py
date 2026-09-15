@@ -25,3 +25,14 @@ def test_run_presents_the_window_and_restores_the_parents_focus(monkeypatch):
     dialog.run(items=[])
 
     assert calls == ['dialog', 'parent']
+
+
+def test_scrolled_window_propagates_natural_width():
+    # A row's inline "Configure..." button (see lookupview.py) got
+    # clipped/hidden - a ScrolledWindow doesn't request its child's
+    # actual width by default, it just shrinks it instead.
+    dialog = SelectDialog()
+
+    scrolled_window = dialog.sview.get_parent()
+
+    assert scrolled_window.get_property('propagate-natural-width')
