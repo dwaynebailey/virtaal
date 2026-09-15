@@ -7,7 +7,7 @@
 
 import locale
 
-from gi.repository import Gdk, Gtk, Pango
+from gi.repository import Gdk, GLib, Gtk, Pango
 from translate.storage import factory as store_factory
 
 from virtaal.common.utils import get_unicode
@@ -293,7 +293,8 @@ class FileSelectDialog:
         self.dialog.run()
         self.dialog.hide()
         if transient_for is not None:
-            transient_for.present()
+            # present() alone doesn't reliably restore focus on macOS - deferred.
+            GLib.idle_add(transient_for.present)
 
 
     # EVENT HANDLERS #
@@ -495,7 +496,7 @@ class TermAddDialog:
         response = self.dialog.run()
         self.dialog.hide()
         if transient_for is not None:
-            transient_for.present()
+            GLib.idle_add(transient_for.present)
 
         if response != Gtk.ResponseType.OK:
             return

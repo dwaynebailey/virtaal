@@ -82,7 +82,10 @@ def test_run_shows_before_presenting():
     assert add_dialog.dialog.calls == ['show', 'present']
 
 
-def test_run_restores_the_parents_focus_on_close():
+def test_run_restores_the_parents_focus_on_close(monkeypatch):
+    from virtaal.plugins.terminology.models.localfile import localfileview
+    monkeypatch.setattr(localfileview.GLib, 'idle_add', lambda func, *args: func(*args))
+
     add_dialog = TermAddDialog.__new__(TermAddDialog)
     top_window = _FakeTopWindow()
     add_dialog.dialog = _FakeDialog(transient_for=top_window)

@@ -7,7 +7,7 @@
 
 import locale
 
-from gi.repository import GObject, Gtk
+from gi.repository import GLib, GObject, Gtk
 
 from virtaal.views.baseview import BaseView
 
@@ -138,7 +138,8 @@ class LanguageSelectDialog:
         response = self.dialog.run() == Gtk.ResponseType.OK
         self.dialog.hide()
         if transient_for is not None:
-            transient_for.present()
+            # present() alone doesn't reliably restore focus on macOS - deferred.
+            GLib.idle_add(transient_for.present)
         return response
 
     def update_languages(self, langs):
