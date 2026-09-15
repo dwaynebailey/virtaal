@@ -102,10 +102,30 @@ class LookupView(BaseView):
         selectdlg.run(items=items)
 
 
+    def _select_word_at_cursor(self, buf):
+        """Selects the word the cursor is inside of (a plain
+        right-click, with nothing dragged out first, leaves the
+        cursor there but nothing selected) - copy/spell-checker style
+        look-ups shouldn't require selecting a word first when just
+        clicking on it already says which one is meant."""
+        cursor = buf.get_iter_at_mark(buf.get_insert())
+        if not cursor.inside_word():
+            return
+        start = cursor.copy()
+        if not start.starts_word():
+            start.backward_word_start()
+        end = cursor.copy()
+        if not end.ends_word():
+            end.forward_word_end()
+        buf.select_range(start, end)
+
+
     # SIGNAL HANDLERS #
 
     def _on_populate_popup(self, textbox, menu):
         buf = textbox.buffer
+        if not buf.get_has_selection():
+            self._select_word_at_cursor(buf)
         if not buf.get_has_selection():
             return
 
