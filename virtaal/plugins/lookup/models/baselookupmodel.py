@@ -13,6 +13,12 @@ class BaseLookupModel:
     """A description of the backend. This will be displayed to users."""
     display_name = None
     """The backend's name, suitable for display."""
+    TOP_LEVEL = False
+    """If True, this model's menu items sit directly in the
+    right-click menu, as a sibling of the "Look-up" submenu that
+    holds everyone else's - for something specific enough (e.g.
+    thesaurus synonyms) that nesting it one level deeper, alongside
+    unrelated web look-ups, would just make it slower to reach."""
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
