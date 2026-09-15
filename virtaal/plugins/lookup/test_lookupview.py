@@ -5,11 +5,10 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from types import SimpleNamespace
-
 from gi.repository import Gtk
 
 from virtaal.plugins.lookup.lookupview import LookupView
+from virtaal.views.widgets.wordatcursor import WordAtCursorSelector
 
 
 class _FakeIter:
@@ -88,7 +87,7 @@ def _make_view(plugins):
     view = LookupView.__new__(LookupView)
     view.controller = _FakeController(plugins)
     view.lang_controller = _FakeLangController()
-    view._pending_click_iter = None
+    view._word_selector = WordAtCursorSelector()
     return view
 
 
@@ -154,80 +153,6 @@ class _RealTextbox:
         self.buffer.set_text(text)
         self.buffer.place_cursor(self.buffer.get_iter_at_offset(cursor_offset))
         self.role = role
-
-
-def test_select_word_at_cursor_selects_the_enclosing_word():
-    view = _make_view({})
-    buf = Gtk.TextBuffer()
-    buf.set_text('The quick brown fox')
-    buf.place_cursor(buf.get_iter_at_offset(6))  # inside "quick"
-
-    view._select_word_at_cursor(buf)
-
-    start, end = buf.get_selection_bounds()
-    assert buf.get_text(start, end, False) == 'quick'
-
-
-def test_select_word_at_cursor_does_nothing_on_whitespace():
-    view = _make_view({})
-    buf = Gtk.TextBuffer()
-    buf.set_text('The quick brown fox')
-    buf.place_cursor(buf.get_iter_at_offset(3))  # the space after "The"
-
-    view._select_word_at_cursor(buf)
-
-    assert not buf.get_has_selection()
-
-
-def test_select_word_at_cursor_prefers_the_captured_click_over_the_insertion_mark():
-    # A right-click doesn't reliably move the buffer's own insertion
-    # mark first (confirmed live: it kept picking the word at the very
-    # start of a never-yet-clicked text box, regardless of where the
-    # click actually landed) - the position _on_button_press() just
-    # captured is used instead.
-    view = _make_view({})
-    buf = Gtk.TextBuffer()
-    buf.set_text('The quick brown fox')
-    buf.place_cursor(buf.get_iter_at_offset(0))  # insertion mark stuck at the start
-    view._pending_click_iter = buf.get_iter_at_offset(16)  # actually clicked inside "fox"
-
-    view._select_word_at_cursor(buf)
-
-    start, end = buf.get_selection_bounds()
-    assert buf.get_text(start, end, False) == 'fox'
-
-
-def test_select_word_at_cursor_consumes_the_captured_click_once():
-    view = _make_view({})
-    buf = Gtk.TextBuffer()
-    buf.set_text('The quick brown fox')
-    view._pending_click_iter = buf.get_iter_at_offset(16)
-
-    view._select_word_at_cursor(buf)
-
-    assert view._pending_click_iter is None
-
-
-def test_on_button_press_captures_the_click_position_for_a_right_click():
-    view = _make_view({})
-    view._iter_at_event = lambda textbox, event: 'clicked-here'
-
-    view._on_button_press(None, SimpleNamespace(button=3))
-
-    assert view._pending_click_iter == 'clicked-here'
-
-
-def test_on_button_press_ignores_a_left_click():
-    # Only the click that's about to open the context menu should be
-    # captured - a plain left-click leaving a stale position behind
-    # would be wrong for a later keyboard-triggered menu (Shift+F10)
-    # that never involved a click at all.
-    view = _make_view({})
-    view._iter_at_event = lambda textbox, event: 'clicked-here'
-
-    view._on_button_press(None, SimpleNamespace(button=1))
-
-    assert view._pending_click_iter is None
 
 
 def test_populate_popup_selects_the_word_under_the_cursor_when_nothing_is_selected():
