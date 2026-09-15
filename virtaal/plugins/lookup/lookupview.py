@@ -27,6 +27,7 @@ class LookupView(BaseView):
 
         self._textbox_ids = []
         self._unitview_ids = []
+        self._pending_click_iter = None
         unitview = controller.main_controller.unit_controller.view
         if unitview.sources:
             self._connect_to_textboxes(unitview, unitview.sources)
@@ -39,6 +40,10 @@ class LookupView(BaseView):
 
     def _connect_to_textboxes(self, unitview, textboxes):
         for textbox in textboxes:
+            self._textbox_ids.append((
+                textbox,
+                textbox.connect('button-press-event', self._on_button_press)
+            ))
             self._textbox_ids.append((
                 textbox,
                 textbox.connect('populate-popup', self._on_populate_popup)
@@ -107,8 +112,19 @@ class LookupView(BaseView):
         right-click, with nothing dragged out first, leaves the
         cursor there but nothing selected) - copy/spell-checker style
         look-ups shouldn't require selecting a word first when just
-        clicking on it already says which one is meant."""
-        cursor = buf.get_iter_at_mark(buf.get_insert())
+        clicking on it already says which one is meant.
+
+        Prefers the position _on_button_press() just captured over
+        the buffer's own insertion-cursor mark: a right-click doesn't
+        reliably move that mark first (confirmed live - right-clicking
+        anywhere in a never-yet-clicked text box picked the word at
+        its very start every time, not the word under the pointer).
+        Falls back to the insertion mark for a menu triggered without
+        a click at all (e.g. the keyboard Menu key)."""
+        cursor = self._pending_click_iter
+        self._pending_click_iter = None
+        if cursor is None:
+            cursor = buf.get_iter_at_mark(buf.get_insert())
         if not cursor.inside_word():
             return
         start = cursor.copy()
@@ -119,8 +135,22 @@ class LookupView(BaseView):
             end.forward_word_end()
         buf.select_range(start, end)
 
+    def _iter_at_event(self, textbox, event):
+        bx, by = textbox.window_to_buffer_coords(Gtk.TextWindowType.WIDGET, int(event.x), int(event.y))
+        found, it = textbox.get_iter_at_location(bx, by)
+        return it if found else None
+
 
     # SIGNAL HANDLERS #
+
+    def _on_button_press(self, textbox, event):
+        # Only the right-click that's about to open the context menu -
+        # capturing every click would leave a stale position behind
+        # for a later keyboard-triggered menu (Shift+F10/Menu key)
+        # that never involved a click at all.
+        if event.button == 3:
+            self._pending_click_iter = self._iter_at_event(textbox, event)
+        return False
 
     def _on_populate_popup(self, textbox, menu):
         buf = textbox.buffer
