@@ -141,6 +141,37 @@ def test_select_item_moves_the_keyboard_cursor_too():
     assert sview.get_cursor()[0] == target_path
 
 
+def test_scroll_position_round_trips_through_a_scrolled_window():
+    # set_model() replaces the ListStore, resetting scroll to the top -
+    # a caller reselecting the same row afterwards needs its own way
+    # to put the view back where it was, since GTK only scrolls as far
+    # as needed to reveal that row again, not necessarily to the same
+    # place.
+    sview = _make_view()
+    scrolled = Gtk.ScrolledWindow()
+    scrolled.add(sview)
+    sview.get_vadjustment().set_upper(1000)
+    sview.get_vadjustment().set_value(42)
+
+    position = sview.get_scroll_position()
+    sview.get_vadjustment().set_value(0)
+    sview.set_scroll_position(position)
+
+    assert sview.get_vadjustment().get_value() == 42
+
+
+def test_set_scroll_position_does_nothing_for_none():
+    sview = _make_view()
+    scrolled = Gtk.ScrolledWindow()
+    scrolled.add(sview)
+    sview.get_vadjustment().set_upper(1000)
+    sview.get_vadjustment().set_value(42)
+
+    sview.set_scroll_position(None)
+
+    assert sview.get_vadjustment().get_value() == 42
+
+
 def test_configure_button_responds_to_the_clicked_signal():
     # Enter/Space on a focused button fires 'clicked' - the button
     # used to only listen for 'button-release-event', which a real
