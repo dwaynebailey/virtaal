@@ -167,9 +167,20 @@ class MainController(BaseController):
             @returns: The filename opened, or C{None} if an error has occurred."""
         # We might be a bit early for some of the other controllers, so let's
         # make it our problem and ensure the last ones are in the main
-        # controller.
-        while not self.placeables_controller:
+        # controller. Bounded, not an unconditional while - a re-entrant
+        # open_file() call arriving during this same wait (e.g. a macOS
+        # "open file" event delivered while placeables_controller never
+        # gets constructed at all, as happens outside the real app's own
+        # startup sequence) recurses through here forever otherwise,
+        # growing the stack without bound - confirmed the hard way, a
+        # real multi-minute CI/local hang with no error output at all.
+        for _ in range(10000):
+            if self.placeables_controller:
+                break
             Gtk.main_iteration()
+        else:
+            import logging
+            logging.warning('open_file(): gave up waiting for placeables_controller')
         if filename is None:
             return self.view.open_file()
         if self.store_controller.is_modified():
