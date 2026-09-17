@@ -91,6 +91,24 @@ def test_add_dialog_run_restores_the_parents_focus_on_close(monkeypatch):
     assert calls == ['parent']
 
 
+def test_add_dialog_derives_an_id_from_the_typed_name(monkeypatch):
+    # Never asks the user for one directly.
+    monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
+    dialog = WebLookupAddDialog(parent=None)
+
+    def _type_and_confirm():
+        # run() resets the entries first - simulate the user typing
+        # during the (here, mocked) modal call itself.
+        dialog.ent_url_name.set_text('My Site')
+        dialog.ent_url.set_text('http://example.com/?q=%(query)s')
+        return Gtk.ResponseType.OK
+    monkeypatch.setattr(dialog.dialog, 'run', _type_and_confirm)
+
+    url = dialog.run()
+
+    assert url['id'] == 'my_site'
+
+
 # Disabling a web look-up
 
 def _model(monkeypatch, tmp_path):

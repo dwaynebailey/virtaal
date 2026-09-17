@@ -8,6 +8,12 @@
 from os import path
 from urllib import parse
 
+
+def _slugify(display_name):
+    """A stable id derived from a user's own typed name, so they're
+        never asked for one directly - "My Site" -> "my_site"."""
+    return display_name.strip().lower().replace(' ', '_')
+
 from gi.repository import GLib, Gtk, Pango
 
 from virtaal.common import pan_app
@@ -106,8 +112,8 @@ class LookupModel(BaseLookupModel):
             # A save from before 'id' existed has none - resolve it by
             # matching its own (untranslated, at the time) display_name
             # against the current defaults'. A genuinely custom entry
-            # matches nothing here and keeps its display_name as its
-            # own id, same as it would have been keyed before.
+            # matches nothing here and gets one derived the same way a
+            # newly-added one would.
             display_to_id = {d['display_name']: d['id'] for d in type(self).URLDATA}
             for u in urls:
                 if 'quoted' in u:
@@ -115,7 +121,7 @@ class LookupModel(BaseLookupModel):
                 # A saved entry from before this key existed has no
                 # 'enabled' value - default it to enabled.
                 u['enabled'] = u.get('enabled', 'True') == 'True'
-                u.setdefault('id', display_to_id.get(u['display_name'], u['display_name']))
+                u.setdefault('id', display_to_id.get(u['display_name'], _slugify(u['display_name'])))
             saved_ids = {u['id'] for u in urls}
             urls += [u for u in type(self).URLDATA if u['id'] not in saved_ids]
             self.URLDATA = urls
@@ -342,8 +348,10 @@ class WebLookupAddDialog:
         if response != Gtk.ResponseType.OK:
             return None
 
+        name = self.ent_url_name.get_text()
         self.url = {
-            'display_name':   self.ent_url_name.get_text(),
+            'id':             _slugify(name),
+            'display_name':   name,
             'url':            self.ent_url.get_text(),
             'quoted':         self.cbtn_url_quote.get_active(),
             'enabled':        True,
