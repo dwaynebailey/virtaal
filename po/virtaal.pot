@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-beta2\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-09-17 16:21+0100\n"
+"POT-Creation-Date: 2026-09-17 18:53+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -893,14 +893,6 @@ msgstr ""
 
 #: ../virtaal/controllers/placeablescontroller.py
 msgid "Placeholders in Drupal strings"
-msgstr ""
-
-#: ../virtaal/controllers/prefscontroller.py
-msgid "Language changed"
-msgstr ""
-
-#: ../virtaal/controllers/prefscontroller.py
-msgid "Restart Virtaal for the new language to take effect."
 msgstr ""
 
 #: ../virtaal/controllers/storecontroller.py
@@ -1956,6 +1948,14 @@ msgstr ""
 msgid ""
 "Your settings file could not be read, so Virtaal started with default "
 "settings. The old file was kept at: %s"
+msgstr ""
+
+#: ../virtaal/views/mainview.py
+msgid "Restart Virtaal for the new language to take effect."
+msgstr ""
+
+#: ../virtaal/views/mainview.py
+msgid "Dismiss"
 msgstr ""
 
 #: ../virtaal/views/mainview.py
