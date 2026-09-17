@@ -8,7 +8,7 @@
 import gi
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import GObject, Gtk
+from gi.repository import GLib, GObject, Gtk
 
 from virtaal.common import GObjectWrapper, pan_app
 from virtaal.common.platform import platform
@@ -387,6 +387,25 @@ class MainController(BaseController):
         return self.view.show_info_dialog(title=title, message=msg)
 
     def quit(self, force=False):
+        # A modal Gtk.Dialog.run() (Preferences, Properties, a plugin's
+        # own sub-dialog nested inside one of those, ...) drives its own
+        # private main loop, separate from the one Gtk.main_quit() below
+        # stops - macOS's global Cmd+Q accelerator can still reach this
+        # method while one or more are open, and proceeding would tear
+        # the app down underneath them, leaving those loops blocked
+        # forever with no window left to respond to. Force all of them
+        # closed - not just the first found, since a nested one leaves
+        # its parent dialog still blocked too - and retry once we're
+        # actually back at the top level.
+        dialogs_open = False
+        for window in Gtk.Window.list_toplevels():
+            if isinstance(window, Gtk.Dialog) and window is not self.view.main_window and window.get_visible():
+                window.response(Gtk.ResponseType.CANCEL)
+                dialogs_open = True
+        if dialogs_open:
+            GLib.idle_add(self.quit, force)
+            return False
+
         if self.store_controller.is_modified() and not force:
             response = self.view.show_save_confirm_dialog()
             if response == 'save':
