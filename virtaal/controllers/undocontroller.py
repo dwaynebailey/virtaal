@@ -36,6 +36,11 @@ class UndoController(BaseController):
 
         self._setup_key_bindings()
         self._connect_undo_signals()
+        # Otherwise stuck at the .ui file's default (enabled) until some
+        # later store-loaded/closed or edit event happens to fire - never,
+        # on a welcome screen where no file's ever been opened this
+        # session.
+        self._update_sensitivity()
 
     def _connect_undo_signals(self):
         # First connect to the unit controller
