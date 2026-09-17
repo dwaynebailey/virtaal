@@ -165,11 +165,14 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         self.mnu_cut.set_accel_path("<Virtaal>/Edit/Cut")
         self.mnu_copy.set_accel_path("<Virtaal>/Edit/Copy")
         self.mnu_paste.set_accel_path("<Virtaal>/Edit/Paste")
-        self.controller.main_controller.view.sync_menubar()
-
         # Disable the menu items to start with, because we can't assume that a
         # store is loaded. See _set_menu_items_sensitive() for more activation.
         self._set_menu_items_sensitive(False)
+        # sync_menubar() pushes the current GTK menu state (including
+        # sensitivity) into the native macOS menu bar - after, not
+        # before, or the native mirror keeps showing these as enabled
+        # until something else happens to resync it.
+        self.controller.main_controller.view.sync_menubar()
 
         def on_store_closed(*args):
             mnu_next.set_sensitive(False)
