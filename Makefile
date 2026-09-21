@@ -11,14 +11,14 @@ docs:
 	cd ${DOCS_DIR}; make SPHINXOPTS="-W -q" html
 
 pot:
-	cd ${SRC_DIR}/po; ./intltool-update --pot
+	cd ${SRC_DIR}/po; ./update-pot
 
 get-translations:
 	ssh pootletranslations ". /var/www/sites/pootle/env/bin/activate; python /var/www/sites/pootle/src/manage.py sync_stores --verbosity=3 --project=virtaal  --overwrite"
-	rsync -az --delete --exclude="README" --exclude="LINGUAS*" --exclude="Makevars" --exclude="intltool-update" --exclude="testlocalisations" --exclude="POTFILES.*" --exclude=".translation_index" --exclude=pootle-terminology.po pootletranslations:/var/www/sites/pootle/translations/virtaal/ ${SRC_DIR}/po
+	rsync -az --delete --exclude="README" --exclude="LINGUAS*" --exclude="Makevars" --exclude="update-pot" --exclude="testlocalisations" --exclude="POTFILES.*" --exclude=".translation_index" --exclude=pootle-terminology.po pootletranslations:/var/www/sites/pootle/translations/virtaal/ ${SRC_DIR}/po
 
 po/%.po: po/virtaal.pot
-	cd ${SRC_DIR}/po; ./intltool-update $(*F)
+	msgmerge --previous --update ${SRC_DIR}/po/$*.po ${SRC_DIR}/po/virtaal.pot
 
 update-translations: ${SRC_DIR}/po/*.po
 
@@ -42,4 +42,3 @@ help:
 	@echo "  publish-translations - send all *.po to Pootle translations server"
 	@echo "  publish-pot - send virtaal.pot to Pootle translations server"
 	@echo
-
