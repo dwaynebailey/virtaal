@@ -178,7 +178,16 @@ def main(argv=None):
     if args.check:
         with tempfile.TemporaryDirectory(prefix="virtaal-screenshots-") as tmp:
             tmp_path = Path(tmp)
-            _run(tmp_path)
+            try:
+                _run(tmp_path)
+            except Exception:
+                # Exit code 2, not 1: callers (CI) treat 1 as "images
+                # differ, harmless drift" and 2 as "the generator itself
+                # is broken" - those must stay distinguishable.
+                import traceback
+
+                traceback.print_exc()
+                return 2
             mismatches = _compare(tmp_path, APPDATA_DIR)
             if mismatches:
                 if args.artifact_dir.exists():
