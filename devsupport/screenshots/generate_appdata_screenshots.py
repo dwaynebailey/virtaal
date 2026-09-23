@@ -61,8 +61,8 @@ WINDOW_HEIGHT = 650
 # adding once a fixture/setup exists for each (spellchecking also needs
 # enchant/gtkspell3 installed wherever this runs).
 STATES = [
-    # "See https://virtaal.org for details." - a URL placeable.
     ("welcome.png", REPO_ROOT / "po" / "af.po", 0),
+    # "See https://virtaal.org for details." - a URL placeable.
     ("placeable.png", TESTFILES / "placeables.po", 1),
     # "A variable can be printed with printf: %s" -> translation drops
     # the %s - a single, clearly-visible printf-variable check failure.
