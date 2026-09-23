@@ -55,7 +55,10 @@ TESTFILES = REPO_ROOT / "devsupport" / "testfiles"
 WINDOW_WIDTH = 900
 WINDOW_HEIGHT = 650
 
-# (output filename, source file to open, unit index to navigate to).
+# (output filename, source file to open (None = the literal no-file
+# Welcome Screen), unit index to navigate to, whether to crop tight
+# around the unit editor instead of keeping the full window).
+#
 # Unit indices are picked by hand by inspecting each fixture once and
 # pinned to its current content - Cursor.force_index() then jumps there
 # directly, no runtime search needed.
@@ -63,12 +66,13 @@ WINDOW_HEIGHT = 650
 # TM suggestions and autocomplete are further states worth adding once a
 # fixture/setup exists for each.
 STATES = [
-    ("welcome.png", REPO_ROOT / "po" / "af.po", 0),
-    # "See https://virtaal.org for details." - a URL placeable.
-    ("placeable.png", TESTFILES / "placeables.po", 1),
+    ("welcome.png", None, None, False),
+    # Virtaal's own strings translated to Bengali, unit 19:
+    # "<b>Original</b>" -> "<b>মূল ভাষা</b>" - a single XML-tag placeable.
+    ("placeable.png", REPO_ROOT / "po" / "bn_IN.po", 19, True),
     # "A variable can be printed with printf: %s" -> translation drops
     # the %s - a single, clearly-visible printf-variable check failure.
-    ("window.png", TESTFILES / "checks.po", 12),
+    ("window.png", TESTFILES / "checks.po", 12, False),
 ]
 
 
@@ -93,15 +97,41 @@ def _run(out_dir):
     # needing a matching dictionary for every fixture's target language.
     pan_app.settings.plugin_state["spellchecker"] = "disabled"
 
-    _first_name, first_source, _first_index = STATES[0]
-    app = Virtaal(str(first_source))
+    # The Welcome Screen's "Recent Files" reads Gtk.RecentManager, which
+    # starts genuinely empty under the isolated HOME above - pre-populate
+    # it so that list isn't blank, with a few different formats for
+    # variety (matching the range the hand-captured original showed).
+    recent_manager = Gtk.RecentManager.get_default()
+    for recent_file in (
+        TESTFILES / "workflow.ts",
+        TESTFILES / "workflow.xlf",
+        REPO_ROOT / "po" / "af.po",
+    ):
+        recent_manager.add_item(recent_file.as_uri())
+
+    _first_name, first_source, _first_index, _first_crop = STATES[0]
+    app = Virtaal(str(first_source) if first_source else "")
     main_controller = app.main_controller
     window = main_controller.view.main_window
 
-    def capture(out_path):
+    def capture(out_path, crop):
         gdk_window = window.get_window()
         width, height = window.get_size()
         pixbuf = Gdk.pixbuf_get_from_window(gdk_window, 0, 0, width, height)
+        if crop:
+            widget = main_controller.unit_controller.view
+            alloc = widget.get_allocation()
+            # PyGObject's return arity for this gboolean+out-params call
+            # varies by version - (ok, x, y) on some, (x, y) on others.
+            # The last two elements are always the coordinates.
+            _wx, wy = widget.translate_coordinates(window, 0, 0)[-2:]
+            # Full window width (rows always span it), generous vertical
+            # padding so a few rows of surrounding context are visible
+            # above and below the edited unit, not just the unit itself.
+            vpad = 150
+            y = max(0, wy - vpad)
+            h = min(height - y, alloc.height + 2 * vpad)
+            pixbuf = pixbuf.new_subpixbuf(0, y, width, h)
         pixbuf.savev(str(out_path), "png", [], [])
 
     def driver():
@@ -110,8 +140,8 @@ def _run(out_dir):
         # first capture - they only run once Gtk.main() is pumping.
         for _ in range(10):
             yield
-        for i, (name, source, index) in enumerate(STATES):
-            if i > 0:
+        for i, (name, source, index, crop) in enumerate(STATES):
+            if i > 0 and source is not None:
                 main_controller.open_file(str(source))
                 for _ in range(10):
                     yield
@@ -119,9 +149,12 @@ def _run(out_dir):
                 main_controller.store_controller.cursor.force_index(index)
             window.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
             window.queue_draw()
-            for _ in range(6):
+            # Generous: a treeview scroll to the target unit needs time
+            # to settle before the crop above reads the right position,
+            # not just before the pixels are drawn.
+            for _ in range(20):
                 yield
-            capture(out_dir / name)
+            capture(out_dir / name, crop)
         # Not main_controller.quit(): that also persists this capture
         # window's size into settings and prompts to save. Plugins do need
         # an explicit shutdown though - the local-TM plugin's `tmserver`
@@ -145,7 +178,7 @@ def _run(out_dir):
 
 def _compare(generated_dir, committed_dir):
     mismatches = []
-    for name, _source, _index in STATES:
+    for name, _source, _index, _crop in STATES:
         committed_file = committed_dir / name
         if not committed_file.exists() or not filecmp.cmp(
             generated_dir / name, committed_file, shallow=False
