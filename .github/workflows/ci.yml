@@ -810,7 +810,11 @@ jobs:
           # A stale/broken package-index mirror snapshot happens often
           # enough on GitHub-hosted Ubuntu runners to just retry.
           for i in 1 2 3; do sudo apt-get update && break || sleep 10; done
-          sudo apt-get install -y flatpak flatpak-builder gettext xvfb
+          # openbox: needed only for the screenshot step below - Xvfb has
+          # no window manager of its own, and unlike CSD/libadwaita apps
+          # Virtaal has no client-side decorations, so a real (if minimal)
+          # WM is the only way to get a title bar/shadow into the capture.
+          sudo apt-get install -y flatpak flatpak-builder gettext xvfb openbox
           flatpak remote-add --if-not-exists --user flathub \
             https://dl.flathub.org/repo/flathub.flatpakrepo
 
@@ -842,6 +846,39 @@ jobs:
           xvfb-run -a --server-args="-screen 0 1024x768x24" \
             flatpak-builder --run build-dir io.github.translate.Virtaal.yml \
             virtaal --version
+
+      - name: Generate and check AppData screenshots
+        id: screenshots
+        working-directory: devsupport/packaging/flatpak
+        # Deliberately non-blocking (#3625): virtaal.metainfo.xml.in's
+        # <image> tags are plain raw.githubusercontent.com URLs, not files
+        # bundled into this build, so a stale screenshot can't break the
+        # flatpak or the running app. This step only ever flags drift; it
+        # never fails the job.
+        #
+        # Uses a manually-started Xvfb (not xvfb-run) because openbox
+        # needs to be running on the same DISPLAY for the whole duration
+        # of the screenshot script, not just for one wrapped command.
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 &
+          export DISPLAY=:99
+          sleep 2
+          openbox --sm-disable &
+          sleep 1
+          if flatpak-builder --run build-dir io.github.translate.Virtaal.yml \
+              python3 devsupport/screenshots/generate_appdata_screenshots.py --check; then
+            echo "mismatch=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "mismatch=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload refreshed screenshots (only when stale)
+        if: steps.screenshots.outputs.mismatch == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: appdata-screenshots-${{ matrix.arch }}
+          path: devsupport/packaging/flatpak/screenshot-artifacts/
+          retention-days: 30
 
   core-checks:
     name: core checks
