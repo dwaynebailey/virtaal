@@ -24,6 +24,7 @@ Both modes run the exact same generation code, so "does it match" and
 """
 
 import argparse
+import atexit
 import filecmp
 import os
 import shutil
@@ -39,7 +40,9 @@ from pathlib import Path
 # touching that file - the driver below calls Gtk.main_quit() directly
 # instead of main_controller.quit() for the same reason (no save-prompt,
 # no settings write).
-os.environ["HOME"] = tempfile.mkdtemp(prefix="virtaal-screenshot-home-")
+_fake_home = tempfile.mkdtemp(prefix="virtaal-screenshot-home-")
+atexit.register(shutil.rmtree, _fake_home, ignore_errors=True)
+os.environ["HOME"] = _fake_home
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 APPDATA_DIR = REPO_ROOT / "docs" / "_static" / "appdata"
