@@ -60,9 +60,8 @@ WINDOW_HEIGHT = 650
 # pinned to its current content - Cursor.force_index() then jumps there
 # directly, no runtime search needed.
 #
-# TM suggestions, autocomplete, and spellchecking are further states worth
-# adding once a fixture/setup exists for each (spellchecking also needs
-# enchant/gtkspell3 installed wherever this runs).
+# TM suggestions and autocomplete are further states worth adding once a
+# fixture/setup exists for each.
 STATES = [
     ("welcome.png", REPO_ROOT / "po" / "af.po", 0),
     # "See https://virtaal.org for details." - a URL placeable.
@@ -82,7 +81,17 @@ def _run(out_dir):
     gi.require_version("Gdk", "3.0")
     from gi.repository import Gdk, GLib, Gtk
 
+    from virtaal.common import pan_app
     from virtaal.main import Virtaal
+
+    # None of these states are meant to demonstrate spellchecking, and
+    # gtkspell/enchant fail hard (a NULL-speller assertion, repeated on
+    # every keystroke-equivalent redraw) whenever the active target
+    # language has no dictionary installed on the machine running this -
+    # observed corrupting the capture with a solid black block where the
+    # unit editor should be. Disabling the plugin up front sidesteps
+    # needing a matching dictionary for every fixture's target language.
+    pan_app.settings.plugin_state["spellchecker"] = "disabled"
 
     _first_name, first_source, _first_index = STATES[0]
     app = Virtaal(str(first_source))
