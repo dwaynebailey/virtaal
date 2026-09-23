@@ -160,7 +160,9 @@ jobs:
             pkg-config \
             python3-dev \
             xvfb \
-            openbox
+            openbox \
+            xdotool \
+            imagemagick
 
       - name: Install Python dependencies
         run: |

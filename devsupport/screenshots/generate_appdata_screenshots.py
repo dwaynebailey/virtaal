@@ -9,9 +9,13 @@
 """Generate (or check) Virtaal's AppData/website screenshots.
 
 See issue #3625. Drives a real Virtaal window through a handful of
-states and captures each with Gdk.pixbuf_get_from_window() - deliberately
-not an external screenshot tool, since Xvfb has no window manager to make
-those reliable.
+states and captures each. Full-window states use `xdotool`/`import`
+(ImageMagick) when a real X11 session has them, so the window manager's
+own decorations (title bar, shadow) are included - Gdk.pixbuf_get_from_
+window() can only ever see a window's own client-area content, never
+what the WM draws around it, so it's kept only as the portable fallback
+(used for the crop states, and for local development on platforms
+without those tools, e.g. macOS).
 
     --check   regenerate into a temp dir and compare against the
               committed images; exits non-zero on any mismatch, writes
@@ -28,6 +32,7 @@ import atexit
 import filecmp
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -114,7 +119,32 @@ def _run(out_dir):
     main_controller = app.main_controller
     window = main_controller.view.main_window
 
+    def capture_with_decorations(out_path):
+        """Capture via the window manager's own frame (title bar,
+        shadow), using xdotool + ImageMagick's `import`. Returns False
+        (caller falls back to the plain Gdk capture) when DISPLAY isn't
+        a real X11 session or those tools aren't installed - local
+        development on macOS, say."""
+        if not os.environ.get("DISPLAY"):
+            return False
+        if not (shutil.which("xdotool") and shutil.which("import")):
+            return False
+        window.present()
+        try:
+            window_id = subprocess.run(
+                ["xdotool", "getactivewindow"],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            subprocess.run(["import", "-window", window_id, str(out_path)], check=True)
+        except subprocess.CalledProcessError:
+            return False
+        return True
+
     def capture(out_path, crop):
+        if not crop and capture_with_decorations(out_path):
+            return
         gdk_window = window.get_window()
         width, height = window.get_size()
         pixbuf = Gdk.pixbuf_get_from_window(gdk_window, 0, 0, width, height)
