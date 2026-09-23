@@ -251,6 +251,15 @@ jobs:
             echo "mismatch=false" >> "$GITHUB_OUTPUT"
           elif [ "$exit_code" -eq 1 ]; then
             echo "mismatch=true" >> "$GITHUB_OUTPUT"
+            # Non-blocking doesn't mean invisible: a green job with an
+            # artifact nobody looks at is the same as no check at all.
+            # ::warning:: puts a visible flag on the PR's checks page
+            # even though the job still passes.
+            echo "::warning title=AppData screenshots are stale::docs/_static/appdata/*.png no longer match what Virtaal actually renders - download the appdata-screenshots artifact from this run and commit the refresh (see #3625)."
+            {
+              echo "### :warning: AppData screenshots are stale"
+              echo "The committed PNGs in \`docs/_static/appdata/\` no longer match what Virtaal actually renders. Download the **appdata-screenshots** artifact from this run and commit the refresh."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             exit "$exit_code"
           fi
