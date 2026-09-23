@@ -96,11 +96,19 @@ def _run(out_dir):
     # None of these states are meant to demonstrate spellchecking, and
     # gtkspell/enchant fail hard (a NULL-speller assertion, repeated on
     # every keystroke-equivalent redraw) whenever the active target
-    # language has no dictionary installed on the machine running this -
-    # observed corrupting the capture with a solid black block where the
-    # unit editor should be. Disabling the plugin up front sidesteps
-    # needing a matching dictionary for every fixture's target language.
+    # language has no dictionary installed on the machine running this.
+    # Disabling the plugin up front sidesteps needing a matching
+    # dictionary for every fixture's target language.
     pan_app.settings.plugin_state["spellchecker"] = "disabled"
+
+    # Xvfb has no real cursor theme, and (lacking hardware cursor
+    # support) draws the pointer by overwriting framebuffer pixels
+    # directly - without a theme that's a solid black square, and it
+    # showed up baked into every capture at whatever fixed screen
+    # position the pointer defaulted to. Parking it off in a corner,
+    # once, keeps it away from the window entirely.
+    if os.environ.get("DISPLAY") and shutil.which("xdotool"):
+        subprocess.run(["xdotool", "mousemove", "2000", "2000"], check=False)
 
     # The Welcome Screen's "Recent Files" reads Gtk.RecentManager, which
     # starts genuinely empty under the isolated HOME above - pre-populate

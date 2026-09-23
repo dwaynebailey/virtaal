@@ -162,7 +162,8 @@ jobs:
             xvfb \
             openbox \
             xdotool \
-            imagemagick
+            imagemagick \
+            fonts-lohit-beng-bengali
 
       - name: Install Python dependencies
         run: |
