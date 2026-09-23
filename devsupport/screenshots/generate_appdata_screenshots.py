@@ -61,30 +61,82 @@ WINDOW_WIDTH = 900
 WINDOW_HEIGHT = 650
 
 # (output filename, source file to open (None = the literal no-file
-# Welcome Screen), unit index to navigate to, whether to crop tight
+# Welcome Screen), how to pick a unit index, whether to crop tight
 # around the unit editor instead of keeping the full window).
 #
-# Unit indices are picked by hand by inspecting each fixture once and
-# pinned to its current content - Cursor.force_index() then jumps there
-# directly, no runtime search needed.
-#
-# TM suggestions and autocomplete are further states worth adding once a
-# fixture/setup exists for each.
-STATES = [
+# "check"/"placeable" mean: search the file at run time for a unit that
+# currently demonstrates that feature, rather than a pinned index. Both
+# po/af.po and po/bn_IN.po are Virtaal's own real, actively-maintained
+# translations - pinning an index to whatever unit happens to fail a
+# check today would mean the demo silently breaks (or worse, keeps
+# showing something already fixed) the moment a translator fixes it, and
+# would perversely need that unit to *stay* wrong to keep working. The
+# synthetic fixtures don't have this problem (nothing "fixes" a fixture
+# built to always fail), so they still just navigate to a fixed index.
+STATE_SPECS = [
     ("welcome.png", None, None, False),
-    # Virtaal's own strings translated to Bengali, unit 19:
-    # "<b>Original</b>" -> "<b>মূল ভাষা</b>" - a single XML-tag placeable.
-    ("placeable.png", REPO_ROOT / "po" / "bn_IN.po", 19, True),
-    # Virtaal's own real Afrikaans translation, unit 6: "Translation
-    # reuse (translation memory)" -> "Bestaande vertalings:
-    # %(translations)s" - a genuine printf check failure (the target
-    # adds a variable the source doesn't have), not a synthetic fixture.
-    ("window.png", REPO_ROOT / "po" / "af.po", 6, False),
+    ("placeable.png", REPO_ROOT / "po" / "bn_IN.po", "placeable", True),
+    ("window.png", REPO_ROOT / "po" / "af.po", "check", False),
 ]
+STATE_NAMES = [name for name, *_rest in STATE_SPECS]
+
+
+def _find_check_failure(po_path, preferred=("printf", "python_format", "variables", "urls")):
+    """A unit index in po_path with a genuine quality-check failure,
+    preferring visually clear categories (a highlighted variable/URL)
+    over subtler ones. Raises if the file currently has none at all."""
+    from translate.filters import checks
+    from translate.storage import po as po_module
+
+    with open(po_path, "rb") as f:
+        store = po_module.pofile(f.read())
+    checker = checks.GnomeChecker()
+    fallback = None
+    for i, unit in enumerate(u for u in store.units if not u.isheader()):
+        if not unit.target:
+            continue
+        failures = checker.run_filters(unit)
+        if not failures:
+            continue
+        if fallback is None:
+            fallback = i
+        if set(failures) & set(preferred):
+            return i
+    if fallback is not None:
+        return fallback
+    raise RuntimeError(f"no unit in {po_path} currently fails any quality check")
+
+
+def _find_placeable_unit(po_path, max_source_len=80):
+    """A unit index in po_path whose source contains a short, simple
+    XML-tag placeable (e.g. "<b>Original</b>") with a real translation."""
+    import re
+
+    from translate.storage import po as po_module
+
+    tag_re = re.compile(r"<\w+>")
+    with open(po_path, "rb") as f:
+        store = po_module.pofile(f.read())
+    for i, unit in enumerate(u for u in store.units if not u.isheader()):
+        source = unit.source or ""
+        if unit.target and tag_re.search(source) and len(source) <= max_source_len:
+            return i
+    raise RuntimeError(f"no short XML-tag placeable unit found in {po_path}")
+
+
+def _resolve_states():
+    resolved = []
+    for name, source, index, crop in STATE_SPECS:
+        if index == "check":
+            index = _find_check_failure(source)
+        elif index == "placeable":
+            index = _find_placeable_unit(source)
+        resolved.append((name, source, index, crop))
+    return resolved
 
 
 def _run(out_dir):
-    """Drive a real Virtaal window through STATES, capturing each to
+    """Drive a real Virtaal window through the resolved states, capturing each to
     out_dir. Runs Gtk.main() - blocks until the driver below quits it."""
     import gi
 
@@ -94,6 +146,8 @@ def _run(out_dir):
 
     from virtaal.common import pan_app
     from virtaal.main import Virtaal
+
+    states = _resolve_states()
 
     # None of these states are meant to demonstrate spellchecking, and
     # gtkspell/enchant fail hard (a NULL-speller assertion, repeated on
@@ -124,7 +178,7 @@ def _run(out_dir):
     ):
         recent_manager.add_item(recent_file.as_uri())
 
-    _first_name, first_source, _first_index, _first_crop = STATES[0]
+    _first_name, first_source, _first_index, _first_crop = states[0]
     app = Virtaal(str(first_source) if first_source else "")
     main_controller = app.main_controller
     window = main_controller.view.main_window
@@ -180,7 +234,7 @@ def _run(out_dir):
         # first capture - they only run once Gtk.main() is pumping.
         for _ in range(10):
             yield
-        for i, (name, source, index, crop) in enumerate(STATES):
+        for i, (name, source, index, crop) in enumerate(states):
             if i > 0 and source is not None:
                 main_controller.open_file(str(source))
                 for _ in range(10):
@@ -192,7 +246,7 @@ def _run(out_dir):
             # Generous: a treeview scroll to the target unit needs time
             # to settle before the crop above reads the right position,
             # not just before the pixels are drawn.
-            for _ in range(20):
+            for _ in range(60):
                 yield
             capture(out_dir / name, crop)
         # Not main_controller.quit(): that also persists this capture
@@ -218,7 +272,7 @@ def _run(out_dir):
 
 def _compare(generated_dir, committed_dir):
     mismatches = []
-    for name, _source, _index, _crop in STATES:
+    for name in STATE_NAMES:
         committed_file = committed_dir / name
         if not committed_file.exists() or not filecmp.cmp(
             generated_dir / name, committed_file, shallow=False
@@ -283,7 +337,7 @@ def main(argv=None):
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     _run(args.out_dir)
-    print(f"Wrote {len(STATES)} screenshots to {args.out_dir}")
+    print(f"Wrote {len(STATE_NAMES)} screenshots to {args.out_dir}")
     return 0
 
 
