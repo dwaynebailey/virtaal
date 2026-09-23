@@ -90,7 +90,6 @@ def _run(out_dir):
     window = main_controller.view.main_window
 
     def capture(out_path):
-        window.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
         gdk_window = window.get_window()
         width, height = window.get_size()
         pixbuf = Gdk.pixbuf_get_from_window(gdk_window, 0, 0, width, height)
