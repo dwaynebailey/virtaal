@@ -75,9 +75,11 @@ STATES = [
     # Virtaal's own strings translated to Bengali, unit 19:
     # "<b>Original</b>" -> "<b>মূল ভাষা</b>" - a single XML-tag placeable.
     ("placeable.png", REPO_ROOT / "po" / "bn_IN.po", 19, True),
-    # "A variable can be printed with printf: %s" -> translation drops
-    # the %s - a single, clearly-visible printf-variable check failure.
-    ("window.png", TESTFILES / "checks.po", 12, False),
+    # Virtaal's own real Afrikaans translation, unit 6: "Translation
+    # reuse (translation memory)" -> "Bestaande vertalings:
+    # %(translations)s" - a genuine printf check failure (the target
+    # adds a variable the source doesn't have), not a synthetic fixture.
+    ("window.png", REPO_ROOT / "po" / "af.po", 6, False),
 ]
 
 
