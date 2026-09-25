@@ -37,11 +37,20 @@ def gtk_container_compute_optimal_height(widget, width):
 
 @compute_optimal_height.register(Gtk.Grid)
 def gtk_table_compute_optimal_height(widget, width):
+    # vbox_middle is the grid's only hexpand column - the others
+    # (notes area, state buttons) keep their own natural width (#3595),
+    # so what's left for vbox_middle is width minus those, not a fixed
+    # share of it.
+    others_width = sum(
+        child.get_preferred_width()[1]
+        for child in widget.get_children()
+        if child.props.name != "vbox_middle" and child.props.visible
+    )
+    middle_width = max(1, width - others_width)
     for child in widget.get_children():
         if child.props.name != "vbox_middle":
             continue
-        # width / 2 because we use half of the available width
-        compute_optimal_height(child, width / 2)
+        compute_optimal_height(child, middle_width)
 
 
 @compute_optimal_height.register(Gtk.TextView)

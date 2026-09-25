@@ -2492,7 +2492,7 @@ If you are translating from English to French then French would be your translat
           <object class="GtkGrid" id="tbl_editor">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="column_homogeneous">True</property>
+            <property name="column_homogeneous">False</property>
             <child>
               <object class="GtkVBox" id="vbox_right">
                 <property name="visible">True</property>
@@ -2511,6 +2511,7 @@ If you are translating from English to French then French would be your translat
                 <property name="name">vbox_middle</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="hexpand">True</property>
                 <child>
                   <placeholder/>
                 </child>

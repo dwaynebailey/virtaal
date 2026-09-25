@@ -215,11 +215,30 @@ def test_compute_optimal_height_grid_only_recomputes_its_vbox_middle_child():
     other.set_name('not_middle')
     grid.attach(middle, 0, 0, 1, 1)
     grid.attach(other, 1, 0, 1, 1)
+    # vbox_middle is the grid's only expanding column (#3595) - what's
+    # left for it is the given width minus the other column's own
+    # natural width, not a fixed share of it.
+    other_width = other.get_preferred_width()[1]
 
     compute_optimal_height(grid, 200)
 
-    assert middle.get_size_request()[0] == 100  # width / 2
+    assert middle.get_size_request()[0] == 200 - other_width
     assert other.get_size_request() == (-1, -1)
+
+
+def test_compute_optimal_height_grid_skips_hidden_columns_in_the_width_split():
+    grid = Gtk.Grid()
+    middle = Gtk.Label(label='middle')
+    middle.set_name('vbox_middle')
+    hidden = Gtk.Label(label='a much longer hidden label')
+    hidden.set_name('not_middle')
+    hidden.set_visible(False)
+    grid.attach(middle, 0, 0, 1, 1)
+    grid.attach(hidden, 1, 0, 1, 1)
+
+    compute_optimal_height(grid, 200)
+
+    assert middle.get_size_request()[0] == 200
 
 
 def test_compute_optimal_height_invisible_textview_is_a_noop():
