@@ -100,6 +100,12 @@ class StoreTreeView(Gtk.TreeView):
         new_width = max(1, allocation.width - 2)
         if column.get_fixed_width() != new_width:
             column.set_fixed_width(new_width)
+            # Restarting the editing cycle mid-drag feeds
+            # do_start_editing() an intermediate, not-yet-final
+            # cell_area, locking the editor widget to a stale width
+            # (#3595) - defer to _on_configure_settled()'s own call.
+            if self.is_resizing:
+                return
             path, editcol = self.get_cursor()
             if path is not None:
                 self.set_cursor(path, editcol or column, start_editing=True)
@@ -264,6 +270,13 @@ class StoreTreeView(Gtk.TreeView):
         # re-request sizes now that it's settled, so the row(s) it
         # skipped get one real, correct measurement at the final width.
         self.queue_resize()
+        # The one settled, final restore _on_size_allocate() itself
+        # skipped throughout the drag - unconditional, since the
+        # column's own width may already match by now (#3595).
+        column = self.get_columns()[0] if self.get_columns() else None
+        path, editcol = self.get_cursor()
+        if column and path is not None:
+            self.set_cursor(path, editcol or column, start_editing=True)
         self._restore_cursor()
         return False  # one-shot: don't repeat this GLib.timeout_add
 
