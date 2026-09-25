@@ -8,7 +8,7 @@
 from types import SimpleNamespace
 
 import pytest
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, Gtk, Pango
 
 from virtaal.views.widgets.listnav import ListNavigator
 
@@ -301,3 +301,41 @@ def test_select_by_name_does_not_emit_selection_changed():
     navigator.select_by_name('two')
 
     assert calls == []
+
+
+# Narrow-width responsiveness (#3595) #
+
+def test_popup_label_is_ellipsized_with_a_small_floor():
+    navigator = ListNavigator()
+
+    label = navigator.btn_popup.get_child()
+
+    assert label.get_ellipsize() == Pango.EllipsizeMode.END
+    assert label.get_width_chars() == 3
+
+
+def _arrows_and_label_width(navigator):
+    return (navigator.btn_back.get_preferred_width()[0]
+            + navigator.btn_forward.get_preferred_width()[0]
+            + navigator.btn_popup.get_preferred_width()[0])
+
+
+def test_size_allocate_hides_arrows_once_they_no_longer_fit():
+    navigator = _make_navigator(['one', 'two', 'three'])
+    needed = _arrows_and_label_width(navigator)
+
+    navigator._on_size_allocate(navigator, SimpleNamespace(width=needed - 1))
+
+    assert not navigator.btn_back.get_visible()
+    assert not navigator.btn_forward.get_visible()
+
+
+def test_size_allocate_restores_arrows_once_space_is_available_again():
+    navigator = _make_navigator(['one', 'two', 'three'])
+    needed = _arrows_and_label_width(navigator)
+    navigator._on_size_allocate(navigator, SimpleNamespace(width=needed - 1))
+
+    navigator._on_size_allocate(navigator, SimpleNamespace(width=needed))
+
+    assert navigator.btn_back.get_visible()
+    assert navigator.btn_forward.get_visible()

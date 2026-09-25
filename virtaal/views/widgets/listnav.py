@@ -13,7 +13,7 @@ options.
 
 import logging
 
-from gi.repository import Gdk, GObject, Gtk
+from gi.repository import Gdk, GObject, Gtk, Pango
 
 from .popupwidgetbutton import PopupWidgetButton
 
@@ -58,12 +58,17 @@ class ListNavigator(Gtk.HBox):
         frame.add(self.tvw_items)
 
         self.btn_popup = PopupWidgetButton(frame, label='(uninitialised)')
+        label = self.btn_popup.get_child()
+        if isinstance(label, Gtk.Label):
+            label.set_ellipsize(Pango.EllipsizeMode.END)
+            label.set_width_chars(3)
 
         # Connect to signals
         self.btn_back.connect('clicked', self._on_back_clicked)
         self.btn_forward.connect('clicked', self._on_forward_clicked)
 
         self.btn_popup.connect('key-press-event', self._on_popup_key_press_event)
+        self.connect('size-allocate', self._on_size_allocate)
 
         # Add widgets to containers
         self.pack_start(self.btn_back, False, False, 0)
@@ -149,6 +154,21 @@ class ListNavigator(Gtk.HBox):
 
 
     # EVENT HANDLERS #
+    def _on_size_allocate(self, _widget, allocation):
+        # Ellipsizing the state label (see _init_widgets()) only
+        # shrinks it so far - once even that minimum no longer fits,
+        # drop the back/forward buttons instead of letting the parent
+        # grid clip them (#3595). Their function stays reachable via
+        # Ctrl+Enter/Ctrl+Shift+Enter. Recomputed on every allocation,
+        # so this reverses cleanly once space is available again.
+        needed = (self.btn_back.get_preferred_width()[0]
+                  + self.btn_forward.get_preferred_width()[0]
+                  + self.btn_popup.get_preferred_width()[0])
+        show_arrows = allocation.width >= needed
+        if self.btn_back.get_visible() != show_arrows:
+            self.btn_back.set_visible(show_arrows)
+            self.btn_forward.set_visible(show_arrows)
+
     def _on_back_clicked(self, button):
         self.emit('back-clicked')
         self.move_state(-1)
