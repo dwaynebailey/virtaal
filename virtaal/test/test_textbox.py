@@ -266,3 +266,27 @@ class TestTextBox(TestScaffolding):
             isinstance(e, general.NewlinePlaceable) for e in textbox.elem.depth_first()
         )
         assert textbox.get_text() == original_text
+
+    def test_insert_translation_groups_a_selection_replace_into_one_undo_step(self):
+        textbox = self._target_for('%s files copied')
+        self.undo_controller.model.clear()
+        original_text = textbox.get_text()
+        textbox.buffer.select_range(
+            textbox.buffer.get_start_iter(), textbox.buffer.get_end_iter()
+        )
+        placeable = next(
+            e for e in textbox.elem.depth_first() if e.__class__ not in textbox.unselectables
+        )
+
+        textbox.insert_translation(placeable)
+
+        assert textbox.get_text() != original_text
+        undo_info = self.undo_controller.model.pop()
+        assert isinstance(undo_info, list)
+        assert len(undo_info) == 2  # the selection-delete and the insert, grouped
+
+        for entry in reversed(undo_info):
+            entry['action'](entry['unit'])
+        textbox.refresh(update=True)
+
+        assert textbox.get_text() == original_text
