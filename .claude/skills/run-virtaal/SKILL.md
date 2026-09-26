@@ -37,6 +37,78 @@ python3 bin/virtaal -D <file> > /tmp/virtaal-test.log 2>&1 &
   (built via `devsupport/packaging/macos/build_standalone.sh`) shows up under
   its own name instead, if you need to test something specific to that.
 
+### Checking CLI argument parsing without launching the real app
+
+Calling `virtaal.cli.main(argv)` directly (e.g. to check `--help` text or
+argparse behaviour) is only safe when `argv` triggers an action that exits
+during parsing, like `--help`/`--version` - anything else (`--debug`,
+`--lang`, a plain filename) falls through into `run_virtaal()`, which
+launches the real GTK app and blocks. Confirmed directly (2026-09-25): a
+one-off check that passed `--debug` alongside other flags with no `--help`
+hung the whole call, needing a manual background-task stop to recover - no
+GUI ever became visible/killable normally since the invocation itself was
+via `python -c`, not a backgroundable process. If you need to exercise
+argument-parsing behaviour beyond a fixed help/version string, mock
+`cli.run_virtaal` first (see `virtaal/test_cli.py`'s own tests for the
+pattern) rather than calling `main()` unguarded.
+
+### Launching a worktree branch, not the main checkout
+
+The shared `.venv`'s editable install unconditionally maps the `virtaal`
+package to the main checkout's own copy (`.venv/lib/*/site-packages/
+__editable__.virtaal-*.pth`'s finder has a hardcoded `MAPPING` dict) -
+running `bin/virtaal` from any other worktree still silently imports
+`/Users/dwayne/dev/virtaal/virtaal`'s code, not the worktree's own, unless
+you put the worktree root ahead of that finder on `sys.path` first:
+
+```
+cd <worktree root>
+PYTHONPATH=. /Users/dwayne/dev/virtaal/.venv/bin/python3 bin/virtaal -D <file>
+```
+
+Confirm you're actually running the worktree's code before trusting any
+live test result against it:
+```
+PYTHONPATH=. /Users/dwayne/dev/virtaal/.venv/bin/python3 -c "import virtaal; print(virtaal.__file__)"
+```
+should print a path under the worktree, not under `dev/virtaal/virtaal/`.
+
+### Giving a worktree its own venv instead of the `PYTHONPATH` trick
+
+For anything beyond a quick launch (running the test suite repeatedly, a
+longer-lived test session), a real venv in the worktree is less fragile than
+remembering `PYTHONPATH=.` on every invocation:
+
+```
+cd <worktree root>
+/opt/homebrew/opt/python@3.14/bin/python3.14 -m venv --system-site-packages .venv
+source .venv/bin/activate
+pip install --quiet "translate-toolkit==<version main .venv has>" 
+pip install --upgrade setuptools wheel
+pip install -e ".[test]" --no-build-isolation
+```
+
+`--system-site-packages` is required, not optional: `gi`/PyGObject and the
+GTK typelibs come from Homebrew's system Python (`/opt/homebrew/lib/
+python3.14/site-packages`), not from PyPI - a plain `python -m venv` can
+never import `Gtk` regardless of what you `pip install`.
+
+The plain `pip install -e ".[test]"` fails outright without the two
+`pip install` lines above it: `setup.py` does `from
+translate.tools.pocompile import convertmo` at module top level (needed to
+compile `.mo` files before `data_files` is computed - see its own comment),
+which runs inside pip's isolated build env and has no access to anything
+already in the venv, so it 404s on `translate` unless `translate-toolkit` is
+pre-installed into the venv itself and the install is run with
+`--no-build-isolation` to actually use that pre-installed copy instead of a
+fresh isolated one. `--no-build-isolation` in turn needs `setuptools`
+already present in the venv (a fresh venv only ships `pip`), or it fails
+differently (`Cannot import 'setuptools.build_meta'`).
+
+Confirm the same way as the `PYTHONPATH` trick above (`import virtaal;
+print(virtaal.__file__)` should print a path under the worktree) before
+trusting a test run against it.
+
 ## Verifying you have the right window
 
 ```
@@ -46,6 +118,57 @@ end tell'
 ```
 Confirm it returns exactly the one title you expect before doing anything
 else - see `macos-ui-automation-safety` for why this check isn't optional.
+
+## Testing real macOS focus changes (Alt+Tab)
+
+A freshly-launched dev-mode process doesn't have real key-window/foreground
+status just because its window is visible and frontmost-looking - it needs
+an explicit activation before `Gtk.Window`'s own `is-active`/
+`has-toplevel-focus` properties read `True`:
+```applescript
+tell application "System Events"
+    tell process "Python"
+        set frontmost to true
+    end tell
+end tell
+```
+Skipping this makes any focus-loss test meaningless in the wrong direction:
+`is_active` reads `False` the whole time regardless of what you Alt+Tab to
+or from, since the window was never really focused to begin with - confirmed
+directly (2026-09-24, #3765's TM-popup-stays-on-top fix) with a poll-logging
+diagnostic showing `is_active=False` even while the window was the only
+visible, frontmost-looking one on screen, until the explicit `set frontmost
+to true` above made it flip `True` for the first time.
+
+Once genuinely activated, `notify::is-active` on the main window reliably
+tracks real window-manager-level focus changes (switching to another app
+entirely) on this GTK+Quartz backend - use it for anything that needs to
+react to losing/regaining real OS focus. `grab-notify` is a different,
+narrower signal: it only fires for a same-app GTK grab (a modal dialog, a
+menu) shadowing the window, never for a real WM focus change, so the two
+are complementary rather than interchangeable.
+
+## When System Events access isn't available at all
+
+A background-job session typically has no Accessibility/assistive-access grant, so every `osascript ... tell application "System Events"` call fails outright with `System Events got an error: osascript is not allowed assistive access. (-25211)` - there's no workaround from inside the session (confirmed directly, 2026-09-25: this blocked live keyboard-navigation testing of the welcome screen entirely in a background job, where it had worked fine in prior interactive sessions).
+
+For anything that's really a *keyboard-focus-traversal* question (not a rendering/visual one), test it directly through GTK's own focus API instead of driving the UI - this needs a real display connection but no Accessibility permission at all, and is more precise than screen-scraping via System Events besides:
+```python
+view.show()
+toplevel = view.widget.get_toplevel()
+toplevel.show_all()
+toplevel.resize(900, 700)  # zero allocation without this - see below
+# pump the main loop so the window actually gets realized/allocated:
+while Gtk.events_pending():
+    Gtk.main_iteration()
+
+widget.grab_focus()
+toplevel.child_focus(Gtk.DirectionType.DOWN)  # exactly what a real Down keypress dispatches to
+toplevel.get_focus()  # or widget.is_focus() - which widget actually ended up focused
+```
+Skipping the `show_all()` + `resize()` + main-loop-pump step gives false negatives: `child_focus()` on an unrealized, zero-allocation window returns `False` for *every* direction (UP/DOWN are geometry-based and have nothing to compare), which looks identical to a real "focus is stuck" bug. Only trust a `child_focus()` result once `toplevel.get_realized()` and `.get_mapped()` are both `True` and the widget in question has a non-zero allocation.
+
+This only covers keyboard focus/navigation, not colour/layout/rendering - those still need an actual screenshot, which needs real System Events/Accessibility access and isn't available in this situation.
 
 ## Driving native macOS fullscreen
 
@@ -223,6 +346,19 @@ Two related, separately-confirmed gotchas on the same class of widget:
   fix above is the actual root cause; fix that instead of grabbing focus
   after the fact.
 
+## GtkExpander's collapsed child is still reachable by keyboard focus
+
+A collapsed `Gtk.Expander`'s child area is only *visually* hidden - `child.get_visible()` and even `child.get_mapped()` can still read `True` for a widget inside it, and `gtk_widget_child_focus()`'s traversal descends into that child area anyway rather than skipping straight to the expander's next sibling. Confirmed live (`virtaal`, 2026-09-25, welcome screen's collapsed "Features" expander): pressing Down while the collapsed expander had focus moved keyboard focus onto a button nested inside it (invisible on screen, since the expander was still collapsed) instead of the next visible widget below the expander - and subsequent Down presses stayed stuck there, since the invisible button had no focusable sibling of its own within the still-collapsed area.
+
+Fix: don't rely on the expander's own collapsed/expanded state to gate its descendants' reachability - explicitly toggle `can-focus` on each focusable descendant to track `expander.get_expanded()` (via a `notify::expanded` handler, applied once up front at construction too, since the expander can start collapsed by default):
+```python
+def _sync_focusability(expander, param):
+    child_widget.set_can_focus(expander.get_expanded())
+
+_sync_focusability(expander, None)
+expander.connect('notify::expanded', _sync_focusability)
+```
+
 ## Inspecting a native menu item's real key equivalent
 
 Don't infer whether a shortcut works from the menu's visible label alone -
@@ -257,6 +393,31 @@ the real `~/Library/Application Support/Virtaal/virtaal.ini` - use this for
 anything that reads/writes settings (window size/position, recent files,
 etc.) so a test run can never corrupt or race with the user's own config,
 especially if they might launch their own instance concurrently.
+
+**This isolation is only real for the file on disk, not for in-memory
+state** - `pan_app.Settings` keeps `translator`/`general`/`language`/etc.
+as class attributes, and `Settings.read()` mutates those dicts in place
+rather than assigning fresh per-instance ones. `pan_app.py`'s own
+module-level `settings = Settings()` (the *default*-path config) runs at
+import time, before `bin/virtaal`'s argparse ever sees `--config` - so a
+second `Settings(<your path>)` built from `--config` starts already
+pre-populated with the real config's values (translator name, `lastdir`,
+window geometry, `recentlangs`, `uilang`, ...) and only overwrites the
+keys your file actually sets. On exit it writes that whole mixed dict
+back out to *your* file (the real file is never touched, but your
+"isolated" file picks up the real profile's data). Filed as
+translate/virtaal#3826. Confirmed directly (2026-09-26, investigating
+#1945): a minimal `--config` file with only `uilang = ja` came back out
+after one run with the real session's translator name, `lastdir`,
+window size/position and `recentlangs` all filled in.
+
+**To force the UI language for a live test, pass `--lang <code>` on the
+CLI, not `uilang=` in a `--config` file.** `--lang` calls
+`pan_app.set_ui_language()` explicitly *after* argparse runs, so it
+always wins. A `--config` file's `uilang` key has no effect on the
+running session at all - the gettext/locale setup that actually matters
+already ran against the real default config's `uilang` at import time,
+before your `--config` path is even read.
 
 ## Cleanup
 
