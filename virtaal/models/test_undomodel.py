@@ -12,8 +12,12 @@ def _noop(unit):
     pass
 
 
+_UNIT = object()  # a single shared unit - these tests are about stack
+                   # mechanics, not navigation between units
+
+
 def _entry(n):
-    return {'action': _noop, 'unit': n, 'targetn': 0, 'cursorpos': 0}
+    return {'action': _noop, 'unit': _UNIT, 'targetn': 0, 'cursorpos': 0, 'id': n}
 
 
 def test_pop_redo_on_an_empty_stack_returns_none():
@@ -102,3 +106,62 @@ def test_can_undo_and_can_redo_track_stack_state():
     model.pop_redo()
     assert model.can_undo()
     assert not model.can_redo()
+
+
+def _entry_for(unit, n):
+    return {'action': _noop, 'unit': unit, 'targetn': 0, 'cursorpos': 0, 'id': n}
+
+
+def test_push_inserts_a_navigation_entry_between_different_units():
+    model = UndoModel(controller=None)
+    unit_a, unit_b = object(), object()
+    model.push(_entry_for(unit_a, 'a1'))
+
+    model.push(_entry_for(unit_b, 'b1'))
+
+    assert [e.get('id', e.get('kind')) for e in model.undo_stack] == ['a1', 'navigate', 'b1']
+    nav = model.undo_stack[1]
+    assert nav == {'kind': 'navigate', 'unit': unit_b, 'from_unit': unit_a}
+
+
+def test_push_inserts_no_navigation_entry_for_the_same_unit():
+    model = UndoModel(controller=None)
+    unit = object()
+    model.push(_entry_for(unit, 'a1'))
+
+    model.push(_entry_for(unit, 'a2'))
+
+    assert len(model.undo_stack) == 2
+
+
+def test_push_inserts_no_navigation_entry_for_the_very_first_edit():
+    model = UndoModel(controller=None)
+
+    model.push(_entry_for(object(), 'a1'))
+
+    assert len(model.undo_stack) == 1
+
+
+def test_clear_resets_navigation_tracking():
+    model = UndoModel(controller=None)
+    model.push(_entry_for(object(), 'a1'))
+    model.clear()
+
+    model.push(_entry_for(object(), 'b1'))
+
+    assert len(model.undo_stack) == 1
+
+
+def test_record_start_group_gets_a_navigation_entry_before_it():
+    model = UndoModel(controller=None)
+    unit_a, unit_b = object(), object()
+    model.push(_entry_for(unit_a, 'a1'))
+
+    model.record_start()
+    model.push(_entry_for(unit_b, 'b1'))
+    model.push(_entry_for(unit_b, 'b2'))
+    model.record_stop()
+
+    assert len(model.undo_stack) == 3
+    assert model.undo_stack[1] == {'kind': 'navigate', 'unit': unit_b, 'from_unit': unit_a}
+    assert model.undo_stack[2] == [_entry_for(unit_b, 'b1'), _entry_for(unit_b, 'b2')]
