@@ -183,6 +183,15 @@ class UndoController(BaseController):
             self._select_unit(undo_info['unit'])
             return None
 
+        if undo_info.get('kind') == 'state':
+            self._select_unit(undo_info['unit'])
+            if capture_redo:
+                self.unit_controller.restore_state(undo_info['from_state'], undo_info['from_sticky'])
+                return dict(undo_info)
+            # Redoing re-applies the deliberate pick - sticky again.
+            self.unit_controller.restore_state(undo_info['to_state'], True)
+            return None
+
         self._select_unit(undo_info['unit'])
 
         #if 'desc' in undo_info:
