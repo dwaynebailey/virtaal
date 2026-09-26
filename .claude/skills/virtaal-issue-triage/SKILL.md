@@ -117,6 +117,18 @@ its own concrete evidence, not a guess:
   round-trip bug, verified by actually serializing and re-parsing the
   problem characters through the current library, not by reading the
   fix code and assuming.
+- **A rendering/visual claim (mojibake, layout, font fallback)**:
+  reproduce it live and screenshot it rather than reasoning about
+  whether the underlying toolkit "probably" fixed it by now. Confirmed
+  close (2026-09-26, translate/virtaal#1945 - a 2011 GTK2/Pango
+  CJK-font-fallback report on macOS, left open pending exactly this):
+  launched current `main` with `bin/virtaal --lang <code>` (see
+  `run-virtaal`'s "Testing settings persistence" section - `--lang`,
+  not a `--config` file's `uilang`, is what actually forces this) and
+  screenshotted both the welcome screen and the editor. Glyphs
+  rendered cleanly, confirming the toolkit-level fix; closed citing
+  the live screenshots, not a plausibility argument about Pango
+  versions.
 
 In every case, the close comment cites the concrete evidence (a commit,
 a grep result, an actual test run) - never a bare "fixed" or "no
@@ -156,6 +168,36 @@ directly, or marked a duplicate of another bug worth checking too (a
 confirmed 2026-09-12 case: two separate Virtaal issues, filed years
 apart, both root-caused to the same one upstream GTK bug, itself
 RESOLVED FIXED - closed both off that single piece of evidence).
+
+## Embedding a screenshot as evidence in a close/comment
+
+Neither `gh issue comment` nor the REST/GraphQL API has a documented
+way to upload an image and get back a URL usable in a comment body -
+the web UI's drag-and-drop attachment flow isn't exposed to the CLI,
+and piping a PNG through `gh gist create` risks corruption (the Gist
+API's `content` field is JSON text, not built for arbitrary binary).
+
+What works (used for translate/virtaal#1945, 2026-09-26): commit the
+screenshot(s) to a throwaway branch pushed to your own fork (never
+upstream), then reference the raw file by commit SHA in the comment's
+markdown - this renders inline like any other image, and the commit
+never needs a PR or merge:
+
+```
+git worktree add -b evidence/issue-<N> /tmp/wt-evidence origin/main
+cp screenshot.png /tmp/wt-evidence/devsupport/issue-evidence/issue-<N>-<desc>.png
+git -C /tmp/wt-evidence add devsupport/issue-evidence/
+git -C /tmp/wt-evidence commit -m "Add live-test evidence for #<N>"
+git -C /tmp/wt-evidence push -u origin evidence/issue-<N>
+# then in the comment body:
+# ![desc](https://raw.githubusercontent.com/<your-fork-owner>/virtaal/<sha>/devsupport/issue-evidence/issue-<N>-<desc>.png)
+git worktree remove /tmp/wt-evidence --force
+```
+
+Use a separate `git worktree` for this (base off `origin/main`, not
+whatever's currently checked out) so it never touches an in-progress
+branch's uncommitted changes in the shared checkout - see
+`shared-checkout-awareness`.
 
 ## Batch mechanics
 
