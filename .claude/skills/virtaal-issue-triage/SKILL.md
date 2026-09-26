@@ -100,6 +100,19 @@ its own concrete evidence, not a guess:
   the specific thing asked for (a window-position-persistence request
   closed by pointing at the exact feature now working;
   `git log --grep`, not just "this feels done").
+- **Multiple already-merged PRs assembled after the fact resolve one old
+  issue, none of them linked to it**: confirmed 2026-09-26,
+  translate/virtaal#3332 ("How to install in English?", filed 2022).
+  The report conflated the Inno Setup installer's own language chooser
+  (install-wizard language only) with the app's runtime UI language
+  (silently followed OS locale, no override) - the real bug was the
+  latter. Already fixed on `main` by #3592 (Preferences UI-language
+  dropdown), #3619 (`--lang` CLI flag), #3782 (`--lang=en/system`
+  support), none of which said `Closes #3332` since they predated any
+  link to it. Verified each commit was actually on `upstream/main`
+  before citing it, then closed manually with a comment linking all
+  three PRs - see `no-manual-issue-close`'s second exception for why
+  manual close (not `Closes #NNNN`) was correct here.
 - **A dependency/plugin fully removed**: if the report is scoped to a
   library that's since been dropped entirely (`grep -rl
   <libraryname> virtaal/` returning nothing), the issue no longer
