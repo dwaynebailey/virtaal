@@ -110,12 +110,25 @@ class WelcomeScreen(Gtk.ScrolledWindow):
         # 'More...' button instead of moving past the expander.
         exp_features = self.widgets['exp_features']
         btn_more = self.widgets['buttons']['features_more']
+        txt_features = self.widgets['txt_features']
 
         def _sync_more_focusability(expander, param):
             btn_more.set_can_focus(expander.get_expanded())
 
+        def _resettle_features_height(expander, param):
+            # txt_features is hidden (and unallocated) until first expanded,
+            # so its very first height-for-width query - taken as part of
+            # this same reveal - runs before its Pango layout has settled at
+            # the real column width, returning an oversized estimate that
+            # then sticks as the allocated height (a ~30px gap opens up
+            # before 'More...'). A second queue_resize on the next idle,
+            # once the layout has settled, re-measures it correctly.
+            if expander.get_expanded():
+                GLib.idle_add(txt_features.queue_resize)
+
         _sync_more_focusability(exp_features, None)
         exp_features.connect('notify::expanded', _sync_more_focusability)
+        exp_features.connect('notify::expanded', _resettle_features_height)
 
 
     # METHODS #
