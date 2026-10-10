@@ -47,6 +47,7 @@ check_names = {
     'gconf': _(u"GConf values"),
     'kdecomments': _(u"Old KDE comment"),
     'long': _(u"Long"),
+    'msgfmt': _(u"msgfmt"),
     'musttranslatewords': _(u"Must translate words"),
     'newlines': _(u"Newlines"),
     'nplurals': _(u"Number of plurals"),
@@ -107,6 +108,7 @@ class ChecksController(BaseController):
 
         self.code = None
         self._checker = None
+        self._msgfmt_checker = None
         self._check_timer_active = False
         self._checker_code_to_name = {
               None: _('Default'),
@@ -191,11 +193,26 @@ class ChecksController(BaseController):
             logging.debug('No checker instantiated :(')
             return
         self.last_failures = checker.run_filters(unit)
+        self._run_msgfmt_checks(unit, self.last_failures)
         if self.last_failures:
             logging.debug('Failures: %s' % (self.last_failures))
         self.unitview.update(self.last_failures)
         self.emit('unit-checked', unit, checker, self.last_failures)
         return self.last_failures
+
+    def _run_msgfmt_checks(self, unit, failures):
+        """Add the problems that C{msgfmt -c} would report to C{failures}."""
+        if not self._msgfmt_checker:
+            return
+        header = self.store_controller.store._trans_store.header()
+        self._msgfmt_checker.set_header(header and header.target or u"")
+        try:
+            problems = self._msgfmt_checker.check_unit(unit)
+        except Exception as e:
+            logging.exception('msgfmt checks failed: %s', e)
+            return
+        if problems:
+            failures['msgfmt'] = u"\n".join(problems)
 
     def _check_timer_expired(self, unit):
         self._check_timer_active = False
@@ -242,6 +259,12 @@ class ChecksController(BaseController):
 
     def _on_store_loaded(self, store_controller):
         self.set_checker_by_code(store_controller.store._trans_store.getprojectstyle())
+        self._msgfmt_checker = None
+        from translate.storage import pypo
+        if isinstance(store_controller.store._trans_store, pypo.pofile):
+            from virtaal.support import gettextpo
+            if gettextpo.available():
+                self._msgfmt_checker = gettextpo.MsgfmtChecker()
         if self._cursor_connection:
             widget, connect_id = self._cursor_connection
             widget.disconnect(connect_id)
