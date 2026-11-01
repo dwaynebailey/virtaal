@@ -13,6 +13,6 @@ opens a PR with its findings.
 
 | Tool | Latest tracked version | Date checked | Notes |
 | --- | --- | --- | --- |
-| Poedit | 3.9.1 | 2026-10-01 | baseline |
-| Lokalize (KDE) | 26.08.1 | 2026-10-01 | baseline |
-| OmegaT | 6.1.1 | 2026-10-01 | baseline |
+| Poedit | 3.10 | 2026-11-01 | New release (14 Oct 2026): initial XLIFF 2.2 support, gettext 1.0 support, macOS 27 compat fixes. No changes to the settings file format or keys (`last_file_path`/`translator_name`/`translator_email`) that `migration.py`'s `poedit_settings_import()` reads; Poedit's own TM import was already removed from Virtaal (Python 2 bsddb only). No action needed. |
+| Lokalize (KDE) | 26.08.1 | 2026-11-01 | No newer stable release; KDE Gear's next release (26.12) is not out yet. |
+| OmegaT | 6.1.1 | 2026-11-01 | No newer stable release. |
