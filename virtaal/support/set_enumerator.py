@@ -14,19 +14,19 @@ from virtaal.support.sorted_set import SortedSet
 
 class UnionSetEnumerator(GObject.GObject):
     """Presents the union of several C{SortedSet}s as a single sorted set,
-        emitting C{add}/C{remove} signals (with the changed element's
-        position in the union) as the underlying sets change."""
+    emitting C{add}/C{remove} signals (with the changed element's
+    position in the union) as the underlying sets change."""
 
     __gtype_name__ = "UnionSetEnumerator"
 
     __gsignals__ = {
         "remove": (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_INT, GObject.TYPE_PYOBJECT)),
-        "add": (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_INT, GObject.TYPE_PYOBJECT))
+        "add": (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_INT, GObject.TYPE_PYOBJECT)),
     }
 
     def __init__(self, *sets):
         """Constructor.
-            @param sets: The C{SortedSet}s whose union this enumerator tracks."""
+        @param sets: The C{SortedSet}s whose union this enumerator tracks."""
         GObject.GObject.__init__(self)
 
         if len(sets) > 0:
@@ -39,7 +39,7 @@ class UnionSetEnumerator(GObject.GObject):
             self.sets = [SortedSet([])]
             self.set = SortedSet([])
 
-    #cursor = property(lambda self: self._current_element, _set_cursor)
+    # cursor = property(lambda self: self._current_element, _set_cursor)
 
     def __len__(self):
         return len(self.set.data)

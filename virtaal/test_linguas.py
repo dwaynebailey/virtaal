@@ -20,7 +20,10 @@ def _read(name):
 
 
 def _excluded():
-    return {line.split("#")[0].strip(): line.partition("#")[2].strip() for line in _read("LINGUAS-excluded")}
+    return {
+        line.split("#")[0].strip(): line.partition("#")[2].strip()
+        for line in _read("LINGUAS-excluded")
+    }
 
 
 def test_every_catalog_is_shipped_or_excluded():
@@ -48,7 +51,9 @@ GLIBC_I_FLAG = re.compile(r"%(?:\d+\$)?[-+ #0']*I")
 
 def test_no_catalog_uses_glibcs_printf_i_flag():
     found = []
-    for path in glob.glob(os.path.join(PO_DIR, "*.po")) + glob.glob(os.path.join(PO_DIR, "lite", "*", "*.po")):
+    for path in glob.glob(os.path.join(PO_DIR, "*.po")) + glob.glob(
+        os.path.join(PO_DIR, "lite", "*", "*.po")
+    ):
         with open(path, "rb") as f:
             store = pypo.pofile(f.read())
         for unit in store.units:

@@ -71,7 +71,7 @@ def gtk_textview_compute_optimal_height(widget, width):
     # A good way to test height estimation is to use it for all units and
     # compare the reserved space to the actual space needed to display a unit.
     # To use height estimation for all units (not just empty units), use:
-    #if True:
+    # if True:
     if not buftext:
         text = getattr(widget, '_source_text', "")
         if text:
@@ -118,13 +118,13 @@ def gtk_label_compute_optimal_height(widget, width):
         widget.set_size_request(width, h)
 
 
-
 def _content_width(window):
     """The window's width without the shadow it draws around itself on
-        Wayland, which its allocation includes."""
+    Wayland, which its allocation includes."""
     if is_wayland() and isinstance(window, Gtk.Window):
         return window.get_size()[0]
     return window.get_allocation().width
+
 
 class StoreCellRenderer(Gtk.CellRenderer):
     """
@@ -139,23 +139,24 @@ class StoreCellRenderer(Gtk.CellRenderer):
             object,
             "The unit",
             "The unit that this renderer is currently handling",
-            GObject.ParamFlags.READWRITE
+            GObject.ParamFlags.READWRITE,
         ),
         "editable": (
             bool,
             "editable",
             "A boolean indicating whether this unit is currently editable",
             False,
-            GObject.ParamFlags.READWRITE
+            GObject.ParamFlags.READWRITE,
         ),
     }
 
     __gsignals__ = {
         "editing-done": (
-            GObject.SignalFlags.RUN_FIRST, None,
-            (GObject.TYPE_STRING, GObject.TYPE_BOOLEAN, GObject.TYPE_BOOLEAN)
+            GObject.SignalFlags.RUN_FIRST,
+            None,
+            (GObject.TYPE_STRING, GObject.TYPE_BOOLEAN, GObject.TYPE_BOOLEAN),
         ),
-        "modified": (GObject.SignalFlags.RUN_FIRST, None, ())
+        "modified": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
     ROW_PADDING = 10
@@ -189,7 +190,6 @@ class StoreCellRenderer(Gtk.CellRenderer):
         # font description string -> (char_width, line_height).
         self._metrics_cache = {}
 
-
     # ACCESSORS #
     def _get_unit(self):
         return self.__unit
@@ -205,7 +205,6 @@ class StoreCellRenderer(Gtk.CellRenderer):
         self._cached_height = None
 
     unit = property(_get_unit, _set_unit, None, None)
-
 
     # INTERFACE METHODS #
     def do_set_property(self, pspec, value):
@@ -306,9 +305,9 @@ class StoreCellRenderer(Gtk.CellRenderer):
 
     def _paint_state_background_if_selected(self, cr, background_area, flags):
         """GTK only honours cell_background while a row isn't selected -
-            the theme's own selection highlight otherwise unconditionally
-            replaces it, hiding the state's background on exactly the rows a
-            translator is most likely to have selected."""
+        the theme's own selection highlight otherwise unconditionally
+        replaces it, hiding the state's background on exactly the rows a
+        translator is most likely to have selected."""
         background = self.unit and unit_style(self.unit).get('background')
         if not background:
             return
@@ -318,7 +317,9 @@ class StoreCellRenderer(Gtk.CellRenderer):
         rgba = str_to_rgba(background)
         cr.save()
         cr.set_source_rgba(rgba.red, rgba.green, rgba.blue, rgba.alpha)
-        cr.rectangle(background_area.x, background_area.y, background_area.width, background_area.height)
+        cr.rectangle(
+            background_area.x, background_area.y, background_area.width, background_area.height
+        )
         cr.fill()
         cr.restore()
 
@@ -347,16 +348,23 @@ class StoreCellRenderer(Gtk.CellRenderer):
         cr.save()
         cr.set_source_rgba(rgba.red, rgba.green, rgba.blue, rgba.alpha)
         if above:
-            cr.rectangle(background_area.x, background_area.y, background_area.width, self.GAP_LINE_WIDTH)
+            cr.rectangle(
+                background_area.x, background_area.y, background_area.width, self.GAP_LINE_WIDTH
+            )
         if below:
             bottom = background_area.y + background_area.height - self._last_row_padding(treeview)
-            cr.rectangle(background_area.x, bottom - self.GAP_LINE_WIDTH, background_area.width, self.GAP_LINE_WIDTH)
+            cr.rectangle(
+                background_area.x,
+                bottom - self.GAP_LINE_WIDTH,
+                background_area.width,
+                self.GAP_LINE_WIDTH,
+            )
         cr.fill()
         cr.restore()
 
     def _clear_last_row_padding(self, cr, treeview, background_area):
         """GTK fills the whole row, scroll padding too, with a styled row's
-            background; the padding isn't part of the unit."""
+        background; the padding isn't part of the unit."""
         if not self.props.cell_background_set:
             return
         padding = self._last_row_padding(treeview)
@@ -367,8 +375,12 @@ class StoreCellRenderer(Gtk.CellRenderer):
             return
         cr.save()
         cr.set_source_rgba(base.red, base.green, base.blue, base.alpha)
-        cr.rectangle(background_area.x, background_area.y + background_area.height - padding,
-                     background_area.width, padding)
+        cr.rectangle(
+            background_area.x,
+            background_area.y + background_area.height - padding,
+            background_area.width,
+            padding,
+        )
         cr.fill()
         cr.restore()
 
@@ -408,7 +420,6 @@ class StoreCellRenderer(Gtk.CellRenderer):
         Gtk.render_layout(style_context, window, target_x, y, self.target_layout)
         style_context.restore()
 
-
     # METHODS #
     def _get_pango_layout(self, widget, text, width, font_description):
         '''Gets the Pango layout used in the cell in a TreeView widget.'''
@@ -419,7 +430,7 @@ class StoreCellRenderer(Gtk.CellRenderer):
         layout.set_font_description(font_description)
         layout.set_wrap(Pango.WrapMode.WORD_CHAR)
         layout.set_width(width * Pango.SCALE)
-        #XXX - plurals?
+        # XXX - plurals?
         text = text or ""
         layout.set_markup(markup.markuptext(text))
         return layout
@@ -431,10 +442,18 @@ class StoreCellRenderer(Gtk.CellRenderer):
             self.source_layout = None
             self.target_layout = None
             treeview.mark_row_estimated(self.unit)
-            source_height = self._estimate_text_height(widget, self.unit.source, self._column_width(width),
-                    rendering.get_source_font_description())
-            target_height = self._estimate_text_height(widget, self.unit.target, self._column_width(width),
-                    rendering.get_target_font_description())
+            source_height = self._estimate_text_height(
+                widget,
+                self.unit.source,
+                self._column_width(width),
+                rendering.get_source_font_description(),
+            )
+            target_height = self._estimate_text_height(
+                widget,
+                self.unit.target,
+                self._column_width(width),
+                rendering.get_target_font_description(),
+            )
             return max(source_height, target_height) + self.ROW_PADDING
 
         treeview.mark_row_measured_exactly(self.unit)
@@ -444,11 +463,19 @@ class StoreCellRenderer(Gtk.CellRenderer):
         lang_controller = self.view.controller.main_controller.lang_controller
         srclang = lang_controller.source_lang.code
         tgtlang = lang_controller.target_lang.code
-        self.source_layout = self._get_pango_layout(widget, self.unit.source, self._column_width(width),
-                rendering.get_source_font_description())
+        self.source_layout = self._get_pango_layout(
+            widget,
+            self.unit.source,
+            self._column_width(width),
+            rendering.get_source_font_description(),
+        )
         self.source_layout.get_context().set_language(rendering.get_language(srclang))
-        self.target_layout = self._get_pango_layout(widget, self.unit.target, self._column_width(width),
-                rendering.get_target_font_description())
+        self.target_layout = self._get_pango_layout(
+            widget,
+            self.unit.target,
+            self._column_width(width),
+            rendering.get_target_font_description(),
+        )
         self.target_layout.get_context().set_language(rendering.get_language(tgtlang))
         # This makes no sense, but has the desired effect to align things correctly for
         # both LTR and RTL languages:
@@ -552,7 +579,7 @@ class StoreCellRenderer(Gtk.CellRenderer):
             return
 
         visible_textboxes = []
-        for textbox in (editor._widgets['sources'] + editor._widgets['targets']):
+        for textbox in editor._widgets['sources'] + editor._widgets['targets']:
             if textbox.props.visible:
                 visible_textboxes.append(textbox)
 
@@ -562,8 +589,7 @@ class StoreCellRenderer(Gtk.CellRenderer):
             _minimum, natural = textbox.get_parent().get_preferred_size()
             if textbox.props.visible and natural.height > max_tb_height:
                 textbox.get_parent().set_size_request(-1, max_tb_height)
-                #logging.debug('%s.set_size_request(-1, %d)' % (textbox.parent, max_tb_height))
-
+                # logging.debug('%s.set_size_request(-1, %d)' % (textbox.parent, max_tb_height))
 
     # EVENT HANDLERS #
     def _on_editor_done(self, editor):

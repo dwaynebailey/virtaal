@@ -56,7 +56,9 @@ class TMWindow(Gtk.Window):
         # and update_geometry() sizes the window from that column, so
         # every update made the window wider.
         self.tvc_match.set_expand(True)
-        self.tvc_tm_source = Gtk.TreeViewColumn(_('TM Source'), self.tm_source_renderer, matchdata=0)
+        self.tvc_tm_source = Gtk.TreeViewColumn(
+            _('TM Source'), self.tm_source_renderer, matchdata=0
+        )
         self.tvc_tm_source.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
 
         treeview.append_column(self.tvc_perc)
@@ -79,14 +81,14 @@ class TMWindow(Gtk.Window):
             itr = self.liststore.iter_next(itr)
         # This seems necessary on some themes, but on others (like wimp and the
         # large inverse theme of GNOME, it causes the scrollbar to appear.
-        #if height:
+        # if height:
         #    height -= vert_sep
 
         return height
 
     def update_geometry(self, widget):
         """Move this window to right below the given widget so that C{widget}'s
-            bottom left corner and this window's top left corner line up."""
+        bottom left corner and this window's top left corner line up."""
         if not self.get_realized():
             return
 
@@ -136,7 +138,9 @@ class TMWindow(Gtk.Window):
         for below_widget in getattr(widget, 'below_widgets', ()):
             if not below_widget.get_mapped():
                 continue
-            below_bottom = below_widget.translate_coordinates(widget, 0, below_widget.get_allocated_height())
+            below_bottom = below_widget.translate_coordinates(
+                widget, 0, below_widget.get_allocated_height()
+            )
             if below_bottom is not None:
                 below_y = max(below_y, origin.y + below_bottom[1] + 2)
         above_bottom = above_origin.y - 2
@@ -172,14 +176,13 @@ class TMWindow(Gtk.Window):
             else:
                 y = max(geom.y, min(below_y, geom.y + geom.height - height))
 
-        #logging.debug('TMWindow.update_geometry(%dx%d +%d+%d)' % (width, height, x, y))
+        # logging.debug('TMWindow.update_geometry(%dx%d +%d+%d)' % (width, height, x, y))
         self.move(x, y)
         self.resize(width, height)
         self.scrolled_window.set_size_request(width, height)
         window = self.get_window()
-        window.move_resize(0,0, width,height)
-        window.get_toplevel().move_resize(x,y, width,height)
-
+        window.move_resize(0, 0, width, height)
+        window.get_toplevel().move_resize(x, y, width, height)
 
     # EVENT HANDLERS #
     def _percent_data_func(self, column, cell_renderer, tree_model, iter, user_data):
@@ -190,7 +193,7 @@ class TMWindow(Gtk.Window):
             cell_renderer.set_property('text', format_percent(quality / 100, decimals=0))
             return
         cell_renderer.set_property('value', 0)
-        #l10n: This indicates a suggestion from machine translation. It is displayed instead of the match percentage.
+        # l10n: This indicates a suggestion from machine translation. It is displayed instead of the match percentage.
         cell_renderer.set_property('text', _("?"))
 
 
@@ -205,7 +208,7 @@ class TMSourceColRenderer(Gtk.CellRenderer):
             GObject.TYPE_PYOBJECT,
             "The match data.",
             "The match data that this renderer is currently handling",
-            GObject.ParamFlags.READWRITE
+            GObject.ParamFlags.READWRITE,
         ),
     }
 
@@ -218,7 +221,6 @@ class TMSourceColRenderer(Gtk.CellRenderer):
         self.view = view
         self.matchdata = None
 
-
     # INTERFACE METHODS #
     def do_get_size(self, widget, cell_area):
         if 'tmsource' not in self.matchdata:
@@ -229,7 +231,7 @@ class TMSourceColRenderer(Gtk.CellRenderer):
         label.get_pango_context().set_base_gravity(Pango.Gravity.AUTO)
         label.set_angle(270)
         size = label.get_layout().get_pixel_size()
-        return 0, 0, size.height, size.width + self.YPAD*2
+        return 0, 0, size.height, size.width + self.YPAD * 2
 
     def do_get_property(self, pspec):
         return getattr(self, pspec.name)
@@ -257,7 +259,7 @@ class TMSourceColRenderer(Gtk.CellRenderer):
         label.set_yalign(0.5)
         layout = label.get_layout()
         size = layout.get_pixel_size()
-        Gtk.render_layout(widget.get_style_context(), window, x+size.height, y, layout)
+        Gtk.render_layout(widget.get_style_context(), window, x + size.height, y, layout)
 
 
 class TMMatchRenderer(Gtk.CellRenderer):
@@ -273,7 +275,7 @@ class TMMatchRenderer(Gtk.CellRenderer):
             GObject.TYPE_PYOBJECT,
             "The match data.",
             "The match data that this renderer is currently handling",
-            GObject.ParamFlags.READWRITE
+            GObject.ParamFlags.READWRITE,
         ),
     }
 
@@ -293,13 +295,12 @@ class TMMatchRenderer(Gtk.CellRenderer):
         self.layout = None
         self.matchdata = None
 
-
     # INTERFACE METHODS #
     def do_get_size(self, widget, cell_area):
         width = self.view.get_target_width() - self.BOX_MARGIN
         height = self._compute_cell_height(widget, width)
         height = min(height, 600)
-        #print 'do_get_size() (w, h):', width, height
+        # print 'do_get_size() (w, h):', width, height
 
         x_offset = 0
         y_offset = self.ROW_PADDING / 2
@@ -334,7 +335,14 @@ class TMMatchRenderer(Gtk.CellRenderer):
 
         style_context.save()
         style_context.add_class(Gtk.STYLE_CLASS_TROUGH)
-        Gtk.render_background(style_context, window, x, source_y - self.BOX_MARGIN, width, source_height + (self.LINE_SEPARATION/2))
+        Gtk.render_background(
+            style_context,
+            window,
+            x,
+            source_y - self.BOX_MARGIN,
+            width,
+            source_height + (self.LINE_SEPARATION / 2),
+        )
         Gtk.render_layout(style_context, window, x + source_dx, source_y, self.source_layout)
         Gtk.render_layout(style_context, window, x + target_dx, target_y, self.target_layout)
         style_context.restore()
@@ -345,13 +353,17 @@ class TMMatchRenderer(Gtk.CellRenderer):
         tgtlang = self.view.controller.main_controller.lang_controller.target_lang.code
 
         self.target_layout = self._get_pango_layout(
-            widget, self.matchdata['target'], width - (2*self.BOX_MARGIN),
-            rendering.get_target_font_description()
+            widget,
+            self.matchdata['target'],
+            width - (2 * self.BOX_MARGIN),
+            rendering.get_target_font_description(),
         )
         self.target_layout.get_context().set_language(rendering.get_language(tgtlang))
 
-        if self.matchdata.get('quality', 0) == 0 and \
-                self.matchdata['source'] == self.matchdata['query_str']:
+        if (
+            self.matchdata.get('quality', 0) == 0
+            and self.matchdata['source'] == self.matchdata['query_str']
+        ):
             # We do less for MT results
             self.source_layout = None
             height = self.target_layout.get_pixel_size()[1]
@@ -359,9 +371,11 @@ class TMMatchRenderer(Gtk.CellRenderer):
 
         else:
             self.source_layout = self._get_pango_layout(
-                widget, self.matchdata['source'], width - (2*self.BOX_MARGIN),
+                widget,
+                self.matchdata['source'],
+                width - (2 * self.BOX_MARGIN),
                 rendering.get_source_font_description(),
-                self.matchdata['query_str']
+                self.matchdata['query_str'],
             )
             self.source_layout.get_context().set_language(rendering.get_language(srclang))
 
@@ -377,7 +391,7 @@ class TMMatchRenderer(Gtk.CellRenderer):
         layout.set_font_description(font_description)
         layout.set_wrap(Pango.WrapMode.WORD_CHAR)
         layout.set_width(width * Pango.SCALE)
-        #XXX - plurals?
+        # XXX - plurals?
         layout.set_markup(markup.markuptext(text, diff_text=diff_text))
         # This makes no sense, but has the desired effect to align things correctly for
         # both LTR and RTL languages:

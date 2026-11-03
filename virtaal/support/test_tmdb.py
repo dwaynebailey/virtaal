@@ -36,23 +36,29 @@ def _allow(*args):
 
 def _refuse(*denied):
     """An authorizer refusing (action, table) pairs; table None means any."""
+
     def authorize(action, arg1, arg2, db_name, trigger):
         if (action, arg1) in denied or (action, None) in denied:
             return sqlite3.SQLITE_DENY
         return sqlite3.SQLITE_OK
+
     return authorize
 
 
 @pytest.fixture
 def refusing_connect(monkeypatch):
     """Make the next connections TMDB opens refuse some statements."""
+
     def refuse(*denied):
         connect = sqlite3.dbapi2.connect
+
         def connect_refusing(*args, **kwargs):
             connection = connect(*args, **kwargs)
             connection.set_authorizer(_refuse(*denied))
             return connection
+
         monkeypatch.setattr(tmdb.dbapi2, 'connect', connect_refusing)
+
     return refuse
 
 
@@ -96,7 +102,9 @@ def test_a_failed_schema_setup_raises_and_leaves_the_connection_usable(db_path, 
 
 def test_reopening_a_database_reuses_its_fulltext_index(db_path):
     first = tmdb.TMDB(db_path)
-    first.add_dict({'source': LONG, 'target': 'Maak die gekose lêer oop', 'context': ''}, 'en', 'af')
+    first.add_dict(
+        {'source': LONG, 'target': 'Maak die gekose lêer oop', 'context': ''}, 'en', 'af'
+    )
 
     second = tmdb.TMDB(db_path)
 
@@ -107,6 +115,7 @@ def test_reopening_a_database_reuses_its_fulltext_index(db_path):
 
 class _CursorWithoutFts3(sqlite3.Cursor):
     """What SQLite built without the FTS3 module says to an FTS3 table."""
+
     def executescript(self, script):
         if 'USING fts3' in script:
             raise sqlite3.OperationalError('no such module: fts3')
@@ -124,7 +133,9 @@ def test_without_fts3_the_database_falls_back_to_plain_search(db_path, monkeypat
     for connection, _cursor in tmdb.TMDB._tm_dbs.pop(db_path).values():
         connection.close()
     connect = sqlite3.dbapi2.connect
-    monkeypatch.setattr(tmdb.dbapi2, 'connect', lambda path: connect(path, factory=_ConnectionWithoutFts3))
+    monkeypatch.setattr(
+        tmdb.dbapi2, 'connect', lambda path: connect(path, factory=_ConnectionWithoutFts3)
+    )
 
     with caplog.at_level(logging.ERROR, logger=tmdb.logger.name):
         db = tmdb.TMDB(db_path)
@@ -132,7 +143,9 @@ def test_without_fts3_the_database_falls_back_to_plain_search(db_path, monkeypat
     assert not db.fulltext
     assert 'failed to initialize fts3 support' in caplog.text
     # They would write to the full-text index.
-    assert db.cursor.execute("SELECT name FROM sqlite_master WHERE type = 'trigger'").fetchall() == []
+    assert (
+        db.cursor.execute("SELECT name FROM sqlite_master WHERE type = 'trigger'").fetchall() == []
+    )
     db.add_dict({'source': LONG, 'target': 'Maak die gekose lêer oop', 'context': ''}, 'en', 'af')
     assert db.translate_unit(LONG, 'en', 'af')[0]['target'] == 'Maak die gekose lêer oop'
     assert db.preload_db() == 1
@@ -146,10 +159,13 @@ def test_add_unit_takes_the_languages_from_the_units_file(db_path):
     assert db.translate_unit(SHORT, 'en', 'af')[0]['target'] == 'Maak dit oop'
 
 
-@pytest.mark.parametrize(('source_lang', 'target_lang', 'message'), [
-    (None, 'af', 'undefined source language'),
-    ('en', None, 'undefined target language'),
-])
+@pytest.mark.parametrize(
+    ('source_lang', 'target_lang', 'message'),
+    [
+        (None, 'af', 'undefined source language'),
+        ('en', None, 'undefined target language'),
+    ],
+)
 def test_add_unit_needs_both_languages(db_path, source_lang, target_lang, message):
     # A unit without a file has no languages of its own.
     unit = base.TranslationUnit(SHORT)
@@ -180,7 +196,9 @@ def test_a_failed_insert_without_commit_leaves_rolling_back_to_the_caller(db_pat
     db.connection.set_authorizer(_refuse((sqlite3.SQLITE_INSERT, 'targets')))
     try:
         with pytest.raises(sqlite3.DatabaseError):
-            db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af', commit=False)
+            db.add_dict(
+                {'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af', commit=False
+            )
     finally:
         db.connection.set_authorizer(_allow)
 

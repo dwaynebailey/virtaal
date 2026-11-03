@@ -41,7 +41,11 @@ class TestStoreView(TestScaffolding):
     def test_get_unit_celleditor_delegates_to_the_controller(self, monkeypatch):
         view = self.store_controller.view
         calls = []
-        monkeypatch.setattr(self.store_controller, 'get_unit_celleditor', lambda unit: calls.append(unit) or 'editor')
+        monkeypatch.setattr(
+            self.store_controller,
+            'get_unit_celleditor',
+            lambda unit: calls.append(unit) or 'editor',
+        )
 
         result = view.get_unit_celleditor('some-unit')
 

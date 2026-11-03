@@ -65,6 +65,7 @@ def find_document_list_folder(locale_code, folders):
 
 # --- Network I/O - thin, replaceable wrappers around the pure logic above ---
 
+
 def _get(url):
     with proxy.urlopen(url, timeout=10) as response:
         return response.read()
@@ -83,6 +84,7 @@ def fetch_document_list(folder):
 # --- Where a downloaded DocumentList.xml needs to end up for
 #     AutoCorrector to find it ---
 
+
 def autocorrect_root_dir():
     """The directory holding one subdirectory per locale - what
     virtaal/plugins/autocorrector.py's Plugin passes to AutoCorrector
@@ -90,6 +92,7 @@ def autocorrect_root_dir():
     (unlike enchant, autocorrect has no third-party convention of its
     own to match)."""
     from virtaal.common import pan_app
+
     return os.path.join(pan_app.get_config_dir(), 'autocorr')
 
 

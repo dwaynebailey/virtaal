@@ -29,7 +29,9 @@ from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.support.dictionary_source import DEFAULT_REGIONS, candidate_folders
 
-MANIFEST_URL = 'https://raw.githubusercontent.com/translate/virtaal/asset-manifest/asset-manifest.yaml'
+MANIFEST_URL = (
+    'https://raw.githubusercontent.com/translate/virtaal/asset-manifest/asset-manifest.yaml'
+)
 _CACHE_FILENAME = 'asset-manifest.yaml'
 _REFRESH_DAYS = 7
 
@@ -99,7 +101,6 @@ def schedule_after_idle_lull(callback, quiet_seconds=3, max_wait_seconds=30):
     GLib.timeout_add_seconds(1, _poll)
 
 
-
 def _shared_region_entry(locale_code, entries):
     """The entry every region of a bare language code shares - af_NA and
     af_ZA both listing folder af_ZA with the same files - or None if the
@@ -107,18 +108,23 @@ def _shared_region_entry(locale_code, entries):
     lang = locale_code.replace('-', '_')
     if '_' in lang:
         return None
-    regions = [entry for code, entry in entries.items() if code.replace('-', '_').startswith(lang + '_')]
+    regions = [
+        entry for code, entry in entries.items() if code.replace('-', '_').startswith(lang + '_')
+    ]
     if regions and all(entry == regions[0] for entry in regions):
         return regions[0]
     return None
 
 
 class AssetManifest:
-    def __init__(self, client=None, config_dir=None, schedule_after_idle_lull=schedule_after_idle_lull):
+    def __init__(
+        self, client=None, config_dir=None, schedule_after_idle_lull=schedule_after_idle_lull
+    ):
         self._client = client
         self._schedule_after_idle_lull = schedule_after_idle_lull
         if config_dir is None:
             from virtaal.common import pan_app
+
             config_dir = pan_app.get_config_dir()
         self._cache_path = os.path.join(config_dir, _CACHE_FILENAME)
         self._data = None
@@ -134,6 +140,7 @@ class AssetManifest:
 
     def _last_fetched(self):
         from virtaal.common import pan_app
+
         value = pan_app.settings.general.get('assets_manifest_fetched')
         if not value:
             return None
@@ -160,6 +167,7 @@ class AssetManifest:
         client = self._client
         if client is None:
             from virtaal.support.httpclient import HTTPClient
+
             client = HTTPClient()
             client.set_virtaal_useragent()
             self._client = client
@@ -172,12 +180,18 @@ class AssetManifest:
         etag = None
         if self._data is not None:
             from virtaal.common import pan_app
+
             etag = pan_app.settings.general.get('assets_manifest_etag') or None
-        client.get(MANIFEST_URL, lambda request, result: self._on_fetched(request, result, on_done),
-                    etag=etag, error_callback=lambda request, status: self._on_fetch_error(on_done))
+        client.get(
+            MANIFEST_URL,
+            lambda request, result: self._on_fetched(request, result, on_done),
+            etag=etag,
+            error_callback=lambda request, status: self._on_fetch_error(on_done),
+        )
 
     def _on_fetched(self, request, result, on_done):
         from virtaal.common import pan_app
+
         if request.status == 304:
             # Our own cached copy already matches - nothing to
             # re-parse or rewrite, just record that we checked.

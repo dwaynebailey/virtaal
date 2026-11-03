@@ -37,7 +37,8 @@ def test_parse_contributors_sections(tmp_path):
         "\n"
         "- Alice\n"
         "- Bob\n",
-        encoding='utf-8')
+        encoding='utf-8',
+    )
 
     contributors = parse_contributors(str(md))
 

@@ -27,10 +27,13 @@ from virtaal.support.httpclient import HTTPClient
 
 YAML_DATA = {
     'dictionary': {
-        'de_DE': {'folder': 'de', 'files': [
-            {'name': 'de_DE_frami.aff', 'sha': 'a1'},
-            {'name': 'de_DE_frami.dic', 'sha': 'a2'},
-        ]},
+        'de_DE': {
+            'folder': 'de',
+            'files': [
+                {'name': 'de_DE_frami.aff', 'sha': 'a1'},
+                {'name': 'de_DE_frami.dic', 'sha': 'a2'},
+            ],
+        },
     },
 }
 YAML_BYTES = yaml.safe_dump(YAML_DATA).encode('utf-8')
@@ -58,7 +61,8 @@ def _make_manifest(tmp_path, client=None, lull_calls=None):
         lull_calls.append(callback)
 
     return am.AssetManifest(
-        client=client, config_dir=str(tmp_path), schedule_after_idle_lull=fake_lull)
+        client=client, config_dir=str(tmp_path), schedule_after_idle_lull=fake_lull
+    )
 
 
 def _reset_fetched_date(value=''):
@@ -260,7 +264,10 @@ def test_get_matches_bare_language_and_misses_unknown_locale(tmp_path):
     assert manifest.get('thesaurus', 'de_DE') is None
 
 
-_AF = {'folder': 'af_ZA', 'files': [{'name': 'af_ZA.dic', 'sha': 'a1'}, {'name': 'af_ZA.aff', 'sha': 'a2'}]}
+_AF = {
+    'folder': 'af_ZA',
+    'files': [{'name': 'af_ZA.dic', 'sha': 'a1'}, {'name': 'af_ZA.aff', 'sha': 'a2'}],
+}
 
 
 def _manifest_with(tmp_path, dictionary):
@@ -277,36 +284,47 @@ def test_get_gives_a_bare_language_the_entry_all_its_regions_share(tmp_path):
 
 def test_get_gives_a_bare_language_its_default_region_when_its_regions_differ(tmp_path):
     # pt is European Portuguese in Virtaal (#4675).
-    manifest = _manifest_with(tmp_path, {
-        'pt_BR': {'folder': 'pt_BR', 'files': [{'name': 'pt_BR.dic', 'sha': 'b'}]},
-        'pt_PT': {'folder': 'pt_PT', 'files': [{'name': 'pt_PT.dic', 'sha': 'p'}]},
-    })
+    manifest = _manifest_with(
+        tmp_path,
+        {
+            'pt_BR': {'folder': 'pt_BR', 'files': [{'name': 'pt_BR.dic', 'sha': 'b'}]},
+            'pt_PT': {'folder': 'pt_PT', 'files': [{'name': 'pt_PT.dic', 'sha': 'p'}]},
+        },
+    )
 
     assert manifest.get('dictionary', 'pt')['folder'] == 'pt_PT'
     assert manifest.get('dictionary', 'pt_BR')['folder'] == 'pt_BR'
 
 
 def test_get_leaves_a_bare_language_without_a_default_region_alone(tmp_path):
-    manifest = _manifest_with(tmp_path, {
-        'zh_CN': {'folder': 'zh_CN', 'files': [{'name': 'zh_CN.dic', 'sha': 'c'}]},
-        'zh_TW': {'folder': 'zh_TW', 'files': [{'name': 'zh_TW.dic', 'sha': 't'}]},
-    })
+    manifest = _manifest_with(
+        tmp_path,
+        {
+            'zh_CN': {'folder': 'zh_CN', 'files': [{'name': 'zh_CN.dic', 'sha': 'c'}]},
+            'zh_TW': {'folder': 'zh_TW', 'files': [{'name': 'zh_TW.dic', 'sha': 't'}]},
+        },
+    )
 
     assert manifest.get('dictionary', 'zh') is None
 
 
-@pytest.mark.parametrize('code, entries, folder', [
-    ('ca@valencia', ['ca_ES', 'ca_ES_valencia'], 'ca_ES_valencia'),
-    # No Valencian autocorrect list: Catalan's, which is keyed plain ca.
-    ('ca@valencia', ['ca', 'pt'], 'ca'),
-    ('zh_HK', ['zh_CN', 'zh_TW'], 'zh_TW'),
-    ('en', ['en_GB', 'en_US', 'en_ZA'], 'en_US'),
-    ('sr', ['sr_CS', 'sr_Latn_RS', 'sr_RS'], 'sr_RS'),
-    ('de', ['de_AT', 'de_CH', 'de_DE'], 'de_DE'),
-])
+@pytest.mark.parametrize(
+    'code, entries, folder',
+    [
+        ('ca@valencia', ['ca_ES', 'ca_ES_valencia'], 'ca_ES_valencia'),
+        # No Valencian autocorrect list: Catalan's, which is keyed plain ca.
+        ('ca@valencia', ['ca', 'pt'], 'ca'),
+        ('zh_HK', ['zh_CN', 'zh_TW'], 'zh_TW'),
+        ('en', ['en_GB', 'en_US', 'en_ZA'], 'en_US'),
+        ('sr', ['sr_CS', 'sr_Latn_RS', 'sr_RS'], 'sr_RS'),
+        ('de', ['de_AT', 'de_CH', 'de_DE'], 'de_DE'),
+    ],
+)
 def test_get_tries_the_default_regions_in_order(tmp_path, code, entries, folder):
-    manifest = _manifest_with(tmp_path, {
-        key: {'folder': key, 'files': [{'name': key + '.dic', 'sha': key}]} for key in entries})
+    manifest = _manifest_with(
+        tmp_path,
+        {key: {'folder': key, 'files': [{'name': key + '.dic', 'sha': key}]} for key in entries},
+    )
 
     assert manifest.get('dictionary', code)['folder'] == folder
 

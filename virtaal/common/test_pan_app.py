@@ -38,12 +38,11 @@ def test_set_enchant_env_vars_points_at_bundled_dylib(monkeypatch):
     enchant_dir = os.path.join('Some', 'App.app', 'Contents', 'Resources', 'enchant_intel')
     try:
         _set_enchant_env_vars(enchant_dir)
-        assert os.environ['PYENCHANT_LIBRARY_PATH'] == \
-            os.path.join(enchant_dir, 'lib', 'libenchant.1.dylib')
-        assert os.environ['ENCHANT_MODULE_DIR'] == \
-            os.path.join(enchant_dir, 'lib', 'enchant')
-        assert os.environ['ENCHANT_DATA_DIR'] == \
-            os.path.join(enchant_dir, 'share', 'enchant')
+        assert os.environ['PYENCHANT_LIBRARY_PATH'] == os.path.join(
+            enchant_dir, 'lib', 'libenchant.1.dylib'
+        )
+        assert os.environ['ENCHANT_MODULE_DIR'] == os.path.join(enchant_dir, 'lib', 'enchant')
+        assert os.environ['ENCHANT_DATA_DIR'] == os.path.join(enchant_dir, 'share', 'enchant')
     finally:
         for key in ('PYENCHANT_LIBRARY_PATH', 'ENCHANT_MODULE_DIR', 'ENCHANT_DATA_DIR'):
             os.environ.pop(key, None)
@@ -74,7 +73,11 @@ def test_open_frozen_log_survives_characters_a_locale_codepage_cant(tmp_path):
 
 
 def _launch(n):
-    return '=== launch 2026-09-%02d 00:00:00 | Virtaal 1.0.0-beta1 (abc%04d) ===\ncontent %d\n' % (n, n, n)
+    return '=== launch 2026-09-%02d 00:00:00 | Virtaal 1.0.0-beta1 (abc%04d) ===\ncontent %d\n' % (
+        n,
+        n,
+        n,
+    )
 
 
 def test_trim_log_to_last_launches_keeps_only_the_tail(tmp_path):
@@ -109,6 +112,7 @@ def test_trim_log_to_last_launches_tolerates_a_missing_file(tmp_path):
 def test_the_suite_never_uses_the_real_config_dir():
     # conftest points HOME at a scratch dir before pan_app is imported (#4082).
     import pwd
+
     real_home = pwd.getpwuid(os.getuid()).pw_dir + os.sep
     assert not pan_app.settings.filename.startswith(real_home)
     assert not get_config_dir().startswith(real_home)
@@ -151,6 +155,7 @@ def test_read_ini_recovering_reads_a_file_with_a_byte_order_mark(tmp_path):
     assert backup_path is None
     assert parser.get("general", "lastdir") == "/tmp"
 
+
 def test_read_ini_recovering_backs_up_a_corrupt_file(tmp_path):
     # Real Windows crash (#3327): a user's virtaal.ini got zero-filled,
     # raising configparser.MissingSectionHeaderError unhandled at
@@ -188,20 +193,28 @@ def test_settings_recovers_from_a_corrupt_virtaal_ini(tmp_path):
     assert settings.config.sections() == settings.sections  # all empty, none lost
 
 
-@pytest.mark.parametrize('value', ['ఆంగ్ల', 'en\u202e', 'af za', 'af\x00', 'Engels', 'english', 'EN'])
+@pytest.mark.parametrize(
+    'value', ['ఆంగ్ల', 'en\u202e', 'af za', 'af\x00', 'Engels', 'english', 'EN']
+)
 def test_settings_replaces_a_language_that_isnt_a_code(tmp_path, value, caplog):
     # #4340: a non-ASCII sourcelang broke every TM request.
     path = tmp_path / "virtaal.ini"
-    path.write_text("[language]\nsourcelang = %s\ntargetlang = %s\n" % (value, value), encoding='utf-8')
+    path.write_text(
+        "[language]\nsourcelang = %s\ntargetlang = %s\n" % (value, value), encoding='utf-8'
+    )
 
     settings = pan_app.Settings(str(path))
 
     assert settings.language['sourcelang'] == 'en'
-    assert settings.language['targetlang'] == pan_app.data.simplify_to_common(pan_app.get_locale_lang())
+    assert settings.language['targetlang'] == pan_app.data.simplify_to_common(
+        pan_app.get_locale_lang()
+    )
     assert "isn't a language code" in caplog.text
 
 
-@pytest.mark.parametrize('value', ['af', 'nso', 'sr@latin', 'ca@valencia', 'zh_CN', 'zh_Hant', 'pt-BR'])
+@pytest.mark.parametrize(
+    'value', ['af', 'nso', 'sr@latin', 'ca@valencia', 'zh_CN', 'zh_Hant', 'pt-BR']
+)
 def test_settings_keeps_a_language_code(tmp_path, value):
     path = tmp_path / "virtaal.ini"
     path.write_text("[language]\nsourcelang = %s\n" % value)
@@ -219,14 +232,16 @@ def test_settings_replaces_a_font_with_a_control_character(tmp_path):
     assert settings.language['sourcefont'] == pan_app.defaultfont
     assert settings.language['targetfont'] == pan_app.defaultfont
 
+
 def test_save_config_without_a_section_removes_entries_absent_from_the_new_data(tmp_path):
     # #1906: deleting a web look-up entry showed as removed in the UI
     # but stayed in weblookup.ini - each entry is its own section, and
     # a deleted one is simply absent from the dict handed to the next
     # save, not explicitly removed by the caller.
     path = str(tmp_path / 'test.ini')
-    pan_app.save_config(path, {'Google': {'url': 'http://google.com'},
-                                'Wikipedia': {'url': 'http://wikipedia.org'}})
+    pan_app.save_config(
+        path, {'Google': {'url': 'http://google.com'}, 'Wikipedia': {'url': 'http://wikipedia.org'}}
+    )
 
     pan_app.save_config(path, {'Google': {'url': 'http://google.com'}})
 
@@ -274,24 +289,36 @@ def test_open_frozen_log_trims_before_appending(tmp_path):
 
 # UI language selector (translate/virtaal#1492)
 
+
 def _library_sources(tmp_path, monkeypatch, upstream=True, lite_text='Lite save'):
     from virtaal.support.libi18n import lite
+
     upstream_dir = tmp_path / 'upstream'
     if upstream:
-        lite.write_mo(str(upstream_dir / 'xx' / 'LC_MESSAGES' / 'gtk30.mo'),
-                      {'': 'Content-Type: text/plain; charset=UTF-8\n', '_Open': 'Upstream open'})
-    monkeypatch.setattr(lite, 'library_locale_dir', lambda namespace: str(upstream_dir) if namespace == 'Gtk' else None)
+        lite.write_mo(
+            str(upstream_dir / 'xx' / 'LC_MESSAGES' / 'gtk30.mo'),
+            {'': 'Content-Type: text/plain; charset=UTF-8\n', '_Open': 'Upstream open'},
+        )
+    monkeypatch.setattr(
+        lite,
+        'library_locale_dir',
+        lambda namespace: str(upstream_dir) if namespace == 'Gtk' else None,
+    )
     repo_root = tmp_path / 'repo'
     (repo_root / 'po' / 'lite' / 'gtk30').mkdir(parents=True)
     po = repo_root / 'po' / 'lite' / 'gtk30' / 'xx.po'
-    po.write_text('msgid ""\nmsgstr "Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-                  'msgid "_Save"\nmsgstr "%s"\n' % lite_text, encoding='utf-8')
+    po.write_text(
+        'msgid ""\nmsgstr "Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+        'msgid "_Save"\nmsgstr "%s"\n' % lite_text,
+        encoding='utf-8',
+    )
     monkeypatch.setattr(pan_app, '_repo_root', lambda: str(repo_root))
     return po
 
 
 def _library_catalog(localedir):
     import gettext
+
     return gettext.translation('gtk30', str(localedir), languages=['xx'])
 
 
@@ -308,12 +335,15 @@ def test_ensure_dev_library_catalogs_merges_upstream_and_lite(tmp_path, monkeypa
 
 def test_ensure_dev_library_catalogs_rebuilds_only_when_a_source_is_newer(tmp_path, monkeypatch):
     from virtaal.support.libi18n import lite
+
     po = _library_sources(tmp_path, monkeypatch)
     localedir = tmp_path / 'localedir'
     pan_app._ensure_dev_library_catalogs('xx', str(localedir))
     target = localedir / 'xx' / 'LC_MESSAGES' / 'gtk30.mo'
     os.utime(target, (os.path.getmtime(po) + 10,) * 2)
-    po.write_text(po.read_text(encoding='utf-8').replace('Lite save', 'Newer save'), encoding='utf-8')
+    po.write_text(
+        po.read_text(encoding='utf-8').replace('Lite save', 'Newer save'), encoding='utf-8'
+    )
     os.utime(po, (os.path.getmtime(target) - 5,) * 2)
 
     pan_app._ensure_dev_library_catalogs('xx', str(localedir))
@@ -327,12 +357,14 @@ def test_ensure_dev_library_catalogs_rebuilds_only_when_a_source_is_newer(tmp_pa
 
 def test_ensure_dev_library_catalogs_leaves_nothing_behind_on_a_failed_merge(tmp_path, monkeypatch):
     from virtaal.support.libi18n import lite
+
     _library_sources(tmp_path, monkeypatch)
     localedir = tmp_path / 'localedir'
 
     def broken_merge(upstream_mo, lite_po, out_mo):
         open(out_mo, 'w').write('partial')
         raise ValueError('broken')
+
     monkeypatch.setattr(lite, 'merge', broken_merge)
     (localedir / 'xx' / 'LC_MESSAGES').mkdir(parents=True)
 
@@ -344,24 +376,29 @@ def test_ensure_dev_library_catalogs_leaves_nothing_behind_on_a_failed_merge(tmp
 def test_ensure_dev_library_catalogs_builds_gettext_tools_from_lite_alone(tmp_path, monkeypatch):
     # The macOS and Windows builds' libgettextpo comes without catalogs.
     from virtaal.support.libi18n import lite
+
     monkeypatch.setattr(lite, 'upstream_locale_dir', lambda domain: None)
     repo_root = tmp_path / 'repo'
     (repo_root / 'po' / 'lite' / 'gettext-tools').mkdir(parents=True)
     (repo_root / 'po' / 'lite' / 'gettext-tools' / 'xx.po').write_text(
         'msgid ""\nmsgstr "Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-        'msgid "invalid plural expression"\nmsgstr "Lite plural"\n', encoding='utf-8')
+        'msgid "invalid plural expression"\nmsgstr "Lite plural"\n',
+        encoding='utf-8',
+    )
     monkeypatch.setattr(pan_app, '_repo_root', lambda: str(repo_root))
     localedir = tmp_path / 'localedir'
 
     pan_app._ensure_dev_library_catalogs('xx', str(localedir))
 
     import gettext
+
     catalog = gettext.translation('gettext-tools', str(localedir), languages=['xx'])
     assert catalog.gettext('invalid plural expression') == 'Lite plural'
 
 
 def test_ensure_dev_library_catalogs_skips_a_library_with_no_catalog_at_all(tmp_path, monkeypatch):
     from virtaal.support.libi18n import lite
+
     monkeypatch.setattr(lite, 'library_locale_dir', lambda namespace: None)
     monkeypatch.setattr(pan_app, '_repo_root', lambda: str(tmp_path / 'repo'))
     localedir = tmp_path / 'localedir'
@@ -424,7 +461,9 @@ def test_ensure_dev_locale_installed_tolerates_a_missing_source(tmp_path, monkey
     assert not (localedir / 'xx').exists()
 
 
-def test_ensure_dev_locale_installed_compiles_the_po_when_no_mo_was_ever_built(tmp_path, monkeypatch):
+def test_ensure_dev_locale_installed_compiles_the_po_when_no_mo_was_ever_built(
+    tmp_path, monkeypatch
+):
     # A checkout that's never run `pip install -e .` (so setup.py's own
     # mo/ compile step never ran) still has po/<lang>.po - translate-
     # toolkit (a hard dependency already) can compile that directly.
@@ -434,19 +473,23 @@ def test_ensure_dev_locale_installed_compiles_the_po_when_no_mo_was_ever_built(t
     (repo_root / 'po' / 'xx.po').write_text(
         'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
         'msgid "Hello"\nmsgstr "Kgotso"\n',
-        encoding='utf-8')
+        encoding='utf-8',
+    )
     monkeypatch.setattr(pan_app, '_repo_root', lambda: str(repo_root))
     localedir = tmp_path / 'localedir'
 
     pan_app._ensure_dev_locale_installed('xx', str(localedir))
 
     import gettext
+
     with open(localedir / 'xx' / 'LC_MESSAGES' / 'virtaal.mo', 'rb') as f:
         translation = gettext.GNUTranslations(f)
     assert translation.gettext('Hello') == 'Kgotso'
 
 
-def test_ensure_dev_locale_installed_does_not_poison_the_cache_on_a_failed_compile(tmp_path, monkeypatch):
+def test_ensure_dev_locale_installed_does_not_poison_the_cache_on_a_failed_compile(
+    tmp_path, monkeypatch
+):
     # A convertmo() failure (#3926) must not poison the .mo cache.
     monkeypatch.setattr(pan_app.platform, 'is_frozen', False)
     repo_root = tmp_path / 'repo'
@@ -458,8 +501,7 @@ def test_ensure_dev_locale_installed_does_not_poison_the_cache_on_a_failed_compi
     def _broken_convertmo(infile, outfile, template):
         raise ValueError('simulated compile failure')
 
-    monkeypatch.setattr(
-        'translate.tools.pocompile.convertmo', _broken_convertmo)
+    monkeypatch.setattr('translate.tools.pocompile.convertmo', _broken_convertmo)
 
     with pytest.raises(ValueError):
         pan_app._ensure_dev_locale_installed('xx', str(localedir))
@@ -472,7 +514,9 @@ def test_ensure_dev_locale_installed_does_not_poison_the_cache_on_a_failed_compi
 def test_get_available_ui_languages_has_no_system_default_entry_of_its_own(tmp_path, monkeypatch):
     # pan_app.py is in po/POTFILES.skip - a label here would never be
     # translatable. The caller (prefsview.py) adds one instead.
-    monkeypatch.setattr(pan_app.platform, 'locale_dir', str(tmp_path / 'prefix' / 'share' / 'locale'))
+    monkeypatch.setattr(
+        pan_app.platform, 'locale_dir', str(tmp_path / 'prefix' / 'share' / 'locale')
+    )
     monkeypatch.setattr(pan_app, '_repo_root', lambda: str(tmp_path / 'repo'))
 
     langs = pan_app.get_available_ui_languages()
@@ -543,7 +587,9 @@ def test_get_available_ui_languages_falls_back_to_pycountrys_name(tmp_path, monk
     assert langs['lg'] == 'Ganda'
 
 
-def test_get_available_ui_languages_falls_back_to_the_code_for_an_unknown_language(tmp_path, monkeypatch):
+def test_get_available_ui_languages_falls_back_to_the_code_for_an_unknown_language(
+    tmp_path, monkeypatch
+):
     locale_dir = tmp_path / 'prefix' / 'share' / 'locale'
     (locale_dir / 'zzz' / 'LC_MESSAGES').mkdir(parents=True)
     (locale_dir / 'zzz' / 'LC_MESSAGES' / 'virtaal.mo').write_bytes(b'x')
@@ -571,6 +617,7 @@ def test_get_available_ui_languages_excludes_pseudo_translations(tmp_path, monke
 
 
 # _read_ini_recovering()'s remaining branches #
+
 
 def test_read_ini_recovering_clears_sections_already_on_the_parser(tmp_path):
     # A parser handed in already populated (e.g. re-reading into one
@@ -600,6 +647,7 @@ def test_read_ini_recovering_tolerates_a_failed_backup_rename(tmp_path, monkeypa
 
 # get_config_dir()'s Windows branch #
 
+
 def test_get_config_dir_on_windows(monkeypatch, tmp_path):
     monkeypatch.setattr(pan_app.platform, 'is_windows', True)
     monkeypatch.setenv('APPDATA', str(tmp_path))
@@ -624,6 +672,7 @@ def test_get_config_dir_in_flatpak_is_under_xdg_config_home(monkeypatch, tmp_pat
 
 # _repo_root() #
 
+
 def test_repo_root_resolves_to_the_real_checkout_root():
     root = pan_app._repo_root()
 
@@ -633,8 +682,10 @@ def test_repo_root_resolves_to_the_real_checkout_root():
 
 # name() #
 
+
 def test_name_tolerates_a_missing_pwd_module(monkeypatch):
     import sys
+
     monkeypatch.setitem(sys.modules, 'pwd', None)  # forces `import pwd` to raise ImportError
 
     result = pan_app.name()
@@ -643,6 +694,7 @@ def test_name_tolerates_a_missing_pwd_module(monkeypatch):
 
 
 # get_locale_lang() #
+
 
 def test_get_locale_lang_uses_osx_lang_when_locale_is_unset_on_mac(monkeypatch):
     monkeypatch.setattr(pan_app.locale, 'getdefaultlocale', lambda *a: (None, None))
@@ -654,13 +706,17 @@ def test_get_locale_lang_uses_osx_lang_when_locale_is_unset_on_mac(monkeypatch):
 
 def test_osx_lang_returns_the_most_preferred_language(monkeypatch):
     from virtaal.support.libi18n import locale as locale_module
-    monkeypatch.setattr(locale_module, 'get_macos_preferred_languages', lambda: ['zh-Hant-TW', 'en'])
+
+    monkeypatch.setattr(
+        locale_module, 'get_macos_preferred_languages', lambda: ['zh-Hant-TW', 'en']
+    )
 
     assert pan_app.osx_lang() == 'zh_TW'
 
 
 def test_osx_lang_returns_none_without_preferred_languages(monkeypatch):
     from virtaal.support.libi18n import locale as locale_module
+
     monkeypatch.setattr(locale_module, 'get_macos_preferred_languages', lambda: [])
 
     assert pan_app.osx_lang() is None
@@ -679,6 +735,7 @@ def test_get_locale_lang_treats_the_c_locale_as_unset(monkeypatch, lang):
 def test_get_locale_lang_falls_back_to_en_on_error(monkeypatch, caplog):
     def _raise(*a):
         raise RuntimeError('no locale')
+
     monkeypatch.setattr(pan_app.locale, 'getdefaultlocale', _raise)
 
     with caplog.at_level(logging.WARNING):
@@ -690,8 +747,10 @@ def test_get_locale_lang_falls_back_to_en_on_error(monkeypatch, caplog):
 
 # get_default_font() #
 
+
 def _desktop_interface_schema():
     from gi.repository import Gio
+
     source = Gio.SettingsSchemaSource.get_default()
     return source and source.lookup('org.gnome.desktop.interface', True)
 
@@ -700,6 +759,7 @@ def test_get_default_font_uses_the_desktops_monospace_font_on_linux(monkeypatch)
     if not _desktop_interface_schema():
         pytest.skip("needs GNOME's desktop interface settings schema")
     from gi.repository import Gio
+
     monkeypatch.setattr(pan_app.platform, 'is_mac', False)
     monkeypatch.setattr(pan_app.platform, 'is_windows', False)
     desktop = Gio.Settings.new('org.gnome.desktop.interface').get_string('monospace-font-name')
@@ -709,6 +769,7 @@ def test_get_default_font_uses_the_desktops_monospace_font_on_linux(monkeypatch)
 
 def test_get_default_font_without_the_desktop_schema_uses_gtks_size(monkeypatch):
     from gi.repository import Gio
+
     monkeypatch.setattr(pan_app.platform, 'is_mac', False)
     monkeypatch.setattr(pan_app.platform, 'is_windows', False)
     monkeypatch.setattr(Gio.SettingsSchemaSource, 'get_default', staticmethod(lambda: None))
@@ -721,10 +782,13 @@ def test_get_default_font_without_the_desktop_schema_uses_gtks_size(monkeypatch)
 
 def test_get_default_font_falls_back_to_gtks_size_when_the_desktop_settings_fail(monkeypatch):
     from gi.repository import Gio
+
     monkeypatch.setattr(pan_app.platform, 'is_mac', False)
     monkeypatch.setattr(pan_app.platform, 'is_windows', False)
+
     def broken():
         raise RuntimeError('no settings backend')
+
     monkeypatch.setattr(Gio.SettingsSchemaSource, 'get_default', staticmethod(broken))
 
     assert pan_app.get_default_font().startswith('monospace ')
@@ -734,17 +798,21 @@ def test_get_default_font_falls_back_to_gtks_size_when_the_desktop_settings_fail
 def test_get_default_font_ignores_bundled_desktop_settings_on_mac_and_windows(monkeypatch, flag):
     # A bundle's schemas are its build machine's, not the user's.
     from gi.repository import Gio
+
     monkeypatch.setattr(pan_app.platform, 'is_mac', False)
     monkeypatch.setattr(pan_app.platform, 'is_windows', False)
     monkeypatch.setattr(pan_app.platform, flag, True)
+
     def never(*args):
         raise AssertionError('read the desktop settings')
+
     monkeypatch.setattr(Gio.Settings, 'new', staticmethod(never))
 
     assert pan_app.get_default_font().startswith('monospace ')
 
 
 # Settings #
+
 
 def test_settings_reads_every_section_of_virtaal_ini(tmp_path):
     path = tmp_path / 'virtaal.ini'
@@ -753,7 +821,9 @@ def test_settings_reads_every_section_of_virtaal_ini(tmp_path):
         '[general]\nlastdir = /tmp/work\nwindowwidth = 1024\n'
         '[placeable_state]\nxmltagplaceable = disabled\n'
         '[plugin_state]\nautocorrector = enabled\n'
-        '[undo]\ndepth = 50\n', encoding='utf-8')
+        '[undo]\ndepth = 50\n',
+        encoding='utf-8',
+    )
 
     settings = pan_app.Settings(str(path))
 
@@ -776,8 +846,10 @@ def test_settings_raises_for_a_missing_explicit_filename(tmp_path):
 def test_settings_instances_do_not_share_values(tmp_path):
     # #3826: --config must not inherit the default config's values.
     real = tmp_path / 'real.ini'
-    real.write_text('[translator]\nname = Real Name\n[language]\nuilang = af\n'
-                    '[installed_assets]\nautocorrect.af = abc\n')
+    real.write_text(
+        '[translator]\nname = Real Name\n[language]\nuilang = af\n'
+        '[installed_assets]\nautocorrect.af = abc\n'
+    )
     isolated = tmp_path / 'isolated.ini'
     isolated.write_text('')
 
@@ -813,6 +885,7 @@ def test_save_config_skips_a_config_file_that_is_a_directory(tmp_path, caplog):
 
     assert path.is_dir()
     assert "can't be saved" in caplog.text
+
 
 class _FailingParser:
     """Writes one line, then fails like a full disk."""
@@ -906,6 +979,7 @@ def test_settings_write_creates_the_config_directory_if_missing(tmp_path):
 
 # save_config() #
 
+
 def test_save_config_joins_list_values(tmp_path):
     path = str(tmp_path / 'test.ini')
 
@@ -916,11 +990,11 @@ def test_save_config_joins_list_values(tmp_path):
 
 # set_ui_language() #
 
+
 def test_set_ui_language_installs_the_translation_and_updates_the_module_global(monkeypatch):
     installed = []
     fake_translation = SimpleNamespace(install=lambda: installed.append(True))
-    monkeypatch.setattr(pan_app.gettext, 'translation',
-                         lambda *a, **kw: fake_translation)
+    monkeypatch.setattr(pan_app.gettext, 'translation', lambda *a, **kw: fake_translation)
     monkeypatch.setattr(pan_app, '_ensure_dev_locale_installed', lambda lang, localedir: None)
     monkeypatch.setattr(pan_app, 'fix_locale', lambda lang=None: None)
     monkeypatch.setattr(pan_app.platform, 'is_windows', True)  # skips bind_libintl_posix
@@ -1004,8 +1078,9 @@ def test_set_ui_language_tolerates_an_unsupported_locale(monkeypatch):
     monkeypatch.setattr(pan_app, '_ensure_dev_locale_installed', lambda lang, localedir: None)
     monkeypatch.setattr(pan_app, 'fix_locale', lambda lang=None: None)
     monkeypatch.setattr(pan_app.platform, 'is_windows', True)
-    monkeypatch.setattr(pan_app.locale, 'setlocale',
-                         lambda *a: (_ for _ in ()).throw(pan_app.locale.Error()))
+    monkeypatch.setattr(
+        pan_app.locale, 'setlocale', lambda *a: (_ for _ in ()).throw(pan_app.locale.Error())
+    )
 
     pan_app.set_ui_language('xx_XX')  # must not raise
 
@@ -1131,7 +1206,11 @@ def test_set_ui_language_system_self_heals_a_dev_checkout(monkeypatch):
     # --lang=system must do the same for its best-guess language, or
     # it silently stays untranslated where --lang=<code> would work.
     seen = []
-    monkeypatch.setattr(pan_app, '_ensure_dev_locale_installed', lambda lang, localedir: seen.append((lang, localedir)))
+    monkeypatch.setattr(
+        pan_app,
+        '_ensure_dev_locale_installed',
+        lambda lang, localedir: seen.append((lang, localedir)),
+    )
     monkeypatch.setattr(pan_app.gettext, 'install', lambda *a, **kw: None)
     monkeypatch.setattr(pan_app, 'fix_locale', lambda lang=None: None)
     monkeypatch.setattr(pan_app.locale, 'setlocale', lambda *a: None)
@@ -1149,7 +1228,9 @@ def test_set_ui_language_system_clears_a_language_env_override(monkeypatch):
     # on POSIX - gettext checks LANGUAGE before LC_ALL/LANG, so
     # --lang=system must undo that override or it keeps resolving to
     # the previous explicit language.
-    monkeypatch.setattr(pan_app, '_ORIGINAL_LOCALE_ENV', {'LANGUAGE': None, 'LANG': None, 'LC_ALL': None})
+    monkeypatch.setattr(
+        pan_app, '_ORIGINAL_LOCALE_ENV', {'LANGUAGE': None, 'LANG': None, 'LC_ALL': None}
+    )
     monkeypatch.setattr(pan_app, 'fix_locale', lambda lang=None: None)
     monkeypatch.setattr(pan_app, '_ensure_dev_locale_installed', lambda lang, localedir: None)
     monkeypatch.setattr(pan_app.locale, 'setlocale', lambda *a: None)
@@ -1167,7 +1248,9 @@ def test_set_ui_language_system_restores_the_original_locale_env(monkeypatch):
     # LC_ALL/LANGUAGE via _getlang(), which reads LANG back - a stale
     # LANG left over from an earlier explicit language would otherwise
     # poison that resolution too.
-    monkeypatch.setattr(pan_app, '_ORIGINAL_LOCALE_ENV', {'LANGUAGE': 'de', 'LANG': 'de', 'LC_ALL': 'de'})
+    monkeypatch.setattr(
+        pan_app, '_ORIGINAL_LOCALE_ENV', {'LANGUAGE': 'de', 'LANG': 'de', 'LC_ALL': 'de'}
+    )
     monkeypatch.setattr(pan_app, 'fix_locale', lambda lang=None: None)
     monkeypatch.setattr(pan_app, '_ensure_dev_locale_installed', lambda lang, localedir: None)
     monkeypatch.setattr(pan_app.locale, 'setlocale', lambda *a: None)
@@ -1232,8 +1315,9 @@ def test_set_ui_language_system_binds_libintl_on_non_windows(monkeypatch):
 def test_set_ui_language_system_tolerates_an_unsupported_locale(monkeypatch):
     monkeypatch.setattr(pan_app, 'fix_locale', lambda lang=None: None)
     monkeypatch.setattr(pan_app, '_ensure_dev_locale_installed', lambda lang, localedir: None)
-    monkeypatch.setattr(pan_app.locale, 'setlocale',
-                         lambda *a: (_ for _ in ()).throw(pan_app.locale.Error()))
+    monkeypatch.setattr(
+        pan_app.locale, 'setlocale', lambda *a: (_ for _ in ()).throw(pan_app.locale.Error())
+    )
     monkeypatch.setattr(pan_app, 'get_locale_lang', lambda: 'fr')
     monkeypatch.delenv('LANGUAGE', raising=False)
 
@@ -1255,11 +1339,23 @@ def test_save_config_keeps_a_percent_sign(tmp_path):
 
 # config_int() #
 
-@pytest.mark.parametrize('value, expected', [
-    ('400', 400), ('1', 1), ('32767', 32767),
-    ('', 450), ('1.5', 450), ('abc', 450), ('True', 450), (None, 450),
-    ('0', 450), ('-3', 450), ('99999999999999999999', 450),
-])
+
+@pytest.mark.parametrize(
+    'value, expected',
+    [
+        ('400', 400),
+        ('1', 1),
+        ('32767', 32767),
+        ('', 450),
+        ('1.5', 450),
+        ('abc', 450),
+        ('True', 450),
+        (None, 450),
+        ('0', 450),
+        ('-3', 450),
+        ('99999999999999999999', 450),
+    ],
+)
 def test_config_int_falls_back_to_the_default_outside_its_range(value, expected):
     # #4340: a bad value stopped Virtaal starting or turned a plugin off.
     assert pan_app.config_int(value, 450, 1, 32767, 'width') == expected
@@ -1273,6 +1369,7 @@ def test_config_int_logs_the_value_it_replaced(caplog):
 
 # install_saved_ui_language() #
 
+
 @pytest.fixture
 def ui_language_globals(monkeypatch):
     monkeypatch.setattr(pan_app, 'ui_language', pan_app.ui_language)
@@ -1283,8 +1380,11 @@ def test_install_saved_ui_language_installs_the_saved_language(monkeypatch, ui_l
     installed = []
     monkeypatch.setitem(pan_app.settings.language, 'uilang', 'af')
     monkeypatch.setattr(pan_app, 'get_locale_lang', lambda: 'fr')
-    monkeypatch.setattr(pan_app, '_install_explicit_ui_language',
-                        lambda lang, languages, fallback: installed.append((lang, languages, fallback)))
+    monkeypatch.setattr(
+        pan_app,
+        '_install_explicit_ui_language',
+        lambda lang, languages, fallback: installed.append((lang, languages, fallback)),
+    )
     monkeypatch.setattr('builtins._', lambda s: s or 'PO header')  # a real catalog is loaded
 
     pan_app.install_saved_ui_language()
@@ -1295,7 +1395,9 @@ def test_install_saved_ui_language_installs_the_saved_language(monkeypatch, ui_l
     assert pan_app.has_ui_translation is True
 
 
-def test_install_saved_ui_language_uses_the_os_language_without_a_saved_one(monkeypatch, ui_language_globals):
+def test_install_saved_ui_language_uses_the_os_language_without_a_saved_one(
+    monkeypatch, ui_language_globals
+):
     installed = []
     monkeypatch.setitem(pan_app.settings.language, 'uilang', '')
     monkeypatch.setattr(pan_app, 'get_locale_lang', lambda: 'fr')
@@ -1310,7 +1412,9 @@ def test_install_saved_ui_language_uses_the_os_language_without_a_saved_one(monk
 
 def test_install_saved_ui_language_reports_en_without_a_catalog(monkeypatch, ui_language_globals):
     monkeypatch.setitem(pan_app.settings.language, 'uilang', 'af')
-    monkeypatch.setattr(pan_app, '_install_explicit_ui_language', lambda lang, languages, fallback: None)
+    monkeypatch.setattr(
+        pan_app, '_install_explicit_ui_language', lambda lang, languages, fallback: None
+    )
     monkeypatch.setattr('builtins._', lambda s: s)  # NullTranslations-style passthrough
 
     pan_app.install_saved_ui_language()
@@ -1321,8 +1425,10 @@ def test_install_saved_ui_language_reports_en_without_a_catalog(monkeypatch, ui_
 
 # _english_language_name() #
 
+
 def test_english_language_name_without_pycountry_is_none_for_a_code_toolkit_lacks(monkeypatch):
     from virtaal.support import translate_compat
+
     monkeypatch.setattr(translate_compat, 'pycountry', None)
 
     assert pan_app._english_language_name('xqz') is None
@@ -1330,6 +1436,7 @@ def test_english_language_name_without_pycountry_is_none_for_a_code_toolkit_lack
 
 
 # _redirect_output_to_logs() #
+
 
 def test_redirect_output_to_logs_writes_stdout_and_stderr_to_the_config_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(pan_app, 'get_config_dir', lambda: str(tmp_path))

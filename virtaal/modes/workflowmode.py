@@ -18,7 +18,7 @@ from .basemode import BaseMode
 
 class WorkflowMode(BaseMode):
     """Workflow mode - Include units based on its workflow state, as specified
-        by the user."""
+    by the user."""
 
     name = 'Workflow'
     display_name = _("Workflow")
@@ -27,20 +27,21 @@ class WorkflowMode(BaseMode):
     # INITIALIZERS #
     def __init__(self, controller):
         """Constructor.
-            @type  controller: virtaal.controllers.ModeController
-            @param controller: The ModeController that managing program modes."""
+        @type  controller: virtaal.controllers.ModeController
+        @param controller: The ModeController that managing program modes."""
         self.controller = controller
         self.filter_states = []
         self._menuitem_states = {}
         self._stats_changed_id = None
-
 
     # METHODS #
     def selected(self):
         store_controller = self.controller.main_controller.store_controller
         self.storecursor = store_controller.cursor
         if not self._stats_changed_id:
-            self._stats_changed_id = store_controller.connect('stats-changed', self._on_stats_changed)
+            self._stats_changed_id = store_controller.connect(
+                'stats-changed', self._on_stats_changed
+            )
         self.state_names = self._format_state_names()
         # Selecting the mode starts a new selection: drop ticked states
         # that no unit is in.
@@ -73,7 +74,7 @@ class WorkflowMode(BaseMode):
 
     def _format_state_names(self):
         """The (id, name) pairs of the workflow states the file's format has,
-            or of the states its units are in if the format has none."""
+        or of the states its units are in if the format has none."""
         names = self.controller.main_controller.unit_controller.get_unit_state_names()
         model = self.storecursor.model if self.storecursor else None
         if not model:
@@ -92,7 +93,7 @@ class WorkflowMode(BaseMode):
 
     def _update_menu_sensitivity(self):
         """Only states with units can be ticked; a ticked one stays
-            sensitive so it can be unticked."""
+        sensitive so it can be unticked."""
         for menuitem, state in self._menuitem_states.items():
             menuitem.set_sensitive(self._has_units(state) or menuitem.get_active())
 
@@ -142,10 +143,10 @@ class WorkflowMode(BaseMode):
         state_labels = [mi.get_child().get_label() for mi in self.btn_popup.menu if mi.get_active()]
         btn_label = ''
         if not state_labels:
-            #l10n: This is the button where the user can select units by workflow state
+            # l10n: This is the button where the user can select units by workflow state
             btn_label = _('Select States')
         elif len(state_labels) == len(self.state_names):
-            #l10n: This refers to workflow states
+            # l10n: This refers to workflow states
             btn_label = _('All States')
         else:
             btn_label = ', '.join(state_labels[:3])

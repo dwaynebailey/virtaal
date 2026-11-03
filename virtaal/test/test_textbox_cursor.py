@@ -9,7 +9,6 @@ from test_scaffolding import TestScaffolding
 
 
 class TestTextBoxCursor(TestScaffolding):
-
     def test_cursor_move_clears_the_pending_refresh_position(self):
         """Accepting an autocomplete suggestion (or any raw
         buffer.insert()) leaves refresh_cursor_pos pointing at the end

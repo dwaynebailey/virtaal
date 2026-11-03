@@ -35,7 +35,7 @@ class StoreController(BaseController):
 
         self.main_controller = main_controller
         self.main_controller.store_controller = self
-        self._unit_controller = None # This is set by UnitController itself when it is created
+        self._unit_controller = None  # This is set by UnitController itself when it is created
 
         self.cursor = None
         self.handler_ids = {}
@@ -45,20 +45,23 @@ class StoreController(BaseController):
         self.store = None
         self._view = None
 
-        self._controller_register_id = self.main_controller.connect('controller-registered', self._on_controller_registered)
+        self._controller_register_id = self.main_controller.connect(
+            'controller-registered', self._on_controller_registered
+        )
 
     def destroy(self):
         if self.project:
             del self.project
-
 
     # ACCESSORS #
 
     def _getview(self):
         if not self._view:
             from virtaal.views.storeview import StoreView
+
             self._view = StoreView(self)
         return self._view
+
     view = property(_getview)
 
     def get_nplurals(self, store=None):
@@ -70,6 +73,7 @@ class StoreController(BaseController):
         """Returns the file name of the bundle archive, if we are working with one."""
         if self.project:
             from virtaal.support.bundleprojstore import BundleProjectStore
+
             if isinstance(self.project.store, BundleProjectStore):
                 return self.project.store.zip.filename
         return None
@@ -79,14 +83,15 @@ class StoreController(BaseController):
 
     def get_store_filename(self):
         """Returns a display-friendly string representing the current open
-            store's file name. If a bundle is currently open, this method will
-            return a file name in the format "bundle.zip:some_file.xlf"."""
+        store's file name. If a bundle is currently open, this method will
+        return a file name in the format "bundle.zip:some_file.xlf"."""
         store = self.get_store()
         if not store:
             return ''
         filename = ''
         if self.project:
             from virtaal.support.bundleprojstore import BundleProjectStore
+
             if isinstance(self.project.store, BundleProjectStore):
                 # This should always be the case
                 filename = self.project.store.zip.filename + ':'
@@ -117,7 +122,7 @@ class StoreController(BaseController):
 
     def get_unit_celleditor(self, unit):
         """Load the given unit in via the C{UnitController} and return
-            the C{Gtk.CellEditable} it creates."""
+        the C{Gtk.CellEditable} it creates."""
         return self.unit_controller.load_unit(unit)
 
     def is_modified(self):
@@ -138,17 +143,21 @@ class StoreController(BaseController):
                 if key in self.handler_ids:
                     self.unit_controller.disconnect(self.handler_ids.pop(key))
         self._unit_controller = unitcont
-        self.handler_ids['unitview.unit-modified'] = self.unit_controller.connect('unit-modified', self._unit_modified)
+        self.handler_ids['unitview.unit-modified'] = self.unit_controller.connect(
+            'unit-modified', self._unit_modified
+        )
         # A unit's workflow state is only written to it once it is done.
-        self.handler_ids['unitview.unit-done'] = self.unit_controller.connect('unit-done', self._unit_done)
-    unit_controller = property(_get_unitcontroller, _set_unitcontroller)
+        self.handler_ids['unitview.unit-done'] = self.unit_controller.connect(
+            'unit-done', self._unit_done
+        )
 
+    unit_controller = property(_get_unitcontroller, _set_unitcontroller)
 
     # METHODS #
     def select_unit(self, unit, force=False):
         """Select the specified unit and scroll to it.
-            Note that, because we change units via the cursor, the unit to
-            select must be valid according to the cursor."""
+        Note that, because we change units via the cursor, the unit to
+        select must be valid according to the cursor."""
         if self.cursor.deref() is unit:
             # Unit is already selected; no need to do more work
             return
@@ -162,6 +171,7 @@ class StoreController(BaseController):
             i = self.store.get_units().index(unit)
         except Exception as exc:
             import logging
+
             logging.debug('Unit not found:\n%s' % (exc))
 
         if force:
@@ -175,29 +185,33 @@ class StoreController(BaseController):
         from virtaal.models.storemodel import StoreModel
         from virtaal.support import bundleprojstore
         from virtaal.support.project import Project
+
         self.project = Project(bundleprojstore.BundleProjectStore(filename))
 
         if not len(self.project.store.transfiles):
             # FIXME: Ask the user to select a source file to convert?
             if not len(self.project.store.sourcefiles):
-                raise bundleprojstore.InvalidBundleError('No source or translatable files in bundle')
+                raise bundleprojstore.InvalidBundleError(
+                    'No source or translatable files in bundle'
+                )
             self.project.convert_forward(self.project.store.sourcefiles[0])
 
         # FIXME: Ask the user which translatable file to open?
         transfile = self.project.get_file(self.project.store.transfiles[0])
         self.real_filename = transfile.name
         logging.info(
-            'Editing translation file %s:%s' %
-            (filename, self.project.store.transfiles[0])
+            'Editing translation file %s:%s' % (filename, self.project.store.transfiles[0])
         )
         self.store = StoreModel(transfile, self)
 
     def _open_plain(self, filename):
         from virtaal.models.storemodel import StoreModel
+
         self.store = StoreModel(filename, self)
 
     def _rename_pot_template(self, filename, force_saveas):
         import re
+
         pot_re = re.compile(r"\.pot(\.gz|\.bz2)?$")
         if pot_re.search(filename):
             force_saveas = True
@@ -207,7 +221,7 @@ class StoreController(BaseController):
 
     def _is_readonly(self, filename):
         """Whether the file actually opened (the bundle itself for a
-            .zip, not its extracted temp copy) can't be written to."""
+        .zip, not its extracted temp copy) can't be written to."""
         return os.path.isfile(filename) and not os.access(filename, os.W_OK)
 
     def open_file(self, filename, uri='', forget_dir=False):
@@ -248,6 +262,7 @@ class StoreController(BaseController):
             self.main_controller.view.hide_read_only_notice()
 
         from .cursor import Cursor
+
         self.cursor = Cursor(self.store, self.store.stats['total'], circular=False)
 
         self.view.load_store(self.store)
@@ -266,7 +281,9 @@ class StoreController(BaseController):
     def save_file(self, filename=None):
         self.unit_controller.prepare_for_save()
         if self.project is None:
-            self.store.save_file(filename) # store.save_file() will raise an appropriate exception if necessary
+            self.store.save_file(
+                filename
+            )  # store.save_file() will raise an appropriate exception if necessary
         else:
             # XXX: filename is the name that the bundle archive should be saved
             #      as, seeing as self.store is opened from a temporary file
@@ -288,9 +305,10 @@ class StoreController(BaseController):
         self.emit('store-saved')
 
     def binary_export(self, filename):
-        #TODO: confirm file extension is correct
-        #TODO: confirm that there is something translated in the store
+        # TODO: confirm file extension is correct
+        # TODO: confirm that there is something translated in the store
         from translate.tools.pocompile import POCompile
+
         compiler = POCompile()
         binary_output = open(filename, 'wb')
         binary_output.write(compiler.convertstore(self.store._trans_store))
@@ -302,10 +320,13 @@ class StoreController(BaseController):
         self.store = None
         self.set_modified(False)
         self.main_controller.view.hide_read_only_notice()
-        self.view.hide() # This MUST be called BEFORE `self.cursor = None`
-        self.emit('store-closed') # This should be emitted BEFORE `self.cursor = None` to allow any other modules to disconnect from the cursor
+        self.view.hide()  # This MUST be called BEFORE `self.cursor = None`
+        self.emit(
+            'store-closed'
+        )  # This should be emitted BEFORE `self.cursor = None` to allow any other modules to disconnect from the cursor
         self.cursor = None
         import gc
+
         gc.collect()
 
     def revert_file(self):
@@ -313,11 +334,12 @@ class StoreController(BaseController):
 
     def update_file(self, filename, uri=''):
         if not self.store:
-            #FIXME: we should never allow updates if no file is already open
+            # FIXME: we should never allow updates if no file is already open
             self.open_file(filename, uri=uri)
             return
 
         from translate.storage import factory
+
         template = factory.getobject(filename)
         if not any(unit.istranslatable() for unit in template.units):
             raise ValueError('The file contains nothing to translate.')
@@ -333,6 +355,7 @@ class StoreController(BaseController):
         # Don't force Save As (#3808) - the file already has a real path.
 
         from .cursor import Cursor
+
         self.cursor = Cursor(self.store, self.store.stats['total'], circular=False)
 
         self.view.load_store(self.store)
@@ -353,8 +376,12 @@ class StoreController(BaseController):
             result['total'] = sum(result.values())
             return result
 
-        #l10n: this refers to updating a file to a new template (POT file)
-        self.main_controller.show_template_update_notice(_("File Updated"), counts(oldstats), counts(newstats))
+        self.main_controller.show_template_update_notice(
+            # l10n: this refers to updating a file to a new template (POT file)
+            _("File Updated"),
+            counts(oldstats),
+            counts(newstats),
+        )
 
     # EVENT HANDLERS #
     def _on_controller_registered(self, main_controller, controller):
@@ -381,7 +408,7 @@ class StoreController(BaseController):
 
     def update_unit_stats(self, unit, modified=True):
         """Move C{unit} to the stats lists for its current state and, if
-            C{modified}, recheck it."""
+        C{modified}, recheck it."""
         if self.store is None or not self.store.stats:
             return
         index = self._unit_index(unit)

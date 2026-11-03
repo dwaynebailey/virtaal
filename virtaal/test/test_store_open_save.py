@@ -66,8 +66,11 @@ class TestStoreOpenSave(TestScaffolding):
     @pytest.fixture(autouse=True)
     def _closed(self, monkeypatch):
         # Saving a PO file asks for these in a modal dialog.
-        monkeypatch.setattr(self.main_controller, 'get_translator_details',
-                            lambda *args: ('Tester', 'tester@example.org', 'Afrikaans'))
+        monkeypatch.setattr(
+            self.main_controller,
+            'get_translator_details',
+            lambda *args: ('Tester', 'tester@example.org', 'Afrikaans'),
+        )
         self.store_controller.close_file()
         yield
         self.store_controller.close_file()
@@ -151,7 +154,9 @@ class TestStoreOpenSave(TestScaffolding):
         unit = self.store_controller.store.get_units()[0]
         self.unit_controller.load_unit(unit)
         pasted = []
-        handler = self.unit_controller.connect('unit-paste-start', lambda _c, *args: pasted.append(args))
+        handler = self.unit_controller.connect(
+            'unit-paste-start', lambda _c, *args: pasted.append(args)
+        )
         try:
             self.unit_controller.view.emit('paste-start', 'Oop', (0, 3), 0)
         finally:

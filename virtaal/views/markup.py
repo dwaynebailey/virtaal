@@ -13,7 +13,8 @@ from virtaal.views.theme import current_theme, readable_fg
 
 # We want to draw unexpected spaces specially so that users can spot them
 # easily without having to resort to showing all spaces weirdly
-_unusual_spaces_re = re.compile(r"""(?m)  #Multiline expression
+_unusual_spaces_re = re.compile(
+    r"""(?m)  #Multiline expression
         [ ]{2,}|     #More than two consecutive regular spaces
         ^[ ]+|       #Regular space(s) at start of a line
         [ ]+$|       #Regular space(s) at end of a line
@@ -30,14 +31,17 @@ _unusual_spaces_re = re.compile(r"""(?m)  #Multiline expression
         #  \u205f        MEDIUM MATHEMATICAL SPACE
         #  \u3000        IDEOGRAPHIC SPACE
         [\t\u00a0\u1680\u2000-\u200b\u202f\u205f\u3000]+
-        """, re.VERBOSE)
+        """,
+    re.VERBOSE,
+)
 """A regular expression object to find all unusual spaces we want to show"""
+
 
 def _fancyspaces(string):
     """Indicate the fancy spaces with a grey squigly."""
     spaces = string.group()
-#    while spaces[0] in "\t\n\r":
-#        spaces = spaces[1:]
+    #    while spaces[0] in "\t\n\r":
+    #        spaces = spaces[1:]
     return '<span underline="error" foreground="grey">%s</span>' % spaces
 
 
@@ -45,23 +49,28 @@ def _fancyspaces(string):
 
 # incorrect XML might be marked up incorrectly:  "<a> text </a more text bla"
 _xml_re = re.compile("&lt;[^>]+>")
+
+
 def _fancy_xml(escape):
     """Marks up the XML to appear in the warning red colour."""
     return '<span foreground="%s">%s</span>' % (current_theme['markup_warning_fg'], escape.group())
+
 
 def _subtle_escape(escape):
     """Marks up the given escape to appear in a subtle grey colour."""
     return '<span foreground="%s">%s</span>' % (current_theme['subtle_fg'], escape)
 
+
 def _escape_entities(s):
     """Escapes '&' and '<' in literal text so that they are not seen as markup."""
-    s = s.replace("&", "&amp;") # Must be done first!
+    s = s.replace("&", "&amp;")  # Must be done first!
     s = s.replace("<", "&lt;")
     s = _xml_re.sub(_fancy_xml, s)
     return s
 
 
 # Public methods
+
 
 def markuptext(text, fancyspaces=True, markupescapes=True, diff_text=""):
     """Markup the given text to be pretty Pango markup.
@@ -81,12 +90,13 @@ def markuptext(text, fancyspaces=True, markupescapes=True, diff_text=""):
         text = _unusual_spaces_re.sub(_fancyspaces, text)
 
     if markupescapes:
-#        text = text.replace(u"\r\n", _subtle_escape(u'¶\r\n')
+        #        text = text.replace(u"\r\n", _subtle_escape(u'¶\r\n')
         text = text.replace("\n", _subtle_escape('¶\n'))
         if text.endswith('\n</span>'):
-            text = text[:-len('\n</span>')] + '</span>'
+            text = text[: -len('\n</span>')] + '</span>'
 
     return text
+
 
 def escape(text):
     """This is to escape text for use with Gtk.TextView"""
@@ -94,8 +104,9 @@ def escape(text):
         return ""
     text = text.replace("\n", '¶\n')
     if text.endswith("\n"):
-        text = text[:-len("\n")]
+        text = text[: -len("\n")]
     return text
+
 
 def unescape(text):
     """This is to unescape text for use with Gtk.TextView"""
@@ -118,32 +129,30 @@ def _pango_spans(attr, text):
 # Templates for pango markup
 # Variable substitution is done later, so that it can react to theme changes.
 _diff_pango_templates = {
-        'insert_attr':
-                "underline='single'"\
-                "underline_color='#777777'"\
-                "weight='bold'"\
-                "background='%(diff_insert_bg)s'"\
-                "foreground='%(diff_insert_fg)s'",
-        'delete_attr':
-                "strikethrough='true'"\
-                "strikethrough_color='#777'"\
-                "background='%(diff_delete_bg)s'"\
-                "foreground='%(diff_delete_fg)s'",
-        #replace_attr_remove = delete_attr
-        'replace_attr_add':
-                "underline='single'"\
-                "underline_color='#777777'"\
-                "weight='bold'"
-                "background='%(diff_replace_bg)s'"\
-                "foreground='%(diff_replace_fg)s'",
-        'replace_attr_add_case':
-                "underline='single'"\
-                "underline_color='#777777'"\
-                "background='%(diff_replace_bg)s'"\
-                "foreground='%(diff_replace_fg)s'",
+    'insert_attr': "underline='single'"
+    "underline_color='#777777'"
+    "weight='bold'"
+    "background='%(diff_insert_bg)s'"
+    "foreground='%(diff_insert_fg)s'",
+    'delete_attr': "strikethrough='true'"
+    "strikethrough_color='#777'"
+    "background='%(diff_delete_bg)s'"
+    "foreground='%(diff_delete_fg)s'",
+    # replace_attr_remove = delete_attr
+    'replace_attr_add': "underline='single'"
+    "underline_color='#777777'"
+    "weight='bold'"
+    "background='%(diff_replace_bg)s'"
+    "foreground='%(diff_replace_fg)s'",
+    'replace_attr_add_case': "underline='single'"
+    "underline_color='#777777'"
+    "background='%(diff_replace_bg)s'"
+    "foreground='%(diff_replace_fg)s'",
 }
 
 differencer = diff_match_patch()
+
+
 def pango_diff(a, b):
     """Highlights the differences between a and b for Pango rendering.
 
@@ -163,17 +172,17 @@ def pango_diff(a, b):
     replace_attr_add = _diff_pango_templates['replace_attr_add'] % colours
     replace_attr_add_case = _diff_pango_templates['replace_attr_add_case'] % colours
 
-    textdiff = "" # to store the final result
-    removed = "" # the removed text that we might still want to add
+    textdiff = ""  # to store the final result
+    removed = ""  # the removed text that we might still want to add
     diff = differencer.diff_main(a, b)
     differencer.diff_cleanupSemantic(diff)
     for op, text in diff:
-        if op == 0: # equality
+        if op == 0:  # equality
             if removed:
                 textdiff += _pango_spans(delete_attr, removed)
                 removed = ""
             textdiff += _escape_entities(text)
-        elif op == 1: # insertion
+        elif op == 1:  # insertion
             if removed:
                 # this is part of a substitution, not a plain insertion. We
                 # will format this differently.
@@ -182,23 +191,23 @@ def pango_diff(a, b):
                 # if the new insertion is big enough (will draw attention) or
                 # the removed part is not much bigger than the insertion we
                 # can give a subtle highlighting for mostly case differences:
-                if (len_text > 5 or len_removed < len_text + 2) and \
-                        removed.lower().endswith(text.lower()):
+                if (len_text > 5 or len_removed < len_text + 2) and removed.lower().endswith(
+                    text.lower()
+                ):
                     # a more subtle replace highlighting, since only case differs
                     textdiff += _pango_spans(replace_attr_add_case, text)
                 else:
                     # Replacement. We only show the deleted part of the
                     # replacement if it is much longer than the new insertion
                     # and not alphanumeric (to draw attention):
-                    if len_text < 3 and len_removed > 2 * len_text and \
-                            not removed.isalpha():
+                    if len_text < 3 and len_removed > 2 * len_text and not removed.isalpha():
                         textdiff += _pango_spans(delete_attr, removed)
                     textdiff += _pango_spans(replace_attr_add, text)
                 removed = ""
             else:
                 # plain insertion
                 textdiff += _pango_spans(insert_attr, text)
-        elif op == -1: # deletion
+        elif op == -1:  # deletion
             removed = text
     if removed:
         textdiff += _pango_spans(delete_attr, removed)

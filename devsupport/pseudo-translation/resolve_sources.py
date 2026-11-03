@@ -34,7 +34,16 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # iso: covers both language and country names.
-DOMAINS = {"virtaal": "vt:", "gtk30": "gtk:", "glib20": "glib:", "gtkspell3": "spell:", "gtk-mac-integration": "mac:", "iso639-3": "iso:", "iso639-5": "iso:", "iso3166-1": "iso:"}
+DOMAINS = {
+    "virtaal": "vt:",
+    "gtk30": "gtk:",
+    "glib20": "glib:",
+    "gtkspell3": "spell:",
+    "gtk-mac-integration": "mac:",
+    "iso639-3": "iso:",
+    "iso639-5": "iso:",
+    "iso3166-1": "iso:",
+}
 TAG_RE = re.compile(r"(?:vt|gtk|glib|iso|spell|mac)!?:")
 # The harvest records labels without their Pango markup.
 MARKUP_RE = re.compile(r"<[^>]+>")
@@ -43,7 +52,8 @@ PRINTF_RE = re.compile(r"%(?:\d+\$|\(\w+\))?[-+ #0']*\d*(?:\.\d+)?[hlLqjzt]*[dio
 
 def _generator():
     spec = importlib.util.spec_from_file_location(
-        "generate_pseudo_translation", os.path.join(HERE, "generate_pseudo_translation.py"))
+        "generate_pseudo_translation", os.path.join(HERE, "generate_pseudo_translation.py")
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -55,7 +65,7 @@ def msgid_pattern(form):
     parts = []
     position = 0
     for match in PRINTF_RE.finditer(form):
-        parts.append(re.escape(form[position:match.start()]))
+        parts.append(re.escape(form[position : match.start()]))
         parts.append("%" if match.group() == "%%" else ".*?")
         position = match.end()
     parts.append(re.escape(form[position:]))
@@ -110,7 +120,9 @@ def resolve_text(text, catalogs):
 
 
 def resolve(harvest, catalogs):
-    seen = collections.defaultdict(lambda: {"screens": set(), "within": set(), "windows": set(), "shown": False})
+    seen = collections.defaultdict(
+        lambda: {"screens": set(), "within": set(), "windows": set(), "shown": False}
+    )
     unresolved = set()
     for record in harvest["strings"]:
         for domain, original in resolve_text(record["text"], catalogs):
@@ -124,19 +136,30 @@ def resolve(harvest, catalogs):
             entry["shown"] = entry["shown"] or record.get("shown", True)
     result = collections.defaultdict(list)
     for (domain, original), entry in sorted(seen.items()):
-        result[domain].append({"original": original, "screens": sorted(entry["screens"]),
-                               "within": sorted(entry["within"]), "windows": sorted(entry["windows"]),
-                               "shown": entry["shown"]})
+        result[domain].append(
+            {
+                "original": original,
+                "screens": sorted(entry["screens"]),
+                "within": sorted(entry["within"]),
+                "windows": sorted(entry["windows"]),
+                "shown": entry["shown"],
+            }
+        )
     result["unresolved"] = sorted(unresolved)
     return result
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("harvest", help="harvest_sources.py's JSON output")
     parser.add_argument("output", help="JSON file to write")
-    parser.add_argument("--localedir", default=os.path.join(sys.prefix, "share", "locale"),
-                        help="Where the pseudo-source catalogs are (default: sys.prefix/share/locale)")
+    parser.add_argument(
+        "--localedir",
+        default=os.path.join(sys.prefix, "share", "locale"),
+        help="Where the pseudo-source catalogs are (default: sys.prefix/share/locale)",
+    )
     args = parser.parse_args()
     with open(args.harvest, encoding="utf-8") as f:
         harvest = json.load(f)

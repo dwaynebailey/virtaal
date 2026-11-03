@@ -26,23 +26,23 @@ THREE_DAYS = 60 * 60 * 24 * 3
 class TerminologyModel(BaseTerminologyModel):
     """A terminology back-end to access community-maintained localization terminology.
 
-        Was originally Translate.org.za's own terminology.locamotion.org,
-        a set of static per-language-pair files - now decommissioned.
-        Replaced with Mozilla's Pontoon terminology
-        (pontoon.mozilla.org/terminology/<locale>.tbx), a live,
-        actively-maintained source. Two structural differences from the
-        old source that matter here: (1) English-source only - Pontoon's
-        terminology has no concept of an arbitrary source language,
-        every file is English-to-<locale>, so this model only fetches
-        anything when the project's own source language is English;
-        other source languages get an empty store, same as before this
-        file existed at all. (2) TBX-Basic format (ISO 30042:ed-2, root
-        <tbx style="dca" type="TBX-Basic">, <conceptEntry> entries), not
-        the older MARTIF-rooted TBX (root <martif>, <termEntry>)
-        translate-toolkit's own tbx.py module supports - parsed directly
-        in this file (_parse_tbx_basic()) rather than waiting on/
-        extending translate-toolkit's own TBX support.
-        """
+    Was originally Translate.org.za's own terminology.locamotion.org,
+    a set of static per-language-pair files - now decommissioned.
+    Replaced with Mozilla's Pontoon terminology
+    (pontoon.mozilla.org/terminology/<locale>.tbx), a live,
+    actively-maintained source. Two structural differences from the
+    old source that matter here: (1) English-source only - Pontoon's
+    terminology has no concept of an arbitrary source language,
+    every file is English-to-<locale>, so this model only fetches
+    anything when the project's own source language is English;
+    other source languages get an empty store, same as before this
+    file existed at all. (2) TBX-Basic format (ISO 30042:ed-2, root
+    <tbx style="dca" type="TBX-Basic">, <conceptEntry> entries), not
+    the older MARTIF-rooted TBX (root <martif>, <termEntry>)
+    translate-toolkit's own tbx.py module supports - parsed directly
+    in this file (_parse_tbx_basic()) rather than waiting on/
+    extending translate-toolkit's own TBX support.
+    """
 
     __gtype_name__ = 'PontoonTerminology'
     display_name = _('Mozilla Pontoon')
@@ -73,8 +73,12 @@ class TerminologyModel(BaseTerminologyModel):
         lang_controller = self.main_controller.lang_controller
         self.source_lang = lang_controller.source_lang.code
         self.target_lang = lang_controller.target_lang.code
-        self._signal_tracker.connect(lang_controller, 'source-lang-changed', self._on_lang_changed, 'source')
-        self._signal_tracker.connect(lang_controller, 'target-lang-changed', self._on_lang_changed, 'target')
+        self._signal_tracker.connect(
+            lang_controller, 'source-lang-changed', self._on_lang_changed, 'source'
+        )
+        self._signal_tracker.connect(
+            lang_controller, 'target-lang-changed', self._on_lang_changed, 'target'
+        )
 
         self.update_terms()
 
@@ -103,7 +107,6 @@ class TerminologyModel(BaseTerminologyModel):
         self.matcher = terminologymatcher(self.store)
         TerminologyPlaceable.matchers.append(self.matcher)
 
-
     # ACCESSORS #
     def _get_curr_term_filename(self, srclang=None, tgtlang=None, ext=None):
         if srclang is None:
@@ -120,8 +123,8 @@ class TerminologyModel(BaseTerminologyModel):
             if filename.startswith(base):
                 return filename
         return base + os.extsep + ext
-    curr_term_filename = property(_get_curr_term_filename)
 
+    curr_term_filename = property(_get_curr_term_filename)
 
     # METHODS #
     def update_terms(self, srclang=None, tgtlang=None):
@@ -143,7 +146,10 @@ class TerminologyModel(BaseTerminologyModel):
             # docstring) - nothing to fetch for any other source
             # language. Same end state as before this source existed:
             # an empty store, no placeable matches, no error.
-            logging.debug('Source language %r is not English - Pontoon terminology has nothing to offer, using an empty store' % (srclang,))
+            logging.debug(
+                'Source language %r is not English - Pontoon terminology has nothing to offer, using an empty store'
+                % (srclang,)
+            )
             self.init_matcher()
             return
 
@@ -163,6 +169,7 @@ class TerminologyModel(BaseTerminologyModel):
             return True
         stats = os.stat(localfile)
         from datetime import datetime
+
         return (time.mktime(datetime.now().timetuple()) - stats.st_mtime) > THREE_DAYS
 
     def _check_for_update(self, srclang, tgtlang):
@@ -184,15 +191,18 @@ class TerminologyModel(BaseTerminologyModel):
         if logging.root.level != logging.DEBUG:
             self.client.get(url, callback, etag, download=True)
         else:
+
             def error_log(request, result):
                 logging.debug('Could not get %s: status %d' % (url, request.status))
+
             self.client.get(url, callback, etag, error_callback=error_log, download=True)
 
     def _get_ext_from_url(self, url):
         from urllib.parse import urlparse
+
         parsed = urlparse(url)
-        #dir, filename = os.path.split(parsed.path)
-        #rewritten for compatibility with Python 2.4:
+        # dir, filename = os.path.split(parsed.path)
+        # rewritten for compatibility with Python 2.4:
         dir, filename = os.path.split(parsed[2])
         if not filename or '.' not in filename:
             return None
@@ -210,6 +220,7 @@ class TerminologyModel(BaseTerminologyModel):
         from io import BytesIO
 
         from translate.storage.factory import _guess_extension
+
         s = BytesIO(content)
         try:
             return _guess_extension(s)
@@ -259,12 +270,11 @@ class TerminologyModel(BaseTerminologyModel):
 
     def _update_term_file(self, srclang, tgtlang):
         """Update the terminology file for the given languages."""
-        self.init_matcher() # Make sure that the matcher is empty until we have an update
+        self.init_matcher()  # Make sure that the matcher is empty until we have an update
         filename = self._get_curr_term_filename(srclang, tgtlang)
         localfile = os.path.join(self.TERMDIR, filename)
 
         self._check_for_update(srclang, tgtlang)
-
 
     # SIGNAL HANDLERS #
     def _on_lang_changed(self, lang_controller, lang, which):
@@ -274,22 +284,22 @@ class TerminologyModel(BaseTerminologyModel):
 
 def _is_english(langcode):
     """Whether the given language code is some variety of English
-        (en, en_US, en-GB, ...) - Pontoon's terminology is English-source
-        only, see TerminologyModel's own docstring."""
+    (en, en_US, en-GB, ...) - Pontoon's terminology is English-source
+    only, see TerminologyModel's own docstring."""
     normalized = normalize_code(langcode)
     return bool(normalized) and normalized.split('-')[0] == 'en'
 
 
 def _pontoon_locale_code(langcode):
     """Convert a Virtaal-style language code (e.g. "en_GB") to the exact
-        form Pontoon's own static file naming expects. Two things
-        normalize_code() alone doesn't get right for this specific server:
-        it lowercases the whole code (Pontoon's server is case-sensitive
-        and serves "en-GB.tbx", not "en-gb.tbx" - the lowercase form
-        404s), and Virtaal's own codes use an underscore
-        separator where Pontoon's file names use a hyphen. Language
-        subtag lowercase, region subtag uppercase - the standard BCP 47
-        casing convention, not something Pontoon invented."""
+    form Pontoon's own static file naming expects. Two things
+    normalize_code() alone doesn't get right for this specific server:
+    it lowercases the whole code (Pontoon's server is case-sensitive
+    and serves "en-GB.tbx", not "en-gb.tbx" - the lowercase form
+    404s), and Virtaal's own codes use an underscore
+    separator where Pontoon's file names use a hyphen. Language
+    subtag lowercase, region subtag uppercase - the standard BCP 47
+    casing convention, not something Pontoon invented."""
     normalized = normalize_code(langcode)
     parts = normalized.split('-')
     if len(parts) > 1:
@@ -307,14 +317,15 @@ _XML_NS = 'http://www.w3.org/XML/1998/namespace'
 
 def _parse_tbx_basic(content):
     """Parse a TBX-Basic (ISO 30042:ed-2) document's bytes into a plain
-        C{TranslationStore}, one unit per concept entry that has both an
-        English source term and a target-language term. Malformed or
-        genuinely empty input (e.g. a locale Pontoon has no terminology
-        for - a valid header with a completely empty <body>) both just
-        produce an empty store, matching this model's existing "nothing
-        to show" behaviour rather than raising."""
+    C{TranslationStore}, one unit per concept entry that has both an
+    English source term and a target-language term. Malformed or
+    genuinely empty input (e.g. a locale Pontoon has no terminology
+    for - a valid header with a completely empty <body>) both just
+    produce an empty store, matching this model's existing "nothing
+    to show" behaviour rather than raising."""
     store = TranslationStore()
     from lxml import etree
+
     try:
         root = etree.fromstring(content)
     except etree.Error as e:

@@ -23,10 +23,11 @@ _MODIFIERS = {"latin": "_Latn", "cyrillic": "_Cyrl", "valencia": "_ES_VALENCIA"}
 
 def ui_locale(lang=None):
     """The Babel Locale for a UI language code such as "pt_BR" or
-        "sr@latin" (the current UI language by default), or CLDR's root
-        locale for one Babel doesn't know."""
+    "sr@latin" (the current UI language by default), or CLDR's root
+    locale for one Babel doesn't know."""
     if lang is None:
         from virtaal.common import pan_app
+
         lang = pan_app.ui_language or "en"
     code, _, modifier = lang.partition("@")
     try:
@@ -37,7 +38,7 @@ def ui_locale(lang=None):
 
 def localise_digits(text, locale=None):
     """text with its ASCII digits replaced by those of the locale's
-        default numbering system."""
+    default numbering system."""
     digits = DIGITS.get((locale or ui_locale()).default_numbering_system, LATIN)
     if digits == LATIN:
         return text
@@ -47,12 +48,14 @@ def localise_digits(text, locale=None):
 def format_number(number):
     """An integer in the UI language's digits and grouping."""
     locale = ui_locale()
-    return localise_digits(locale.decimal_formats[None].apply(number, locale, numbering_system="default"), locale)
+    return localise_digits(
+        locale.decimal_formats[None].apply(number, locale, numbering_system="default"), locale
+    )
 
 
 def format_percent(fraction, decimals=1):
     """fraction (0.25 for 25%) as a percentage in the UI language's
-        own pattern, with exactly decimals decimal places."""
+    own pattern, with exactly decimals decimal places."""
     locale = ui_locale()
     pattern = copy.copy(locale.percent_formats[None])
     pattern.frac_prec = (decimals, decimals)
@@ -61,9 +64,9 @@ def format_percent(fraction, decimals=1):
 
 def format_size(size):
     """A file size of size bytes in the UI language, in decimal units like
-        GLib.format_size: bytes below 1,000, then kB, MB, GB or TB with
-        one decimal place. CLDR's short unit names, because many
-        locales lack the long ones."""
+    GLib.format_size: bytes below 1,000, then kB, MB, GB or TB with
+    one decimal place. CLDR's short unit names, because many
+    locales lack the long ones."""
     locale = ui_locale()
     if size < 1000:
         text = format_unit(size, "digital-byte", "short", locale=locale, numbering_system="default")
@@ -72,5 +75,7 @@ def format_size(size):
             size /= 1000
             if size < 1000:
                 break
-        text = format_unit(size, "digital-" + unit, "short", "#,##0.0", locale, numbering_system="default")
+        text = format_unit(
+            size, "digital-" + unit, "short", "#,##0.0", locale, numbering_system="default"
+        )
     return localise_digits(text, locale)

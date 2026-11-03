@@ -52,12 +52,15 @@ def _make_view(**controller_kwargs):
     )
     controller.save_new_langs = lambda: controller.saved_langs.append(list(controller.new_langs))
     view.controller = controller
-    view.popupbutton = PopupMenuButton()  # update_recent_pairs()'s _init_menu() needs its real set_menu()
+    view.popupbutton = (
+        PopupMenuButton()
+    )  # update_recent_pairs()'s _init_menu() needs its real set_menu()
     view.menu = None
     return view
 
 
 # _get_display_string() #
+
 
 def test_get_display_string_rtl(monkeypatch):
     monkeypatch.setattr(langview.platform, 'is_windows', False)
@@ -94,6 +97,7 @@ def test_get_display_string_uses_french_quotes_on_windows(monkeypatch):
 
 # notify_same_langs() / notify_diff_langs() #
 
+
 def test_notify_same_langs_shows_the_main_view_notice(monkeypatch):
     monkeypatch.setattr(langview.GLib, 'idle_add', lambda func, *args: func(*args))
     activated = []
@@ -127,9 +131,8 @@ def test_notify_diff_langs_hides_the_main_view_notice(monkeypatch):
     assert calls == ['hidden']
 
 
-
-
 # show() / focus() #
+
 
 def test_show_adds_the_button_to_the_status_bar():
     view = _make_view()
@@ -145,7 +148,9 @@ def test_show_does_not_add_the_button_twice():
 
     view.show()  # must not raise or add a duplicate
 
-    assert view.controller.main_controller.view.status_bar.get_children().count(view.popupbutton) == 1
+    assert (
+        view.controller.main_controller.view.status_bar.get_children().count(view.popupbutton) == 1
+    )
 
 
 def test_focus_grabs_focus_on_the_popupbutton(monkeypatch):
@@ -161,6 +166,7 @@ def test_focus_grabs_focus_on_the_popupbutton(monkeypatch):
 
 # update_recent_pairs() #
 
+
 def test_update_recent_pairs_removes_a_previously_shown_item():
     view = _make_view()
     view.controller.recent_pairs = [(_fake_lang('English'), _fake_lang('French'))]
@@ -175,7 +181,8 @@ def test_update_recent_pairs_removes_a_previously_shown_item():
 def test_update_recent_pairs_stops_at_num_recent():
     view = _make_view()
     view.controller.recent_pairs = [
-        (_fake_lang('Lang%d' % i), _fake_lang('Other%d' % i)) for i in range(view.controller.NUM_RECENT + 2)
+        (_fake_lang('Lang%d' % i), _fake_lang('Other%d' % i))
+        for i in range(view.controller.NUM_RECENT + 2)
     ]
 
     view.update_recent_pairs()  # must not raise indexing past recent_items
@@ -184,6 +191,7 @@ def test_update_recent_pairs_stops_at_num_recent():
 
 
 # _create_dialogs() #
+
 
 def test_create_dialogs_builds_both_dialogs():
     view = _make_view()
@@ -197,7 +205,9 @@ def test_create_dialogs_builds_both_dialogs():
 
 def test_create_dialogs_wires_the_edit_button_to_on_editlang_clicked(monkeypatch):
     calls = []
-    monkeypatch.setattr(LanguageView, '_on_editlang_clicked', lambda self, button: calls.append(button))
+    monkeypatch.setattr(
+        LanguageView, '_on_editlang_clicked', lambda self, button: calls.append(button)
+    )
     view = _make_view()
 
     view._create_dialogs()
@@ -208,7 +218,9 @@ def test_create_dialogs_wires_the_edit_button_to_on_editlang_clicked(monkeypatch
 
 def test_create_dialogs_wires_the_add_button_to_on_addlang_clicked(monkeypatch):
     calls = []
-    monkeypatch.setattr(LanguageView, '_on_addlang_clicked', lambda self, button: calls.append(button))
+    monkeypatch.setattr(
+        LanguageView, '_on_addlang_clicked', lambda self, button: calls.append(button)
+    )
     view = _make_view()
 
     view._create_dialogs()
@@ -219,7 +231,10 @@ def test_create_dialogs_wires_the_add_button_to_on_addlang_clicked(monkeypatch):
 
 # _on_addlang_clicked() #
 
-def _fake_add_dialog(run_result=True, error=None, langname='Klingon', langcode='tlh', nplurals=2, plural='n != 1'):
+
+def _fake_add_dialog(
+    run_result=True, error=None, langname='Klingon', langcode='tlh', nplurals=2, plural='n != 1'
+):
     return SimpleNamespace(
         run=lambda: run_result,
         check_input_sanity=lambda: error,
@@ -281,7 +296,9 @@ def test_on_addlang_clicked_registers_a_new_language():
 
 # _on_editlang_clicked() #
 
-_UK_PLURAL = 'n==1 ? 3 : n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2'
+_UK_PLURAL = (
+    'n==1 ? 3 : n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2'
+)
 
 
 def _fake_edit_dialog(run_result=True, nplurals=4, plural=_UK_PLURAL):
@@ -290,6 +307,7 @@ def _fake_edit_dialog(run_result=True, nplurals=4, plural=_UK_PLURAL):
     def run_edit(*language):
         dialog.edited.append(language)
         return run_result
+
     dialog.run_edit = run_edit
     return dialog
 
@@ -367,6 +385,7 @@ def test_on_editlang_clicked_keeps_the_language_when_cancelled(restore_languages
 
 # _on_button_toggled() #
 
+
 def test_on_button_toggled_ignores_a_deactivation():
     view = _make_view()
     view.update_recent_pairs = lambda: pytest.fail('should not be called')
@@ -427,11 +446,22 @@ def test_on_button_toggled_ignores_an_incomplete_detection():
 
 # _on_other_activated() #
 
+
 def test_on_other_activated_creates_dialogs_when_missing():
     view = _make_view()
     created = []
-    view._create_dialogs = lambda: (created.append(True), setattr(view, 'select_dialog', SimpleNamespace(
-        run=lambda s, t: False, get_selected_source_lang=lambda: None, get_selected_target_lang=lambda: None)))[1]
+    view._create_dialogs = lambda: (
+        created.append(True),
+        setattr(
+            view,
+            'select_dialog',
+            SimpleNamespace(
+                run=lambda s, t: False,
+                get_selected_source_lang=lambda: None,
+                get_selected_target_lang=lambda: None,
+            ),
+        ),
+    )[1]
     view.controller.set_language_pair = lambda *a: pytest.fail('should not be called')
     view.controller.source_lang = _fake_lang('English')
     view.controller.target_lang = _fake_lang('French')
@@ -455,7 +485,9 @@ def test_on_other_activated_sets_the_chosen_pair_when_confirmed():
     calls = []
     view.controller.set_language_pair = lambda s, t: calls.append((s, t))
     focus_calls = []
-    view.controller.main_controller.unit_controller.view.targets[0].grab_focus = lambda: focus_calls.append(True)
+    view.controller.main_controller.unit_controller.view.targets[0].grab_focus = lambda: (
+        focus_calls.append(True)
+    )
 
     view._on_other_activated(None)
 
@@ -479,15 +511,20 @@ def test_on_other_activated_does_nothing_when_cancelled():
 
 # _on_pairitem_activated() #
 
+
 def test_on_pairitem_activated_selects_that_pair():
     view = _make_view()
     pair = (_fake_lang('English'), _fake_lang('French'))
     view.controller.recent_pairs = [pair]
-    view.recent_items = [SimpleNamespace(get_child=lambda: SimpleNamespace(get_text=lambda: '_1. English → French'))]
+    view.recent_items = [
+        SimpleNamespace(get_child=lambda: SimpleNamespace(get_text=lambda: '_1. English → French'))
+    ]
     calls = []
     view.controller.set_language_pair = lambda s, t: calls.append((s, t))
     focus_calls = []
-    view.controller.main_controller.unit_controller.view.targets[0].grab_focus = lambda: focus_calls.append(True)
+    view.controller.main_controller.unit_controller.view.targets[0].grab_focus = lambda: (
+        focus_calls.append(True)
+    )
 
     view._on_pairitem_activated(None, 0)
 

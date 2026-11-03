@@ -12,12 +12,16 @@ import zipfile
 
 import pytest
 
-SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "po", "level-pack.py")
+SCRIPT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "po", "level-pack.py"
+)
 
 HEADER = 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n"Language: de\\n"\n'
-TEMPLATE = ('msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-            'msgid "_File"\nmsgstr ""\n\nmsgid "_Redo"\nmsgstr ""\n\n'
-            'msgid "Settings"\nmsgstr ""\n\nmsgid "usage: "\nmsgstr ""\n')
+TEMPLATE = (
+    'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+    'msgid "_File"\nmsgstr ""\n\nmsgid "_Redo"\nmsgstr ""\n\n'
+    'msgid "Settings"\nmsgstr ""\n\nmsgid "usage: "\nmsgstr ""\n'
+)
 
 pytestmark = pytest.mark.skipif(not shutil.which("msgmerge"), reason="needs gettext's tools")
 
@@ -33,11 +37,14 @@ def packs(tmp_path, monkeypatch):
     (tmp_path / "virtaal.pot").write_text(TEMPLATE, encoding="utf-8")
     (tmp_path / "virtaal.priorities.yaml").write_text(
         "domains:\n  virtaal:\n    '1': [_File]\n    1~: [_Redo]\n    '2': [Settings]\n    '3': ['usage: ']\n",
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     # _Redo is newer than this catalog; Undo is obsolete.
     (tmp_path / "de.po").write_text(
         HEADER + '\nmsgid "_File"\nmsgstr "_Datei"\n\nmsgid "Settings"\nmsgstr ""\n\n'
-        '#~ msgid "Undo"\n#~ msgstr "Rückgängig"\n', encoding="utf-8")
+        '#~ msgid "Undo"\n#~ msgstr "Rückgängig"\n',
+        encoding="utf-8",
+    )
     return module
 
 
@@ -57,13 +64,18 @@ def test_a_pack_holds_each_level_and_the_priority_file(packs, tmp_path):
 
 def _returned(tmp_path, entries):
     path = tmp_path / "returned.po"
-    path.write_text(HEADER + '"X-Priority-File: virtaal.priorities.yaml\\n"\n' + entries, encoding="utf-8")
+    path.write_text(
+        HEADER + '"X-Priority-File: virtaal.priorities.yaml\\n"\n' + entries, encoding="utf-8"
+    )
     return path
 
 
 def test_merge_changes_only_what_the_pack_translates(packs, tmp_path):
-    returned = _returned(tmp_path, '\nmsgid "_File"\nmsgstr "_Ablage"\n\nmsgid "_Redo"\nmsgstr "_Wiederholen"\n\n'
-                                   'msgid "Settings"\nmsgstr ""\n')
+    returned = _returned(
+        tmp_path,
+        '\nmsgid "_File"\nmsgstr "_Ablage"\n\nmsgid "_Redo"\nmsgstr "_Wiederholen"\n\n'
+        'msgid "Settings"\nmsgstr ""\n',
+    )
 
     packs.merge("de", returned)
 
@@ -104,9 +116,11 @@ def test_merge_refuses_a_broken_file(packs, tmp_path):
     assert (tmp_path / "de.po").read_text(encoding="utf-8") == before
 
 
-LITE_TEMPLATE = ('msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-                 'msgid "Home"\nmsgstr ""\n\nmsgctxt "keyboard label"\nmsgid "Shift"\nmsgstr ""\n\n'
-                 'msgid "Bookmarks"\nmsgstr ""\n')
+LITE_TEMPLATE = (
+    'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+    'msgid "Home"\nmsgstr ""\n\nmsgctxt "keyboard label"\nmsgid "Shift"\nmsgstr ""\n\n'
+    'msgid "Bookmarks"\nmsgstr ""\n'
+)
 
 
 @pytest.fixture
@@ -117,7 +131,9 @@ def lite(packs, tmp_path):
     (tmp_path / "virtaal.priorities.yaml").write_text(
         "domains:\n  virtaal:\n    '1': [_File]\n"
         "  gtk30:\n    '1': [Home]\n    1~: [\"keyboard label\\x04Shift\"]\n    '2': [Bookmarks]\n"
-        "  iso639-3:\n    '1': [English]\n", encoding="utf-8")
+        "  iso639-3:\n    '1': [English]\n",
+        encoding="utf-8",
+    )
     (tmp_path / "zu.po").write_text(HEADER.replace("de", "zu"), encoding="utf-8")
     packs.LITE_DIR = tmp_path / "lite"
     return packs
@@ -141,8 +157,11 @@ def test_a_pack_adds_only_the_library_gaps_at_each_level(lite, tmp_path):
 
 def test_a_library_pack_holds_its_lite_catalog_translations_for_review(lite, tmp_path):
     (tmp_path / "lite" / "gtk30" / "zu.po").write_text(
-        HEADER.replace("de", "zu") + '\nmsgid "Home"\nmsgstr "Ikhaya"\n\nmsgid "Bookmarks"\nmsgstr ""\n',
-        encoding="utf-8", newline="\n")
+        HEADER.replace("de", "zu")
+        + '\nmsgid "Home"\nmsgstr "Ikhaya"\n\nmsgid "Bookmarks"\nmsgstr ""\n',
+        encoding="utf-8",
+        newline="\n",
+    )
 
     archive = lite.pack("zu", tmp_path / "out", {})
 
@@ -156,7 +175,10 @@ def test_a_library_pack_holds_its_lite_catalog_translations_for_review(lite, tmp
 
 def test_without_libraries_a_pack_has_no_library_files(lite, tmp_path):
     (tmp_path / "lite" / "gtk30" / "zu.po").write_text(
-        HEADER.replace("de", "zu") + '\nmsgid "Home"\nmsgstr "Ikhaya"\n', encoding="utf-8", newline="\n")
+        HEADER.replace("de", "zu") + '\nmsgid "Home"\nmsgstr "Ikhaya"\n',
+        encoding="utf-8",
+        newline="\n",
+    )
 
     archive = lite.pack("zu", tmp_path / "out")
 
@@ -166,8 +188,10 @@ def test_without_libraries_a_pack_has_no_library_files(lite, tmp_path):
 
 def test_a_returned_library_pack_goes_into_its_lite_catalog(lite, tmp_path):
     returned = tmp_path / "gtk30-zu-level1.po"
-    returned.write_text(HEADER.replace("de", "zu") + '\nmsgctxt "keyboard label"\nmsgid "Shift"\nmsgstr "Shifu"\n',
-                        encoding="utf-8")
+    returned.write_text(
+        HEADER.replace("de", "zu") + '\nmsgctxt "keyboard label"\nmsgid "Shift"\nmsgstr "Shifu"\n',
+        encoding="utf-8",
+    )
 
     lite.merge("zu", returned)
 
@@ -179,8 +203,10 @@ def test_a_returned_library_pack_goes_into_its_lite_catalog(lite, tmp_path):
 
 def test_a_returned_language_family_pack_starts_its_lite_catalog(lite, tmp_path):
     returned = tmp_path / "iso639-5-zu-level2.po"
-    returned.write_text(HEADER.replace("de", "zu") + '\nmsgid "Songhai languages"\nmsgstr "isiSonghai"\n',
-                        encoding="utf-8")
+    returned.write_text(
+        HEADER.replace("de", "zu") + '\nmsgid "Songhai languages"\nmsgstr "isiSonghai"\n',
+        encoding="utf-8",
+    )
 
     lite.merge("zu", returned)
 

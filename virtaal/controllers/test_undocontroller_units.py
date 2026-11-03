@@ -24,7 +24,11 @@ class TestUndoAcrossUnits(TestScaffolding):
         # Pumping the real main loop hangs in this suite - run idle
         # callbacks here instead.
         self.idle_calls = []
-        monkeypatch.setattr(GLib, 'idle_add', lambda func, *args, **kwargs: self.idle_calls.append(lambda: func(*args)))
+        monkeypatch.setattr(
+            GLib,
+            'idle_add',
+            lambda func, *args, **kwargs: self.idle_calls.append(lambda: func(*args)),
+        )
         self.store_controller.open_file(self.testfile[1])
         self.units = self.store_controller.get_store().get_units()
         # The store view's cell editor loads the unit the cursor moves to;

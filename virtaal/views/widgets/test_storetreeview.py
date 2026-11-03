@@ -24,7 +24,9 @@ def _real_storetreeview():
     builder = Gtk.Builder()
     builder.add_from_file('share/virtaal/virtaal.ui')
     mainview = SimpleNamespace(gui=builder)
-    fake_view = SimpleNamespace(controller=SimpleNamespace(main_controller=SimpleNamespace(view=mainview)))
+    fake_view = SimpleNamespace(
+        controller=SimpleNamespace(main_controller=SimpleNamespace(view=mainview))
+    )
     return StoreTreeView(fake_view)
 
 
@@ -46,7 +48,9 @@ def _make_view(column_width, cursor, is_resizing=False):
         get_columns=lambda: [column],
         get_cursor=lambda: cursor,
         set_cursor=lambda *args, **kwargs: calls.append((args, kwargs)),
-        _restart_editing=lambda path, column: calls.append(((path, column), {'start_editing': True})),
+        _restart_editing=lambda path, column: calls.append(
+            ((path, column), {'start_editing': True})
+        ),
         is_resizing=is_resizing,
         schedule_revalidate_visible_estimated_rows=lambda: None,
     )
@@ -178,6 +182,7 @@ def test_refresh_current_row_does_nothing_without_a_valid_model():
 
 # select_index() #
 
+
 def test_select_index_does_nothing_without_a_valid_model():
     view = SimpleNamespace(get_model=lambda: None)
 
@@ -185,6 +190,7 @@ def test_select_index_does_nothing_without_a_valid_model():
 
 
 # _start_editing_cycle()'s deferred change_cursor() #
+
 
 def test_start_editing_cycle_reruns_set_cursor_on_idle_for_the_same_model(monkeypatch):
     model = StoreTreeModel(['unit0'])
@@ -233,6 +239,7 @@ def test_start_editing_cycle_skips_the_deferred_set_cursor_for_a_stale_model(mon
 
 # set_model() #
 
+
 def test_set_model_wraps_a_real_storemodel():
     view = _real_storetreeview()
 
@@ -274,6 +281,7 @@ def test_set_model_clears_the_cached_visible_range():
 # mark_row_estimated() / mark_row_measured_exactly() / _revalidate_visible_estimated_rows() #
 # - the estimate/exact split's other half, StoreCellRenderer._row_needs_exact_height(),
 # lives in test_storecellrenderer.py.
+
 
 def test_mark_row_estimated_and_measured_exactly_track_by_unit_identity():
     view = _real_storetreeview()
@@ -366,6 +374,7 @@ def test_schedule_revalidate_visible_estimated_rows_coalesces_repeat_calls():
 
 # _keyboard_move() / _move_*() #
 
+
 def test_keyboard_move_does_nothing_without_a_store():
     view = SimpleNamespace(view=SimpleNamespace(controller=SimpleNamespace(get_store=lambda: None)))
 
@@ -383,12 +392,15 @@ def test_keyboard_move_defers_while_a_row_change_is_pending():
 
 def _make_move_view(cursor_move, monkeypatch, timeout_calls=None):
     if timeout_calls is not None:
-        monkeypatch.setattr(GLib, 'timeout_add', lambda ms, func: timeout_calls.append((ms, func)) or 'throttle-id')
+        monkeypatch.setattr(
+            GLib, 'timeout_add', lambda ms, func: timeout_calls.append((ms, func)) or 'throttle-id'
+        )
     cursor = SimpleNamespace(index=0)
 
     def move(offset):
         cursor_move(offset)
         cursor.index += offset
+
     cursor.move = move
     view = SimpleNamespace(
         view=SimpleNamespace(
@@ -420,7 +432,8 @@ def _make_stuck_move_view(monkeypatch):
     view.view.cursor.move = lambda offset: None
     finished = []
     view.view.controller.main_controller = SimpleNamespace(
-        unit_controller=SimpleNamespace(finish_current_unit=lambda: finished.append('finish')))
+        unit_controller=SimpleNamespace(finish_current_unit=lambda: finished.append('finish'))
+    )
     view.refresh_current_row = lambda: finished.append('refresh')
     return view, finished
 
@@ -490,7 +503,10 @@ def test_on_move_throttle_applies_and_keeps_ticking_while_offset_is_pending():
         _pending_move_offset=3,
         _move_throttle_id='throttle-id',
     )
-    view._apply_pending_move = lambda: (calls.append(view._pending_move_offset), setattr(view, '_pending_move_offset', 0))
+    view._apply_pending_move = lambda: (
+        calls.append(view._pending_move_offset),
+        setattr(view, '_pending_move_offset', 0),
+    )
 
     assert StoreTreeView._on_move_throttle(view) is True
     assert calls == [3]
@@ -517,8 +533,10 @@ def test_move_methods_delegate_to_keyboard_move_with_the_right_offset():
 
 # _keyboard_jump() / _move_first() / _move_last() #
 
+
 def _make_jump_view(indices, index):
     from virtaal.controllers.cursor import Cursor
+
     cursor = Cursor(None, indices, circular=False)
     cursor.index = index
     finished = []
@@ -527,7 +545,10 @@ def _make_jump_view(indices, index):
             controller=SimpleNamespace(
                 get_store=lambda: object(),
                 main_controller=SimpleNamespace(
-                    unit_controller=SimpleNamespace(finish_current_unit=lambda: finished.append('finish'))),
+                    unit_controller=SimpleNamespace(
+                        finish_current_unit=lambda: finished.append('finish')
+                    )
+                ),
             ),
             cursor=cursor,
         ),
@@ -611,6 +632,7 @@ def test_move_first_and_last_delegate_to_keyboard_jump():
 
 # _on_button_press() #
 
+
 def test_on_button_press_ignores_clicks_outside_the_treeviews_own_window():
     view = _real_storetreeview()
     event = SimpleNamespace(window=object())  # never equals the real bin window
@@ -659,9 +681,12 @@ def test_on_button_press_does_nothing_extra_when_the_row_is_unchanged():
 
 # _on_cell_edited() #
 
+
 def test_on_cell_edited_advances_when_told_to():
     calls = []
-    view = SimpleNamespace(_keyboard_move=lambda offset, advance: calls.append((offset, advance)) or True)
+    view = SimpleNamespace(
+        _keyboard_move=lambda offset, advance: calls.append((offset, advance)) or True
+    )
 
     result = StoreTreeView._on_cell_edited(view, None, None, True, None, None)
 
@@ -670,17 +695,24 @@ def test_on_cell_edited_advances_when_told_to():
 
 
 def test_on_cell_edited_stays_put_without_advancing():
-    view = SimpleNamespace(_keyboard_move=lambda offset, advance: (_ for _ in ()).throw(AssertionError()))
+    view = SimpleNamespace(
+        _keyboard_move=lambda offset, advance: (_ for _ in ()).throw(AssertionError())
+    )
 
     assert StoreTreeView._on_cell_edited(view, None, None, False, None, None) is True
 
 
 # on_configure_event() / _on_configure_settled() / _on_destroy() #
 
+
 def test_on_configure_event_starts_a_debounce_timer(monkeypatch):
     timeout_calls = []
-    monkeypatch.setattr(GLib, 'timeout_add', lambda ms, func: timeout_calls.append((ms, func)) or 'timer-id')
-    view = SimpleNamespace(_configure_timeout_id=None, is_resizing=False, _on_configure_settled=lambda: None)
+    monkeypatch.setattr(
+        GLib, 'timeout_add', lambda ms, func: timeout_calls.append((ms, func)) or 'timer-id'
+    )
+    view = SimpleNamespace(
+        _configure_timeout_id=None, is_resizing=False, _on_configure_settled=lambda: None
+    )
 
     result = StoreTreeView.on_configure_event(view, None, SimpleNamespace(width=100, height=100))
 
@@ -694,7 +726,9 @@ def test_on_configure_event_cancels_a_previous_pending_timer(monkeypatch):
     removed = []
     monkeypatch.setattr(GLib, 'source_remove', removed.append)
     monkeypatch.setattr(GLib, 'timeout_add', lambda ms, func: 'new-timer-id')
-    view = SimpleNamespace(_configure_timeout_id='old-timer-id', is_resizing=False, _on_configure_settled=lambda: None)
+    view = SimpleNamespace(
+        _configure_timeout_id='old-timer-id', is_resizing=False, _on_configure_settled=lambda: None
+    )
 
     StoreTreeView.on_configure_event(view, None, SimpleNamespace(width=100, height=100))
 
@@ -716,7 +750,9 @@ def test_on_configure_settled_clears_state_and_restarts_editing():
         get_columns=lambda: [column],
         get_cursor=lambda: (path, editcol),
         set_cursor=lambda *args, **kwargs: calls.append((args, kwargs)),
-        _restart_editing=lambda path, column: calls.append(((path, column), {'start_editing': True})),
+        _restart_editing=lambda path, column: calls.append(
+            ((path, column), {'start_editing': True})
+        ),
         _window_size=lambda: None,
     )
 
@@ -758,6 +794,7 @@ def test_on_destroy_does_nothing_without_a_pending_timer():
 
 # _window_size() #
 
+
 def test_window_size_returns_none_without_a_toplevel():
     view = SimpleNamespace(get_toplevel=lambda: None)
 
@@ -782,6 +819,7 @@ def test_window_size_returns_the_real_size_for_a_realized_window():
 
 
 # _on_cursor_changed() #
+
 
 def test_on_cursor_changed_returns_true_without_a_model():
     treeview = SimpleNamespace(get_model=lambda: None)
@@ -853,6 +891,7 @@ def test_on_cursor_changed_do_scroll_gives_up_if_the_cursor_became_invalid(monke
 
 # _on_key_press() / _on_modified() #
 
+
 def test_on_key_press_always_swallows_the_event():
     assert StoreTreeView._on_key_press(SimpleNamespace(), None, None) is True
 
@@ -868,6 +907,7 @@ def test_on_modified_emits_the_modified_signal():
 
 
 # set_visible_rows() #
+
 
 def test_set_visible_rows_updates_a_small_change_in_place():
     view = _real_storetreeview()
@@ -928,8 +968,8 @@ def test_select_index_with_force_restarts_editing_an_already_selected_row():
     assert started == ['1']
 
 
-
 # _restart_editing() #
+
 
 def _window_with_search_box():
     view = _real_storetreeview()

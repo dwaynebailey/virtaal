@@ -32,7 +32,6 @@ class BaseLookupModel:
         """Initialise the model."""
         raise NotImplementedError()
 
-
     # METHODS #
     def create_menu_items(self, query, role, srclang, tgtlang, textbox):
         """Create the a list C{Gtk.MenuItem}s for the given parameters.

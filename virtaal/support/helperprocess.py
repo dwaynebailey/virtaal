@@ -28,8 +28,11 @@ def env():
     env = os.environ.copy()
     if not platform.is_frozen:
         import virtaal
+
         virtaal_parent = os.path.dirname(os.path.dirname(os.path.abspath(virtaal.__file__)))
-        env['PYTHONPATH'] = os.pathsep.join(filter(None, [virtaal_parent, env.get('PYTHONPATH', '')]))
+        env['PYTHONPATH'] = os.pathsep.join(
+            filter(None, [virtaal_parent, env.get('PYTHONPATH', '')])
+        )
     return env
 
 
@@ -40,8 +43,8 @@ _BUNDLE_FILES = ('GDK_PIXBUF_MODULE_FILE', 'GTK_IM_MODULE_FILE')
 
 def host_env(environ=None, bundle=None):
     """The environment for another program (a browser, xdg-open): without
-        the frozen Linux build's own library and GTK paths, which would
-        make it load the bundle's libraries instead of its own."""
+    the frozen Linux build's own library and GTK paths, which would
+    make it load the bundle's libraries instead of its own."""
     env = dict(os.environ if environ is None else environ)
     if not (platform.is_frozen and platform.is_linux):
         return env
@@ -68,5 +71,5 @@ def host_env(environ=None, bundle=None):
             del env[name]
     # PyInstaller keeps what it replaced.
     for name in [n for n in env if n.endswith('_ORIG')]:
-        env[name[:-len('_ORIG')]] = env.pop(name)
+        env[name[: -len('_ORIG')]] = env.pop(name)
     return env

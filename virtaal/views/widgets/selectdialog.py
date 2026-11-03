@@ -20,9 +20,9 @@ class SelectDialog(GObjectWrapper):
 
     __gtype_name__ = 'SelectDialog'
     __gsignals__ = {
-        'item-enabled':   (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
-        'item-disabled':  (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
-        'item-selected':  (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
+        'item-enabled': (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
+        'item-disabled': (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
+        'item-selected': (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
         'selection-done': (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
     }
 
@@ -42,7 +42,7 @@ class SelectDialog(GObjectWrapper):
             self.dialog.set_size_request(w, h)
 
     def _connect_signals(self):
-        self.sview.connect('item-enabled',  self._on_item_enabled)
+        self.sview.connect('item-enabled', self._on_item_enabled)
         self.sview.connect('item-disabled', self._on_item_disabled)
         self.sview.connect('item-selected', self._on_item_selected)
 
@@ -62,7 +62,6 @@ class SelectDialog(GObjectWrapper):
         scrolled_window.add(self.sview)
         content_area.pack_end(scrolled_window, True, True, 0)
         self.dialog.add_buttons(_("_Close"), Gtk.ResponseType.CLOSE)
-
 
     # METHODS #
     def get_message(self):
@@ -93,7 +92,6 @@ class SelectDialog(GObjectWrapper):
             GLib.idle_add(transient_for.present)
         self.emit('selection-done', self.sview.get_all_items())
         return self.response
-
 
     # EVENT HANDLERS #
     def _on_item_enabled(self, selectview, item):

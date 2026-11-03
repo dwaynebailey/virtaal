@@ -80,6 +80,7 @@ def _cached_dat_path(locale_code):
 
 def _language_name(locale_code):
     from virtaal.models.langmodel import LanguageModel
+
     return LanguageModel(locale_code).name
 
 
@@ -98,18 +99,26 @@ class LookupModel(BaseLookupModel):
     """Look up the selected word in a downloaded thesaurus."""
 
     __gtype_name__ = 'ThesaurusLookupModel'
-    #l10n: plugin name
+    # l10n: plugin name
     display_name = _('Thesaurus')
     description = _('Look up synonyms for the selected word')
     TOP_LEVEL = True
 
     # INITIALIZERS #
-    def __init__(self, internal_name, controller, asset_manifest=None, schedule_after_idle_lull=None,
-                 downloader_factory=None):
+    def __init__(
+        self,
+        internal_name,
+        controller,
+        asset_manifest=None,
+        schedule_after_idle_lull=None,
+        downloader_factory=None,
+    ):
         self.controller = controller
         self.internal_name = internal_name
         self._asset_manifest = asset_manifest
-        self._schedule_after_idle_lull = schedule_after_idle_lull or asset_manifest_module.schedule_after_idle_lull
+        self._schedule_after_idle_lull = (
+            schedule_after_idle_lull or asset_manifest_module.schedule_after_idle_lull
+        )
         self._downloader_factory = downloader_factory or ThesaurusDownloader
         self._thesauruses = {}  # locale_code -> parsed {word: meanings}
         self._checking = set()  # locale_codes: availability check in flight
@@ -117,7 +126,9 @@ class LookupModel(BaseLookupModel):
         self._downloading = set()  # locale_codes with a download in flight
         self._parsing = set()  # locale_codes with a background parse in flight
         self._parse_failed = set()  # locale_codes whose cached .dat failed to parse
-        self._auto_tried = set()  # locale_codes an automatic check/download was already attempted for
+        self._auto_tried = (
+            set()
+        )  # locale_codes an automatic check/download was already attempted for
 
         lang_controller = self.controller.main_controller.lang_controller
         self._signal_tracker = SignalTracker()
@@ -157,12 +168,17 @@ class LookupModel(BaseLookupModel):
             return []
 
         if locale_code in self._checking:
-            #l10n: shown in the selected text's right-click menu while checking whether a thesaurus exists for this language at all
+            # l10n: shown in the selected text's right-click menu while checking whether a thesaurus exists for this language at all
             return [self._create_status_item(_('Checking for thesaurus…'))]
 
         if locale_code in self._downloading:
-            #l10n: %(language)s is a language name, e.g. "Afrikaans"
-            return [self._create_status_item(_('Downloading %(language)s thesaurus…') % {'language': _language_name(locale_code)})]
+            return [
+                self._create_status_item(
+                    # l10n: %(language)s is a language name, e.g. "Afrikaans"
+                    _('Downloading %(language)s thesaurus…')
+                    % {'language': _language_name(locale_code)}
+                )
+            ]
 
         if self._maybe_start_parse(locale_code):
             return [self._create_status_item(_('Loading thesaurus…'))]
@@ -175,13 +191,15 @@ class LookupModel(BaseLookupModel):
         return item
 
     def _create_download_item(self, locale_code):
-        #l10n: %(language)s is a language name, e.g. "Afrikaans"
-        item = Gtk.MenuItem(label=_('Download %(language)s thesaurus…') % {'language': _language_name(locale_code)})
+        item = Gtk.MenuItem(
+            # l10n: %(language)s is a language name, e.g. "Afrikaans"
+            label=_('Download %(language)s thesaurus…') % {'language': _language_name(locale_code)}
+        )
         item.connect('activate', self._on_download, locale_code)
         return item
 
     def _create_synonym_item(self, meanings, textbox):
-        #l10n: The menu entry offering synonyms for the selected word.
+        # l10n: The menu entry offering synonyms for the selected word.
         item = Gtk.MenuItem(label=_('Synonyms'))
         submenu = Gtk.Menu()
         for pos, synonyms in meanings:
@@ -234,7 +252,8 @@ class LookupModel(BaseLookupModel):
             self._maybe_start_parse(locale_code)
             return
         self._get_asset_manifest().ensure_fresh(
-            on_done=lambda: self._after_manifest_fresh(locale_code))
+            on_done=lambda: self._after_manifest_fresh(locale_code)
+        )
 
     def _after_manifest_fresh(self, locale_code):
         manifest = self._get_asset_manifest()
@@ -242,7 +261,9 @@ class LookupModel(BaseLookupModel):
         if entry is None:
             if not manifest.has_data():
                 return self._start_check(locale_code)
-            self._unavailable.add(locale_code)  # manifest is authoritative - genuinely nothing for this locale
+            self._unavailable.add(
+                locale_code
+            )  # manifest is authoritative - genuinely nothing for this locale
             return
         # Same idle-lull gate dictionary/autocorrect downloads already
         # use for a manifest-known download - live discovery (below,
@@ -250,7 +271,10 @@ class LookupModel(BaseLookupModel):
         # unthrottled, so a first-ever encounter still downloads
         # promptly.
         self._schedule_after_idle_lull(
-            lambda: self._start_download(locale_code, entry['folder'], [f['name'] for f in entry['files']]))
+            lambda: self._start_download(
+                locale_code, entry['folder'], [f['name'] for f in entry['files']]
+            )
+        )
 
     def _maybe_start_parse(self, locale_code):
         """Starts a background parse of locale_code's cached .dat if
@@ -314,8 +338,10 @@ class LookupModel(BaseLookupModel):
             return
         self._downloading.add(locale_code)
         downloader = self._downloader_factory(
-            locale_code, on_done=lambda success: self._on_download_finished(locale_code, success),
-            target_dir=os.path.join(thesaurus_cache_dir(), locale_code))
+            locale_code,
+            on_done=lambda success: self._on_download_finished(locale_code, success),
+            target_dir=os.path.join(thesaurus_cache_dir(), locale_code),
+        )
         downloader.start_with_known_files(folder, files)
 
     def _on_download_finished(self, locale_code, succeeded):

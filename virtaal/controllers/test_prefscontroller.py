@@ -112,10 +112,14 @@ class _FakeViewSignal:
 
 def test_init_creates_and_connects_the_view(monkeypatch):
     monkeypatch.setattr('virtaal.views.prefsview.PreferencesView', _FakeViewSignal)
-    main_controller = type('_MC', (), {
-        'placeables_controller': object(),
-        'plugin_controller': object(),
-    })()
+    main_controller = type(
+        '_MC',
+        (),
+        {
+            'placeables_controller': object(),
+            'plugin_controller': object(),
+        },
+    )()
 
     controller = PreferencesController(main_controller)
 
@@ -228,16 +232,24 @@ def test_update_prefs_gui_data_refreshes_every_section(monkeypatch):
     controller.plugin_controller = _FakePluginController()
     controller.view = _FakeView(ui_language='')
     calls = []
-    for name in ('_update_font_gui_data', '_update_language_gui_data',
-                 '_update_placeables_gui_data', '_update_plugin_gui_data',
-                 '_update_user_gui_data'):
+    for name in (
+        '_update_font_gui_data',
+        '_update_language_gui_data',
+        '_update_placeables_gui_data',
+        '_update_plugin_gui_data',
+        '_update_user_gui_data',
+    ):
         monkeypatch.setattr(controller, name, lambda name=name: calls.append(name))
 
     controller.update_prefs_gui_data()
 
-    assert calls == ['_update_font_gui_data', '_update_language_gui_data',
-                      '_update_placeables_gui_data', '_update_plugin_gui_data',
-                      '_update_user_gui_data']
+    assert calls == [
+        '_update_font_gui_data',
+        '_update_language_gui_data',
+        '_update_placeables_gui_data',
+        '_update_plugin_gui_data',
+        '_update_user_gui_data',
+    ]
 
 
 def test_update_font_gui_data_reads_the_saved_fonts(monkeypatch):
@@ -289,13 +301,20 @@ class _Plugin:
 def test_update_plugin_gui_data_marks_a_loaded_plugin_as_enabled(monkeypatch):
     controller = _controller_with_plugins(monkeypatch)
     controller.plugin_controller._find_plugin_names = lambda: ['loaded']
-    controller.plugin_controller.plugins = {'loaded': _Plugin('Loaded', 'desc', configure_func='cfg')}
+    controller.plugin_controller.plugins = {
+        'loaded': _Plugin('Loaded', 'desc', configure_func='cfg')
+    }
 
     controller._update_plugin_gui_data()
 
     assert controller.view.plugin_data == [
-        {'name': 'Loaded', 'desc': 'desc', 'enabled': True,
-         'data': {'internal_name': 'loaded'}, 'config': 'cfg'},
+        {
+            'name': 'Loaded',
+            'desc': 'desc',
+            'enabled': True,
+            'data': {'internal_name': 'loaded'},
+            'config': 'cfg',
+        },
     ]
 
 
@@ -303,14 +322,20 @@ def test_update_plugin_gui_data_marks_an_unloaded_plugin_as_disabled(monkeypatch
     controller = _controller_with_plugins(monkeypatch)
     controller.plugin_controller._find_plugin_names = lambda: ['unloaded']
     controller.plugin_controller.get_plugin_info = lambda name: {
-        'display_name': 'Unloaded', 'description': 'desc',
+        'display_name': 'Unloaded',
+        'description': 'desc',
     }
 
     controller._update_plugin_gui_data()
 
     assert controller.view.plugin_data == [
-        {'name': 'Unloaded', 'desc': 'desc', 'enabled': False,
-         'data': {'internal_name': 'unloaded'}, 'config': None},
+        {
+            'name': 'Unloaded',
+            'desc': 'desc',
+            'enabled': False,
+            'data': {'internal_name': 'unloaded'},
+            'config': None,
+        },
     ]
 
 
@@ -320,6 +345,7 @@ def test_update_plugin_gui_data_skips_a_plugin_whose_info_raises(monkeypatch):
 
     def _raise(name):
         raise Exception('boom')
+
     controller.plugin_controller.get_plugin_info = _raise
 
     controller._update_plugin_gui_data()

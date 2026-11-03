@@ -8,6 +8,7 @@
 
 class BaseMode:
     """Interface for other modes."""
+
     name = 'BaseMode'
     """The internal name of the mode."""
     display_name = ''
@@ -19,7 +20,6 @@ class BaseMode:
     # INITIALIZERS #
     def __init__(self, mode_controller):
         raise NotImplementedError()
-
 
     # METHODS #
     def is_available(self):

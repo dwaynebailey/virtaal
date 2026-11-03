@@ -44,6 +44,7 @@ def _misspelled(textbox):
 
 class _UnitView(GObject.Object):
     """A unit view that hasn't made its text boxes yet."""
+
     __gsignals__ = {
         'sources-created': (GObject.SignalFlags.RUN_FIRST, None, (object,)),
         'targets-created': (GObject.SignalFlags.RUN_FIRST, None, (object,)),
@@ -56,8 +57,10 @@ class _UnitView(GObject.Object):
         self.targets = []
 
 
-@pytest.mark.skipif(GtkSpell is None or not enchant.dict_exists('en_US'),
-                    reason='needs GtkSpell and an en_US dictionary')
+@pytest.mark.skipif(
+    GtkSpell is None or not enchant.dict_exists('en_US'),
+    reason='needs GtkSpell and an en_US dictionary',
+)
 class TestSpellCheckerPlaceables(TestScaffolding):
     plugin = checker = None
 
@@ -89,7 +92,8 @@ class TestSpellCheckerPlaceables(TestScaffolding):
     def test_words_in_placeables_are_not_marked(self):
         # #4253
         textbox, self.plugin, self.checker = self._checked_target(
-            '%(couXnt)s files renamd <b>bolld</b> &nbspp; {xyzzy}')
+            '%(couXnt)s files renamd <b>bolld</b> &nbspp; {xyzzy}'
+        )
 
         assert _misspelled(textbox) == ['renamd', 'bolld', 'xyzzy']
 
@@ -103,7 +107,8 @@ class TestSpellCheckerPlaceables(TestScaffolding):
 
     def test_text_inside_a_g_is_still_checked(self):
         textbox, self.plugin, self.checker = self._checked_target(
-            None, store="devsupport/testfiles/placeables.xliff", index=0)
+            None, store="devsupport/testfiles/placeables.xliff", index=0
+        )
         textbox.buffer.place_cursor(textbox.buffer.get_iter_at_offset(8))
         textbox.buffer.insert_interactive_at_cursor('xq', -1, True)
         # GtkSpell leaves the word being typed alone.
@@ -114,14 +119,18 @@ class TestSpellCheckerPlaceables(TestScaffolding):
 
     def _start(self, monkeypatch, main_controller):
         idle = []
-        monkeypatch.setattr(spellchecker.GLib, 'idle_add', lambda func, *args, **kwargs: idle.append((func, args)))
+        monkeypatch.setattr(
+            spellchecker.GLib, 'idle_add', lambda func, *args, **kwargs: idle.append((func, args))
+        )
         plugin = Plugin('spellchecker', main_controller)
         for func, args in idle:
             func(*args)
         return plugin
 
     def test_starting_checks_each_text_box_in_its_language(self, monkeypatch):
-        view = self.unit_controller.load_unit(factory.getobject("devsupport/testfiles/placeables.po").getunits()[6])
+        view = self.unit_controller.load_unit(
+            factory.getobject("devsupport/testfiles/placeables.po").getunits()[6]
+        )
         monkeypatch.setattr(self.lang_controller, '_source_lang', SimpleNamespace(code='en'))
         monkeypatch.setattr(self.lang_controller, '_target_lang', SimpleNamespace(code='xx'))
 
@@ -139,7 +148,9 @@ class TestSpellCheckerPlaceables(TestScaffolding):
         assert all(GtkSpell.Checker.get_from_text_view(source) is None for source in view.sources)
 
     def test_text_boxes_made_after_starting_are_checked(self, monkeypatch):
-        view = self.unit_controller.load_unit(factory.getobject("devsupport/testfiles/placeables.po").getunits()[6])
+        view = self.unit_controller.load_unit(
+            factory.getobject("devsupport/testfiles/placeables.po").getunits()[6]
+        )
         textbox = view.targets[0]
         unit_view = _UnitView()
         main_controller = SimpleNamespace(unit_controller=SimpleNamespace(view=unit_view))

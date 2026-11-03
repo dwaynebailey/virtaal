@@ -33,7 +33,9 @@ def fix_indexes(stats, valid_units=None):
             if key == 'extended':
                 new_stats['extended'] = {}
                 for estate in stats['extended']:
-                    new_stats['extended'][estate] = [valid_unit_indexes[i] for i in stats['extended'][estate]]
+                    new_stats['extended'][estate] = [
+                        valid_unit_indexes[i] for i in stats['extended'][estate]
+                    ]
                 continue
             new_stats[key] = [valid_unit_indexes[i] for i in stats[key]]
     return new_stats
@@ -49,7 +51,9 @@ def _update_contributor(store, name, email=None):
         store.updatecontributor(name, email)
         return
     addnote = header.addnote
-    header.addnote = lambda text, *args, **kwargs: addnote(text.replace('\n', newline), *args, **kwargs)
+    header.addnote = lambda text, *args, **kwargs: addnote(
+        text.replace('\n', newline), *args, **kwargs
+    )
     try:
         store.updatecontributor(name, email)
     finally:
@@ -66,6 +70,7 @@ def _usable_plural(nplurals, plural):
     the forms 0 to nplurals - 1. One entered in Add Missing Language or
     Edit Translation Language isn't checked (#4351)."""
     import gettext
+
     try:
         forms = {gettext.c2py(plural)(n) for n in _PLURAL_SAMPLES}
         expected = set(range(int(nplurals)))
@@ -73,8 +78,12 @@ def _usable_plural(nplurals, plural):
         forms, expected = None, set()
     if forms != expected:
         import logging
-        logging.warning("Not writing a plural equation that doesn't give %s forms into the header: %r",
-                        nplurals, plural)
+
+        logging.warning(
+            "Not writing a plural equation that doesn't give %s forms into the header: %r",
+            nplurals,
+            plural,
+        )
         return False
     return True
 
@@ -94,7 +103,6 @@ class StoreModel(BaseModel):
         self.controller = controller
         self.load_file(fileobj)
 
-
     # SPECIAL METHODS #
     def __getitem__(self, index):
         """Alias for C{get_unit}."""
@@ -104,7 +112,6 @@ class StoreModel(BaseModel):
         if not self._trans_store:
             return 0
         return len(self._valid_units)
-
 
     # ACCESSORS #
     def get_filename(self):
@@ -145,10 +152,15 @@ class StoreModel(BaseModel):
             return False
         self._trans_store.settargetlanguage(langcode)
         from translate.storage.poheader import poheader
+
         lang = LanguageModel(langcode)
         # Plural forms declared without a language are taken to be this one's.
-        if isinstance(self._trans_store, poheader) and lang.plural and (
-                old_langcode or self.get_declared_nplurals() is None) and _usable_plural(lang.nplurals, lang.plural):
+        if (
+            isinstance(self._trans_store, poheader)
+            and lang.plural
+            and (old_langcode or self.get_declared_nplurals() is None)
+            and _usable_plural(lang.nplurals, lang.plural)
+        ):
             self._trans_store.updateheaderplural(lang.nplurals, lang.plural)
             self.nplurals = self._compute_nplurals(self._trans_store)
         return True
@@ -172,25 +184,28 @@ class StoreModel(BaseModel):
         if not os.path.isfile(self.filename):
             return self.get_live_stats_totals()
         from virtaal.support import statsdb, statsworker
+
         statsworker.wait()
-        return statsdb.StatsCache().file_extended_totals(self.filename,  self._trans_store)
+        return statsdb.StatsCache().file_extended_totals(self.filename, self._trans_store)
 
     def get_live_stats_totals(self):
         """Return totals like C{get_stats_totals()}, counted from the units
-            in memory, unsaved changes included."""
+        in memory, unsaved changes included."""
         from virtaal.support import statsdb
+
         totals = {}
         for unit in self._trans_store.units:
             if not unit.istranslatable():
                 continue
             sourcewords, targetwords = statsdb.wordsinunit(unit)
             state = statsdb.extended_state_strings[unit.get_state_id()]
-            state_totals = totals.setdefault(state, {'units': 0, 'sourcewords': 0, 'targetwords': 0})
+            state_totals = totals.setdefault(
+                state, {'units': 0, 'sourcewords': 0, 'targetwords': 0}
+            )
             state_totals['units'] += 1
             state_totals['sourcewords'] += sourcewords
             state_totals['targetwords'] += targetwords
         return totals
-
 
     # METHODS #
     def load_file(self, fileobj):
@@ -199,7 +214,11 @@ class StoreModel(BaseModel):
         if isinstance(filename, str):
             if not os.path.exists(filename):
                 if platform.is_flatpak:
-                    raise OSError(_("The file does not exist, or Virtaal can't reach it from its Flatpak sandbox. Open it with File > Open or from your file manager."))
+                    raise OSError(
+                        _(
+                            "The file does not exist, or Virtaal can't reach it from its Flatpak sandbox. Open it with File > Open or from your file manager."
+                        )
+                    )
                 raise OSError(_('The file does not exist.'))
             if not os.path.isfile(filename):
                 raise OSError(_('Not a valid file.'))
@@ -211,8 +230,10 @@ class StoreModel(BaseModel):
             if filename is None:
                 filename = '<projectfile>'
         import logging
+
         logging.info('Loading file %s' % (filename))
         from translate.storage import factory
+
         self._trans_store = factory.getobject(fileobj)
         self.filename = filename
         self._checker = None
@@ -239,6 +260,7 @@ class StoreModel(BaseModel):
     def _fill_stats_cache(self):
         if os.path.isfile(self.filename):
             from virtaal.support import statsworker
+
             statsworker.fill_in_background(self.filename)
 
     def update_stats(self):
@@ -247,6 +269,7 @@ class StoreModel(BaseModel):
             return
 
         from virtaal.support import statsworker
+
         stats = statsworker.state_lists(self._trans_store)
         self._valid_units = stats['total']
         self.stats = fix_indexes(stats)
@@ -254,17 +277,20 @@ class StoreModel(BaseModel):
 
     def update_unit_stats(self, index):
         """Move the unit at C{index} to the stats lists for its current
-            state, without re-reading the file.
-            @returns: Whether the unit's state lists changed."""
+        state, without re-reading the file.
+        @returns: Whether the unit's state lists changed."""
         if not self.stats:
             return False
         from bisect import insort
 
         from virtaal.support import statsdb
+
         unit = self[index]
         extended = self.stats.setdefault('extended', {})
         wanted = {statsdb.state_strings[statsdb.statefordb(unit)]}
-        current = {key for key in statsdb.state_strings.values() if index in self.stats.get(key, [])}
+        current = {
+            key for key in statsdb.state_strings.values() if index in self.stats.get(key, [])
+        }
         wanted_extended = unit.get_state_id()
         current_extended = {state for state, indices in extended.items() if index in indices}
         if current == wanted and current_extended == {wanted_extended}:
@@ -300,6 +326,7 @@ class StoreModel(BaseModel):
             edited_units = range(len(self))
         else:
             from virtaal.support import statsdb, statsworker
+
             statsworker.wait()
             errors = statsdb.StatsCache().filechecks(filename, checker, self._trans_store)
             # The stats cache only knows the file on disk.
@@ -312,9 +339,9 @@ class StoreModel(BaseModel):
 
     def update_unit_checks(self, index, failures=None):
         """Recheck the unit at C{index}, which may have unsaved changes.
-            @param failures: The unit's failures from C{self.get_checker()},
-                if already known.
-            @returns: Whether its check failures changed."""
+        @param failures: The unit's failures from C{self.get_checker()},
+            if already known.
+        @returns: Whether its check failures changed."""
         self._edited_units.add(index)
         if self.checks is None:
             return False
@@ -322,6 +349,7 @@ class StoreModel(BaseModel):
 
     def _recheck_unit(self, checks, index, failures=None):
         from bisect import insort
+
         if failures is None:
             failures = self._checker.run_filters(self[index])
         wanted = {'check-' + name for name in failures}
@@ -341,19 +369,24 @@ class StoreModel(BaseModel):
         from translate.storage import factory
 
         from virtaal.support import statsdb, statsworker
+
         newstore = factory.getobject(filename)
         oldfilename = self._trans_store.filename
         oldfileobj = self._trans_store.fileobj
 
-        #get a copy of old stats before we convert
+        # get a copy of old stats before we convert
         if os.path.isfile(oldfilename):
             from translate.filters import checks
+
             statsworker.wait()
-            oldstats = statsdb.StatsCache().filestats(oldfilename, checks.UnitChecker(), self._trans_store)
+            oldstats = statsdb.StatsCache().filestats(
+                oldfilename, checks.UnitChecker(), self._trans_store
+            )
         else:
             oldstats = statsworker.state_lists(self._trans_store)
 
         from translate.convert import pot2po
+
         self._trans_store = pot2po.convert_stores(newstore, self._trans_store, fuzzymatching=False)
 
         self.update_stats()
@@ -370,8 +403,9 @@ class StoreModel(BaseModel):
 
     def get_declared_nplurals(self):
         """The number of plural forms the file's own Plural-Forms header
-            declares, or C{None}."""
+        declares, or C{None}."""
         from translate.storage.poheader import poheader
+
         if isinstance(self._trans_store, poheader):
             return self.nplurals
         return None
@@ -380,6 +414,7 @@ class StoreModel(BaseModel):
         # Copied as-is from Document._compute_nplurals()
         # FIXME this needs to be pushed back into the stores, we don't want to import each format
         from translate.storage.poheader import poheader
+
         if isinstance(store, poheader):
             nplurals, _pluralequation = store.getheaderplural()
             if nplurals is None:
@@ -387,6 +422,7 @@ class StoreModel(BaseModel):
             return int(nplurals)
         else:
             from translate.storage import ts2 as ts
+
             if isinstance(store, ts.tsfile):
                 # The TS language attribute is optional; nplural() needs it
                 # (#4399). Without it the target language's count is used.
@@ -400,16 +436,22 @@ class StoreModel(BaseModel):
             # this used to work before poheader/tsfile got a proper
             # declaration to read instead.
             from translate.misc.multistring import multistring
+
             return max(
-                (len(unit.target.strings) for unit in store.units
-                    if isinstance(unit.target, multistring)),
-                default=None)
+                (
+                    len(unit.target.strings)
+                    for unit in store.units
+                    if isinstance(unit.target, multistring)
+                ),
+                default=None,
+            )
 
     def _update_header(self):
         """Make sure that headers are complete and update with current time (if applicable)."""
         # This method comes from Virtaal 0.2's main_window.py:Virtaal._on_file_save().
         # It makes sure that, if we are working with a PO file, that all header info is present.
         from translate.storage.poheader import poheader, tzstring
+
         if isinstance(self._trans_store, poheader):
             name, email, team = self.controller.main_controller.get_translator_details()
             if name:
@@ -422,6 +464,7 @@ class StoreModel(BaseModel):
 
             header_updates = {}
             import time
+
             header_updates["PO_Revision_Date"] = time.strftime("%Y-%m-%d %H:%M") + tzstring()
             header_updates["X_Generator"] = pan_app.x_generator
             if name and email:
@@ -441,7 +484,10 @@ class StoreModel(BaseModel):
             self._trans_store.updateheader(add=True, **header_updates)
 
             # A file's own plural forms stay: its msgstr order follows them.
-            if (target_lang.plural and self.get_declared_nplurals() is None
-                    and _usable_plural(target_lang.nplurals, target_lang.plural)):
+            if (
+                target_lang.plural
+                and self.get_declared_nplurals() is None
+                and _usable_plural(target_lang.nplurals, target_lang.plural)
+            ):
                 self._trans_store.updateheaderplural(target_lang.nplurals, target_lang.plural)
                 self.nplurals = self._compute_nplurals(self._trans_store)

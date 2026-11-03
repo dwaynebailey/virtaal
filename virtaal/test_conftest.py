@@ -48,7 +48,9 @@ def test_child_writes_each_report_for_the_parent(tmp_path, monkeypatch, pytestco
         config=pytestconfig, data=line["report"]
     )
     assert (replayed.nodeid, replayed.when, replayed.outcome) == (
-        "a.py::TestA::test_b", "call", "failed"
+        "a.py::TestA::test_b",
+        "call",
+        "failed",
     )
 
 
@@ -57,26 +59,24 @@ def test_child_writes_each_deprecation_warning_for_the_parent(tmp_path, monkeypa
     monkeypatch.setenv(conftest._REPORTS_ENV, str(path))
     # Keeps this probe warning out of the real end-of-session check.
     monkeypatch.setattr(conftest, "_seen_messages", set())
-    message = warnings.WarningMessage(
-        DeprecationWarning("probe"), DeprecationWarning, "a.py", 3
-    )
+    message = warnings.WarningMessage(DeprecationWarning("probe"), DeprecationWarning, "a.py", 3)
 
     conftest.pytest_warning_recorded(message, "runtest", "a.py::test_b", None)
 
-    assert _read_lines(path) == [{
-        "warning": "probe",
-        "category": "DeprecationWarning",
-        "filename": "a.py",
-        "lineno": 3,
-        "nodeid": "a.py::test_b",
-    }]
+    assert _read_lines(path) == [
+        {
+            "warning": "probe",
+            "category": "DeprecationWarning",
+            "filename": "a.py",
+            "lineno": 3,
+            "nodeid": "a.py::test_b",
+        }
+    ]
 
 
 def test_a_group_whose_subprocess_never_finishes_fails_each_test(request, monkeypatch):
     item = request.node
-    monkeypatch.setattr(
-        conftest, "_isolation_group", lambda i: "group" if i is item else None
-    )
+    monkeypatch.setattr(conftest, "_isolation_group", lambda i: "group" if i is item else None)
 
     monkeypatch.setattr(
         conftest, "_communicate", lambda proc, timeout, stacks_path: ("partial output", True)
@@ -87,10 +87,11 @@ def test_a_group_whose_subprocess_never_finishes_fails_each_test(request, monkey
 
     reports = conftest._isolated_reports.pop(item.nodeid)
     assert [(r.when, r.outcome) for r in reports] == [
-        ("setup", "passed"), ("call", "failed"), ("teardown", "passed")
+        ("setup", "passed"),
+        ("call", "failed"),
+        ("teardown", "passed"),
     ]
     assert "partial output" in str(reports[1].longrepr)
-
 
 
 def test_a_group_that_hangs_after_its_tests_pass_warns_with_the_output(
@@ -98,9 +99,7 @@ def test_a_group_that_hangs_after_its_tests_pass_warns_with_the_output(
 ):
     # The subprocess wrote every test's reports, then never exited.
     item = request.node
-    monkeypatch.setattr(
-        conftest, "_isolation_group", lambda i: "group" if i is item else None
-    )
+    monkeypatch.setattr(conftest, "_isolation_group", lambda i: "group" if i is item else None)
 
     def _communicate(proc, timeout, stacks_path):
         reports_path = stacks_path.replace("stacks.txt", "reports.jsonl")
@@ -126,6 +125,7 @@ def test_a_group_that_hangs_after_its_tests_pass_warns_with_the_output(
     assert "hung after its tests finished" in warned[0]
     assert "stuck_here" in warned[0]
 
+
 @pytest.mark.skipif(sys.platform == "win32", reason="no SIGUSR1 on Windows")
 def test_a_hung_subprocess_is_killed_with_its_stacks(tmp_path):
     stacks_path = tmp_path / "stacks.txt"
@@ -142,7 +142,9 @@ def test_a_hung_subprocess_is_killed_with_its_stacks(tmp_path):
     """)
     proc = subprocess.Popen(
         [sys.executable, "-c", child],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
     )
 
     output, timed_out = conftest._communicate(proc, 2, str(stacks_path))
@@ -152,7 +154,6 @@ def test_a_hung_subprocess_is_killed_with_its_stacks(tmp_path):
     assert output.startswith("Timed out after 2s")
     assert "started" in output
     assert "stuck_here" in output
-
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="no SIGUSR1 on Windows")
@@ -183,9 +184,11 @@ def test_warn_hung_records_a_user_warning_with_the_message():
     recorded = []
     item = SimpleNamespace(
         nodeid="a.py::test_b",
-        ihook=SimpleNamespace(pytest_warning_recorded=SimpleNamespace(
-            call_historic=lambda kwargs: recorded.append(kwargs)
-        )),
+        ihook=SimpleNamespace(
+            pytest_warning_recorded=SimpleNamespace(
+                call_historic=lambda kwargs: recorded.append(kwargs)
+            )
+        ),
     )
 
     conftest._warn_hung(item, "hung here")
@@ -196,9 +199,9 @@ def test_warn_hung_records_a_user_warning_with_the_message():
     assert kwargs["nodeid"] == "a.py::test_b"
 
 
-
 def test_main_thread_dump_includes_the_xdist_schedule(tmp_path, monkeypatch):
     monkeypatch.setenv(conftest._STACKS_DIR_ENV, str(tmp_path))
+
     class Node:
         gateway = SimpleNamespace(id="gw0")
         shutting_down = False
@@ -208,9 +211,13 @@ def test_main_thread_dump_includes_the_xdist_schedule(tmp_path, monkeypatch):
         assigned_work={node: {"a.py": {"a.py::test_done": True, "a.py::test_stuck": False}}},
         workqueue={"b.py": {}},
     )
-    monkeypatch.setattr(conftest, "_config", SimpleNamespace(
-        pluginmanager=SimpleNamespace(getplugin=lambda name: SimpleNamespace(sched=sched))
-    ))
+    monkeypatch.setattr(
+        conftest,
+        "_config",
+        SimpleNamespace(
+            pluginmanager=SimpleNamespace(getplugin=lambda name: SimpleNamespace(sched=sched))
+        ),
+    )
 
     conftest._dump_main_thread(None, sys._getframe())
 
@@ -222,9 +229,11 @@ def test_main_thread_dump_includes_the_xdist_schedule(tmp_path, monkeypatch):
 
 def test_main_thread_dump_without_xdist_has_only_the_stack(tmp_path, monkeypatch):
     monkeypatch.setenv(conftest._STACKS_DIR_ENV, str(tmp_path))
-    monkeypatch.setattr(conftest, "_config", SimpleNamespace(
-        pluginmanager=SimpleNamespace(getplugin=lambda name: None)
-    ))
+    monkeypatch.setattr(
+        conftest,
+        "_config",
+        SimpleNamespace(pluginmanager=SimpleNamespace(getplugin=lambda name: None)),
+    )
 
     conftest._dump_main_thread(None, sys._getframe())
 
@@ -238,6 +247,7 @@ def test_a_crashed_workers_finished_groups_are_not_queued_again():
 
     conftest._requeue_only_unfinished_work()
     sched = LoadScopeScheduling.__new__(LoadScopeScheduling)
+
     class Node:
         shutting_down = True
 

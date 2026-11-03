@@ -15,17 +15,19 @@ class TestSelectDialog:
 
     def __init__(self):
         self.items = (
-            {'enabled': True,  'name': 'item1', 'desc': 'desc1'},
-            {'enabled': False, 'name': 'item2'                 },
-            {'enabled': True,                   'desc': 'desc3'},
-            {                  'name': 'item4', 'desc': 'desc4'},
-            {'enabled': True,  'name': 'item5', 'desc': ''     },
-            {'enabled': False, 'name': '',      'desc': 'desc6'},
+            {'enabled': True, 'name': 'item1', 'desc': 'desc1'},
+            {'enabled': False, 'name': 'item2'},
+            {'enabled': True, 'desc': 'desc3'},
+            {'name': 'item4', 'desc': 'desc4'},
+            {'enabled': True, 'name': 'item5', 'desc': ''},
+            {'enabled': False, 'name': '', 'desc': 'desc6'},
         )
-        self.dialog = SelectDialog(self.items, title='Test runner', message='Select the items you want:')
-        self.dialog.connect('item-enabled',   self._on_dialog_action, 'Enabled')
-        self.dialog.connect('item-disabled',  self._on_dialog_action, 'Disabled')
-        self.dialog.connect('item-selected',  self._on_dialog_action, 'Selected')
+        self.dialog = SelectDialog(
+            self.items, title='Test runner', message='Select the items you want:'
+        )
+        self.dialog.connect('item-enabled', self._on_dialog_action, 'Enabled')
+        self.dialog.connect('item-disabled', self._on_dialog_action, 'Disabled')
+        self.dialog.connect('item-selected', self._on_dialog_action, 'Selected')
         self.dialog.connect('selection-done', self._on_dialog_action, 'Selection done')
 
     def run(self):

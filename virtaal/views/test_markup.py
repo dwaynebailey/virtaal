@@ -56,8 +56,10 @@ def test_markuptext_marks_up_unusual_spaces():
     result = markuptext("  lead double  trail  ")
     assert result.count('<span underline="error" foreground="grey">') == 3
     # the actual space characters are preserved inside the markup, not lost
-    assert result.replace('<span underline="error" foreground="grey">', "") \
-                  .replace("</span>", "") == "  lead double  trail  "
+    assert (
+        result.replace('<span underline="error" foreground="grey">', "").replace("</span>", "")
+        == "  lead double  trail  "
+    )
 
 
 def test_markuptext_marks_up_leading_and_trailing_tab():
@@ -77,19 +79,22 @@ def test_markuptext_marks_up_nbsp_leading_trailing_and_inline():
     assert markuptext("10" + nbsp + "km") == "10" + span % nbsp + "km"
 
 
-@pytest.mark.parametrize("char", [
-    "\u1680",  # OGHAM SPACE MARK
-    "\u2002",  # EN SPACE
-    "\u2003",  # EM SPACE
-    "\u2007",  # FIGURE SPACE
-    "\u2008",  # PUNCTUATION SPACE
-    "\u2009",  # THIN SPACE
-    "\u200a",  # HAIR SPACE
-    "\u200b",  # ZERO WIDTH SPACE
-    "\u202f",  # NARROW NO-BREAK SPACE
-    "\u205f",  # MEDIUM MATHEMATICAL SPACE
-    "\u3000",  # IDEOGRAPHIC SPACE
-])
+@pytest.mark.parametrize(
+    "char",
+    [
+        "\u1680",  # OGHAM SPACE MARK
+        "\u2002",  # EN SPACE
+        "\u2003",  # EM SPACE
+        "\u2007",  # FIGURE SPACE
+        "\u2008",  # PUNCTUATION SPACE
+        "\u2009",  # THIN SPACE
+        "\u200a",  # HAIR SPACE
+        "\u200b",  # ZERO WIDTH SPACE
+        "\u202f",  # NARROW NO-BREAK SPACE
+        "\u205f",  # MEDIUM MATHEMATICAL SPACE
+        "\u3000",  # IDEOGRAPHIC SPACE
+    ],
+)
 def test_markuptext_marks_up_unicode_space_separators(char):
     # Mirrors the case list in devsupport/testfiles/whitespace.po - a single
     # occurrence of any of these mid-word is unusual and should be flagged.

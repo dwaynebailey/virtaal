@@ -19,7 +19,7 @@ class Plugin(BasePlugin):
     default_config = {
         'disabled_models': '_dummytm,remotetm,apertium,google_translate,moses',
         'max_matches': '5',
-        'min_quality': '70'
+        'min_quality': '70',
     }
 
     # INITIALIZERS #
@@ -34,13 +34,24 @@ class Plugin(BasePlugin):
             # CI starts the real app often; keep it off the public amaGama server.
             self.default_config = dict(
                 self.default_config,
-                disabled_models=self.default_config['disabled_models'] + ',amagama')
+                disabled_models=self.default_config['disabled_models'] + ',amagama',
+            )
         self.load_config()
         self.config['disabled_models'] = self.config['disabled_models'].split(',')
         self.config['max_matches'] = pan_app.config_int(
-            self.config['max_matches'], int(self.default_config['max_matches']), 0, 1000, 'max_matches')
+            self.config['max_matches'],
+            int(self.default_config['max_matches']),
+            0,
+            1000,
+            'max_matches',
+        )
         # A quality of 0 divides by zero when matching.
         self.config['min_quality'] = pan_app.config_int(
-            self.config['min_quality'], int(self.default_config['min_quality']), 1, 100, 'min_quality')
+            self.config['min_quality'],
+            int(self.default_config['min_quality']),
+            1,
+            100,
+            'min_quality',
+        )
 
         self.controller = TMController(self.main_controller, self.config)

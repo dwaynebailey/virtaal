@@ -11,6 +11,7 @@ from virtaal.views.baseview import BaseView, _builders
 def test_load_builder_file_translates_translatable_markup(tmp_path, monkeypatch):
     if ctypes.util.find_library('intl') is None:
         import pytest
+
         pytest.skip("no libintl available to bind against")
 
     monkeypatch.setattr('virtaal.views.baseview._builders', {})
@@ -25,16 +26,19 @@ def test_load_builder_file_translates_translatable_markup(tmp_path, monkeypatch)
         '    <property name="label" translatable="yes">Hello</property>\n'
         '  </object>\n'
         '</interface>\n',
-        encoding='utf-8')
+        encoding='utf-8',
+    )
 
     po_file = tmp_path / 'probedomain.po'
     po_file.write_text(
         'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
         'msgid "Hello"\nmsgstr "Hallo"\n',
-        encoding='utf-8')
+        encoding='utf-8',
+    )
     mo_dir = tmp_path / 'locale' / 'af' / 'LC_MESSAGES'
     mo_dir.mkdir(parents=True)
     from translate.tools.pocompile import convertmo
+
     with open(po_file, 'rb') as infile, open(mo_dir / 'probedomain.mo', 'w') as outfile:
         convertmo(infile, outfile, None)
 
@@ -46,7 +50,8 @@ def test_load_builder_file_translates_translatable_markup(tmp_path, monkeypatch)
 
     monkeypatch.setattr(
         'virtaal.common.pan_app.get_abs_data_filename',
-        lambda path_parts: str(tmp_path.joinpath(*path_parts)))
+        lambda path_parts: str(tmp_path.joinpath(*path_parts)),
+    )
 
     builder = BaseView.load_builder_file(['share', 'virtaal', 'probe.ui'], domain='probedomain')
 
@@ -56,8 +61,8 @@ def test_load_builder_file_translates_translatable_markup(tmp_path, monkeypatch)
 def test_load_builder_file_caches_by_path(monkeypatch):
     _builders.clear()
     monkeypatch.setattr(
-        'virtaal.common.pan_app.get_abs_data_filename',
-        lambda path_parts: '/dev/null')
+        'virtaal.common.pan_app.get_abs_data_filename', lambda path_parts: '/dev/null'
+    )
 
     class _FakeBuilder:
         def set_translation_domain(self, domain):

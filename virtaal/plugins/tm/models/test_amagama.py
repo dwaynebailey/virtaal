@@ -25,7 +25,9 @@ def _fake_controller():
     lang_controller.target_lang = SimpleNamespace(code='af')
     checks_controller = connectable()
     checks_controller.code = 'standard'
-    main_controller = SimpleNamespace(lang_controller=lang_controller, checks_controller=checks_controller)
+    main_controller = SimpleNamespace(
+        lang_controller=lang_controller, checks_controller=checks_controller
+    )
     controller = connectable()
     controller.main_controller = main_controller
     return controller
@@ -36,8 +38,13 @@ def _fake_controller():
 # does more than amagama wants) and builds a real TMClient from the
 # configured url.
 
+
 def test_init_loads_config_and_builds_a_tmclient(monkeypatch):
-    monkeypatch.setattr(TMModel, 'load_config', lambda self: setattr(self, 'config', {'url': 'https://example.com/api/v1/'}))
+    monkeypatch.setattr(
+        TMModel,
+        'load_config',
+        lambda self: setattr(self, 'config', {'url': 'https://example.com/api/v1/'}),
+    )
 
     model = TMModel('amagama', _fake_controller())
 

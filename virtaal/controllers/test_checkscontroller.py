@@ -33,7 +33,8 @@ def _ts_store(source, target):
         b'<!DOCTYPE TS><TS version="2.0" language="af"><context><name>Main</name>'
         b'<message><source>' + source.encode() + b'</source>'
         b'<translation>' + target.encode() + b'</translation></message>'
-        b'</context></TS>')
+        b'</context></TS>'
+    )
 
 
 def test_ts_and_qm_files_default_to_the_qt_checker():
@@ -69,14 +70,17 @@ def test_store_loaded_sets_the_format_default_checker():
     assert codes == ['qt']
 
 
-@pytest.mark.parametrize(('source', 'target', 'fails'), [
-    ('&amp;File', 'Lêer', True),
-    ('&amp;File', '&amp;Lêer', False),
-    # "&&" is a literal ampersand, not an accelerator
-    ('&amp;File', '&amp;&amp;Lêer', True),
-    ('Save &amp;&amp; Quit', 'Stoor &amp;&amp; Sluit', False),
-    ('&amp;Edit', '_Wysig', True),
-])
+@pytest.mark.parametrize(
+    ('source', 'target', 'fails'),
+    [
+        ('&amp;File', 'Lêer', True),
+        ('&amp;File', '&amp;Lêer', False),
+        # "&&" is a literal ampersand, not an accelerator
+        ('&amp;File', '&amp;&amp;Lêer', True),
+        ('Save &amp;&amp; Quit', 'Stoor &amp;&amp; Sluit', False),
+        ('&amp;Edit', '_Wysig', True),
+    ],
+)
 def test_qt_checker_checks_ampersand_accelerators(source, target, fails):
     checker = _make_controller().checker_info['qt']()
     unit = _ts_store(source, target).units[0]

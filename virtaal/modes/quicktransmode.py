@@ -21,17 +21,18 @@ class QuickTranslateMode(BaseMode):
     # INITIALIZERS #
     def __init__(self, controller):
         """Constructor.
-            @type  controller: virtaal.controllers.ModeController
-            @param controller: The ModeController that managing program modes."""
+        @type  controller: virtaal.controllers.ModeController
+        @param controller: The ModeController that managing program modes."""
         self.controller = controller
-
 
     # METHODS #
     def _incomplete_indices(self, cursor):
-        return list(UnionSetEnumerator(
-            SortedSet(cursor.model.stats['untranslated']),
-            SortedSet(cursor.model.stats['fuzzy'])
-        ).set)
+        return list(
+            UnionSetEnumerator(
+                SortedSet(cursor.model.stats['untranslated']),
+                SortedSet(cursor.model.stats['fuzzy']),
+            ).set
+        )
 
     def is_available(self):
         cursor = self.controller.main_controller.store_controller.cursor

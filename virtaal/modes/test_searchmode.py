@@ -20,6 +20,7 @@ from virtaal.views.theme import current_theme, rgba_to_str
 class _Fake:
     """A plain, hashable stand-in for a widget - unlike SimpleNamespace,
     whose own __eq__ makes it unusable as a dict key."""
+
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
@@ -28,6 +29,7 @@ class _FakeTextbox(_Fake):
     """A stand-in for TextBox with a real Gtk.TextBuffer - enough for
     the highlighting/selection code, which only ever touches .buffer,
     .get_text(), .elem, .role, .props.visible and .grab_focus()."""
+
     def __init__(self, role, text=''):
         self.role = role
         self.buffer = Gtk.TextBuffer()
@@ -77,8 +79,7 @@ def test_replace_match_updates_plural_target_string():
     replace of a plural target when no unit_controller is wired in
     (the "replace all" style call path)."""
     mode = SearchMode.__new__(SearchMode)
-    mode.controller = SimpleNamespace(
-        main_controller=SimpleNamespace(unit_controller=None))
+    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(unit_controller=None))
 
     unit = _FakeUnit(['cat', 'cats'])
     match = _FakeMatch(unit, part_n=1, start=0, end=4)
@@ -104,8 +105,13 @@ def test_replace_all_on_xliff_units():
         _xliff_unit("Don't know", "Don't know"),
         _xliff_unit("x", "Don't know and also Don't know"),
     ]
-    f = GrepFilter(searchstring="Don't know", searchparts=('target',),
-                    ignorecase=True, useregexp=False, max_matches=200000)
+    f = GrepFilter(
+        searchstring="Don't know",
+        searchparts=('target',),
+        ignorecase=True,
+        useregexp=False,
+        max_matches=200000,
+    )
     matches, _ = f.getmatches(units)
 
     mode = SearchMode.__new__(SearchMode)
@@ -113,7 +119,8 @@ def test_replace_all_on_xliff_units():
         main_controller=SimpleNamespace(
             unit_controller=None,
             undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None),
-        ))
+        )
+    )
     mode.matches = matches
     mode.ent_replace = SimpleNamespace(get_text=lambda: 'REPLACED')
     mode._search_timeout = 0  # _cancel_search_timeout() then no-ops
@@ -127,14 +134,20 @@ def test_replace_all_on_xliff_units():
 
 def test_replace_all_with_no_replacement_text_deletes_every_match():
     units = [_xliff_unit("x", "Don't know and also Don't know")]
-    f = GrepFilter(searchstring="Don't know", searchparts=('target',),
-                    ignorecase=True, useregexp=False, max_matches=200000)
+    f = GrepFilter(
+        searchstring="Don't know",
+        searchparts=('target',),
+        ignorecase=True,
+        useregexp=False,
+        max_matches=200000,
+    )
     mode = SearchMode.__new__(SearchMode)
     mode.controller = SimpleNamespace(
         main_controller=SimpleNamespace(
             unit_controller=None,
             undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None),
-        ))
+        )
+    )
     mode.matches, _ = f.getmatches(units)
     mode.ent_replace = SimpleNamespace(get_text=lambda: '')
     mode._search_timeout = 0
@@ -158,8 +171,8 @@ def test_set_search_bg_accepts_a_colour():
 
 def test_set_search_bg_removes_its_previous_provider_on_a_later_call(monkeypatch):
     """Each call used to only ever add a new provider - toggling
-        between the warning colour and the default on every keystroke
-        would accumulate one per keystroke, never freed."""
+    between the warning colour and the default on every keystroke
+    would accumulate one per keystroke, never freed."""
     mode = SearchMode.__new__(SearchMode)
     mode.ent_search = Gtk.Entry()
     mode._search_bg_provider = None
@@ -177,6 +190,7 @@ def test_set_search_bg_removes_its_previous_provider_on_a_later_call(monkeypatch
 
 # _get_matches_for_unit() #
 
+
 def test_get_matches_for_unit_filters_by_unit_identity():
     mode = SearchMode.__new__(SearchMode)
     unit_a, unit_b = object(), object()
@@ -188,6 +202,7 @@ def test_get_matches_for_unit_filters_by_unit_identity():
 
 
 # _move_match() #
+
 
 def test_move_match_ignores_a_call_when_not_the_current_mode():
     mode = SearchMode.__new__(SearchMode)
@@ -205,7 +220,9 @@ def test_move_match_researches_with_no_matchcursor_yet_then_selects():
     def fake_update_search():
         calls.append('update')
         mode.matches = [match_obj]
-        mode.matchcursor = SimpleNamespace(index=0, move=lambda offset: calls.append(('move', offset)))
+        mode.matchcursor = SimpleNamespace(
+            index=0, move=lambda offset: calls.append(('move', offset))
+        )
 
     mode._cancel_search_timeout = lambda: calls.append('cancel')
     mode.update_search = fake_update_search
@@ -248,6 +265,7 @@ def test_move_match_moves_and_selects_when_matches_are_fresh():
 
 # _cancel_search_timeout() #
 
+
 def test_cancel_search_timeout_removes_a_pending_timeout(monkeypatch):
     mode = SearchMode.__new__(SearchMode)
     mode._search_timeout = 123
@@ -273,11 +291,13 @@ def test_cancel_search_timeout_is_a_noop_without_a_pending_timeout(monkeypatch):
 
 # _on_unit_modified() / _sync_matches_for_key() (#1789) #
 
+
 def test_on_unit_modified_shifts_a_target_match_past_an_edit_before_it():
     mode = SearchMode.__new__(SearchMode)
     unit = object()
-    match = SimpleNamespace(unit=unit, part='target', part_n=0, start=0, end=3,
-                             get_getter=lambda: (lambda: 'xcat'))
+    match = SimpleNamespace(
+        unit=unit, part='target', part_n=0, start=0, end=3, get_getter=lambda: lambda: 'xcat'
+    )
     mode.matches = [match]
     mode._match_text_cache = {(id(unit), 'target', 0): 'cat'}
 
@@ -290,8 +310,9 @@ def test_on_unit_modified_shifts_a_target_match_past_an_edit_before_it():
 def test_on_unit_modified_keeps_a_target_match_unaffected_by_a_later_edit():
     mode = SearchMode.__new__(SearchMode)
     unit = object()
-    match = SimpleNamespace(unit=unit, part='target', part_n=0, start=0, end=3,
-                             get_getter=lambda: (lambda: 'catx'))
+    match = SimpleNamespace(
+        unit=unit, part='target', part_n=0, start=0, end=3, get_getter=lambda: lambda: 'catx'
+    )
     mode.matches = [match]
     mode._match_text_cache = {(id(unit), 'target', 0): 'cat'}
 
@@ -304,8 +325,9 @@ def test_on_unit_modified_keeps_a_target_match_unaffected_by_a_later_edit():
 def test_on_unit_modified_drops_a_target_match_the_edit_overlapped():
     mode = SearchMode.__new__(SearchMode)
     unit = object()
-    match = SimpleNamespace(unit=unit, part='target', part_n=0, start=0, end=3,
-                             get_getter=lambda: (lambda: 'dog'))
+    match = SimpleNamespace(
+        unit=unit, part='target', part_n=0, start=0, end=3, get_getter=lambda: lambda: 'dog'
+    )
     mode.matches = [match]
     mode._match_text_cache = {(id(unit), 'target', 0): 'cat'}
 
@@ -317,7 +339,9 @@ def test_on_unit_modified_drops_a_target_match_the_edit_overlapped():
 def test_on_unit_modified_ignores_a_source_match():
     mode = SearchMode.__new__(SearchMode)
     unit = object()
-    match = SimpleNamespace(unit=unit, part='source', start=0, end=3, get_getter=lambda: (lambda: 'xyz'))
+    match = SimpleNamespace(
+        unit=unit, part='source', start=0, end=3, get_getter=lambda: lambda: 'xyz'
+    )
     mode.matches = [match]
 
     mode._on_unit_modified(None, unit)
@@ -328,11 +352,13 @@ def test_on_unit_modified_ignores_a_source_match():
 # _sync_matches_for_key() directly - the #1789 undo path goes through
 # this without 'unit-modified' ever firing (see _on_textbox_refreshed) #
 
+
 def test_sync_matches_for_key_seeds_the_cache_without_shifting_on_first_sight():
     mode = SearchMode.__new__(SearchMode)
     unit = object()
-    match = SimpleNamespace(unit=unit, part='target', part_n=0, start=2, end=5,
-                             get_getter=lambda: (lambda: 'Virtaal'))
+    match = SimpleNamespace(
+        unit=unit, part='target', part_n=0, start=2, end=5, get_getter=lambda: lambda: 'Virtaal'
+    )
     mode.matches = [match]
     mode._match_text_cache = {}
 
@@ -344,13 +370,14 @@ def test_sync_matches_for_key_seeds_the_cache_without_shifting_on_first_sight():
 
 def test_sync_matches_for_key_round_trips_an_insert_then_its_undo():
     """Scenario A from #1789: insert "taal" in front of "Virtaal", then
-        undo it - the highlight on "rta" should end up back where it
-        started, not stuck at the offset it had mid-edit."""
+    undo it - the highlight on "rta" should end up back where it
+    started, not stuck at the offset it had mid-edit."""
     mode = SearchMode.__new__(SearchMode)
     unit = object()
     text = ['Virtaal']
-    match = SimpleNamespace(unit=unit, part='target', part_n=0, start=2, end=5,
-                             get_getter=lambda: (lambda: text[0]))
+    match = SimpleNamespace(
+        unit=unit, part='target', part_n=0, start=2, end=5, get_getter=lambda: lambda: text[0]
+    )
     mode.matches = [match]
     key = (id(unit), 'target', 0)
     mode._match_text_cache = {key: 'Virtaal'}
@@ -358,12 +385,12 @@ def test_sync_matches_for_key_round_trips_an_insert_then_its_undo():
     text[0] = 'taalVirtaal'
     mode._sync_matches_for_key(key)
     assert (match.start, match.end) == (6, 9)
-    assert text[0][match.start:match.end] == 'rta'
+    assert text[0][match.start : match.end] == 'rta'
 
     text[0] = 'Virtaal'  # undo
     mode._sync_matches_for_key(key)
     assert (match.start, match.end) == (2, 5)
-    assert text[0][match.start:match.end] == 'rta'
+    assert text[0][match.start : match.end] == 'rta'
 
 
 def test_sync_matches_for_key_drops_the_stale_cache_entry_once_unmatched():
@@ -379,9 +406,12 @@ def test_sync_matches_for_key_drops_the_stale_cache_entry_once_unmatched():
 
 # search/replace event handler guards #
 
+
 def test_on_search_next_moves_forward_with_a_store_open():
     mode = SearchMode.__new__(SearchMode)
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(store_controller=SimpleNamespace(store=object())))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(store_controller=SimpleNamespace(store=object()))
+    )
     moved = []
     mode._move_match = moved.append
 
@@ -392,7 +422,9 @@ def test_on_search_next_moves_forward_with_a_store_open():
 
 def test_on_search_prev_moves_backward_with_a_store_open():
     mode = SearchMode.__new__(SearchMode)
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(store_controller=SimpleNamespace(store=object())))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(store_controller=SimpleNamespace(store=object()))
+    )
     moved = []
     mode._move_match = moved.append
 
@@ -403,15 +435,21 @@ def test_on_search_prev_moves_backward_with_a_store_open():
 
 def test_on_start_search_ignores_a_call_with_no_store_open():
     mode = SearchMode.__new__(SearchMode)
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(store_controller=SimpleNamespace(store=None)))
-    mode.controller.select_mode = lambda m: pytest.fail('must not switch mode without an open store')
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(store_controller=SimpleNamespace(store=None))
+    )
+    mode.controller.select_mode = lambda m: pytest.fail(
+        'must not switch mode without an open store'
+    )
 
     mode._on_start_search(None, None, None, None)
 
 
 def test_on_start_search_switches_to_search_mode_with_a_store_open():
     mode = SearchMode.__new__(SearchMode)
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(store_controller=SimpleNamespace(store=object())))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(store_controller=SimpleNamespace(store=object()))
+    )
     selected = []
     mode.controller.select_mode = selected.append
 
@@ -423,7 +461,9 @@ def test_on_start_search_switches_to_search_mode_with_a_store_open():
 def test_on_close_search_ignores_a_call_when_not_the_current_mode():
     mode = SearchMode.__new__(SearchMode)
     mode.controller = SimpleNamespace(current_mode=object())
-    mode.controller.select_default_mode = lambda: pytest.fail('must not switch away from another mode')
+    mode.controller.select_default_mode = lambda: pytest.fail(
+        'must not switch away from another mode'
+    )
 
     assert mode._on_close_search() is False
 
@@ -442,13 +482,16 @@ def test_on_close_search_returns_to_the_mode_used_before_searching():
     mode = SearchMode.__new__(SearchMode)
     incomplete = object()
     selected = []
-    mode.controller = SimpleNamespace(current_mode=mode, previous_mode=incomplete, select_mode=selected.append)
+    mode.controller = SimpleNamespace(
+        current_mode=mode, previous_mode=incomplete, select_mode=selected.append
+    )
 
     assert mode._on_close_search() is True
     assert selected == [incomplete]
 
 
 # _on_replace_clicked() #
+
 
 def _replace_clicked_mode(**overrides):
     mode = SearchMode.__new__(SearchMode)
@@ -488,9 +531,11 @@ def test_on_replace_clicked_with_no_replacement_text_deletes_the_match():
         ent_replace=SimpleNamespace(get_text=lambda: ''),
         matches=[current_match],
     )
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None)
-    ))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None)
+        )
+    )
     replaced = []
     mode.replace_match = lambda match, repl: replaced.append((match, repl))
 
@@ -517,9 +562,11 @@ def test_on_replace_clicked_replaces_the_current_unit_match_and_drops_it():
         storecursor=SimpleNamespace(deref=lambda: current_unit),
         matches=[other_match, current_match],
     )
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None)
-    ))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None)
+        )
+    )
     replaced = []
     mode.replace_match = lambda match, repl: replaced.append((match, repl))
 
@@ -540,6 +587,7 @@ def test_on_replace_clicked_advances_the_cursor_when_the_current_unit_has_no_mat
 
 
 # trivial delegators #
+
 
 def test_on_entry_activate_searches_and_selects_the_current_match():
     mode = SearchMode.__new__(SearchMode)
@@ -608,11 +656,15 @@ def test_replace_match_uses_the_unit_controller_when_one_is_wired_in():
         get_unit_target=lambda part_n: 'a cat sat',
         set_unit_target=lambda part_n, text: calls.append(('set', part_n, text)),
     )
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        select_unit=lambda unit: calls.append(('select', unit)),
-        unit_controller=unit_controller,
-        undo_controller=SimpleNamespace(push_current_text=lambda tb: calls.append(('undo', tb))),
-    ))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            select_unit=lambda unit: calls.append(('select', unit)),
+            unit_controller=unit_controller,
+            undo_controller=SimpleNamespace(
+                push_current_text=lambda tb: calls.append(('undo', tb))
+            ),
+        )
+    )
     match = SimpleNamespace(unit=object(), part='target', part_n=0, start=2, end=5)
 
     mode.replace_match(match, 'dog')
@@ -624,8 +676,9 @@ def test_replace_match_uses_the_unit_controller_when_one_is_wired_in():
 def test_sync_matches_for_key_updates_matchcursor_indices_when_a_match_is_dropped():
     mode = SearchMode.__new__(SearchMode)
     unit = object()
-    match = SimpleNamespace(unit=unit, part='target', part_n=0, start=0, end=3,
-                             get_getter=lambda: (lambda: 'dog'))
+    match = SimpleNamespace(
+        unit=unit, part='target', part_n=0, start=0, end=3, get_getter=lambda: lambda: 'dog'
+    )
     mode.matches = [match]
     mode._match_text_cache = {(id(unit), 'target', 0): 'cat'}
     mode.matchcursor = SimpleNamespace(indices=None)
@@ -638,12 +691,17 @@ def test_sync_matches_for_key_updates_matchcursor_indices_when_a_match_is_droppe
 
 # selected() / unselected() #
 
+
 def _selected_mode(cursor):
     mode = SearchMode.__new__(SearchMode)
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        store_controller=SimpleNamespace(cursor=cursor),
-        unit_controller=SimpleNamespace(connect=lambda *a: 'new-sig-id', disconnect=lambda *a: None),
-    ))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            store_controller=SimpleNamespace(cursor=cursor),
+            unit_controller=SimpleNamespace(
+                connect=lambda *a: 'new-sig-id', disconnect=lambda *a: None
+            ),
+        )
+    )
     mode._add_widgets = lambda: None
     mode._connect_highlighting = lambda: None
     mode._connect_textboxes = lambda: None
@@ -655,14 +713,20 @@ def _selected_mode(cursor):
 
 
 def test_selected_does_nothing_without_a_store_cursor(monkeypatch):
-    monkeypatch.setattr('virtaal.modes.searchmode.GLib.timeout_add', lambda *a: pytest.fail('must not touch the UI without a cursor'))
+    monkeypatch.setattr(
+        'virtaal.modes.searchmode.GLib.timeout_add',
+        lambda *a: pytest.fail('must not touch the UI without a cursor'),
+    )
     mode = _selected_mode(cursor=None)
 
     mode.selected()  # must not raise
 
 
 def test_selected_does_nothing_without_a_cursor_model(monkeypatch):
-    monkeypatch.setattr('virtaal.modes.searchmode.GLib.timeout_add', lambda *a: pytest.fail('must not touch the UI without a cursor model'))
+    monkeypatch.setattr(
+        'virtaal.modes.searchmode.GLib.timeout_add',
+        lambda *a: pytest.fail('must not touch the UI without a cursor model'),
+    )
     mode = _selected_mode(cursor=SimpleNamespace(model=None))
 
     mode.selected()  # must not raise
@@ -710,7 +774,9 @@ def test_selected_disconnects_a_previous_unit_modified_subscription(monkeypatch)
 
 def test_selected_schedules_a_grab_focus_that_restores_the_cursor_position(monkeypatch):
     scheduled = []
-    monkeypatch.setattr('virtaal.modes.searchmode.GLib.timeout_add', lambda delay, cb: scheduled.append((delay, cb)))
+    monkeypatch.setattr(
+        'virtaal.modes.searchmode.GLib.timeout_add', lambda delay, cb: scheduled.append((delay, cb))
+    )
     cursor = SimpleNamespace(model=SimpleNamespace(stats={'total': []}), indices=None)
     mode = _selected_mode(cursor=cursor)
     mode.ent_search.set_text('hello')
@@ -751,8 +817,13 @@ def test_unselected_disconnects_the_cursor_textbox_and_unit_signals():
     tb1 = _Fake(disconnect=lambda sid: disconnected.append(('tb1', sid)))
     tb2 = _Fake(disconnect=lambda sid: disconnected.append(('tb2', sid)))
     mode._textbox_signals = {tb1: 1, tb2: 2}
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        unit_controller=SimpleNamespace(disconnect=lambda sid: disconnected.append(('unit', sid)))))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            unit_controller=SimpleNamespace(
+                disconnect=lambda sid: disconnected.append(('unit', sid))
+            )
+        )
+    )
     mode._unit_modified_id = 99
 
     mode.unselected()
@@ -768,6 +839,7 @@ def test_unselected_disconnects_the_cursor_textbox_and_unit_signals():
 
 # select_match() #
 
+
 def _select_match_mode(part, part_n, textbox):
     mode = SearchMode.__new__(SearchMode)
     selected = []
@@ -776,8 +848,11 @@ def _select_match_mode(part, part_n, textbox):
         view.targets[part_n] = textbox
     else:
         view.sources[part_n] = textbox
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        select_unit=selected.append, unit_controller=SimpleNamespace(view=view)))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            select_unit=selected.append, unit_controller=SimpleNamespace(view=view)
+        )
+    )
     match = SimpleNamespace(unit=object(), part=part, part_n=part_n, start=2, end=5)
     return mode, match, selected
 
@@ -823,6 +898,7 @@ def test_select_match_selects_the_matched_range_in_a_source_box(monkeypatch):
 
 # _get_textbox_part() / _get_matches_for_textbox() #
 
+
 def test_get_textbox_part_returns_role_and_index_for_source_and_target():
     mode = SearchMode.__new__(SearchMode)
     src0, src1 = _FakeTextbox('source'), _FakeTextbox('source')
@@ -856,6 +932,7 @@ def test_get_matches_for_textbox_filters_by_current_unit_role_and_part_index():
 
 # _highlight_matches() / _clear_textbox_highlight() / _make_highlight_tag() #
 
+
 def test_highlight_matches_clears_highlighting_when_there_is_no_active_search():
     mode = SearchMode.__new__(SearchMode)
     mode.filter = None
@@ -864,7 +941,9 @@ def test_highlight_matches_clears_highlighting_when_there_is_no_active_search():
     mode.unitview = SimpleNamespace(sources=[visible_tb], targets=[hidden_tb])
     cleared = []
     mode._clear_textbox_highlight = cleared.append
-    mode._highlight_textbox_matches = lambda tb: pytest.fail('must not highlight without an active search')
+    mode._highlight_textbox_matches = lambda tb: pytest.fail(
+        'must not highlight without an active search'
+    )
 
     mode._highlight_matches()
 
@@ -915,6 +994,7 @@ def test_make_highlight_tag_is_named_search_highlight():
 
 # _highlight_textbox_matches() #
 
+
 def test_highlight_textbox_matches_tags_each_match_and_selects_the_first_target_match():
     mode = SearchMode.__new__(SearchMode)
     mode.select_first_match = True
@@ -962,7 +1042,6 @@ def test_highlight_textbox_matches_does_not_select_when_told_not_to():
     assert textbox.buffer.get_selection_bounds() == ()
 
 
-
 def test_highlight_textbox_matches_merges_touching_matches_and_skips_empty_ones():
     # #4343: dense or empty matches in a long target froze Virtaal.
     mode = SearchMode.__new__(SearchMode)
@@ -970,12 +1049,16 @@ def test_highlight_textbox_matches_merges_touching_matches_and_skips_empty_ones(
     unit = object()
     textbox = _FakeTextbox('target', 'abcdefgh')
     mode.unitview = SimpleNamespace(unit=unit, sources=[], targets=[textbox])
-    mode.matches = [SimpleNamespace(unit=unit, part='target', part_n=0, start=s, end=e)
-                    for s, e in ((0, 0), (1, 2), (2, 3), (3, 3), (5, 6))]
+    mode.matches = [
+        SimpleNamespace(unit=unit, part='target', part_n=0, start=s, end=e)
+        for s, e in ((0, 0), (1, 2), (2, 3), (3, 3), (5, 6))
+    ]
     applied = []
     apply_tag = textbox.buffer.apply_tag_by_name
-    textbox.buffer.apply_tag_by_name = lambda name, a, b: (applied.append((a.get_offset(), b.get_offset())),
-                                                          apply_tag(name, a, b))
+    textbox.buffer.apply_tag_by_name = lambda name, a, b: (
+        applied.append((a.get_offset(), b.get_offset())),
+        apply_tag(name, a, b),
+    )
 
     mode._highlight_textbox_matches(textbox)
 
@@ -985,6 +1068,7 @@ def test_highlight_textbox_matches_merges_touching_matches_and_skips_empty_ones(
 
 
 # update_search() #
+
 
 def _update_search_mode(units, search_text, index=0):
     mode = SearchMode.__new__(SearchMode)
@@ -1002,7 +1086,11 @@ def _update_search_mode(units, search_text, index=0):
 
 def test_update_search_finds_matches_and_sets_the_cursors_indices(monkeypatch):
     monkeypatch.setattr('virtaal.modes.searchmode.GLib.idle_add', lambda f: None)
-    units = [_xliff_unit('a', 'a cat sat'), _xliff_unit('b', 'no match here'), _xliff_unit('c', 'the cat ran')]
+    units = [
+        _xliff_unit('a', 'a cat sat'),
+        _xliff_unit('b', 'no match here'),
+        _xliff_unit('c', 'the cat ran'),
+    ]
     mode = _update_search_mode(units, 'cat')
 
     mode.update_search()
@@ -1015,7 +1103,11 @@ def test_update_search_finds_matches_and_sets_the_cursors_indices(monkeypatch):
 
 def test_update_search_points_the_matchcursor_at_the_currently_selected_unit(monkeypatch):
     monkeypatch.setattr('virtaal.modes.searchmode.GLib.idle_add', lambda f: None)
-    units = [_xliff_unit('a', 'cat one'), _xliff_unit('b', 'cat two'), _xliff_unit('c', 'cat three')]
+    units = [
+        _xliff_unit('a', 'cat one'),
+        _xliff_unit('b', 'cat two'),
+        _xliff_unit('c', 'cat three'),
+    ]
     mode = _update_search_mode(units, 'cat', index=2)
 
     mode.update_search()
@@ -1035,22 +1127,24 @@ def test_update_search_caches_each_matchs_current_text(monkeypatch):
     assert mode._match_text_cache[key] == match.get_getter()()
 
 
-@pytest.mark.parametrize('target, search, found', [
-    ('café crème', 'é', 'é'),  # NFD target, NFC search
-    ('café', 'é', 'é'),  # NFC target, NFD search
-    ('café', 'É', 'é'),  # ignoring case
-    ('Việt', 'Việt', 'Việt'),  # marks in the other order
-    ('한국', '한국',
-     '한국'),  # NFD jamo, NFC syllables
-    ('क़', 'क़', 'क़'),  # क़, which NFC decomposes
-])
+@pytest.mark.parametrize(
+    'target, search, found',
+    [
+        ('café crème', 'é', 'é'),  # NFD target, NFC search
+        ('café', 'é', 'é'),  # NFC target, NFD search
+        ('café', 'É', 'é'),  # ignoring case
+        ('Việt', 'Việt', 'Việt'),  # marks in the other order
+        ('한국', '한국', '한국'),  # NFD jamo, NFC syllables
+        ('क़', 'क़', 'क़'),  # क़, which NFC decomposes
+    ],
+)
 def test_update_search_matches_across_normalisation_forms(monkeypatch, target, search, found):
     monkeypatch.setattr('virtaal.modes.searchmode.GLib.idle_add', lambda f: None)
     mode = _update_search_mode([_xliff_unit('a', target)], search)
 
     mode.update_search()
 
-    assert [m.get_getter()()[m.start:m.end] for m in mode.matches] == [found]
+    assert [m.get_getter()()[m.start : m.end] for m in mode.matches] == [found]
 
 
 def test_replace_all_keeps_the_rest_of_the_target_in_its_own_form(monkeypatch):
@@ -1062,7 +1156,8 @@ def test_replace_all_keeps_the_rest_of_the_target_in_its_own_form(monkeypatch):
         main_controller=SimpleNamespace(
             unit_controller=None,
             undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None),
-        ))
+        )
+    )
     mode.ent_replace = SimpleNamespace(get_text=lambda: 'E')
     mode._search_timeout = 0
     mode.update_search = lambda: None
@@ -1082,7 +1177,9 @@ def test_update_search_navigates_nothing_when_nothing_matches(monkeypatch):
     assert mode.matches == []
     assert mode.filter.re_search is None
     assert mode.storecursor.indices == []
-    assert mode.ent_search.get_style_context().lookup_color('theme_base_color')  # provider was (re)installed
+    assert mode.ent_search.get_style_context().lookup_color(
+        'theme_base_color'
+    )  # provider was (re)installed
     assert mode._search_bg_provider is not None
 
 
@@ -1113,6 +1210,7 @@ def test_update_search_schedules_a_grab_focus_that_restores_the_cursor_position(
 
 # event handlers not yet covered above #
 
+
 def test_on_search_focus_out_records_the_cursor_position():
     mode = SearchMode.__new__(SearchMode)
     entry = SimpleNamespace(get_position=lambda: 7)
@@ -1125,7 +1223,9 @@ def test_on_search_focus_in_restores_the_recorded_cursor_position(monkeypatch):
     mode = SearchMode.__new__(SearchMode)
     mode._search_cursor_pos = 4
     idle_calls = []
-    monkeypatch.setattr('virtaal.modes.searchmode.GLib.idle_add', lambda f, *a: idle_calls.append((f, a)))
+    monkeypatch.setattr(
+        'virtaal.modes.searchmode.GLib.idle_add', lambda f, *a: idle_calls.append((f, a))
+    )
     positions = []
     entry = SimpleNamespace(set_position=positions.append)
 
@@ -1151,7 +1251,10 @@ def test_on_search_text_changed_cancels_the_previous_timeout_and_schedules_a_new
     removed = []
     monkeypatch.setattr('virtaal.modes.searchmode.GLib.source_remove', removed.append)
     scheduled = []
-    monkeypatch.setattr('virtaal.modes.searchmode.GLib.timeout_add', lambda delay, cb: scheduled.append((delay, cb)) or 222)
+    monkeypatch.setattr(
+        'virtaal.modes.searchmode.GLib.timeout_add',
+        lambda delay, cb: scheduled.append((delay, cb)) or 222,
+    )
 
     mode._on_search_text_changed(SimpleNamespace())
 
@@ -1187,7 +1290,9 @@ def test_on_style_set_uses_the_theme_base_color_when_available(monkeypatch):
 def test_on_textbox_refreshed_does_nothing_when_the_textbox_is_hidden():
     mode = SearchMode.__new__(SearchMode)
     mode._sync_matches_for_key = lambda key: pytest.fail('must not sync a hidden textbox')
-    mode._highlight_textbox_matches = lambda tb, select_match=True: pytest.fail('must not highlight a hidden textbox')
+    mode._highlight_textbox_matches = lambda tb, select_match=True: pytest.fail(
+        'must not highlight a hidden textbox'
+    )
     textbox = SimpleNamespace(props=SimpleNamespace(visible=False))
 
     mode._on_textbox_refreshed(textbox, elem=object())
@@ -1196,7 +1301,9 @@ def test_on_textbox_refreshed_does_nothing_when_the_textbox_is_hidden():
 def test_on_textbox_refreshed_does_nothing_when_the_element_is_falsy():
     mode = SearchMode.__new__(SearchMode)
     mode._sync_matches_for_key = lambda key: pytest.fail('must not sync without a rendered element')
-    mode._highlight_textbox_matches = lambda tb, select_match=True: pytest.fail('must not highlight without a rendered element')
+    mode._highlight_textbox_matches = lambda tb, select_match=True: pytest.fail(
+        'must not highlight without a rendered element'
+    )
     textbox = SimpleNamespace(props=SimpleNamespace(visible=True))
 
     mode._on_textbox_refreshed(textbox, elem=None)
@@ -1210,7 +1317,9 @@ def test_on_textbox_refreshed_syncs_matches_then_rehighlights_without_reselectin
     synced = []
     mode._sync_matches_for_key = synced.append
     highlighted = []
-    mode._highlight_textbox_matches = lambda tb, select_match: highlighted.append((tb, select_match))
+    mode._highlight_textbox_matches = lambda tb, select_match: highlighted.append(
+        (tb, select_match)
+    )
 
     mode._on_textbox_refreshed(textbox, elem=object())
 
@@ -1225,7 +1334,9 @@ def test_on_textbox_refreshed_skips_the_sync_without_a_current_unit():
     synced = []
     mode._sync_matches_for_key = synced.append
     highlighted = []
-    mode._highlight_textbox_matches = lambda tb, select_match: highlighted.append((tb, select_match))
+    mode._highlight_textbox_matches = lambda tb, select_match: highlighted.append(
+        (tb, select_match)
+    )
 
     mode._on_textbox_refreshed(textbox, elem=object())
 
@@ -1249,6 +1360,7 @@ def test_on_textbox_refreshed_skips_the_sync_when_the_textbox_role_cannot_be_det
 
 # _connect_highlighting() / _connect_textboxes() #
 
+
 def test_connect_highlighting_subscribes_to_cursor_changed():
     mode = SearchMode.__new__(SearchMode)
     connected = []
@@ -1256,6 +1368,7 @@ def test_connect_highlighting_subscribes_to_cursor_changed():
     def fake_connect(signal, handler):
         connected.append((signal, handler))
         return 'sigid'
+
     mode.storecursor = SimpleNamespace(connect=fake_connect)
 
     mode._connect_highlighting()
@@ -1272,17 +1385,23 @@ def test_connect_textboxes_subscribes_every_source_and_target_to_refreshed():
         def fake_connect(signal, handler, tag=tag):
             calls.append((tag, signal, handler))
             return tag
+
         return _Fake(connect=fake_connect)
+
     src, tgt = make_box('src'), make_box('tgt')
     mode.unitview = SimpleNamespace(sources=[src], targets=[tgt])
 
     mode._connect_textboxes()
 
-    assert calls == [('src', 'refreshed', mode._on_textbox_refreshed), ('tgt', 'refreshed', mode._on_textbox_refreshed)]
+    assert calls == [
+        ('src', 'refreshed', mode._on_textbox_refreshed),
+        ('tgt', 'refreshed', mode._on_textbox_refreshed),
+    ]
     assert mode._textbox_signals == {src: 'src', tgt: 'tgt'}
 
 
 # __init__() / _create_widgets() / _setup_key_bindings() #
+
 
 class _Signals:
     def __init__(self):
@@ -1323,7 +1442,9 @@ class _ModeController(_Signals):
 
 def _real_controller(store=None):
     menu_edit = Gtk.Menu()
-    items = {name: Gtk.MenuItem(label=name) for name in ('mnu_find', 'mnu_find_next', 'mnu_find_prev')}
+    items = {
+        name: Gtk.MenuItem(label=name) for name in ('mnu_find', 'mnu_find_next', 'mnu_find_prev')
+    }
     for item in items.values():
         menu_edit.append(item)
     items['menu_edit'] = menu_edit
@@ -1337,8 +1458,14 @@ def test_init_builds_the_expected_widgets_and_initial_state():
     mode = SearchMode(_real_controller())
 
     assert [type(w) for w in mode.widgets] == [
-        Gtk.Entry, Gtk.Button, Gtk.CheckButton, Gtk.CheckButton,
-        Gtk.Label, Gtk.Entry, Gtk.Button, Gtk.CheckButton,
+        Gtk.Entry,
+        Gtk.Button,
+        Gtk.CheckButton,
+        Gtk.CheckButton,
+        Gtk.Label,
+        Gtk.Entry,
+        Gtk.Button,
+        Gtk.CheckButton,
     ]
     assert mode.filter is None
     assert mode.matches == []
@@ -1351,7 +1478,9 @@ def test_init_builds_the_expected_widgets_and_initial_state():
 
 def test_init_registers_the_search_accelerators_and_accel_group(monkeypatch):
     registered_paths = []
-    monkeypatch.setattr(Gtk.AccelMap, 'add_entry', lambda path, key, mods: registered_paths.append(path))
+    monkeypatch.setattr(
+        Gtk.AccelMap, 'add_entry', lambda path, key, mods: registered_paths.append(path)
+    )
     controller = _real_controller()
 
     mode = SearchMode(controller)
@@ -1367,7 +1496,9 @@ def test_init_registers_the_search_accelerators_and_accel_group(monkeypatch):
 
 
 def _sensitivity(mode):
-    return [item.get_sensitive() for item in (mode.mnu_find, mode.mnu_find_next, mode.mnu_find_prev)]
+    return [
+        item.get_sensitive() for item in (mode.mnu_find, mode.mnu_find_next, mode.mnu_find_prev)
+    ]
 
 
 def test_find_menu_items_follow_the_open_file_and_search_mode():
@@ -1432,6 +1563,7 @@ def test_create_widgets_wires_the_case_and_regex_toggles_to_refresh_proxy():
 
 # update_search #
 
+
 def _search_mode_for(text, regex):
     store = pypo.pofile.parsestring(b'msgid "Open file"\nmsgstr "Maak oop"\n')
     mode = SearchMode.__new__(SearchMode)
@@ -1451,6 +1583,7 @@ def _search_mode_for(text, regex):
 def test_update_search_treats_an_invalid_regular_expression_as_no_matches(monkeypatch, pattern):
     # #4341: search runs while typing, so "(" is seen before ")" is typed.
     from virtaal.modes import searchmode
+
     monkeypatch.setattr(searchmode.GLib, 'idle_add', lambda *a: None)
     mode = _search_mode_for(pattern, regex=True)
 
@@ -1464,6 +1597,7 @@ def test_update_search_treats_an_invalid_regular_expression_as_no_matches(monkey
 
 def test_update_search_finds_a_valid_regular_expression(monkeypatch):
     from virtaal.modes import searchmode
+
     monkeypatch.setattr(searchmode.GLib, 'idle_add', lambda *a: None)
     mode = _search_mode_for('fi(le)', regex=True)
 
@@ -1475,6 +1609,7 @@ def test_update_search_finds_a_valid_regular_expression(monkeypatch):
 
 # refresh after undo/redo (#4384) #
 
+
 class _StoreUnits(list):
     def get_units(self):
         return self
@@ -1482,12 +1617,19 @@ class _StoreUnits(list):
 
 def _refresh_mode(units, current):
     from virtaal.controllers.cursor import Cursor
+
     mode = SearchMode.__new__(SearchMode)
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        unit_controller=SimpleNamespace(current_unit=current)))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(unit_controller=SimpleNamespace(current_unit=current))
+    )
     mode.storecursor = Cursor(_StoreUnits(units), [])
-    mode.filter = GrepFilter(searchstring=' asseblief', searchparts=('source', 'target'),
-                             ignorecase=True, useregexp=False, max_matches=200)
+    mode.filter = GrepFilter(
+        searchstring=' asseblief',
+        searchparts=('source', 'target'),
+        ignorecase=True,
+        useregexp=False,
+        max_matches=200,
+    )
     mode._match_text_cache = {}
     mode.default_base = 'base'
     mode.backgrounds = []
@@ -1497,8 +1639,7 @@ def _refresh_mode(units, current):
 
 
 def test_refresh_results_finds_text_an_undo_brought_back_without_moving():
-    units = [_xliff_unit('Open please', 'Maak oopX'),
-             _xliff_unit('Save please', 'Stoor asseblief')]
+    units = [_xliff_unit('Open please', 'Maak oopX'), _xliff_unit('Save please', 'Stoor asseblief')]
     mode = _refresh_mode(units, current=units[0])
 
     mode._refresh_results()
@@ -1511,7 +1652,9 @@ def test_refresh_results_finds_text_an_undo_brought_back_without_moving():
 
 def test_on_undo_redo_schedules_a_refresh_only_with_search_text(monkeypatch):
     scheduled = []
-    monkeypatch.setattr('virtaal.modes.searchmode.GLib.timeout_add', lambda delay, cb: scheduled.append(cb) or 1)
+    monkeypatch.setattr(
+        'virtaal.modes.searchmode.GLib.timeout_add', lambda delay, cb: scheduled.append(cb) or 1
+    )
     mode = SearchMode.__new__(SearchMode)
     mode._search_timeout = 0
     mode.ent_search = SimpleNamespace(get_text=lambda: '')
@@ -1530,6 +1673,7 @@ def test_refresh_results_with_no_matches_shows_the_warning_and_stays_put():
 
     def invalid(units):
         raise re.error('missing )')
+
     mode.filter = SimpleNamespace(getmatches=invalid, re_search=re.compile('x'))
 
     mode._refresh_results()
@@ -1545,20 +1689,28 @@ def test_undo_and_redo_hooks_are_connected_once_and_disconnected():
     class _Item:
         def __init__(self):
             self.handlers = {}
+
         def connect_after(self, signal, handler):
             self.handlers[len(self.handlers) + 1] = (signal, handler)
             return len(self.handlers)
+
         def disconnect(self, handler_id):
             del self.handlers[handler_id]
+
     items = {'mnu_undo': _Item(), 'mnu_redo': _Item()}
     mode = SearchMode.__new__(SearchMode)
-    mode.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        view=SimpleNamespace(gui=SimpleNamespace(get_object=items.get))))
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            view=SimpleNamespace(gui=SimpleNamespace(get_object=items.get))
+        )
+    )
 
     mode._connect_undo_redo()
     mode._connect_undo_redo()  # selecting Search again doesn't stack handlers
 
     assert [list(item.handlers.values()) for item in items.values()] == [
-        [('activate', mode._on_undo_redo)], [('activate', mode._on_undo_redo)]]
+        [('activate', mode._on_undo_redo)],
+        [('activate', mode._on_undo_redo)],
+    ]
     mode._disconnect_undo_redo()
     assert all(not item.handlers for item in items.values())

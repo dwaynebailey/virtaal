@@ -19,7 +19,9 @@ class TMModel(BaseTMModel):
     display_name = _('Moses')
     description = _('Unreviewed machine translations from a Moses server')
 
-    default_config = { "fr->en": "http://localhost:8080", }
+    default_config = {
+        "fr->en": "http://localhost:8080",
+    }
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
@@ -32,6 +34,7 @@ class TMModel(BaseTMModel):
 
     def _init_plugin(self):
         from virtaal.support.mosesclient import MosesClient
+
         # let's map servers to clients to detect duplicates
         client_map = {}
         for lang_pair, server in self.config.items():
@@ -46,11 +49,10 @@ class TMModel(BaseTMModel):
                 client_map[server] = client
             self.clients[pair[0]].update({pair[1]: client})
 
-
     # METHODS #
     def query(self, tmcontroller, unit):
         if self.source_lang in self.clients and self.target_lang in self.clients[self.source_lang]:
-            query_str = str(unit.source) # cast in case of multistrings
+            query_str = str(unit.source)  # cast in case of multistrings
             if query_str in self.cache:
                 self.emit('match-found', query_str, [self.cache[query_str]])
                 return
@@ -65,7 +67,7 @@ class TMModel(BaseTMModel):
         result = {
             'source': id,
             'target': response,
-            #l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for vertical display optimization.
+            # l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for vertical display optimization.
             'tmsource': _('Moses'),
         }
 

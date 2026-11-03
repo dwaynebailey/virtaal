@@ -17,7 +17,8 @@ from virtaal.support.update_check import UpdateChecker, _parse_version
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('VIRTAAL_LIVE_SERVICES') != '1',
-    reason="set VIRTAAL_LIVE_SERVICES=1 to query GitHub's releases API")
+    reason="set VIRTAAL_LIVE_SERVICES=1 to query GitHub's releases API",
+)
 
 
 def test_an_old_version_hears_about_the_latest_release():

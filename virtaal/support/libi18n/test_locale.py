@@ -60,26 +60,33 @@ def _fake_windll(**kernel32_methods):
 
 
 def test_get_win32_lang_maps_the_users_langid(monkeypatch):
-    monkeypatch.setattr(ctypes, 'windll', _fake_windll(GetUserDefaultLangID=lambda: 1033), raising=False)
+    monkeypatch.setattr(
+        ctypes, 'windll', _fake_windll(GetUserDefaultLangID=lambda: 1033), raising=False
+    )
 
     assert get_win32_lang() == 'en'
 
 
 def test_get_win32_lang_uses_the_system_ui_langid_when_requested(monkeypatch):
     monkeypatch.setattr(
-        ctypes, 'windll', _fake_windll(GetUserDefaultUILanguage=lambda: 2057), raising=False)
+        ctypes, 'windll', _fake_windll(GetUserDefaultUILanguage=lambda: 2057), raising=False
+    )
 
     assert get_win32_lang(system_ui=True) == 'en_GB'
 
 
 def test_get_win32_lang_defaults_to_c_when_langid_is_zero(monkeypatch):
-    monkeypatch.setattr(ctypes, 'windll', _fake_windll(GetUserDefaultLangID=lambda: 0), raising=False)
+    monkeypatch.setattr(
+        ctypes, 'windll', _fake_windll(GetUserDefaultLangID=lambda: 0), raising=False
+    )
 
     assert get_win32_lang() == 'C'
 
 
 def test_get_win32_lang_defaults_to_c_for_an_unmapped_langid(monkeypatch):
-    monkeypatch.setattr(ctypes, 'windll', _fake_windll(GetUserDefaultLangID=lambda: 999999), raising=False)
+    monkeypatch.setattr(
+        ctypes, 'windll', _fake_windll(GetUserDefaultLangID=lambda: 999999), raising=False
+    )
 
     assert get_win32_lang() == 'C'
 
@@ -120,7 +127,9 @@ def test_fix_locale_does_nothing_without_a_lang_on_posix(monkeypatch):
 def test_fix_locale_on_windows_sets_every_locale_env_var(monkeypatch):
     monkeypatch.setattr(locale_module.platform, 'is_windows', True)
     putenv_calls = []
-    monkeypatch.setattr(locale_module, '_putenv', lambda name, value: putenv_calls.append((name, value)))
+    monkeypatch.setattr(
+        locale_module, '_putenv', lambda name, value: putenv_calls.append((name, value))
+    )
     for name in ('LANG', 'LC_ALL', 'LANGUAGE'):
         monkeypatch.delenv(name, raising=False)
 
@@ -144,18 +153,21 @@ def test_fix_locale_on_windows_falls_back_to_getlang_when_no_lang_given(monkeypa
     assert locale_module.os.environ['LANGUAGE'] == 'fr'
 
 
-@pytest.mark.parametrize('code, posix', [
-    ('de', 'de'),
-    ('de-DE', 'de_DE'),
-    ('pt-BR', 'pt_BR'),
-    ('es-419', 'es_419'),
-    ('zh-Hans', 'zh_CN'),
-    ('zh-Hans-CN', 'zh_CN'),
-    ('zh-Hant-HK', 'zh_TW'),
-    ('sr-Latn', 'sr@latin'),
-    ('sr-Cyrl-RS', 'sr_RS'),
-    ('ca-ES-valencia', 'ca@valencia'),
-])
+@pytest.mark.parametrize(
+    'code, posix',
+    [
+        ('de', 'de'),
+        ('de-DE', 'de_DE'),
+        ('pt-BR', 'pt_BR'),
+        ('es-419', 'es_419'),
+        ('zh-Hans', 'zh_CN'),
+        ('zh-Hans-CN', 'zh_CN'),
+        ('zh-Hant-HK', 'zh_TW'),
+        ('sr-Latn', 'sr@latin'),
+        ('sr-Cyrl-RS', 'sr_RS'),
+        ('ca-ES-valencia', 'ca@valencia'),
+    ],
+)
 def test_macos_to_posix(code, posix):
     assert macos_to_posix(code) == posix
 
@@ -172,7 +184,9 @@ def test_fix_locale_on_macos_uses_the_preferred_languages(monkeypatch):
     # Started from Finder, an app gets no LANG.
     _mac_without_locale_env(monkeypatch, ['de-DE', 'zh-Hant'])
     probed = []
-    monkeypatch.setattr(locale_module, '_macos_locale', lambda languages: probed.append(languages) or 'de_DE.UTF-8')
+    monkeypatch.setattr(
+        locale_module, '_macos_locale', lambda languages: probed.append(languages) or 'de_DE.UTF-8'
+    )
 
     fix_locale(None)
 
@@ -185,7 +199,11 @@ def test_fix_locale_on_macos_uses_the_preferred_languages(monkeypatch):
 def test_fix_locale_on_macos_gives_a_chosen_language_a_locale(monkeypatch):
     # Or libintl, under the C locale, ignores LANGUAGE.
     _mac_without_locale_env(monkeypatch, ['de-DE'])
-    monkeypatch.setattr(locale_module, '_macos_locale', lambda languages: 'af_ZA.UTF-8' if languages == ['af'] else None)
+    monkeypatch.setattr(
+        locale_module,
+        '_macos_locale',
+        lambda languages: 'af_ZA.UTF-8' if languages == ['af'] else None,
+    )
 
     fix_locale('af')
 
@@ -215,6 +233,7 @@ def test_fix_locale_on_macos_without_preferred_languages_changes_nothing(monkeyp
 @pytest.mark.skipif(sys.platform != 'darwin', reason='macOS locales')
 def test_macos_locale_picks_the_first_language_with_a_locale():
     import locale
+
     before = locale.setlocale(locale.LC_ALL)
 
     assert _macos_locale(['xx', 'de']) == 'de_DE.UTF-8'
@@ -229,16 +248,23 @@ def test_a_finder_launch_uses_the_macos_preferred_language(tmp_path):
     # -AppleLanguages stands in for System Settings, in a process with
     # Finder's empty environment.
     import subprocess
+
     script = (
         "import os; from virtaal.common import pan_app;"
         "from virtaal.support.libi18n.locale import get_macos_preferred_languages;"
         "print(get_macos_preferred_languages(), os.environ.get('LANGUAGE'), os.environ.get('LANG'),"
         " pan_app.ui_language, pan_app.settings.language['targetlang'])"
     )
-    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    )
     result = subprocess.run(
         [sys.executable, '-c', script, '-AppleLanguages', '(de, fr-CA)'],
-        env={'HOME': str(tmp_path), 'PYTHONPATH': root}, capture_output=True, text=True, check=True)
+        env={'HOME': str(tmp_path), 'PYTHONPATH': root},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
 
     assert result.stdout.split('\n')[-2] == "['de', 'fr-CA'] de de_DE.UTF-8 de de"
 
@@ -260,7 +286,9 @@ def test_bundled_macos_libintl_returns_none_when_absent(tmp_path):
     assert _bundled_macos_libintl(str(bundle_dir)) is None
 
 
-def test_bind_libintl_posix_prefers_the_bundled_macos_copy(tmp_path, monkeypatch, fresh_library_defaults):
+def test_bind_libintl_posix_prefers_the_bundled_macos_copy(
+    tmp_path, monkeypatch, fresh_library_defaults
+):
     # A frozen macOS build vendors its own libintl in Contents/
     # Frameworks/ - a separate loaded image from any system copy
     # (e.g. Homebrew's) that ctypes.util.find_library() would find
@@ -276,8 +304,16 @@ def test_bind_libintl_posix_prefers_the_bundled_macos_copy(tmp_path, monkeypatch
     monkeypatch.setattr(locale_module.platform, 'is_frozen', True)
     monkeypatch.setattr(locale_module.platform, 'bundle_dir', str(bundle_dir))
     opened = []
-    monkeypatch.setattr(ctypes, 'CDLL', lambda name: opened.append(name) or SimpleNamespace(
-        bindtextdomain=lambda *a: None, bind_textdomain_codeset=lambda *a: None))
+    monkeypatch.setattr(
+        ctypes,
+        'CDLL',
+        lambda name: (
+            opened.append(name)
+            or SimpleNamespace(
+                bindtextdomain=lambda *a: None, bind_textdomain_codeset=lambda *a: None
+            )
+        ),
+    )
     monkeypatch.setattr(ctypes.util, 'find_library', lambda name: '/opt/homebrew/lib/libintl.dylib')
 
     bind_libintl_posix('/tmp/some/locale/dir')
@@ -291,7 +327,9 @@ def test_bind_libintl_posix_binds_the_domain():
 
 def test_bind_libintl_posix_swallows_a_missing_library(monkeypatch):
     monkeypatch.setattr(ctypes.util, 'find_library', lambda name: None)
-    monkeypatch.setattr(ctypes, 'CDLL', lambda name: (_ for _ in ()).throw(OSError('no such library')))
+    monkeypatch.setattr(
+        ctypes, 'CDLL', lambda name: (_ for _ in ()).throw(OSError('no such library'))
+    )
 
     bind_libintl_posix('/tmp/some/locale/dir')  # must not raise
 
@@ -309,7 +347,7 @@ def fresh_library_defaults(monkeypatch):
 
 def _fake_libintl(defaults):
     """A libintl stand-in whose bindtextdomain() answers a NULL dirname
-        query from `defaults` and records every real binding."""
+    query from `defaults` and records every real binding."""
     bound = {}
 
     def bindtextdomain(domain, dirname):
@@ -318,8 +356,9 @@ def _fake_libintl(defaults):
         bound[domain] = dirname
         return dirname
 
-    return SimpleNamespace(bindtextdomain=bindtextdomain,
-                           bind_textdomain_codeset=lambda *a: None, bound=bound)
+    return SimpleNamespace(
+        bindtextdomain=bindtextdomain, bind_textdomain_codeset=lambda *a: None, bound=bound
+    )
 
 
 def _write_catalog(locale_dir, lang, domain):
@@ -329,7 +368,8 @@ def _write_catalog(locale_dir, lang, domain):
 
 
 def test_bind_library_domains_binds_a_domain_with_a_catalog_for_the_language(
-        tmp_path, monkeypatch, fresh_library_defaults):
+    tmp_path, monkeypatch, fresh_library_defaults
+):
     _write_catalog(tmp_path, 'af', 'gtk30')
     monkeypatch.setenv('LANGUAGE', 'af')
     libintl = _fake_libintl({b'gtk30': b'/gtk/default', b'glib20': b'/glib/default'})
@@ -340,7 +380,9 @@ def test_bind_library_domains_binds_a_domain_with_a_catalog_for_the_language(
     assert libintl.bound[b'glib20'] == b'/glib/default'
 
 
-def test_rebind_library_domain_binds_to_virtaals_catalog(tmp_path, monkeypatch, fresh_library_defaults):
+def test_rebind_library_domain_binds_to_virtaals_catalog(
+    tmp_path, monkeypatch, fresh_library_defaults
+):
     _write_catalog(tmp_path, 'af', 'gtkspell3')
     monkeypatch.setenv('LANGUAGE', 'af')
     libintl = _fake_libintl({b'gtkspell3': b'/gtkspell/default'})
@@ -355,13 +397,16 @@ def test_rebind_library_domain_binds_to_virtaals_catalog(tmp_path, monkeypatch, 
 
 def test_rebind_library_domain_does_nothing_on_windows(monkeypatch):
     monkeypatch.setattr(locale_module.platform, 'is_windows', True)
-    monkeypatch.setattr(locale_module, '_posix_libintl', lambda: pytest.fail('must not load libintl'))
+    monkeypatch.setattr(
+        locale_module, '_posix_libintl', lambda: pytest.fail('must not load libintl')
+    )
 
     locale_module.rebind_library_domain(b'gtkspell3')
 
 
 def test_bind_library_domains_restores_the_default_when_switching_away(
-        tmp_path, monkeypatch, fresh_library_defaults):
+    tmp_path, monkeypatch, fresh_library_defaults
+):
     # Switching the UI language at runtime to one Virtaal has no gtk30
     # catalog for must give GTK back its own catalogs, not leave it
     # pointed at a directory where it finds nothing.
@@ -409,13 +454,21 @@ def test_bind_libintl_posix_library_bindings_outlast_gtk_and_glib_first_use(tmp_
     # A fresh process, since either may already have happened in this
     # one.
     import subprocess
+
     _write_catalog(tmp_path, 'af', 'gtk30')
     _write_catalog(tmp_path, 'af', 'glib20')
-    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    repo_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    )
     env = dict(os.environ, LANGUAGE='af', PYTHONPATH=repo_root)
 
-    result = subprocess.run([sys.executable, '-c', _FRESH_PROCESS_BIND, str(tmp_path)],
-                            env=env, capture_output=True, text=True, check=True)
+    result = subprocess.run(
+        [sys.executable, '-c', _FRESH_PROCESS_BIND, str(tmp_path)],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
 
     assert result.stdout.split() == [str(tmp_path), str(tmp_path)]
 
@@ -450,13 +503,17 @@ def test_fix_libintl_passes_bytes_not_str_to_bindtextdomain(monkeypatch):
     calls = []
     fake_libintl = SimpleNamespace(
         bindtextdomain=lambda domain, dirname: calls.append(('bindtextdomain', domain, dirname)),
-        bind_textdomain_codeset=lambda domain, codeset: calls.append(('bind_textdomain_codeset', domain, codeset)),
+        bind_textdomain_codeset=lambda domain, codeset: calls.append(
+            ('bind_textdomain_codeset', domain, codeset)
+        ),
     )
     monkeypatch.setattr(ctypes, 'cdll', SimpleNamespace(intl=fake_libintl))
 
     fix_libintl('/fake/bundle')
 
-    expected_dir = os.path.join('/fake/bundle', 'share', 'locale').encode(sys.getfilesystemencoding())
+    expected_dir = os.path.join('/fake/bundle', 'share', 'locale').encode(
+        sys.getfilesystemencoding()
+    )
     assert calls == [
         ('bindtextdomain', b'virtaal', expected_dir),
         ('bind_textdomain_codeset', b'virtaal', b'UTF-8'),
@@ -465,7 +522,10 @@ def test_fix_libintl_passes_bytes_not_str_to_bindtextdomain(monkeypatch):
     ]
 
 
-@pytest.mark.skipif(not platform.is_windows, reason="fix_libintl() is Windows-only, frozen-build-only ctypes plumbing")
+@pytest.mark.skipif(
+    not platform.is_windows,
+    reason="fix_libintl() is Windows-only, frozen-build-only ctypes plumbing",
+)
 def test_fix_libintl_binds_the_domain_via_the_real_intl_dll(tmp_path):
     # intl.dll ships in C:\gtk\bin (gvsbuild's own gettext.py build
     # recipe) and that directory is on PATH for the whole CI job - a

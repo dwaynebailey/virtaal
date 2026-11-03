@@ -50,7 +50,7 @@ def _decode_path_from_request_uri() -> None:
     path = unquote_to_bytes(raw).decode("utf-8", "ignore")
     script_name = environ.get("SCRIPT_NAME", "")
     if script_name and path.startswith(script_name):
-        path = path[len(script_name):]
+        path = path[len(script_name) :]
     environ["PATH_INFO"] = path
 
 
@@ -262,9 +262,7 @@ def main() -> None:
     )
     logger.info("Starting server, listening on port %s", args.port)
     try:
-        application.rest.run(
-            host=args.bind, port=args.port, server="cheroot", quiet=not args.debug
-        )
+        application.rest.run(host=args.bind, port=args.port, server="cheroot", quiet=not args.debug)
     except KeyboardInterrupt:
         pass
 

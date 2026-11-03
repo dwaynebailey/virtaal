@@ -33,7 +33,9 @@ def test_selected_does_nothing_without_a_cursor_model():
 def test_selected_with_nothing_incomplete_navigates_nothing():
     # ModeController doesn't select an unavailable mode; this is the
     # list kept after the last incomplete unit is finished.
-    cursor = SimpleNamespace(model=SimpleNamespace(stats={'untranslated': [], 'fuzzy': []}), indices=None)
+    cursor = SimpleNamespace(
+        model=SimpleNamespace(stats={'untranslated': [], 'fuzzy': []}), indices=None
+    )
     calls = []
     mode = _mode(cursor=cursor, select_default_mode=lambda: calls.append(True))
 

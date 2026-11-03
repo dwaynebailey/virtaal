@@ -31,9 +31,17 @@ class HTTPRequest(GObjectWrapper):
         "http-server-error": (GObject.SignalFlags.RUN_LAST, None, (object,)),
     }
 
-    def __init__(self, url, method='GET', data=None, headers=None,
-            user_agent=None, follow_location=False,
-            force_quiet=True, download=False):
+    def __init__(
+        self,
+        url,
+        method='GET',
+        data=None,
+        headers=None,
+        user_agent=None,
+        follow_location=False,
+        force_quiet=True,
+        download=False,
+    ):
         GObjectWrapper.__init__(self)
         self.result = BytesIO()
         self.result_headers = BytesIO()
@@ -46,13 +54,13 @@ class HTTPRequest(GObjectWrapper):
 
         # the actual curl request object
         self.curl = pycurl.Curl()
-        if (logging.root.level == logging.DEBUG and not force_quiet):
+        if logging.root.level == logging.DEBUG and not force_quiet:
             self.curl.setopt(pycurl.VERBOSE, 1)
 
         self.curl.setopt(pycurl.WRITEFUNCTION, self.result.write)
         self.curl.setopt(pycurl.HEADERFUNCTION, self.result_headers.write)
         # We want to use gzip and deflate if possible:
-        self.curl.setopt(pycurl.ENCODING, "") # use all available encodings
+        self.curl.setopt(pycurl.ENCODING, "")  # use all available encodings
         self.curl.setopt(pycurl.URL, self.url)
         self._configure_timeouts(download)
         self._configure_ca_bundle()
@@ -119,14 +127,17 @@ class HTTPRequest(GObjectWrapper):
     def _configure_proxy(self):
         # '' connects directly: libcurl would otherwise use the proxy
         # environment variables, and ask the local TM server for full URLs.
-        if proxy_settings.uses_desktop_proxy() and (proxy := proxy_settings.desktop_proxy(self.url)) is not None:
+        if (
+            proxy_settings.uses_desktop_proxy()
+            and (proxy := proxy_settings.desktop_proxy(self.url)) is not None
+        ):
             self.curl.setopt(pycurl.PROXY, proxy)
         else:
             # Proxy: let's be careful to isolate the protocol to ensure that we
             # support the case where http and https might use different proxies
             split_url = self.url.split('://', 1)
             if len(split_url) > 1:
-                #We were able to get a protocol
+                # We were able to get a protocol
                 protocol, address = split_url
                 split_result = parse.urlsplit('//' + address)
                 host = split_result.hostname
@@ -161,7 +172,9 @@ class HTTPRequest(GObjectWrapper):
 class RESTRequest(HTTPRequest):
     """Single HTTP REST request, blocking if used standalone."""
 
-    def __init__(self, url, id, method='GET', data=None, headers=None, user_agent=None, params=None):
+    def __init__(
+        self, url, id, method='GET', data=None, headers=None, user_agent=None, params=None
+    ):
         super().__init__(url, method, data, headers, user_agent=user_agent, follow_location=True)
 
         url = self.url
@@ -189,7 +202,7 @@ class HTTPClient:
         self.curl = pycurl.CurlMulti()
         self.user_agent = None
 
-    def add(self,request):
+    def add(self, request):
         """add a request to the queue"""
         # First ensure that we're not piling up on unanswered requests:
         if len(self.requests) > 15:
@@ -200,7 +213,8 @@ class HTTPClient:
 
     def run(self):
         """client should not be running when request queue is empty"""
-        if self.running: return
+        if self.running:
+            return
         GLib.timeout_add(100, self.perform)
         self.running = True
 
@@ -226,7 +240,7 @@ class HTTPClient:
         [self.close_request(com) for com in completed]
         [self.close_failed_request(fail) for fail in failed]
         if not self.running:
-            #we are done with this batch what do we do?
+            # we are done with this batch what do we do?
             return False
         return True
 
@@ -235,8 +249,13 @@ class HTTPClient:
         if etag:
             # See http://en.wikipedia.org/wiki/HTTP_ETag for more details about ETags
             headers = ['If-None-Match: "%s"' % (etag)]
-        request = HTTPRequest(url, headers=headers, user_agent=self.user_agent,
-                follow_location=True, download=download)
+        request = HTTPRequest(
+            url,
+            headers=headers,
+            user_agent=self.user_agent,
+            follow_location=True,
+            download=download,
+        )
         self.add(request)
 
         if callback:
@@ -248,14 +267,15 @@ class HTTPClient:
 
     def set_virtaal_useragent(self):
         """Set a nice user agent indicating Virtaal, its version, how it
-            was built, any CI service running it and whether it is a
-            hand-testing instance, e.g.
-            "Virtaal/1.0.0 (Ubuntu 24.04) Build/source CI/github-actions"."""
+        was built, any CI service running it and whether it is a
+        hand-testing instance, e.g.
+        "Virtaal/1.0.0 (Ubuntu 24.04) Build/source CI/github-actions"."""
         if self.user_agent and self.user_agent.startswith('Virtaal'):
             return
         import sys
 
         from virtaal.__version__ import ver as version
+
         os_name = sys.platform
         if os_name.startswith('linux'):
             os_name = self._linux_platform_string(os_name)
@@ -271,6 +291,7 @@ class HTTPClient:
 
     def _linux_platform_string(self, platform):
         import os
+
         # All systems supporting systemd:
         if os.path.isfile('/etc/os-release'):
             try:
@@ -312,16 +333,17 @@ class HTTPClient:
 
     def _windows_platform_string(self, platform):
         import sys
+
         major, minor = sys.getwindowsversion()[:2]
         # from http://msdn.microsoft.com/en-us/library/ms724833%28v=vs.85%29.aspx
         name_dict = {
-                (5, 0): "Windows 2000",
-                (5, 1): "Windows XP",
-                (6, 0): "Windows Vista", # Also Windows Server 2008
-                (6, 1): "Windows 7",     # Also Windows Server 2008 R2
-                (6, 2): "Windows 8",     # Also Windows Server 2012
-                (6, 3): "Windows 8.1",   # Also Windows Server 2012 R2
-               (10, 0): "Windows 10",
+            (5, 0): "Windows 2000",
+            (5, 1): "Windows XP",
+            (6, 0): "Windows Vista",  # Also Windows Server 2008
+            (6, 1): "Windows 7",  # Also Windows Server 2008 R2
+            (6, 2): "Windows 8",  # Also Windows Server 2012
+            (6, 3): "Windows 8.1",  # Also Windows Server 2012 R2
+            (10, 0): "Windows 10",
         }
         # (5, 2) includes XP Professional x64 Edition, Server 2003, Home Server, Server 2003 R2
         name = name_dict.get((major, minor), None)
@@ -331,5 +353,6 @@ class HTTPClient:
 
     def _macos_platform_string(self, platform):
         import platform as plat
+
         release, versioninfo, machine = plat.mac_ver()
         return "%s; %s %s" % (platform, release, machine)

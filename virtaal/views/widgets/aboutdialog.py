@@ -20,10 +20,15 @@ class AboutDialog(Gtk.AboutDialog):
         self.set_program_name(_("Virtaal"))
         self.set_version(__version__.version_string())
         self.set_copyright(_("Copyright © 2007-2026 Zuza Software Foundation"))
-        # l10n: Please retain the literal name "Virtaal", but feel free to
-        # additionally transliterate the name and to add a translation of "For Language", which is what the name means.
-        self.set_comments(_("Virtaal is a program for doing translation.") + "\n\n" +
-            _("The initial focus is on software translation (localization or l10n), but we definitely intend it to be useful as a general purpose tool for Computer Aided Translation (CAT)."))
+        self.set_comments(
+            # l10n: Please retain the literal name "Virtaal", but feel free to
+            # additionally transliterate the name and to add a translation of "For Language", which is what the name means.
+            _("Virtaal is a program for doing translation.")
+            + "\n\n"
+            + _(
+                "The initial focus is on software translation (localization or l10n), but we definitely intend it to be useful as a general purpose tool for Computer Aided Translation (CAT)."
+            )
+        )
         self.set_license("""This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
@@ -52,8 +57,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.""")
             authors = ["Friedel Wolff", "Dwayne Bailey", "Walter Leibbrandt", "Wynand Winterbach"]
 
         if pan_app.ui_language == "ar":
-            authors = ["علاء عبد الفتاح" if name == "Alaa Abd el Fattah" else name
-                       for name in authors]
+            authors = [
+                "علاء عبد الفتاح" if name == "Alaa Abd el Fattah" else name for name in authors
+            ]
 
         # Donors: kept as real literals, not sourced from AUTHORS.md -
         # these are stable, already-translated strings (several
@@ -61,25 +67,33 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.""")
         # "Internasionale ontwikkelingsnavorsingsentrum" for the IDRC)
         # and round-tripping them through a data file's exact wording
         # would silently break that lookup on the slightest edit there.
-        authors.extend([
-            "",  # just for spacing
-            _("We thank our donors:"),
-            _("The International Development Research Centre"),
-            "\thttp://idrc.ca/",
-            _("Mozilla Corporation"),
-            "\thttp://mozilla.com/",
-        ])
+        authors.extend(
+            [
+                "",  # just for spacing
+                _("We thank our donors:"),
+                _("The International Development Research Centre"),
+                "\thttp://idrc.ca/",
+                _("Mozilla Corporation"),
+                "\thttp://mozilla.com/",
+            ]
+        )
         self.set_authors(authors)
         # l10n: Rather than translating, fill in the names of the translators
         self.set_translator_credits(_("translator-credits"))
         self.set_icon(parent.get_icon())
-        self.set_logo(GdkPixbuf.Pixbuf.new_from_file(pan_app.get_abs_data_filename(["virtaal", "virtaal_logo.png"])))
-        self.set_artists([
+        self.set_logo(
+            GdkPixbuf.Pixbuf.new_from_file(
+                pan_app.get_abs_data_filename(["virtaal", "virtaal_logo.png"])
+            )
+        )
+        self.set_artists(
+            [
                 "Heather Bailey",
-                ])
+            ]
+        )
         # FIXME entries that we may want to add
-        #self.set_documenters()
-        self.connect ("response", lambda d, r: d.destroy())
+        # self.set_documenters()
+        self.connect("response", lambda d, r: d.destroy())
         self.show()
 
     def on_url(self, dialog, uri, data):

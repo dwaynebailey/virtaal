@@ -17,10 +17,16 @@ class WelcomeScreenController(BaseController):
     """The maximum number of recent items to display."""
 
     LINKS = {
-        'manual':   _('https://docs.translatehouse.org/projects/virtaal/en/latest/using_virtaal.html'),
+        'manual': _(
+            'https://docs.translatehouse.org/projects/virtaal/en/latest/using_virtaal.html'
+        ),
         'locguide': _('https://docs.translatehouse.org/projects/localization-guide/en/'),
-        'feedback': _('https://docs.translatehouse.org/projects/virtaal/en/latest/index.html#contact'),
-        'features_more': _('https://docs.translatehouse.org/projects/virtaal/en/latest/features.html'),
+        'feedback': _(
+            'https://docs.translatehouse.org/projects/virtaal/en/latest/index.html#contact'
+        ),
+        'features_more': _(
+            'https://docs.translatehouse.org/projects/virtaal/en/latest/features.html'
+        ),
     }
 
     # INITIALIZERS #
@@ -30,34 +36,39 @@ class WelcomeScreenController(BaseController):
 
         self._recent_files = []
         from virtaal.views.welcomescreenview import WelcomeScreenView
+
         self.view = WelcomeScreenView(self)
 
         main_controller.store_controller.connect('store-closed', self._on_store_closed)
         main_controller.store_controller.connect('store-loaded', self._on_store_loaded)
 
-
     # METHODS #
     def activate(self):
         """Show the welcome screen and trigger activation logic (ie. find
-            recent files)."""
+        recent files)."""
         from gi.repository import GLib
+
         GLib.idle_add(self.update_recent, priority=GLib.PRIORITY_LOW)
         self.view.show()
 
     def open_cheatsheat(self):
         from virtaal.views.widgets.shortcutswindow import ShortcutsWindow
+
         ShortcutsWindow(self.main_controller.view.main_window)
 
     def open_file(self, filename=None):
         self.main_controller.open_file(filename)
 
     def open_recent(self, n):
-        n -= 1 # Shift from nominal value [1; 5] to index value [0; 4]
-        if 0 <= n <= len(self._recent_files)-1:
+        n -= 1  # Shift from nominal value [1; 5] to index value [0; 4]
+        if 0 <= n <= len(self._recent_files) - 1:
             self.open_file(self._recent_files[n]['uri'])
         else:
             import logging
-            logging.debug('Invalid recent file index (%d) given. Recent files: %s)' % (n, self._recent_files))
+
+            logging.debug(
+                'Invalid recent file index (%d) given. Recent files: %s)' % (n, self._recent_files)
+            )
 
     def open_tutorial(self):
         self.main_controller.open_tutorial()
@@ -66,23 +77,24 @@ class WelcomeScreenController(BaseController):
         if name not in self.LINKS:
             return False
         from virtaal.support import openmailto
+
         openmailto.open(self.LINKS[name])
         return True
 
     def open_bug_report(self):
         from virtaal.support import openmailto
         from virtaal.support.bug_report import build_bug_report_url
+
         openmailto.open(build_bug_report_url())
 
     def update_recent(self):
         from virtaal.views import recent
-        self._recent_files = [{
-                'name': i.get_display_name(),
-                'uri':  i.get_uri_display()
-            } for i in recent.rc.get_items()[:self.MAX_RECENT]
+
+        self._recent_files = [
+            {'name': i.get_display_name(), 'uri': i.get_uri_display()}
+            for i in recent.rc.get_items()[: self.MAX_RECENT]
         ]
         self.view.update_recent_buttons(self._recent_files)
-
 
     # EVENT HANDLERS #
     def _on_store_closed(self, store_controller):

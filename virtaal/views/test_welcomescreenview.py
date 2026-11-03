@@ -30,8 +30,14 @@ def _real_builder():
 
 
 def _fake_controller():
-    calls = SimpleNamespace(open_file=[], open_recent=[], open_tutorial=[],
-                             open_cheatsheat=[], open_bug_report=[], try_open_link=[])
+    calls = SimpleNamespace(
+        open_file=[],
+        open_recent=[],
+        open_tutorial=[],
+        open_cheatsheat=[],
+        open_bug_report=[],
+        try_open_link=[],
+    )
     controller = SimpleNamespace(
         main_controller=SimpleNamespace(view=SimpleNamespace(gui=_real_builder())),
         MAX_RECENT=5,
@@ -56,6 +62,7 @@ def _recent_items(count):
 
 # __init__() / set_banner() #
 
+
 def test_init_builds_a_real_welcome_screen_wired_to_its_parent():
     view = _make_view()
 
@@ -79,7 +86,9 @@ def test_set_banner_uses_the_rtl_banner_when_the_widget_is_rtl():
 
     view.set_banner()
 
-    assert calls == [welcomescreenview.get_abs_data_filename(['virtaal', 'welcome_screen_banner_rtl.png'])]
+    assert calls == [
+        welcomescreenview.get_abs_data_filename(['virtaal', 'welcome_screen_banner_rtl.png'])
+    ]
 
 
 def test_set_banner_uses_the_plain_banner_for_ltr():
@@ -90,7 +99,9 @@ def test_set_banner_uses_the_plain_banner_for_ltr():
 
     view.set_banner()
 
-    assert calls == [welcomescreenview.get_abs_data_filename(['virtaal', 'welcome_screen_banner.png'])]
+    assert calls == [
+        welcomescreenview.get_abs_data_filename(['virtaal', 'welcome_screen_banner.png'])
+    ]
 
 
 def test_set_banner_uses_the_arabic_banner_regardless_of_direction(monkeypatch):
@@ -102,10 +113,13 @@ def test_set_banner_uses_the_arabic_banner_regardless_of_direction(monkeypatch):
 
     view.set_banner()
 
-    assert calls == [welcomescreenview.get_abs_data_filename(['virtaal', 'welcome_screen_banner_ar.png'])]
+    assert calls == [
+        welcomescreenview.get_abs_data_filename(['virtaal', 'welcome_screen_banner_ar.png'])
+    ]
 
 
 # hide() / show() #
+
 
 def test_hide_hides_the_widget_and_detaches_it_from_its_parent():
     view = _make_view()
@@ -154,7 +168,9 @@ def test_show_schedules_the_width_calculation(monkeypatch):
     # a main loop), so only show()'s own call is captured below.
     view = _make_view()
     calls = []
-    monkeypatch.setattr(welcomescreenview.GLib, 'idle_add', lambda func, *a, **k: calls.append((func, a)))
+    monkeypatch.setattr(
+        welcomescreenview.GLib, 'idle_add', lambda func, *a, **k: calls.append((func, a))
+    )
 
     view.show()
 
@@ -168,7 +184,9 @@ def test_width_calculation_skips_a_welcome_screen_hidden_before_it_runs(monkeypa
     # callback runs, leaving a 1px allocation: 1 - 1 - 50 is -50.
     view = _make_view()
     calls = []
-    monkeypatch.setattr(welcomescreenview.GLib, 'idle_add', lambda func, *a, **k: calls.append((func, a)))
+    monkeypatch.setattr(
+        welcomescreenview.GLib, 'idle_add', lambda func, *a, **k: calls.append((func, a))
+    )
     view.show()
     view.hide()
     widths = []
@@ -191,6 +209,7 @@ def test_show_focuses_open(monkeypatch):
 
 # update_recent_buttons() #
 
+
 def test_update_recent_buttons_hides_the_frame_when_there_are_no_items():
     view = _make_view()
     view.widget.gui.get_object('frame_recent').show_all()
@@ -202,7 +221,9 @@ def test_update_recent_buttons_hides_the_frame_when_there_are_no_items():
 
 def test_update_recent_buttons_fills_in_each_button(monkeypatch):
     view = _make_view()
-    monkeypatch.setattr(welcomescreenview, 'get_abs_data_filename', lambda parts: '/icons/x-translation.png')
+    monkeypatch.setattr(
+        welcomescreenview, 'get_abs_data_filename', lambda parts: '/icons/x-translation.png'
+    )
     items = _recent_items(2)
 
     view.update_recent_buttons(items)
@@ -218,7 +239,9 @@ def test_update_recent_buttons_fills_in_each_button(monkeypatch):
 
 def test_update_recent_buttons_escapes_special_characters_in_the_name(monkeypatch):
     view = _make_view()
-    monkeypatch.setattr(welcomescreenview, 'get_abs_data_filename', lambda parts: '/icons/x-translation.png')
+    monkeypatch.setattr(
+        welcomescreenview, 'get_abs_data_filename', lambda parts: '/icons/x-translation.png'
+    )
 
     view.update_recent_buttons([{'name': 'A & B <C>', 'uri': 'file:///x'}])
 
@@ -228,7 +251,9 @@ def test_update_recent_buttons_escapes_special_characters_in_the_name(monkeypatc
 
 def test_update_recent_buttons_hides_the_unused_trailing_buttons(monkeypatch):
     view = _make_view()
-    monkeypatch.setattr(welcomescreenview, 'get_abs_data_filename', lambda parts: '/icons/x-translation.png')
+    monkeypatch.setattr(
+        welcomescreenview, 'get_abs_data_filename', lambda parts: '/icons/x-translation.png'
+    )
 
     view.update_recent_buttons(_recent_items(2))
 
@@ -237,6 +262,7 @@ def test_update_recent_buttons_hides_the_unused_trailing_buttons(monkeypatch):
 
 
 # _on_button_clicked() #
+
 
 def test_on_button_clicked_open():
     view = _make_view()

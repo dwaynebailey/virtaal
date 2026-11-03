@@ -8,12 +8,15 @@
 import importlib.util
 import os
 
-PACKAGING_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                             "devsupport", "packaging")
+PACKAGING_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "devsupport", "packaging"
+)
 
 
 def _babel_data():
-    spec = importlib.util.spec_from_file_location("babel_data", os.path.join(PACKAGING_DIR, "babel_data.py"))
+    spec = importlib.util.spec_from_file_location(
+        "babel_data", os.path.join(PACKAGING_DIR, "babel_data.py")
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -41,5 +44,9 @@ def test_trim_drops_only_unused_babel_locale_files(tmp_path):
 
     kept = [dest for dest, _src, _kind in _babel_data().trim(datas, str(tmp_path))]
 
-    assert kept == ["babel/locale-data/de.dat", "babel/locale-data/root.dat",
-                    "babel/global.dat", "share/virtaal/virtaal.ui"]
+    assert kept == [
+        "babel/locale-data/de.dat",
+        "babel/locale-data/root.dat",
+        "babel/global.dat",
+        "share/virtaal/virtaal.ui",
+    ]

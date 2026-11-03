@@ -42,7 +42,9 @@ class ChecksUnitView(BaseView):
         self.lbl_btnchecks = Gtk.Label()
         self.lbl_btnchecks.show()
         self.lbl_btnchecks.set_ellipsize(Pango.EllipsizeMode.END)
-        self.btn_checks = PopupWidgetButton(widget, label=None, popup_pos=POS_SE_NE, main_window=main_window, sticky=True)
+        self.btn_checks = PopupWidgetButton(
+            widget, label=None, popup_pos=POS_SE_NE, main_window=main_window, sticky=True
+        )
         self.btn_checks.set_property('relief', Gtk.ReliefStyle.NONE)
         self.btn_checks.set_update_popup_geometry_func(self.update_geometry)
         self.btn_checks.add(self.lbl_btnchecks)
@@ -98,7 +100,6 @@ class ChecksUnitView(BaseView):
             label.set_line_wrap(True)
             label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
         return label
-
 
     # METHODS #
     def show(self):
@@ -190,12 +191,16 @@ class ChecksUnitView(BaseView):
 
     def _unscrolled_height(self, height):
         """The pop-up's height without a scrollbar's minimum length,
-            which would keep a short list's pop-up looking too tall."""
-        return height - self._scrolled.get_preferred_height()[1] + self.box_checks.get_preferred_height()[1]
+        which would keep a short list's pop-up looking too tall."""
+        return (
+            height
+            - self._scrolled.get_preferred_height()[1]
+            + self.box_checks.get_preferred_height()[1]
+        )
 
     def _limit_descriptions(self, change):
         """Wrap the descriptions change pixels narrower (a negative
-            number). Returns whether that changed their wrapping."""
+        number). Returns whether that changed their wrapping."""
         labels = [desc_label for name_label, desc_label in self.check_rows]
         if not labels:
             return False
@@ -203,7 +208,10 @@ class ChecksUnitView(BaseView):
         # A label's maximum width in characters is measured with these
         # same metrics.
         metrics = labels[0].get_pango_context().get_metrics(None, None)
-        char_width = max(metrics.get_approximate_char_width(), metrics.get_approximate_digit_width()) / Pango.SCALE
+        char_width = (
+            max(metrics.get_approximate_char_width(), metrics.get_approximate_digit_width())
+            / Pango.SCALE
+        )
         chars = max(int((widest + change) / char_width), 10)
         if all(label.get_max_width_chars() == chars for label in labels):
             return False
@@ -217,7 +225,6 @@ class ChecksUnitView(BaseView):
             return 0
         monitor = Gdk.Display.get_default().get_monitor_at_window(window)
         return monitor.get_workarea().y if monitor else 0
-
 
     # EVENT HANDLERS #
     def _on_activated(self, menu_iitem):

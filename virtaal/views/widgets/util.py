@@ -21,6 +21,7 @@ def get_children(widget):
 def get_children_container(widget):
     return widget.get_children()
 
+
 def forall_widgets(f, widget):
     f(widget)
     for child in get_children(widget):

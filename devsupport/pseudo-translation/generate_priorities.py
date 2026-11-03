@@ -47,7 +47,9 @@ HEADER = """\
 
 
 def _resolver():
-    spec = importlib.util.spec_from_file_location("resolve_sources", os.path.join(HERE, "resolve_sources.py"))
+    spec = importlib.util.spec_from_file_location(
+        "resolve_sources", os.path.join(HERE, "resolve_sources.py")
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -55,6 +57,7 @@ def _resolver():
 
 def load_rules(path=RULES):
     import tomllib
+
     with open(path, "rb") as f:
         rules = tomllib.load(f)
     check_rules(rules)
@@ -69,7 +72,9 @@ def check_rules(rules):
     if len(set(orders)) != len(orders):
         raise ValueError("Two priorities have the same order")
     names = rules.get("names", {})
-    used = [rule["priority"] for kind in ("seen", "unseen", "override") for rule in rules.get(kind, [])]
+    used = [
+        rule["priority"] for kind in ("seen", "unseen", "override") for rule in rules.get(kind, [])
+    ]
     used += [names[kind] for kind in ("english", "supported") if kind in names]
     if "wider" in names:
         used.append(names["wider"]["priority"])
@@ -101,9 +106,11 @@ def _key(original):
 
 def sighting_level(rules, screen, window, within):
     for rule in rules.get("seen", []):
-        if all(re.search(rule[field], TAG_RE.sub("", value or ""))
-               for field, value in (("screen", screen), ("window", window), ("within", within))
-               if field in rule):
+        if all(
+            re.search(rule[field], TAG_RE.sub("", value or ""))
+            for field, value in (("screen", screen), ("window", window), ("within", within))
+            if field in rule
+        ):
             return rule["priority"]
     return "3"
 
@@ -117,7 +124,9 @@ def seen_levels(harvests, catalogs, rules):
         for record in harvest["strings"]:
             if not record.get("shown", True):
                 continue
-            level = sighting_level(rules, record["screen"], record.get("window"), record.get("within"))
+            level = sighting_level(
+                rules, record["screen"], record.get("window"), record.get("within")
+            )
             if record.get("tooltip") and "tooltips" in rules:
                 level = max(level, rules["tooltips"]["priority"], key=rank)
             for domain, original in resolve_text(record["text"], catalogs):
@@ -133,10 +142,16 @@ def seen_levels(harvests, catalogs, rules):
 def template_messages(path=TEMPLATE):
     """{key: [source file, ...]} for each message in virtaal.pot."""
     from translate.storage import po
+
     store = po.pofile.parsefile(path)
-    return {unit.getid(): [location.rpartition(":")[0] if location.rpartition(":")[2].isdigit() else location
-                           for location in unit.getlocations()]
-            for unit in store.units if not unit.isheader() and not unit.isobsolete()}
+    return {
+        unit.getid(): [
+            location.rpartition(":")[0] if location.rpartition(":")[2].isdigit() else location
+            for location in unit.getlocations()
+        ]
+        for unit in store.units
+        if not unit.isheader() and not unit.isobsolete()
+    }
 
 
 def read_linguas(path=LINGUAS):
@@ -146,6 +161,7 @@ def read_linguas(path=LINGUAS):
 
 def _catalog_msgids(domain):
     import pycountry
+
     generator = _resolver()._generator()
     path = generator.fullest_catalog([pycountry.LOCALES_DIR], domain)
     return set(generator.read_mo_originals(path)) if path else set()
@@ -161,9 +177,18 @@ def name_msgids(code, languages, countries, families=()):
     from translate.lang import data
 
     from virtaal.support import translate_compat
+
     base = code.split("@")[0].split("_")[0]
-    language = pycountry.languages.get(alpha_2=base) if len(base) == 2 else pycountry.languages.get(alpha_3=base)
-    family = pycountry.language_families.get(alpha_3=base) if language is None and len(base) == 3 else None
+    language = (
+        pycountry.languages.get(alpha_2=base)
+        if len(base) == 2
+        else pycountry.languages.get(alpha_3=base)
+    )
+    family = (
+        pycountry.language_families.get(alpha_3=base)
+        if language is None and len(base) == 3
+        else None
+    )
     candidates = [language.name] if language else []
     name = data.languages.get(code, (None,))[0]
     country = None
@@ -172,9 +197,11 @@ def name_msgids(code, languages, countries, families=()):
         if match and match.group(2) != "macrolanguage":
             name, country = match.groups()
         candidates += [name, translate_compat._fix_language_name(name)]
-    return ([m for m in dict.fromkeys(candidates) if m in languages],
-            country if country in countries else None,
-            family.name if family and family.name in families else None)
+    return (
+        [m for m in dict.fromkeys(candidates) if m in languages],
+        country if country in countries else None,
+        family.name if family and family.name in families else None,
+    )
 
 
 def apply_names(levels, rules, linguas=()):
@@ -183,7 +210,11 @@ def apply_names(levels, rules, linguas=()):
     their variants, and the languages of wider communication. A name
     Virtaal has no catalog entry for is left out (and reported)."""
     names = rules.get("names", {})
-    levels = {domain: dict(keys) for domain, keys in levels.items() if domain not in (LANGUAGES, FAMILIES, COUNTRIES)}
+    levels = {
+        domain: dict(keys)
+        for domain, keys in levels.items()
+        if domain not in (LANGUAGES, FAMILIES, COUNTRIES)
+    }
     language_ids, country_ids = _catalog_msgids(LANGUAGES), _catalog_msgids(COUNTRIES)
     family_ids = _catalog_msgids(FAMILIES)
     languages, families, countries, unnamed = {}, {}, {}, set()
@@ -211,7 +242,10 @@ def apply_names(levels, rules, linguas=()):
     if "english" in names:
         languages["English"] = names["english"]
     for code in sorted(unnamed):
-        print("No pycountry catalog entry names %s, so it's always shown in English" % code, file=sys.stderr)
+        print(
+            "No pycountry catalog entry names %s, so it's always shown in English" % code,
+            file=sys.stderr,
+        )
     if languages:
         levels[LANGUAGES] = languages
     if families:
@@ -237,26 +271,43 @@ def assign(seen, messages, rules, linguas=()):
     for key, files in messages.items():
         if key in virtaal:
             continue
-        virtaal[key] = next((rule["priority"] for rule in rules.get("unseen", [])
-                             if any(re.search(rule["file"], name) for name in files)), "3")
+        virtaal[key] = next(
+            (
+                rule["priority"]
+                for rule in rules.get("unseen", [])
+                if any(re.search(rule["file"], name) for name in files)
+            ),
+            "3",
+        )
     levels["virtaal"] = virtaal
     levels = apply_names(levels, rules, linguas)
-    overrides = {msgid: rule["priority"] for rule in rules.get("override", []) if "domain" not in rule
-                 for msgid in rule["msgids"]}
-    levels = {domain: {key: "x" if is_x(rules, key) else overrides.get(key.rpartition("\x04")[2], level)
-                       for key, level in keys.items()}
-              for domain, keys in levels.items()}
+    overrides = {
+        msgid: rule["priority"]
+        for rule in rules.get("override", [])
+        if "domain" not in rule
+        for msgid in rule["msgids"]
+    }
+    levels = {
+        domain: {
+            key: "x" if is_x(rules, key) else overrides.get(key.rpartition("\x04")[2], level)
+            for key, level in keys.items()
+        }
+        for domain, keys in levels.items()
+    }
     for rule in rules.get("override", []):
         if "domain" in rule:
-            levels.setdefault(rule["domain"], {}).update(dict.fromkeys(rule["msgids"], rule["priority"]))
+            levels.setdefault(rule["domain"], {}).update(
+                dict.fromkeys(rule["msgids"], rule["priority"])
+            )
     return levels
 
 
 def stale_rules(rules, messages):
     """The msgids po/priorities.toml names that virtaal.pot no longer has."""
     msgids = {key.rpartition("\x04")[2] for key in messages}
-    named = rules.get("x", {}).get("msgids", []) + [m for rule in rules.get("override", []) if "domain" not in rule
-                                                    for m in rule["msgids"]]
+    named = rules.get("x", {}).get("msgids", []) + [
+        m for rule in rules.get("override", []) if "domain" not in rule for m in rule["msgids"]
+    ]
     return sorted(m for m in named if m not in msgids)
 
 
@@ -265,15 +316,20 @@ def to_file(levels, pot_date, rules):
         "format": FORMAT,
         "pot-creation-date": pot_date,
         "priorities": definitions(rules),
-        "domains": {domain: {level: sorted(key for key, value in keys.items() if value == level)
-                             for level in priority_order(rules)
-                             if any(value == level for value in keys.values())}
-                    for domain, keys in sorted(levels.items())},
+        "domains": {
+            domain: {
+                level: sorted(key for key, value in keys.items() if value == level)
+                for level in priority_order(rules)
+                if any(value == level for value in keys.values())
+            }
+            for domain, keys in sorted(levels.items())
+        },
     }
 
 
 def write_file(path, data):
     import yaml
+
     with open(path, "w", encoding="utf-8") as f:
         f.write(HEADER)
         yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False, width=4096)
@@ -281,13 +337,16 @@ def write_file(path, data):
 
 def read_file(path):
     import yaml
+
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
 def from_file(data):
-    return {domain: {key: level for level, keys in by_level.items() for key in keys}
-            for domain, by_level in data["domains"].items()}
+    return {
+        domain: {key: level for level, keys in by_level.items() for key in keys}
+        for domain, by_level in data["domains"].items()
+    }
 
 
 def level1_refresh(committed, candidate):
@@ -331,8 +390,11 @@ def _code(text):
 
 
 def _describe(changes, limit=20):
-    lines = ["- %s: %s (%s -> %s)" % (domain, _code(key.replace("\x04", " | ").replace("\n", "\\n")), before, after)
-             for domain, key, before, after in changes[:limit]]
+    lines = [
+        "- %s: %s (%s -> %s)"
+        % (domain, _code(key.replace("\x04", " | ").replace("\n", "\\n")), before, after)
+        for domain, key, before, after in changes[:limit]
+    ]
     if len(changes) > limit:
         lines.append("- ... and %d more" % (len(changes) - limit))
     return lines
@@ -350,33 +412,65 @@ def report(level_one, other, redefined=False):
         lines.append("po/virtaal.priorities.yaml matches what Virtaal shows.")
     if redefined:
         lines += ["The priorities' definitions in po/priorities.toml have changed.", ""]
-        annotations.append("::warning::Priority definitions are out of date - commit the level-1 refresh artifact")
+        annotations.append(
+            "::warning::Priority definitions are out of date - commit the level-1 refresh artifact"
+        )
     if level_one:
-        lines += ["Level 1 is out of date (%s):" % _messages(len(level_one)), ""] + _describe(level_one) + [""]
-        annotations.append("::warning::Level-1 priorities are out of date - commit the level-1 refresh artifact")
+        lines += (
+            ["Level 1 is out of date (%s):" % _messages(len(level_one)), ""]
+            + _describe(level_one)
+            + [""]
+        )
+        annotations.append(
+            "::warning::Level-1 priorities are out of date - commit the level-1 refresh artifact"
+        )
     if other:
-        lines += ["Levels 2 and 3 differ (%s); updated at the next string freeze:" % _messages(len(other)), ""]
+        lines += [
+            "Levels 2 and 3 differ (%s); updated at the next string freeze:"
+            % _messages(len(other)),
+            "",
+        ]
         lines += _describe(other)
-        annotations.append("::notice::%s at a different level 2 or 3 than po/virtaal.priorities.yaml "
-                           "says; updated at the next string freeze" % _messages(len(other)))
+        annotations.append(
+            "::notice::%s at a different level 2 or 3 than po/virtaal.priorities.yaml "
+            "says; updated at the next string freeze" % _messages(len(other))
+        )
     return "\n".join(lines) + "\n", annotations
 
 
 def _pot_date():
     from translate.storage import po
+
     return po.pofile.parsefile(TEMPLATE).parseheader().get("POT-Creation-Date", "")
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("harvests", nargs="+", metavar="HARVEST", help="harvest_sources.py's JSON output")
-    parser.add_argument("--localedir", default=os.path.join(sys.prefix, "share", "locale"),
-                        help="Where the pseudo-source catalogs are (default: sys.prefix/share/locale)")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "harvests", nargs="+", metavar="HARVEST", help="harvest_sources.py's JSON output"
+    )
+    parser.add_argument(
+        "--localedir",
+        default=os.path.join(sys.prefix, "share", "locale"),
+        help="Where the pseudo-source catalogs are (default: sys.prefix/share/locale)",
+    )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--level1-only", action="store_true", help="update only level 1 of the committed file")
-    group.add_argument("--check", action="store_true", help="report how the committed file differs; write nothing")
-    parser.add_argument("--refresh", metavar="PATH", help="with --check, write the level-1 update here")
-    parser.add_argument("--full", metavar="PATH", help="with --check, write the whole file here (for a string freeze)")
+    group.add_argument(
+        "--level1-only", action="store_true", help="update only level 1 of the committed file"
+    )
+    group.add_argument(
+        "--check", action="store_true", help="report how the committed file differs; write nothing"
+    )
+    parser.add_argument(
+        "--refresh", metavar="PATH", help="with --check, write the level-1 update here"
+    )
+    parser.add_argument(
+        "--full",
+        metavar="PATH",
+        help="with --check, write the whole file here (for a string freeze)",
+    )
     args = parser.parse_args()
 
     harvests = []
@@ -396,7 +490,9 @@ def main():
 
     committed_file = read_file(OUTPUT)
     committed = from_file(committed_file)
-    refreshed = to_file(level1_refresh(committed, candidate), committed_file["pot-creation-date"], rules)
+    refreshed = to_file(
+        level1_refresh(committed, candidate), committed_file["pot-creation-date"], rules
+    )
 
     if args.level1_only:
         write_file(OUTPUT, refreshed)

@@ -30,13 +30,18 @@ def _percent(match_data):
     return cell_renderer.properties
 
 
-@pytest.mark.parametrize('lang, expected', [
-    ('en', '75%'),
-    ('fr', '75\u00a0%'),
-    ('tr', '%75'),
-    ('bn_IN', '৭৫%'),
-])
-def test_percent_data_func_shows_the_quality_as_the_ui_language_writes_it(monkeypatch, lang, expected):
+@pytest.mark.parametrize(
+    'lang, expected',
+    [
+        ('en', '75%'),
+        ('fr', '75\u00a0%'),
+        ('tr', '%75'),
+        ('bn_IN', '৭৫%'),
+    ],
+)
+def test_percent_data_func_shows_the_quality_as_the_ui_language_writes_it(
+    monkeypatch, lang, expected
+):
     monkeypatch.setattr(pan_app, 'ui_language', lang)
 
     properties = _percent({'quality': 75, 'source': 'a', 'target': 'b'})
@@ -53,6 +58,7 @@ def test_percent_data_func_shows_a_question_mark_for_a_match_with_no_quality():
 
 # TMSourceColRenderer: no-op when the match has no tmsource to show
 # (e.g. a plain MT suggestion).
+
 
 def test_do_get_size_returns_zero_without_a_tm_source():
     renderer = TMSourceColRenderer(view=None)
@@ -71,6 +77,7 @@ def test_do_render_does_nothing_without_a_tm_source():
 # update_geometry(): real widgets, real positions - translate/virtaal#1366
 # (a unit rendered near the bottom of the screen could push the popup
 # off-screen, or, once clamped, over the widget it's anchored to).
+
 
 def _process_events():
     while Gtk.events_pending():
@@ -123,7 +130,9 @@ def _make_source_and_target(position, height=WINDOW_HEIGHT, comment=None):
 
 def _workarea_origin(widget):
     display = Gdk.Display.get_default()
-    workarea = display.get_monitor_at_window(widget.get_window(Gtk.TextWindowType.WIDGET)).get_workarea()
+    workarea = display.get_monitor_at_window(
+        widget.get_window(Gtk.TextWindowType.WIDGET)
+    ).get_workarea()
     return workarea.x + 10, workarea.y + 10
 
 
@@ -143,17 +152,25 @@ def _bottom(textview):
 
 def _fake_view():
     """Just enough of a TMView for the match renderer to size real rows."""
-    lang = SimpleNamespace(source_lang=SimpleNamespace(code='en'), target_lang=SimpleNamespace(code='af'))
+    lang = SimpleNamespace(
+        source_lang=SimpleNamespace(code='en'), target_lang=SimpleNamespace(code='af')
+    )
     return SimpleNamespace(
         get_target_width=lambda: 400,
-        controller=SimpleNamespace(main_controller=SimpleNamespace(lang_controller=lang)))
+        controller=SimpleNamespace(main_controller=SimpleNamespace(lang_controller=lang)),
+    )
 
 
 def _make_tmwindow_with_matches(n=1, show=True):
     tmwindow = TMWindow(_fake_view())
     for i in range(n):
-        match = {'quality': 90 - i, 'tmsource': 'Current file', 'query_str': 'query',
-                 'source': f'source text {i}', 'target': f'target text {i}'}
+        match = {
+            'quality': 90 - i,
+            'tmsource': 'Current file',
+            'query_str': 'query',
+            'source': f'source text {i}',
+            'target': f'target text {i}',
+        }
         tmwindow.liststore.append([match, f'match {i}'])
     tmwindow.treeview.columns_autosize()
     if show:
@@ -254,6 +271,7 @@ def test_update_geometry_flips_above_the_source_when_there_is_no_room_below():
 # Too many matches to fit above or below a unit in a short window: the
 # popup must shrink rather than cover the unit.
 
+
 def test_update_geometry_shrinks_above_when_neither_side_fits():
     window, source, target = _make_source_and_target('bottom', height=250)
     tmwindow = _make_tmwindow_with_matches(n=20)
@@ -333,8 +351,18 @@ def test_update_geometry_shrinks_back_when_the_target_narrows():
     window, _source, target = _make_source_and_target('top')
     tmwindow = TMWindow(_fake_view())
     tmwindow.view.get_target_width = lambda: target.get_parent().get_allocation().width
-    tmwindow.liststore.append([{'quality': 90, 'tmsource': 'Current file', 'query_str': 'query',
-                                'source': 'source text', 'target': 'target text'}, 'match'])
+    tmwindow.liststore.append(
+        [
+            {
+                'quality': 90,
+                'tmsource': 'Current file',
+                'query_str': 'query',
+                'source': 'source text',
+                'target': 'target text',
+            },
+            'match',
+        ]
+    )
     tmwindow.show_all()
     _process_events()
 
@@ -396,8 +424,11 @@ def test_update_geometry_keeps_to_the_monitor_without_the_windows_frame(monkeypa
     _process_events()
 
     top, bottom = _popup_span(tmwindow)
-    workarea = Gdk.Display.get_default().get_monitor_at_window(
-        target.get_window(Gtk.TextWindowType.WIDGET)).get_workarea()
+    workarea = (
+        Gdk.Display.get_default()
+        .get_monitor_at_window(target.get_window(Gtk.TextWindowType.WIDGET))
+        .get_workarea()
+    )
     assert top >= _bottom(target)
     assert bottom <= workarea.y + workarea.height
     tmwindow.destroy()
@@ -406,7 +437,8 @@ def test_update_geometry_keeps_to_the_monitor_without_the_windows_frame(monkeypa
 
 def _drawn_pixels(renderer, widget):
     """The pixels C{renderer} draws for its matchdata in a realized view
-        like C{widget}, beyond those of a row it draws nothing for."""
+    like C{widget}, beyond those of a row it draws nothing for."""
+
     def render(matchdata):
         liststore = Gtk.ListStore(GObject.TYPE_PYOBJECT)
         liststore.append([matchdata])
@@ -422,6 +454,7 @@ def _drawn_pixels(renderer, widget):
         pixels = window.get_pixbuf().get_pixels()
         window.destroy()
         return pixels
+
     matchdata = renderer.matchdata
     blank = render({'source': '', 'target': '', 'query_str': '', 'quality': 0})
     drawn = render(matchdata)
@@ -454,7 +487,10 @@ def test_tm_source_with_markup_characters_is_shown():
 
 def _match_renderer(**match):
     renderer = TMMatchRenderer(_fake_view())
-    renderer.matchdata = dict({'quality': 90, 'query_str': 'query', 'source': 'source text', 'target': 'target text'}, **match)
+    renderer.matchdata = dict(
+        {'quality': 90, 'query_str': 'query', 'source': 'source text', 'target': 'target text'},
+        **match,
+    )
     return renderer
 
 

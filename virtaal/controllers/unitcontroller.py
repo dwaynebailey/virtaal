@@ -24,9 +24,9 @@ def _filled_forms(unit):
 
 def _partial_state(unit):
     """The state for a plural with only some forms translated: the
-        format's lowest state between untranslated and translated, or
-        None if it has none. Without fuzzy, PO counts it translated and
-        msgfmt compiles the empty forms as blank strings."""
+    format's lowest state between untranslated and translated, or
+    None if it has none. Without fuzzy, PO counts it translated and
+    msgfmt compiles the empty forms as blank strings."""
     states = [s for s in unit.STATE if workflow.StateEnum.EMPTY < s < workflow.StateEnum.UNREVIEWED]
     return min(states) if states else None
 
@@ -38,7 +38,11 @@ class UnitController(BaseController):
     __gsignals__ = {
         'unit-done': (SignalFlags.RUN_FIRST, None, (object, int)),
         'unit-modified': (SignalFlags.RUN_FIRST, None, (object,)),
-        'unit-delete-text': (SignalFlags.RUN_FIRST, None, (object, object, object, int, int, object, int)),
+        'unit-delete-text': (
+            SignalFlags.RUN_FIRST,
+            None,
+            (object, object, object, int, int, object, int),
+        ),
         'unit-insert-text': (SignalFlags.RUN_FIRST, None, (object, object, int, object, int)),
         'unit-paste-start': (SignalFlags.RUN_FIRST, None, (object, object, object, int)),
     }
@@ -57,6 +61,7 @@ class UnitController(BaseController):
         self.checks_controller = None
 
         from virtaal.views.unitview import UnitView
+
         self.view = UnitView(self)
         self.view.connect('delete-text', self._unit_delete_text)
         self.view.connect('insert-text', self._unit_insert_text)
@@ -72,7 +77,6 @@ class UnitController(BaseController):
         self._unit_state_names = {}
         self._state_timer_active = False
 
-
     # ACCESSORS #
     def get_unit_target(self, target_index):
         return self.view.get_target_n(target_index)
@@ -80,18 +84,17 @@ class UnitController(BaseController):
     def set_unit_target(self, target_index, value, cursor_pos=-1):
         self.view.set_target_n(target_index, value, cursor_pos)
 
-
     # METHODS #
     def get_unit_state_names(self, unit=None):
         self._unit_state_names = {
-            #FIXME: choose friendly names
+            # FIXME: choose friendly names
             workflow.StateEnum.EMPTY: _('Untranslated'),
             workflow.StateEnum.NEEDS_WORK: _('Needs work'),
             workflow.StateEnum.REJECTED: _('Rejected'),
             workflow.StateEnum.NEEDS_REVIEW: _('Needs review'),
             workflow.StateEnum.UNREVIEWED: _('Translated'),
             workflow.StateEnum.FINAL: _('Reviewed'),
-            }
+        }
         return self._unit_state_names
 
     def set_current_state(self, newstate, from_user=False):
@@ -119,8 +122,8 @@ class UnitController(BaseController):
 
     def restore_state(self, state, sticky):
         """Reapply a state/stickiness pair from an undo/redo of a
-            deliberate set_current_state(from_user=True) - unlike that
-            method, never records another undo-able act."""
+        deliberate set_current_state(from_user=True) - unlike that
+        method, never records another undo-able act."""
         self.current_unit._current_state = state
         self.current_unit._state_sticky = sticky
         # Leaving the unit only commits its state when it's modified.
@@ -157,14 +160,23 @@ class UnitController(BaseController):
 
         if state_names:
             unit._workflow.reset(unit, init_state=state_names[state_id])
-            #XXX: we should make 100% sure that .reset() doesn't actually call
+            # XXX: we should make 100% sure that .reset() doesn't actually call
             # a set method in the unit, since it might cause a diff or loss of
             # meta-data.
         self.view.load_unit(unit)
         return self.view
 
     def _unit_delete_text(self, unitview, deleted, parent, offset, cursor_pos, elem, target_num):
-        self.emit('unit-delete-text', self.current_unit, deleted, parent, offset, cursor_pos, elem, target_num)
+        self.emit(
+            'unit-delete-text',
+            self.current_unit,
+            deleted,
+            parent,
+            offset,
+            cursor_pos,
+            elem,
+            target_num,
+        )
 
     def _unit_insert_text(self, unitview, ins_text, offset, elem, target_num):
         self.emit('unit-insert-text', self.current_unit, ins_text, offset, elem, target_num)
@@ -180,7 +192,11 @@ class UnitController(BaseController):
 
     def _unit_done(self, widget, unit):
         if unit._modified and unit.STATE:
-            if _filled_forms(unit)[0] and unit._current_state == workflow.StateEnum.EMPTY and not unit._state_sticky:
+            if (
+                _filled_forms(unit)[0]
+                and unit._current_state == workflow.StateEnum.EMPTY
+                and not unit._state_sticky
+            ):
                 # Oops! The user entered a translation, but the timer didn't
                 # expire yet, so let's mark it fuzzy to be safe. We don't know
                 # exactly what kind of fuzzy the format supports, so let's use
@@ -243,7 +259,7 @@ class UnitController(BaseController):
 
     def finish_current_unit(self):
         """Finish the current unit and load it again, as moving to another
-            unit and back would - for a move that lands on the same unit."""
+        unit and back would - for a move that lands on the same unit."""
         unit = self.current_unit
         if unit is None:
             return
@@ -261,8 +277,12 @@ class UnitController(BaseController):
     # EVENT HANDLERS #
     def _on_controller_registered(self, main_controller, controller):
         if controller is main_controller.lang_controller:
-            self.main_controller.lang_controller.connect('source-lang-changed', self._on_language_changed)
-            self.main_controller.lang_controller.connect('target-lang-changed', self._on_language_changed)
+            self.main_controller.lang_controller.connect(
+                'source-lang-changed', self._on_language_changed
+            )
+            self.main_controller.lang_controller.connect(
+                'target-lang-changed', self._on_language_changed
+            )
         elif controller is main_controller.checks_controller:
             self.checks_controller = controller
         elif controller is main_controller.placeables_controller:
@@ -280,24 +300,26 @@ class UnitController(BaseController):
 
     def _on_parsers_changed(self, placeables_controller):
         if self.current_unit:
-            self.current_unit.rich_source = placeables_controller.apply_parsers(self.current_unit.rich_source)
+            self.current_unit.rich_source = placeables_controller.apply_parsers(
+                self.current_unit.rich_source
+            )
 
     def _on_store_loaded(self, store_controller):
         """Call C{_on_language_changed()} and set flag to recreate workflow.
 
-            If the target language loaded at start-up (from config) is the same
-            as that of the first opened file, C{self.view.update_languages()} is
-            not called, because the L{LangController}'s C{"target-lang-changed"}
-            signal is never emitted, because the language has not really
-            changed.
+        If the target language loaded at start-up (from config) is the same
+        as that of the first opened file, C{self.view.update_languages()} is
+        not called, because the L{LangController}'s C{"target-lang-changed"}
+        signal is never emitted, because the language has not really
+        changed.
 
-            This event handler ensures that it is loaded. As a side-effect,
-            C{self.view.update_languages()} is called twice if language before
-            and after a store load is different. But we'll just have to live
-            with that."""
+        This event handler ensures that it is loaded. As a side-effect,
+        C{self.view.update_languages()} is called twice if language before
+        and after a store load is different. But we'll just have to live
+        with that."""
         self._on_language_changed(
             self.main_controller.lang_controller,
-            self.main_controller.lang_controller.target_lang.code
+            self.main_controller.lang_controller.target_lang.code,
         )
         self._recreate_workflow = True
 

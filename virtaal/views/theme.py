@@ -26,7 +26,7 @@ theme or not, can inspect this to know.
 def rgba_to_str(c: Gdk.RGBA):
     s = ["#"]
     for f in c.to_color().to_floats():
-        s.append("%x" % int(f*255))
+        s.append("%x" % int(f * 255))
     return "".join(s)
 
 
@@ -38,8 +38,8 @@ def str_to_rgba(s):
 
 def set_widget_fg_color(widget, color):
     """Apply a foreground colour (any CSS colour string) to a widget -
-        Gtk.Widget.modify_fg() and Gdk.color_parse() are both
-        deprecated."""
+    Gtk.Widget.modify_fg() and Gdk.color_parse() are both
+    deprecated."""
     provider = Gtk.CssProvider()
     provider.load_from_data(('* { color: %s; }' % color).encode())
     widget.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -47,25 +47,27 @@ def set_widget_fg_color(widget, color):
 
 def set_widget_bg_color(widget, color):
     """Apply a background colour (any CSS colour string) to a widget -
-        Gtk.Widget.modify_bg() and Gdk.color_parse() are both
-        deprecated. background-image: none is needed too - some
-        widgets (Gtk.Entry, confirmed live) keep their theme's own
-        background-image layered on top of a background-color-only
-        override otherwise."""
+    Gtk.Widget.modify_bg() and Gdk.color_parse() are both
+    deprecated. background-image: none is needed too - some
+    widgets (Gtk.Entry, confirmed live) keep their theme's own
+    background-image layered on top of a background-color-only
+    override otherwise."""
     provider = Gtk.CssProvider()
-    provider.load_from_data(('* { background-color: %s; background-image: none; }' % color).encode())
+    provider.load_from_data(
+        ('* { background-color: %s; background-image: none; }' % color).encode()
+    )
     widget.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
 
 _default_theme = {
     # Generic styling for a URL
-    'url_fg': '#0000ff',   # Adwaita: #1b6acb
+    'url_fg': '#0000ff',  # Adwaita: #1b6acb
     'subtle_fg': 'darkgrey',
     # Colours for the selected placeable (not affected by its type)
     'selected_placeable_fg': '#000000',
     'selected_placeable_bg': '#90ee90',
     # Red warning foreground colour for things like XML markup
-    'markup_warning_fg': '#8b0000', #darkred/#8b0000
+    'markup_warning_fg': '#8b0000',  # darkred/#8b0000
     'ph_placeable_bg': '#f7f7f7',
     # warning background for things like no search result
     'warning_bg': '#f66',
@@ -120,7 +122,7 @@ def state_style(state_n):
 
 def unit_style(unit):
     """The style for C{unit}'s saved state. A format without workflow
-        states is styled as needing work when it's fuzzy."""
+    states is styled as needing work when it's fuzzy."""
     if unit.STATE:
         return state_style(unit.get_state_n())
     return state_style(StateEnum.NEEDS_WORK) if unit.isfuzzy() else {}
@@ -132,11 +134,13 @@ def set_default():
     INVERSE = False
     current_theme.update(_default_theme)
 
+
 def set_inverse():
     global INVERSE
     global current_theme
     INVERSE = True
     current_theme.update(_inverse_theme)
+
 
 def is_inverse(fg, bg):
     """Takes a guess at whether the given foreground and background colours
@@ -150,6 +154,7 @@ def is_inverse(fg, bg):
         return True
     else:
         return False
+
 
 def update_style(widget):
     _style = widget.get_style_context()
@@ -169,8 +174,14 @@ def update_style(widget):
     # On some themes (notably Windows XP with classic style), a highlight
     # background colour can be almost identical to the page background. So we
     # fall back to something that is supposed to be different, but not much.
-    for key in ('diff_delete_bg', 'diff_insert_bg', 'diff_replace_bg',
-                'fuzzy_row_bg', 'warning_bg', 'context_gap'):
+    for key in (
+        'diff_delete_bg',
+        'diff_insert_bg',
+        'diff_replace_bg',
+        'fuzzy_row_bg',
+        'warning_bg',
+        'context_gap',
+    ):
         current_theme[key] = _distinguishable_from(bg, fg, current_theme[key])
 
     url_fg = rgba_to_str(_style.get_color(Gtk.StateFlags.LINK))
@@ -183,6 +194,7 @@ def update_style(widget):
 # TODO: Might be a bit newer/better, so we should consider updating the code:
 #      http://www.w3.org/TR/WCAG20/Overview.html
 
+
 def _luminance(c):
     c = str_to_rgba(c)
     r = pow(c.red, 2.2)
@@ -190,17 +202,20 @@ def _luminance(c):
     b = pow(c.blue, 2.2)
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
+
 def _luminance_contrast_ratio(c1, c2):
     l1 = _luminance(c1)
     l2 = _luminance(c2)
     l1, l2 = max(l1, l2), min(l1, l2)
     return (l1 + 0.05) / (l2 + 0.05)
 
+
 def has_good_contrast(c1, c2):
     """Takes a guess at whether the two given colours are in good contrast to
     each other (for example, to be able to be used together as foreground and
     background colour)."""
     return _luminance_contrast_ratio(c1, c2) >= 4.5
+
 
 def has_reasonable_contrast(c1, c2):
     """Similarly to has_good_contrast() this says whether the two given

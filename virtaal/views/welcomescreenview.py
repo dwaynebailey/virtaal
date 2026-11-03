@@ -22,7 +22,9 @@ class WelcomeScreenView(BaseView):
     # INITIALIZERS #
     def __init__(self, controller):
         self.controller = controller
-        gui = self.load_builder_file(["virtaal", "virtaal.ui"], root='WelcomeScreen', domain="virtaal")
+        gui = self.load_builder_file(
+            ["virtaal", "virtaal.ui"], root='WelcomeScreen', domain="virtaal"
+        )
         self.widget = WelcomeScreen(gui)
         self.parent_widget = self.controller.main_controller.view.gui.get_object('vbox_main')
 
@@ -32,13 +34,18 @@ class WelcomeScreenView(BaseView):
 
     def set_banner(self):
         if ui_language == "ar":
-            self.widget.set_banner_image(get_abs_data_filename(['virtaal', 'welcome_screen_banner_ar.png']))
+            self.widget.set_banner_image(
+                get_abs_data_filename(['virtaal', 'welcome_screen_banner_ar.png'])
+            )
             return
         if self.widget.get_direction() == Gtk.TextDirection.RTL:
-            self.widget.set_banner_image(get_abs_data_filename(['virtaal', 'welcome_screen_banner_rtl.png']))
+            self.widget.set_banner_image(
+                get_abs_data_filename(['virtaal', 'welcome_screen_banner_rtl.png'])
+            )
         else:
-            self.widget.set_banner_image(get_abs_data_filename(['virtaal', 'welcome_screen_banner.png']))
-
+            self.widget.set_banner_image(
+                get_abs_data_filename(['virtaal', 'welcome_screen_banner.png'])
+            )
 
     # METHODS #
     def hide(self):
@@ -84,6 +91,7 @@ class WelcomeScreenView(BaseView):
                 width = int(maxwidth)
 
             txt.set_size_request(width, -1)
+
         GLib.idle_add(calculate_width)
 
     def update_recent_buttons(self, items):
@@ -94,7 +102,8 @@ class WelcomeScreenView(BaseView):
             self.widget.gui.get_object("frame_recent").show_all()
 
         buttons = [
-            self.widget.widgets['buttons']['recent' + str(i)] for i in range(1, self.controller.MAX_RECENT+1)
+            self.widget.widgets['buttons']['recent' + str(i)]
+            for i in range(1, self.controller.MAX_RECENT + 1)
         ]
         markup = '<span underline="single">%(name)s</span>'
 
@@ -112,14 +121,13 @@ class WelcomeScreenView(BaseView):
         for i in range(len(items), 5):
             buttons[i].props.visible = False
 
-
     # EVENT HANDLERS #
     def _on_button_clicked(self, button, name):
         """This method basically delegates button clicks to controller actions."""
         if name == 'open':
             self.controller.open_file()
         elif name.startswith('recent'):
-            n = int(name[len('recent'):])
+            n = int(name[len('recent') :])
             self.controller.open_recent(n)
         elif name == 'tutorial':
             self.controller.open_tutorial()

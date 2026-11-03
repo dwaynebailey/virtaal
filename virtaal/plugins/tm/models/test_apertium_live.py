@@ -21,7 +21,8 @@ from virtaal.plugins.tm.models.test_amagama import _fake_controller
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('VIRTAAL_LIVE_SERVICES') != '1',
-    reason="set VIRTAAL_LIVE_SERVICES=1 to query the live Apertium service")
+    reason="set VIRTAAL_LIVE_SERVICES=1 to query the live Apertium service",
+)
 
 
 def _run_until(condition, seconds):
@@ -32,6 +33,7 @@ def _run_until(condition, seconds):
             loop.quit()
             return False
         return True
+
     GLib.timeout_add(200, poll)
     GLib.timeout_add_seconds(seconds, loop.quit)
     loop.run()
@@ -40,19 +42,24 @@ def _run_until(condition, seconds):
 @pytest.fixture(scope='module')
 def model(tmp_path_factory):
     from unittest import mock
+
     config_dir = str(tmp_path_factory.mktemp('config'))
     with mock.patch('virtaal.common.pan_app.get_config_dir', lambda: config_dir):
         from virtaal.plugins.tm.models.apertium import TMModel
+
         model = TMModel('apertium', _fake_controller())
         _run_until(lambda: model.language_pairs, 30)
     assert model.language_pairs, 'no language pairs from %s within 30 s' % model.url_getpairs
     return model
 
 
-@pytest.mark.parametrize('source, target, expected', [
-    ('en', 'ca', 'La casa és gran.'),
-    ('en', 'ca@valencia', None),
-])
+@pytest.mark.parametrize(
+    'source, target, expected',
+    [
+        ('en', 'ca', 'La casa és gran.'),
+        ('en', 'ca@valencia', None),
+    ],
+)
 def test_translates_with_virtaal_codes(model, source, target, expected):
     model.source_lang, model.target_lang = source, target
     model.cache = {}
@@ -75,6 +82,7 @@ def _virtaal_code(apy_code):
     """The code a Virtaal user would use for an APY code: two-letter
     where one exists, a region as _XX, anything else as @variant."""
     from virtaal.plugins.tm.models.apertium import APY_LANGUAGES
+
     for virtaal, apy in APY_LANGUAGES.items():
         if apy == apy_code:
             return virtaal
@@ -90,14 +98,19 @@ def _virtaal_code(apy_code):
 
 def test_every_listed_language_is_reachable(model):
     from virtaal.plugins.tm.models.apertium import apy_codes
+
     listed = sorted({code for pair in model.language_pairs for code in pair})
-    unreachable = ['%s (from %s: %s)' % (code, _virtaal_code(code), apy_codes(_virtaal_code(code)))
-                   for code in listed if code not in apy_codes(_virtaal_code(code))]
+    unreachable = [
+        '%s (from %s: %s)' % (code, _virtaal_code(code), apy_codes(_virtaal_code(code)))
+        for code in listed
+        if code not in apy_codes(_virtaal_code(code))
+    ]
     assert not unreachable, 'APY codes no Virtaal code reaches:\n' + '\n'.join(unreachable)
 
 
 def test_every_override_is_still_listed(model):
     from virtaal.plugins.tm.models.apertium import APY_LANGUAGES
+
     listed = {code for pair in model.language_pairs for code in pair}
     gone = {virtaal: apy for virtaal, apy in APY_LANGUAGES.items() if apy not in listed}
     assert not gone, 'APY_LANGUAGES entries APY no longer lists: %s' % gone

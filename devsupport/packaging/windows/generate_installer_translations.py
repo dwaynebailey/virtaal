@@ -82,8 +82,20 @@ INNO_LANGUAGES = {
 
 # po/LINGUAS codes whose installer stays in English.
 NO_INNO_LANGUAGE = {
-    "ak", "am", "cgg", "en_ZA", "ff", "fo", "lg", "nso", "pa", "son",  # codespell:ignore fo
-    "st", "sw", "te", "zu",  # codespell:ignore te
+    "ak",
+    "am",
+    "cgg",
+    "en_ZA",
+    "ff",
+    "fo",  # codespell:ignore fo
+    "lg",
+    "nso",
+    "pa",
+    "son",
+    "st",
+    "sw",
+    "te",  # codespell:ignore te
+    "zu",
     # Inno's Occitan.isl is Aranese, not the Occitan oc.po is in.
     "oc",
 }
@@ -115,7 +127,9 @@ def read_linguas():
 
 
 def installer_languages(linguas):
-    unmapped = [code for code in linguas if code not in INNO_LANGUAGES and code not in NO_INNO_LANGUAGE]
+    unmapped = [
+        code for code in linguas if code not in INNO_LANGUAGES and code not in NO_INNO_LANGUAGE
+    ]
     if unmapped:
         raise ValueError(
             "po/LINGUAS codes with no installer language decision: %s - add each to "
@@ -140,7 +154,9 @@ def translated_messages(po_code):
 def build_languages(po_codes):
     lines = ["[Languages]", 'Name: "english"; MessagesFile: "compiler:Default.isl"']
     for code in po_codes:
-        lines.append(f'Name: "{inno_name(code)}"; MessagesFile: "languages\\{INNO_LANGUAGES[code]}"')
+        lines.append(
+            f'Name: "{inno_name(code)}"; MessagesFile: "languages\\{INNO_LANGUAGES[code]}"'
+        )
     return lines
 
 

@@ -57,6 +57,7 @@ def _controller():
 
 # destroy() #
 
+
 def test_destroy_with_nothing_open_is_a_noop():
     controller = _controller()
     controller.destroy()  # must not raise
@@ -78,6 +79,7 @@ def test_destroy_deletes_the_project():
 
 
 # get_nplurals() #
+
 
 def test_get_nplurals_uses_own_store_by_default():
     controller = _controller()
@@ -101,6 +103,7 @@ def test_get_nplurals_is_zero_without_a_store():
 
 # get_bundle_filename() #
 
+
 def test_get_bundle_filename_for_a_real_bundle():
     controller = _controller()
     controller.project = SimpleNamespace(store=_fake_bundle("bundle.zip"))
@@ -115,6 +118,7 @@ def test_get_bundle_filename_without_a_project():
 
 
 # get_store_filename() #
+
 
 def test_get_store_filename_empty_without_a_store():
     controller = _controller()
@@ -141,6 +145,7 @@ def test_get_store_filename_for_a_bundle():
 
 
 # get_store_checker()/get_store_stats()/get_store_checks() #
+
 
 def test_get_store_checker_raises_without_a_store():
     controller = _controller()
@@ -183,6 +188,7 @@ def test_get_store_checks_returns_the_store_checks():
 
 # get_unit_celleditor() #
 
+
 def test_get_unit_celleditor_delegates_to_the_unit_controller():
     controller = _controller()
     unit = object()
@@ -192,6 +198,7 @@ def test_get_unit_celleditor_delegates_to_the_unit_controller():
 
 
 # is_modified()/set_modified() #
+
 
 def test_is_modified_reflects_the_flag():
     controller = _controller()
@@ -213,16 +220,22 @@ def test_set_modified_updates_flag_and_saveable():
 
 # unit_controller property #
 
+
 def test_unit_controller_setter_connects_without_a_previous_one():
     controller = _controller()
     controller._unit_controller = None
     connected = []
-    new_unitcontroller = SimpleNamespace(connect=lambda sig, cb: connected.append((sig, cb)) or 'handler-1')
+    new_unitcontroller = SimpleNamespace(
+        connect=lambda sig, cb: connected.append((sig, cb)) or 'handler-1'
+    )
 
     controller.unit_controller = new_unitcontroller
 
     assert controller._unit_controller is new_unitcontroller
-    assert connected == [('unit-modified', controller._unit_modified), ('unit-done', controller._unit_done)]
+    assert connected == [
+        ('unit-modified', controller._unit_modified),
+        ('unit-done', controller._unit_done),
+    ]
     assert controller.handler_ids['unitview.unit-modified'] == 'handler-1'
 
 
@@ -243,6 +256,7 @@ def test_unit_controller_setter_disconnects_the_previous_one():
 
 
 # select_unit() #
+
 
 def test_select_unit_is_a_noop_when_already_selected():
     controller = _controller()
@@ -292,6 +306,7 @@ def test_select_unit_defaults_to_index_zero_when_not_found():
 
 # close_file() #
 
+
 def test_close_file_resets_state_and_emits_store_closed():
     controller = _controller()
     controller.project = object()
@@ -324,6 +339,7 @@ def test_close_file_resets_state_and_emits_store_closed():
 # open_file() - plain (non-bundle, non-converter-format) path #
 # The .zip/converter-format branches aren't covered here: translate-toolkit
 # dropped the modules the .zip branch needs entirely (translate/virtaal#3632).
+
 
 def _open_file_controller(monkeypatch, units):
     monkeypatch.setattr(
@@ -392,7 +408,9 @@ def test_open_file_forces_saveas_and_renames_a_pot_template(monkeypatch):
     assert controller.read_only_notice_calls == ['hidden']
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="os.chmod doesn't model POSIX write permission on Windows")
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="os.chmod doesn't model POSIX write permission on Windows"
+)
 def test_open_file_forces_saveas_and_shows_notice_for_a_readonly_file(monkeypatch, tmp_path):
     unit = object()
     controller = _open_file_controller(monkeypatch, units=[unit])
@@ -419,6 +437,7 @@ def test_open_file_strips_the_directory_when_forced_saveas_and_forget_dir(monkey
 
 # open_file() - bundle (.zip) path #
 
+
 class _FakeProject:
     """A stand-in for virtaal.support.project.Project - constructed the
     same way _open_bundle() builds the real one."""
@@ -436,6 +455,7 @@ class _FakeProject:
 def _patch_project(monkeypatch, store):
     import virtaal.support.bundleprojstore as bundleprojstore
     import virtaal.support.project as project
+
     monkeypatch.setattr(bundleprojstore, 'BundleProjectStore', lambda filename: store)
     monkeypatch.setattr(project, 'Project', _FakeProject)
     return bundleprojstore
@@ -483,6 +503,7 @@ def test_revert_file_reopens_the_current_store_filename():
 
 # save_file() - plain (non-project) path #
 
+
 def test_save_file_plain_saves_and_marks_clean():
     controller = _controller()
     controller.project = None
@@ -515,12 +536,15 @@ def test_save_file_plain_saves_and_marks_clean():
 
 # save_file() - project path #
 
+
 def test_save_file_project_opens_the_real_file_in_binary_mode(tmp_path):
     real_file = tmp_path / 'source.po'
-    real_file.write_bytes((
-        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
-        '\nmsgid "coffee"\nmsgstr "café ☕"\n'
-    ).encode())
+    real_file.write_bytes(
+        (
+            'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
+            '\nmsgid "coffee"\nmsgstr "café ☕"\n'
+        ).encode()
+    )
 
     controller = _controller()
     controller.project = SimpleNamespace(
@@ -550,6 +574,7 @@ def test_save_file_project_opens_the_real_file_in_binary_mode(tmp_path):
 
 # binary_export() #
 
+
 def test_binary_export_writes_the_compiled_store(monkeypatch, tmp_path):
     calls = []
 
@@ -571,6 +596,7 @@ def test_binary_export_writes_the_compiled_store(monkeypatch, tmp_path):
 
 
 # update_file() #
+
 
 def test_update_file_opens_a_new_file_when_none_is_open():
     controller = _controller()
@@ -625,7 +651,9 @@ def test_update_file_refuses_a_template_with_nothing_to_translate(tmp_path):
     template = tmp_path / "empty.pot"
     template.write_text('msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n')
     controller = _controller()
-    store = controller.store = SimpleNamespace(update_file=lambda filename: pytest.fail("store updated"))
+    store = controller.store = SimpleNamespace(
+        update_file=lambda filename: pytest.fail("store updated")
+    )
     controller._view = SimpleNamespace(load_store=lambda store: pytest.fail("view cleared"))
 
     with pytest.raises(ValueError, match='nothing to translate'):
@@ -635,6 +663,7 @@ def test_update_file_refuses_a_template_with_nothing_to_translate(tmp_path):
 
 
 # update_store_checks() #
+
 
 def test_update_store_checks_raises_without_a_store():
     controller = _controller()
@@ -655,25 +684,32 @@ def test_update_store_checks_delegates_to_the_store():
 
 # compare_stats() #
 
+
 def test_compare_stats_shows_before_and_after_counts():
     # A dismissable notice, not a blocking modal (#3808).
     controller = _controller()
     shown = []
     controller.main_controller = SimpleNamespace(
-        show_template_update_notice=lambda title, before, after: shown.append((title, before, after)))
+        show_template_update_notice=lambda title, before, after: shown.append(
+            (title, before, after)
+        )
+    )
     oldstats = {'translated': [1], 'fuzzy': [1, 2], 'untranslated': []}
     newstats = {'translated': [1, 2, 3], 'fuzzy': [], 'untranslated': [1]}
 
     controller.compare_stats(oldstats, newstats)
 
-    assert shown == [(
-        "File Updated",
-        {'translated': 1, 'fuzzy': 2, 'untranslated': 0, 'total': 3},
-        {'translated': 3, 'fuzzy': 0, 'untranslated': 1, 'total': 4},
-    )]
+    assert shown == [
+        (
+            "File Updated",
+            {'translated': 1, 'fuzzy': 2, 'untranslated': 0, 'total': 3},
+            {'translated': 3, 'fuzzy': 0, 'untranslated': 1, 'total': 4},
+        )
+    ]
 
 
 # event handlers #
+
 
 def test_on_controller_registered_wires_up_lang_signals():
     controller = _controller()
@@ -691,7 +727,9 @@ def test_on_controller_registered_wires_up_lang_signals():
             pass
 
     main_controller = _MainController()
-    main_controller.lang_controller.connect = lambda sig, cb: main_controller.lang_controller.connections.append((sig, cb))
+    main_controller.lang_controller.connect = lambda sig, cb: (
+        main_controller.lang_controller.connections.append((sig, cb))
+    )
     controller._controller_register_id = 'reg-id'
 
     controller._on_controller_registered(main_controller, main_controller.lang_controller)
@@ -717,7 +755,9 @@ def test_on_controller_registered_stays_connected_until_the_checks_controller():
     controller._on_controller_registered(main_controller, main_controller.lang_controller)
     assert disconnected == []
 
-    main_controller.checks_controller = SimpleNamespace(connect=lambda sig, cb: connections.append((sig, cb)))
+    main_controller.checks_controller = SimpleNamespace(
+        connect=lambda sig, cb: connections.append((sig, cb))
+    )
     controller._on_controller_registered(main_controller, main_controller.checks_controller)
 
     assert connections == [('unit-checked', controller._on_unit_checked)]
@@ -761,8 +801,9 @@ def _lang_controller(changed):
     controller = _controller()
     modified = []
     controller.set_modified = modified.append
-    controller.store = SimpleNamespace(set_source_language=lambda code: changed,
-                                       set_target_language=lambda code: changed)
+    controller.store = SimpleNamespace(
+        set_source_language=lambda code: changed, set_target_language=lambda code: changed
+    )
     return controller, modified
 
 
@@ -798,6 +839,7 @@ def test_filling_in_a_files_languages_on_open_does_not_mark_it_modified(handler)
 
 # _unit_modified() #
 
+
 def test_unit_modified_ignores_a_signal_with_no_store_open():
     controller = _controller()
     controller.store = None
@@ -829,6 +871,7 @@ def test_unit_modified_marks_the_store_modified():
 
 
 # _unit_done() #
+
 
 class _StatsStore:
     def __init__(self, units, changed, checks_changed=False):
@@ -882,7 +925,9 @@ def test_unit_done_finds_a_unit_the_cursor_already_left():
 
 def test_unit_done_rechecks_the_unit_and_emits_checks_changed():
     units = [object(), object()]
-    controller, emitted = _unit_done_controller(units, changed=False, cursor_unit=units[1], checks_changed=True)
+    controller, emitted = _unit_done_controller(
+        units, changed=False, cursor_unit=units[1], checks_changed=True
+    )
     controller.cursor.index = 1
 
     controller._unit_done(None, units[1], True)
@@ -893,7 +938,9 @@ def test_unit_done_rechecks_the_unit_and_emits_checks_changed():
 
 def test_unit_done_does_not_recheck_an_unmodified_unit():
     units = [object()]
-    controller, emitted = _unit_done_controller(units, changed=False, cursor_unit=units[0], checks_changed=True)
+    controller, emitted = _unit_done_controller(
+        units, changed=False, cursor_unit=units[0], checks_changed=True
+    )
 
     controller._unit_done(None, units[0], False)
 

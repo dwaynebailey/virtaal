@@ -31,8 +31,8 @@ class SearchMode(BaseMode):
     # INITIALIZERS #
     def __init__(self, controller):
         """Constructor.
-            @type  controller: virtaal.controllers.ModeController
-            @param controller: The ModeController managing navigation modes."""
+        @type  controller: virtaal.controllers.ModeController
+        @param controller: The ModeController managing navigation modes."""
         self.controller = controller
         self.unitview = controller.main_controller.unit_controller.view
         self._search_bg_provider = None
@@ -85,16 +85,29 @@ class SearchMode(BaseMode):
         self.chk_replace_all = Gtk.CheckButton.new_with_mnemonic(_('Replace _All'))
 
         self.widgets = [
-            self.ent_search, self.btn_search, self.chk_casesensitive, self.chk_regex,
-            self.lbl_replace, self.ent_replace, self.btn_replace, self.chk_replace_all
+            self.ent_search,
+            self.btn_search,
+            self.chk_casesensitive,
+            self.chk_regex,
+            self.lbl_replace,
+            self.ent_replace,
+            self.btn_replace,
+            self.chk_replace_all,
         ]
 
     def _setup_key_bindings(self):
         Gtk.AccelMap.add_entry("<Virtaal>/Edit/Search", Gdk.KEY_F3, 0)
-        Gtk.AccelMap.add_entry("<Virtaal>/Edit/Search Ctrl+F", Gdk.KEY_F, Gdk.ModifierType.CONTROL_MASK)
-        Gtk.AccelMap.add_entry("<Virtaal>/Edit/Search: Next", Gdk.KEY_G, Gdk.ModifierType.CONTROL_MASK)
-        Gtk.AccelMap.add_entry("<Virtaal>/Edit/Search: Previous", Gdk.KEY_G,
-                               Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK)
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Edit/Search Ctrl+F", Gdk.KEY_F, Gdk.ModifierType.CONTROL_MASK
+        )
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Edit/Search: Next", Gdk.KEY_G, Gdk.ModifierType.CONTROL_MASK
+        )
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Edit/Search: Previous",
+            Gdk.KEY_G,
+            Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK,
+        )
         # tmview.py's Escape ("Hide TM") is tried first and only takes the
         # key while suggestions are showing.
         Gtk.AccelMap.add_entry("<Virtaal>/Edit/Search: Close", Gdk.KEY_Escape, 0)
@@ -135,13 +148,12 @@ class SearchMode(BaseMode):
 
     def _update_menu_sensitivity(self):
         """Find needs a file; Find Next and Find Previous also need Search
-            to be the current mode."""
+        to be the current mode."""
         has_file = self.controller.main_controller.store_controller.get_store() is not None
         searching = getattr(self.controller, 'current_mode', None) is self
         self.mnu_find.set_sensitive(has_file)
         self.mnu_find_next.set_sensitive(has_file and searching)
         self.mnu_find_prev.set_sensitive(has_file and searching)
-
 
     # METHODS #
     def selected(self):
@@ -178,8 +190,10 @@ class SearchMode(BaseMode):
     def select_match(self, match):
         """Select the specified match in the GUI."""
         main_controller = self.controller.main_controller
-        logging.debug('select_match: unit=%r part=%s part_n=%d' % (
-            getattr(match.unit, 'source', match.unit), match.part, match.part_n))
+        logging.debug(
+            'select_match: unit=%r part=%s part_n=%d'
+            % (getattr(match.unit, 'source', match.unit), match.part, match.part_n)
+        )
         main_controller.select_unit(match.unit)
         view = main_controller.unit_controller.view
 
@@ -200,7 +214,9 @@ class SearchMode(BaseMode):
             start, end = match.start, match.end
             if hasattr(textbox.elem, 'gui_info'):
                 start_iter = textbox.elem.gui_info.treeindex_to_iter(start)
-                end_iter = textbox.elem.gui_info.treeindex_to_iter(end, start_at=(start, start_iter))
+                end_iter = textbox.elem.gui_info.treeindex_to_iter(
+                    end, start_at=(start, start_iter)
+                )
             else:
                 start_iter = buff.get_iter_at_offset(start)
                 end_iter = buff.get_iter_at_offset(end)
@@ -222,29 +238,36 @@ class SearchMode(BaseMode):
             if match.unit.hasplural():
                 strings = match.unit.target.strings
                 string_n = strings[match.part_n]
-                strings[match.part_n] = string_n[:match.start] + replace_str + string_n[match.end:]
+                strings[match.part_n] = (
+                    string_n[: match.start] + replace_str + string_n[match.end :]
+                )
                 match.unit.target = strings
             else:
                 rstring = match.unit.target
-                rstring = rstring[:match.start] + replace_str + rstring[match.end:]
+                rstring = rstring[: match.start] + replace_str + rstring[match.end :]
                 match.unit.target = rstring
         else:
             main_controller.select_unit(match.unit)
-            main_controller.undo_controller.push_current_text(unit_controller.view.targets[match.part_n])
+            main_controller.undo_controller.push_current_text(
+                unit_controller.view.targets[match.part_n]
+            )
             rstring = unit_controller.get_unit_target(match.part_n)
-            unit_controller.set_unit_target(match.part_n, rstring[:match.start] + replace_str + rstring[match.end:])
+            unit_controller.set_unit_target(
+                match.part_n, rstring[: match.start] + replace_str + rstring[match.end :]
+            )
 
     def update_search(self):
         self._search_timeout = 0
         # See virtaal.support.pogrep_compat for why this isn't imported
         # straight from translate.tools.pogrep.
         from virtaal.support.pogrep_compat import GrepFilter
+
         store_units = self.storecursor.model.get_units()
         filter_args = dict(
             searchparts=('source', 'target'),
             ignorecase=not self.chk_casesensitive.get_active(),
             useregexp=self.chk_regex.get_active(),
-            max_matches=self.MAX_RESULTS
+            max_matches=self.MAX_RESULTS,
         )
         try:
             self.filter = GrepFilter(searchstring=self.ent_search.get_text(), **filter_args)
@@ -317,8 +340,14 @@ class SearchMode(BaseMode):
         table = self.controller.view.mode_box
 
         widgets = [
-            self.ent_search, self.btn_search, self.chk_casesensitive, self.chk_regex,
-            self.lbl_replace, self.ent_replace, self.btn_replace, self.chk_replace_all,
+            self.ent_search,
+            self.btn_search,
+            self.chk_casesensitive,
+            self.chk_regex,
+            self.lbl_replace,
+            self.ent_replace,
+            self.btn_replace,
+            self.chk_replace_all,
         ]
         for widget in widgets:
             widget.set_vexpand(True)
@@ -336,7 +365,9 @@ class SearchMode(BaseMode):
         table.show_all()
 
     def _connect_highlighting(self):
-        self._signalid_cursor_changed = self.storecursor.connect('cursor-changed', self._on_cursor_changed)
+        self._signalid_cursor_changed = self.storecursor.connect(
+            'cursor-changed', self._on_cursor_changed
+        )
 
     def _connect_textboxes(self):
         self._textbox_signals = {}
@@ -380,7 +411,7 @@ class SearchMode(BaseMode):
 
     def _get_textbox_part(self, textbox):
         """@returns: (role, part_n) identifying which part of the current
-            unit this textbox renders, e.g. ('target', 0)."""
+        unit this textbox renders, e.g. ('target', 0)."""
         role = textbox.role
         if role == 'source':
             return role, self.unitview.sources.index(textbox)
@@ -392,10 +423,7 @@ class SearchMode(BaseMode):
         unit = self.unitview.unit
         role, textbox_n = self._get_textbox_part(textbox)
         return [
-            m for m in self.matches
-            if m.unit is unit and \
-                m.part == role and \
-                m.part_n == textbox_n
+            m for m in self.matches if m.unit is unit and m.part == role and m.part_n == textbox_n
         ]
 
     def _match_key(self, match):
@@ -403,11 +431,11 @@ class SearchMode(BaseMode):
 
     def _sync_matches_for_key(self, key):
         """Re-align this unit/part's matches with its live text: shift
-            offsets past an edit, or drop a match the edit itself
-            overlapped.
+        offsets past an edit, or drop a match the edit itself
+        overlapped.
 
-            Only handles a single contiguous edit region - one keystroke
-            or one undo/redo step, which is all this needs to handle."""
+        Only handles a single contiguous edit region - one keystroke
+        or one undo/redo step, which is all this needs to handle."""
         matches = [m for m in self.matches if self._match_key(m) == key]
         if not matches:
             self._match_text_cache.pop(key, None)
@@ -419,8 +447,11 @@ class SearchMode(BaseMode):
         if old_text is None or old_text == new_text:
             return
 
-        changes = [op for op in SequenceMatcher(a=old_text, b=new_text, autojunk=False).get_opcodes()
-                   if op[0] != 'equal']
+        changes = [
+            op
+            for op in SequenceMatcher(a=old_text, b=new_text, autojunk=False).get_opcodes()
+            if op[0] != 'equal'
+        ]
         if not changes:
             return
         edit_start = min(op[1] for op in changes)
@@ -502,8 +533,10 @@ class SearchMode(BaseMode):
 
     def _move_match(self, offset):
         if self.controller.current_mode is not self:
-            logging.debug('_move_match: not the current mode (%s is current) - ignoring' % (
-                self.controller.current_mode.name if self.controller.current_mode else None))
+            logging.debug(
+                '_move_match: not the current mode (%s is current) - ignoring'
+                % (self.controller.current_mode.name if self.controller.current_mode else None)
+            )
             return
 
         if getattr(self, 'matchcursor', None) is None:
@@ -514,7 +547,9 @@ class SearchMode(BaseMode):
 
         old_match_index = self.matchcursor.index
         if not self.matches or old_match_index != self.matchcursor.index:
-            logging.debug('_move_match: no matches or stale matchcursor - re-searching instead of moving')
+            logging.debug(
+                '_move_match: no matches or stale matchcursor - re-searching instead of moving'
+            )
             self._cancel_search_timeout()
             self.update_search()
             return
@@ -536,7 +571,6 @@ class SearchMode(BaseMode):
         self._cancel_search_timeout()
         self.update_search()
 
-
     # EVENT HANDLERS #
     def _on_search_focus_out(self, entry, event):
         self._search_cursor_pos = entry.get_position()
@@ -551,10 +585,12 @@ class SearchMode(BaseMode):
         return False
 
     def _on_entry_activate(self, entry):
-        logging.debug('_on_entry_activate: Enter activated ent_search (text=%r)' % (entry.get_text()))
+        logging.debug(
+            '_on_entry_activate: Enter activated ent_search (text=%r)' % (entry.get_text())
+        )
         self._cancel_search_timeout()
         self.update_search()
-        self._move_match(0) # Select the current match.
+        self._move_match(0)  # Select the current match.
 
     def _on_cursor_changed(self, cursor):
         assert cursor is self.storecursor
@@ -572,7 +608,11 @@ class SearchMode(BaseMode):
         else:
             current_unit = self.storecursor.deref()
             # Find matches in the current unit.
-            unit_matches = [match for match in self.matches if match.unit is current_unit and match.part == 'target']
+            unit_matches = [
+                match
+                for match in self.matches
+                if match.unit is current_unit and match.part == 'target'
+            ]
             if len(unit_matches) > 0:
                 i = self.matches.index(unit_matches[0])
                 self.controller.main_controller.undo_controller.record_start()
@@ -603,8 +643,8 @@ class SearchMode(BaseMode):
 
     def _cancel_search_timeout(self):
         """Cancel any pending debounced update_search() call - needed
-            before calling update_search() directly, bypassing the
-            debounce, so a stale timeout doesn't also fire later."""
+        before calling update_search() directly, bypassing the
+        debounce, so a stale timeout doesn't also fire later."""
         if self._search_timeout:
             GLib.source_remove(self._search_timeout)
             self._search_timeout = 0
@@ -624,9 +664,9 @@ class SearchMode(BaseMode):
 
     def _on_close_search(self, *args):
         """Escape leaves Search mode for the mode used before it.
-            This accelerator is always registered (see _setup_key_bindings()),
-            not just while Search is the active mode, so guard on that here -
-            otherwise Escape would do this from *any* mode."""
+        This accelerator is always registered (see _setup_key_bindings()),
+        not just while Search is the active mode, so guard on that here -
+        otherwise Escape would do this from *any* mode."""
         if self.controller.current_mode is not self:
             return False
         previous = self.controller.previous_mode
@@ -638,12 +678,14 @@ class SearchMode(BaseMode):
 
     def _set_search_bg(self, color):
         """Colour ent_search's background - override_background_color()
-            is deprecated."""
+        is deprecated."""
         style = self.ent_search.get_style_context()
         if self._search_bg_provider is not None:
             style.remove_provider(self._search_bg_provider)
         provider = Gtk.CssProvider()
-        provider.load_from_data(('* { background-color: %s; background-image: none; }' % color).encode())
+        provider.load_from_data(
+            ('* { background-color: %s; background-image: none; }' % color).encode()
+        )
         style.add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self._search_bg_provider = provider
 
@@ -657,8 +699,8 @@ class SearchMode(BaseMode):
 
     def _on_textbox_refreshed(self, textbox, elem):
         """Redoes highlighting after a C{StringElem} render destroyed it.
-            Unlike 'unit-modified', undo doesn't suppress this signal, so
-            it's also where matches get re-synced after an undo/redo."""
+        Unlike 'unit-modified', undo doesn't suppress this signal, so
+        it's also where matches get re-synced after an undo/redo."""
         if not textbox.props.visible or not bool(elem):
             return
 

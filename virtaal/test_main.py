@@ -17,6 +17,7 @@ from virtaal.main import Virtaal, _Deferer, _resolve_startup_path
 
 # _resolve_startup_path() #
 
+
 def test_resolve_startup_path_leaves_a_plain_path_untouched():
     assert _resolve_startup_path('some.po') == 'some.po'
 
@@ -103,6 +104,7 @@ def test_a_job_that_defers_more_work_schedules_a_fresh_idle_source(monkeypatch):
 
 # Virtaal._install_signal_handlers() #
 
+
 def _fake_glib(unix_signal_add):
     # Replaces the whole GLib binding main.py sees, rather than
     # monkeypatching GLib.unix_signal_add directly - PyGObject flags
@@ -120,8 +122,10 @@ def _fake_glib(unix_signal_add):
 
 def test_install_signal_handlers_does_nothing_on_windows(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', True)
-    monkeypatch.setattr('virtaal.main.GLib', _fake_glib(
-        unix_signal_add=lambda *a: pytest.fail('must not register a signal on Windows')))
+    monkeypatch.setattr(
+        'virtaal.main.GLib',
+        _fake_glib(unix_signal_add=lambda *a: pytest.fail('must not register a signal on Windows')),
+    )
     v = Virtaal.__new__(Virtaal)
 
     v._install_signal_handlers()  # must not raise
@@ -130,8 +134,12 @@ def test_install_signal_handlers_does_nothing_on_windows(monkeypatch):
 def test_install_signal_handlers_registers_sigterm_and_sigint(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', False)
     registered = []
-    monkeypatch.setattr('virtaal.main.GLib', _fake_glib(
-        unix_signal_add=lambda priority, sig, handler, s: registered.append((sig, handler))))
+    monkeypatch.setattr(
+        'virtaal.main.GLib',
+        _fake_glib(
+            unix_signal_add=lambda priority, sig, handler, s: registered.append((sig, handler))
+        ),
+    )
     v = Virtaal.__new__(Virtaal)
 
     v._install_signal_handlers()
@@ -142,8 +150,10 @@ def test_install_signal_handlers_registers_sigterm_and_sigint(monkeypatch):
 def test_signal_handler_forces_a_quit_and_removes_its_own_source(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', False)
     handlers = []
-    monkeypatch.setattr('virtaal.main.GLib', _fake_glib(
-        unix_signal_add=lambda priority, sig, handler, s: handlers.append(handler)))
+    monkeypatch.setattr(
+        'virtaal.main.GLib',
+        _fake_glib(unix_signal_add=lambda priority, sig, handler, s: handlers.append(handler)),
+    )
     v = Virtaal.__new__(Virtaal)
     quit_calls = []
     v.main_controller = SimpleNamespace(quit=lambda force: quit_calls.append(force))
@@ -157,30 +167,43 @@ def test_signal_handler_forces_a_quit_and_removes_its_own_source(monkeypatch):
 
 # Virtaal._open_with_file() / ._open_with_welcome() #
 
+
 def test_open_with_file_constructs_controllers_in_order_and_opens_the_file(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        'virtaal.controllers.unitcontroller.UnitController', lambda sc: calls.append(('unit', sc)))
+        'virtaal.controllers.unitcontroller.UnitController', lambda sc: calls.append(('unit', sc))
+    )
     monkeypatch.setattr(
-        'virtaal.controllers.modecontroller.ModeController', lambda mc: calls.append(('mode', mc)))
+        'virtaal.controllers.modecontroller.ModeController', lambda mc: calls.append(('mode', mc))
+    )
     monkeypatch.setattr(
-        'virtaal.controllers.langcontroller.LanguageController', lambda mc: calls.append(('lang', mc)))
+        'virtaal.controllers.langcontroller.LanguageController',
+        lambda mc: calls.append(('lang', mc)),
+    )
     monkeypatch.setattr(
-        'virtaal.controllers.placeablescontroller.PlaceablesController', lambda mc: calls.append(('placeables', mc)))
+        'virtaal.controllers.placeablescontroller.PlaceablesController',
+        lambda mc: calls.append(('placeables', mc)),
+    )
     v = Virtaal.__new__(Virtaal)
     v.main_controller = SimpleNamespace(
-        store_controller='store-controller', open_file=lambda f: calls.append(('open', f)) or 'opened')
+        store_controller='store-controller',
+        open_file=lambda f: calls.append(('open', f)) or 'opened',
+    )
 
     result = v._open_with_file('some.po')
 
     assert calls == [
-        ('unit', 'store-controller'), ('mode', v.main_controller), ('lang', v.main_controller),
-        ('placeables', v.main_controller), ('open', 'some.po'),
+        ('unit', 'store-controller'),
+        ('mode', v.main_controller),
+        ('lang', v.main_controller),
+        ('placeables', v.main_controller),
+        ('open', 'some.po'),
     ]
     assert result == 'opened'
 
 
 # Virtaal._open_startup_file() #
+
 
 def test_open_startup_file_hides_the_loading_notice_and_defers_load_extras_on_success():
     v = Virtaal.__new__(Virtaal)
@@ -191,7 +214,9 @@ def test_open_startup_file_hides_the_loading_notice_and_defers_load_extras_on_su
         view=SimpleNamespace(
             hide_loading_notice=lambda: calls.append('hidden'),
             show_progress=lambda msg: calls.append(('progress', msg)),
-            show_startup_open_failure_notice=lambda f, r: calls.append(('shown', f, r))))
+            show_startup_open_failure_notice=lambda f, r: calls.append(('shown', f, r)),
+        ),
+    )
     deferred = []
     v.defer = lambda func, *args: deferred.append((func, args))
 
@@ -209,7 +234,10 @@ def test_open_startup_file_keeps_the_loading_notice_up_while_the_file_loads():
     calls = []
     v._open_with_file = lambda filename: calls.append('opened') or True
     v.main_controller = SimpleNamespace(
-        view=SimpleNamespace(hide_loading_notice=lambda: calls.append('hidden'), show_progress=lambda msg: None))
+        view=SimpleNamespace(
+            hide_loading_notice=lambda: calls.append('hidden'), show_progress=lambda msg: None
+        )
+    )
     v.defer = lambda func, *args: None
 
     v._open_startup_file('some.po')
@@ -225,11 +253,15 @@ def test_open_startup_file_shows_the_welcome_screen_and_failure_notice_with_the_
     v.main_controller = SimpleNamespace(
         last_open_error='The file does not exist.',
         welcomescreen_controller=SimpleNamespace(activate=lambda: calls.append('activated')),
-        store_controller=SimpleNamespace(connect=lambda signal, handler: connected.append((signal, handler))),
+        store_controller=SimpleNamespace(
+            connect=lambda signal, handler: connected.append((signal, handler))
+        ),
         view=SimpleNamespace(
             hide_loading_notice=lambda: calls.append('hidden'),
             show_startup_open_failure_notice=lambda f, r: calls.append(('shown', f, r)),
-            hide_startup_open_failure_notice=lambda: calls.append('hidden-on-next-open')))
+            hide_startup_open_failure_notice=lambda: calls.append('hidden-on-next-open'),
+        ),
+    )
     deferred = []
     v.defer = lambda func, *args: deferred.append((func, args))
 
@@ -256,19 +288,25 @@ def test_open_with_welcome_defers_controller_construction_and_load_extras():
     from virtaal.controllers.modecontroller import ModeController
     from virtaal.controllers.placeablescontroller import PlaceablesController
     from virtaal.controllers.unitcontroller import UnitController
+
     assert deferred == [
-        (UnitController, ('store-controller',)), (ModeController, (v.main_controller,)),
-        (LanguageController, (v.main_controller,)), (PlaceablesController, (v.main_controller,)),
+        (UnitController, ('store-controller',)),
+        (ModeController, (v.main_controller,)),
+        (LanguageController, (v.main_controller,)),
+        (PlaceablesController, (v.main_controller,)),
         (v._load_extras, ()),
     ]
 
 
 # Virtaal._load_extras() #
 
+
 def test_load_extras_defers_the_remaining_controllers_and_config_recovery(monkeypatch):
     monkeypatch.setattr(platform, 'is_frozen', False)
     v = Virtaal.__new__(Virtaal)
-    v.main_controller = SimpleNamespace(load_plugins='load-plugins', view=SimpleNamespace(hide_progress='hide-progress'))
+    v.main_controller = SimpleNamespace(
+        load_plugins='load-plugins', view=SimpleNamespace(hide_progress='hide-progress')
+    )
     deferred = []
     v.defer = lambda func, *args: deferred.append((func, args))
 
@@ -280,10 +318,17 @@ def test_load_extras_defers_the_remaining_controllers_and_config_recovery(monkey
     from virtaal.controllers.propertiescontroller import PropertiesController
     from virtaal.controllers.undocontroller import UndoController
     from virtaal.support.dictionary_download_watcher import DictionaryDownloadWatcher
+
     funcs = [f for f, a in deferred]
     assert funcs == [
-        ChecksController, UndoController, PluginController, PreferencesController,
-        PropertiesController, DictionaryDownloadWatcher, 'load-plugins', v._check_for_config_recovery,
+        ChecksController,
+        UndoController,
+        PluginController,
+        PreferencesController,
+        PropertiesController,
+        DictionaryDownloadWatcher,
+        'load-plugins',
+        v._check_for_config_recovery,
         'hide-progress',
     ]
 
@@ -291,7 +336,9 @@ def test_load_extras_defers_the_remaining_controllers_and_config_recovery(monkey
 def test_load_extras_also_defers_the_update_check_when_frozen(monkeypatch):
     monkeypatch.setattr(platform, 'is_frozen', True)
     v = Virtaal.__new__(Virtaal)
-    v.main_controller = SimpleNamespace(load_plugins=lambda: None, view=SimpleNamespace(hide_progress='hide-progress'))
+    v.main_controller = SimpleNamespace(
+        load_plugins=lambda: None, view=SimpleNamespace(hide_progress='hide-progress')
+    )
     deferred = []
     v.defer = lambda func, *args: deferred.append((func, args))
 
@@ -302,11 +349,14 @@ def test_load_extras_also_defers_the_update_check_when_frozen(monkeypatch):
 
 # Virtaal._check_for_config_recovery() / ._check_for_update() #
 
+
 def test_check_for_config_recovery_shows_the_notice_when_a_backup_exists(monkeypatch):
     monkeypatch.setattr(pan_app.settings, 'config_recovery_backup', '/tmp/backup.ini')
     v = Virtaal.__new__(Virtaal)
     shown = []
-    v.main_controller = SimpleNamespace(view=SimpleNamespace(show_config_recovery_notice=shown.append))
+    v.main_controller = SimpleNamespace(
+        view=SimpleNamespace(show_config_recovery_notice=shown.append)
+    )
 
     v._check_for_config_recovery()
 
@@ -316,8 +366,11 @@ def test_check_for_config_recovery_shows_the_notice_when_a_backup_exists(monkeyp
 def test_check_for_config_recovery_does_nothing_without_a_backup(monkeypatch):
     monkeypatch.setattr(pan_app.settings, 'config_recovery_backup', '')
     v = Virtaal.__new__(Virtaal)
-    v.main_controller = SimpleNamespace(view=SimpleNamespace(
-        show_config_recovery_notice=lambda p: pytest.fail('must not show without a backup')))
+    v.main_controller = SimpleNamespace(
+        view=SimpleNamespace(
+            show_config_recovery_notice=lambda p: pytest.fail('must not show without a backup')
+        )
+    )
 
     v._check_for_config_recovery()
 
@@ -331,9 +384,12 @@ def test_check_for_update_runs_the_update_checker(monkeypatch):
 
         def check(self):
             calls.append('checked')
+
     monkeypatch.setattr('virtaal.support.update_check.UpdateChecker', _FakeUpdateChecker)
     v = Virtaal.__new__(Virtaal)
-    v.main_controller = SimpleNamespace(view=SimpleNamespace(show_update_notice='show-update-notice'))
+    v.main_controller = SimpleNamespace(
+        view=SimpleNamespace(show_update_notice='show-update-notice')
+    )
 
     v._check_for_update()
 
@@ -343,10 +399,13 @@ def test_check_for_update_runs_the_update_checker(monkeypatch):
 
 # Virtaal.run() #
 
+
 def test_run_runs_and_destroys_the_main_controller():
     v = Virtaal.__new__(Virtaal)
     calls = []
-    v.main_controller = SimpleNamespace(run=lambda: calls.append('run'), destroy=lambda: calls.append('destroy'))
+    v.main_controller = SimpleNamespace(
+        run=lambda: calls.append('run'), destroy=lambda: calls.append('destroy')
+    )
 
     v.run()
 
@@ -355,6 +414,7 @@ def test_run_runs_and_destroys_the_main_controller():
 
 
 # Virtaal.__init__() #
+
 
 class _FakeDeferer:
     def __init__(self):
@@ -366,6 +426,7 @@ class _FakeDeferer:
 
 def _stub_virtaal_construction(monkeypatch, startupfile_exists=True):
     import virtaal.main as main_module
+
     monkeypatch.setattr('virtaal.support.crash_dialog.install', lambda: None)
     monkeypatch.setattr('gc.disable', lambda: None)
     monkeypatch.setattr(Virtaal, '_install_signal_handlers', lambda self: None)
@@ -379,9 +440,15 @@ def _stub_virtaal_construction(monkeypatch, startupfile_exists=True):
         store_controller=store_controller,
         view=SimpleNamespace(
             show_loading_notice=lambda f: loading_notices.append(f),
-            show_startup_open_failure_notice=lambda f, r: failure_notices.append((f, r))))
-    monkeypatch.setattr('virtaal.controllers.maincontroller.MainController', lambda: main_controller)
-    monkeypatch.setattr('virtaal.controllers.storecontroller.StoreController', lambda mc: store_controller)
+            show_startup_open_failure_notice=lambda f, r: failure_notices.append((f, r)),
+        ),
+    )
+    monkeypatch.setattr(
+        'virtaal.controllers.maincontroller.MainController', lambda: main_controller
+    )
+    monkeypatch.setattr(
+        'virtaal.controllers.storecontroller.StoreController', lambda mc: store_controller
+    )
 
     welcome_instances = []
 
@@ -393,15 +460,25 @@ def _stub_virtaal_construction(monkeypatch, startupfile_exists=True):
 
         def activate(self):
             self.activated = True
-    monkeypatch.setattr(
-        'virtaal.controllers.welcomescreencontroller.WelcomeScreenController', _FakeWelcomeScreenController)
 
-    return main_controller, welcome_instances, _FakeWelcomeScreenController, loading_notices, failure_notices
+    monkeypatch.setattr(
+        'virtaal.controllers.welcomescreencontroller.WelcomeScreenController',
+        _FakeWelcomeScreenController,
+    )
+
+    return (
+        main_controller,
+        welcome_instances,
+        _FakeWelcomeScreenController,
+        loading_notices,
+        failure_notices,
+    )
 
 
 def test_init_without_a_startupfile_shows_the_welcome_screen_directly(monkeypatch):
-    main_controller, welcome_instances, _FakeWSC, loading_notices, failure_notices = _stub_virtaal_construction(
-        monkeypatch)
+    main_controller, welcome_instances, _FakeWSC, loading_notices, failure_notices = (
+        _stub_virtaal_construction(monkeypatch)
+    )
 
     v = Virtaal('')
 
@@ -412,13 +489,16 @@ def test_init_without_a_startupfile_shows_the_welcome_screen_directly(monkeypatc
     assert v.defer.calls == [(v._open_with_welcome, ())]
 
 
-def test_init_with_an_existing_startupfile_shows_a_loading_notice_instead_and_defers_the_open(monkeypatch):
+def test_init_with_an_existing_startupfile_shows_a_loading_notice_instead_and_defers_the_open(
+    monkeypatch,
+):
     # WelcomeScreenController is constructed (needed for its
     # 'store-closed' handler later) but left un-activated here -
     # _open_startup_file (tested separately above) decides what to do
     # once the open resolves.
-    main_controller, welcome_instances, _FakeWSC, loading_notices, failure_notices = _stub_virtaal_construction(
-        monkeypatch, startupfile_exists=True)
+    main_controller, welcome_instances, _FakeWSC, loading_notices, failure_notices = (
+        _stub_virtaal_construction(monkeypatch, startupfile_exists=True)
+    )
 
     v = Virtaal('some.po')
 
@@ -429,11 +509,14 @@ def test_init_with_an_existing_startupfile_shows_a_loading_notice_instead_and_de
     assert v.defer.calls == [(v._open_startup_file, ('some.po',))]
 
 
-def test_init_with_a_missing_startupfile_skips_the_loading_notice_but_still_defers_the_real_open(monkeypatch):
+def test_init_with_a_missing_startupfile_skips_the_loading_notice_but_still_defers_the_real_open(
+    monkeypatch,
+):
     # _open_startup_file still runs unconditionally (tested separately
     # above) - only the loading-notice flash is skipped here.
-    main_controller, welcome_instances, _FakeWSC, loading_notices, failure_notices = _stub_virtaal_construction(
-        monkeypatch, startupfile_exists=False)
+    main_controller, welcome_instances, _FakeWSC, loading_notices, failure_notices = (
+        _stub_virtaal_construction(monkeypatch, startupfile_exists=False)
+    )
 
     v = Virtaal('missing.po')
 

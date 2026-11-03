@@ -25,25 +25,40 @@ def _marker(**event):
 
 
 def test_glib_criticals_on_stderr_go_to_the_running_case(tmp_path):
-    path = _events(tmp_path / 'r.jsonl',
-                   {'event': 'begin', 'sweep': 'source', 'case': 'a'}, {'event': 'end', 'elapsed': 0.1},
-                   {'event': 'begin', 'sweep': 'source', 'case': 'b'}, {'event': 'end', 'elapsed': 0.1},
-                   {'event': 'done'})
-    stderr = '\n'.join([
-        _marker(event='begin', sweep='source', case='a'), _marker(event='end'),
-        _marker(event='begin', sweep='source', case='b'),
-        "(sweep.py:12): Pango-CRITICAL **: 13:47:35.778: pango_layout_get_cursor_pos: assertion 'x' failed",
-        _marker(event='end'), _marker(event='done'),
-    ])
+    path = _events(
+        tmp_path / 'r.jsonl',
+        {'event': 'begin', 'sweep': 'source', 'case': 'a'},
+        {'event': 'end', 'elapsed': 0.1},
+        {'event': 'begin', 'sweep': 'source', 'case': 'b'},
+        {'event': 'end', 'elapsed': 0.1},
+        {'event': 'done'},
+    )
+    stderr = '\n'.join(
+        [
+            _marker(event='begin', sweep='source', case='a'),
+            _marker(event='end'),
+            _marker(event='begin', sweep='source', case='b'),
+            "(sweep.py:12): Pango-CRITICAL **: 13:47:35.778: pango_layout_get_cursor_pos: assertion 'x' failed",
+            _marker(event='end'),
+            _marker(event='done'),
+        ]
+    )
     cases, finished, _ = fuzz_ui.parse_child(path, stderr)
     assert finished
     assert cases[0]['problems'] == []
     assert cases[1]['problems'][0]['kind'] == 'critical'
-    assert cases[1]['problems'][0]['signature'] == "Pango: pango_layout_get_cursor_pos: assertion 'x' failed"
+    assert (
+        cases[1]['problems'][0]['signature']
+        == "Pango: pango_layout_get_cursor_pos: assertion 'x' failed"
+    )
 
 
 def test_glib_warning_between_cases_is_outside_a_case(tmp_path):
-    path = _events(tmp_path / 'r.jsonl', {'event': 'begin', 'sweep': 's', 'case': 'a'}, {'event': 'end', 'elapsed': 0})
+    path = _events(
+        tmp_path / 'r.jsonl',
+        {'event': 'begin', 'sweep': 's', 'case': 'a'},
+        {'event': 'end', 'elapsed': 0},
+    )
     cases, finished, _ = fuzz_ui.parse_child(path, '(x:1): Gtk-WARNING **: 10:00:00.000: odd\n')
     assert not finished
     assert cases[-1]['case'] == record.OUTSIDE_CASE
@@ -59,12 +74,16 @@ def test_a_case_without_an_end_is_unfinished(tmp_path):
 def test_died_in_tells_a_timeout_from_a_crash():
     begun = _marker(event='begin', sweep='s', case='a')
     assert fuzz_ui.died_in([], begun + '\nTimeout (0:01:00)!\nThread 0x1')['kind'] == 'timeout'
-    assert fuzz_ui.died_in([], begun + '\nFatal Python error: Segmentation fault')['kind'] == 'crash'
+    assert (
+        fuzz_ui.died_in([], begun + '\nFatal Python error: Segmentation fault')['kind'] == 'crash'
+    )
     # The innermost Virtaal function, even with a debugger's output after the dump.
-    dump = ('\nTimeout (0:01:00)!\nThread 0x1 (most recent call first):\n'
-            '  File "/w/virtaal/virtaal/modes/searchmode.py", line 483 in _highlight_textbox_matches\n'
-            '  File "/w/virtaal/virtaal/modes/searchmode.py", line 288 in update_search\n'
-            '  File "/w/virtaal/devsupport/testing/fuzz/fuzz_ui.py", line 382 in _act_search\n')
+    dump = (
+        '\nTimeout (0:01:00)!\nThread 0x1 (most recent call first):\n'
+        '  File "/w/virtaal/virtaal/modes/searchmode.py", line 483 in _highlight_textbox_matches\n'
+        '  File "/w/virtaal/virtaal/modes/searchmode.py", line 288 in update_search\n'
+        '  File "/w/virtaal/devsupport/testing/fuzz/fuzz_ui.py", line 382 in _act_search\n'
+    )
     problem = fuzz_ui.died_in([], begun + dump + 'x' * 5000)
     assert problem['signature'] == '_highlight_textbox_matches'
     assert 'update_search' in problem['detail']
@@ -88,7 +107,9 @@ def test_signature_names_the_innermost_virtaal_function():
 
 
 def test_signature_skips_harness_frames_but_not_virtaal_reached_through_them():
-    exc_type, _, tb = _traceback_through('/src/devsupport/testing/fuzz/../../../virtaal/support/tmdb.py')
+    exc_type, _, tb = _traceback_through(
+        '/src/devsupport/testing/fuzz/../../../virtaal/support/tmdb.py'
+    )
     assert record.exception_signature(exc_type, tb) == 'ValueError translate_unit'
     exc_type, _, tb = _traceback_through('/src/devsupport/testing/fuzz/sweep.py')
     assert record.exception_signature(exc_type, tb) == 'ValueError '
@@ -113,6 +134,7 @@ def test_virtaal_paths_exclude_other_packages_in_a_checkout_virtualenv():
     assert record.is_virtaal_path('/opt/py/lib/python3.14/site-packages/virtaal/views/unitview.py')
     assert record.is_virtaal_path('D:\\a\\virtaal\\virtaal\\virtaal\\modes\\searchmode.py')
     assert not record.is_virtaal_path(
-        '/Users/runner/work/virtaal/virtaal/.venv/lib/python3.14/site-packages/translate/storage/lisa.py')
+        '/Users/runner/work/virtaal/virtaal/.venv/lib/python3.14/site-packages/translate/storage/lisa.py'
+    )
     assert not record.is_virtaal_path('/src/devsupport/testing/fuzz/sweep.py')
     assert not record.is_virtaal_path('/usr/lib/python3/dist-packages/translate/storage/lisa.py')

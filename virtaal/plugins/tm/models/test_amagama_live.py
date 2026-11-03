@@ -23,7 +23,8 @@ from virtaal.plugins.tm.models.test_amagama import _fake_controller
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('VIRTAAL_LIVE_SERVICES') != '1',
-    reason="set VIRTAAL_LIVE_SERVICES=1 to query the live amaGama server")
+    reason="set VIRTAAL_LIVE_SERVICES=1 to query the live amaGama server",
+)
 
 
 def test_lookup_on_the_live_server(monkeypatch, tmp_path):

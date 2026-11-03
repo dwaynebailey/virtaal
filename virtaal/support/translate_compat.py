@@ -106,8 +106,10 @@ def tr_lang(langcode=None):
         if match:
             language, country = match.groups()
             if country != "macrolanguage":
-                return "%s (%s)" % (_name_by_code(code, langcode) or translate_language(language),
-                                    countryfunc(country))
+                return "%s (%s)" % (
+                    _name_by_code(code, langcode) or translate_language(language),
+                    countryfunc(country),
+                )
         return _name_by_code(code, langcode) or translate_language(name)
 
     return handlelanguage
@@ -128,7 +130,7 @@ def _fix_language_name(name):
         # translation of ISO codes suggests these as the upper bounds.
         split_point = name[5:].find(';')
         if split_point >= 0:
-            return name[:5+split_point]
+            return name[: 5 + split_point]
     return name
 
 
@@ -153,9 +155,7 @@ def _translation(langcode, domain, localedir=None):
     """The gettext translation for given iso domain, falling back to
     Virtaal's own catalog (lite or pseudo translations) for what the one in
     localedir lacks."""
-    kwargs = dict(
-        domain=domain,
-        fallback=True)
+    kwargs = dict(domain=domain, fallback=True)
     if langcode:
         kwargs['languages'] = [langcode]
     elif platform.is_windows:
@@ -193,7 +193,11 @@ def _name_by_code(code, langcode):
     if pycountry is None or not code:
         return None
     base = code.split('@')[0].split('_')[0]
-    language = pycountry.languages.get(alpha_2=base) if len(base) == 2 else pycountry.languages.get(alpha_3=base)
+    language = (
+        pycountry.languages.get(alpha_2=base)
+        if len(base) == 2
+        else pycountry.languages.get(alpha_3=base)
+    )
     domain = 'iso639-3'
     if language is None and len(base) == 3:
         language, domain = pycountry.language_families.get(alpha_3=base), 'iso639-5'
@@ -211,8 +215,13 @@ def _name_by_code(code, langcode):
             translated = None
         else:
             english = inverted_name
-    if translated and language.name.endswith(')') and translated.endswith(')') and ' (' in translated:
-        translated = translated[:translated.rindex(' (')]
+    if (
+        translated
+        and language.name.endswith(')')
+        and translated.endswith(')')
+        and ' (' in translated
+    ):
+        translated = translated[: translated.rindex(' (')]
     if translated:
         translated = _first_alternative(english, translated)
     return translated
@@ -247,6 +256,7 @@ def forceunicode(string):
     if string is None:
         return None
     from translate.storage.placeables import StringElem
+
     if isinstance(string, bytes):
         encoding = getattr(string, "encoding", "utf-8")
         string = string.decode(encoding)

@@ -59,6 +59,8 @@ def _on_uncaught_exception(exc_type, exc_value, tb):
         logging.exception("Failed to show the crash dialog")
     finally:
         _showing_dialog = False
+
+
 # Errors already shown this session, by type and stack - not message,
 # which can vary between repeats (a key, an index, an address).
 _shown_errors = set()
@@ -71,7 +73,7 @@ def _error_key(exc_type, tb):
 
 def truncate_for_report(text, limit=MAX_REPORTED_TRACEBACK_CHARS):
     """Keep the tail of a traceback - that's where the actual exception
-        is - noting that it was cut if so."""
+    is - noting that it was cut if so."""
     if len(text) <= limit:
         return text
     return "(truncated - see the full log)\n...\n" + text[-limit:]
@@ -79,12 +81,15 @@ def truncate_for_report(text, limit=MAX_REPORTED_TRACEBACK_CHARS):
 
 def build_report_url(full_text):
     from virtaal.support.bug_report import build_bug_report_url
-    return build_bug_report_url(extra_fields={
-        'logs': truncate_for_report(full_text),
-        # Every report from here has a real traceback, unlike the
-        # generic Help > Report a Bug path - label it as such.
-        'labels': 'bug,traceback',
-    })
+
+    return build_bug_report_url(
+        extra_fields={
+            'logs': truncate_for_report(full_text),
+            # Every report from here has a real traceback, unlike the
+            # generic Help > Report a Bug path - label it as such.
+            'labels': 'bug,traceback',
+        }
+    )
 
 
 def _show_dialog(full_text):
@@ -94,11 +99,18 @@ def _show_dialog(full_text):
     from virtaal.views.direction import fix_expander_direction
 
     dialog = Gtk.MessageDialog(
-        None, Gtk.DialogFlags.MODAL, Gtk.MessageType.ERROR, Gtk.ButtonsType.NONE,
-        _("Virtaal hit an unexpected error"))
+        None,
+        Gtk.DialogFlags.MODAL,
+        Gtk.MessageType.ERROR,
+        Gtk.ButtonsType.NONE,
+        _("Virtaal hit an unexpected error"),
+    )
     dialog.format_secondary_text(
-        _("This might not affect your current work, but if it keeps happening, "
-          "reporting it helps get it fixed."))
+        _(
+            "This might not affect your current work, but if it keeps happening, "
+            "reporting it helps get it fixed."
+        )
+    )
 
     expander = Gtk.Expander(label=_("Details"))
     fix_expander_direction(expander)

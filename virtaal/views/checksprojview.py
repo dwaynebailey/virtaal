@@ -38,7 +38,6 @@ class ChecksProjectView(BaseView):
             self._checker_menu_items[checkername] = mitem
         self.btn_proj.set_menu(menu)
 
-
     # METHODS #
     def show(self):
         statusbar = self.controller.main_controller.view.status_bar
@@ -51,7 +50,6 @@ class ChecksProjectView(BaseView):
     def set_checker_name(self, cname):
         # l10n: The label indicating the checker style (GNOME/KDE/whatever)
         self.btn_proj.set_label(_('Checks: %(checker_name)s') % {'checker_name': cname})
-
 
     # EVENT HANDLER #
     def _on_menu_item_activate(self, menuitem):

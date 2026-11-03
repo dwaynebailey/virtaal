@@ -46,7 +46,8 @@ NAME_DOMAINS = ("iso639-3", "iso639-5")
 
 def _generator():
     spec = importlib.util.spec_from_file_location(
-        "generate_pseudo_translation", os.path.join(HERE, "generate_pseudo_translation.py"))
+        "generate_pseudo_translation", os.path.join(HERE, "generate_pseudo_translation.py")
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -54,9 +55,12 @@ def _generator():
 
 def ui_languages():
     """Virtaal's UI languages, without English variants: the libraries'
-        messages are already English."""
-    return sorted(name[:-len(".po")] for name in os.listdir(os.path.join(REPO_ROOT, "po"))
-                  if name.endswith(".po") and not name.startswith("en_"))
+    messages are already English."""
+    return sorted(
+        name[: -len(".po")]
+        for name in os.listdir(os.path.join(REPO_ROOT, "po"))
+        if name.endswith(".po") and not name.startswith("en_")
+    )
 
 
 def shipped_languages():
@@ -71,13 +75,16 @@ def _key(unit):
 
 def _translations(store):
     """{(context, msgid): target} of a store's translated messages."""
-    return {_key(unit): unit.target for unit in store.units
-            if not unit.isheader() and unit.istranslated()}
+    return {
+        _key(unit): unit.target
+        for unit in store.units
+        if not unit.isheader() and unit.istranslated()
+    }
 
 
 def upstream_translations(domain, lang, upstream_dir):
     """The library's own translations for lang - its exact catalog, else
-        its language's, as gettext looks them up - or {}."""
+    its language's, as gettext looks them up - or {}."""
     path = gettext.find(domain, upstream_dir, [lang]) if upstream_dir else None
     if not path:
         return {}
@@ -102,14 +109,16 @@ def upstream_dir(generator, domain):
     """Where the library's own catalogs are on this host, or None."""
     if domain in NAME_DOMAINS:
         import pycountry
+
         return pycountry.LOCALES_DIR
     return generator.library_locale_dir(generator.LIBRARY_SOURCES[domain][1])
 
 
 def iso_code(domain, name):
     """The ISO code pycountry has for a language (family) name - its name
-        or inverted name ("Sotho, Southern") - or None."""
+    or inverted name ("Sotho, Southern") - or None."""
     import pycountry
+
     database = pycountry.languages if domain == "iso639-3" else pycountry.language_families
     for record in database:
         if name in (getattr(record, "name", None), getattr(record, "inverted_name", None)):
@@ -119,8 +128,9 @@ def iso_code(domain, name):
 
 def write_names_template(domain):
     """po/lite/<domain>/<domain>.pot: the language names
-        po/virtaal.priorities.yaml lists for domain, at any level."""
+    po/virtaal.priorities.yaml lists for domain, at any level."""
     import yaml
+
     with open(PRIORITIES, encoding="utf-8") as f:
         levels = yaml.safe_load(f)["domains"].get(domain, {})
     names = sorted({name for level in levels.values() for name in level})
@@ -139,16 +149,20 @@ def write_names_template(domain):
 def _new_catalog(lang):
     store = pypo.pofile()
     language = lang_factory.getlanguage(lang)
-    store.updateheader(add=True, Language=lang, Content_Type="text/plain; charset=UTF-8",
-                       Plural_Forms="nplurals=%d; plural=%s;" % (language.nplurals, language.pluralequation))
+    store.updateheader(
+        add=True,
+        Language=lang,
+        Content_Type="text/plain; charset=UTF-8",
+        Plural_Forms="nplurals=%d; plural=%s;" % (language.nplurals, language.pluralequation),
+    )
     return store
 
 
 def update(domain, lang, upstream):
     """Applies the rule to po/lite/<domain>/<lang>.po given the library's
-        own translations; returns how many messages it translates that
-        the library's own doesn't (0 when it isn't needed, or fills no
-        gap yet)."""
+    own translations; returns how many messages it translates that
+    the library's own doesn't (0 when it isn't needed, or fills no
+    gap yet)."""
     template = factory.getobject(os.path.join(LITE_DIR, domain, domain + ".pot"))
     messages = [unit for unit in template.units if not unit.isheader()]
     path = os.path.join(LITE_DIR, domain, lang + ".po")
@@ -157,9 +171,18 @@ def update(domain, lang, upstream):
     template_keys = {_key(unit) for unit in messages}
     # A language-name catalog keeps names beyond the template (Zulu's
     # Southern African languages).
-    extras = [unit for unit in existing.units if not unit.isheader() and not unit.isobsolete()
-              and unit.istranslated() and _key(unit) not in template_keys] \
-        if existing and domain in NAME_DOMAINS else []
+    extras = (
+        [
+            unit
+            for unit in existing.units
+            if not unit.isheader()
+            and not unit.isobsolete()
+            and unit.istranslated()
+            and _key(unit) not in template_keys
+        ]
+        if existing and domain in NAME_DOMAINS
+        else []
+    )
 
     if all(_key(unit) in upstream for unit in messages) and not extras:
         if os.path.exists(path):
@@ -167,8 +190,15 @@ def update(domain, lang, upstream):
         return 0
 
     lite = _translations(existing) if existing else {}
-    previous = {_key(unit): unit for unit in existing.units
-                if not unit.isheader() and not unit.isobsolete()} if existing else {}
+    previous = (
+        {
+            _key(unit): unit
+            for unit in existing.units
+            if not unit.isheader() and not unit.isobsolete()
+        }
+        if existing
+        else {}
+    )
     store = _new_catalog(lang)
     if existing and existing.header():
         store.units = [existing.header()]
@@ -195,8 +225,11 @@ def update(domain, lang, upstream):
         code = iso_code(domain, str(unit.source))
         if code is None:
             # Never looked up: pycountry's names change (Swazi became Swati).
-            print("warning: po/lite/%s/%s.po: %r isn't a name pycountry has" % (domain, lang, str(unit.source)),
-                  file=sys.stderr)
+            print(
+                "warning: po/lite/%s/%s.po: %r isn't a name pycountry has"
+                % (domain, lang, str(unit.source)),
+                file=sys.stderr,
+            )
         elif code not in unit.getlocations():
             unit.addlocation(code)
     store.units.extend(extras)
@@ -209,14 +242,17 @@ def update(domain, lang, upstream):
 
 def gap_fills(domain, lang, upstream):
     """How many messages po/lite/<domain>/<lang>.po translates that the
-        library's own catalog doesn't, without changing anything."""
+    library's own catalog doesn't, without changing anything."""
     path = os.path.join(LITE_DIR, domain, lang + ".po")
     if not os.path.exists(path):
         return 0
     template = factory.getobject(os.path.join(LITE_DIR, domain, domain + ".pot"))
     lite = _translations(factory.getobject(path))
-    return sum(1 for unit in template.units
-               if not unit.isheader() and lite.get(_key(unit)) and not upstream.get(_key(unit)))
+    return sum(
+        1
+        for unit in template.units
+        if not unit.isheader() and lite.get(_key(unit)) and not upstream.get(_key(unit))
+    )
 
 
 def unlisted(found):
@@ -228,7 +264,7 @@ def unlisted(found):
 
 def write_linguas(shipped):
     """po/LINGUAS-lite: other domains' lines as they are, these domains'
-        from shipped ({domain: [lang, ...]})."""
+    from shipped ({domain: [lang, ...]})."""
     with open(LINGUAS, encoding="utf-8") as f:
         lines = [line.rstrip("\n") for line in f if line.strip()]
     lines = [line for line in lines if line.split("/")[0] not in shipped]
@@ -239,13 +275,24 @@ def write_linguas(shipped):
 
 def main():
     generator = _generator()
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("domains", nargs="+",
-                        choices=[d for d in generator.LIBRARY_SOURCES
-                                 if d in NAME_DOMAINS or os.path.isdir(os.path.join(LITE_DIR, d))])
-    parser.add_argument("--check", action="store_true",
-                        help="change nothing; fail if a lite catalog that fills a gap for a shipped "
-                             "language is missing from po/LINGUAS-lite, so it wouldn't ship")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "domains",
+        nargs="+",
+        choices=[
+            d
+            for d in generator.LIBRARY_SOURCES
+            if d in NAME_DOMAINS or os.path.isdir(os.path.join(LITE_DIR, d))
+        ],
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="change nothing; fail if a lite catalog that fills a gap for a shipped "
+        "language is missing from po/LINGUAS-lite, so it wouldn't ship",
+    )
     args = parser.parse_args()
 
     shipped, languages = {}, shipped_languages()
@@ -255,12 +302,17 @@ def main():
             directory = upstream_dir(generator, domain)
             if directory is None:
                 sys.exit("%s isn't installed - can't read its own translations" % domain)
-            found += ["%s/%s" % (domain, lang) for lang in languages
-                      if gap_fills(domain, lang, upstream_translations(domain, lang, directory))]
+            found += [
+                "%s/%s" % (domain, lang)
+                for lang in languages
+                if gap_fills(domain, lang, upstream_translations(domain, lang, directory))
+            ]
         missing = unlisted(found)
         for entry in missing:
-            print("::error::po/lite/%s.po fills a gap but po/LINGUAS-lite doesn't list %s, so it won't ship"
-                  % (entry, entry))
+            print(
+                "::error::po/lite/%s.po fills a gap but po/LINGUAS-lite doesn't list %s, so it won't ship"
+                % (entry, entry)
+            )
         sys.exit(1 if missing else 0)
 
     for domain in args.domains:
@@ -274,8 +326,10 @@ def main():
             fills = update(domain, lang, upstream_translations(domain, lang, directory))
             if fills and lang in languages:
                 shipped[domain].append(lang)
-        print("%s: %d lite catalogs fill a gap (upstream: %s)"
-              % (domain, len(shipped[domain]), directory))
+        print(
+            "%s: %d lite catalogs fill a gap (upstream: %s)"
+            % (domain, len(shipped[domain]), directory)
+        )
     write_linguas(shipped)
 
 

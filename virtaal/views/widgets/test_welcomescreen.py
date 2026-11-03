@@ -12,9 +12,19 @@ from virtaal.views.widgets import welcomescreen
 from virtaal.views.widgets.welcomescreen import WelcomeScreen
 
 BUTTON_NAMES = (
-    'open', 'recent1', 'recent2', 'recent3', 'recent4', 'recent5',
-    'tutorial', 'cheatsheet', 'features_more', 'manual', 'locguide',
-    'feedback', 'report_bug',
+    'open',
+    'recent1',
+    'recent2',
+    'recent3',
+    'recent4',
+    'recent5',
+    'tutorial',
+    'cheatsheet',
+    'features_more',
+    'manual',
+    'locguide',
+    'feedback',
+    'report_bug',
 )
 
 
@@ -84,6 +94,7 @@ def test_raises_when_the_builder_has_no_welcome_screen_object():
 
 # feature list / exp_features expander - #3779 #
 
+
 def test_txt_features_is_not_keyboard_navigable():
     screen = WelcomeScreen(_real_builder())
 
@@ -92,9 +103,13 @@ def test_txt_features_is_not_keyboard_navigable():
 
 def test_feature_view_background_is_transparent(monkeypatch):
     bg_calls = []
-    monkeypatch.setattr(welcomescreen, 'set_widget_bg_color', lambda widget, color: bg_calls.append((widget, color)))
+    monkeypatch.setattr(
+        welcomescreen, 'set_widget_bg_color', lambda widget, color: bg_calls.append((widget, color))
+    )
     idle_calls = []
-    monkeypatch.setattr(welcomescreen.GLib, 'idle_add', lambda func, *a, **k: idle_calls.append((func, a)))
+    monkeypatch.setattr(
+        welcomescreen.GLib, 'idle_add', lambda func, *a, **k: idle_calls.append((func, a))
+    )
 
     screen = WelcomeScreen(_real_builder())
     func, args = idle_calls[0]

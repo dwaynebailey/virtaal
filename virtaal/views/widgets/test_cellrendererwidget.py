@@ -28,6 +28,7 @@ def _toplevel_widget():
 
 # __init__() #
 
+
 def test_init_sets_defaults():
     renderer = CellRendererWidget(strfunc=lambda w: '')
 
@@ -47,6 +48,7 @@ def test_init_keeps_a_custom_default_width_and_widget_func():
 
 # do_set_property() / do_get_property() #
 
+
 def test_widget_property_roundtrips_via_the_gobject_property_interface():
     renderer = CellRendererWidget(strfunc=lambda w: '')
     obj = object()
@@ -58,6 +60,7 @@ def test_widget_property_roundtrips_via_the_gobject_property_interface():
 
 
 # do_get_size() #
+
 
 def test_do_get_size_with_a_cell_area_returns_a_padded_rect():
     renderer = CellRendererWidget(strfunc=lambda w: '')
@@ -104,6 +107,7 @@ def test_do_get_size_grows_to_fit_a_larger_embedded_widget():
 
 # do_render() #
 
+
 def test_do_render_skips_a_selected_row_already_being_edited(monkeypatch):
     renderer = CellRendererWidget(strfunc=lambda w: 'hi')
     # 'editing' is a read-only GObject property on the base class,
@@ -125,13 +129,16 @@ def test_do_render_paints_the_layout_when_not_editing(monkeypatch):
     monkeypatch.setattr(Gtk, 'render_layout', lambda **kwargs: calls.append(kwargs))
     widget = _toplevel_widget()
 
-    renderer.do_render(object(), widget, _rectangle(), _rectangle(100, 50), Gtk.CellRendererState(0))
+    renderer.do_render(
+        object(), widget, _rectangle(), _rectangle(100, 50), Gtk.CellRendererState(0)
+    )
 
     assert len(calls) == 1
     assert calls[0]['x'] == CellRendererWidget.XPAD
 
 
 # do_start_editing() #
+
 
 def _select_view_with(item):
     return SelectView(items=[item])
@@ -158,8 +165,9 @@ def test_do_start_editing_returns_none_without_a_config_entry():
 def test_do_start_editing_wraps_the_widget_in_a_shown_cell_widget():
     made = Gtk.Label()
     renderer = CellRendererWidget(strfunc=lambda w: '', widget_func=lambda item: made)
-    sview = _select_view_with({'name': 'A', 'enabled': True, 'data': 'a',
-                                'config': lambda parent: None})
+    sview = _select_view_with(
+        {'name': 'A', 'enabled': True, 'data': 'a', 'config': lambda parent: None}
+    )
 
     result = renderer.do_start_editing(None, sview, '0', None, None, Gtk.CellRendererState(0))
 
@@ -169,6 +177,7 @@ def test_do_start_editing_wraps_the_widget_in_a_shown_cell_widget():
 
 
 # create_pango_layout() #
+
 
 def test_create_pango_layout_sets_the_markup_text():
     renderer = CellRendererWidget(strfunc=lambda w: '')
@@ -190,6 +199,7 @@ def test_create_pango_layout_right_aligns_for_rtl():
 
 
 # CellWidget #
+
 
 def test_cell_widget_packs_its_widgets():
     label = Gtk.Label()

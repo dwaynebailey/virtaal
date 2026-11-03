@@ -91,7 +91,10 @@ def test_msgfmt_is_registered():
 
     assert 'format specifications' in failures['msgfmt']
     assert 'printf' in failures
-    assert extrachecks.with_extra_checks(checks.StandardChecker(), ts2.tsfile()).__class__ is checks.StandardChecker
+    assert (
+        extrachecks.with_extra_checks(checks.StandardChecker(), ts2.tsfile()).__class__
+        is checks.StandardChecker
+    )
 
 
 def test_statsdb_does_not_reuse_checks_cached_without_extra_checks(tmp_path, length_check_only):
@@ -101,7 +104,9 @@ def test_statsdb_does_not_reuse_checks_cached_without_extra_checks(tmp_path, len
     cache = statsdb.StatsCache(str(tmp_path / "stats.db"))
 
     plain = cache.filechecks(str(po_file), checks.StandardChecker(), store)
-    extra = cache.filechecks(str(po_file), extrachecks.with_extra_checks(checks.StandardChecker(), store), store)
+    extra = cache.filechecks(
+        str(po_file), extrachecks.with_extra_checks(checks.StandardChecker(), store), store
+    )
 
     assert 'check-toolong' not in plain
     assert extra['check-toolong'] == [1]

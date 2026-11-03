@@ -30,7 +30,7 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
 
     __gtype_name__ = 'SelectView'
     __gsignals__ = {
-        'item-enabled':  (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
+        'item-enabled': (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
         'item-disabled': (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
         'item-selected': (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
     }
@@ -79,7 +79,6 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
         self.props.activate_on_single_click = True
         self.props.enable_search = False
 
-
     # METHODS #
     def _create_widget_for_item(self, item):
         hbox = Gtk.HBox()
@@ -118,11 +117,13 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
             vbox.lbl_desc = lbl
         hbox.pack_start(vbox, True, True, 0)
 
-        #TODO: ideally we need an accesskey, but it is not currently working
+        # TODO: ideally we need an accesskey, but it is not currently working
         if 'config' in item and callable(item['config']):
             btnconf = Gtk.Button(label=_('Configure…'))
+
             def clicked(button):
                 item['config'](self.get_toplevel())
+
             btnconf.connect('clicked', clicked)
             btnconf.config_func = item['config']
             hbox.pack_start(btnconf, False, True, 0)
@@ -145,10 +146,11 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
         return [
             {
                 'enabled': row[COL_ENABLED],
-                'name':    row[COL_NAME],
-                'desc':    row[COL_DESC],
-                'data':    row[COL_DATA]
-            } for row in self._model
+                'name': row[COL_NAME],
+                'desc': row[COL_DESC],
+                'data': row[COL_DATA],
+            }
+            for row in self._model
         ]
 
     def get_item(self, iter):
@@ -167,9 +169,9 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
 
         item = {
             'enabled': self._model.get_value(iter, COL_ENABLED),
-            'name':    self._model.get_value(iter, COL_NAME),
-            'desc':    self._model.get_value(iter, COL_DESC),
-            'data':    self._model.get_value(iter, COL_DATA),
+            'name': self._model.get_value(iter, COL_NAME),
+            'desc': self._model.get_value(iter, COL_DESC),
+            'data': self._model.get_value(iter, COL_DATA),
         }
         if config:
             item['config'] = config
@@ -233,18 +235,19 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
                 widget = self._create_widget_for_item(row)
                 widget.show_all()
                 widest = max(widest, widget.get_preferred_width()[1])
-                self._model.append([
-                    row.get('enabled', False),
-                    row.get('name', ''),
-                    row.get('desc', ''),
-                    row.get('data', None),
-                    widget
-                ])
+                self._model.append(
+                    [
+                        row.get('enabled', False),
+                        row.get('name', ''),
+                        row.get('desc', ''),
+                        row.get('data', None),
+                        widget,
+                    ]
+                )
             if widest:
                 self.namedesc_col.set_min_width(widest)
 
         super().set_model(self._model)
-
 
     # EVENT HANDLERS #
     def _on_item_toggled(self, cellr, path):

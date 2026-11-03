@@ -71,34 +71,49 @@ class Harvest:
         key = (text, screen, shown, tooltip)
         if key not in self.seen:
             self.seen.add(key)
-            record = {"text": text, "screen": screen, "widget": type(widget).__name__,
-                      "within": within, "window": window, "shown": shown}
+            record = {
+                "text": text,
+                "screen": screen,
+                "widget": type(widget).__name__,
+                "within": within,
+                "window": window,
+                "shown": shown,
+            }
             if tooltip:
                 record["tooltip"] = True
             self.strings.append(record)
 
     def walk(self, widget, screen, visited, within="", window="", shown=True):
         """within: the nearest enclosing GTK-built composite that matters
-            for where a string comes from, e.g. "FileChooser" (only shown on
-            Linux - Windows and macOS use the OS's own dialog).
-            shown: whether every widget above this one is visible. A
-            submenu counts as shown when its menu item is."""
+        for where a string comes from, e.g. "FileChooser" (only shown on
+        Linux - Windows and macOS use the OS's own dialog).
+        shown: whether every widget above this one is visible. A
+        submenu counts as shown when its menu item is."""
         from gi.repository import Gtk
 
         from virtaal.views.widgets.selectview import SelectView
+
         # Keyed by id() but holding the widget: a PyGObject wrapper from
         # forall() is temporary, and once collected its id() can be
         # reused by another widget's, which would then be skipped.
         if id(widget) in visited:
             return
         visited[id(widget)] = widget
-        for composite in (Gtk.FileChooser, Gtk.FontButton, Gtk.AboutDialog, Gtk.ShortcutsWindow, Gtk.Menu):
+        for composite in (
+            Gtk.FileChooser,
+            Gtk.FontButton,
+            Gtk.AboutDialog,
+            Gtk.ShortcutsWindow,
+            Gtk.Menu,
+        ):
             if isinstance(widget, composite):
                 within = composite.__name__
         if isinstance(widget, Gtk.Window) and not window:
             window = "%s %r" % (type(widget).__name__, widget.get_title())
         shown = shown and (widget.get_visible() or isinstance(widget, Gtk.Menu))
-        add = lambda text, tooltip=False: self.add(text, screen, widget, within, window, shown, tooltip)  # noqa: E731
+        add = lambda text, tooltip=False: self.add(
+            text, screen, widget, within, window, shown, tooltip
+        )  # noqa: E731
 
         if isinstance(widget, Gtk.Window):
             add(widget.get_title())
@@ -145,14 +160,18 @@ class Harvest:
 
     def walk_toplevels(self, screen, extra=()):
         """extra: widgets outside any toplevel, e.g. the menu bar macOS's
-            native menu integration takes out of the main window."""
+        native menu integration takes out of the main window."""
         from gi.repository import Gtk
+
         # Visible windows first: a menu reached through its item counts as
         # shown, but not through the hidden popup window that also holds it.
         toplevels = Gtk.Window.list_toplevels()
         visited = {}
-        for widget in ([w for w in toplevels if w.get_visible()] + list(extra)
-                       + [w for w in toplevels if not w.get_visible()]):
+        for widget in (
+            [w for w in toplevels if w.get_visible()]
+            + list(extra)
+            + [w for w in toplevels if not w.get_visible()]
+        ):
             self.walk(widget, screen, visited)
 
 
@@ -160,6 +179,7 @@ def _collect(widget, cls, out):
     """Every widget of class cls in widget's tree, including internal
     children."""
     from gi.repository import Gtk
+
     if isinstance(widget, cls):
         out.append(widget)
     if isinstance(widget, Gtk.Container):
@@ -171,6 +191,7 @@ def _collect(widget, cls, out):
 
 def _leaf_menu_items(menubar):
     from gi.repository import Gtk
+
     items = []
 
     def visit(menu):
@@ -217,14 +238,17 @@ def _stub_blocking_calls(harvest, current_screen):
 
 def _set_pseudo_source():
     from virtaal import cli
-    options = argparse.Namespace(pseudo_translation=False, pseudo_translation_bidi=False,
-                                 pseudo_translation_source=True)
+
+    options = argparse.Namespace(
+        pseudo_translation=False, pseudo_translation_bidi=False, pseudo_translation_source=True
+    )
     cli._set_pseudo_translation(options, argparse.ArgumentParser())
 
 
 def run(output):
     _set_pseudo_source()
     import gi
+
     gi.require_version("Gtk", "3.0")
     from gi.repository import GLib, Gtk
 
@@ -289,20 +313,39 @@ def run(output):
             off = type(tm).default_config["disabled_models"].split(",") + ["basetmmodel"]
             # Named as a real match is: a model's short name ("Local TM"),
             # else its display name.
-            models = [backends._get_plugin_class(name) for name in backends._find_plugin_names() if name not in off]
+            models = [
+                backends._get_plugin_class(name)
+                for name in backends._find_plugin_names()
+                if name not in off
+            ]
             sources = [getattr(model, "shortname", None) or model.display_name for model in models]
             tm.controller.send_tm_query(unit)
             query = tm.controller.current_query
-            tm.controller.accept_response(next(iter(backends.plugins.values())), query, [
-                {"source": query, "target": "Harvest match %d" % i, "quality": 90 - i, "tmsource": source}
-                for i, source in enumerate(sources)])
+            tm.controller.accept_response(
+                next(iter(backends.plugins.values())),
+                query,
+                [
+                    {
+                        "source": query,
+                        "target": "Harvest match %d" % i,
+                        "quality": 90 - i,
+                        "tmsource": source,
+                    }
+                    for i, source in enumerate(sources)
+                ],
+            )
             tm.controller.view.show(force=True)
             yield from settle()
             visit("tm suggestions")
             tmwindow = tm.controller.view.tmwindow
             for row in tmwindow.liststore:
-                harvest.add(row[0]["tmsource"], "tm suggestions", tmwindow.treeview, "",
-                            "%s %r" % (type(tmwindow).__name__, tmwindow.get_title()))
+                harvest.add(
+                    row[0]["tmsource"],
+                    "tm suggestions",
+                    tmwindow.treeview,
+                    "",
+                    "%s %r" % (type(tmwindow).__name__, tmwindow.get_title()),
+                )
             tm.controller.view.hide()
 
         mode_controller = main_controller.mode_controller
@@ -364,8 +407,9 @@ def run(output):
         menubar = main_controller.view.gui.get_object("menubar")
         items = _leaf_menu_items(menubar)
         ids = {item: Gtk.Buildable.get_name(item) for item in items}
-        items = ([i for i in items if ids[i] not in LAST_ITEMS + SKIP_ITEMS]
-                 + [i for i in items if ids[i] in LAST_ITEMS])
+        items = [i for i in items if ids[i] not in LAST_ITEMS + SKIP_ITEMS] + [
+            i for i in items if ids[i] in LAST_ITEMS
+        ]
         for item in items:
             name = ids[item] or item.get_label() or type(item).__name__
             if main_controller.store_controller.store is not None:
@@ -377,7 +421,11 @@ def run(output):
             visit(name)
             yield from open_subdialogs(name)
             for window in Gtk.Window.list_toplevels():
-                if window is not main_window and window.get_visible() and window.get_transient_for() is main_window:
+                if (
+                    window is not main_window
+                    and window.get_visible()
+                    and window.get_transient_for() is main_window
+                ):
                     window.hide()
 
         if main_controller.plugin_controller:
@@ -413,7 +461,9 @@ def run(output):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("output", help="JSON file to write")
     run(parser.parse_args().output)
 

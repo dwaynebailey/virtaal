@@ -40,7 +40,9 @@ from virtaal.support.dictionary_source import (
     parse_dictionaries_xcu,
 )
 
-AUTOCORRECT_PARENT_CONTENTS_URL = 'https://api.github.com/repos/LibreOffice/core/contents/extras/source/autocorr'
+AUTOCORRECT_PARENT_CONTENTS_URL = (
+    'https://api.github.com/repos/LibreOffice/core/contents/extras/source/autocorr'
+)
 AUTOCORRECT_TREE_URL = 'https://api.github.com/repos/LibreOffice/core/git/trees/%s?recursive=1'
 
 # Folders with no HunSpellDic_* entry at all, permanently - not an
@@ -115,11 +117,11 @@ def build_dictionary_and_thesaurus_manifests():
     thesaurus = {}
     for folder in sorted(folders):
         folder_problems, entries = check_dictionary_style_folder(
-            folder, shas, 'DICT_SPELL', required=True)
+            folder, shas, 'DICT_SPELL', required=True
+        )
         problems.extend(folder_problems)
         dictionary.update(entries)
-        _, thes_entries = check_dictionary_style_folder(
-            folder, shas, 'DICT_THES', required=False)
+        _, thes_entries = check_dictionary_style_folder(folder, shas, 'DICT_THES', required=False)
         thesaurus.update(thes_entries)
     return problems, dictionary, thesaurus
 
@@ -145,13 +147,17 @@ def build_autocorrect_manifest():
             'folder': folder,
             'files': [{'name': 'DocumentList.xml', 'sha': entry.get('sha')}],
         }
-    problems = [] if autocorrect else ['no DocumentList.xml files found under extras/source/autocorr/lang']
+    problems = (
+        [] if autocorrect else ['no DocumentList.xml files found under extras/source/autocorr/lang']
+    )
     return problems, autocorrect
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--manifest-out', help='Write the asset manifest YAML here, only if the run is clean')
+    parser.add_argument(
+        '--manifest-out', help='Write the asset manifest YAML here, only if the run is clean'
+    )
     args = parser.parse_args()
 
     dict_problems, dictionary, thesaurus = build_dictionary_and_thesaurus_manifests()
@@ -167,8 +173,10 @@ def main():
             print(' -', p)
         return 1
 
-    print('%d dictionary, %d thesaurus, %d autocorrect locale(s) resolve cleanly.'
-          % (len(dictionary), len(thesaurus), len(autocorrect)))
+    print(
+        '%d dictionary, %d thesaurus, %d autocorrect locale(s) resolve cleanly.'
+        % (len(dictionary), len(thesaurus), len(autocorrect))
+    )
 
     if args.manifest_out:
         manifest = {'dictionary': dictionary, 'thesaurus': thesaurus, 'autocorrect': autocorrect}

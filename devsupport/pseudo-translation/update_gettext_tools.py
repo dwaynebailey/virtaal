@@ -48,7 +48,8 @@ UNREPORTED = {
 
 def _lite():
     spec = importlib.util.spec_from_file_location(
-        "lite", os.path.join(REPO_ROOT, "virtaal", "support", "libi18n", "lite.py"))
+        "lite", os.path.join(REPO_ROOT, "virtaal", "support", "libi18n", "lite.py")
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -77,8 +78,11 @@ def template_units(pot_path):
 
 def ui_languages():
     """Virtaal's UI languages, without English variants."""
-    return sorted(name[:-len(".po")] for name in os.listdir(os.path.join(REPO_ROOT, "po"))
-                  if name.endswith(".po") and not name.startswith("en_"))
+    return sorted(
+        name[: -len(".po")]
+        for name in os.listdir(os.path.join(REPO_ROOT, "po"))
+        if name.endswith(".po") and not name.startswith("en_")
+    )
 
 
 def _plural_forms(header):
@@ -92,10 +96,12 @@ def write_catalog(path, lang, units, upstream, version):
         existing = _lite().read_lite_po(path)
 
     store = pypo.pofile()
-    header = {"Project-Id-Version": "gettext-tools %s" % version,
-              "Language": lang,
-              "Content-Type": "text/plain; charset=UTF-8",
-              "Content-Transfer-Encoding": "8bit"}
+    header = {
+        "Project-Id-Version": "gettext-tools %s" % version,
+        "Language": lang,
+        "Content-Type": "text/plain; charset=UTF-8",
+        "Content-Transfer-Encoding": "8bit",
+    }
     plural_forms = _plural_forms(upstream.get("", "")) or _plural_forms(existing.get("", ""))
     if plural_forms:
         header["Plural-Forms"] = plural_forms.split(":", 1)[1].strip()
@@ -125,14 +131,18 @@ def write_catalog(path, lang, units, upstream, version):
 def write_linguas(langs):
     """po/LINGUAS-lite, with this domain's lines for langs."""
     with open(LINGUAS, encoding="utf-8") as f:
-        lines = [line.rstrip("\n") for line in f if line.strip() and not line.startswith(DOMAIN + "/")]
+        lines = [
+            line.rstrip("\n") for line in f if line.strip() and not line.startswith(DOMAIN + "/")
+        ]
     lines += ["%s/%s" % (DOMAIN, lang) for lang in langs]
     with open(LINGUAS, "w", encoding="utf-8") as f:
         f.write("".join(line + "\n" for line in sorted(lines)))
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("gettext_dir", help="an unpacked GNU gettext release")
     args = parser.parse_args()
 
@@ -143,8 +153,12 @@ def main():
 
     os.makedirs(OUT_DIR, exist_ok=True)
     template = pypo.pofile()
-    template.updateheader(add=True, Project_Id_Version="gettext-tools %s" % version,
-                          Content_Type="text/plain; charset=UTF-8", X_Generator=None)
+    template.updateheader(
+        add=True,
+        Project_Id_Version="gettext-tools %s" % version,
+        Content_Type="text/plain; charset=UTF-8",
+        X_Generator=None,
+    )
     for unit in units:
         template.addunit(unit)
     with open(os.path.join(OUT_DIR, DOMAIN + ".pot"), "wb") as f:

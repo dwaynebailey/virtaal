@@ -54,21 +54,23 @@ def label(entry):
 
 
 def _matches(entry, sweep, case, problem):
-    return (sweep in entry['sweeps']
-            and (entry['cases'] == ALL or case in entry['cases'])
-            and problem['kind'] in entry['kinds']
-            and entry['match'] in problem['signature'] + '\n' + problem['detail'])
+    return (
+        sweep in entry['sweeps']
+        and (entry['cases'] == ALL or case in entry['cases'])
+        and problem['kind'] in entry['kinds']
+        and entry['match'] in problem['signature'] + '\n' + problem['detail']
+    )
 
 
 class Outcome:
     def __init__(self):
         self.cases = 0
         self.sweeps = set()
-        self.new = []        # (result, problem)
-        self.known = []      # (entry, result, problem)
-        self.stale = []      # (entry, sweep, case) - case is ALL for a '*' entry
-        self.unknown = []    # (entry, sweep, case) - no such case in that sweep
-        self.closed = []     # entry
+        self.new = []  # (result, problem)
+        self.known = []  # (entry, result, problem)
+        self.stale = []  # (entry, sweep, case) - case is ALL for a '*' entry
+        self.unknown = []  # (entry, sweep, case) - no such case in that sweep
+        self.closed = []  # entry
 
     @property
     def failed(self):
@@ -134,7 +136,9 @@ def fetch_issue_states(issues, repo='translate/virtaal', token=None, timeout=10)
     for issue in sorted(set(issues)):
         url = 'https://api.github.com/repos/%s/issues/%d' % (repo, issue)
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=timeout) as response:
+            with urllib.request.urlopen(
+                urllib.request.Request(url, headers=headers), timeout=timeout
+            ) as response:
                 states[issue] = json.load(response)['state']
         except Exception:
             return {}
@@ -154,34 +158,74 @@ def _cases(entry, sweep, case):
 
 def summary(outcome, platform, issue_check=True):
     lines = ['## UI fuzzing: %s' % platform, '']
-    lines.append('%d cases in %d sweeps. %d new failures, %d known, %d stale entries.' % (
-        outcome.cases, len(outcome.sweeps), len(outcome.new), len(outcome.known), len(outcome.stale)))
+    lines.append(
+        '%d cases in %d sweeps. %d new failures, %d known, %d stale entries.'
+        % (
+            outcome.cases,
+            len(outcome.sweeps),
+            len(outcome.new),
+            len(outcome.known),
+            len(outcome.stale),
+        )
+    )
     if not issue_check:
         lines.append('')
         lines.append("Couldn't reach GitHub to check whether the listed issues are still open.")
     if outcome.new:
-        lines += ['', '### New failures', '',
-                  'Not in known_bugs.py. File an issue and add an entry, or fix it.', '',
-                  '| Sweep | Case | Kind | Signature |', '|---|---|---|---|']
+        lines += [
+            '',
+            '### New failures',
+            '',
+            'Not in known_bugs.py. File an issue and add an entry, or fix it.',
+            '',
+            '| Sweep | Case | Kind | Signature |',
+            '|---|---|---|---|',
+        ]
         for result, problem in outcome.new:
-            lines.append('| %s | %s | %s | %s |' % (_cell(result['sweep']), _cell(result['case']),
-                                                   _cell(problem['kind']), _cell(problem['signature'] or problem['detail'])))
+            lines.append(
+                '| %s | %s | %s | %s |'
+                % (
+                    _cell(result['sweep']),
+                    _cell(result['case']),
+                    _cell(problem['kind']),
+                    _cell(problem['signature'] or problem['detail']),
+                )
+            )
         lines += ['', '<details><summary>Details</summary>', '']
         for result, problem in outcome.new:
-            lines += ['**%s / %s / %s**' % (_cell(result['sweep']), _cell(result['case']), _cell(problem['kind'])),
-                      '', '<pre>%s</pre>' % html.escape(problem['detail'][-3000:]), '']
+            lines += [
+                '**%s / %s / %s**'
+                % (_cell(result['sweep']), _cell(result['case']), _cell(problem['kind'])),
+                '',
+                '<pre>%s</pre>' % html.escape(problem['detail'][-3000:]),
+                '',
+            ]
         lines.append('</details>')
     if outcome.stale:
-        lines += ['', '### Stale known-bug entries', '',
-                  "The listed failure didn't happen. If the issue is fixed, remove the entry so a regression is caught.", '']
+        lines += [
+            '',
+            '### Stale known-bug entries',
+            '',
+            "The listed failure didn't happen. If the issue is fixed, remove the entry so a regression is caught.",
+            '',
+        ]
         for entry, sweep, case in outcome.stale:
-            lines.append('- %s: %s, %s, %s' % (label(entry), sweep, _cases(entry, sweep, case), entry['kind']))
+            lines.append(
+                '- %s: %s, %s, %s'
+                % (label(entry), sweep, _cases(entry, sweep, case), entry['kind'])
+            )
     if outcome.unknown:
         lines += ['', '### Entries naming a case the sweep doesn\'t have', '']
         for entry, sweep, case in outcome.unknown:
             lines.append('- %s: %s, "%s"' % (label(entry), sweep, _cell(case)))
     if outcome.closed:
-        lines += ['', '### Entries for closed issues', '', 'Remove the entry, or reopen the issue.', '']
+        lines += [
+            '',
+            '### Entries for closed issues',
+            '',
+            'Remove the entry, or reopen the issue.',
+            '',
+        ]
         for entry in outcome.closed:
             lines.append('- %s' % label(entry))
     if outcome.known:
@@ -189,8 +233,13 @@ def summary(outcome, platform, issue_check=True):
         for entry, result, problem in outcome.known:
             key = (label(entry), result['sweep'], problem['kind'])
             counts[key] = counts.get(key, 0) + 1
-        lines += ['', '<details><summary>Known failures</summary>', '',
-                  '| Issue | Sweep | Kind | Failures |', '|---|---|---|---|']
+        lines += [
+            '',
+            '<details><summary>Known failures</summary>',
+            '',
+            '| Issue | Sweep | Kind | Failures |',
+            '|---|---|---|---|',
+        ]
         for (issue, sweep, kind), n in sorted(counts.items()):
             lines.append('| %s | %s | %s | %d |' % (_cell(issue), _cell(sweep), _cell(kind), n))
         lines += ['', '</details>']

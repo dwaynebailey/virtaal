@@ -18,7 +18,8 @@ from virtaal.plugins.lookup.models.weblookup import LookupModel
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('VIRTAAL_LIVE_SERVICES') != '1',
-    reason="set VIRTAAL_LIVE_SERVICES=1 to open the live look-up sites")
+    reason="set VIRTAAL_LIVE_SERVICES=1 to open the live look-up sites",
+)
 
 QUERIES = [('translation', 'en', 'af'), ('machine translation', 'en', 'af')]
 USER_AGENT = 'virtaal-web-lookup-check'

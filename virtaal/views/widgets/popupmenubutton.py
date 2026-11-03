@@ -23,10 +23,10 @@ from gi.repository import Gdk, GObject, Gtk
 POS_CENTER_BELOW, POS_CENTER_ABOVE, POS_NW_SW, POS_NE_SE, POS_NW_NE, POS_SW_NW, POS_SE_NE = range(7)
 
 _rtl_pos_map = {
-        POS_CENTER_BELOW: POS_CENTER_BELOW,
-        POS_CENTER_ABOVE: POS_CENTER_ABOVE,
-        POS_SW_NW: POS_SE_NE,
-        POS_NW_SW: POS_NE_SE,
+    POS_CENTER_BELOW: POS_CENTER_BELOW,
+    POS_CENTER_ABOVE: POS_CENTER_ABOVE,
+    POS_SW_NW: POS_SE_NE,
+    POS_NW_SW: POS_NE_SE,
 }
 
 
@@ -35,13 +35,15 @@ _ENTER_KEYS = (Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_ISO_Enter)
 
 def close_on_enter(menu):
     """Make Enter close C{menu} like Escape, rather than toggling the
-        highlighted item - for a menu of check items, where Space already
-        toggles them."""
+    highlighted item - for a menu of check items, where Space already
+    toggles them."""
+
     def on_key_press(menu, event):
         if event.keyval in _ENTER_KEYS:
             menu.cancel()
             return True
         return False
+
     menu.connect('key-press-event', on_key_press)
 
 
@@ -60,7 +62,6 @@ class PopupMenuButton(Gtk.ToggleButton):
             self.menu_pos = _rtl_pos_map.get(menu_pos, POS_SE_NE)
 
         self.connect_after('toggled', self._on_toggled)
-
 
     # ACCESSORS #
     def set_menu(self, menu):
@@ -81,14 +82,17 @@ class PopupMenuButton(Gtk.ToggleButton):
             # timing.
             old_menu.destroy()
         self.menu = menu
-        self._menu_selection_done_id = self.menu.connect('selection-done', self._on_menu_selection_done)
+        self._menu_selection_done_id = self.menu.connect(
+            'selection-done', self._on_menu_selection_done
+        )
 
     def _get_text(self):
         return str(self.get_label())
+
     def _set_text(self, value):
         self.set_label(value)
-    text = property(_get_text, _set_text)
 
+    text = property(_get_text, _set_text)
 
     # METHODS #
 
@@ -120,7 +124,6 @@ class PopupMenuButton(Gtk.ToggleButton):
             widget_anchor = Gdk.Gravity.NORTH
 
         self.menu.popup_at_widget(self, widget_anchor, menu_anchor, None)
-
 
     # EVENT HANDLERS #
     def _on_menu_selection_done(self, menu):

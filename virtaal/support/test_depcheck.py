@@ -11,6 +11,7 @@ from virtaal.support import depcheck
 
 # test_import()
 
+
 def test_import_returns_true_for_a_real_module():
     assert depcheck.test_import('os') is True
 
@@ -22,6 +23,7 @@ def test_import_returns_false_for_a_missing_module():
 # test_sqlite3_version() / test_json(): real stdlib modules, always
 # available in any environment these tests run in.
 
+
 def test_sqlite3_version_is_met():
     assert depcheck.test_sqlite3_version() is True
 
@@ -32,8 +34,10 @@ def test_json_is_met():
 
 # test_gtkspell()
 
+
 def test_gtkspell_is_met_when_its_typelib_is_installed():
     import gi
+
     try:
         gi.require_version('GtkSpell', '3.0')
     except ValueError:
@@ -46,11 +50,13 @@ def test_gtkspell_fails_without_its_typelib(monkeypatch):
 
     def no_typelib(namespace, version):
         raise ValueError('Namespace %s not available' % namespace)
+
     monkeypatch.setattr(gi, 'require_version', no_typelib)
     assert depcheck.test_gtkspell() is False
 
 
 # test_translate_toolkit_version()
+
 
 def test_translate_toolkit_version_is_met_by_the_installed_version():
     assert depcheck.test_translate_toolkit_version() is True
@@ -58,6 +64,7 @@ def test_translate_toolkit_version_is_met_by_the_installed_version():
 
 def test_translate_toolkit_version_fails_below_the_minimum(monkeypatch):
     from translate import __version__
+
     monkeypatch.setattr(__version__, 'ver', (0, 0, 1))
 
     assert depcheck.test_translate_toolkit_version() is False
@@ -65,6 +72,7 @@ def test_translate_toolkit_version_fails_below_the_minimum(monkeypatch):
 
 def test_translate_toolkit_version_fails_gracefully_if_unimportable(monkeypatch):
     import builtins
+
     real_import = builtins.__import__
 
     def fake_import(name, *args, **kwargs):
@@ -79,6 +87,7 @@ def test_translate_toolkit_version_fails_gracefully_if_unimportable(monkeypatch)
 
 # test_gtk_version()
 
+
 def test_gtk_version_is_met_by_the_installed_version():
     assert depcheck.test_gtk_version() is True
 
@@ -91,6 +100,7 @@ def test_gtk_version_fails_below_the_minimum(monkeypatch):
 
 # check_dependencies(): dispatches to extra_tests when a module has a
 # real version check, falls back to a plain import check otherwise.
+
 
 def test_check_dependencies_returns_nothing_when_everything_passes(monkeypatch):
     monkeypatch.setattr(depcheck, 'extra_tests', {'sqlite3': lambda: True})

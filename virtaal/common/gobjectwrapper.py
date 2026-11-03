@@ -7,7 +7,7 @@
 
 from gi.repository import GObject
 
-#import logging
+# import logging
 
 
 class GObjectWrapper(GObject.GObject):
@@ -24,7 +24,6 @@ class GObjectWrapper(GObject.GObject):
             if issubclass(type_, GObject.GObject):
                 self._all_signals.extend(GObject.signal_list_names(type_))
         self._enabled_signals = set(self._all_signals)
-
 
     # METHODS #
     def disable_signals(self, signals=None):
@@ -45,5 +44,5 @@ class GObjectWrapper(GObject.GObject):
 
     def emit(self, signame, *args):
         if signame in self._enabled_signals:
-            #logging.debug('emit("%s", %s)' % (signame, ','.join([repr(arg) for arg in args])))
+            # logging.debug('emit("%s", %s)' % (signame, ','.join([repr(arg) for arg in args])))
             super().emit(signame, *args)

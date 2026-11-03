@@ -20,7 +20,7 @@ class TMModel(BaseTMModel):
     display_name = _('Current File')
     description = _('Translated units from the currently open file')
 
-    default_config = { 'max_length': 1000 }
+    default_config = {'max_length': 1000}
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
@@ -30,12 +30,17 @@ class TMModel(BaseTMModel):
         self.internal_name = internal_name
         self.load_config()
 
-        self._signal_tracker.connect(self.controller.main_controller.store_controller, 'store-loaded', self.recreate_matcher)
+        self._signal_tracker.connect(
+            self.controller.main_controller.store_controller, 'store-loaded', self.recreate_matcher
+        )
         if self.controller.main_controller.store_controller.get_store() is not None:
             self.recreate_matcher(self.controller.main_controller.store_controller)
 
-        self._signal_tracker.connect(self.controller.main_controller.store_controller.unit_controller, 'unit-done', self._on_unit_modified)
-
+        self._signal_tracker.connect(
+            self.controller.main_controller.store_controller.unit_controller,
+            'unit-done',
+            self._on_unit_modified,
+        )
 
     # METHODS #
     def recreate_matcher(self, storecontroller):
@@ -43,9 +48,14 @@ class TMModel(BaseTMModel):
         if self.matcher is None:
             options = {
                 'max_length': pan_app.config_int(
-                    self.config['max_length'], self.default_config['max_length'], 1, 1000000, 'max_length'),
+                    self.config['max_length'],
+                    self.default_config['max_length'],
+                    1,
+                    1000000,
+                    'max_length',
+                ),
                 'max_candidates': self.controller.max_matches,
-                'min_similarity': self.controller.min_quality
+                'min_similarity': self.controller.min_quality,
             }
             self.matcher = _matcher(store, **options)
         else:
@@ -78,7 +88,7 @@ class TMModel(BaseTMModel):
 
         for candidate in self.matcher.matches(query_str):
             m = match.unit2dict(candidate)
-            #l10n: Try to keep this as short as possible.
+            # l10n: Try to keep this as short as possible.
             m['tmsource'] = _('This file')
             matches.append(m)
         return [m for m in matches if m['quality'] != '100']
@@ -91,11 +101,14 @@ class TMModel(BaseTMModel):
             return []
 
         from translate.search.lshtein import LevenshteinComparer
+
         lcomparer = LevenshteinComparer(max_len=1000)
 
         results = []
         for alt in alttrans:
-            quality = lcomparer.similarity(unit.source, alt.source, self.controller.min_quality - 15)
+            quality = lcomparer.similarity(
+                unit.source, alt.source, self.controller.min_quality - 15
+            )
             # let's check if it is useful, but be more lenient
             if quality < self.controller.min_quality - 10:
                 continue
@@ -110,24 +123,31 @@ class TMModel(BaseTMModel):
                         # in a try block, just in case.
                         try:
                             import os.path
+
                             extras = xmlelement.xpath('processing-instruction()')
                             meta = dict((pi.target, pi.text) for pi in extras)
-                            tmsource = [meta.get("contact-name", ""), meta.get("category", ""), os.path.splitext(meta.get("original", ""))[0]]
+                            tmsource = [
+                                meta.get("contact-name", ""),
+                                meta.get("category", ""),
+                                os.path.splitext(meta.get("original", ""))[0],
+                            ]
                             tmsource = "\n".join(filter(None, tmsource))
                         except Exception as e:
                             import logging
+
                             logging.info(e)
 
                     tmsource += "\n" + origin
 
-            results.append({
-                'source': alt.source,
-                'target': alt.target,
-                'quality': quality,
-                'tmsource': tmsource,
-            })
+            results.append(
+                {
+                    'source': alt.source,
+                    'target': alt.target,
+                    'quality': quality,
+                    'tmsource': tmsource,
+                }
+            )
         return results
-
 
     # EVENT HANDLERS #
     def _on_unit_modified(self, widget, new_unit, modified):
@@ -140,8 +160,9 @@ class TMModel(BaseTMModel):
             min_quality = self.controller.min_quality
             start = self.matcher.getstartlength(min_quality, new_unit.source)
             stop = self.matcher.getstoplength(min_quality, new_unit.source)
+
             def unaffected(key):
                 l = len(key)
                 return l < start or l > stop
 
-            self.cache = dict((k,v) for (k,v) in self.cache.items() if unaffected(k))
+            self.cache = dict((k, v) for (k, v) in self.cache.items() if unaffected(k))

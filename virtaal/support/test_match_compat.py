@@ -31,6 +31,7 @@ def _matched_quality(source, candidate_source):
 # recovered from there with a regex that can't tell integer from fractional
 # digits.
 
+
 def test_matches_reports_a_sane_quality_for_a_non_integer_similarity_score():
     quality = _matched_quality(
         'This is a test string that is fairly long for demonstratio',
@@ -66,6 +67,8 @@ def test_matches_orders_by_the_true_score_even_when_rounded_scores_tie():
     # Both round to 86%, but source_bbb's true score is higher and should
     # sort first.
     comparer = _FakeComparer({'source_aaa': 85.6, 'source_bbb': 85.9})
-    results = matcher(store, max_candidates=5, min_similarity=50, comparer=comparer).matches('abcdefghij')
+    results = matcher(store, max_candidates=5, min_similarity=50, comparer=comparer).matches(
+        'abcdefghij'
+    )
 
     assert [unit.source for unit in results] == ['source_bbb', 'source_aaa']

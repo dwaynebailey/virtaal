@@ -22,9 +22,7 @@ class TerminologyController(BaseController):
     """The logic-filled glue between the terminology view and -model."""
 
     __gtype_name__ = 'TerminologyController'
-    __gsignals__ = {
-        'start-query': (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_STRING,))
-    }
+    __gsignals__ = {'start-query': (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_STRING,))}
 
     # INITIALIZERS #
     def __init__(self, main_controller, config=None):
@@ -42,8 +40,13 @@ class TerminologyController(BaseController):
         main_controller.view.main_window.connect('style-updated', self._on_style_set)
         self._on_style_set(main_controller.view.main_window, None)
 
-        if not (terminology.TerminologyPlaceable, TerminologyGUIInfo) in placeablesguiinfo.element_gui_map:
-            placeablesguiinfo.element_gui_map.insert(0, (terminology.TerminologyPlaceable, TerminologyGUIInfo))
+        if (
+            not (terminology.TerminologyPlaceable, TerminologyGUIInfo)
+            in placeablesguiinfo.element_gui_map
+        ):
+            placeablesguiinfo.element_gui_map.insert(
+                0, (terminology.TerminologyPlaceable, TerminologyGUIInfo)
+            )
 
         self.view = TerminologyView(self)
         self._connect_signals()
@@ -56,11 +59,14 @@ class TerminologyController(BaseController):
 
     def _load_models(self):
         self.plugin_controller = PluginController.for_backend(
-            self, 'TerminologyModel', 'terminology', BaseTerminologyModel,
-            lambda *args: self.disabled_model_names)
+            self,
+            'TerminologyModel',
+            'terminology',
+            BaseTerminologyModel,
+            lambda *args: self.disabled_model_names,
+        )
         self.plugin_controller.connect('plugin-enabled', lambda *args: self.rescan_current_unit())
         self.plugin_controller.load_plugins()
-
 
     # METHODS #
     def destroy(self):
@@ -90,7 +96,6 @@ class TerminologyController(BaseController):
         if store_controller is None or store_controller.cursor is None:
             return
         store_controller.view._treeview.refresh_current_row()
-
 
     # EVENT HANDLERS #
     def _on_placeables_changed(self, placeables_controller):

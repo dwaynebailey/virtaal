@@ -36,17 +36,17 @@ class AutoCorrector:
 
     def __init__(self, main_controller, lang='', acorpath=None):
         """Create a new AutoCorrector instance and load the LibreOffice
-            auto-correction data for language code 'lang'.
+        auto-correction data for language code 'lang'.
 
-            @type  lang: str
-            @param lang: The code of the language to load auto-correction data
-                for. See M{load_dictionary} for more information about how this
-                parameter is used.
-            @type  acorpath: str
-            @param acorpath: The path to the directory holding one
-                subdirectory per locale, each with a DocumentList.xml
-                (see autocorrect_source.py) - <acorpath>/<lang>/DocumentList.xml.
-            """
+        @type  lang: str
+        @param lang: The code of the language to load auto-correction data
+            for. See M{load_dictionary} for more information about how this
+            parameter is used.
+        @type  acorpath: str
+        @param acorpath: The path to the directory holding one
+            subdirectory per locale, each with a DocumentList.xml
+            (see autocorrect_source.py) - <acorpath>/<lang>/DocumentList.xml.
+        """
         self.main_controller = main_controller
         self.lang = None
         self.unreadable = False
@@ -59,13 +59,13 @@ class AutoCorrector:
 
     def add_widget(self, widget):
         """Add a widget (currently only C{TextBox}s are accepted) to the
-            list of widgets to do auto-correction for.
-            """
+        list of widgets to do auto-correction for.
+        """
         if not self.correctiondict:
-            return # No dictionary to work with, so we can't handle any widgets
+            return  # No dictionary to work with, so we can't handle any widgets
 
         if widget in self.widgets:
-            return # Widget already added
+            return  # Widget already added
 
         if isinstance(widget, TextBox):
             self._add_textbox(widget)
@@ -76,20 +76,20 @@ class AutoCorrector:
     def autocorrect(self, src, endindex, inserted=''):
         """Apply auto-correction to source string.
 
-            @type  src: str
-            @param src: The candidate-string for auto-correction.
-            @type  endindex: int
-            @param endindex: The logical end of the string. ie. The part of the
-                string _before_ this index tested for the presence of a
-                correctable string.
-            @type  inserted: str
-            @param inserted: The string that was inserted at I{endindex}
+        @type  src: str
+        @param src: The candidate-string for auto-correction.
+        @type  endindex: int
+        @param endindex: The logical end of the string. ie. The part of the
+            string _before_ this index tested for the presence of a
+            correctable string.
+        @type  inserted: str
+        @param inserted: The string that was inserted at I{endindex}
 
-            @rtype: 2-tuple
-            @return: The range in C{src} to be changed (or C{None} if no
-                correction was found) as well as the string to replace that
-                range with.
-            """
+        @rtype: 2-tuple
+        @return: The range in C{src} to be changed (or C{None} if no
+            correction was found) as well as the string to replace that
+            range with.
+        """
         if not self.correctiondict:
             return None, ''
 
@@ -102,7 +102,7 @@ class AutoCorrector:
                 replacement = self.correctiondict[key][self.REPLACEMENT]
                 return replace_range, replacement
 
-        return None, '' # No corrections done
+        return None, ''  # No corrections done
 
     def clear_widgets(self):
         """Removes references to all widgets that is being auto-corrected."""
@@ -112,17 +112,17 @@ class AutoCorrector:
     def load_dictionary(self, lang, force=False):
         """Load the LibreOffice auto-correction data for language 'lang'.
 
-            Data lives one directory per locale under self.acorpath
-            (see autocorrect_source.py), each holding a bare
-            DocumentList.xml - <acorpath>/<lang>/DocumentList.xml. This
-            handles "af", "af_ZA" or "af-ZA": tries the exact locale
-            directory first ("af_ZA"), then the first directory found
-            starting with the bare language part ("af").
+        Data lives one directory per locale under self.acorpath
+        (see autocorrect_source.py), each holding a bare
+        DocumentList.xml - <acorpath>/<lang>/DocumentList.xml. This
+        handles "af", "af_ZA" or "af-ZA": tries the exact locale
+        directory first ("af_ZA"), then the first directory found
+        starting with the bare language part ("af").
 
-            force re-loads even if 'lang' is already self.lang - used
-            after a background download completes for a language that
-            had nothing available the first time round.
-            """
+        force re-loads even if 'lang' is already self.lang - used
+        after a background download completes for a language that
+        had nothing available the first time round.
+        """
         if lang == self.lang and not force:
             return
 
@@ -140,6 +140,7 @@ class AutoCorrector:
             return
 
         from lxml import etree
+
         # Sample element from DocumentList.xml:
         #   <block-list:block block-list:abbreviated-name="teh" block-list:name="the"/>  # codespell:ignore teh
         # entry.values() returns a 2-tuple of the "abbreviated-name" and
@@ -151,7 +152,9 @@ class AutoCorrector:
             xml = etree.fromstring(xml_bytes)
             if etree.QName(xml).localname != 'block-list':
                 raise ValueError('not an autocorrect list: <%s>' % xml.tag)
-            self.correctiondict = dict([entry.values() for entry in xml.iterchildren(etree.Element)])
+            self.correctiondict = dict(
+                [entry.values() for entry in xml.iterchildren(etree.Element)]
+            )
         except (etree.XMLSyntaxError, ValueError) as e:
             # A download that was cut short, or something else saved in
             # its place (a captive portal's page, #4431).
@@ -164,14 +167,17 @@ class AutoCorrector:
         # Add auto-correction regex for each loaded word.
         for key, value in self.correctiondict.items():
             # lxml gives bytestrings for ASCII only values
-            self.correctiondict[key] = (str(value), re.compile(r'\b%s$' % (re.escape(key)), re.UNICODE))
+            self.correctiondict[key] = (
+                str(value),
+                re.compile(r'\b%s$' % (re.escape(key)), re.UNICODE),
+            )
 
         self.lang = lang
         return
 
     def _read_document_list(self, lang):
         """The raw DocumentList.xml bytes for lang, or None if nothing
-            local covers it."""
+        local covers it."""
         exact = os.path.join(self.acorpath, lang, 'DocumentList.xml')
         if os.path.isfile(exact):
             with open(exact, 'rb') as f:
@@ -190,8 +196,8 @@ class AutoCorrector:
 
     def remove_widget(self, widget):
         """Remove a widget (currently only C{TextBox}es are accepted) from
-            the list of widgets to do auto-correction for.
-            """
+        the list of widgets to do auto-correction for.
+        """
         if not self.correctiondict:
             return
 
@@ -206,15 +212,12 @@ class AutoCorrector:
 
     def _add_textbox(self, textbox):
         """Add the given C{TextBox} to the list of widgets to do auto-
-            correction on.
-            """
+        correction on.
+        """
         if not hasattr(self, '_textbox_handler_ids'):
             self._textbox_handler_ids = {}
 
-        handler_id = textbox.connect(
-            'text-inserted',
-            self._on_insert_text
-        )
+        handler_id = textbox.connect('text-inserted', self._on_insert_text)
         self._textbox_handler_ids[textbox] = handler_id
         self.widgets.add(textbox)
 
@@ -232,14 +235,21 @@ class AutoCorrector:
                 def correct_text():
                     buffer = textbox.buffer
                     start_iter = elem.gui_info.treeindex_to_iter(reprange[0])
-                    end_iter = elem.gui_info.treeindex_to_iter(reprange[1], (reprange[0], start_iter))
+                    end_iter = elem.gui_info.treeindex_to_iter(
+                        reprange[1], (reprange[0], start_iter)
+                    )
 
                     self.main_controller.undo_controller.record_start()
                     buffer.delete(start_iter, end_iter)
                     buffer.insert(end_iter, replacement)
                     self.main_controller.undo_controller.record_stop()
 
-                    newcursorpos = elem.gui_info.treeindex_to_iter(reprange[0]).get_offset() + len(replacement) + len(text)
+                    newcursorpos = (
+                        elem.gui_info.treeindex_to_iter(reprange[0]).get_offset()
+                        + len(replacement)
+                        + len(text)
+                    )
+
                     def refresh():
                         textbox.refresh_cursor_pos = newcursorpos
                         textbox.refresh()
@@ -251,8 +261,8 @@ class AutoCorrector:
 
     def _remove_textbox(self, textbox):
         """Remove the given C{TextBox} from the list of widgets to do
-            auto-correction on.
-            """
+        auto-correction on.
+        """
         if not hasattr(self, '_textbox_handler_ids'):
             return
         # Disconnect the "insert-text" event handler
@@ -265,11 +275,15 @@ class Plugin(BasePlugin):
     display_name = _('AutoCorrector')
     version = 0.1
 
-    def __init__(self, internal_name, main_controller, asset_manifest=None, schedule_after_idle_lull=None):
+    def __init__(
+        self, internal_name, main_controller, asset_manifest=None, schedule_after_idle_lull=None
+    ):
         self.internal_name = internal_name
         self.main_controller = main_controller
         self._asset_manifest = asset_manifest
-        self._schedule_after_idle_lull = schedule_after_idle_lull or asset_manifest_module.schedule_after_idle_lull
+        self._schedule_after_idle_lull = (
+            schedule_after_idle_lull or asset_manifest_module.schedule_after_idle_lull
+        )
 
         self._init_plugin()
 
@@ -280,6 +294,7 @@ class Plugin(BasePlugin):
 
     def _init_plugin(self):
         from virtaal.support.autocorrect_source import autocorrect_root_dir
+
         self.autocorr = AutoCorrector(self.main_controller, acorpath=autocorrect_root_dir())
         self._autocorr_tried = set()
 
@@ -309,13 +324,18 @@ class Plugin(BasePlugin):
 
                 def on_done(success):
                     if success:
-                        pan_app.settings.installed_assets[installed_asset_key('autocorrect', lang)] = entry_shas(entry)
+                        pan_app.settings.installed_assets[
+                            installed_asset_key('autocorrect', lang)
+                        ] = entry_shas(entry)
                     reload()
+
                 AutocorrectDownloader(lang, on_done=on_done).start_with_known_files(
-                    entry['folder'], [f['name'] for f in entry['files']])
+                    entry['folder'], [f['name'] for f in entry['files']]
+                )
 
             def start_live():
                 from virtaal.support.autocorrect_downloader import AutocorrectDownloader
+
                 AutocorrectDownloader(lang, on_done=lambda success: reload()).start()
 
             def after_manifest_fresh():
@@ -326,7 +346,10 @@ class Plugin(BasePlugin):
                         return start_live()
                     return  # manifest is authoritative - genuinely nothing for this locale
                 key = installed_asset_key('autocorrect', lang)
-                if pan_app.settings.installed_assets.get(key) == entry_shas(entry) and not self.autocorr.unreadable:
+                if (
+                    pan_app.settings.installed_assets.get(key) == entry_shas(entry)
+                    and not self.autocorr.unreadable
+                ):
                     return  # already installed and unchanged
                 self._schedule_after_idle_lull(lambda: start_known(entry))
 
@@ -350,14 +373,17 @@ class Plugin(BasePlugin):
             # have never attached, so let's make sure we attach.
             on_cursor_change(None)
 
-
-        self._store_loaded_id = self.main_controller.store_controller.connect('store-loaded', on_store_loaded)
+        self._store_loaded_id = self.main_controller.store_controller.connect(
+            'store-loaded', on_store_loaded
+        )
 
         if self.main_controller.store_controller.get_store():
             # Connect to already loaded store. This happens when the plug-in is enabled after loading a store.
             on_store_loaded(self.main_controller.store_controller)
 
-        self._target_lang_changed_id = self.main_controller.lang_controller.connect('target-lang-changed', on_target_lang_changed)
+        self._target_lang_changed_id = self.main_controller.lang_controller.connect(
+            'target-lang-changed', on_target_lang_changed
+        )
 
     def destroy(self):
         """Remove all signal-connections."""

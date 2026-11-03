@@ -16,9 +16,7 @@ class TMController(BaseController):
     """The logic-filled glue between the TM view and -model."""
 
     __gtype_name__ = 'TMController'
-    __gsignals__ = {
-        'start-query': (GObject.SignalFlags.RUN_FIRST, None, (object,))
-    }
+    __gsignals__ = {'start-query': (GObject.SignalFlags.RUN_FIRST, None, (object,))}
 
     QUERY_DELAY = 300
     """The delay after a unit is selected (C{Cursor}'s "cursor-changed" event)
@@ -27,6 +25,7 @@ class TMController(BaseController):
     # INITIALIZERS #
     def __init__(self, main_controller, config=None):
         from virtaal.common import GObjectWrapper
+
         GObjectWrapper.__init__(self)
 
         self.config = config if config is not None else {}
@@ -40,6 +39,7 @@ class TMController(BaseController):
         # tm query delay:
         self._delay_id = None
         from .tmview import TMView
+
         self.storecursor = None
         self.view = TMView(self, self.max_matches)
         self._load_models()
@@ -47,45 +47,61 @@ class TMController(BaseController):
         self._connect_plugin()
 
     def _connect_plugin(self):
-        self._store_loaded_id = self.main_controller.store_controller.connect('store-loaded', self._on_store_loaded)
-        self._store_closed_id = self.main_controller.store_controller.connect('store-closed', self._on_store_closed)
+        self._store_loaded_id = self.main_controller.store_controller.connect(
+            'store-loaded', self._on_store_loaded
+        )
+        self._store_closed_id = self.main_controller.store_controller.connect(
+            'store-closed', self._on_store_closed
+        )
         if self.main_controller.store_controller.get_store() is not None:
             self._on_store_loaded(self.main_controller.store_controller)
             self.view._should_show_tmwindow = True
 
         if self.main_controller.mode_controller is not None:
-            self._mode_selected_id = self.main_controller.mode_controller.connect('mode-selected', self._on_mode_selected)
+            self._mode_selected_id = self.main_controller.mode_controller.connect(
+                'mode-selected', self._on_mode_selected
+            )
             self._context_selected_id = self.main_controller.mode_controller.connect(
-                'context-selected', self._on_context_selected)
+                'context-selected', self._on_context_selected
+            )
 
         lang_controller = getattr(self.main_controller, 'lang_controller', None)
         if lang_controller is not None:
             self._lang_changed_ids = [
                 lang_controller.connect(signal, self._on_lang_changed)
-                for signal in ('source-lang-changed', 'target-lang-changed')]
+                for signal in ('source-lang-changed', 'target-lang-changed')
+            ]
 
     def _load_models(self):
         from virtaal.controllers.plugincontroller import PluginController
 
         from .models.basetmmodel import BaseTMModel
+
         self.plugin_controller = PluginController.for_backend(
-            self, 'TMModel', 'tm', BaseTMModel, lambda *args: self.disabled_model_names)
+            self, 'TMModel', 'tm', BaseTMModel, lambda *args: self.disabled_model_names
+        )
 
         self._model_signal_ids = {}
+
         def on_plugin_enabled(plugin_ctrlr, plugin):
             self._model_signal_ids[plugin] = plugin.connect('match-found', self.accept_response)
+
         def on_plugin_disabled(plugin_ctrlr, plugin):
             plugin.disconnect(self._model_signal_ids[plugin])
-        self._signal_ids['plugin-enabled']  = self.plugin_controller.connect('plugin-enabled',  on_plugin_enabled)
-        self._signal_ids['plugin-disabled'] = self.plugin_controller.connect('plugin-disabled', on_plugin_disabled)
+
+        self._signal_ids['plugin-enabled'] = self.plugin_controller.connect(
+            'plugin-enabled', on_plugin_enabled
+        )
+        self._signal_ids['plugin-disabled'] = self.plugin_controller.connect(
+            'plugin-disabled', on_plugin_disabled
+        )
 
         self.plugin_controller.load_plugins()
-
 
     # METHODS #
     def accept_response(self, tmmodel, query_str, matches):
         """Accept a query-response from the model.
-            (This method is used as Model-Controller communications)"""
+        (This method is used as Model-Controller communications)"""
         if not self.storecursor:
             # File closed since the query was started
             return
@@ -111,7 +127,9 @@ class TMController(BaseController):
                 anything_new = True
             else:
                 norm_match_target = normalize(match['target'])
-                prevmatch = [m for m in self.matches if normalize(m['target']) == norm_match_target][0]
+                prevmatch = [
+                    m for m in self.matches if normalize(m['target']) == norm_match_target
+                ][0]
                 if 'quality' not in prevmatch or not prevmatch['quality']:
                     # Matches without quality are assumed to be less appropriate
                     # (ie. MT matches) than matches with an associated quality.
@@ -121,7 +139,7 @@ class TMController(BaseController):
         if not anything_new:
             return
         self.matches.sort(key=lambda x: 'quality' in x and x['quality'] or 0, reverse=True)
-        self.matches = self.matches[:self.max_matches]
+        self.matches = self.matches[: self.max_matches]
 
         # Only call display_matches if necessary:
         if self.matches:
@@ -151,17 +169,17 @@ class TMController(BaseController):
 
     def select_match(self, match_data):
         """Handle a match-selection event.
-            (This method is used as View-Controller communications)"""
+        (This method is used as View-Controller communications)"""
         unit_controller = self.main_controller.unit_controller
         target_n = unit_controller.view.focused_target_n
         old_text = unit_controller.view.get_target_n(target_n)
-        textbox =  unit_controller.view.targets[target_n]
+        textbox = unit_controller.view.targets[target_n]
         self.main_controller.undo_controller.push_current_text(textbox)
         unit_controller.set_unit_target(target_n, forceunicode(match_data['target']))
 
     def send_tm_query(self, unit=None):
         """Send a new query to the TM engine.
-            (This method is used as Controller-Model communications)"""
+        (This method is used as Controller-Model communications)"""
         if unit is not None:
             self.unit = unit
 
@@ -172,7 +190,7 @@ class TMController(BaseController):
 
     def update_suggestions(self):
         """Query suggestions for the current unit if they are on and it
-            still needs work; translated units only get them on request."""
+        still needs work; translated units only get them on request."""
         if not self.storecursor:
             return
         unit = getattr(self, 'unit', None)
@@ -185,7 +203,7 @@ class TMController(BaseController):
 
     def summon(self):
         """Show suggestions for the current unit once, whether or not they
-            are on and the unit is translated."""
+        are on and the unit is translated."""
         if not self.storecursor:
             return
         self.unit = self.storecursor.deref()
@@ -210,7 +228,8 @@ class TMController(BaseController):
         if getattr(self, '_popup_toggled_id', None):
             self.unit_view.disconnect(self._popup_toggled_id)
         self._popup_toggled_id = self.unit_view.connect(
-            'editor-popup-toggled', self._on_editor_popup_toggled)
+            'editor-popup-toggled', self._on_editor_popup_toggled
+        )
         self.view.hide()
 
         def start_query():
@@ -221,7 +240,6 @@ class TMController(BaseController):
         if self._delay_id:
             GLib.source_remove(self._delay_id)
         self._delay_id = GLib.timeout_add(self.QUERY_DELAY, start_query)
-
 
     # EVENT HANDLERS #
     def _on_cursor_changed(self, cursor):
@@ -245,7 +263,8 @@ class TMController(BaseController):
             return
         unit = self.storecursor.deref()
         if getattr(self.view, 'summoned', False) or (
-                self.view.active and unit is not None and not unit.istranslated()):
+            self.view.active and unit is not None and not unit.istranslated()
+        ):
             self.start_query()
 
     def _on_lang_changed(self, lang_controller, code):
@@ -273,7 +292,9 @@ class TMController(BaseController):
         if getattr(self, '_cursor_changed_id', None) and self.storecursor:
             self.storecursor.disconnect(self._cursor_changed_id)
         self.storecursor = storecontroller.cursor
-        self._cursor_changed_id = self.storecursor.connect('cursor-changed', self._on_cursor_changed)
+        self._cursor_changed_id = self.storecursor.connect(
+            'cursor-changed', self._on_cursor_changed
+        )
 
         def handle_first_unit():
             self._on_cursor_changed(self.storecursor)
@@ -288,6 +309,6 @@ class TMController(BaseController):
             self.view.resume()
 
     def _on_target_focused(self, unitcontroller, target_n):
-        #import logging
-        #logging.debug('target_n: %d' % (target_n))
+        # import logging
+        # logging.debug('target_n: %d' % (target_n))
         self.view.update_geometry()

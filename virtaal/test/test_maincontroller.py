@@ -12,7 +12,9 @@ class TestMainController(TestScaffolding):
     def test_get_store(self):
         self.store_controller.open_file(self.testfile[1])
         assert self.main_controller.get_store() == self.store_controller.store
-        assert self.main_controller.get_store_filename() == self.store_controller.store.get_filename()
+        assert (
+            self.main_controller.get_store_filename() == self.store_controller.store.get_filename()
+        )
 
     def test_revert_file_discards_an_unsaved_edit(self, monkeypatch):
         with open(self.testfile[1], 'rb') as f:

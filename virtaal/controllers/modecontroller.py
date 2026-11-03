@@ -39,11 +39,13 @@ class ModeController(BaseController):
 
         self._init_modes()
         from virtaal.views.modeview import ModeView
+
         self.view = ModeView(self)
         self.view.connect('mode-selected', self._on_mode_selected)
         self._mode_list_just_closed = False
         self.view.cmb_modes.connect('notify::popup-shown', self._on_mode_list_shown)
         from virtaal.views.storeview import load_context_setting
+
         self.view.select_context(load_context_setting())
         self.view.connect('context-selected', self._on_context_selected)
 
@@ -61,18 +63,17 @@ class ModeController(BaseController):
         self.modenames = {}
 
         from virtaal.modes import modeclasses
+
         for modeclass in modeclasses:
             newmode = modeclass(self)
             self.modes[newmode.name] = newmode
             self.modenames[newmode.name] = newmode.display_name
-
 
     # ACCESSORS #
     def get_mode_by_display_name(self, displayname):
         candidates = [mode for name, mode in self.modes.items() if mode.display_name == displayname]
         if candidates:
             return candidates[0]
-
 
     # METHODS #
     def refresh_mode(self):
@@ -116,6 +117,7 @@ class ModeController(BaseController):
         self._apply_circular()
         self.current_mode.selected()
         import logging
+
         logging.info('Mode selected: %s' % (self.current_mode.name))
         self.emit('mode-selected', self.current_mode)
 
@@ -142,18 +144,21 @@ class ModeController(BaseController):
                 self._mode_list_just_closed = False
                 self._continue_after_choosing_mode()
             return GLib.SOURCE_REMOVE
+
         GLib.idle_add(unchanged)
 
     def _continue_after_choosing_mode(self):
         """Open the mode's own menu if it has one, then go to the unit being
-            translated; focus left on the selector would take keys like
-            Alt+Down (#1925). Search focuses its own entry."""
+        translated; focus left on the selector would take keys like
+        Alt+Down (#1925). Search focuses its own entry."""
         mode = self.current_mode
         button = getattr(mode, 'btn_popup', None)
         if button is not None and button.get_sensitive():
+
             def on_menu_closed(menu):
                 menu.disconnect(handler_id)
                 GLib.idle_add(self._focus_translation)
+
             handler_id = button.menu.connect('deactivate', on_menu_closed)
             button.set_active(True)
         elif not mode.widgets:

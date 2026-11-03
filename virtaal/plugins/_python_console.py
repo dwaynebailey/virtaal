@@ -1,4 +1,3 @@
-
 import re
 import sys
 import traceback
@@ -10,10 +9,10 @@ from virtaal.views.rendering import set_widget_font
 
 
 class PythonConsole(Gtk.ScrolledWindow):
-    def __init__(self, namespace = {}, destroy_cb = None):
+    def __init__(self, namespace={}, destroy_cb=None):
         super().__init__()
 
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
+        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.set_shadow_type(Gtk.ShadowType.IN)
         self.view = Gtk.TextView()
         set_widget_font(self.view, Pango.FontDescription('Monospace'))
@@ -24,7 +23,7 @@ class PythonConsole(Gtk.ScrolledWindow):
 
         buffer = self.view.get_buffer()
         self.normal = buffer.create_tag("normal")
-        self.error  = buffer.create_tag("error")
+        self.error = buffer.create_tag("error")
         self.error.set_property("foreground", "red")
         self.command = buffer.create_tag("command")
         self.command.set_property("foreground", "blue")
@@ -55,30 +54,27 @@ class PythonConsole(Gtk.ScrolledWindow):
         self.view.connect("key-press-event", self.__key_press_event_cb)
         buffer.connect("mark-set", self.__mark_set_cb)
 
-
     def __key_press_event_cb(self, view, event):
-        if event.keyval == Gdk.KEY_d and \
-                event.get_state() == Gdk.ModifierType.CONTROL_MASK:
+        if event.keyval == Gdk.KEY_d and event.get_state() == Gdk.ModifierType.CONTROL_MASK:
             self.destroy()
 
-        elif event.keyval == Gdk.KEY_Return and \
-                event.get_state() == Gdk.ModifierType.CONTROL_MASK:
+        elif event.keyval == Gdk.KEY_Return and event.get_state() == Gdk.ModifierType.CONTROL_MASK:
             return self.__on_key_ctrl_return(view)
 
         elif event.keyval == Gdk.KEY_Return:
             return self.__on_key_return(view)
 
-        elif event.keyval == Gdk.KEY_KP_Down or \
-                event.keyval == Gdk.KEY_Down:
+        elif event.keyval == Gdk.KEY_KP_Down or event.keyval == Gdk.KEY_Down:
             return self.__on_key_history_down(view)
 
-        elif event.keyval == Gdk.KEY_KP_Up or \
-                event.keyval == Gdk.KEY_Up:
+        elif event.keyval == Gdk.KEY_KP_Up or event.keyval == Gdk.KEY_Up:
             return self.__on_key_history_up(view)
 
-        elif event.keyval == Gdk.KEY_KP_Left or \
-                event.keyval == Gdk.KEY_Left or \
-                event.keyval == Gdk.KEY_BackSpace:
+        elif (
+            event.keyval == Gdk.KEY_KP_Left
+            or event.keyval == Gdk.KEY_Left
+            or event.keyval == Gdk.KEY_BackSpace
+        ):
             return self.__on_key_left_or_backspace(view)
 
         elif event.keyval == Gdk.KEY_Home:
@@ -130,8 +126,7 @@ class PythonConsole(Gtk.ScrolledWindow):
 
         cur_strip = self.current_command.rstrip()
 
-        if cur_strip.endswith(":") \
-        or (self.current_command[-2:] != "\n\n" and self.block_command):
+        if cur_strip.endswith(":") or (self.current_command[-2:] != "\n\n" and self.block_command):
             # Unfinished block command
             self.block_command = True
             com_mark = "... "
@@ -187,7 +182,7 @@ class PythonConsole(Gtk.ScrolledWindow):
 
     def __mark_set_cb(self, buffer, iter, name):
         input = buffer.get_iter_at_mark(buffer.get_mark("input"))
-        pos   = buffer.get_iter_at_mark(buffer.get_insert())
+        pos = buffer.get_iter_at_mark(buffer.get_insert())
         self.view.set_editable(pos.compare(input) != -1)
 
     def get_command_line(self):
@@ -203,8 +198,7 @@ class PythonConsole(Gtk.ScrolledWindow):
         cur = buffer.get_end_iter()
         buffer.delete(inp, cur)
         buffer.insert(inp, command)
-        buffer.select_range(buffer.get_iter_at_mark(mark),
-                            buffer.get_end_iter())
+        buffer.select_range(buffer.get_iter_at_mark(mark), buffer.get_end_iter())
         self.view.grab_focus()
 
     def history_add(self, line):
@@ -230,7 +224,7 @@ class PythonConsole(Gtk.ScrolledWindow):
         self.view.scroll_to_iter(iter, 0.0)
         return False
 
-    def write(self, text, tag = None):
+    def write(self, text, tag=None):
         buffer = self.view.get_buffer()
         if tag is None:
             buffer.insert(buffer.get_end_iter(), text)
@@ -238,11 +232,10 @@ class PythonConsole(Gtk.ScrolledWindow):
             buffer.insert_with_tags(buffer.get_end_iter(), text, tag)
         GLib.idle_add(self.scroll_to_end)
 
-    def eval(self, command, display_command = False):
+    def eval(self, command, display_command=False):
         buffer = self.view.get_buffer()
         lin = buffer.get_mark("input-line")
-        buffer.delete(buffer.get_iter_at_mark(lin),
-                      buffer.get_end_iter())
+        buffer.delete(buffer.get_iter_at_mark(lin), buffer.get_end_iter())
 
         if isinstance(command, list) or isinstance(command, tuple):
             for c in command:
@@ -289,21 +282,45 @@ class PythonConsole(Gtk.ScrolledWindow):
 class gtkoutfile:
     """A fake output file object.  It sends output to a TK test widget,
     and if asked for a file number, returns one set on instance creation"""
+
     def __init__(self, console, fn, tag):
         self.fn = fn
         self.console = console
         self.tag = tag
-    def close(self):         pass
-    def flush(self):         pass
-    def fileno(self):        return self.fn
-    def isatty(self):        return 0
-    def read(self, a):       return ''
-    def readline(self):      return ''
-    def readlines(self):     return []
-    def write(self, s):      self.console.write(s, self.tag)
-    def writelines(self, l): self.console.write(l, self.tag)
-    def seek(self, a):       raise OSError(29, 'Illegal seek')
-    def tell(self):          raise OSError(29, 'Illegal seek')
+
+    def close(self):
+        pass
+
+    def flush(self):
+        pass
+
+    def fileno(self):
+        return self.fn
+
+    def isatty(self):
+        return 0
+
+    def read(self, a):
+        return ''
+
+    def readline(self):
+        return ''
+
+    def readlines(self):
+        return []
+
+    def write(self, s):
+        self.console.write(s, self.tag)
+
+    def writelines(self, l):
+        self.console.write(l, self.tag)
+
+    def seek(self, a):
+        raise OSError(29, 'Illegal seek')
+
+    def tell(self):
+        raise OSError(29, 'Illegal seek')
+
     truncate = tell
 
 
@@ -328,10 +345,14 @@ class Plugin(BasePlugin):
     def _setup_key_bindings(self):
         """Setup Gtk+ key bindings (accelerators)."""
 
-        Gtk.AccelMap.add_entry("<Virtaal>/View/Python Console", Gdk.KEY_y, Gdk.ModifierType.CONTROL_MASK)
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/View/Python Console", Gdk.KEY_y, Gdk.ModifierType.CONTROL_MASK
+        )
 
         self.accel_group = Gtk.AccelGroup()
-        self.accel_group.connect_by_path("<Virtaal>/View/Python Console", self._on_menuitem_activated)
+        self.accel_group.connect_by_path(
+            "<Virtaal>/View/Python Console", self._on_menuitem_activated
+        )
 
         self.main_controller.view.add_accel_group(self.accel_group)
 
@@ -351,12 +372,11 @@ class Plugin(BasePlugin):
 
         self.menuitem.connect('activate', self._on_menuitem_activated)
 
-
     # METHODS #
     def show_console(self, *args):
         if not self.window:
             ns = {
-                '__builtins__' : __builtins__,
+                '__builtins__': __builtins__,
                 'mc': self.main_controller,
                 'sc': self.main_controller.store_controller,
                 'uc': self.main_controller.unit_controller,
@@ -364,7 +384,7 @@ class Plugin(BasePlugin):
                 'sv': self.main_controller.store_controller.view,
                 'uv': self.main_controller.unit_controller.view,
             }
-            console = PythonConsole(namespace = ns, destroy_cb = self._on_console_destroyed)
+            console = PythonConsole(namespace=ns, destroy_cb=self._on_console_destroyed)
             console.set_size_request(600, 400)
 
             self.window = Gtk.Window()
@@ -374,7 +394,6 @@ class Plugin(BasePlugin):
             self.window.connect('destroy', self._on_console_destroyed)
         self.window.show_all()
         self.window.grab_focus()
-
 
     # EVENT HANDLERS #
     def _on_console_destroyed(self, *args):

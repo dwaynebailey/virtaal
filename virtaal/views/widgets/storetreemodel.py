@@ -139,8 +139,8 @@ class StoreTreeModel(GObject.GObject, Gtk.TreeModel):
 
     def set_visible_rows(self, rows):
         """Show only the units at the sorted store indices C{rows}, or every
-            unit for C{None}, emitting row-deleted/row-inserted for the
-            rows that change."""
+        unit for C{None}, emitting row-deleted/row-inserted for the
+        rows that change."""
         current = list(range(self._store_len)) if self._rows is None else self._rows
         wanted = list(range(self._store_len)) if rows is None else list(rows)
         old_last = current[-1] if current else None

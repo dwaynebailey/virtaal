@@ -52,17 +52,18 @@ for lang in open(path.join('po', 'LINGUAS'), encoding='utf-8'):
 
     convertmo(open(po_filename, 'rb'), open(mo_filename, 'w'), None)
 
-    mo_files.append(
-        (path.join(TARGET_DATA_DIR, 'locale', lang, 'LC_MESSAGES'), [mo_filename])
-    )
+    mo_files.append((path.join(TARGET_DATA_DIR, 'locale', lang, 'LC_MESSAGES'), [mo_filename]))
 
 # Build lite files as needed on Win32 and OS X: each merged into the
 # library's own catalog on this build machine, so its other messages
 # stay translated (see virtaal/support/libi18n/lite.py).
 if os.name == 'nt' or sys.platform == 'darwin':
     import importlib.util
+
     _spec = importlib.util.spec_from_file_location(
-        'lite', path.join(path.dirname(path.abspath(__file__)), 'virtaal', 'support', 'libi18n', 'lite.py'))
+        'lite',
+        path.join(path.dirname(path.abspath(__file__)), 'virtaal', 'support', 'libi18n', 'lite.py'),
+    )
     lite = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(lite)
     for lang in open(path.join('po', 'LINGUAS-lite'), encoding='utf-8'):
@@ -72,13 +73,13 @@ if os.name == 'nt' or sys.platform == 'darwin':
         # iso639-3 and iso639-5 have no library: language names fall back
         # to Virtaal's own catalog at runtime (translate_compat).
         upstream_dir = lite.upstream_locale_dir(app)
-        upstream_mo = path.join(upstream_dir, lang, 'LC_MESSAGES', app + '.mo') if upstream_dir else None
+        upstream_mo = (
+            path.join(upstream_dir, lang, 'LC_MESSAGES', app + '.mo') if upstream_dir else None
+        )
 
         lite.merge(upstream_mo, po_filename, mo_filename)
 
-        mo_files.append(
-            (path.join(TARGET_DATA_DIR, 'locale', lang, 'LC_MESSAGES'), [mo_filename])
-        )
+        mo_files.append((path.join(TARGET_DATA_DIR, 'locale', lang, 'LC_MESSAGES'), [mo_filename]))
 
 data_files = [
     (path.join(TARGET_DATA_DIR, "virtaal"), glob(path.join(SOURCE_DATA_DIR, "virtaal", "*.*"))),
@@ -88,19 +89,32 @@ data_files = [
 # Freedesktop desktop-integration files (.desktop, mime, metainfo,
 # hicolor icons) - Linux-specific.
 if sys.platform not in ('win32', 'darwin'):
-    data_files.extend([
-        (path.join(TARGET_DATA_DIR, "mime", "packages"), glob(path.join(SOURCE_DATA_DIR, "mime", "packages", "*.xml"))),
-        (path.join(TARGET_DATA_DIR, "applications"), glob(path.join(SOURCE_DATA_DIR, "applications", "*.desktop"))),
-        (path.join(TARGET_DATA_DIR, "metainfo"), glob(path.join(SOURCE_DATA_DIR, "metainfo", "*.metainfo.xml"))),
-    ])
+    data_files.extend(
+        [
+            (
+                path.join(TARGET_DATA_DIR, "mime", "packages"),
+                glob(path.join(SOURCE_DATA_DIR, "mime", "packages", "*.xml")),
+            ),
+            (
+                path.join(TARGET_DATA_DIR, "applications"),
+                glob(path.join(SOURCE_DATA_DIR, "applications", "*.desktop")),
+            ),
+            (
+                path.join(TARGET_DATA_DIR, "metainfo"),
+                glob(path.join(SOURCE_DATA_DIR, "metainfo", "*.metainfo.xml")),
+            ),
+        ]
+    )
     # App icon itself, so `Icon=io.github.translate.Virtaal` in
     # io.github.translate.Virtaal.desktop.in resolves via the hicolor
     # theme instead of falling back to a generic icon - no scalable/
     # yet, there's no SVG source for the app icon.
     for size in ("16x16", "24x24", "32x32", "48x48", "64x64", "128x128", "256x256"):
         data_files.append(
-            (path.join(TARGET_DATA_DIR, "icons", "hicolor", size, "apps"),
-             glob(path.join(SOURCE_DATA_DIR, "icons", "hicolor", size, "apps", "*.*")))
+            (
+                path.join(TARGET_DATA_DIR, "icons", "hicolor", size, "apps"),
+                glob(path.join(SOURCE_DATA_DIR, "icons", "hicolor", size, "apps", "*.*")),
+            )
         )
 
 setup(data_files=data_files)

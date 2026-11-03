@@ -38,13 +38,15 @@ def document_types():
     for description, extensions, mimetypes in factory.supported_files():
         if not extensions:
             continue
-        types.append({
-            "CFBundleTypeExtensions": [ext.lstrip("*.") for ext in extensions],
-            "CFBundleTypeIconFile": "VirtaalDocument.icns",
-            "CFBundleTypeMIMETypes": list(mimetypes) if mimetypes else [],
-            "CFBundleTypeName": description,
-            "CFBundleTypeRole": "Editor",
-        })
+        types.append(
+            {
+                "CFBundleTypeExtensions": [ext.lstrip("*.") for ext in extensions],
+                "CFBundleTypeIconFile": "VirtaalDocument.icns",
+                "CFBundleTypeMIMETypes": list(mimetypes) if mimetypes else [],
+                "CFBundleTypeName": description,
+                "CFBundleTypeRole": "Editor",
+            }
+        )
     return types
 
 
@@ -53,7 +55,8 @@ def bundle_localizations(languages):
     whatever the user's language, so its own menu items, and the Help
     menu's search field, never localize."""
     return ["en"] + sorted(
-        {APPLE_LOCALIZATIONS.get(lang, lang.replace("_", "-")) for lang in languages} - {"en"})
+        {APPLE_LOCALIZATIONS.get(lang, lang.replace("_", "-")) for lang in languages} - {"en"}
+    )
 
 
 def build_plist():

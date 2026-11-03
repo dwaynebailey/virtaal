@@ -43,14 +43,22 @@ class DictionaryDownloadWatcher:
     """No-ops entirely if enchant isn't importable - same graceful
     degradation as everywhere else spell checking touches this."""
 
-    def __init__(self, main_controller, enchant_module=_UNSET, downloader_factory=None, asset_manifest=None,
-                 schedule_after_idle_lull=None):
+    def __init__(
+        self,
+        main_controller,
+        enchant_module=_UNSET,
+        downloader_factory=None,
+        asset_manifest=None,
+        schedule_after_idle_lull=None,
+    ):
         if enchant_module is _UNSET:
             enchant_module = import_enchant()
         self._enchant = enchant_module
         self._downloader_factory = downloader_factory or DictionaryDownloader
         self._asset_manifest = asset_manifest
-        self._schedule_after_idle_lull = schedule_after_idle_lull or asset_manifest_module.schedule_after_idle_lull
+        self._schedule_after_idle_lull = (
+            schedule_after_idle_lull or asset_manifest_module.schedule_after_idle_lull
+        )
         self._tried = set()
         if self._enchant is not None:
             lang_controller = main_controller.lang_controller
@@ -65,8 +73,9 @@ class DictionaryDownloadWatcher:
         # A bare language code ("de") counts as covered if a country
         # variant ("de_DE") is already installed - same match
         # spellchecker.py's own Plugin already does.
-        return any(code == tag or code.startswith(tag + '_')
-                   for code in self._enchant.list_languages())
+        return any(
+            code == tag or code.startswith(tag + '_') for code in self._enchant.list_languages()
+        )
 
     def _get_asset_manifest(self):
         if self._asset_manifest is None:
@@ -79,8 +88,7 @@ class DictionaryDownloadWatcher:
         self._tried.add(language)
         if self._has_dictionary(language):
             return
-        self._get_asset_manifest().ensure_fresh(
-            on_done=lambda: self._maybe_download(language))
+        self._get_asset_manifest().ensure_fresh(on_done=lambda: self._maybe_download(language))
 
     def _maybe_download(self, language):
         manifest = self._get_asset_manifest()
@@ -92,22 +100,27 @@ class DictionaryDownloadWatcher:
         key = installed_asset_key('dictionary', language)
         # Files saved before #4665 kept LibreOffice's names, which enchant
         # may not find: download those again under the locale's tag.
-        if (pan_app.settings.installed_assets.get(key) == entry_shas(entry)
-                and os.path.exists(os.path.join(dictionary_write_dir(), enchant_tag(language) + '.dic'))):
+        if pan_app.settings.installed_assets.get(key) == entry_shas(entry) and os.path.exists(
+            os.path.join(dictionary_write_dir(), enchant_tag(language) + '.dic')
+        ):
             return  # already installed and unchanged
         self._schedule_after_idle_lull(lambda: self._download_known(language, entry))
 
     def _download_known(self, language, entry):
         downloader = self._downloader_factory(
-            language, on_done=lambda success: self._on_done(language, entry, success))
+            language, on_done=lambda success: self._on_done(language, entry, success)
+        )
         downloader.start_with_known_files(entry['folder'], [f['name'] for f in entry['files']])
 
     def _start_live_discovery(self, language):
         downloader = self._downloader_factory(
-            language, on_done=lambda success: self._on_done(language, None, success))
+            language, on_done=lambda success: self._on_done(language, None, success)
+        )
         downloader.start()
 
     def _on_done(self, language, entry, success):
         if success and entry is not None:
-            pan_app.settings.installed_assets[installed_asset_key('dictionary', language)] = entry_shas(entry)
+            pan_app.settings.installed_assets[installed_asset_key('dictionary', language)] = (
+                entry_shas(entry)
+            )
         logging.debug('Dictionary download attempt finished for %s', language)

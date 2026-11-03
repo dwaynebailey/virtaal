@@ -36,13 +36,13 @@ def _os_label(plat):
 def build_bug_report_url(extra_fields=None, plat=None):
     """The URL for a pre-filled bug_report.yml issue.
 
-        @type  extra_fields: dict
-        @param extra_fields: Extra `field-id: value` pairs to prefill
-            (e.g. `{'logs': traceback_text}`) - applied last, so these
-            override anything built in here.
-        @type  plat: virtaal.common.platform.Platform
-        @param plat: Defaults to the real running platform - only
-            passed explicitly by tests."""
+    @type  extra_fields: dict
+    @param extra_fields: Extra `field-id: value` pairs to prefill
+        (e.g. `{'logs': traceback_text}`) - applied last, so these
+        override anything built in here.
+    @type  plat: virtaal.common.platform.Platform
+    @param plat: Defaults to the real running platform - only
+        passed explicitly by tests."""
     plat = plat if plat is not None else _platform
 
     fields = {'template': 'bug_report.yml', 'version': __version__.version_string()}

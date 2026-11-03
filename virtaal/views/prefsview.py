@@ -33,21 +33,28 @@ class PreferencesView(BaseView, GObjectWrapper):
 
     def _get_widgets(self):
         self.gui = self.load_builder_file(
-            ["virtaal", "virtaal.ui"],
-            root='PreferencesDlg',
-            domain="virtaal"
+            ["virtaal", "virtaal.ui"], root='PreferencesDlg', domain="virtaal"
         )
 
         widget_names = (
-            'btn_default_fonts', 'cmb_ui_language', 'ent_email', 'ent_team', 'ent_translator',
-            'fbtn_source', 'fbtn_target', 'scrwnd_placeables', 'scrwnd_plugins',
+            'btn_default_fonts',
+            'cmb_ui_language',
+            'ent_email',
+            'ent_team',
+            'ent_translator',
+            'fbtn_source',
+            'fbtn_target',
+            'scrwnd_placeables',
+            'scrwnd_plugins',
         )
         for name in widget_names:
             self._widgets[name] = self.gui.get_object(name)
 
         self._widgets['dialog'] = self.gui.get_object('PreferencesDlg')
         self._widgets['dialog'].set_transient_for(self.controller.main_controller.view.main_window)
-        self._widgets['dialog'].set_icon(self.controller.main_controller.view.main_window.get_icon())
+        self._widgets['dialog'].set_icon(
+            self.controller.main_controller.view.main_window.get_icon()
+        )
         if platform.is_mac:
             self._widgets['dialog'].set_title(_('Settings'))
 
@@ -66,8 +73,8 @@ class PreferencesView(BaseView, GObjectWrapper):
         for code, name in pan_app.get_available_ui_languages():
             endonym = pan_app.get_language_endonym(code)
             if endonym and endonym != name:
-                #l10n: A UI language: its name in your language, then in
-                #itself, e.g. "French - Français"
+                # l10n: A UI language: its name in your language, then in
+                # itself, e.g. "French - Français"
                 name = _("%(language)s - %(endonym)s") % {'language': name, 'endonym': endonym}
             self._widgets['cmb_ui_language'].append(code, name)
 
@@ -75,6 +82,7 @@ class PreferencesView(BaseView, GObjectWrapper):
         def reset_fonts(button):
             self._widgets['fbtn_source'].set_font(pan_app.get_default_font())
             self._widgets['fbtn_target'].set_font(pan_app.get_default_font())
+
         self._widgets['btn_default_fonts'].connect('clicked', reset_fonts)
 
         for fbtn in (self._widgets['fbtn_source'], self._widgets['fbtn_target']):
@@ -107,6 +115,7 @@ class PreferencesView(BaseView, GObjectWrapper):
                     window.connect('hide', lambda w: GLib.idle_add(prefs_dialog.present))
                     break
             return False
+
         GLib.idle_add(find_and_present)
 
     def _pair_preview_text(self, source_lang, target_lang):
@@ -169,6 +178,7 @@ class PreferencesView(BaseView, GObjectWrapper):
             'source': self._widgets['fbtn_source'].get_font(),
             'target': self._widgets['fbtn_target'].get_font(),
         }
+
     def _set_font_data(self, value):
         if not isinstance(value, dict) or not 'source' in value or not 'target' in value:
             raise ValueError('Value must be a dictionary')
@@ -176,10 +186,12 @@ class PreferencesView(BaseView, GObjectWrapper):
         targetfont = Pango.FontDescription(value['target'])
         self._widgets['fbtn_source'].set_font(value['source'])
         self._widgets['fbtn_target'].set_font(value['target'])
+
     font_data = property(_get_font_data, _set_font_data)
 
     def _get_placeables_data(self):
         return self.placeables_select.get_all_items()
+
     def _set_placeables_data(self, value):
         selected = self.placeables_select.get_selected_item()
         scroll = self.placeables_select.get_scroll_position()
@@ -190,30 +202,36 @@ class PreferencesView(BaseView, GObjectWrapper):
         # callback) - restoring the old position synchronously here
         # gets overwritten by that once it runs. Queue behind it.
         GLib.idle_add(self.placeables_select.set_scroll_position, scroll)
+
     placeables_data = property(_get_placeables_data, _set_placeables_data)
 
     def _get_plugin_data(self):
         return self.plugins_select.get_all_items()
+
     def _set_plugin_data(self, value):
         selected = self.plugins_select.get_selected_item()
         scroll = self.plugins_select.get_scroll_position()
         self.plugins_select.set_model(value)
         self.plugins_select.select_item(selected)
         GLib.idle_add(self.plugins_select.set_scroll_position, scroll)
+
     plugin_data = property(_get_plugin_data, _set_plugin_data)
 
     def _get_ui_language(self):
         return self._widgets['cmb_ui_language'].get_active_id() or ''
+
     def _set_ui_language(self, value):
         self._widgets['cmb_ui_language'].set_active_id(value or '')
+
     ui_language = property(_get_ui_language, _set_ui_language)
 
     def _get_user_data(self):
         return {
-            'name':  self._widgets['ent_translator'].get_text(),
+            'name': self._widgets['ent_translator'].get_text(),
             'email': self._widgets['ent_email'].get_text(),
-            'team':  self._widgets['ent_team'].get_text()
+            'team': self._widgets['ent_team'].get_text(),
         }
+
     def _set_user_data(self, value):
         if not isinstance(value, dict):
             raise ValueError('Value must be a dictionary')
@@ -223,8 +241,8 @@ class PreferencesView(BaseView, GObjectWrapper):
             self._widgets['ent_email'].set_text(value['email'] or '')
         if 'team' in value:
             self._widgets['ent_team'].set_text(value['team'] or '')
-    user_data = property(_get_user_data, _set_user_data)
 
+    user_data = property(_get_user_data, _set_user_data)
 
     # METHODS #
     def show(self):
@@ -233,7 +251,7 @@ class PreferencesView(BaseView, GObjectWrapper):
         self.placeables_select.select_item(None)
         self.plugins_select.select_item(None)
         self.controller.update_prefs_gui_data()
-        #logging.debug('Plug-in data: %s' % (str(self.plugin_data)))
+        # logging.debug('Plug-in data: %s' % (str(self.plugin_data)))
         # present() only raises/focuses an already-realized window -
         # show() explicitly first, run() alone doesn't guarantee that.
         self._widgets['dialog'].show()
@@ -245,18 +263,13 @@ class PreferencesView(BaseView, GObjectWrapper):
             GLib.idle_add(transient_for.present)
         self.emit('prefs-done')
 
-
     # EVENT HANDLERS #
     def _on_placeable_toggled(self, sview, item):
-        self.controller.set_placeable_enabled(
-            parser=item['data'],
-            enabled=item['enabled']
-        )
+        self.controller.set_placeable_enabled(parser=item['data'], enabled=item['enabled'])
 
     def _on_plugin_toggled(self, sview, item):
         self.controller.set_plugin_enabled(
-            plugin_name=item['data']['internal_name'],
-            enabled=item['enabled']
+            plugin_name=item['data']['internal_name'], enabled=item['enabled']
         )
 
     def _show_preferences(self, *args):

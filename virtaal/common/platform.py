@@ -22,8 +22,16 @@ import sys
 
 
 class Platform:
-    def __init__(self, os_name=None, sys_platform=None, frozen=None, environ=None, machine=None,
-                 executable=None, prefix=None):
+    def __init__(
+        self,
+        os_name=None,
+        sys_platform=None,
+        frozen=None,
+        environ=None,
+        machine=None,
+        executable=None,
+        prefix=None,
+    ):
         self.is_windows = (os_name if os_name is not None else os.name) == 'nt'
         self.is_mac = (sys_platform if sys_platform is not None else sys.platform) == 'darwin'
         self.is_linux = not self.is_windows and not self.is_mac
@@ -57,12 +65,12 @@ class Platform:
 
     def use_app_name_in_title(self):
         """Whether the window title should keep the app-name suffix
-            (e.g. "af.po - Virtaal") rather than just the document
-            name (translate/virtaal#549).
+        (e.g. "af.po - Virtaal") rather than just the document
+        name (translate/virtaal#549).
 
-            True on Windows; on macOS only while unfrozen, since a
-            frozen .app already shows "Virtaal" in the Dock/⌘-Tab (an
-            unfrozen dev launch shows bare "Python" there)."""
+        True on Windows; on macOS only while unfrozen, since a
+        frozen .app already shows "Virtaal" in the Dock/⌘-Tab (an
+        unfrozen dev launch shows bare "Python" there)."""
         if self.is_windows:
             return True
         if self.is_mac:
@@ -71,9 +79,9 @@ class Platform:
 
     def install_method(self):
         """A human-readable label for how this build was installed, or
-            None if that can't be told apart (pip install vs. a distro
-            package - neither frozen nor Flatpak, nothing left to
-            distinguish them by)."""
+        None if that can't be told apart (pip install vs. a distro
+        package - neither frozen nor Flatpak, nothing left to
+        distinguish them by)."""
         if self.is_flatpak:
             return 'Flatpak'
         if self.is_frozen:
@@ -87,14 +95,16 @@ class Platform:
 
     def build_type(self, checkout_dir=None):
         """How this copy of Virtaal was built: 'flatpak', 'frozen' (a
-            PyInstaller build), 'source' (a git checkout) or 'installed'
-            (pip or a distro package)."""
+        PyInstaller build), 'source' (a git checkout) or 'installed'
+        (pip or a distro package)."""
         if self.is_flatpak:
             return 'flatpak'
         if self.is_frozen:
             return 'frozen'
         if checkout_dir is None:
-            checkout_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            checkout_dir = os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            )
         # .git is a file, not a directory, in a git worktree.
         if os.path.exists(os.path.join(checkout_dir, '.git')):
             return 'source'
@@ -110,8 +120,8 @@ class Platform:
 
     def is_test_instance(self):
         """Whether this is a throwaway instance started for hand-testing
-            (VIRTAAL_TEST_INSTANCE set), so its requests can be told apart
-            from real use."""
+        (VIRTAAL_TEST_INSTANCE set), so its requests can be told apart
+        from real use."""
         return bool(self._environ.get('VIRTAAL_TEST_INSTANCE'))
 
 

@@ -10,8 +10,9 @@ import os
 
 import pytest
 
-TOOLS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                         "devsupport", "pseudo-translation")
+TOOLS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "devsupport", "pseudo-translation"
+)
 
 
 def _load(name):
@@ -39,15 +40,18 @@ def _catalogs(resolve, domain, originals):
     return {domain: entries}
 
 
-@pytest.mark.parametrize("form, shown, matches", [
-    ("Open '%s'", "Open 'af.po'", True),
-    ("%.1f KB", "1.5 KB", True),
-    ("100%% done", "100% done", True),
-    ("Ctrl+%(number_key)d", "Ctrl+1", True),
-    # Ends at a word boundary, so composite strings resolve.
-    ("_Save", "_Saved", False),
-    ("_Save", "_Save", True),
-])
+@pytest.mark.parametrize(
+    "form, shown, matches",
+    [
+        ("Open '%s'", "Open 'af.po'", True),
+        ("%.1f KB", "1.5 KB", True),
+        ("100%% done", "100% done", True),
+        ("Ctrl+%(number_key)d", "Ctrl+1", True),
+        # Ends at a word boundary, so composite strings resolve.
+        ("_Save", "_Saved", False),
+        ("_Save", "_Save", True),
+    ],
+)
 def test_msgid_pattern(resolve, form, shown, matches):
     assert bool(resolve.msgid_pattern(form).match(shown)) == matches
 
@@ -74,15 +78,21 @@ def test_resolve_text_keeps_every_context_with_the_same_text(resolve):
     catalogs = _catalogs(resolve, "gtk30", ["_Save", "Stock label\x04_Save"])
 
     assert sorted(resolve.resolve_text("gtk:_Save", catalogs)) == [
-        ("gtk30", "Stock label\x04_Save"), ("gtk30", "_Save")]
+        ("gtk30", "Stock label\x04_Save"),
+        ("gtk30", "_Save"),
+    ]
 
 
 def test_resolve_text_resolves_each_tag_in_a_composite_string(resolve):
-    catalogs = {**_catalogs(resolve, "iso639-3", ["English", "Afrikaans"]),
-                **_catalogs(resolve, "gtk30", ["%s / %s available"])}
+    catalogs = {
+        **_catalogs(resolve, "iso639-3", ["English", "Afrikaans"]),
+        **_catalogs(resolve, "gtk30", ["%s / %s available"]),
+    }
 
     assert resolve.resolve_text("vt:_1. iso:English → iso:Afrikaans", catalogs) == [
-        ("iso639-3", "English"), ("iso639-3", "Afrikaans")]
+        ("iso639-3", "English"),
+        ("iso639-3", "Afrikaans"),
+    ]
 
 
 def test_load_catalogs_matches_msgids_without_their_markup(resolve, tmp_path):
@@ -90,25 +100,38 @@ def test_load_catalogs_matches_msgids_without_their_markup(resolve, tmp_path):
     generator = _load("generate_pseudo_translation")
     mo_dir = tmp_path / "pseudo-source" / "LC_MESSAGES"
     mo_dir.mkdir(parents=True)
-    generator.write_mo(str(mo_dir / "gtkspell3.mo"), {"<i>(no suggestions)</i>": "spell:<i>(no suggestions)</i>"})
+    generator.write_mo(
+        str(mo_dir / "gtkspell3.mo"), {"<i>(no suggestions)</i>": "spell:<i>(no suggestions)</i>"}
+    )
 
     catalogs = resolve.load_catalogs(str(tmp_path))
 
-    assert resolve.resolve_text("spell:(no suggestions)", catalogs) == [("gtkspell3", "<i>(no suggestions)</i>")]
+    assert resolve.resolve_text("spell:(no suggestions)", catalogs) == [
+        ("gtkspell3", "<i>(no suggestions)</i>")
+    ]
 
 
 def test_resolve_text_resolves_virtaals_own_strings(resolve):
-    assert resolve.resolve_text("vt:_Find…", _catalogs(resolve, "virtaal", ["_Find…"])) == [("virtaal", "_Find…")]
+    assert resolve.resolve_text("vt:_Find…", _catalogs(resolve, "virtaal", ["_Find…"])) == [
+        ("virtaal", "_Find…")
+    ]
 
 
-@pytest.mark.parametrize("shown, expected", [
-    ([False], False),
-    ([False, True], True),
-])
+@pytest.mark.parametrize(
+    "shown, expected",
+    [
+        ([False], False),
+        ([False, True], True),
+    ],
+)
 def test_resolve_marks_a_message_shown_if_any_sighting_was(resolve, shown, expected):
     # A dialog built ahead of being opened is walked while still hidden.
-    harvest = {"strings": [{"text": "vt:Settings", "screen": "step %d" % i, "shown": s}
-                           for i, s in enumerate(shown)]}
+    harvest = {
+        "strings": [
+            {"text": "vt:Settings", "screen": "step %d" % i, "shown": s}
+            for i, s in enumerate(shown)
+        ]
+    }
 
     result = resolve.resolve(harvest, _catalogs(resolve, "virtaal", ["Settings"]))
 
@@ -116,18 +139,23 @@ def test_resolve_marks_a_message_shown_if_any_sighting_was(resolve, shown, expec
 
 
 def test_resolve_text_reports_a_tag_nothing_matches(resolve):
-    assert resolve.resolve_text("gtk:Unknown", _catalogs(resolve, "gtk30", ["_Save"])) == [("gtk30", None)]
+    assert resolve.resolve_text("gtk:Unknown", _catalogs(resolve, "gtk30", ["_Save"])) == [
+        ("gtk30", None)
+    ]
 
 
-@pytest.mark.parametrize("within, window, expected", [
-    ("Menu", "Window 'vt:Virtaal'", "menus"),
-    ("", "Dialog 'vt:Add Term'", "Add Term dialog"),
-    ("", "Dialog 'gtk!:About'", "About dialog"),
-    ("", "MessageDialog ''", "message dialogs"),
-    ("", "Window 'vt:quality-checks.po - Virtaal'", "main window"),
-    ("", "Window None", "main window"),
-    ("", "FileChooserDialog None", None),
-])
+@pytest.mark.parametrize(
+    "within, window, expected",
+    [
+        ("Menu", "Window 'vt:Virtaal'", "menus"),
+        ("", "Dialog 'vt:Add Term'", "Add Term dialog"),
+        ("", "Dialog 'gtk!:About'", "About dialog"),
+        ("", "MessageDialog ''", "message dialogs"),
+        ("", "Window 'vt:quality-checks.po - Virtaal'", "main window"),
+        ("", "Window None", "main window"),
+        ("", "FileChooserDialog None", None),
+    ],
+)
 def test_place(templates, within, window, expected):
     assert templates._place(within, window) == expected
 
@@ -138,7 +166,9 @@ def test_harvested_leaves_out_file_chooser_only_strings(templates, tmp_path):
         '{"gtk30": ['
         '{"original": "Computer", "screens": [], "within": ["FileChooser"], "windows": ["FileChooserDialog None"]},'
         '{"original": "_Open", "screens": [], "within": ["", "FileChooser"], "windows": ["Window None"]}'
-        '], "glib20": []}', encoding="utf-8")
+        '], "glib20": []}',
+        encoding="utf-8",
+    )
 
     found = templates.harvested([str(resolved)])
 
@@ -149,8 +179,12 @@ def test_merge_keeps_each_translation_language(templates, tmp_path, monkeypatch)
     monkeypatch.setattr(templates, "LITE_DIR", str(tmp_path))
     domain = tmp_path / "glib20"
     domain.mkdir()
-    header = 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n"Language: %s\\n"\n\n'
-    (domain / "glib20.pot").write_text(header % "templates" + 'msgid "kB"\nmsgstr ""\n', encoding="utf-8")
+    header = (
+        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n"Language: %s\\n"\n\n'
+    )
+    (domain / "glib20.pot").write_text(
+        header % "templates" + 'msgid "kB"\nmsgstr ""\n', encoding="utf-8"
+    )
     (domain / "af.po").write_text(header % "af" + 'msgid "kB"\nmsgstr "kG"\n', encoding="utf-8")
 
     templates.merge("glib20", templates.write_template("glib20", {"kB": set()}))
@@ -163,7 +197,9 @@ def test_write_template_replaces_where_a_message_was_seen(templates, tmp_path, m
     (tmp_path / "gtk30").mkdir()
     (tmp_path / "gtk30" / "gtk30.pot").write_text(
         'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-        '#. Help->About\nmsgid "_About"\nmsgstr ""\n', encoding="utf-8")
+        '#. Help->About\nmsgid "_About"\nmsgstr ""\n',
+        encoding="utf-8",
+    )
 
     for _ in range(2):
         path = templates.write_template("gtk30", {"_About": {"menus"}})
@@ -190,7 +226,9 @@ def lite_catalogs(tmp_path, monkeypatch):
     (tmp_path / "mac").mkdir()
     (tmp_path / "mac" / "mac.pot").write_text(
         'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-        'msgid "Quit %s"\nmsgstr ""\n\nmsgid "Show All"\nmsgstr ""\n', encoding="utf-8")
+        'msgid "Quit %s"\nmsgstr ""\n\nmsgid "Show All"\nmsgstr ""\n',
+        encoding="utf-8",
+    )
     return module, tmp_path / "mac"
 
 
@@ -198,7 +236,9 @@ def test_lite_catalog_is_retired_when_upstream_translates_everything(lite_catalo
     module, domain_dir = lite_catalogs
     (domain_dir / "fr.po").write_text('msgid "Show All"\nmsgstr "Tout"\n', encoding="utf-8")
 
-    translated = module.update("mac", "fr", {("", "Quit %s"): "Quitter %s", ("", "Show All"): "Tout afficher"})
+    translated = module.update(
+        "mac", "fr", {("", "Quit %s"): "Quitter %s", ("", "Show All"): "Tout afficher"}
+    )
 
     assert translated == 0
     assert not (domain_dir / "fr.po").exists()
@@ -209,12 +249,17 @@ def test_lite_catalog_keeps_its_translations_and_fills_in_upstreams(lite_catalog
 
     module, domain_dir = lite_catalogs
     (domain_dir / "af.po").write_text(
-        'msgid ""\nmsgstr ""\n"Language: af\\n"\n\nmsgid "Show All"\nmsgstr "Wys alles"\n', encoding="utf-8")
+        'msgid ""\nmsgstr ""\n"Language: af\\n"\n\nmsgid "Show All"\nmsgstr "Wys alles"\n',
+        encoding="utf-8",
+    )
 
     translated = module.update("mac", "af", {("", "Quit %s"): "Verlaat %s"})
 
-    targets = {str(u.source): str(u.target) for u in factory.getobject(str(domain_dir / "af.po")).units
-               if not u.isheader()}
+    targets = {
+        str(u.source): str(u.target)
+        for u in factory.getobject(str(domain_dir / "af.po")).units
+        if not u.isheader()
+    }
     # Only "Show All" fills a gap: upstream already has "Quit %s".
     assert translated == 1
     assert targets == {"Quit %s": "Verlaat %s", "Show All": "Wys alles"}
@@ -236,11 +281,17 @@ def test_lite_catalog_keeps_fuzzy_work_and_translator_comments(lite_catalogs):
     (domain_dir / "am.po").write_text(
         'msgid ""\nmsgstr ""\n"Language: am\\n"\n\n'
         '# (review) capitals\nmsgid "Show All"\nmsgstr "Wys alles"\n\n'
-        '#, fuzzy\nmsgid "Quit %s"\nmsgstr "Verlaat %s"\n', encoding="utf-8")
+        '#, fuzzy\nmsgid "Quit %s"\nmsgstr "Verlaat %s"\n',
+        encoding="utf-8",
+    )
 
     translated = module.update("mac", "am", {})
 
-    units = {str(u.source): u for u in factory.getobject(str(domain_dir / "am.po")).units if not u.isheader()}
+    units = {
+        str(u.source): u
+        for u in factory.getobject(str(domain_dir / "am.po")).units
+        if not u.isheader()
+    }
     assert translated == 1
     assert units["Show All"].getnotes("translator") == "(review) capitals"
     assert units["Quit %s"].isfuzzy() and str(units["Quit %s"].target) == "Verlaat %s"
@@ -250,11 +301,17 @@ def test_lite_catalog_takes_upstream_over_its_fuzzy_work(lite_catalogs):
     from translate.storage import factory
 
     module, domain_dir = lite_catalogs
-    (domain_dir / "am.po").write_text('#, fuzzy\nmsgid "Quit %s"\nmsgstr "Verlaat %s"\n', encoding="utf-8")
+    (domain_dir / "am.po").write_text(
+        '#, fuzzy\nmsgid "Quit %s"\nmsgstr "Verlaat %s"\n', encoding="utf-8"
+    )
 
     module.update("mac", "am", {("", "Quit %s"): "Verlaat tog %s"})
 
-    units = {str(u.source): u for u in factory.getobject(str(domain_dir / "am.po")).units if not u.isheader()}
+    units = {
+        str(u.source): u
+        for u in factory.getobject(str(domain_dir / "am.po")).units
+        if not u.isheader()
+    }
     assert not units["Quit %s"].isfuzzy() and str(units["Quit %s"].target) == "Verlaat tog %s"
 
 
@@ -271,7 +328,9 @@ def test_linguas_lists_only_lite_catalogs_that_translate_something(lite_catalogs
 def test_gap_fills_counts_lite_translations_upstream_lacks_without_writing(lite_catalogs):
     module, domain_dir = lite_catalogs
     (domain_dir / "ar.po").write_text(
-        'msgid "Quit %s"\nmsgstr "Quit-ar %s"\n\nmsgid "Show All"\nmsgstr "Show-ar"\n', encoding="utf-8")
+        'msgid "Quit %s"\nmsgstr "Quit-ar %s"\n\nmsgid "Show All"\nmsgstr "Show-ar"\n',
+        encoding="utf-8",
+    )
     before = (domain_dir / "ar.po").read_text(encoding="utf-8")
 
     count = module.gap_fills("mac", "ar", {("", "Show All"): "Upstream"})
@@ -287,26 +346,35 @@ def test_unlisted_names_gap_fillers_missing_from_linguas_lite(lite_catalogs):
     assert module.unlisted(["mac/af", "mac/ar"]) == ["mac/ar"]
 
 
-def test_names_template_lists_the_names_the_priorities_ask_for(lite_catalogs, tmp_path, monkeypatch):
+def test_names_template_lists_the_names_the_priorities_ask_for(
+    lite_catalogs, tmp_path, monkeypatch
+):
     module, _domain_dir = lite_catalogs
     priorities = tmp_path / "virtaal.priorities.yaml"
-    priorities.write_text("domains:\n  iso639-3:\n    '1':\n    - English\n    '2':\n    - Zulu\n    - Arabic\n",
-                          encoding="utf-8")
+    priorities.write_text(
+        "domains:\n  iso639-3:\n    '1':\n    - English\n    '2':\n    - Zulu\n    - Arabic\n",
+        encoding="utf-8",
+    )
     monkeypatch.setattr(module, "PRIORITIES", str(priorities))
 
     module.write_names_template("iso639-3")
 
     text = (tmp_path / "iso639-3" / "iso639-3.pot").read_text(encoding="utf-8")
-    assert [line for line in text.splitlines() if line.startswith("msgid \"") and line != 'msgid ""'] == \
-        ['msgid "Arabic"', 'msgid "English"', 'msgid "Zulu"']
+    assert [
+        line for line in text.splitlines() if line.startswith("msgid \"") and line != 'msgid ""'
+    ] == ['msgid "Arabic"', 'msgid "English"', 'msgid "Zulu"']
 
 
 def test_names_catalog_keeps_names_beyond_the_template(lite_catalogs, tmp_path):
     module, _domain_dir = lite_catalogs
     names = tmp_path / "iso639-3"
     names.mkdir()
-    (names / "iso639-3.pot").write_text('msgid ""\nmsgstr ""\n\nmsgid "English"\nmsgstr ""\n', encoding="utf-8")
-    (names / "zu.po").write_text('msgid "English"\nmsgstr ""\n\nmsgid "Venda"\nmsgstr "isiVenda"\n', encoding="utf-8")
+    (names / "iso639-3.pot").write_text(
+        'msgid ""\nmsgstr ""\n\nmsgid "English"\nmsgstr ""\n', encoding="utf-8"
+    )
+    (names / "zu.po").write_text(
+        'msgid "English"\nmsgstr ""\n\nmsgid "Venda"\nmsgstr "isiVenda"\n', encoding="utf-8"
+    )
 
     module.update("iso639-3", "zu", {("", "English"): "isiNgisi"})
 
@@ -322,7 +390,9 @@ def test_names_upstream_is_pycountrys_catalogs(lite_catalogs):
     assert module.upstream_dir(None, "iso639-3") == pycountry.LOCALES_DIR
 
 
-@pytest.mark.parametrize("name, code", [("Hebrew", "heb"), ("Sotho, Southern", "sot"), ("Swazi", None)])
+@pytest.mark.parametrize(
+    "name, code", [("Hebrew", "heb"), ("Sotho, Southern", "sot"), ("Swazi", None)]
+)
 def test_iso_code_matches_a_name_or_inverted_name(lite_catalogs, name, code):
     module, _domain_dir = lite_catalogs
 
@@ -337,4 +407,6 @@ def test_names_template_gives_each_name_its_iso_code(lite_catalogs, tmp_path, mo
 
     module.write_names_template("iso639-3")
 
-    assert "#: eng\nmsgid \"English\"" in (tmp_path / "iso639-3" / "iso639-3.pot").read_text(encoding="utf-8")
+    assert "#: eng\nmsgid \"English\"" in (tmp_path / "iso639-3" / "iso639-3.pot").read_text(
+        encoding="utf-8"
+    )

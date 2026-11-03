@@ -38,7 +38,9 @@ class TestPlaceablesAndProperties(TestScaffolding):
         monkeypatch.setattr(pan_app.settings, 'placeable_state', {})
         parsers = list(self.placeables.parsers)
         self.changes = []
-        handler = self.placeables.connect('parsers-changed', lambda controller: self.changes.append(True))
+        handler = self.placeables.connect(
+            'parsers-changed', lambda controller: self.changes.append(True)
+        )
         yield
         self.placeables.disconnect(handler)
         self.placeables.parsers = parsers

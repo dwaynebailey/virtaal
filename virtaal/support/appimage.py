@@ -31,7 +31,7 @@ def _quote_exec_arg(path):
 
 def desktop_entry(source, appimage, icon):
     """The bundled desktop entry, pointing at this AppImage file and icon.
-        TryExec hides the entry once the AppImage is moved or deleted."""
+    TryExec hides the entry once the AppImage is moved or deleted."""
     lines = []
     in_main_group = False
     for line in source.splitlines():
@@ -66,7 +66,7 @@ def _write_if_changed(path, data):
 
 def integrate(appimage=None, bundle_dir=None, data_home=None):
     """Install or update the AppImage's menu entry and icon in the user's
-        data directory."""
+    data directory."""
     appimage = appimage or os.environ.get('APPIMAGE')
     bundle_dir = bundle_dir or platform.bundle_dir
     data_home = data_home or os.environ.get('XDG_DATA_HOME') or os.path.expanduser('~/.local/share')
@@ -78,6 +78,8 @@ def integrate(appimage=None, bundle_dir=None, data_home=None):
             _write_if_changed(icon, f.read())
         with open(os.path.join(bundle_dir, _DESKTOP), encoding='utf-8') as f:
             entry = desktop_entry(f.read(), appimage, icon)
-        _write_if_changed(os.path.join(data_home, 'applications', ENTRY_ID + '.desktop'), entry.encode('utf-8'))
+        _write_if_changed(
+            os.path.join(data_home, 'applications', ENTRY_ID + '.desktop'), entry.encode('utf-8')
+        )
     except OSError as e:
         logging.warning("Could not install the AppImage's menu entry: %s", e)

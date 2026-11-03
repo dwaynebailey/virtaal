@@ -27,16 +27,20 @@ sys.path.insert(0, pan_app.get_config_dir())
 
 def _user_plugins_found():
     """Whether virtaal_plugins is the user's own plug-in folder. A frozen
-        Windows build has its install folder on sys.path too, and an install
-        over 0.7 still has 0.7's plug-ins there (#4645)."""
+    Windows build has its install folder on sys.path too, and an install
+    over 0.7 still has 0.7's plug-ins there (#4645)."""
     try:
         spec = importlib.util.find_spec('virtaal_plugins')
     except (ImportError, ValueError):
         return False
     if spec is None or not spec.submodule_search_locations:
         return False
-    user_dir = os.path.normcase(os.path.realpath(os.path.join(pan_app.get_config_dir(), 'virtaal_plugins')))
-    return all(os.path.normcase(os.path.realpath(p)) == user_dir for p in spec.submodule_search_locations)
+    user_dir = os.path.normcase(
+        os.path.realpath(os.path.join(pan_app.get_config_dir(), 'virtaal_plugins'))
+    )
+    return all(
+        os.path.normcase(os.path.realpath(p)) == user_dir for p in spec.submodule_search_locations
+    )
 
 
 class PluginController(BaseController):
@@ -44,7 +48,7 @@ class PluginController(BaseController):
 
     __gtype_name__ = 'PluginController'
     __gsignals__ = {
-        'plugin-enabled':  (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
+        'plugin-enabled': (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
         'plugin-disabled': (GObject.SignalFlags.RUN_FIRST, None, (TYPE_PYOBJECT,)),
     }
 
@@ -56,7 +60,7 @@ class PluginController(BaseController):
     """Attributes of the plug-in class that contain info about it. Should contain PLUGIN_NAME_ATTRIB."""
     PLUGIN_DIRS = [
         os.path.join(pan_app.get_config_dir(), 'virtaal_plugins'),
-        os.path.join(os.path.dirname(__file__), '..', 'plugins')
+        os.path.join(os.path.dirname(__file__), '..', 'plugins'),
     ]
     """The directories to search for plug-in names."""
     PLUGIN_INTERFACE = BasePlugin
@@ -78,12 +82,19 @@ class PluginController(BaseController):
         else:
             # controller is maincontroller
             controller.plugin_controller = self
-        self.plugins       = {}
+        self.plugins = {}
         self.pluginmodules = {}
 
     @classmethod
-    def for_backend(cls, owner, classname, category, interface, get_disabled,
-                     class_info_attribs=('display_name', 'description')):
+    def for_backend(
+        cls,
+        owner,
+        classname,
+        category,
+        interface,
+        get_disabled,
+        class_info_attribs=('display_name', 'description'),
+    ):
         """Build a PluginController for one of the backend categories
         (terminology/tm/lookup) - each owning controller's _load_models()
         otherwise reimplements this identically, differing only by these
@@ -92,10 +103,12 @@ class PluginController(BaseController):
         pc.PLUGIN_CLASS_INFO_ATTRIBS = list(class_info_attribs)
         pc.PLUGIN_DIRS = [os.path.join(d, category, 'models') for d in pc.PLUGIN_DIRS]
         pc.PLUGIN_INTERFACE = interface
-        pc.PLUGIN_MODULES = [f'virtaal_plugins.{category}.models', f'virtaal.plugins.{category}.models']
+        pc.PLUGIN_MODULES = [
+            f'virtaal_plugins.{category}.models',
+            f'virtaal.plugins.{category}.models',
+        ]
         pc.get_disabled_plugins = get_disabled
         return pc
-
 
     # METHODS #
     def disable_plugin(self, name):
@@ -143,7 +156,7 @@ class PluginController(BaseController):
 
     def load_plugins(self):
         """Load plugins from the "plugins" directory."""
-        self.plugins       = {}
+        self.plugins = {}
         self.pluginmodules = {}
         disabled_plugins = self.get_disabled_plugins()
 
@@ -166,11 +179,15 @@ class PluginController(BaseController):
 
     def get_disabled_plugins(self):
         """Returns a list of names of plug-ins that are disabled in the
-            configuration.
+        configuration.
 
-            This method should be replaced if an instance is not used for
-            normal plug-ins."""
-        return [plugin_name for (plugin_name, state) in pan_app.settings.plugin_state.items() if state.lower() == 'disabled']
+        This method should be replaced if an instance is not used for
+        normal plug-ins."""
+        return [
+            plugin_name
+            for (plugin_name, state) in pan_app.settings.plugin_state.items()
+            if state.lower() == 'disabled'
+        ]
 
     def _get_plugin_class(self, name):
         if name in self.plugins:
@@ -183,9 +200,9 @@ class PluginController(BaseController):
             try:
                 module = __import__(
                     modulename,
-                    globals(),              # globals
-                    [],                     # locals
-                    [self.PLUGIN_CLASSNAME] # fromlist
+                    globals(),  # globals
+                    [],  # locals
+                    [self.PLUGIN_CLASSNAME],  # fromlist
                 )
                 break
             except ImportError as ie:
@@ -210,7 +227,8 @@ class PluginController(BaseController):
         if self.PLUGIN_INTERFACE is not None:
             if not issubclass(plugin_class, self.PLUGIN_INTERFACE):
                 raise Exception(
-                    'Plugin "%s" contains a member called "%s" which is not a valid plug-in class.' % (name, self.PLUGIN_CLASSNAME)
+                    'Plugin "%s" contains a member called "%s" which is not a valid plug-in class.'
+                    % (name, self.PLUGIN_CLASSNAME)
                 )
 
         self.pluginmodules[name] = module
@@ -218,17 +236,17 @@ class PluginController(BaseController):
 
     def _find_plugin_names(self):
         """Look in each of C{self.PLUGIN_MODULES}'s packages for importable
-            submodules, via C{pkgutil.iter_modules()} rather than scanning
-            C{self.PLUGIN_DIRS} on the filesystem directly - the latter
-            always found nothing in a frozen (PyInstaller) build, since
-            pure-Python modules are bundled into an archive there, not laid
-            out as loose files on disk, so the "plugins" directory simply
-            doesn't exist to list. pkgutil.iter_modules() works against a
-            package's __path__ either way, frozen or not.
-            @note: Hidden files/directories are ignored.
-            @note: If a plug-in is in a directory, it's C{self.PLUGIN_CLASSNAME}
-                class should be exposed in the plug-in's __init__.py file.
-            @returns: A list of module names, assumed to be plug-ins."""
+        submodules, via C{pkgutil.iter_modules()} rather than scanning
+        C{self.PLUGIN_DIRS} on the filesystem directly - the latter
+        always found nothing in a frozen (PyInstaller) build, since
+        pure-Python modules are bundled into an archive there, not laid
+        out as loose files on disk, so the "plugins" directory simply
+        doesn't exist to list. pkgutil.iter_modules() works against a
+        package's __path__ either way, frozen or not.
+        @note: Hidden files/directories are ignored.
+        @note: If a plug-in is in a directory, it's C{self.PLUGIN_CLASSNAME}
+            class should be exposed in the plug-in's __init__.py file.
+        @returns: A list of module names, assumed to be plug-ins."""
         import pkgutil
 
         plugin_names = []
@@ -251,7 +269,7 @@ class PluginController(BaseController):
                     plugin_names.append(name)
 
         plugin_names = list(set(plugin_names))
-        #logging.debug('Found plugins: %s' % (', '.join(plugin_names)))
+        # logging.debug('Found plugins: %s' % (', '.join(plugin_names)))
         return plugin_names
 
     @staticmethod

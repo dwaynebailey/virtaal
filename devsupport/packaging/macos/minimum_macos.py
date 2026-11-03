@@ -22,8 +22,10 @@ import sys
 from pathlib import Path
 
 MACHO_MAGIC = {
-    b"\xfe\xed\xfa\xce", b"\xce\xfa\xed\xfe",
-    b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe",
+    b"\xfe\xed\xfa\xce",
+    b"\xce\xfa\xed\xfe",
+    b"\xfe\xed\xfa\xcf",
+    b"\xcf\xfa\xed\xfe",
     b"\xca\xfe\xba\xbe",
 }
 
@@ -64,10 +66,15 @@ def check(app):
     app = Path(app)
     with open(app / "Contents" / "Info.plist", "rb") as f:
         declared = plistlib.load(f).get("LSMinimumSystemVersion", "0")
-    needed = minimum_macos(p for p in (app / "Contents").rglob("*") if p.is_file() and not p.is_symlink())
+    needed = minimum_macos(
+        p for p in (app / "Contents").rglob("*") if p.is_file() and not p.is_symlink()
+    )
     if _version_key(declared) < _version_key(needed):
-        print("%s declares LSMinimumSystemVersion %s, but its binaries need macOS %s"
-              % (app.name, declared, needed), file=sys.stderr)
+        print(
+            "%s declares LSMinimumSystemVersion %s, but its binaries need macOS %s"
+            % (app.name, declared, needed),
+            file=sys.stderr,
+        )
         return 1
     print("%s: LSMinimumSystemVersion %s, binaries need macOS %s" % (app.name, declared, needed))
     return 0

@@ -24,7 +24,7 @@ _queued = []
 
 def state_lists(store):
     """Return what C{StatsCache().filestatestats(..., extended=True)}
-        returns, from the units in C{store}."""
+    returns, from the units in C{store}."""
     stats = statsdb.emptyfilestats()
     stats['extended'] = {}
     for index, unit in enumerate(store.units):
@@ -45,7 +45,7 @@ def fill_in_background(filename):
 
 def wait():
     """Block until every queued fill is done. Call before using
-        L{statsdb.StatsCache}, which a running fill may have locked."""
+    L{statsdb.StatsCache}, which a running fill may have locked."""
     while _running is not None:
         _running.wait()
         _finish(_running)
@@ -68,7 +68,8 @@ def _start_next():
     filename = _queued.pop(0)
     _running = subprocess.Popen(
         helperprocess.command(__name__) + [statsdb.StatsCache.defaultfile, filename],
-        env=helperprocess.env())
+        env=helperprocess.env(),
+    )
     _running.filename = filename
     GLib.timeout_add(200, _poll, _running)
 
@@ -84,7 +85,9 @@ def _poll(proc):
 
 def _finish(proc):
     if proc.returncode:
-        logging.debug('Could not cache the stats of %s (exit status %s)', proc.filename, proc.returncode)
+        logging.debug(
+            'Could not cache the stats of %s (exit status %s)', proc.filename, proc.returncode
+        )
     _start_next()
 
 

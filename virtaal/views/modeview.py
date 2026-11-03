@@ -41,7 +41,7 @@ class ModeView(GObjectWrapper, BaseView):
         # We need the *same* GtkBuilder instance as used by the MainView, because we need
         # the Gtk.Grid as already added to the main window. Loading the GtkBuilder file again
         # would create a new main window with a different Gtk.Grid.
-        gui = self.controller.main_controller.view.gui # FIXME: Is this acceptable?
+        gui = self.controller.main_controller.view.gui  # FIXME: Is this acceptable?
         self.mode_box = gui.get_object('mode_box')
 
         self.cmb_modes = Gtk.ComboBoxText()
@@ -52,8 +52,8 @@ class ModeView(GObjectWrapper, BaseView):
         self.cmb_modes.set_cell_data_func(self.cmb_modes.get_cells()[0], self._set_cell_sensitive)
 
         self.lbl_mode = Gtk.Label()
-        #l10n: This refers to the 'mode' that determines how Virtaal moves
-        #between units.
+        # l10n: This refers to the 'mode' that determines how Virtaal moves
+        # between units.
         self.lbl_mode.set_markup_with_mnemonic(_('N_avigation:'))
         self.lbl_mode.set_margin_end(3)
         self.lbl_mode.set_mnemonic_widget(self.cmb_modes)
@@ -72,17 +72,17 @@ class ModeView(GObjectWrapper, BaseView):
     def _build_context_gui(self, top_bar):
         self.cmb_context = Gtk.ComboBoxText()
         self.cmb_context.set_wrap_width(1)
-        #l10n: Context: show no units around the one being edited
+        # l10n: Context: show no units around the one being edited
         self.cmb_context.append('0', _('None'))
         for count in ('1', '2', '3'):
             self.cmb_context.append(count, format_number(int(count)))
-        #l10n: Context: show every unit, not only the matching ones
+        # l10n: Context: show every unit, not only the matching ones
         self.cmb_context.append('all', _('All'))
         self.cmb_context.connect('changed', self._on_cmbcontext_change)
 
         lbl_context = Gtk.Label()
-        #l10n: How many units to show around the one being edited, when a
-        #navigation mode only goes to some units
+        # l10n: How many units to show around the one being edited, when a
+        # navigation mode only goes to some units
         lbl_context.set_markup_with_mnemonic(_('Conte_xt:'))
         lbl_context.set_mnemonic_widget(self.cmb_context)
 
@@ -102,7 +102,6 @@ class ModeView(GObjectWrapper, BaseView):
             self.cmb_modes.append_text(displayname)
             self.displayname_index[displayname] = i
             i += 1
-
 
     # METHODS #
     def hide(self):
@@ -139,7 +138,7 @@ class ModeView(GObjectWrapper, BaseView):
 
     def select_context(self, context):
         """Show C{context} (a number of units, or None for all) as selected,
-            without emitting "context-selected"."""
+        without emitting "context-selected"."""
         self._ignore_context_change = True
         self.cmb_context.set_active_id('all' if context is None else str(context))
         self._ignore_context_change = False

@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """This file contains the version."""
+
 ver = "1.0.0-rc3"
 
 
@@ -25,16 +26,18 @@ def _get_build_commit():
     """
     try:
         from virtaal._build_info import commit
+
         return commit
     except ImportError:
         pass
     try:
         import subprocess
         from os import path
+
         repo_root = path.dirname(path.dirname(path.abspath(__file__)))
         result = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'], cwd=repo_root,
-            capture_output=True, text=True, timeout=2)
+            ['git', 'rev-parse', 'HEAD'], cwd=repo_root, capture_output=True, text=True, timeout=2
+        )
         if result.returncode == 0:
             return result.stdout.strip()
     except Exception:

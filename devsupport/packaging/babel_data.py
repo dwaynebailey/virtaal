@@ -17,7 +17,7 @@ from babel import localedata
 
 def ui_locale_names(po_dir):
     """The Babel locale data files (without .dat) that formatting
-        numbers loads for each UI language in po_dir, parents included."""
+    numbers loads for each UI language in po_dir, parents included."""
     from virtaal.support.libi18n.numbers import ui_locale
 
     loaded = set()
@@ -31,7 +31,7 @@ def ui_locale_names(po_dir):
     localedata.load = recording_load
     try:
         for path in glob.glob(os.path.join(po_dir, "*.po")):
-            locale = ui_locale(os.path.basename(path)[:-len(".po")])
+            locale = ui_locale(os.path.basename(path)[: -len(".po")])
             locale.decimal_formats, locale.percent_formats, locale.default_numbering_system
     finally:
         localedata.load = load
@@ -41,12 +41,16 @@ def ui_locale_names(po_dir):
 
 def trim(datas, po_dir):
     """PyInstaller datas without the Babel locale files no UI language
-        loads."""
+    loads."""
     keep = ui_locale_names(po_dir)
     trimmed = []
     for entry in datas:
         dest = Path(entry[0])
-        if dest.parts[:2] == ("babel", "locale-data") and dest.suffix == ".dat" and dest.stem not in keep:
+        if (
+            dest.parts[:2] == ("babel", "locale-data")
+            and dest.suffix == ".dat"
+            and dest.stem not in keep
+        ):
             continue
         trimmed.append(entry)
     return trimmed

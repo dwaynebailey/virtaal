@@ -22,6 +22,7 @@ from virtaal.support.httpclient import HTTPClient, HTTPRequest, RESTRequest
 # finds. A plain dict-recording stand-in for pycurl.Curl(), since
 # real Curl objects don't support reading back a setopt value.
 
+
 class _RecordingCurl:
     def __init__(self):
         self.opts = {}
@@ -44,6 +45,7 @@ def test_configures_the_ca_bundle_via_certifi(monkeypatch):
 # RESTRequest: URL-building around an optional id and query params.
 # get_effective_url() reflects the built URL directly from the real
 # curl handle, even before any transfer is ever performed.
+
 
 def test_restrequest_leaves_the_url_unchanged_without_an_id_or_params():
     req = RESTRequest('http://example.com/unit', '')
@@ -70,6 +72,7 @@ def test_restrequest_appends_both_an_id_and_params():
 # (only adding genuinely new attributes, as the real code itself does
 # with `self.curl.request = self`), so swap the whole curl attribute
 # for a stub instead.
+
 
 def _signal_after_status(status):
     req = HTTPRequest('http://example.com')
@@ -111,6 +114,7 @@ def test_get_effective_url_reads_it_from_curl():
 # HTTPClient.add()/run(): the request queue and its GLib idle-driven
 # pump - real requests are pure-Python pycurl handles, so a fake
 # CurlMulti isolates this state machine from any actual network I/O.
+
 
 class _FakeCurlMulti:
     def __init__(self):
@@ -162,7 +166,9 @@ def test_add_declines_once_the_queue_is_full(monkeypatch):
 
 def test_add_queues_the_request_and_starts_the_pump(monkeypatch):
     scheduled = []
-    monkeypatch.setattr(GLib, 'timeout_add', lambda interval, func: scheduled.append((interval, func)))
+    monkeypatch.setattr(
+        GLib, 'timeout_add', lambda interval, func: scheduled.append((interval, func))
+    )
     client = _client()
     request = _FakeRequest(curl='handle')
 
@@ -187,6 +193,7 @@ def test_run_does_not_schedule_a_second_timeout_while_already_running(monkeypatc
 
 # HTTPClient.perform(): drains completed/failed handles and reports
 # whether GLib should keep calling it back.
+
 
 def test_perform_stops_the_pump_once_all_handles_are_done():
     client = _client()
@@ -225,8 +232,11 @@ def test_perform_closes_a_completed_request():
 def test_perform_closes_a_failed_request_without_calling_handle_result():
     client = _client()
     client.running = True
-    request = _FakeRequest(handle_result=lambda: (_ for _ in ()).throw(
-        AssertionError('a failed request should not be treated as completed')))
+    request = _FakeRequest(
+        handle_result=lambda: (_ for _ in ()).throw(
+            AssertionError('a failed request should not be treated as completed')
+        )
+    )
     handle = SimpleNamespace(request=request)
     client.requests = {request}
     client.curl.info_read_result = (0, [], [(handle, 42, 'timed out')])
@@ -251,6 +261,7 @@ def test_close_failed_request_logs_the_url_alongside_the_error(caplog):
 
 
 # HTTPClient.get()
+
 
 def test_get_queues_a_request_and_wires_only_the_given_callbacks():
     client = _client()
@@ -295,6 +306,7 @@ def test_get_sends_an_if_none_match_header_when_an_etag_is_given():
 
 # set_virtaal_useragent()
 
+
 def test_set_virtaal_useragent_is_idempotent_once_already_set():
     client = HTTPClient()
     client.user_agent = 'Virtaal/1.0 (custom)'
@@ -306,6 +318,7 @@ def test_set_virtaal_useragent_is_idempotent_once_already_set():
 
 def test_set_virtaal_useragent_ends_with_the_build_type_and_ci_service(monkeypatch):
     from virtaal.support import httpclient
+
     monkeypatch.setattr(httpclient.platform, 'build_type', lambda: 'frozen')
     monkeypatch.setattr(httpclient.platform, 'ci_name', lambda: 'github-actions')
     monkeypatch.setattr(httpclient.platform, 'is_test_instance', lambda: False)
@@ -319,6 +332,7 @@ def test_set_virtaal_useragent_ends_with_the_build_type_and_ci_service(monkeypat
 
 def test_set_virtaal_useragent_leaves_out_ci_outside_ci(monkeypatch):
     from virtaal.support import httpclient
+
     monkeypatch.setattr(httpclient.platform, 'build_type', lambda: 'source')
     monkeypatch.setattr(httpclient.platform, 'ci_name', lambda: None)
     monkeypatch.setattr(httpclient.platform, 'is_test_instance', lambda: False)
@@ -331,6 +345,7 @@ def test_set_virtaal_useragent_leaves_out_ci_outside_ci(monkeypatch):
 
 def test_set_virtaal_useragent_marks_a_test_instance(monkeypatch):
     from virtaal.support import httpclient
+
     monkeypatch.setattr(httpclient.platform, 'build_type', lambda: 'source')
     monkeypatch.setattr(httpclient.platform, 'ci_name', lambda: None)
     monkeypatch.setattr(httpclient.platform, 'is_test_instance', lambda: True)
@@ -360,7 +375,9 @@ def test_set_virtaal_useragent_reads_the_distro_from_os_release(monkeypatch, tmp
 def test_set_virtaal_useragent_survives_a_malformed_release_file(monkeypatch):
     monkeypatch.setattr(sys, 'platform', 'linux')
     monkeypatch.setattr(os.path, 'isfile', lambda path: path == '/etc/os-release')
-    monkeypatch.setattr(builtins, 'open', lambda path, *a, **k: (_ for _ in ()).throw(OSError('boom')))
+    monkeypatch.setattr(
+        builtins, 'open', lambda path, *a, **k: (_ for _ in ()).throw(OSError('boom'))
+    )
     client = HTTPClient()
 
     client.set_virtaal_useragent()  # must not raise

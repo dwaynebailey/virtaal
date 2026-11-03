@@ -26,8 +26,15 @@ class Tree(Gtk.TreeView):
         self.set_headers_visible(True)
 
         self.append_column(Gtk.TreeViewColumn('First', Gtk.CellRendererText(), text=0))
-        self.append_column(Gtk.TreeViewColumn('Second', CellRendererWidget(
-            lambda widget: '<b>' + widget.get_children()[0].get_label() + '</b>'), widget=1))
+        self.append_column(
+            Gtk.TreeViewColumn(
+                'Second',
+                CellRendererWidget(
+                    lambda widget: '<b>' + widget.get_children()[0].get_label() + '</b>'
+                ),
+                widget=1,
+            )
+        )
 
     def insert(self, name):
         iter = self.store.append()

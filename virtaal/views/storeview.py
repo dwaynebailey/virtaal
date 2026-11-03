@@ -23,9 +23,9 @@ CONTEXT_ALL = None
 
 def visible_units(matches, current, context, total):
     """The store indices to show: every unit in C{matches}, and C{context}
-        units either side of C{current} (the unit being edited, or -1).
-        C{None} - every unit - if C{context} is L{CONTEXT_ALL} or the
-        matches already cover all C{total} units."""
+    units either side of C{current} (the unit being edited, or -1).
+    C{None} - every unit - if C{context} is L{CONTEXT_ALL} or the
+    matches already cover all C{total} units."""
     if context is CONTEXT_ALL or len(matches) >= total:
         return None
     rows = set(matches)
@@ -77,15 +77,30 @@ class StoreView(BaseView):
         self._treeview = StoreTreeView(self)
 
     def _add_accelerator_bindings(self):
-        Gtk.AccelMap.add_entry("<Virtaal>/Navigation/Up", Gtk.accelerator_parse("Up")[0], Gdk.ModifierType.CONTROL_MASK)
-        Gtk.AccelMap.add_entry("<Virtaal>/Navigation/Down", Gtk.accelerator_parse("Down")[0],
-                               Gdk.ModifierType.CONTROL_MASK)
-        Gtk.AccelMap.add_entry("<Virtaal>/Navigation/PgUp", Gtk.accelerator_parse("Page_Up")[0],
-                               Gdk.ModifierType.CONTROL_MASK)
-        Gtk.AccelMap.add_entry("<Virtaal>/Navigation/PgDown", Gtk.accelerator_parse("Page_Down")[0],
-                               Gdk.ModifierType.CONTROL_MASK)
-        Gtk.AccelMap.add_entry("<Virtaal>/Navigation/First", Gdk.KEY_Home, Gdk.ModifierType.CONTROL_MASK)
-        Gtk.AccelMap.add_entry("<Virtaal>/Navigation/Last", Gdk.KEY_End, Gdk.ModifierType.CONTROL_MASK)
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Navigation/Up", Gtk.accelerator_parse("Up")[0], Gdk.ModifierType.CONTROL_MASK
+        )
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Navigation/Down",
+            Gtk.accelerator_parse("Down")[0],
+            Gdk.ModifierType.CONTROL_MASK,
+        )
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Navigation/PgUp",
+            Gtk.accelerator_parse("Page_Up")[0],
+            Gdk.ModifierType.CONTROL_MASK,
+        )
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Navigation/PgDown",
+            Gtk.accelerator_parse("Page_Down")[0],
+            Gdk.ModifierType.CONTROL_MASK,
+        )
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Navigation/First", Gdk.KEY_Home, Gdk.ModifierType.CONTROL_MASK
+        )
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Navigation/Last", Gdk.KEY_End, Gdk.ModifierType.CONTROL_MASK
+        )
         # Same physical key as the target textbox's own Ctrl+Enter/
         # Ctrl+Shift+Enter handling (unitview.py) - harmless overlap,
         # since a focused textbox's own key handler consumes the event
@@ -93,9 +108,14 @@ class StoreView(BaseView):
         # what makes the shortcut reachable when the textbox *doesn't*
         # have focus, and what shows it as a real accelerator in the
         # menu instead of baked into the label text.
-        Gtk.AccelMap.add_entry("<Virtaal>/Navigation/StateAdvance", Gdk.KEY_Return, Gdk.ModifierType.CONTROL_MASK)
-        Gtk.AccelMap.add_entry("<Virtaal>/Navigation/StateReverse", Gdk.KEY_Return,
-                               Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK)
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Navigation/StateAdvance", Gdk.KEY_Return, Gdk.ModifierType.CONTROL_MASK
+        )
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Navigation/StateReverse",
+            Gdk.KEY_Return,
+            Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK,
+        )
 
         self.accel_group = Gtk.AccelGroup()
         self.accel_group.connect_by_path("<Virtaal>/Navigation/Up", self._treeview._move_up)
@@ -110,8 +130,12 @@ class StoreView(BaseView):
         # next unit, same combination the textbox's own Ctrl+Enter/
         # Ctrl+Shift+Enter handling performs) rather than duplicating
         # that logic here.
-        self.accel_group.connect_by_path("<Virtaal>/Navigation/StateAdvance", lambda *a: mainview._on_state_advance())
-        self.accel_group.connect_by_path("<Virtaal>/Navigation/StateReverse", lambda *a: mainview._on_state_reverse())
+        self.accel_group.connect_by_path(
+            "<Virtaal>/Navigation/StateAdvance", lambda *a: mainview._on_state_advance()
+        )
+        self.accel_group.connect_by_path(
+            "<Virtaal>/Navigation/StateReverse", lambda *a: mainview._on_state_reverse()
+        )
         mainview.add_accel_group(self.accel_group)
         mainview.gui.get_object('menu_navigation').set_accel_group(self.accel_group)
         self.mnu_up = mainview.gui.get_object('mnu_up')
@@ -126,8 +150,12 @@ class StoreView(BaseView):
         self.mnu_pagedown.set_accel_path('<Virtaal>/Navigation/PgDown')
         self.mnu_first.set_accel_path('<Virtaal>/Navigation/First')
         self.mnu_last.set_accel_path('<Virtaal>/Navigation/Last')
-        mainview.gui.get_object('mnu_state_advance').set_accel_path('<Virtaal>/Navigation/StateAdvance')
-        mainview.gui.get_object('mnu_state_reverse').set_accel_path('<Virtaal>/Navigation/StateReverse')
+        mainview.gui.get_object('mnu_state_advance').set_accel_path(
+            '<Virtaal>/Navigation/StateAdvance'
+        )
+        mainview.gui.get_object('mnu_state_reverse').set_accel_path(
+            '<Virtaal>/Navigation/StateReverse'
+        )
 
         # GtkosxApplication only picks up a menu item's accelerator for
         # the native menu bar when the item is (re)parented, not just
@@ -143,14 +171,12 @@ class StoreView(BaseView):
 
         self._set_menu_items_sensitive(False)
 
-
     # ACCESSORS #
     def get_store(self):
         return self.store
 
     def get_unit_celleditor(self, unit):
         return self.controller.get_unit_celleditor(unit)
-
 
     # METHODS #
     def hide(self):
@@ -193,16 +219,16 @@ class StoreView(BaseView):
 
     def set_context(self, context):
         """Show C{context} units either side of the one being edited, or
-            every unit for L{CONTEXT_ALL}."""
+        every unit for L{CONTEXT_ALL}."""
         self.context = context
         save_context_setting(context)
         self._update_visible_rows()
 
     def _update_visible_rows(self, restart_editing=True):
         """@param restart_editing: Restart editing the current unit if the
-            rows change - not needed when the cursor is about to move.
-            @returns: Whether editing was stopped and is left to the caller
-                to restart."""
+        rows change - not needed when the cursor is about to move.
+        @returns: Whether editing was stopped and is left to the caller
+            to restart."""
         if not self.store or not self.cursor:
             return False
         if self._updating_rows:
@@ -215,7 +241,9 @@ class StoreView(BaseView):
             self._rows_outdated = True
             while self._rows_outdated:
                 self._rows_outdated = False
-                rows = visible_units(self.cursor.indices, self.cursor.index, self.context, len(self.store))
+                rows = visible_units(
+                    self.cursor.indices, self.cursor.index, self.context, len(self.store)
+                )
                 change = self._treeview.set_visible_rows(rows)
                 if not change or self.cursor.index < 0:
                     continue
@@ -231,9 +259,15 @@ class StoreView(BaseView):
         return editing_stopped
 
     def _set_menu_items_sensitive(self, sensitive=True):
-        for widget in (self.mnu_up, self.mnu_down, self.mnu_pageup, self.mnu_pagedown, self.mnu_first, self.mnu_last):
+        for widget in (
+            self.mnu_up,
+            self.mnu_down,
+            self.mnu_pageup,
+            self.mnu_pagedown,
+            self.mnu_first,
+            self.mnu_last,
+        ):
             widget.set_sensitive(sensitive)
-
 
     # EVENT HANDLERS #
     def _on_cursor_change(self, cursor):
@@ -255,6 +289,11 @@ class StoreView(BaseView):
         if self._treeview_bg_provider is not None:
             treeview_style.remove_provider(self._treeview_bg_provider)
         provider = Gtk.CssProvider()
-        provider.load_from_data(('* { background-color: %s; background-image: none; }' % theme.rgba_to_str(background)).encode())
+        provider.load_from_data(
+            (
+                '* { background-color: %s; background-image: none; }'
+                % theme.rgba_to_str(background)
+            ).encode()
+        )
         treeview_style.add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self._treeview_bg_provider = provider

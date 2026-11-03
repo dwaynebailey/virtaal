@@ -59,14 +59,10 @@ class GrepFilter(_UpstreamGrepFilter):
                 sources = unit.source.strings if unit.hasplural() else [unit.source]
                 matches.extend(find_matches(unit, "source", sources, self.re_search))
             if self.search_notes:
-                matches.extend(
-                    find_matches(unit, "notes", unit.getnotes(), self.re_search)
-                )
+                matches.extend(find_matches(unit, "notes", unit.getnotes(), self.re_search))
 
             if self.search_locations:
-                matches.extend(
-                    find_matches(unit, "locations", unit.getlocations(), self.re_search)
-                )
+                matches.extend(find_matches(unit, "locations", unit.getlocations(), self.re_search))
 
             if len(matches) > old_length:
                 old_length = len(matches)
@@ -75,7 +71,7 @@ class GrepFilter(_UpstreamGrepFilter):
             # Upstream raises ValueError here; stop at the limit instead,
             # keeping the matches found so far (#4395).
             if self.max_matches and len(matches) >= self.max_matches:
-                del matches[self.max_matches:]
+                del matches[self.max_matches :]
                 break
 
         return matches, indexes

@@ -30,16 +30,19 @@ class _FakeTextbox:
 def _controller(sources=(), targets=()):
     controller = PlaceablesController.__new__(PlaceablesController)
     unitview = SimpleNamespace(
-        sources=list(sources), targets=list(targets),
-        disable_signals=lambda names: None, enable_signals=lambda names: None,
+        sources=list(sources),
+        targets=list(targets),
+        disable_signals=lambda names: None,
+        enable_signals=lambda names: None,
     )
     controller.main_controller = SimpleNamespace(unit_controller=SimpleNamespace(view=unitview))
     return controller
 
 
 def _record_update_style(monkeypatch, calls):
-    monkeypatch.setattr(placeablesguiinfo, 'update_style',
-                        lambda widget: calls.append(('update_style', widget)))
+    monkeypatch.setattr(
+        placeablesguiinfo, 'update_style', lambda widget: calls.append(('update_style', widget))
+    )
 
 
 def test_style_set_with_no_file_open_still_updates_the_placeable_colours(monkeypatch):
@@ -74,7 +77,6 @@ def test_style_set_ignores_hidden_text_boxes(monkeypatch):
     _controller(sources=[hidden], targets=[target])._on_style_set(None)
 
     assert calls == [('update_style', target), ('refresh', 'target')]
-
 
 
 def test_style_set_ignores_text_boxes_in_a_hidden_container(monkeypatch):

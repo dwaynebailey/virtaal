@@ -36,6 +36,7 @@ def _button_with_states(*names_and_active):
 
 # update_indices() #
 
+
 def test_update_indices_does_nothing_without_a_cursor_model():
     mode = _mode(storecursor=SimpleNamespace(model=None))
 
@@ -43,7 +44,9 @@ def test_update_indices_does_nothing_without_a_cursor_model():
 
 
 def test_update_indices_shows_everything_when_no_state_is_selected():
-    cursor = SimpleNamespace(model=SimpleNamespace(stats={'total': [0, 1, 2], 'extended': {}}), indices=None)
+    cursor = SimpleNamespace(
+        model=SimpleNamespace(stats={'total': [0, 1, 2], 'extended': {}}), indices=None
+    )
     mode = _mode(storecursor=cursor, filter_states=[])
 
     mode.update_indices()
@@ -53,7 +56,9 @@ def test_update_indices_shows_everything_when_no_state_is_selected():
 
 def test_update_indices_shows_only_the_selected_states_units():
     cursor = SimpleNamespace(
-        model=SimpleNamespace(stats={'total': [0, 1, 2, 3], 'extended': {'new': [3], 'done': [0, 1]}}),
+        model=SimpleNamespace(
+            stats={'total': [0, 1, 2, 3], 'extended': {'new': [3], 'done': [0, 1]}}
+        ),
         indices=None,
     )
     mode = _mode(storecursor=cursor, filter_states=['done', 'new'])
@@ -98,7 +103,9 @@ def _controller(stats, states=_FORMAT_STATES):
     names = {'gone': 'Obsolete', 'new': 'New', 'fuzzy': 'Needs work', 'done': 'Done'}
     return SimpleNamespace(
         main_controller=SimpleNamespace(
-            store_controller=SimpleNamespace(cursor=cursor, connect=lambda signal, handler: 7, disconnect=lambda i: None),
+            store_controller=SimpleNamespace(
+                cursor=cursor, connect=lambda signal, handler: 7, disconnect=lambda i: None
+            ),
             unit_controller=SimpleNamespace(get_unit_state_names=lambda: names),
         ),
         view=SimpleNamespace(mode_box=Gtk.Grid()),
@@ -106,7 +113,9 @@ def _controller(stats, states=_FORMAT_STATES):
 
 
 def _menu(mode):
-    return [(item.get_label(), item.get_active(), item.get_sensitive()) for item in mode.btn_popup.menu]
+    return [
+        (item.get_label(), item.get_active(), item.get_sensitive()) for item in mode.btn_popup.menu
+    ]
 
 
 def test_selected_lists_the_formats_states_and_greys_out_those_without_units():
@@ -114,7 +123,11 @@ def test_selected_lists_the_formats_states_and_greys_out_those_without_units():
 
     mode.selected()
 
-    assert _menu(mode) == [('Done', False, True), ('Needs work', False, False), ('New', False, True)]
+    assert _menu(mode) == [
+        ('Done', False, True),
+        ('Needs work', False, False),
+        ('New', False, True),
+    ]
 
 
 def test_selected_lists_the_states_units_are_in_for_a_format_without_states():
@@ -152,6 +165,7 @@ def test_selected_drops_a_ticked_state_no_unit_is_in():
 
 
 # _update_button_label() #
+
 
 def test_update_button_label_prompts_when_nothing_is_selected():
     mode = _mode(btn_popup=_button_with_states(('New', False)), state_names=[('new', 'New')])
@@ -193,6 +207,7 @@ def test_update_button_label_truncates_after_three_states():
 
 # _disable() #
 
+
 def test_disable_makes_the_popup_insensitive():
     mode = _mode(btn_popup=PopupMenuButton())
 
@@ -202,6 +217,7 @@ def test_disable_makes_the_popup_insensitive():
 
 
 # _on_state_menuitem_toggled() / _apply_filter_states() #
+
 
 def test_on_state_menuitem_toggled_updates_filter_states_and_label(monkeypatch):
     btn = _button_with_states(('New', True), ('Done', False))
@@ -235,6 +251,7 @@ def test_apply_filter_states_updates_indices_and_returns_false():
 
 # _on_stats_changed() #
 
+
 def test_a_ticked_state_whose_units_all_move_on_stays_until_unticked(monkeypatch):
     monkeypatch.setattr('virtaal.modes.workflowmode.GLib.idle_add', lambda f: None)
     controller = _controller({'total': [0, 1], 'extended': {'fuzzy': [1], 'done': [0]}})
@@ -258,12 +275,16 @@ def test_a_ticked_state_whose_units_all_move_on_stays_until_unticked(monkeypatch
 
 # unselected() #
 
+
 def test_unselected_disconnects_from_stats_changed():
     disconnected = []
     mode = _mode(
         _stats_changed_id=7,
-        controller=SimpleNamespace(main_controller=SimpleNamespace(
-            store_controller=SimpleNamespace(disconnect=disconnected.append))),
+        controller=SimpleNamespace(
+            main_controller=SimpleNamespace(
+                store_controller=SimpleNamespace(disconnect=disconnected.append)
+            )
+        ),
     )
 
     mode.unselected()

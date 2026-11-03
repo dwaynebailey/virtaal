@@ -22,14 +22,15 @@ def _statistics(stats, states=None):
     states lists the state keys to include, counting absent ones as zero;
     defaults to the states in stats."""
     descriptions = {
-            "empty": _("Untranslated:"),
-            "needs-work": _("Needs work:"),
-            "rejected": _("Rejected:"),
-            "needs-review": _("Needs review:"),
-            "unreviewed": _("Translated:"),
-            "final": _("Reviewed:"),
+        "empty": _("Untranslated:"),
+        "needs-work": _("Needs work:"),
+        "rejected": _("Rejected:"),
+        "needs-review": _("Needs review:"),
+        "unreviewed": _("Translated:"),
+        "final": _("Reviewed:"),
     }
     from virtaal.support import statsdb
+
     state_dict = statsdb.extended_state_strings
 
     # just to check that the code didn't get out of sync somewhere:
@@ -51,9 +52,9 @@ def _statistics(stats, states=None):
 
 def _nice_percentage(numerator, denominator):
     """numerator as a percentage of denominator, in parentheses, with one
-        decimal place unless it is 0% or 100%."""
+    decimal place unless it is 0% or 100%."""
     decimals = 0 if numerator in (0, denominator) else 1
-    #l10n: A percentage in the file properties, e.g. "(25.5%)"
+    # l10n: A percentage in the file properties, e.g. "(25.5%)"
     return _("(%s)") % format_percent(numerator / denominator if denominator else 0, decimals)
 
 
@@ -75,27 +76,37 @@ class PropertiesView(BaseView, GObjectWrapper):
 
     def _get_widgets(self):
         self.gui = self.load_builder_file(
-            ["virtaal", "virtaal.ui"],
-            root='PropertiesDlg',
-            domain="virtaal"
+            ["virtaal", "virtaal.ui"], root='PropertiesDlg', domain="virtaal"
         )
 
         widget_names = (
             'tbl_properties',
-            'lbl_type', 'lbl_location', 'lbl_filesize',
-            'lbl_word_total', 'lbl_string_total',
-            'vbox_word_labels', 'vbox_word_stats', 'vbox_word_perc',
-            'vbox_string_labels', 'vbox_string_stats', 'vbox_string_perc',
-            'lbl_saved_heading', 'lbl_live_heading',
-            'lbl_word_live_total', 'lbl_string_live_total',
-            'vbox_word_live_stats', 'vbox_string_live_stats',
+            'lbl_type',
+            'lbl_location',
+            'lbl_filesize',
+            'lbl_word_total',
+            'lbl_string_total',
+            'vbox_word_labels',
+            'vbox_word_stats',
+            'vbox_word_perc',
+            'vbox_string_labels',
+            'vbox_string_stats',
+            'vbox_string_perc',
+            'lbl_saved_heading',
+            'lbl_live_heading',
+            'lbl_word_live_total',
+            'lbl_string_live_total',
+            'vbox_word_live_stats',
+            'vbox_string_live_stats',
         )
         for name in widget_names:
             self._widgets[name] = self.gui.get_object(name)
 
         self._widgets['dialog'] = self.gui.get_object('PropertiesDlg')
         self._widgets['dialog'].set_transient_for(self.controller.main_controller.view.main_window)
-        self._widgets['dialog'].set_icon(self.controller.main_controller.view.main_window.get_icon())
+        self._widgets['dialog'].set_icon(
+            self.controller.main_controller.view.main_window.get_icon()
+        )
         self._widgets['infobar'] = self._create_unsaved_infobar()
 
     def _create_unsaved_infobar(self):
@@ -116,7 +127,10 @@ class PropertiesView(BaseView, GObjectWrapper):
 
     def _setup_key_bindings(self):
         from gi.repository import Gdk
-        Gtk.AccelMap.add_entry("<Virtaal>/File/Properties", Gdk.KEY_Return, Gdk.ModifierType.MOD1_MASK)
+
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/File/Properties", Gdk.KEY_Return, Gdk.ModifierType.MOD1_MASK
+        )
 
     def _setup_menu_item(self):
         mainview = self.controller.main_controller.view
@@ -133,7 +147,6 @@ class PropertiesView(BaseView, GObjectWrapper):
         mnu_properties.connect('activate', self._show_properties)
 
     # ACCESSORS #
-
 
     # METHODS #
     def show(self):
@@ -158,10 +171,18 @@ class PropertiesView(BaseView, GObjectWrapper):
         self._clear_stat_rows()
         self._populate_stat_rows(_statistics(self.stats, states))
         if modified:
-            self._populate_live_stat_rows(_statistics(self.live_stats, states), _statistics(self.stats, states))
-        for name in ('infobar', 'lbl_saved_heading', 'lbl_live_heading',
-                'lbl_word_live_total', 'lbl_string_live_total',
-                'vbox_word_live_stats', 'vbox_string_live_stats'):
+            self._populate_live_stat_rows(
+                _statistics(self.live_stats, states), _statistics(self.stats, states)
+            )
+        for name in (
+            'infobar',
+            'lbl_saved_heading',
+            'lbl_live_heading',
+            'lbl_word_live_total',
+            'lbl_string_live_total',
+            'vbox_word_live_stats',
+            'vbox_string_live_stats',
+        ):
             self._widgets[name].set_visible(modified)
         self._update_file_info_labels()
         # Shrink back to fit once the unsaved-changes column is hidden.
@@ -169,9 +190,16 @@ class PropertiesView(BaseView, GObjectWrapper):
 
     def _clear_stat_rows(self):
         # Remove all previous work so that we can start afresh:
-        for name in ('vbox_word_labels', 'vbox_word_stats', 'vbox_word_perc',
-                'vbox_string_labels', 'vbox_string_stats', 'vbox_string_perc',
-                'vbox_word_live_stats', 'vbox_string_live_stats'):
+        for name in (
+            'vbox_word_labels',
+            'vbox_word_stats',
+            'vbox_word_perc',
+            'vbox_string_labels',
+            'vbox_string_stats',
+            'vbox_string_perc',
+            'vbox_word_live_stats',
+            'vbox_string_live_stats',
+        ):
             vbox = self._widgets[name]
             for child in vbox.get_children():
                 vbox.remove(child)
@@ -184,7 +212,7 @@ class PropertiesView(BaseView, GObjectWrapper):
         total_words = sum(words for (_desc, _strings, words) in statistics)
         total_strings = sum(strings for (_desc, strings, _words) in statistics)
 
-        for (description, strings, words) in statistics:
+        for description, strings, words in statistics:
             # Add two identical labels for the word/string descriptions
             lbl_desc = Gtk.Label(label=description)
             lbl_desc.set_xalign(1.0)  # Right aligned
@@ -220,11 +248,16 @@ class PropertiesView(BaseView, GObjectWrapper):
         total_words = sum(words for (_desc, _strings, words) in statistics)
         total_strings = sum(strings for (_desc, strings, _words) in statistics)
 
-        for (_desc, strings, words), (_saved_desc, saved_strings, saved_words) in zip(statistics, saved_statistics):
+        for (_desc, strings, words), (_saved_desc, saved_strings, saved_words) in zip(
+            statistics, saved_statistics
+        ):
             for vbox_name, value, saved_value, total in (
-                    ('vbox_word_live_stats', words, saved_words, total_words),
-                    ('vbox_string_live_stats', strings, saved_strings, total_strings)):
-                text = GLib.markup_escape_text('%s  %s' % (format_number(value), _nice_percentage(value, total)))
+                ('vbox_word_live_stats', words, saved_words, total_words),
+                ('vbox_string_live_stats', strings, saved_strings, total_strings),
+            ):
+                text = GLib.markup_escape_text(
+                    '%s  %s' % (format_number(value), _nice_percentage(value, total))
+                )
                 if value != saved_value:
                     text = '<b>%s</b>' % text
                 lbl_stats = Gtk.Label()
@@ -234,7 +267,9 @@ class PropertiesView(BaseView, GObjectWrapper):
                 self._widgets[vbox_name].pack_start(lbl_stats, True, True, 0)
 
         self._widgets['lbl_word_live_total'].set_markup('<b>%s</b>' % format_number(total_words))
-        self._widgets['lbl_string_live_total'].set_markup('<b>%s</b>' % format_number(total_strings))
+        self._widgets['lbl_string_live_total'].set_markup(
+            '<b>%s</b>' % format_number(total_strings)
+        )
 
     def _update_file_info_labels(self):
         self._widgets['lbl_type'].set_text(_(self.data['file_type']))
@@ -245,7 +280,6 @@ class PropertiesView(BaseView, GObjectWrapper):
         file_size = self.data.get('file_size', 0)
         if file_size:
             self._widgets['lbl_filesize'].set_text(format_size(file_size))
-
 
     # EVENT HANDLERS #
     def _show_properties(self, *args):

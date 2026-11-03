@@ -16,7 +16,9 @@ from virtaal.models.storemodel import StoreModel
 
 class TestStoreModel(TestScaffolding):
     def test_load(self):
-        self.model = StoreModel(self.testfile[1], None) # We can pass "None" as the controller, because it does not have an effect on this test
+        self.model = StoreModel(
+            self.testfile[1], None
+        )  # We can pass "None" as the controller, because it does not have an effect on this test
         self.model.load_file(self.testfile[1])
         assert len(self.model) <= len(self.trans_store.units)
         assert self.model.get_filename() == self.testfile[1]
@@ -45,12 +47,14 @@ def test_compute_nplurals_infers_from_data_when_the_format_has_no_declaration():
     # toolkit's own NumerusRules section reader is unimplemented) -
     # translate/virtaal#1501.
     from translate.storage import factory
+
     store = factory.getobject('devsupport/testfiles/workflow.qm')
     assert StoreModel._compute_nplurals(None, store) == 2
 
 
 def test_compute_nplurals_none_without_any_plural_data():
     from translate.storage import mo
+
     store = mo.mofile()
     assert StoreModel._compute_nplurals(None, store) is None
 
@@ -66,12 +70,14 @@ def test_compute_nplurals_none_for_a_ts_file_without_a_language():
     # #4399: translate-toolkit's tsfile.nplural() raised on the optional
     # language attribute being absent; the target language's count is used.
     from translate.storage import ts2
+
     store = ts2.tsfile.parsestring((_TS % '').encode('utf-8'))
     assert StoreModel._compute_nplurals(None, store) is None
 
 
 def test_compute_nplurals_reads_a_ts_files_language():
     from translate.storage import ts2
+
     store = ts2.tsfile.parsestring((_TS % ' language="af"').encode('utf-8'))
     assert StoreModel._compute_nplurals(None, store) == 2
 
@@ -94,9 +100,11 @@ def _model_with_translator_info(tmp_path, name, email):
         main_controller=SimpleNamespace(
             get_translator_details=lambda: (name, email, None),
             lang_controller=SimpleNamespace(
-                target_lang=SimpleNamespace(code='fr', plural=None, nplurals=None)),
+                target_lang=SimpleNamespace(code='fr', plural=None, nplurals=None)
+            ),
             checks_controller=SimpleNamespace(code=None),
-        ))
+        )
+    )
     return model, path
 
 
@@ -169,7 +177,7 @@ def test_save_keeps_header_comments_of_a_crlf_file(tmp_path):
     saved = path.read_bytes().decode('utf-8')
     lines = saved.split('\r\n')
     assert '\n' not in saved.replace('\r\n', '')  # line endings kept
-    comments = lines[:lines.index('msgid ""')]
+    comments = lines[: lines.index('msgid ""')]
     assert all(line.startswith('#') for line in comments)
     assert '# This file is distributed under the same license as the Virtaal package.' in comments
     assert '# Ben Vertaler <ben@example.org>, 2025.' in comments
@@ -181,7 +189,8 @@ def test_vanished_ts_translation_is_excluded_but_does_not_crash(tmp_path):
     # StoreModel.load_file() outright - it should load cleanly and be
     # hidden from the UI (obsolete), not shown alongside real units.
     path = tmp_path / "test.ts"
-    path.write_text('''<?xml version="1.0" encoding="utf-8"?>
+    path.write_text(
+        '''<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="gd">
 <context>
@@ -196,7 +205,9 @@ def test_vanished_ts_translation_is_excluded_but_does_not_crash(tmp_path):
     </message>
 </context>
 </TS>
-''', encoding='utf-8')
+''',
+        encoding='utf-8',
+    )
 
     model = StoreModel(str(path), controller=None)
 

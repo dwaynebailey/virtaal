@@ -47,6 +47,7 @@ def test_the_program_name_is_virtaal_not_the_executable(monkeypatch):
     import builtins
 
     from gi.repository import Gtk
+
     monkeypatch.setattr(builtins, '_', lambda text: 'Фиртаал' if text == 'Virtaal' else text)
     parent = Gtk.Window()
     dialog = AboutDialog(parent)

@@ -9,7 +9,7 @@ from gi.repository.Gtk import Builder
 
 from virtaal.common import pan_app
 
-#cache builders so that we don't parse files repeatedly
+# cache builders so that we don't parse files repeatedly
 _builders = {}
 
 

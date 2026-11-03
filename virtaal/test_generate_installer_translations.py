@@ -13,7 +13,10 @@ import pytest
 
 SCRIPT = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "devsupport", "packaging", "windows", "generate_installer_translations.py",
+    "devsupport",
+    "packaging",
+    "windows",
+    "generate_installer_translations.py",
 )
 
 
@@ -44,6 +47,7 @@ def test_every_message_is_in_the_pot(gen):
     # A msgid missing from the POT never gets translated, silently
     # leaving that installer string in English.
     from translate.storage import pypo
+
     pot = pypo.pofile((gen.REPO_ROOT / "po" / "virtaal.pot").read_bytes())
     msgids = {unit.source for unit in pot.units}
     assert set(gen.MESSAGE_KEY_TO_MSGID.values()) <= msgids

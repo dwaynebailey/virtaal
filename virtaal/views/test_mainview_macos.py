@@ -24,8 +24,9 @@ macos_only = pytest.mark.skipif(sys.platform != 'darwin', reason='AppKit is macO
 
 
 def _nsstring(text):
-    return _objc_send(_objc_class('NSString'), 'stringWithUTF8String:',
-                      text.encode(), argtypes=[ctypes.c_char_p])
+    return _objc_send(
+        _objc_class('NSString'), 'stringWithUTF8String:', text.encode(), argtypes=[ctypes.c_char_p]
+    )
 
 
 def _text(nsstring):
@@ -34,11 +35,14 @@ def _text(nsstring):
 
 def _menu(title, *items):
     """A native menu holding C{items}: titles, or (title, submenu) pairs."""
-    menu = _objc_send(_objc_send(_objc_class('NSMenu'), 'alloc'), 'initWithTitle:', _nsstring(title))
+    menu = _objc_send(
+        _objc_send(_objc_class('NSMenu'), 'alloc'), 'initWithTitle:', _nsstring(title)
+    )
     for item in items:
         name, submenu = item if isinstance(item, tuple) else (item, None)
-        menuitem = _objc_send(menu, 'addItemWithTitle:action:keyEquivalent:',
-                              _nsstring(name), None, _nsstring(''))
+        menuitem = _objc_send(
+            menu, 'addItemWithTitle:action:keyEquivalent:', _nsstring(name), None, _nsstring('')
+        )
         if submenu:
             _objc_send(menuitem, 'setSubmenu:', submenu, restype=None)
     return menu
@@ -53,6 +57,7 @@ def main_menu():
     def install(menu):
         _objc_send(nsapp, 'setMainMenu:', menu, restype=None)
         return menu
+
     yield install
     _objc_send(nsapp, 'setMainMenu:', old, restype=None)
 
@@ -82,8 +87,11 @@ def test_set_document_edited_marks_the_native_window():
 
 @macos_only
 def test_find_native_menu_item_finds_an_item_in_a_submenu():
-    menu = _menu('', ('File', _menu('File', 'Open', ('Recent', _menu('Recent', 'a.po')))),
-                 ('Navigation', _menu('Navigation', 'Next')))
+    menu = _menu(
+        '',
+        ('File', _menu('File', 'Open', ('Recent', _menu('Recent', 'a.po')))),
+        ('Navigation', _menu('Navigation', 'Next')),
+    )
 
     item = mainview._find_native_menu_item(menu, 'a.po')
 
@@ -138,6 +146,7 @@ def test_macos_integration_without_gtk_mac_integration_leaves_the_menu_bar(monke
         if namespace == 'GtkosxApplication':
             raise ValueError('Namespace GtkosxApplication not available')
         return real_require_version(namespace, version)
+
     monkeypatch.setattr(gi, 'require_version', require_version)
     view = mock.Mock()
 

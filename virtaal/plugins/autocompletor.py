@@ -24,14 +24,14 @@ class AutoCompletor:
     wordsep_re = re.compile(r'\W+', re.UNICODE)
 
     MAX_WORDS = 10000
-    DEFAULT_COMPLETION_LENGTH = 4 # The default minimum length of a word that may
-                                  # be auto-completed.
+    DEFAULT_COMPLETION_LENGTH = 4  # The default minimum length of a word that may
+    # be auto-completed.
 
     def __init__(self, main_controller, word_list=None, comp_len=DEFAULT_COMPLETION_LENGTH):
         """Constructor.
 
-            @type  word_list: iterable
-            @param word_list: A list of words that should be auto-completed."""
+        @type  word_list: iterable
+        @param word_list: A list of words that should be auto-completed."""
         self.main_controller = main_controller
         if word_list is None:
             word_list = []
@@ -44,7 +44,7 @@ class AutoCompletor:
     def add_widget(self, widget):
         """Add a widget to the list of widgets to do auto-completion for."""
         if widget in self.widgets:
-            return # Widget already added
+            return  # Widget already added
 
         if isinstance(widget, TextBox):
             self._add_text_box(widget)
@@ -62,11 +62,11 @@ class AutoCompletor:
 
     def add_words_from_units(self, units):
         """Collect all words from the given translation units to use for
-            auto-completion.
+        auto-completion.
 
-            @type  units: list
-            @param units: The translation units to collect words from.
-            """
+        @type  units: list
+        @param units: The translation units to collect words from.
+        """
         for unit in units:
             target = unit.target
             if not target:
@@ -80,7 +80,7 @@ class AutoCompletor:
     def autocomplete(self, word):
         for w in self._word_list:
             if w.startswith(word):
-                return w, w[len(word):]
+                return w, w[len(word) :]
         return None, ''
 
     def clear_widgets(self):
@@ -100,8 +100,8 @@ class AutoCompletor:
 
     def remove_widget(self, widget):
         """Remove a widget (currently only L{TextBox}s are accepted) from
-            the list of widgets to do auto-correction for.
-            """
+        the list of widgets to do auto-correction for.
+        """
         if isinstance(widget, TextBox) and widget in self.widgets:
             self._remove_textbox(widget)
 
@@ -121,7 +121,7 @@ class AutoCompletor:
 
     def _add_text_box(self, textbox):
         """Add the given L{TextBox} to the list of widgets to do auto-
-            correction on."""
+        correction on."""
         if not hasattr(self, '_textbox_insert_ids'):
             self._textbox_insert_ids = {}
         handler_id = textbox.connect('text-inserted', self._on_insert_text)
@@ -156,15 +156,16 @@ class AutoCompletor:
                 # Updating of the buffer is deferred until after this signal
                 # and its side effects are taken care of. We abuse
                 # GLib.idle_add for that.
-                insert_offset = offset + 1 # len(text) == 1
+                insert_offset = offset + 1  # len(text) == 1
+
                 def suggest_completion():
                     textbox.handler_block(self._textbox_insert_ids[textbox])
-                    #logging.debug("textbox.suggestion = {'text': u'%s', 'offset': %d}" % (word_postfix, insert_offset))
+                    # logging.debug("textbox.suggestion = {'text': u'%s', 'offset': %d}" % (word_postfix, insert_offset))
                     textbox.suggestion = {'text': word_postfix, 'offset': insert_offset}
                     textbox.handler_unblock(self._textbox_insert_ids[textbox])
 
                     sel_iter_start = buffer.get_iter_at_offset(insert_offset)
-                    sel_iter_end   = buffer.get_iter_at_offset(insert_offset + len(word_postfix))
+                    sel_iter_end = buffer.get_iter_at_offset(insert_offset + len(word_postfix))
                     buffer.select_range(sel_iter_start, sel_iter_end)
 
                     return False
@@ -173,8 +174,8 @@ class AutoCompletor:
 
     def _remove_textbox(self, textbox):
         """Remove the given L{TextBox} from the list of widgets to do
-            auto-correction on.
-            """
+        auto-correction on.
+        """
         if not hasattr(self, '_textbox_insert_ids'):
             return
         # Disconnect the "insert-text" event handler
@@ -185,7 +186,7 @@ class AutoCompletor:
     def _update_word_list(self):
         """Update and sort found words according to frequency."""
         wordlist = list(self._word_freq.items())
-        wordlist.sort(key=lambda x:x[1], reverse=True)
+        wordlist.sort(key=lambda x: x[1], reverse=True)
         self._word_list = [items[0] for items in wordlist]
 
 
@@ -204,7 +205,9 @@ class Plugin(BasePlugin):
     def _init_plugin(self):
         self.autocomp = AutoCompletor(self.main_controller)
 
-        self._store_loaded_id = self.main_controller.store_controller.connect('store-loaded', self._on_store_loaded)
+        self._store_loaded_id = self.main_controller.store_controller.connect(
+            'store-loaded', self._on_store_loaded
+        )
 
         if self.main_controller.store_controller.get_store():
             # Connect to already loaded store. This happens when the plug-in is enabled after loading a store.
@@ -219,7 +222,7 @@ class Plugin(BasePlugin):
 
     def _connect_to_textboxes(self, unitview, textboxes):
         for target in textboxes:
-                self.autocomp.add_widget(target)
+            self.autocomp.add_widget(target)
 
     # METHODS #
     def destroy(self):
@@ -231,7 +234,6 @@ class Plugin(BasePlugin):
             self.store_cursor.disconnect(self._cursor_changed_id)
         if self._unitview_id:
             self.main_controller.unit_controller.view.disconnect(self._unitview_id)
-
 
     # EVENT HANDLERS #
     def _on_cursor_change(self, cursor):
@@ -245,12 +247,14 @@ class Plugin(BasePlugin):
                     # characters of the first plural form only.
                     for target in self.lastunit.target.strings:
                         if target:
-                            #logging.debug('Adding words: %s' % (self.autocomp.wordsep_re.split(str(target))))
+                            # logging.debug('Adding words: %s' % (self.autocomp.wordsep_re.split(str(target))))
                             self.autocomp.add_words(self.autocomp.wordsep_re.split(str(target)))
                 else:
                     if self.lastunit.target:
-                        #logging.debug('Adding words: %s' % (self.autocomp.wordsep_re.split(str(self.lastunit.target))))
-                        self.autocomp.add_words(self.autocomp.wordsep_re.split(str(self.lastunit.target)))
+                        # logging.debug('Adding words: %s' % (self.autocomp.wordsep_re.split(str(self.lastunit.target))))
+                        self.autocomp.add_words(
+                            self.autocomp.wordsep_re.split(str(self.lastunit.target))
+                        )
             self.lastunit = cursor.deref()
 
         GLib.idle_add(add_widgets)
@@ -261,5 +265,7 @@ class Plugin(BasePlugin):
         if hasattr(self, '_cursor_changed_id'):
             self.store_cursor.disconnect(self._cursor_changed_id)
         self.store_cursor = storecontroller.cursor
-        self._cursor_changed_id = self.store_cursor.connect('cursor-changed', self._on_cursor_change)
+        self._cursor_changed_id = self.store_cursor.connect(
+            'cursor-changed', self._on_cursor_change
+        )
         self._on_cursor_change(self.store_cursor)

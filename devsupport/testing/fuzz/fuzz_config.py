@@ -43,37 +43,77 @@ CASE_TIMEOUT = 60
 KILL_AFTER = 75
 
 VALUES = [
-    ('blank', ''), ('space', '   '), ('word', 'abc'), ('negative', '-1'), ('zero', '0'),
-    ('float', '1.5'), ('huge int', '99999999999999999999'), ('exponent', '1e9'), ('None', 'None'),
-    ('bool', 'True'), ('non-ASCII', 'Ünï中文\U0001f44d'), ('percent', '%'),
-    ('percent format', '%(x)s %s'), ('comma', ','), ('pipe', '|'), ('pair junk', 'en,|,af,de'),
-    ('one code', 'en'), ('relative path', '../../nonexistent/dir'), ('long', 'x' * 20000),
-    ('newline', 'a\nb'), ('brackets', '[x]'), ('control', 'a\x01b'), ('RTL', 'مرحبا'),
+    ('blank', ''),
+    ('space', '   '),
+    ('word', 'abc'),
+    ('negative', '-1'),
+    ('zero', '0'),
+    ('float', '1.5'),
+    ('huge int', '99999999999999999999'),
+    ('exponent', '1e9'),
+    ('None', 'None'),
+    ('bool', 'True'),
+    ('non-ASCII', 'Ünï中文\U0001f44d'),
+    ('percent', '%'),
+    ('percent format', '%(x)s %s'),
+    ('comma', ','),
+    ('pipe', '|'),
+    ('pair junk', 'en,|,af,de'),
+    ('one code', 'en'),
+    ('relative path', '../../nonexistent/dir'),
+    ('long', 'x' * 20000),
+    ('newline', 'a\nb'),
+    ('brackets', '[x]'),
+    ('control', 'a\x01b'),
+    ('RTL', 'مرحبا'),
 ]
 
 INI_KEYS = [
-    ('plugins.ini', 'tm', 'max_matches'), ('plugins.ini', 'tm', 'min_quality'),
-    ('plugins.ini', 'tm', 'disabled_models'), ('plugins.ini', 'tm', 'backends_dialog_width'),
-    ('plugins.ini', 'terminology', 'max_matches'), ('plugins.ini', 'terminology', 'min_quality'),
+    ('plugins.ini', 'tm', 'max_matches'),
+    ('plugins.ini', 'tm', 'min_quality'),
+    ('plugins.ini', 'tm', 'disabled_models'),
+    ('plugins.ini', 'tm', 'backends_dialog_width'),
+    ('plugins.ini', 'terminology', 'max_matches'),
+    ('plugins.ini', 'terminology', 'min_quality'),
     ('plugins.ini', 'terminology', 'disabled_models'),
-    ('plugins.ini', 'lookup', 'disabled_models'), ('plugins.ini', 'lookup', 'backends_dialog_width'),
-    ('tm.ini', 'localtm', 'tmserver_bind'), ('tm.ini', 'localtm', 'tmserver_port'),
-    ('tm.ini', 'localtm', 'tmdb'), ('tm.ini', 'currentfile', 'max_length'),
-    ('terminology.ini', 'localfile', 'files'), ('terminology.ini', 'localfile', 'extendfile'),
-    ('weblookup.ini', 'custom', 'display_name'), ('weblookup.ini', 'custom', 'url'),
-    ('weblookup.ini', 'custom', 'quoted'), ('weblookup.ini', 'custom', 'enabled'),
+    ('plugins.ini', 'lookup', 'disabled_models'),
+    ('plugins.ini', 'lookup', 'backends_dialog_width'),
+    ('tm.ini', 'localtm', 'tmserver_bind'),
+    ('tm.ini', 'localtm', 'tmserver_port'),
+    ('tm.ini', 'localtm', 'tmdb'),
+    ('tm.ini', 'currentfile', 'max_length'),
+    ('terminology.ini', 'localfile', 'files'),
+    ('terminology.ini', 'localfile', 'extendfile'),
+    ('weblookup.ini', 'custom', 'display_name'),
+    ('weblookup.ini', 'custom', 'url'),
+    ('weblookup.ini', 'custom', 'quoted'),
+    ('weblookup.ini', 'custom', 'enabled'),
     ('weblookup.ini', 'custom', 'id'),
-    ('langs.ini', 'fz', 'name'), ('langs.ini', 'fz', 'nplurals'), ('langs.ini', 'fz', 'plural'),
+    ('langs.ini', 'fz', 'name'),
+    ('langs.ini', 'fz', 'nplurals'),
+    ('langs.ini', 'fz', 'plural'),
 ]
 
 # Sections a key case needs filled in around the key under test.
 SECTION_DEFAULTS = {
-    ('weblookup.ini', 'custom'): {'display_name': 'Custom', 'url': 'https://example.org/%(query)s',
-                                  'quoted': 'False', 'enabled': 'True', 'id': 'custom'},
+    ('weblookup.ini', 'custom'): {
+        'display_name': 'Custom',
+        'url': 'https://example.org/%(query)s',
+        'quoted': 'False',
+        'enabled': 'True',
+        'id': 'custom',
+    },
     ('langs.ini', 'fz'): {'name': 'Fuzzish', 'nplurals': '2', 'plural': '(n != 1)'},
 }
 
-INI_FILES = ['virtaal.ini', 'plugins.ini', 'tm.ini', 'terminology.ini', 'weblookup.ini', 'langs.ini']
+INI_FILES = [
+    'virtaal.ini',
+    'plugins.ini',
+    'tm.ini',
+    'terminology.ini',
+    'weblookup.ini',
+    'langs.ini',
+]
 
 # label, content, whether resetting the file (with a backup) is the right answer
 WHOLE_FILE = [
@@ -108,7 +148,7 @@ def _db_variants(tmp):
     return [
         ('empty', b''),
         ('not SQLite', b'hello\n' * 100),
-        ('truncated', full[:len(full) // 2]),
+        ('truncated', full[: len(full) // 2]),
         ('other schema', full),
         ('directory', None),
     ]
@@ -125,19 +165,57 @@ def data_cases(tmp):
     out = []
     for label, content in _db_variants(tmp):
         out.append(('tm.db: ' + label, os.path.join(conf, 'tm.db'), content, {}, False))
-        out.append(('stats.db: ' + label, os.path.join('.translate_toolkit', 'stats.db'), content, {}, False))
-    junk = [('empty', b''), ('binary', bytes(range(256)) * 8), ('truncated', PO[:len(PO) // 2]),
-            ('XLIFF content', b'<?xml version="1.0"?><xliff version="1.2"><file><body/></file></xliff>')]
+        out.append(
+            (
+                'stats.db: ' + label,
+                os.path.join('.translate_toolkit', 'stats.db'),
+                content,
+                {},
+                False,
+            )
+        )
+    junk = [
+        ('empty', b''),
+        ('binary', bytes(range(256)) * 8),
+        ('truncated', PO[: len(PO) // 2]),
+        (
+            'XLIFF content',
+            b'<?xml version="1.0"?><xliff version="1.2"><file><body/></file></xliff>',
+        ),
+    ]
     # A glossary that can't be read is logged and left out.
     for label, content in junk + [('directory', None)]:
-        out.append(('terminology.po: ' + label, os.path.join(conf, 'terminology.po'), content, {}, True))
+        out.append(
+            ('terminology.po: ' + label, os.path.join(conf, 'terminology.po'), content, {}, True)
+        )
     for label, content in junk:
-        out.append(('autoterm: ' + label, os.path.join(conf, 'autoterm', 'en__af.po'), content,
-                    {('plugins.ini', 'terminology', 'disabled_models'): 'pontoon'}, False))
-        out.append(('thesaurus: ' + label, os.path.join(conf, 'thesaurus', 'af', 'th_af.dat'), content,
-                    {('plugins.ini', 'lookup', 'disabled_models'): ''}, False))
-        out.append(('autocorrect: ' + label, os.path.join(conf, 'autocorr', 'af', 'DocumentList.xml'), content,
-                    {('virtaal.ini', 'plugin_state', 'autocorrector'): 'enabled'}, False))
+        out.append(
+            (
+                'autoterm: ' + label,
+                os.path.join(conf, 'autoterm', 'en__af.po'),
+                content,
+                {('plugins.ini', 'terminology', 'disabled_models'): 'pontoon'},
+                False,
+            )
+        )
+        out.append(
+            (
+                'thesaurus: ' + label,
+                os.path.join(conf, 'thesaurus', 'af', 'th_af.dat'),
+                content,
+                {('plugins.ini', 'lookup', 'disabled_models'): ''},
+                False,
+            )
+        )
+        out.append(
+            (
+                'autocorrect: ' + label,
+                os.path.join(conf, 'autocorr', 'af', 'DocumentList.xml'),
+                content,
+                {('virtaal.ini', 'plugin_state', 'autocorrector'): 'enabled'},
+                False,
+            )
+        )
     return out
 
 
@@ -148,6 +226,7 @@ def virtaal_ini_keys():
     os.environ['APPDATA'] = os.path.join(home, 'AppData')
     sys.path.insert(1, os.path.abspath(os.path.join(HERE, '..', '..', '..')))
     from virtaal.common import pan_app
+
     keys = []
     for section in pan_app.Settings.sections:
         for key in getattr(pan_app.Settings, section):
@@ -163,16 +242,38 @@ def all_cases(tmp):
     cases = []
     for name, section, key in virtaal_ini_keys() + INI_KEYS:
         for label, value in VALUES:
-            cases.append({'sweep': 'config-' + name, 'case': '%s.%s: %s' % (section, key, label),
-                          'file': name, 'section': section, 'key': key, 'value': value})
+            cases.append(
+                {
+                    'sweep': 'config-' + name,
+                    'case': '%s.%s: %s' % (section, key, label),
+                    'file': name,
+                    'section': section,
+                    'key': key,
+                    'value': value,
+                }
+            )
     for name in INI_FILES:
         for label, content, reset_ok in WHOLE_FILE:
-            cases.append({'sweep': 'config-' + name, 'case': 'whole file: ' + label, 'file': name,
-                          'content': None if content is None else content.hex(), 'reset_ok': reset_ok})
+            cases.append(
+                {
+                    'sweep': 'config-' + name,
+                    'case': 'whole file: ' + label,
+                    'file': name,
+                    'content': None if content is None else content.hex(),
+                    'reset_ok': reset_ok,
+                }
+            )
     for label, path, content, settings, log_ok in data_cases(tmp):
-        cases.append({'sweep': 'data', 'case': label, 'path': path, 'log_ok': log_ok,
-                      'content': None if content is None else content.hex(),
-                      'settings': [[f, s, k, v] for (f, s, k), v in settings.items()]})
+        cases.append(
+            {
+                'sweep': 'data',
+                'case': label,
+                'path': path,
+                'log_ok': log_ok,
+                'content': None if content is None else content.hex(),
+                'settings': [[f, s, k, v] for (f, s, k), v in settings.items()],
+            }
+        )
     return cases
 
 
@@ -220,13 +321,16 @@ def apply_case(home, case, port):
 
 # ONE START-UP (in the child) #
 
+
 def child(case_path, results_path):
     with open(case_path, encoding='utf-8') as f:
         case = json.load(f)
     import gi
+
     gi.require_version('Gtk', '3.0')
     from gi.repository import GLib
     from record import Recorder
+
     sys.path.insert(1, os.path.abspath(os.path.join(HERE, '..', '..', '..')))
 
     recorder = Recorder(results_path, CASE_TIMEOUT, slow_seconds=None)
@@ -239,16 +343,22 @@ def child(case_path, results_path):
         steps = ['start-up', 'open', 'move', 'save', 'look-up', 'quit']
         if done != steps:
             missing = [step for step in steps if step not in done]
-            recorder.problem('incomplete', missing[0], 'did not get through: %s' % ', '.join(missing))
+            recorder.problem(
+                'incomplete', missing[0], 'did not get through: %s' % ', '.join(missing)
+            )
         backups = glob.glob(os.path.join(config_dir(home), '*.broken*'))
         if backups and not case.get('reset_ok'):
-            recorder.problem('config-reset', '', 'backed up and reset: %s' % ', '.join(
-                os.path.basename(b) for b in backups))
+            recorder.problem(
+                'config-reset',
+                '',
+                'backed up and reset: %s' % ', '.join(os.path.basename(b) for b in backups),
+            )
         recorder.done()
         os._exit(0)
 
     try:
         from virtaal.main import Virtaal
+
         app = Virtaal('')
         mc = app.main_controller
         sys.excepthook = recorder.exception
@@ -273,8 +383,14 @@ def child(case_path, results_path):
             ('open', lambda: mc.open_file(os.path.join(home, 'files', 'target.po'))),
             ('move', lambda: mc.store_controller.cursor.force_index(1)),
             ('save', lambda: mc.store_controller.set_modified(True) or mc.save_file()),
-            ('look-up', lambda: mc.plugin_controller.plugins['lookup'].controller.plugin_controller
-             .plugins['weblookup'].create_menu_items('word', 'source', 'en', 'af', None)),
+            (
+                'look-up',
+                lambda: (
+                    mc.plugin_controller.plugins['lookup']
+                    .controller.plugin_controller.plugins['weblookup']
+                    .create_menu_items('word', 'source', 'en', 'af', None)
+                ),
+            ),
         ]
         for name, call in steps:
             step(name, call)
@@ -297,6 +413,7 @@ def child(case_path, results_path):
 
 # THE PARENT #
 
+
 def run(cases, outdir, jobs):
     base = fuzz_ui.prepare_home(os.path.join(outdir, 'base'))
     os.makedirs(os.path.join(base, 'files'))
@@ -317,15 +434,27 @@ def run(cases, outdir, jobs):
             killed = True
         with open(os.path.join(home, 'stderr'), encoding='utf-8', errors='replace') as f:
             stderr = f.read()
-        cases_found, finished, stderr = fuzz_ui.parse_child(os.path.join(home, 'results.jsonl'), stderr)
+        cases_found, finished, stderr = fuzz_ui.parse_child(
+            os.path.join(home, 'results.jsonl'), stderr
+        )
         own = [c for c in cases_found if c['case'] == case['case']]
         if not finished:
-            problem = ({'kind': 'timeout', 'signature': '', 'detail': stderr[-3000:]} if killed
-                       else fuzz_ui.died_in(cases_found, stderr))
+            problem = (
+                {'kind': 'timeout', 'signature': '', 'detail': stderr[-3000:]}
+                if killed
+                else fuzz_ui.died_in(cases_found, stderr)
+            )
             if own:
                 own[0]['problems'].append(problem)
             else:
-                cases_found.append({'sweep': case['sweep'], 'case': case['case'], 'elapsed': 0, 'problems': [problem]})
+                cases_found.append(
+                    {
+                        'sweep': case['sweep'],
+                        'case': case['case'],
+                        'elapsed': 0,
+                        'problems': [problem],
+                    }
+                )
         for result in cases_found:
             if case.get('log_ok'):
                 result['problems'] = [p for p in result['problems'] if p['kind'] != 'log-error']
@@ -355,9 +484,20 @@ def run(cases, outdir, jobs):
         child_env = fuzz_ui.child_env(home)
         stderr = open(os.path.join(home, 'stderr'), 'w')
         # A relative path in a value lands in the working directory.
-        proc = subprocess.Popen([sys.executable, os.path.abspath(__file__), '--child', case_path,
-                                 '--results', os.path.join(home, 'results.jsonl')],
-                                env=child_env, cwd=os.path.dirname(home), stdout=stderr, stderr=stderr)
+        proc = subprocess.Popen(
+            [
+                sys.executable,
+                os.path.abspath(__file__),
+                '--child',
+                case_path,
+                '--results',
+                os.path.join(home, 'results.jsonl'),
+            ],
+            env=child_env,
+            cwd=os.path.dirname(home),
+            stdout=stderr,
+            stderr=stderr,
+        )
         running.append((proc, case, home, time.monotonic()))
     for item in running:
         collect(*item)
@@ -365,10 +505,18 @@ def run(cases, outdir, jobs):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--results', default=None, help='Directory for results (default: a new temp dir).')
-    parser.add_argument('--jobs', type=int, default=8, help='Start-ups to run at once (default: 8).')
-    parser.add_argument('--only', default=None, help='Run only this sweep, e.g. config-tm.ini or data.')
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        '--results', default=None, help='Directory for results (default: a new temp dir).'
+    )
+    parser.add_argument(
+        '--jobs', type=int, default=8, help='Start-ups to run at once (default: 8).'
+    )
+    parser.add_argument(
+        '--only', default=None, help='Run only this sweep, e.g. config-tm.ini or data.'
+    )
     parser.add_argument('--child', default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.child:

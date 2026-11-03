@@ -14,8 +14,12 @@ import pytest
 
 @pytest.fixture(scope="module")
 def generator():
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        "devsupport", "pseudo-translation", "generate_pseudo_translation.py")
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "devsupport",
+        "pseudo-translation",
+        "generate_pseudo_translation.py",
+    )
     spec = importlib.util.spec_from_file_location("generate_pseudo_translation", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -39,8 +43,11 @@ def test_tag_messages_tags_every_plural_form_and_keeps_the_context(generator):
 
 
 def test_tag_messages_marks_what_the_lite_template_lacks(generator):
-    messages = generator.tag_messages(["Stock label\x04_Open", "_Help", "%u byte\0%u bytes"], "gtk:",
-                                      {"Stock label\x04_Open", "%u byte"})
+    messages = generator.tag_messages(
+        ["Stock label\x04_Open", "_Help", "%u byte\0%u bytes"],
+        "gtk:",
+        {"Stock label\x04_Open", "%u byte"},
+    )
 
     assert messages == {
         "Stock label\x04_Open": "gtk:_Open",
@@ -69,7 +76,9 @@ def test_library_locale_dir_is_none_for_a_namespace_this_platform_lacks(generato
     assert generator.library_locale_dir("GtkosxApplication") is None
 
 
-@pytest.mark.parametrize("code", ["pseudo", "pseudo-bidi", "fa", "pseudo-source", "pseudo-priority"])
+@pytest.mark.parametrize(
+    "code", ["pseudo", "pseudo-bidi", "fa", "pseudo-source", "pseudo-priority"]
+)
 def test_a_pseudo_locale_keeps_urls_working(generator, tmp_path, code):
     # A tagged or rewritten URL is no longer a link.
     url = "https://docs.translatehouse.org/projects/localization-guide/en/"
@@ -86,8 +95,11 @@ def test_tag_messages_leaves_gtks_text_direction_untranslated(generator):
 
 
 def test_write_mo_round_trips_through_gettext(tmp_path, generator):
-    _catalog(tmp_path, generator, generator.tag_messages(
-        ["_Open", "Stock label\x04_Cancel", "%u byte\0%u bytes"], "gtk:"))
+    _catalog(
+        tmp_path,
+        generator,
+        generator.tag_messages(["_Open", "Stock label\x04_Cancel", "%u byte\0%u bytes"], "gtk:"),
+    )
 
     t = gettext.translation("gtk30", str(tmp_path), languages=["xx"])
 
@@ -108,7 +120,10 @@ def test_fullest_catalog_picks_the_most_messages_and_skips_pseudo_locales(tmp_pa
     fullest = _catalog(tmp_path, generator, {"a": "a", "b": "b"}, lang="de")
     _catalog(tmp_path, generator, {"a": "a", "b": "b", "c": "c"}, lang="pseudo-source")
 
-    assert generator.fullest_catalog([None, str(tmp_path / "missing"), str(tmp_path)], "gtk30") == fullest
+    assert (
+        generator.fullest_catalog([None, str(tmp_path / "missing"), str(tmp_path)], "gtk30")
+        == fullest
+    )
 
 
 def test_fullest_catalog_is_none_without_a_catalog(tmp_path, generator):
@@ -131,8 +146,9 @@ def test_library_catalogs_are_found_in_ubuntus_language_packs(tmp_path, generato
 def test_tag_by_level_prefixes_each_message_with_its_priority(generator):
     levels = {"_Open": "1", "Stock label\x04_Cancel": "1~", "%u byte": "2"}
 
-    assert generator.tag_by_level(["_Open", "Stock label\x04_Cancel", "%u byte\0%u bytes", "Unlisted",
-                                   "default:LTR"], levels) == {
+    assert generator.tag_by_level(
+        ["_Open", "Stock label\x04_Cancel", "%u byte\0%u bytes", "Unlisted", "default:LTR"], levels
+    ) == {
         "_Open": "1:_Open",
         "Stock label\x04_Cancel": "1~:_Cancel",
         "%u byte\0%u bytes": "2:%u byte\x002:%u bytes",
@@ -140,9 +156,13 @@ def test_tag_by_level_prefixes_each_message_with_its_priority(generator):
     }
 
 
-def test_pseudo_level_tags_virtaals_catalog_from_the_priority_file(tmp_path, generator, monkeypatch):
+def test_pseudo_level_tags_virtaals_catalog_from_the_priority_file(
+    tmp_path, generator, monkeypatch
+):
     priorities = tmp_path / "priorities.yaml"
-    priorities.write_text("domains:\n  virtaal:\n    '1': [_File]\n    '2': [Settings]\n", encoding="utf-8")
+    priorities.write_text(
+        "domains:\n  virtaal:\n    '1': [_File]\n    '2': [Settings]\n", encoding="utf-8"
+    )
     monkeypatch.setattr(generator, "library_locale_dir", lambda namespace: None)
 
     generator.generate_locale("pseudo-priority", str(tmp_path), str(priorities))

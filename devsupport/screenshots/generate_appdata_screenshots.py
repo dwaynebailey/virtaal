@@ -85,11 +85,13 @@ def _write_recent_files(GLib):
     so back-to-back adds tie and the Welcome Screen's order varies."""
     bookmarks = GLib.BookmarkFile()
     newest = GLib.DateTime.new_utc(2026, 1, 1, 12, 0, 0)
-    for age, (recent_file, mime_type) in enumerate((
-        (TESTFILES / "workflow.ts", "application/x-linguist"),
-        (TESTFILES / "workflow.xlf", "application/x-xliff+xml"),
-        (REPO_ROOT / "po" / "af.po", "text/x-gettext-translation"),
-    )):
+    for age, (recent_file, mime_type) in enumerate(
+        (
+            (TESTFILES / "workflow.ts", "application/x-linguist"),
+            (TESTFILES / "workflow.xlf", "application/x-xliff+xml"),
+            (REPO_ROOT / "po" / "af.po", "text/x-gettext-translation"),
+        )
+    ):
         uri = recent_file.as_uri()
         when = newest.add_minutes(-age)
         bookmarks.set_mime_type(uri, mime_type)

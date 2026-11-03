@@ -15,7 +15,7 @@ def _noop(unit):
 
 
 _UNIT = object()  # a single shared unit - these tests are about stack
-                   # mechanics, not navigation between units
+# mechanics, not navigation between units
 
 
 def _entry(n):
@@ -124,8 +124,11 @@ def test_push_inserts_a_navigation_entry_between_different_units():
     assert [e.get('id', e.get('kind')) for e in model.undo_stack] == ['a1', 'navigate', 'b1']
     nav = model.undo_stack[1]
     assert nav == {
-        'kind': 'navigate', 'unit': unit_b, 'from_unit': unit_a,
-        'from_cursorpos': 0, 'from_targetn': 0,
+        'kind': 'navigate',
+        'unit': unit_b,
+        'from_unit': unit_a,
+        'from_cursorpos': 0,
+        'from_targetn': 0,
     }
 
 
@@ -209,8 +212,11 @@ def test_record_start_group_gets_a_navigation_entry_before_it():
 
     assert len(model.undo_stack) == 3
     assert model.undo_stack[1] == {
-        'kind': 'navigate', 'unit': unit_b, 'from_unit': unit_a,
-        'from_cursorpos': 0, 'from_targetn': 0,
+        'kind': 'navigate',
+        'unit': unit_b,
+        'from_unit': unit_a,
+        'from_cursorpos': 0,
+        'from_targetn': 0,
     }
     assert model.undo_stack[2] == [_entry_for(unit_b, 'b1'), _entry_for(unit_b, 'b2')]
 
@@ -232,13 +238,22 @@ def test_push_of_a_kind_tagged_entry_still_gets_navigation_inference():
     model.push({'kind': 'state', 'unit': unit_b, 'from_state': 0, 'to_state': 100})
 
     assert model.undo_stack[1] == {
-        'kind': 'navigate', 'unit': unit_b, 'from_unit': unit_a,
-        'from_cursorpos': 0, 'from_targetn': 0,
+        'kind': 'navigate',
+        'unit': unit_b,
+        'from_unit': unit_a,
+        'from_cursorpos': 0,
+        'from_targetn': 0,
     }
 
 
 def _text_entry_with_state(unit, state_before):
-    return {'action': _noop, 'unit': unit, 'targetn': 0, 'cursorpos': 0, 'state_before': state_before}
+    return {
+        'action': _noop,
+        'unit': unit,
+        'targetn': 0,
+        'cursorpos': 0,
+        'state_before': state_before,
+    }
 
 
 def test_attach_state_after_records_it_on_the_top_entry():

@@ -65,9 +65,7 @@ def split_extensions(filename):
 
     if len(extensions) == len(filename_parts):
         extensions = extensions[1:]
-    return os.extsep.join(filename_parts[: -len(extensions)]), os.extsep.join(
-        extensions
-    )
+    return os.extsep.join(filename_parts[: -len(extensions)]), os.extsep.join(extensions)
 
 
 class Project:
@@ -91,17 +89,13 @@ class Project:
         """Proxy for ``self.store.append_sourcefile()``."""
         return self.store.append_sourcefile(srcfile, src_fname)
 
-    def add_source_convert(
-        self, srcfile, src_fname=None, convert_options=None, extension=None
-    ):
+    def add_source_convert(self, srcfile, src_fname=None, convert_options=None, extension=None):
         """
         Convenience method that calls :meth:`~Project.add_source` and
         :meth:`~Project.convert_forward` and returns the results from both.
         """
         srcfile, srcfname = self.add_source(srcfile, src_fname)
-        transfile, transfname = self.convert_forward(
-            srcfname, convert_options=convert_options
-        )
+        transfile, transfname = self.convert_forward(srcfname, convert_options=convert_options)
         return srcfile, srcfname, transfile, transfname
 
     def close(self) -> None:
@@ -112,9 +106,7 @@ class Project:
         """
         self.store.close()
 
-    def convert_forward(
-        self, input_fname: str, template=None, output_fname=None, **options
-    ):
+    def convert_forward(self, input_fname: str, template=None, output_fname=None, **options):
         """
         Convert the given input file to the next type in the process.
 

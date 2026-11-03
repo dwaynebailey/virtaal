@@ -26,7 +26,6 @@ CATALOG_DIRS = (('LC_MESSAGES',), ())
 SKIPPED = ('pseudo', 'pseudo-bidi', 'pseudo-source', 'pseudo-priority')
 
 
-
 def span(first, last):
     """Every character from first to last, e.g. a script's block."""
     return ''.join(map(chr, range(ord(first), ord(last) + 1)))
@@ -37,8 +36,7 @@ def span(first, last):
 # A new gap fails the check; one that no longer happens is only reported,
 # since the platform's fonts can change under us.
 ALL = None
-KNOWN_GAPS = [
-]
+KNOWN_GAPS = []
 
 
 def _catalog_dir(localedir, code):
@@ -51,7 +49,7 @@ def _catalog_dir(localedir, code):
 
 def shipped_languages(localedir):
     """Codes with a Virtaal catalog in localedir, mapped to the folder
-        holding their catalogs."""
+    holding their catalogs."""
     try:
         codes = sorted(os.listdir(localedir))
     except OSError:
@@ -83,6 +81,7 @@ def messages(path):
 def fonts():
     """The UI and editor fonts as Virtaal sets them up, by name."""
     import gi
+
     gi.require_version('Gtk', '3.0')
     from gi.repository import Gtk, Pango
 
@@ -92,15 +91,19 @@ def fonts():
     ui = Gtk.Settings.get_default().get_property('gtk-font-name') or 'Sans 10'
     return {
         'ui': Pango.FontDescription.from_string(rendering.with_font_fallbacks(ui)),
-        'editor': Pango.FontDescription.from_string(rendering.with_font_fallbacks(pan_app.get_default_font())),
+        'editor': Pango.FontDescription.from_string(
+            rendering.with_font_fallbacks(pan_app.get_default_font())
+        ),
     }
 
 
 class Renderer:
     def __init__(self, font, language):
         import gi
+
         gi.require_version('Gdk', '3.0')
         from gi.repository import Gdk, Pango
+
         # The font map GTK's own widgets use.
         context = Gdk.pango_context_get()
         context.set_language(Pango.Language.from_string(language))
@@ -113,14 +116,19 @@ class Renderer:
 
     def missing(self, text):
         """The characters of text with no glyph: the ones whose removal
-            lowers the count, so combining marks are tried in context.
-            Control characters aren't a font's to display (GLib's Thai
-            command-line help has an escape character)."""
+        lowers the count, so combining marks are tried in context.
+        Control characters aren't a font's to display (GLib's Thai
+        command-line help has an escape character)."""
         count = self.unknown(text)
         if not count:
             return set()
-        return {char for char in set(text) if not char.isspace() and unicodedata.category(char) != 'Cc'
-                and self.unknown(text.replace(char, '')) < count}
+        return {
+            char
+            for char in set(text)
+            if not char.isspace()
+            and unicodedata.category(char) != 'Cc'
+            and self.unknown(text.replace(char, '')) < count
+        }
 
 
 def check(localedir, font_descs, endonym=None):
@@ -143,6 +151,7 @@ def check(localedir, font_descs, endonym=None):
 
 def current_platform():
     from virtaal.common.platform import platform
+
     if platform.is_mac:
         return 'macos'
     if platform.is_windows:
@@ -169,16 +178,29 @@ def format_report(report, font_descs, platform_name, known=KNOWN_GAPS):
             groups.setdefault((font_name, tuple(sorted(codes)), None), []).append(char)
     lines = ['font %s: %s' % (name, font.to_string()) for name, font in font_descs.items()]
     new = 0
-    for (font_name, codes, issue), chars in sorted(groups.items(), key=lambda item: (item[0][0], item[0][1])):
+    for (font_name, codes, issue), chars in sorted(
+        groups.items(), key=lambda item: (item[0][0], item[0][1])
+    ):
         if issue is None:
             new += len(chars)
-        lines.append('%s font, %s: %s: %s' % (font_name, ' '.join(codes), 'known, #%d' % issue if issue else 'NEW',
-                                              ' '.join(_describe(char) for char in sorted(chars))))
+        lines.append(
+            '%s font, %s: %s: %s'
+            % (
+                font_name,
+                ' '.join(codes),
+                'known, #%d' % issue if issue else 'NEW',
+                ' '.join(_describe(char) for char in sorted(chars)),
+            )
+        )
     for index, (issue, _, gap_font, chars, _) in enumerate(known):
         if not any(seen_index == index for seen_index, _ in seen):
-            shown = ' '.join(_describe(char) for char in chars[:3]) + (' ...' if len(chars) > 3 else '')
-            lines.append('%s font: #%d displays now: %s; if it is fixed, remove it from KNOWN_GAPS'
-                         % (gap_font, issue, shown))
+            shown = ' '.join(_describe(char) for char in chars[:3]) + (
+                ' ...' if len(chars) > 3 else ''
+            )
+            lines.append(
+                '%s font: #%d displays now: %s; if it is fixed, remove it from KNOWN_GAPS'
+                % (gap_font, issue, shown)
+            )
     lines.append('new: %d' % new)
     return '\n'.join(lines) + '\n', new
 
@@ -203,9 +225,11 @@ def main(argv):
             f.write(result)
     else:
         import sys
+
         sys.stdout.write(result)
 
 
 if __name__ == '__main__':
     import sys
+
     main(sys.argv)

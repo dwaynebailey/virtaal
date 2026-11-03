@@ -89,7 +89,9 @@ class _FakeAssetManifest:
         return self._has_data
 
 
-def _make_watcher(known_dicts=(), target_lang=None, manifest_entries=None, manifest_has_data=None, lull_calls=None):
+def _make_watcher(
+    known_dicts=(), target_lang=None, manifest_entries=None, manifest_has_data=None, lull_calls=None
+):
     _FakeDownloader.instances = []
     lull_calls = lull_calls if lull_calls is not None else []
     main_controller = _FakeMainController(target_lang)
@@ -196,17 +198,23 @@ def test_no_current_language_is_not_an_error():
     assert _FakeDownloader.instances == []
 
 
-_AF_ZA_ENTRY = {'folder': 'af', 'files': [
-    {'name': 'af_ZA.aff', 'sha': 's1'},
-    {'name': 'af_ZA.dic', 'sha': 's2'},
-]}
+_AF_ZA_ENTRY = {
+    'folder': 'af',
+    'files': [
+        {'name': 'af_ZA.aff', 'sha': 's1'},
+        {'name': 'af_ZA.dic', 'sha': 's2'},
+    ],
+}
 
 
 def test_downloads_via_known_files_after_a_lull_when_manifest_has_an_entry():
     _reset_installed_assets()
     lull_calls = []
     main_controller, _watcher = _make_watcher(
-        known_dicts=set(), manifest_entries={('dictionary', 'af_ZA'): _AF_ZA_ENTRY}, lull_calls=lull_calls)
+        known_dicts=set(),
+        manifest_entries={('dictionary', 'af_ZA'): _AF_ZA_ENTRY},
+        lull_calls=lull_calls,
+    )
     main_controller.lang_controller.emit_target_lang_changed('af_ZA')
 
     assert _FakeDownloader.instances == []  # not yet - waiting for the lull
@@ -223,10 +231,15 @@ def test_skips_download_when_installed_sha_already_matches_the_manifest(tmp_path
     _reset_installed_assets()
     monkeypatch.setattr(dictionary_download_watcher, 'dictionary_write_dir', lambda: str(tmp_path))
     (tmp_path / 'af_ZA.dic').write_text('')
-    pan_app.settings.installed_assets[installed_asset_key('dictionary', 'af_ZA')] = entry_shas(_AF_ZA_ENTRY)
+    pan_app.settings.installed_assets[installed_asset_key('dictionary', 'af_ZA')] = entry_shas(
+        _AF_ZA_ENTRY
+    )
     lull_calls = []
     main_controller, _watcher = _make_watcher(
-        known_dicts=set(), manifest_entries={('dictionary', 'af_ZA'): _AF_ZA_ENTRY}, lull_calls=lull_calls)
+        known_dicts=set(),
+        manifest_entries={('dictionary', 'af_ZA'): _AF_ZA_ENTRY},
+        lull_calls=lull_calls,
+    )
     main_controller.lang_controller.emit_target_lang_changed('af_ZA')
     assert lull_calls == []
 
@@ -238,10 +251,15 @@ def test_downloads_again_when_an_older_download_kept_libreoffices_name(tmp_path,
     _reset_installed_assets()
     monkeypatch.setattr(dictionary_download_watcher, 'dictionary_write_dir', lambda: str(tmp_path))
     (tmp_path / 'af_ZA.dic').write_text('')
-    pan_app.settings.installed_assets[installed_asset_key('dictionary', 'af_NA')] = entry_shas(_AF_ZA_ENTRY)
+    pan_app.settings.installed_assets[installed_asset_key('dictionary', 'af_NA')] = entry_shas(
+        _AF_ZA_ENTRY
+    )
     lull_calls = []
     main_controller, _watcher = _make_watcher(
-        known_dicts=set(), manifest_entries={('dictionary', 'af_NA'): _AF_ZA_ENTRY}, lull_calls=lull_calls)
+        known_dicts=set(),
+        manifest_entries={('dictionary', 'af_NA'): _AF_ZA_ENTRY},
+        lull_calls=lull_calls,
+    )
     main_controller.lang_controller.emit_target_lang_changed('af_NA')
     assert len(lull_calls) == 1
 
@@ -258,7 +276,10 @@ def test_records_installed_sha_only_on_a_successful_known_download():
     _reset_installed_assets()
     lull_calls = []
     main_controller, _watcher = _make_watcher(
-        known_dicts=set(), manifest_entries={('dictionary', 'af_ZA'): _AF_ZA_ENTRY}, lull_calls=lull_calls)
+        known_dicts=set(),
+        manifest_entries={('dictionary', 'af_ZA'): _AF_ZA_ENTRY},
+        lull_calls=lull_calls,
+    )
     main_controller.lang_controller.emit_target_lang_changed('af_ZA')
     lull_calls[0]()
     key = installed_asset_key('dictionary', 'af_ZA')

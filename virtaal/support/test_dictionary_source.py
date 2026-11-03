@@ -352,14 +352,18 @@ def test_download_dictionary_cleans_up_partial_write_on_failure(monkeypatch, tmp
     """de_DE_frami has two files - if the second one fails, the first
     must not be left behind for a later run to mistake as a complete,
     real dictionary."""
-    monkeypatch.setattr(dictionary_source, 'fetch_dictionary_tree',
-                         lambda: {'tree': [{'path': 'de/dictionaries.xcu'}]})
+    monkeypatch.setattr(
+        dictionary_source,
+        'fetch_dictionary_tree',
+        lambda: {'tree': [{'path': 'de/dictionaries.xcu'}]},
+    )
     monkeypatch.setattr(dictionary_source, 'fetch_xcu', lambda folder: DE_XCU)
 
     def fetch_dictionary_file(folder, filename):
         if filename.endswith('.dic'):
             raise URLError('boom')
         return b'aff content'
+
     monkeypatch.setattr(dictionary_source, 'fetch_dictionary_file', fetch_dictionary_file)
 
     result = download_dictionary('de_DE', target_dir=str(tmp_path))

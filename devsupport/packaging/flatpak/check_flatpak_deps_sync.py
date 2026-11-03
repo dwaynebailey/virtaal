@@ -67,8 +67,14 @@ def pyproject_dependency_names(text):
     return names
 
 
-MARKER_OPS = {'<': operator.lt, '<=': operator.le, '>': operator.gt,
-              '>=': operator.ge, '==': operator.eq, '!=': operator.ne}
+MARKER_OPS = {
+    '<': operator.lt,
+    '<=': operator.le,
+    '>': operator.gt,
+    '>=': operator.ge,
+    '==': operator.eq,
+    '!=': operator.ne,
+}
 
 
 def version_tuple(version):
@@ -103,8 +109,10 @@ def flatpak_python(text):
     abi3 wheels only give a minimum."""
     tags = set(re.findall(r'-cp3(\d+)-cp3\1-', text))
     if len(tags) != 1:
-        raise ValueError('expected one cp3XY-cp3XY wheel tag in %s, found %s'
-                         % (DEPS_YAML.name, sorted(tags) or 'none'))
+        raise ValueError(
+            'expected one cp3XY-cp3XY wheel tag in %s, found %s'
+            % (DEPS_YAML.name, sorted(tags) or 'none')
+        )
     return (3, int(tags.pop()))
 
 
@@ -121,9 +129,11 @@ def flatpak_versions(text):
 def version_mismatches(pyproject_text, yaml_text):
     pins = pyproject_pins(pyproject_text, flatpak_python(yaml_text))
     versions = flatpak_versions(yaml_text)
-    return [(name, version, sorted(versions.get(key, ())))
-            for key, (name, version) in pins.items()
-            if versions.get(key) != {version}]
+    return [
+        (name, version, sorted(versions.get(key, ())))
+        for key, (name, version) in pins.items()
+        if versions.get(key) != {version}
+    ]
 
 
 def flatpak_module_names(text):
@@ -136,14 +146,16 @@ def flatpak_module_names(text):
 
 def installed_names(app_dir):
     """The packages with metadata in an app's own site-packages.
-        Distribution names in dist-info directories use '_' for '-'."""
-    return {normalize(path.name.split('-', 1)[0])
-            for path in Path(app_dir).glob('lib/python3*/site-packages/*.dist-info')}
+    Distribution names in dist-info directories use '_' for '-'."""
+    return {
+        normalize(path.name.split('-', 1)[0])
+        for path in Path(app_dir).glob('lib/python3*/site-packages/*.dist-info')
+    }
 
 
 def check_installed(app_dir):
     """Every dependency must be in the app itself: pip skips one the SDK
-        already has, and the runtime Platform may not have it."""
+    already has, and the runtime Platform may not have it."""
     deps = dict.fromkeys(pyproject_dependency_names(PYPROJECT.read_text(encoding='utf-8')))
     installed = installed_names(app_dir)
     missing = [dep for dep in deps if normalize(dep) not in installed]
@@ -169,7 +181,7 @@ def main():
     known = set()
     for module in module_names:
         if module.lower().startswith('python3-'):
-            known.add(normalize(module[len('python3-'):]))
+            known.add(normalize(module[len('python3-') :]))
 
     missing = [dep for dep in pyproject_deps if normalize(dep) not in known]
 
@@ -185,16 +197,20 @@ def main():
 
     mismatches = version_mismatches(pyproject_text, yaml_text)
     if mismatches:
-        print('pyproject.toml pins a different version than %s bundles:'
-              % DEPS_YAML.relative_to(REPO_ROOT))
+        print(
+            'pyproject.toml pins a different version than %s bundles:'
+            % DEPS_YAML.relative_to(REPO_ROOT)
+        )
         for name, version, bundled in mismatches:
             print(' - %s==%s (bundled: %s)' % (name, version, ', '.join(bundled) or 'none'))
         print()
         print("Update each package's url and sha256 to the pinned version.")
         return 1
 
-    print('All %d pyproject.toml dependencies have a matching flatpak module at the'
-          ' pinned version.' % len(pyproject_deps))
+    print(
+        'All %d pyproject.toml dependencies have a matching flatpak module at the'
+        ' pinned version.' % len(pyproject_deps)
+    )
     return 0
 
 

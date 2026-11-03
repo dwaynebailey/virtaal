@@ -51,14 +51,14 @@ def _ascii_compatible(charset):
 
 def _rescue_charset(data):
     """C{data} with a header charset that isn't ASCII-compatible named
-        UTF-8 instead, unless the bytes really are UTF-16 or UTF-32."""
+    UTF-8 instead, unless the bytes really are UTF-16 or UTF-32."""
     header = data.split(b"\n\n", 1)[0]
     match = _CHARSET_RE.search(header)
     if not match or b"\x00" in header:
         return data
     if _ascii_compatible(match.group(1).decode("ascii")):
         return data
-    return data[:match.start(1)] + b"UTF-8" + data[match.end(1):]
+    return data[: match.start(1)] + b"UTF-8" + data[match.end(1) :]
 
 
 _parse = pypo.pofile.parse

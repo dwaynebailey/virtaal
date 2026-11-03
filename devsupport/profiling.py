@@ -5,9 +5,10 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+
 def label(code):
     if isinstance(code, str):
-        return ('~', 0, code)    # built-in functions ('~' sorts at the end)
+        return ('~', 0, code)  # built-in functions ('~' sorts at the end)
     else:
         return '%s %s:%d' % (code.co_name, code.co_filename, code.co_firstlineno)
 
@@ -35,7 +36,7 @@ class KCacheGrind:
         out_file = self.out_file
         code = entry.code
         inlinetime = int(entry.inlinetime * 1000)
-        #print('ob=%s' % (code.co_filename,), file=out_file)
+        # print('ob=%s' % (code.co_filename,), file=out_file)
         if isinstance(code, str):
             print('fi=~', file=out_file)
         else:
@@ -62,27 +63,28 @@ class KCacheGrind:
         out_file = self.out_file
         code = subentry.code
         totaltime = int(subentry.totaltime * 1000)
-        #print('cob=%s' % (code.co_filename,), file=out_file)
+        # print('cob=%s' % (code.co_filename,), file=out_file)
         print('cfn=%s' % (label(code),), file=out_file)
         if isinstance(code, str):
             print('cfi=~', file=out_file)
             print('calls=%d 0' % (subentry.callcount,), file=out_file)
         else:
             print('cfi=%s' % (code.co_filename,), file=out_file)
-            print('calls=%d %d' % (
-                subentry.callcount, code.co_firstlineno), file=out_file)
+            print('calls=%d %d' % (subentry.callcount, code.co_firstlineno), file=out_file)
         print('%d %d' % (lineno, totaltime), file=out_file)
+
 
 def profile_func(filename=None, mode='w+'):
     """Function/method decorator that will cause only the decorated callable
-        to be profiled (with a C{KCacheGrind} profiler) and saved to the
-        specified file.
+    to be profiled (with a C{KCacheGrind} profiler) and saved to the
+    specified file.
 
-        @type  filename: str
-        @param filename: The filename to write the profile to. If not specified
-            the decorated function's name is used, followed by "_func.profile".
-        @type  mode: str
-        @param mode: The mode in which to open C{filename}. Default is 'w+'."""
+    @type  filename: str
+    @param filename: The filename to write the profile to. If not specified
+        the decorated function's name is used, followed by "_func.profile".
+    @type  mode: str
+    @param mode: The mode in which to open C{filename}. Default is 'w+'."""
+
     def proffunc(f):
         def profiled_func(*args, **kwargs):
             import cProfile
@@ -100,9 +102,12 @@ def profile_func(filename=None, mode='w+'):
                 k_cache_grind.output(profile_file)
                 profile_file.close()
             except OSError:
-                logging.exception(_("Could not open profile file '%(filename)s'") % {"filename": filename})
+                logging.exception(
+                    _("Could not open profile file '%(filename)s'") % {"filename": filename}
+                )
 
             return retval
 
         return profiled_func
+
     return proffunc

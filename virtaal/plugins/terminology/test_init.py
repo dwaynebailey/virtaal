@@ -51,7 +51,8 @@ def test_init_plugin_parses_the_default_config(monkeypatch):
 
 def test_init_plugin_loads_and_coerces_an_overridden_config(monkeypatch, isolated_config_dir):
     (isolated_config_dir / Plugin.CONFIG_FILENAME).write_text(
-        '[terminology]\nbackends_dialog_width = 250\nmax_matches = 2\n')
+        '[terminology]\nbackends_dialog_width = 250\nmax_matches = 2\n'
+    )
 
     _plugin, captured = _init(monkeypatch)
 
@@ -60,12 +61,15 @@ def test_init_plugin_loads_and_coerces_an_overridden_config(monkeypatch, isolate
     assert captured['config']['disabled_models'] == ['autoterm']  # not overridden
 
 
-def test_init_plugin_force_disables_autoterm_despite_a_stale_saved_config(monkeypatch, isolated_config_dir):
+def test_init_plugin_force_disables_autoterm_despite_a_stale_saved_config(
+    monkeypatch, isolated_config_dir
+):
     # A profile saved before autoterm's dead URL was disabled by
     # default has its own, older disabled_models value on disk -
     # config loading must not let that silently re-enable it.
     (isolated_config_dir / Plugin.CONFIG_FILENAME).write_text(
-        '[terminology]\ndisabled_models = localfile\n')
+        '[terminology]\ndisabled_models = localfile\n'
+    )
 
     _plugin, captured = _init(monkeypatch)
 

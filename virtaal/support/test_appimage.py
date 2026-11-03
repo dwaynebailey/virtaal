@@ -71,7 +71,9 @@ def test_integrate_follows_a_moved_appimage(tmp_path):
 
     appimage.integrate('/new/Virtaal.AppImage', bundle, data)
 
-    with open(os.path.join(data, 'applications', 'virtaal-appimage.desktop'), encoding='utf-8') as f:
+    with open(
+        os.path.join(data, 'applications', 'virtaal-appimage.desktop'), encoding='utf-8'
+    ) as f:
         assert 'TryExec=/new/Virtaal.AppImage' in f.read()
 
 

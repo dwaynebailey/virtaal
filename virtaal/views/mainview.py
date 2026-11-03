@@ -26,9 +26,9 @@ from .baseview import BaseView
 
 def _set_document_edited(gdk_window, edited):
     """ctypes.CDLL(None) reuses libgdk, already loaded via
-        gi.repository.Gdk, rather than a hardcoded library path.
-        hash() on a PyGObject object is its underlying GObject
-        pointer - a long-standing PyGObject convention."""
+    gi.repository.Gdk, rather than a hardcoded library path.
+    hash() on a PyGObject object is its underlying GObject
+    pointer - a long-standing PyGObject convention."""
     libgdk = ctypes.CDLL(None)
     libgdk.gdk_quartz_window_get_nswindow.restype = ctypes.c_void_p
     libgdk.gdk_quartz_window_get_nswindow.argtypes = [ctypes.c_void_p]
@@ -70,19 +70,21 @@ def _objc_send(receiver, selector, *args, argtypes=None, restype=ctypes.c_void_p
 
 def _wait_for_draw(widget, timeout=300):
     """Run the main loop until C{widget} has drawn and 50ms more, so the
-        frame reaches the screen before the caller blocks the main loop;
-        at most C{timeout} ms."""
+    frame reaches the screen before the caller blocks the main loop;
+    at most C{timeout} ms."""
     # Not "while Gtk.events_pending()": inside a native macOS menu's
     # action it reports nothing pending, and nothing is drawn.
     if not widget.is_drawable():
         return
     from gi.repository import GLib
+
     loop = GLib.MainLoop()
 
     def on_draw(*args):
         widget.disconnect(handler)
         sources.append(GLib.timeout_add(50, loop.quit))
         return False
+
     handler = widget.connect_after('draw', on_draw)
     sources = [GLib.timeout_add(timeout, loop.quit)]
     widget.queue_draw()
@@ -96,14 +98,15 @@ def _wait_for_draw(widget, timeout=300):
 
 def _note_recent_document(path):
     """Feeds macOS's own document-tracking, independent of
-        GtkosxApplication (works even without gtk-mac-integration
-        installed) - the Dock icon's right-click menu and File > Open
-        Recent both come from here, complete with real Finder file-type
-        icons, and AppKit re-reads this list live on every right-click.
-        Clicking an entry re-delivers it through the same
-        NSApplicationOpenFile signal a Finder double-click uses."""
-    nsstring = _objc_send(_objc_class("NSString"), "stringWithUTF8String:",
-                          path.encode(), argtypes=[ctypes.c_char_p])
+    GtkosxApplication (works even without gtk-mac-integration
+    installed) - the Dock icon's right-click menu and File > Open
+    Recent both come from here, complete with real Finder file-type
+    icons, and AppKit re-reads this list live on every right-click.
+    Clicking an entry re-delivers it through the same
+    NSApplicationOpenFile signal a Finder double-click uses."""
+    nsstring = _objc_send(
+        _objc_class("NSString"), "stringWithUTF8String:", path.encode(), argtypes=[ctypes.c_char_p]
+    )
     url = _objc_send(_objc_class("NSURL"), "fileURLWithPath:", nsstring)
     shared = _objc_send(_objc_class("NSDocumentController"), "sharedDocumentController")
     _objc_send(shared, "noteNewRecentDocumentURL:", url, restype=None)
@@ -111,11 +114,12 @@ def _note_recent_document(path):
 
 def _set_native_help_menu():
     """GtkosxApplication.set_help_menu() never tells AppKit, which then
-        only adds its search field to a menu titled with its own "Help"."""
+    only adds its search field to a menu titled with its own "Help"."""
     nsapp = _objc_send(_objc_class("NSApplication"), "sharedApplication")
     menubar = _objc_send(nsapp, "mainMenu")
-    if not menubar or not _objc_send(menubar, "respondsToSelector:", _objc_sel("helpMenu"),
-                                     restype=ctypes.c_bool):
+    if not menubar or not _objc_send(
+        menubar, "respondsToSelector:", _objc_sel("helpMenu"), restype=ctypes.c_bool
+    ):
         return
     item = _objc_send(menubar, "helpMenu")
     submenu = _objc_send(item, "submenu") if item else None
@@ -143,15 +147,19 @@ NS_CONTROL_KEY_MASK = 1 << 18
 
 def _set_native_return_key(title, modifiers):
     """gtk-mac-integration has no key equivalent for Return, so the
-        native menu shows no shortcut for an item bound to it (#3993)."""
+    native menu shows no shortcut for an item bound to it (#3993)."""
     nsapp = _objc_send(_objc_class("NSApplication"), "sharedApplication")
     menubar = _objc_send(nsapp, "mainMenu")
     item = _find_native_menu_item(menubar, title) if menubar else None
     if not item:
         return
-    key = _objc_send(_objc_class("NSString"), "stringWithUTF8String:", b"\r", argtypes=[ctypes.c_char_p])
+    key = _objc_send(
+        _objc_class("NSString"), "stringWithUTF8String:", b"\r", argtypes=[ctypes.c_char_p]
+    )
     _objc_send(item, "setKeyEquivalent:", key, restype=None)
-    _objc_send(item, "setKeyEquivalentModifierMask:", modifiers, argtypes=[ctypes.c_ulong], restype=None)
+    _objc_send(
+        item, "setKeyEquivalentModifierMask:", modifiers, argtypes=[ctypes.c_ulong], restype=None
+    )
 
 
 def fill_dialog(dialog, title='', message='', markup=''):
@@ -203,6 +211,7 @@ class EntryDialog(Gtk.Dialog):
     def set_title(self, title):
         super().set_title(title)
 
+
 # XXX: This class is based on main_window.py:Virtaal from the pre-MVC days (Virtaal 0.2).
 class MainView(BaseView):
     """The view containing the main window and menus."""
@@ -210,8 +219,8 @@ class MainView(BaseView):
     # INITIALIZERS #
     def __init__(self, controller):
         """Constructor.
-            @type  controller: virtaal.controllers.MainController
-            @param controller: The controller that this view is "connected" to."""
+        @type  controller: virtaal.controllers.MainController
+        @param controller: The controller that this view is "connected" to."""
         self.controller = controller
         self.modified = False
         self._tooltip_fg_provider = None
@@ -226,10 +235,13 @@ class MainView(BaseView):
             provider = Gtk.CssProvider()
             provider.load_from_data(b'treeview { -GtkTreeView-allow-rules: 1; }')
             Gtk.StyleContext.add_provider_for_screen(
-                Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+                Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
 
         # Set the GtkBuilder file
-        self.gui = self.load_builder_file(["virtaal", "virtaal.ui"], root='MainWindow', domain="virtaal")
+        self.gui = self.load_builder_file(
+            ["virtaal", "virtaal.ui"], root='MainWindow', domain="virtaal"
+        )
         self.main_window = self.gui.get_object("MainWindow")
 
         # The classic menu bar:
@@ -239,7 +251,7 @@ class MainView(BaseView):
         self.status_bar = self.gui.get_object("status_bar")
         self.status_bar.set_sensitive(False)
         self.statusbar_context_id = self.status_bar.get_context_id("statusbar")
-        #Only used in full screen, initialised as needed
+        # Only used in full screen, initialised as needed
         self.btn_app = None
         self.app_menu = None
 
@@ -262,6 +274,7 @@ class MainView(BaseView):
         self._track_window_state()
         self._setup_dnd()
         from gi.repository import GLib
+
         GLib.idle_add(self._setup_recent_files, priority=GLib.PRIORITY_LOW)
         self.main_window.connect('style-set', self._on_style_set)
         self.main_window.connect('style-updated', self._on_style_set)
@@ -285,7 +298,9 @@ class MainView(BaseView):
         # Help menu signals
         self.gui.get_object('mnu_documentation').connect('activate', self._on_documentation)
         self.gui.get_object('mnu_tutorial').connect('activate', self._on_tutorial)
-        self.gui.get_object('mnu_localization_guide').connect('activate', self._on_localization_guide)
+        self.gui.get_object('mnu_localization_guide').connect(
+            'activate', self._on_localization_guide
+        )
         self.gui.get_object('mnu_report_bug').connect('activate', self._on_report_bug)
         mnu_show_logs = self.gui.get_object('mnu_show_logs')
         # Matches pan_app.py's own gate on writing these logs at all.
@@ -301,8 +316,12 @@ class MainView(BaseView):
         general, defaults = pan_app.settings.general, pan_app.Settings.general
         # GDK's limit for a window's size and position.
         self.main_window.resize(
-            pan_app.config_int(general['windowwidth'], defaults['windowwidth'], 1, 32767, 'windowwidth'),
-            pan_app.config_int(general['windowheight'], defaults['windowheight'], 1, 32767, 'windowheight')
+            pan_app.config_int(
+                general['windowwidth'], defaults['windowwidth'], 1, 32767, 'windowwidth'
+            ),
+            pan_app.config_int(
+                general['windowheight'], defaults['windowheight'], 1, 32767, 'windowheight'
+            ),
         )
         windowx = general['windowx']
         windowy = general['windowy']
@@ -314,9 +333,12 @@ class MainView(BaseView):
 
     def _detect_macos_is_dark(self):
         try:
-            return subprocess.run(
-                ["defaults", "read", "-g", "AppleInterfaceStyle"],
-                capture_output=True).stdout.strip() == b"Dark"
+            return (
+                subprocess.run(
+                    ["defaults", "read", "-g", "AppleInterfaceStyle"], capture_output=True
+                ).stdout.strip()
+                == b"Dark"
+            )
         except (OSError, subprocess.SubprocessError):
             logging.exception("Couldn't determine macOS appearance")
             return None
@@ -342,6 +364,7 @@ class MainView(BaseView):
         # process.
         self._apply_appearance(detect_is_dark)
         from gi.repository import GLib
+
         GLib.timeout_add_seconds(2, self._poll_appearance, detect_is_dark)
 
     def _setup_macos_integration(self):
@@ -349,11 +372,13 @@ class MainView(BaseView):
 
         # Sometimes we have two resize grips: one from GTK, one from Aqua. We
         # might want to disable the GTK one:
-        #self.gui.get_object('status_bar').set_property("has-resize-grip", False)
+        # self.gui.get_object('status_bar').set_property("has-resize-grip", False)
         try:
             import gi
+
             gi.require_version("GtkosxApplication", "1.0")
             from gi.repository import GtkosxApplication
+
             osxapp = GtkosxApplication.Application()
             # It binds its own catalogs on creation; the app menu's
             # strings are looked up in set_menu_bar() below.
@@ -379,7 +404,7 @@ class MainView(BaseView):
             mnu_prefs = self.gui.get_object("mnu_prefs")
             # macOS renames only an English "Preferences" to "Settings…".
             mnu_prefs.set_property('use-stock', False)
-            #l10n: macOS app menu item that opens the Preferences dialog
+            # l10n: macOS app menu item that opens the Preferences dialog
             mnu_prefs.set_label(_("Settings…"))
             osxapp.insert_app_menu_item(mnu_prefs, 2)
             self.gui.get_object("separator_mnu_edit_3").hide()
@@ -390,7 +415,9 @@ class MainView(BaseView):
             osxapp.connect("NSApplicationBlockTermination", self._on_quit)
             self._osxapp = osxapp  # keep a reference; the signals need it to stay alive
         except (ImportError, ValueError):
-            logging.debug("GtkosxApplication not found (brew install gtk-mac-integration for native macOS menu-bar integration). Expect zero integration with the Mac desktop.")
+            logging.debug(
+                "GtkosxApplication not found (brew install gtk-mac-integration for native macOS menu-bar integration). Expect zero integration with the Mac desktop."
+            )
 
     def _setup_osx_help_menu(self, osxapp):
         osxapp.set_help_menu(self.gui.get_object("menuitem_help"))
@@ -400,9 +427,11 @@ class MainView(BaseView):
         # AppsUseLightTheme: 0 means dark, 1 (or absent) means light.
         try:
             import winreg
+
             key = winreg.OpenKey(
                 winreg.HKEY_CURRENT_USER,
-                r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+                r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+            )
             apps_use_light_theme, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
             winreg.CloseKey(key)
         except OSError:
@@ -415,6 +444,7 @@ class MainView(BaseView):
 
     def _setup_recent_files(self):
         from virtaal.views import recent
+
         recent_files = self.gui.get_object("mnu_recent_files")
         recent.rc.connect("item-activated", self._on_recent_file_activated)
         recent_files.set_submenu(recent.rc)
@@ -426,27 +456,36 @@ class MainView(BaseView):
 
     @cached_property
     def error_dialog(self):
-        dialog = Gtk.MessageDialog(transient_for=self.main_window, modal=True,
-                                    message_type=Gtk.MessageType.ERROR,
-                                    buttons=Gtk.ButtonsType.OK)
+        dialog = Gtk.MessageDialog(
+            transient_for=self.main_window,
+            modal=True,
+            message_type=Gtk.MessageType.ERROR,
+            buttons=Gtk.ButtonsType.OK,
+        )
         dialog.set_title(_("Error"))
         return dialog
 
     @cached_property
     def prompt_dialog(self):
         # Yes/No prompt dialog
-        dialog = Gtk.MessageDialog(transient_for=self.main_window, modal=True,
-                                    message_type=Gtk.MessageType.QUESTION,
-                                    buttons=Gtk.ButtonsType.YES_NO)
+        dialog = Gtk.MessageDialog(
+            transient_for=self.main_window,
+            modal=True,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.YES_NO,
+        )
         dialog.set_default_response(Gtk.ResponseType.NO)
         return dialog
 
     @cached_property
     def info_dialog(self):
         # Informational dialog
-        return Gtk.MessageDialog(transient_for=self.main_window, modal=True,
-                                  message_type=Gtk.MessageType.INFO,
-                                  buttons=Gtk.ButtonsType.OK)
+        return Gtk.MessageDialog(
+            transient_for=self.main_window,
+            modal=True,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK,
+        )
 
     @cached_property
     def open_chooser(self):
@@ -456,18 +495,25 @@ class MainView(BaseView):
             _('Choose a Translation File'),
             self.main_window,
             Gtk.FileChooserAction.OPEN,
-            None, None,
+            None,
+            None,
         )
         all_supported_filter = Gtk.FileFilter()
         all_supported_filter.set_name(_("All Supported Files"))
         chooser.add_filter(all_supported_filter)
         from translate.storage import factory as storage_factory
-        supported_files_dict = dict([ (_(name), (extensions, mimetypes)) for name, extensions, mimetypes in storage_factory.supported_files() ])
+
+        supported_files_dict = dict(
+            [
+                (_(name), (extensions, mimetypes))
+                for name, extensions, mimetypes in storage_factory.supported_files()
+            ]
+        )
         supported_file_names = list(supported_files_dict.keys())
         supported_file_names.sort(key=locale.strxfrm)
         for name in supported_file_names:
             extensions, mimetypes = supported_files_dict[name]
-            #XXX: we can't open generic .csv formats, so listing it is probably
+            # XXX: we can't open generic .csv formats, so listing it is probably
             # more harmful than good.
             if "csv" in extensions:
                 continue
@@ -480,14 +526,16 @@ class MainView(BaseView):
                     all_supported_filter.add_pattern("*." + extension)
                     for compress_extension in storage_factory.decompressclass.keys():
                         new_filter.add_pattern("*.%s.%s" % (extension, compress_extension))
-                        all_supported_filter.add_pattern("*.%s.%s" % (extension, compress_extension))
+                        all_supported_filter.add_pattern(
+                            "*.%s.%s" % (extension, compress_extension)
+                        )
             chooser.add_filter(new_filter)
 
-        #proj_filter = Gtk.FileFilter()
-        #proj_filter.set_name(_('Translate project bundles'))
-        #proj_filter.add_pattern('*.zip')
-        #all_supported_filter.add_pattern('*.zip')
-        #chooser.add_filter(proj_filter)
+        # proj_filter = Gtk.FileFilter()
+        # proj_filter.set_name(_('Translate project bundles'))
+        # proj_filter.add_pattern('*.zip')
+        # all_supported_filter.add_pattern('*.zip')
+        # chooser.add_filter(proj_filter)
 
         all_filter = Gtk.FileFilter()
         all_filter.set_name(_("All Files"))
@@ -504,11 +552,13 @@ class MainView(BaseView):
             _('Choose a PO Template File'),
             self.main_window,
             Gtk.FileChooserAction.OPEN,
-            None, None,
+            None,
+            None,
         )
         pot_filter = Gtk.FileFilter()
         pot_filter.set_name(_("PO Template Files"))
         from translate.storage import factory as storage_factory
+
         pot_filter.add_pattern("*.pot")
         for compress_extension in storage_factory.decompressclass.keys():
             pot_filter.add_pattern("*.pot.%s" % compress_extension)
@@ -523,7 +573,8 @@ class MainView(BaseView):
             _("Save"),
             self.main_window,
             Gtk.FileChooserAction.SAVE,
-            None, None,
+            None,
+            None,
         )
         chooser.set_do_overwrite_confirmation(True)
         return chooser
@@ -565,15 +616,23 @@ class MainView(BaseView):
             # Ctrl+P here, not the usual Ctrl->Cmd translation above -
             # macOS keeps its own conventional Cmd+, from virtaal.accel
             # instead (loaded in _setup_macos_integration()).
-            Gtk.AccelMap.add_entry("<Virtaal>/Edit/Preferences", Gdk.KEY_p, Gdk.ModifierType.CONTROL_MASK)
+            Gtk.AccelMap.add_entry(
+                "<Virtaal>/Edit/Preferences", Gdk.KEY_p, Gdk.ModifierType.CONTROL_MASK
+            )
         if platform.is_mac:
             # Ctrl->Cmd translation doesn't reach shifted keys - see Redo.
             primary = Gdk.ModifierType.META_MASK | Gdk.ModifierType.MOD2_MASK
         else:
             primary = Gdk.ModifierType.CONTROL_MASK
-        Gtk.AccelMap.add_entry("<Virtaal>/File/Save As", Gdk.KEY_s, primary | Gdk.ModifierType.SHIFT_MASK)
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/File/Save As", Gdk.KEY_s, primary | Gdk.ModifierType.SHIFT_MASK
+        )
         # macOS reserves Cmd+? for opening the Help menu.
-        Gtk.AccelMap.add_entry("<Virtaal>/Help/Shortcuts", Gdk.KEY_slash if platform.is_mac else Gdk.KEY_question, primary)
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Help/Shortcuts",
+            Gdk.KEY_slash if platform.is_mac else Gdk.KEY_question,
+            primary,
+        )
         self.gui.get_object('menu_file').set_accel_group(self.accel_group)
         self.gui.get_object('menu_help').set_accel_group(self.accel_group)
         self.gui.get_object('mnu_shortcuts').set_accel_path("<Virtaal>/Help/Shortcuts")
@@ -605,6 +664,7 @@ class MainView(BaseView):
 
         def on_state_event(widget, event):
             self._window_is_maximized = bool(event.new_window_state & Gdk.WindowState.MAXIMIZED)
+
         self.main_window.connect('window-state-event', on_state_event)
 
         # Covers entering fullscreen via macOS's own native mechanism
@@ -624,20 +684,26 @@ class MainView(BaseView):
             gdk_window = self.main_window.get_window()
             if gdk_window and not (gdk_window.get_state() & Gdk.WindowState.FULLSCREEN):
                 self._pre_fullscreen_size = self.main_window.get_size()
-                logging.debug("fullscreen: captured pre-fullscreen size %s", self._pre_fullscreen_size)
+                logging.debug(
+                    "fullscreen: captured pre-fullscreen size %s", self._pre_fullscreen_size
+                )
             return False
 
         def on_configure_event(widget, event):
             from gi.repository import GLib
+
             if self._size_settle_source is not None:
                 GLib.source_remove(self._size_settle_source)
             self._size_settle_source = GLib.timeout_add(300, commit_pre_fullscreen_size)
+
         self.main_window.connect('configure-event', on_configure_event)
 
     def _setup_dnd(self):
         """configures drag and drop"""
         # Konqueror needs Gdk.DragAction.MOVE
-        self.main_window.drag_dest_set(Gtk.DestDefaults.ALL, None, Gdk.DragAction.COPY | Gdk.DragAction.MOVE)
+        self.main_window.drag_dest_set(
+            Gtk.DestDefaults.ALL, None, Gdk.DragAction.COPY | Gdk.DragAction.MOVE
+        )
         self.main_window.drag_dest_add_uri_targets()
         self.main_window.connect("drag-data-received", self._on_drag_data_received)
 
@@ -652,9 +718,11 @@ class MainView(BaseView):
             raw = data.get_data().split(b"\r\n")[0]
             filename = self._decode_dropped_uri(raw)
             if filename is None:
-                self.controller.show_error(_("Could not open the dropped file - its file name could not be decoded."))
+                self.controller.show_error(
+                    _("Could not open the dropped file - its file name could not be decoded.")
+                )
             elif filename.startswith("file://"):
-                #TODO: only bother if the extension is supported?
+                # TODO: only bother if the extension is supported?
                 self.controller.open_file(filename)
 
         return True
@@ -680,7 +748,9 @@ class MainView(BaseView):
             return unquote(filename, errors='strict')
         except UnicodeDecodeError:
             if platform.is_windows:
-                return unquote(filename, encoding=locale.getpreferredencoding(False), errors='replace')
+                return unquote(
+                    filename, encoding=locale.getpreferredencoding(False), errors='replace'
+                )
             return unquote(filename, errors='replace')
 
     def _on_style_set(self, widget, prev_style=None):
@@ -693,22 +763,23 @@ class MainView(BaseView):
                 Gtk.StyleContext.remove_provider_for_screen(screen, self._tooltip_fg_provider)
             provider = Gtk.CssProvider()
             provider.load_from_data(('.tooltip { color: %s; }' % tooltip_text).encode())
-            Gtk.StyleContext.add_provider_for_screen(screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            Gtk.StyleContext.add_provider_for_screen(
+                screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
             self._tooltip_fg_provider = provider
-
 
     # ACCESSORS #
     def add_accel_group(self, accel_group):
         """Add the given accelerator group to the main window.
-            @type accel_group: Gtk.AccelGroup"""
+        @type accel_group: Gtk.AccelGroup"""
         self.main_window.add_accel_group(accel_group)
 
     def sync_menubar(self):
         """On macOS, push a plugin's own accelerator (added to the
-            native menu bar after GtkosxApplication.ready() already
-            ran) into the native menu items' key equivalents - without
-            this, the accelerator's GtkAccelGroup entry exists but
-            never actually fires. No-op elsewhere."""
+        native menu bar after GtkosxApplication.ready() already
+        ran) into the native menu items' key equivalents - without
+        this, the accelerator's GtkAccelGroup entry exists but
+        never actually fires. No-op elsewhere."""
         osxapp = getattr(self, '_osxapp', None)
         if osxapp is not None:
             osxapp.sync_menubar()
@@ -716,8 +787,9 @@ class MainView(BaseView):
             # key, so plain Return (Next Unit) is left out: it would stop
             # Return working in every entry.
             for item_id, modifiers in (
-                    ('mnu_state_advance', NS_CONTROL_KEY_MASK),
-                    ('mnu_state_reverse', NS_CONTROL_KEY_MASK | NS_SHIFT_KEY_MASK)):
+                ('mnu_state_advance', NS_CONTROL_KEY_MASK),
+                ('mnu_state_reverse', NS_CONTROL_KEY_MASK | NS_SHIFT_KEY_MASK),
+            ):
                 label = self.gui.get_object(item_id).get_child()
                 if isinstance(label, Gtk.Label) and label.get_text():
                     _set_native_return_key(label.get_text(), modifiers)
@@ -742,33 +814,31 @@ class MainView(BaseView):
             if value and not native_marker:
                 modified = "*"
             if platform.use_app_name_in_title():
-                #l10n: This is the title of the main window of Virtaal
-                #%(modified_marker)s is a star that is displayed if the file is modified, and should be at the start of the window title
-                #%(current_file)s is the file name of the current file
-                #most languages will not need to change this
+                # l10n: This is the title of the main window of Virtaal
+                # %(modified_marker)s is a star that is displayed if the file is modified, and should be at the start of the window title
+                # %(current_file)s is the file name of the current file
+                # most languages will not need to change this
                 title_format = _('%(modified_marker)s%(current_file)s - Virtaal')
             else:
-                #l10n: This is the title of the main window of Virtaal, without the app name
-                #%(modified_marker)s is a star that is displayed if the file is modified, and should be at the start of the window title
-                #%(current_file)s is the file name of the current file
-                #most languages will not need to change this
+                # l10n: This is the title of the main window of Virtaal, without the app name
+                # %(modified_marker)s is a star that is displayed if the file is modified, and should be at the start of the window title
+                # %(current_file)s is the file name of the current file
+                # most languages will not need to change this
                 title_format = _('%(modified_marker)s%(current_file)s')
             self.main_window.set_title(
-                    (title_format %
-                        {
-                            "current_file": os.path.basename(filename),
-                            "modified_marker": modified
-                        }
-                    ).rstrip()
-                )
+                (
+                    title_format
+                    % {"current_file": os.path.basename(filename), "modified_marker": modified}
+                ).rstrip()
+            )
         self.modified = value
 
     def _update_document_edited(self, modified):
         """Mirror the modified state in macOS's native window-close-
-            button marker. Returns whether it was actually set, so
-            set_saveable() can fall back to the title-bar star when
-            it wasn't (off mac, unrealized window, or a ctypes
-            failure)."""
+        button marker. Returns whether it was actually set, so
+        set_saveable() can fall back to the title-bar star when
+        it wasn't (off mac, unrealized window, or a ctypes
+        failure)."""
         if not platform.is_mac:
             return False
         gdk_window = self.main_window.get_window()
@@ -788,7 +858,7 @@ class MainView(BaseView):
     @contextmanager
     def busy(self, msg):
         """Show a wait cursor and C{msg} in the status bar while the
-            body blocks the main loop."""
+        body blocks the main loop."""
         gdk_window = self.main_window.get_window()
         if gdk_window is not None:
             previous = gdk_window.get_cursor()
@@ -804,7 +874,7 @@ class MainView(BaseView):
 
     def show_progress(self, msg):
         """Show a progress cursor and C{msg} in the status bar while work
-            continues in a window that can still be used."""
+        continues in a window that can still be used."""
         gdk_window = self.main_window.get_window()
         if gdk_window is not None:
             gdk_window.set_cursor(Gdk.Cursor.new_from_name(gdk_window.get_display(), 'progress'))
@@ -816,17 +886,19 @@ class MainView(BaseView):
             gdk_window.set_cursor(None)
         self.status_bar.remove_all(self.status_bar.get_context_id('progress'))
 
-
     # METHODS #
     def ask_plural_info(self):
         """Ask the user to provide plural information.
-            @returns: A 2-tuple containing the number of plurals as the first
-                element and the plural equation as the second element."""
+        @returns: A 2-tuple containing the number of plurals as the first
+            element and the plural equation as the second element."""
+
         # Adapted from Virtaal 0.2's document.py:compute_nplurals
         def ask_for_number_of_plurals():
             while True:
                 try:
-                    nplurals = self.show_input_dialog(message=_("Please enter the number of noun forms (plurals) to use"))
+                    nplurals = self.show_input_dialog(
+                        message=_("Please enter the number of noun forms (plurals) to use")
+                    )
                     return int(nplurals)
                 except ValueError as _e:
                     pass
@@ -835,7 +907,8 @@ class MainView(BaseView):
             return self.show_input_dialog(message=_("Please enter the plural equation to use"))
 
         from translate.lang import factory as langfactory
-        lang     = langfactory.getlanguage(self.controller.lang_controller.target_lang.code)
+
+        lang = langfactory.getlanguage(self.controller.lang_controller.target_lang.code)
         nplurals = lang.nplurals or ask_for_number_of_plurals()
         if nplurals > 1 and lang.pluralequation == "0":
             return nplurals, ask_for_plurals_equation()
@@ -845,7 +918,7 @@ class MainView(BaseView):
 
     def append_menu_item(self, name, menu, after=None):
         """Add a new menu item with the given name to the menu with the given
-            name (C{menu})."""
+        name (C{menu})."""
         if isinstance(after, str):
             after = self.find_menu(after)
 
@@ -885,8 +958,8 @@ class MainView(BaseView):
     def find_menu_item(self, label, menu):
         """Find the menu item with the given label in C{menu}'s submenu.
 
-            @param label: The label of the menu item to find.
-            @param menu: The menu bar item to search in."""
+        @param label: The label of the menu item to find.
+        @param menu: The menu bar item to search in."""
         for item in menu.get_submenu().get_children():
             if item.get_child() and str(item.get_child().get_text()) == str(label):
                 return item, menu
@@ -936,29 +1009,30 @@ class MainView(BaseView):
 
         # Uncomment this line to measure startup time until the window shows.
         # It causes the program to quit immediately when the window is shown:
-        #self.main_window.connect('expose-event', lambda widget, event: Gtk.main_quit())
+        # self.main_window.connect('expose-event', lambda widget, event: Gtk.main_quit())
 
         # Uncomment these lines to measure true startup time. It causes the
         # program to quit immediately when the last thing added to the gobject
         # idle queue during startup, is done.
-        #from gobject import idle_add, PRIORITY_LOW
-        #idle_add(Gtk.main_quit, priority=PRIORITY_LOW)
+        # from gobject import idle_add, PRIORITY_LOW
+        # idle_add(Gtk.main_quit, priority=PRIORITY_LOW)
 
         # Uncomment these lines to see which modules have already been imported
         # at this stage. Keep in mind that something like pprint could affect
         # the list.
-        #print "\n".join(sorted(sys.modules.keys()))
+        # print "\n".join(sorted(sys.modules.keys()))
         Gtk.main()
 
     def show_input_dialog(self, title='', message=''):
         """Shows a simple dialog containing a text entry.
-            @returns: The text entered into the dialog, or C{None}."""
+        @returns: The text entered into the dialog, or C{None}."""
         self.input_dialog.set_transient_for(self._top_window)
         old_top = self._top_window
         self._top_window = self.input_dialog
         response, text = self.input_dialog.run(title=title, message=message)
         self.input_dialog.hide()
         from gi.repository import GLib
+
         GLib.idle_add(old_top.present)
         self._top_window = old_top
 
@@ -968,8 +1042,10 @@ class MainView(BaseView):
 
     def show_translator_dialog(self, name='', email='', team=''):
         """Asks for the translator details stored in a file's header.
-            @returns: (name, email, team), or C{None} if cancelled."""
-        dialog = Gtk.Dialog(title=_('Header information'), transient_for=self._top_window, modal=True)
+        @returns: (name, email, team), or C{None} if cancelled."""
+        dialog = Gtk.Dialog(
+            title=_('Header information'), transient_for=self._top_window, modal=True
+        )
         dialog.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
         dialog.add_button(_("_OK"), Gtk.ResponseType.OK)
         dialog.set_default_response(Gtk.ResponseType.OK)
@@ -979,13 +1055,21 @@ class MainView(BaseView):
             # l10n: This label is for the name of the translator
             (_("Name:"), _("The name stored in the file header"), name),
             (_("E-mail address:"), _("The e-mail address stored in the file header"), email),
-            (_("Team:"), _("The team information stored in the file header. "
-                           "This can be an e-mail address or a URL, for example."), team),
+            (
+                _("Team:"),
+                _(
+                    "The team information stored in the file header. "
+                    "This can be an e-mail address or a URL, for example."
+                ),
+                team,
+            ),
         )
         entries = []
         for row, (text, tooltip, value) in enumerate(fields):
             label = Gtk.Label(label=text, xalign=0)
-            entry = Gtk.Entry(text=value or '', activates_default=True, hexpand=True, width_chars=30)
+            entry = Gtk.Entry(
+                text=value or '', activates_default=True, hexpand=True, width_chars=30
+            )
             entry.set_tooltip_text(tooltip)
             label.set_mnemonic_widget(entry)
             grid.attach(label, 0, row, 1, 1)
@@ -1003,6 +1087,7 @@ class MainView(BaseView):
         details = tuple(entry.get_text() for entry in entries)
         dialog.destroy()
         from gi.repository import GLib
+
         GLib.idle_add(old_top.present)
         self._top_window = old_top
 
@@ -1012,7 +1097,7 @@ class MainView(BaseView):
 
     def show_open_dialog(self, title='', chooser=None):
         """@returns: The selected file name and URI if the OK button was clicked.
-            C{None} otherwise."""
+        C{None} otherwise."""
         if chooser is None:
             chooser = self.open_chooser
         last_path = pan_app.settings.general["lastdir"] or ""
@@ -1048,6 +1133,7 @@ class MainView(BaseView):
         response = self.error_dialog.run()
         self.error_dialog.hide()
         from gi.repository import GLib
+
         GLib.idle_add(old_top.present)
         self._top_window = old_top
 
@@ -1062,6 +1148,7 @@ class MainView(BaseView):
         response = self.prompt_dialog.run()
         self.prompt_dialog.hide()
         from gi.repository import GLib
+
         GLib.idle_add(old_top.present)
         self._top_window = old_top
 
@@ -1079,12 +1166,13 @@ class MainView(BaseView):
         response = self.info_dialog.run()
         self.info_dialog.hide()
         from gi.repository import GLib
+
         GLib.idle_add(old_top.present)
         self._top_window = old_top
 
     def show_save_dialog(self, title, current_filename=None):
         """@returns: C{True} if the OK button was pressed, C{False} for any
-            other response."""
+        other response."""
         if not current_filename:
             current_filename = self.controller.get_store().get_filename()
 
@@ -1104,12 +1192,12 @@ class MainView(BaseView):
 
         if response == Gtk.ResponseType.ACCEPT:
             filename = self.save_chooser.get_filename()
-            #FIXME: do we need uri here?
+            # FIXME: do we need uri here?
             return filename
 
     def show_save_confirm_dialog(self):
         """@returns: One of C{'save'}, C{'discard'}, or C{'cancel'},
-            depending on the button pressed."""
+        depending on the button pressed."""
         self.confirm_dialog.set_transient_for(self._top_window)
         old_top = self._top_window
         self._top_window = self.confirm_dialog
@@ -1119,6 +1207,7 @@ class MainView(BaseView):
         response = self.confirm_dialog.run()
         self.confirm_dialog.hide()
         from gi.repository import GLib
+
         GLib.idle_add(old_top.present)
         self._top_window = old_top
 
@@ -1159,29 +1248,38 @@ class MainView(BaseView):
         if getattr(self, '_store_loaded_handler_id', None):
             main_controller.store_controller.disconnect(self._store_loaded_handler_id)
 
-        self._store_closed_handler_id = new_controller.connect('store-closed', self._on_store_closed)
-        self._store_loaded_handler_id = new_controller.connect('store-loaded', self._on_store_loaded)
+        self._store_closed_handler_id = new_controller.connect(
+            'store-closed', self._on_store_closed
+        )
+        self._store_loaded_handler_id = new_controller.connect(
+            'store-loaded', self._on_store_loaded
+        )
         self._store_saved_handler_id = new_controller.connect('store-saved', self._on_store_saved)
 
     def _on_documentation(self, _widget=None):
         from virtaal.support import openmailto
-        openmailto.open("https://docs.translatehouse.org/projects/virtaal/en/latest/using_virtaal.html")
+
+        openmailto.open(
+            "https://docs.translatehouse.org/projects/virtaal/en/latest/using_virtaal.html"
+        )
 
     def show_update_notice(self, tag_name, html_url, asset_url=None):
         """Called at most once per session, from a frozen build only,
-            if virtaal.support.update_check finds a newer release than
-            this one. asset_url is the platform-specific installer
-            found by update_check.find_asset_url(), or None if it
-            couldn't work one out - in which case Download itself
-            falls back to the release page, same as before this
-            existed, and there's no separate Release Notes button."""
+        if virtaal.support.update_check finds a newer release than
+        this one. asset_url is the platform-specific installer
+        found by update_check.find_asset_url(), or None if it
+        couldn't work one out - in which case Download itself
+        falls back to the release page, same as before this
+        existed, and there's no separate Release Notes button."""
         from virtaal.__version__ import ver
 
         infobar = Gtk.InfoBar()
         infobar.set_message_type(Gtk.MessageType.INFO)
         infobar.set_show_close_button(True)
         # The tag is v1.0.0; ver has no v.
-        label = Gtk.Label(label=_('Virtaal %s is available (you have %s)') % (tag_name.removeprefix('v'), ver))
+        label = Gtk.Label(
+            label=_('Virtaal %s is available (you have %s)') % (tag_name.removeprefix('v'), ver)
+        )
         infobar.get_content_area().pack_start(label, True, True, 0)
         if asset_url:
             infobar.add_button(_('Release Notes'), Gtk.ResponseType.HELP)
@@ -1189,6 +1287,7 @@ class MainView(BaseView):
 
         def on_response(infobar, response_id):
             from virtaal.support import openmailto
+
             if response_id == Gtk.ResponseType.HELP:
                 # Stays, so Download is still there after reading the notes.
                 openmailto.open(html_url)
@@ -1196,6 +1295,7 @@ class MainView(BaseView):
             if response_id == Gtk.ResponseType.OK:
                 openmailto.open(asset_url or html_url)
             infobar.destroy()
+
         infobar.connect('response', on_response)
 
         infobar.show_all()
@@ -1205,18 +1305,23 @@ class MainView(BaseView):
 
     def show_config_recovery_notice(self, backup_path):
         """Called at most once per session, if pan_app.Settings found
-            virtaal.ini unreadable and started fresh with defaults."""
+        virtaal.ini unreadable and started fresh with defaults."""
         infobar = Gtk.InfoBar()
         infobar.set_message_type(Gtk.MessageType.WARNING)
         infobar.set_show_close_button(True)
-        label = Gtk.Label(label=_(
-            "Your settings file could not be read, so Virtaal started with "
-            "default settings. The old file was kept at: %s") % backup_path)
+        label = Gtk.Label(
+            label=_(
+                "Your settings file could not be read, so Virtaal started with "
+                "default settings. The old file was kept at: %s"
+            )
+            % backup_path
+        )
         label.set_line_wrap(True)
         infobar.get_content_area().pack_start(label, True, True, 0)
 
         def on_response(infobar, response_id):
             infobar.destroy()
+
         infobar.connect('response', on_response)
 
         infobar.show_all()
@@ -1226,10 +1331,10 @@ class MainView(BaseView):
 
     def show_loading_notice(self, filename):
         """Shown instead of the full Welcome screen while a startup
-            file is still being opened (main.py's deferred
-            _open_startup_file) - plain text, not this file's usual
-            Gtk.InfoBar, since there's nothing to acknowledge for
-            something this transient."""
+        file is still being opened (main.py's deferred
+        _open_startup_file) - plain text, not this file's usual
+        Gtk.InfoBar, since there's nothing to acknowledge for
+        something this transient."""
         existing = getattr(self, '_loading_label', None)
         if existing is not None:
             return
@@ -1256,12 +1361,12 @@ class MainView(BaseView):
 
     def show_startup_open_failure_notice(self, filename, reason=None):
         """Called when the file passed on the command line at startup
-            couldn't be opened - main.py's own deferred open already
-            triggers the usual show_error_dialog() for the specific
-            error; this is a lasting reminder on the Welcome screen
-            once that dialog is dismissed, not a duplicate of it. Also
-            cleared by main.py once the user successfully opens any
-            other file - see hide_startup_open_failure_notice()."""
+        couldn't be opened - main.py's own deferred open already
+        triggers the usual show_error_dialog() for the specific
+        error; this is a lasting reminder on the Welcome screen
+        once that dialog is dismissed, not a duplicate of it. Also
+        cleared by main.py once the user successfully opens any
+        other file - see hide_startup_open_failure_notice()."""
         infobar = Gtk.InfoBar()
         infobar.set_message_type(Gtk.MessageType.WARNING)
         infobar.set_show_close_button(True)
@@ -1276,6 +1381,7 @@ class MainView(BaseView):
         def on_response(infobar, response_id):
             self._startup_open_failure_infobar = None
             infobar.destroy()
+
         infobar.connect('response', on_response)
 
         self._startup_open_failure_infobar = infobar
@@ -1292,9 +1398,9 @@ class MainView(BaseView):
 
     def show_language_change_notice(self):
         """Called once the UI language is changed in Preferences - a
-            running app can't retranslate widgets already built with the
-            old language's strings, so restarting is the only way to
-            see the new one applied throughout."""
+        running app can't retranslate widgets already built with the
+        old language's strings, so restarting is the only way to
+        see the new one applied throughout."""
         # Changing the language repeatedly without restarting shouldn't
         # stack up a duplicate copy of this notice each time (#3695).
         existing = getattr(self, '_language_change_infobar', None)
@@ -1310,6 +1416,7 @@ class MainView(BaseView):
         def on_response(infobar, response_id):
             self._language_change_infobar = None
             infobar.destroy()
+
         infobar.connect('response', on_response)
 
         self._language_change_infobar = infobar
@@ -1321,7 +1428,7 @@ class MainView(BaseView):
     def show_template_update_notice(self, title, before, after):
         """Dismissable notice with the before/after unit counts from "Update from Template" (#3808).
 
-            @param before, after: dicts of 'translated', 'fuzzy', 'untranslated' and 'total' counts"""
+        @param before, after: dicts of 'translated', 'fuzzy', 'untranslated' and 'total' counts"""
         existing = getattr(self, '_template_update_infobar', None)
         if existing is not None:
             existing.destroy()
@@ -1341,6 +1448,7 @@ class MainView(BaseView):
         def on_response(infobar, response_id):
             self._template_update_infobar = None
             infobar.destroy()
+
         infobar.connect('response', on_response)
 
         self._template_update_infobar = infobar
@@ -1353,11 +1461,11 @@ class MainView(BaseView):
     def _template_stats_grid(before, after):
         grid = Gtk.Grid(column_spacing=18, row_spacing=2)
         headings = (
-            #l10n: Column heading: unit counts before updating to the new template
+            # l10n: Column heading: unit counts before updating to the new template
             _("Before"),
-            #l10n: Column heading: unit counts after updating to the new template
+            # l10n: Column heading: unit counts after updating to the new template
             _("After"),
-            #l10n: Column heading: difference between the before and after unit counts
+            # l10n: Column heading: difference between the before and after unit counts
             _("Change"),
         )
         for column, text in enumerate(headings, 1):
@@ -1370,7 +1478,7 @@ class MainView(BaseView):
             ('translated', _("Translated")),
             ('fuzzy', _("Fuzzy")),
             ('untranslated', _("Untranslated")),
-            #l10n: Row heading: total number of units in the file
+            # l10n: Row heading: total number of units in the file
             ('total', _("Total")),
         )
         for row, (key, text) in enumerate(rows, 1):
@@ -1387,7 +1495,7 @@ class MainView(BaseView):
 
     def show_same_lang_notice(self, on_change_pair):
         """Show a dismissable notice that source and target language are
-            the same; on_change_pair runs if its button is clicked."""
+        the same; on_change_pair runs if its button is clicked."""
         existing = getattr(self, '_same_lang_infobar', None)
         if existing is not None:
             return
@@ -1405,6 +1513,7 @@ class MainView(BaseView):
                 return
             self._same_lang_infobar = None
             infobar.destroy()
+
         infobar.connect('response', on_response)
 
         self._same_lang_infobar = infobar
@@ -1421,7 +1530,7 @@ class MainView(BaseView):
 
     def show_read_only_notice(self):
         """Show a dismissable notice that the opened file can't be
-            written to (#517); its own button offers Save As directly."""
+        written to (#517); its own button offers Save As directly."""
         existing = getattr(self, '_read_only_infobar', None)
         if existing is not None:
             return
@@ -1439,6 +1548,7 @@ class MainView(BaseView):
                 return
             self._read_only_infobar = None
             infobar.destroy()
+
         infobar.connect('response', on_response)
 
         self._read_only_infobar = infobar
@@ -1506,14 +1616,17 @@ class MainView(BaseView):
         # If the guide is installed and no internet then open local
         # If Internet then go live, if no Internet or guide then disable
         from virtaal.support import openmailto
+
         openmailto.open("https://docs.translatehouse.org/projects/localization-guide/en/")
 
     def _on_help_about(self, _widget=None):
         from .widgets.aboutdialog import AboutDialog
+
         AboutDialog(self.main_window)
 
     def _on_shortcuts(self, _widget=None):
         from .widgets.shortcutswindow import ShortcutsWindow
+
         ShortcutsWindow(self.main_window)
 
     def _on_quit(self, *args):
@@ -1546,6 +1659,7 @@ class MainView(BaseView):
     def _on_report_bug(self, _widget=None):
         from virtaal.support import openmailto
         from virtaal.support.bug_report import build_bug_report_url
+
         openmailto.open(build_bug_report_url())
 
     def _on_show_logs(self, _widget=None):
@@ -1574,6 +1688,7 @@ class MainView(BaseView):
         textview.set_left_margin(6)
         textview.set_top_margin(6)
         from virtaal.__version__ import version_string
+
         textview.get_buffer().set_text(
             'Virtaal %s\n\n' % version_string()
             + '\n\n'.join('=== %s ===\n%s' % (name, content) for name, content in found)
@@ -1589,11 +1704,20 @@ class MainView(BaseView):
         dialog.run()
         dialog.destroy()
         from gi.repository import GLib
+
         GLib.idle_add(self.main_window.present)
 
     def _on_store_closed(self, store_controller):
-        for widget_name in ('mnu_saveas', 'mnu_close', 'mnu_update', 'mnu_properties', 'mnu_binary_export',
-                             'mnu_next_unit', 'mnu_state_advance', 'mnu_state_reverse'):
+        for widget_name in (
+            'mnu_saveas',
+            'mnu_close',
+            'mnu_update',
+            'mnu_properties',
+            'mnu_binary_export',
+            'mnu_next_unit',
+            'mnu_state_advance',
+            'mnu_state_reverse',
+        ):
             self.gui.get_object(widget_name).set_sensitive(False)
         self.status_bar.set_sensitive(False)
         self.main_window.set_title(_('Virtaal'))
@@ -1607,7 +1731,7 @@ class MainView(BaseView):
         self.gui.get_object('mnu_state_advance').set_sensitive(True)
         self.gui.get_object('mnu_state_reverse').set_sensitive(True)
         filename = store_controller.get_store_filename()
-        #TODO: move logic to storecontroller
+        # TODO: move logic to storecontroller
         if filename.endswith('.po') or filename.endswith('.po.bz2') or filename.endswith('.po.gz'):
             self.gui.get_object('mnu_binary_export').set_sensitive(True)
 
@@ -1619,6 +1743,7 @@ class MainView(BaseView):
 
     def _add_recent_file(self, store_controller):
         from virtaal.views import recent
+
         if store_controller.project:
             path = store_controller.get_bundle_filename()
             recent.rm.add_item('file://' + path)
@@ -1639,13 +1764,15 @@ class MainView(BaseView):
         mnu_fullscreen.set_active(event.new_window_state & Gdk.WindowState.FULLSCREEN)
         logging.debug(
             "fullscreen: window-state-event new=%s changed=%s size=%s",
-            event.new_window_state, event.changed_mask, self.main_window.get_size())
+            event.new_window_state,
+            event.changed_mask,
+            self.main_window.get_size(),
+        )
         # React to the real, confirmed transition, not the unfullscreen()
         # call itself (which doesn't reliably take effect synchronously
         # on Windows).
-        left_fullscreen = (
-            event.changed_mask & Gdk.WindowState.FULLSCREEN
-            and not (event.new_window_state & Gdk.WindowState.FULLSCREEN)
+        left_fullscreen = event.changed_mask & Gdk.WindowState.FULLSCREEN and not (
+            event.new_window_state & Gdk.WindowState.FULLSCREEN
         )
         if left_fullscreen and getattr(self, '_pre_fullscreen_size', None):
             target_size = self._pre_fullscreen_size
@@ -1660,17 +1787,23 @@ class MainView(BaseView):
             # enough - the transition's own settle is already visible in
             # storetreeview's 200ms debounce well before this fires.
             from gi.repository import GLib
+
             GLib.timeout_add(250, self._restore_pre_fullscreen_size, target_size)
 
     def _restore_pre_fullscreen_size(self, target_size):
-        logging.debug("fullscreen: resizing to %s (get_size() was %s)", target_size, self.main_window.get_size())
+        logging.debug(
+            "fullscreen: resizing to %s (get_size() was %s)",
+            target_size,
+            self.main_window.get_size(),
+        )
         self.main_window.resize(*target_size)
         logging.debug("fullscreen: get_size() now reports %s", self.main_window.get_size())
         return False  # one-shot: don't repeat this GLib.timeout_add
 
     def _on_app_pressed(self, btn):
-        self.app_menu.popup_at_widget(btn, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST,
-                                      Gtk.get_current_event())
+        self.app_menu.popup_at_widget(
+            btn, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, Gtk.get_current_event()
+        )
 
     def _on_osx_openfile_event(self, macapp, filename):
         # Note! A limitation of GtkosxApplication is that we cannot perform
@@ -1678,8 +1811,10 @@ class MainView(BaseView):
         # therefore we schedule the load to occur afterwards.
         # See gdk/quartz/gdkeventloop-quartz.c in the GTK+ source.
         from gi.repository import GLib
+
         def callback():
             self.controller.open_file(filename)
+
         GLib.idle_add(callback)
         # We must indicate we handled this or crash
         return True

@@ -34,7 +34,7 @@ def _create_model():
 
 if __name__ == '__main__':
     # Uncomment below to test RTL
-    #Gtk.Widget.set_default_direction(Gtk.TextDirection.RTL)
+    # Gtk.Widget.set_default_direction(Gtk.TextDirection.RTL)
     listnav = ListNavigator()
 
     hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -51,6 +51,7 @@ if __name__ == '__main__':
 
     def on_selection_changed(sender, selected):
         sender.btn_popup.set_label('Item %d' % (selected.i))
+
     listnav.connect('selection-changed', on_selection_changed)
     listnav.set_model(_create_model())
 

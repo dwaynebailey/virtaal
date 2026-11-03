@@ -20,12 +20,11 @@ class WelcomeScreen(Gtk.ScrolledWindow):
     __gtype_name__ = 'WelcomeScreen'
     __gsignals__ = {'button-clicked': (GObject.SignalFlags.RUN_FIRST, None, (str,))}
 
-
     # INITIALISERS #
     def __init__(self, gui):
         """Constructor.
-            @type  gui: C{Gtk.Builder}
-            @param gui: The GtkBuilder XML object to retrieve the welcome screen from."""
+        @type  gui: C{Gtk.Builder}
+        @param gui: The GtkBuilder XML object to retrieve the welcome screen from."""
         super().__init__()
 
         self.gui = gui
@@ -53,15 +52,24 @@ class WelcomeScreen(Gtk.ScrolledWindow):
 
         self.widgets['buttons'] = {}
         button_names = (
-            'open', 'recent1', 'recent2', 'recent3', 'recent4', 'recent5',
-            'tutorial', 'cheatsheet', 'features_more', 'manual', 'locguide',
-            'feedback', 'report_bug'
+            'open',
+            'recent1',
+            'recent2',
+            'recent3',
+            'recent4',
+            'recent5',
+            'tutorial',
+            'cheatsheet',
+            'features_more',
+            'manual',
+            'locguide',
+            'feedback',
+            'report_bug',
         )
         for bname in button_names:
             btn = self.gui.get_object('btn_' + bname)
             self.widgets['buttons'][bname] = btn
             btn.connect('clicked', self._on_button_clicked, bname)
-
 
     def _style_widgets(self):
         set_widget_fg_color(self.widgets['exp_features'].get_children()[1], current_theme['url_fg'])
@@ -80,14 +88,16 @@ class WelcomeScreen(Gtk.ScrolledWindow):
                 set_widget_fg_color(label, current_theme['url_fg'])
 
     def _init_feature_view(self):
-        features = "\n".join([
-            " • " + _("Translation memory"),
-            " • " + _("Terminology assistance"),
-            " • " + _("Quality checks"),
-            " • " + _("Machine translation"),
-            " • " + _("Highlighting and insertion of placeables"),
-            " • " + _("Many plugins and options for customization"),
-        ])
+        features = "\n".join(
+            [
+                " • " + _("Translation memory"),
+                " • " + _("Terminology assistance"),
+                " • " + _("Quality checks"),
+                " • " + _("Machine translation"),
+                " • " + _("Highlighting and insertion of placeables"),
+                " • " + _("Many plugins and options for customization"),
+            ]
+        )
 
         def _set_text(features):
             # .get_buffer() is a bit expensive during startup
@@ -102,7 +112,9 @@ class WelcomeScreen(Gtk.ScrolledWindow):
             # default font to the welcome screen's labels - inherit theirs.
             provider = Gtk.CssProvider()
             provider.load_from_data(b'* { font: inherit; }')
-            txt_features.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            txt_features.get_style_context().add_provider(
+                provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
 
         GLib.idle_add(_set_text, features, priority=GLib.PRIORITY_LOW)
 
@@ -126,7 +138,6 @@ class WelcomeScreen(Gtk.ScrolledWindow):
         exp_features.connect('notify::expanded', _sync_more_focusability)
         exp_features.connect('notify::expanded', _resettle_features_height)
 
-
     # METHODS #
     def set_banner_image(self, filename):
         banner = self.widgets['img_banner']
@@ -142,7 +153,6 @@ class WelcomeScreen(Gtk.ScrolledWindow):
         if layout.get_direction() == Gtk.TextDirection.RTL:
             value = hadjustment.get_upper() - hadjustment.get_page_size()
         hadjustment.set_value(value)
-
 
     # SIGNAL HANDLERS #
     def _on_button_clicked(self, button, name):

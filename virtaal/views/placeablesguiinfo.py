@@ -27,7 +27,7 @@ class StringElemGUI:
     """
 
     # MEMBERS #
-    fg = '#000' # See update_style
+    fg = '#000'  # See update_style
     """The current foreground colour.
         @see update_style"""
     bg = '#fff'
@@ -36,7 +36,6 @@ class StringElemGUI:
 
     cursor_allowed = True
     """Whether the cursor is allowed to enter this element."""
-
 
     # INITIALIZERS #
     def __init__(self, elem, textbox, **kwargs):
@@ -71,36 +70,40 @@ class StringElemGUI:
 
     def create_repr_widgets(self):
         """Creates the two widgets that are rendered before and after the
-            contained string. The widgets should be placed in C{self.widgets}."""
+        contained string. The widgets should be placed in C{self.widgets}."""
         return None
 
     def copy(self):
         return self.__class__(
-            elem=self.elem, textbox=self.textbox,
-            fg=self.fg, bg=self.bg,
-            cursor_allowed=self.cursor_allowed
+            elem=self.elem,
+            textbox=self.textbox,
+            fg=self.fg,
+            bg=self.bg,
+            cursor_allowed=self.cursor_allowed,
         )
 
     def elem_at_offset(self, offset, child_offset=0):
         """Find the C{StringElem} at the given offset.
-            This method is used in Virtaal as a replacement for
-            C{StringElem.elem_at_offset}, because this method takes the rendered
-            widgets into account.
+        This method is used in Virtaal as a replacement for
+        C{StringElem.elem_at_offset}, because this method takes the rendered
+        widgets into account.
 
-            @type  offset: int
-            @param offset: The offset into C{self.textbox} to find the the element
-            @type  child_offset: int
-            @param child_offset: The offset of C{self.elem} into the buffer of
-                C{self.textbox}. This is so recursive calls to child elements
-                can be aware of where in the textbox it appears."""
+        @type  offset: int
+        @param offset: The offset into C{self.textbox} to find the the element
+        @type  child_offset: int
+        @param child_offset: The offset of C{self.elem} into the buffer of
+            C{self.textbox}. This is so recursive calls to child elements
+            can be aware of where in the textbox it appears."""
         if offset < 0 or offset >= self.length():
             return None
 
         pre_len = self.has_start_widget() and 1 or 0
 
         # First check if offset doesn't point to a widget that does not belong to self.elem
-        if offset in (0, self.length()-1):
-            anchor = self.textbox.buffer.get_iter_at_offset(child_offset+offset).get_child_anchor()
+        if offset in (0, self.length() - 1):
+            anchor = self.textbox.buffer.get_iter_at_offset(
+                child_offset + offset
+            ).get_child_anchor()
             if anchor is not None:
                 widget = anchor.get_widgets()
 
@@ -123,7 +126,7 @@ class StringElemGUI:
         child_offset += pre_len
         offset -= pre_len
 
-        childlen = 0 # Length of the children already consumed
+        childlen = 0  # Length of the children already consumed
         for child in self.elem.sub:
             if isinstance(child, StringElem):
                 if not hasattr(child, 'gui_info'):
@@ -131,7 +134,9 @@ class StringElemGUI:
                     child.gui_info = gui_info_class(elem=child, textbox=self.textbox)
 
                 try:
-                    elem = child.gui_info.elem_at_offset(offset-childlen, child_offset=child_offset+childlen)
+                    elem = child.gui_info.elem_at_offset(
+                        offset - childlen, child_offset=child_offset + childlen
+                    )
                     if elem is not None:
                         return elem
                 except AttributeError:
@@ -173,7 +178,7 @@ class StringElemGUI:
 
     def index(self, elem):
         """Replacement for C{StringElem.elem_offset()} to be aware of included
-            widgets."""
+        widgets."""
         if elem is self.elem:
             return 0
 
@@ -185,7 +190,7 @@ class StringElemGUI:
                 index = child.gui_info.index(elem)
                 if index >= 0:
                     return index + i
-                i -= index # XXX: Add length. See comment below.
+                i -= index  # XXX: Add length. See comment below.
             else:
                 i += len(child)
         # We basically calculated the length thus far, so pass it back as a
@@ -208,7 +213,7 @@ class StringElemGUI:
 
     def length(self):
         """Calculate the length of the current element, taking into account
-            possibly included widgets."""
+        possibly included widgets."""
         length = len([w for w in self.widgets if w is not None])
         for child in self.elem.sub:
             if isinstance(child, StringElem) and hasattr(child, 'gui_info'):
@@ -296,7 +301,7 @@ class BxGUI(StringElemGUI):
             set_widget_font(lbl, font_desc)
             self.textbox.get_pango_context().set_font_description(font_desc)
             w, h = make_pango_layout(self.textbox, '((', 100).get_pixel_size()
-            lbl.set_size_request(-1, int(h/1.2))
+            lbl.set_size_request(-1, int(h / 1.2))
 
 
 class ExGUI(StringElemGUI):
@@ -310,11 +315,11 @@ class ExGUI(StringElemGUI):
             set_widget_font(lbl, font_desc)
             self.textbox.get_pango_context().set_font_description(font_desc)
             w, h = make_pango_layout(self.textbox, '))', 100).get_pixel_size()
-            lbl.set_size_request(-1, int(h/1.2))
+            lbl.set_size_request(-1, int(h / 1.2))
 
 
 class NewlineGUI(StringElemGUI):
-    SCALE_FACTOR = 1.2 # Experimentally determined
+    SCALE_FACTOR = 1.2  # Experimentally determined
     fg = theme.current_theme['subtle_fg']
 
     def create_repr_widgets(self):
@@ -325,8 +330,9 @@ class NewlineGUI(StringElemGUI):
         set_widget_font(lbl, font_desc)
         self.textbox.get_pango_context().set_font_description(font_desc)
         w, h = make_pango_layout(self.textbox, '¶', 100).get_pixel_size()
-        lbl.set_size_request(-1, int(h/1.2))
+        lbl.set_size_request(-1, int(h / 1.2))
         self.widgets.append(lbl)
+
 
 class UrlGUI(StringElemGUI):
     fg = theme.current_theme['url_fg']
@@ -353,7 +359,7 @@ class GPlaceableGUI(StringElemGUI):
             set_widget_font(lbl, font_desc)
             self.textbox.get_pango_context().set_font_description(font_desc)
             w, h = make_pango_layout(self.textbox, '<foo>', 100).get_pixel_size()
-            lbl.set_size_request(-1, int(h/1.2))
+            lbl.set_size_request(-1, int(h / 1.2))
 
 
 class XPlaceableGUI(StringElemGUI):
@@ -369,7 +375,7 @@ class XPlaceableGUI(StringElemGUI):
         set_widget_font(lbl, font_desc)
         self.textbox.get_pango_context().set_font_description(font_desc)
         w, h = make_pango_layout(self.textbox, '[foo]', 100).get_pixel_size()
-        lbl.set_size_request(-1, int(h/1.2))
+        lbl.set_size_request(-1, int(h / 1.2))
 
 
 class UnknownXMLGUI(StringElemGUI):
@@ -384,14 +390,14 @@ class UnknownXMLGUI(StringElemGUI):
             tag = self.elem.xml_node.tag
             if tag.startswith('{'):
                 # tag is namespaced
-                tag = tag[tag.index('}')+1:]
+                tag = tag[tag.index('}') + 1 :]
             info += tag + '|'
         # Uncomment the if's below for more verbose placeables
-        #if self.elem.id:
+        # if self.elem.id:
         #    info += 'id=%s|'  % (self.elem.id)
-        #if self.elem.rid:
+        # if self.elem.rid:
         #    info += 'rid=%s|' % (self.elem.rid)
-        #if self.elem.xid:
+        # if self.elem.xid:
         #    info += 'xid=%s|' % (self.elem.xid)
         if info:
             self.widgets[0].set_text('{%s' % (info))
@@ -399,7 +405,8 @@ class UnknownXMLGUI(StringElemGUI):
         for lbl in self.widgets:
             set_widget_font(lbl, get_role_font_description(self.textbox.role))
             w, h = make_pango_layout(self.textbox, '{foo}', 100).get_pixel_size()
-            lbl.set_size_request(-1, int(h/1.2))
+            lbl.set_size_request(-1, int(h / 1.2))
+
 
 def update_style(widget):
     _style = widget.get_style_context()

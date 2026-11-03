@@ -8,8 +8,9 @@
 import importlib.util
 import os
 
-PACKAGING_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                             "devsupport", "packaging")
+PACKAGING_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "devsupport", "packaging"
+)
 
 IMPORTS = {
     "libenchant-2.dll": ["libglib-2.0-0.dll", "KERNEL32.dll"],
@@ -25,7 +26,9 @@ IMPORTS = {
 
 
 def _enchant_data():
-    spec = importlib.util.spec_from_file_location("enchant_data", os.path.join(PACKAGING_DIR, "enchant_data.py"))
+    spec = importlib.util.spec_from_file_location(
+        "enchant_data", os.path.join(PACKAGING_DIR, "enchant_data.py")
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -47,8 +50,13 @@ def _imports(path):
 def test_needed_dlls_follows_imports_from_enchant_and_the_bundled_backends(tmp_path):
     needed = _enchant_data().needed_dlls(_mingw(tmp_path), _imports)
 
-    assert needed == {"libenchant-2.dll", "libglib-2.0-0.dll", "libintl-8.dll",
-                      "libhunspell-1.7-0.dll", "libstdc++-6.dll"}
+    assert needed == {
+        "libenchant-2.dll",
+        "libglib-2.0-0.dll",
+        "libintl-8.dll",
+        "libhunspell-1.7-0.dll",
+        "libstdc++-6.dll",
+    }
 
 
 def test_trim_drops_other_backends_unloaded_dlls_and_static_libraries(tmp_path):
@@ -64,11 +72,20 @@ def test_trim_drops_other_backends_unloaded_dlls_and_static_libraries(tmp_path):
         (os.path.join(lib_dir, "enchant_hunspell.a"), "/src", "DATA"),
         (os.path.join(lib_dir, "enchant_hunspell.dll.a"), "/src", "DATA"),
         (os.path.join(lib_dir, "enchant_hunspell.la"), "/src", "DATA"),
-        (os.path.join("enchant", "data", "mingw64", "share", "enchant", "hunspell", "en_GB.dic"), "/src", "DATA"),
+        (
+            os.path.join("enchant", "data", "mingw64", "share", "enchant", "hunspell", "en_GB.dic"),
+            "/src",
+            "DATA",
+        ),
         ("tcl86.dll", "/src", "BINARY"),
     ]
 
     trimmed = _enchant_data().trim(toc, _mingw(tmp_path), _imports)
 
     assert [os.path.basename(entry[0]) for entry in trimmed] == [
-        "libenchant-2.dll", "libintl-8.dll", "enchant_hunspell.dll", "en_GB.dic", "tcl86.dll"]
+        "libenchant-2.dll",
+        "libintl-8.dll",
+        "enchant_hunspell.dll",
+        "en_GB.dic",
+        "tcl86.dll",
+    ]

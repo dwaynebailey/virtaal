@@ -17,9 +17,6 @@ from virtaal.views.theme import current_theme
 
 
 class TestUnitController(TestScaffolding):
-
-
-
     def test_get_target(self):
         # The unit indexes below differ by 1, because the StoreModel class (and thus the rest of Virtaal)
         # ignores PO headers (and other untranslatable units), whereas the Toolkit's stores do not.
@@ -27,13 +24,20 @@ class TestUnitController(TestScaffolding):
         test_unit = self.trans_store.getunits()[1]
         view = self.unit_controller.load_unit(test_unit)
 
-        assert str(self.unit_controller.view.targets[0].elem) == self.trans_store.getunits()[1].target
+        assert (
+            str(self.unit_controller.view.targets[0].elem) == self.trans_store.getunits()[1].target
+        )
 
     def test_set_target(self):
         test_unit = self.trans_store.getunits()[1]
         view = self.unit_controller.load_unit(test_unit)
 
-        self.unit_controller.set_unit_target(0, ['Test',])
+        self.unit_controller.set_unit_target(
+            0,
+            [
+                'Test',
+            ],
+        )
         assert str(self.unit_controller.view.targets[0].elem) == 'Test'
 
     def test_cut_disabled_without_a_selection(self, monkeypatch):
@@ -171,8 +175,9 @@ class TestUnitController(TestScaffolding):
 
         before = test_unit.get_state_id()
         view.advance_workflow_state(1)
-        assert test_unit.get_state_id() == before, \
+        assert test_unit.get_state_id() == before, (
             "advance_workflow_state() alone shouldn't persist to the real unit yet"
+        )
 
     def test_advance_workflow_state_records_an_undoable_state_change(self):
         test_unit = self.trans_store.getunits()[1]
@@ -208,6 +213,7 @@ class TestUnitController(TestScaffolding):
         # (Ctrl+Enter on the last unit reloads it): nothing else marks it
         # modified, and only a modified unit's state is committed.
         from translate.storage import pypo
+
         fuzzy_unit = pypo.pofile().addsourceunit("Fuzzy test string")
         fuzzy_unit.target = "Fuzzy test string, translated"
         fuzzy_unit.markfuzzy(True)
@@ -220,11 +226,13 @@ class TestUnitController(TestScaffolding):
 
     def _plural_unit(self, fuzzy=False):
         from translate.storage import pypo
+
         store = pypo.pofile.parsestring(
             b'msgid ""\nmsgstr ""\n"Plural-Forms: nplurals=2; plural=(n != 1);\\n"\n\n'
             + (b'#, fuzzy\n' if fuzzy else b'')
             + b'msgid "One file"\nmsgid_plural "%d files"\n'
-            + (b'msgstr[0] "1"\nmsgstr[1] ""\n' if fuzzy else b'msgstr[0] ""\nmsgstr[1] ""\n'))
+            + (b'msgstr[0] "1"\nmsgstr[1] ""\n' if fuzzy else b'msgstr[0] ""\nmsgstr[1] ""\n')
+        )
         unit = [u for u in store.units if not u.isheader()][0]
         self.unit_controller.load_unit(unit)
         return unit
@@ -292,6 +300,7 @@ class TestUnitController(TestScaffolding):
         # state to - see test_undocontroller.py for the actual
         # undo/redo restoration this feeds into.
         from translate.storage import pypo
+
         fuzzy_unit = pypo.pofile().addsourceunit("Fuzzy test string")
         fuzzy_unit.target = "Fuzzy test string, translated"
         fuzzy_unit.markfuzzy(True)
@@ -302,7 +311,8 @@ class TestUnitController(TestScaffolding):
         assert before_state != workflow.StateEnum.EMPTY
 
         self.undo_controller._on_unit_delete_text(
-            None, fuzzy_unit, fuzzy_unit.rich_target, None, 0, 0, fuzzy_unit.rich_target, 0)
+            None, fuzzy_unit, fuzzy_unit.rich_target, None, 0, 0, fuzzy_unit.rich_target, 0
+        )
         fuzzy_unit.target = ''
         self.unit_controller._correct_empty_state(fuzzy_unit)  # the debounced timer's own effect
 
@@ -320,6 +330,7 @@ class TestUnitController(TestScaffolding):
         # shared units' target content in whatever state they last set
         # it to, which markfuzzy() alone can't reliably override here.
         from translate.storage import pypo
+
         fuzzy_unit = pypo.pofile().addsourceunit("Fuzzy test string")
         fuzzy_unit.target = "Fuzzy test string, translated"
         fuzzy_unit.markfuzzy(True)
@@ -338,6 +349,7 @@ class TestUnitController(TestScaffolding):
 
     def _translated_unit(self):
         from translate.storage import pypo
+
         unit = pypo.pofile().addsourceunit("State style test string")
         unit.target = "State style test string, translated"
         self.unit_controller.load_unit(unit)
@@ -427,6 +439,7 @@ class TestUnitController(TestScaffolding):
 
     class _FakeReturnEvent:
         keyval = Gdk.KEY_Return
+
         def get_state(self):
             return Gdk.ModifierType(0)
 
@@ -468,8 +481,9 @@ class TestUnitController(TestScaffolding):
         # key still works, whatever type or state it is.
         for i, unit in enumerate(rest_units):
             view = self.unit_controller.load_unit(unit)
-            assert not view.targets[1].get_parent().props.visible, \
+            assert not view.targets[1].get_parent().props.visible, (
                 "targets[1] should be hidden for a non-plural unit"
+            )
 
             view.targets[0].set_text('translated %d' % i)
             done_calls = []
@@ -478,8 +492,7 @@ class TestUnitController(TestScaffolding):
 
             assert done_calls, (
                 "Enter on unit %d (fuzzy=%s) after a plural one should still "
-                "fire editing-done, not silently focus a hidden target box"
-                % (i, unit.isfuzzy())
+                "fire editing-done, not silently focus a hidden target box" % (i, unit.isfuzzy())
             )
             assert view.must_advance
 
@@ -558,7 +571,9 @@ msgstr ""
         was_fuzzy = test_unit.isfuzzy()
         new_state = workflow.StateEnum.UNREVIEWED if was_fuzzy else workflow.StateEnum.NEEDS_WORK
         done = []
-        handler = self.unit_controller.connect('unit-done', lambda c, unit, modified: done.append(unit))
+        handler = self.unit_controller.connect(
+            'unit-done', lambda c, unit, modified: done.append(unit)
+        )
         try:
             self.unit_controller.set_current_state(new_state, from_user=True)
             test_unit._modified = True
@@ -577,15 +592,18 @@ def _change_language(old_nplurals, new_nplurals):
     from types import SimpleNamespace
 
     from virtaal.controllers.unitcontroller import UnitController
+
     controller = UnitController.__new__(UnitController)
     controller.nplurals = old_nplurals
     calls = []
     controller.view = SimpleNamespace(
         update_languages=lambda: calls.append('languages'),
-        update_plural_forms=lambda: calls.append('plural forms') or True)
+        update_plural_forms=lambda: calls.append('plural forms') or True,
+    )
     treeview = SimpleNamespace(refresh_current_row=lambda: calls.append('row'))
     controller.main_controller = SimpleNamespace(
-        store_controller=SimpleNamespace(view=SimpleNamespace(_treeview=treeview)))
+        store_controller=SimpleNamespace(view=SimpleNamespace(_treeview=treeview))
+    )
     controller._on_language_changed(SimpleNamespace(get_target_nplurals=lambda: new_nplurals), 'uk')
     return controller, calls
 

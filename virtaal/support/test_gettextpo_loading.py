@@ -57,13 +57,18 @@ def test_a_library_that_does_not_load_is_skipped(monkeypatch, caplog):
 
 def test_a_bundled_library_that_does_not_load_is_a_warning(monkeypatch, caplog, tmp_path):
     # A frozen build's own copy failing to load is a packaging bug.
-    monkeypatch.setattr(gettextpo, 'platform',
-                        Platform(sys_platform='linux', frozen=True, executable=str(tmp_path / 'virtaal')))
+    monkeypatch.setattr(
+        gettextpo,
+        'platform',
+        Platform(sys_platform='linux', frozen=True, executable=str(tmp_path / 'virtaal')),
+    )
     _candidates(monkeypatch, '/nonexistent/libgettextpo.so.0')
 
     gettextpo.available()
 
-    assert [r.levelno for r in caplog.records if 'Could not load' in r.getMessage()] == [logging.WARNING]
+    assert [r.levelno for r in caplog.records if 'Could not load' in r.getMessage()] == [
+        logging.WARNING
+    ]
 
 
 @pytest.mark.skipif(not ctypes.util.find_library('c'), reason="no C library to load by name")
@@ -101,6 +106,7 @@ def test_self_check_without_a_ui_catalog(monkeypatch):
     # A Flatpak without its locale extension: msgfmt's message stays English.
     def missing_catalog(lang):
         raise FileNotFoundError(lang)
+
     monkeypatch.setattr(pan_app, 'set_ui_language', missing_catalog)
     _candidates(monkeypatch)
 

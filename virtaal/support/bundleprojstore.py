@@ -124,9 +124,7 @@ class BundleProjectStore(ProjectStore):
         retfile = None
         if fname in self._files or fname in self.zip.namelist():
             # Check if the file has not already been extracted to a temp file
-            tempfname = [
-                tfn for tfn, tname in self._tempfiles.items() if tname == fname
-            ]
+            tempfname = [tfn for tfn, tname in self._tempfiles.items() if tname == fname]
             if tempfname and os.path.isfile(tempfname[0]):
                 tempfname = tempfname[0]
             else:

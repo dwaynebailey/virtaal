@@ -33,7 +33,6 @@ class LocalFileView:
         self._addterm = None
         self._fileselect = None
 
-
     # METHODS #
     def _connect_context_menu(self):
         unitview = self.controller.main_controller.unit_controller.view
@@ -48,7 +47,9 @@ class LocalFileView:
 
     def _connect_to_textboxes(self, unitview, textboxes):
         for textbox in textboxes:
-            self._signal_tracker.connect(textbox, 'button-press-event', self._word_selector.on_button_press)
+            self._signal_tracker.connect(
+                textbox, 'button-press-event', self._word_selector.on_button_press
+            )
             self._signal_tracker.connect(textbox, 'populate-popup', self._on_populate_popup)
 
     def _setup_menus(self):
@@ -56,17 +57,25 @@ class LocalFileView:
         self.mnui_edit = self.mainview.gui.get_object('menuitem_edit')
         self.menu = self.mnui_edit.get_submenu()
 
-        self.mnu_select_files, _menu = self.mainview.find_menu_item(_('Terminology _Files…'), self.mnui_edit)
+        self.mnu_select_files, _menu = self.mainview.find_menu_item(
+            _('Terminology _Files…'), self.mnui_edit
+        )
         if not self.mnu_select_files:
-            self.mnu_select_files = self.mainview.append_menu_item(_('Terminology _Files…'), self.mnui_edit, after=mnu_transfer)
+            self.mnu_select_files = self.mainview.append_menu_item(
+                _('Terminology _Files…'), self.mnui_edit, after=mnu_transfer
+            )
         self._signal_tracker.connect(self.mnu_select_files, 'activate', self._on_select_term_files)
 
         self.mnu_add_term, _menu = self.mainview.find_menu_item(_('Add _Term…'), self.mnui_edit)
         if not self.mnu_add_term:
-            self.mnu_add_term = self.mainview.append_menu_item(_('Add _Term…'), self.mnui_edit, after=mnu_transfer)
+            self.mnu_add_term = self.mainview.append_menu_item(
+                _('Add _Term…'), self.mnui_edit, after=mnu_transfer
+            )
         self._signal_tracker.connect(self.mnu_add_term, 'activate', self._on_add_term)
 
-        Gtk.AccelMap.add_entry("<Virtaal>/Terminology/Add Term", Gdk.KEY_t, Gdk.ModifierType.CONTROL_MASK)
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Terminology/Add Term", Gdk.KEY_t, Gdk.ModifierType.CONTROL_MASK
+        )
         accel_group = self.menu.get_accel_group()
         if accel_group is None:
             # Attaching an already-attached group is a Gtk-CRITICAL -
@@ -87,20 +96,20 @@ class LocalFileView:
         self.menu.remove(self.mnu_select_files)
         self.menu.remove(self.mnu_add_term)
 
-
     # PROPERTIES #
     def _get_addterm(self):
         if not self._addterm:
             self._addterm = TermAddDialog(model=self.term_model)
         return self._addterm
+
     addterm = property(_get_addterm)
 
     def _get_fileselect(self):
         if not self._fileselect:
             self._fileselect = FileSelectDialog(model=self.term_model)
         return self._fileselect
-    fileselect = property(_get_fileselect)
 
+    fileselect = property(_get_fileselect)
 
     # EVENT HANDLERS #
     def _on_add_term(self, *args):
@@ -153,9 +162,7 @@ class FileSelectDialog:
         self.controller = model.controller
         self.term_model = model
         self.gui = BaseView.load_builder_file(
-            ["virtaal", "virtaal.ui"],
-            root='TermFilesDlg',
-            domain='virtaal'
+            ["virtaal", "virtaal.ui"], root='TermFilesDlg', domain='virtaal'
         )
         self._get_widgets()
         self._init_treeview()
@@ -197,7 +204,7 @@ class FileSelectDialog:
         col.pack_start(cell, True)
         col.add_attribute(cell, 'active', self.COL_EXTEND)
         col.set_expand(False)
-        col.set_min_width(90) # wide enough for the header label itself
+        col.set_min_width(90)  # wide enough for the header label itself
         self.tvw_termfiles.append_column(col)
 
         extend_file = self.term_model.config.get('extendfile', '')
@@ -222,17 +229,23 @@ class FileSelectDialog:
             _('Add Files'),
             self.controller.main_controller.view.main_window,
             Gtk.FileChooserAction.OPEN,
-            None, None,
+            None,
+            None,
         )
         all_supported_filter = Gtk.FileFilter()
         all_supported_filter.set_name(_("All Supported Files"))
         dlg.add_filter(all_supported_filter)
-        supported_files_dict = dict([ (_(name), (extension, mimetype)) for name, extension, mimetype in store_factory.supported_files() ])
+        supported_files_dict = dict(
+            [
+                (_(name), (extension, mimetype))
+                for name, extension, mimetype in store_factory.supported_files()
+            ]
+        )
         supported_file_names = list(supported_files_dict.keys())
         supported_file_names.sort(key=locale.strxfrm)
         for name in supported_file_names:
             extensions, mimetypes = supported_files_dict[name]
-            #XXX: we can't open generic .csv formats, so listing it is probably
+            # XXX: we can't open generic .csv formats, so listing it is probably
             # more harmful than good.
             if "csv" in extensions:
                 continue
@@ -244,7 +257,9 @@ class FileSelectDialog:
                     all_supported_filter.add_pattern("*." + extension)
                     for compress_extension in store_factory.decompressclass.keys():
                         new_filter.add_pattern("*.%s.%s" % (extension, compress_extension))
-                        all_supported_filter.add_pattern("*.%s.%s" % (extension, compress_extension))
+                        all_supported_filter.add_pattern(
+                            "*.%s.%s" % (extension, compress_extension)
+                        )
             if mimetypes:
                 for mimetype in mimetypes:
                     new_filter.add_mime_type(mimetype)
@@ -257,7 +272,6 @@ class FileSelectDialog:
         dlg.set_select_multiple(True)
 
         self.add_chooser = dlg
-
 
     # METHODS #
     def clear_selection(self):
@@ -277,7 +291,6 @@ class FileSelectDialog:
         if transient_for is not None:
             GLib.idle_add(transient_for.present)
 
-
     # EVENT HANDLERS #
     def _on_add_file_clicked(self, button):
         response = self.add_chooser.run()
@@ -296,18 +309,22 @@ class FileSelectDialog:
             # Try and open filename as a translation store
             try:
                 import os.path
+
                 if not os.path.isfile(filename):
                     raise OSError('"%s" is not a usable file.' % filename)
                 store = store_factory.getobject(filename)
                 currfiles.append(filename)
                 self.lst_files.append([filename, False])
             except Exception as exc:
-                message = _('Unable to load %(filename)s:\n\n%(errormsg)s') % {'filename': filename, 'errormsg': str(exc)}
+                message = _('Unable to load %(filename)s:\n\n%(errormsg)s') % {
+                    'filename': filename,
+                    'errormsg': str(exc),
+                }
                 mainview.show_error_dialog(title=_('Error opening file'), message=message)
 
         self.term_model.config['files'] = currfiles
         self.term_model.save_config()
-        self.term_model.load_files() # FIXME: This could be optimized to only load and add the new selected files.
+        self.term_model.load_files()  # FIXME: This could be optimized to only load and add the new selected files.
 
     def _on_remove_file_clicked(self, button):
         model, selected = self.tvw_termfiles.get_selection().get_selected()
@@ -327,7 +344,7 @@ class FileSelectDialog:
                 self.term_model.config['extendfile'] = model.get_value(itr, self.COL_FILE)
 
         self.term_model.save_config()
-        self.term_model.load_files() # FIXME: This could be optimized to only remove the selected file from the terminology matcher.
+        self.term_model.load_files()  # FIXME: This could be optimized to only remove the selected file from the terminology matcher.
 
     def _on_open_termfile_clicked(self, button):
         selection = self.tvw_termfiles.get_selection()
@@ -348,7 +365,9 @@ class FileSelectDialog:
 
         itr = self.lst_files.get_iter_first()
         while itr is not None and self.lst_files.iter_is_valid(itr):
-            self.lst_files.set_value(itr, self.COL_EXTEND, self.lst_files.get_value(itr, self.COL_FILE) == toggled_file)
+            self.lst_files.set_value(
+                itr, self.COL_EXTEND, self.lst_files.get_value(itr, self.COL_FILE) == toggled_file
+            )
             itr = self.lst_files.iter_next(itr)
 
         self.term_model.config['extendfile'] = toggled_file
@@ -367,17 +386,21 @@ class TermAddDialog:
         self.unit_controller = model.controller.main_controller.unit_controller
 
         self.gui = BaseView.load_builder_file(
-            ["virtaal", "virtaal.ui"],
-            root='TermAddDlg',
-            domain='virtaal'
+            ["virtaal", "virtaal.ui"], root='TermAddDlg', domain='virtaal'
         )
         self._get_widgets()
 
     def _get_widgets(self):
         widget_names = (
-            'btn_add_term', 'cmb_termfile', 'eb_add_term_errors', 'ent_source',
-            'ent_target', 'lbl_add_term_errors', 'lbl_srclang', 'lbl_tgtlang',
-            'txt_comment'
+            'btn_add_term',
+            'cmb_termfile',
+            'eb_add_term_errors',
+            'ent_source',
+            'ent_target',
+            'lbl_add_term_errors',
+            'lbl_srclang',
+            'lbl_tgtlang',
+            'txt_comment',
         )
 
         for name in widget_names:
@@ -396,13 +419,13 @@ class TermAddDialog:
         self.ent_source.connect('changed', self._on_entry_changed)
         self.ent_target.connect('changed', self._on_entry_changed)
 
-
     # METHODS #
     def add_term_unit(self, source, target):
         filename = self.cmb_termfile.get_active_text()
         store = self.term_model.get_store_for_filename(filename)
         if store is None:
             import logging
+
             logging.debug('No terminology store to extend :(')
             return
         unit = store.addsourceunit(source)
@@ -416,7 +439,7 @@ class TermAddDialog:
         store.save()
         self.term_model.matcher.extendtm(unit)
         self.term_model.controller.rescan_current_unit()
-        #logging.debug('Added new term: [%s] => [%s], file=%s' % (source, target, store.filename))
+        # logging.debug('Added new term: [%s] => [%s], file=%s' % (source, target, store.filename))
 
     def reset(self):
         unitview = self.unit_controller.view
@@ -429,6 +452,7 @@ class TermAddDialog:
                 break
 
         from virtaal.views import rendering
+
         rendering.set_widget_font(self.ent_source, rendering.get_source_font_description())
         self.ent_source.set_text(source_text.strip())
         srclang = self.lang_controller.source_lang.code
@@ -449,8 +473,12 @@ class TermAddDialog:
 
         self.eb_add_term_errors.hide()
         self.btn_add_term.props.sensitive = True
-        self.lbl_srclang.set_text_with_mnemonic(_('_Source term — %(langname)s') % {'langname': self.lang_controller.source_lang.name})
-        self.lbl_tgtlang.set_text_with_mnemonic(_('_Target term — %(langname)s') % {'langname': self.lang_controller.target_lang.name})
+        self.lbl_srclang.set_text_with_mnemonic(
+            _('_Source term — %(langname)s') % {'langname': self.lang_controller.source_lang.name}
+        )
+        self.lbl_tgtlang.set_text_with_mnemonic(
+            _('_Target term — %(langname)s') % {'langname': self.lang_controller.target_lang.name}
+        )
 
         self.lst_termfiles.clear()
 
@@ -487,7 +515,6 @@ class TermAddDialog:
 
         self.add_term_unit(self.ent_source.get_text(), self.ent_target.get_text())
 
-
     # EVENT HANDLERS #
     def _on_termfile_changed(self, combo):
         combo.set_tooltip_text(combo.get_active_text())
@@ -522,14 +549,17 @@ class TermAddDialog:
             from translate.lang import factory as lang_factory
 
             from virtaal.common.pan_app import ui_language
+
             separator = lang_factory.getlanguage(ui_language).listseperator
 
-            #l10n: The variable is an existing term formatted for emphasis. The default is bold formatting, but you can remove/change the markup if needed. Leave it unchanged if you are unsure.
-            translations = separator.join([_('<b>%s</b>') % GLib.markup_escape_text(str(u.target), -1)
-                                           for u in same_src_units])
-            errormsg = _('Existing translations: %(translations)s') % {
-                'translations': translations
-            }
+            translations = separator.join(
+                [
+                    # l10n: The variable is an existing term formatted for emphasis. The default is bold formatting, but you can remove/change the markup if needed. Leave it unchanged if you are unsure.
+                    _('<b>%s</b>') % GLib.markup_escape_text(str(u.target), -1)
+                    for u in same_src_units
+                ]
+            )
+            errormsg = _('Existing translations: %(translations)s') % {'translations': translations}
             self.lbl_add_term_errors.set_markup(errormsg)
             set_widget_bg_color(self.eb_add_term_errors, current_theme['warning_bg'])
             self.eb_add_term_errors.show_all()

@@ -25,6 +25,7 @@ from virtaal.support.translate_compat import (
 
 # tr_lang() #
 
+
 def test_tr_lang_formats_a_language_with_country():
     handle = tr_lang('en')
 
@@ -48,6 +49,7 @@ def test_tr_lang_handles_a_plain_language_name():
 
 # _fix_language_name() #
 
+
 def test_fix_language_name_replaces_a_known_untranslated_name():
     assert _fix_language_name('Catalan; Valencian') == 'Catalan'
 
@@ -67,6 +69,7 @@ def test_fix_language_name_leaves_a_long_name_without_a_semicolon_unchanged():
 
 # gettext_domain() #
 
+
 def test_gettext_domain_uses_the_given_langcode():
     f = gettext_domain('en', 'iso_639')
 
@@ -83,6 +86,7 @@ def test_gettext_domain_falls_back_to_the_system_locale_on_windows(monkeypatch):
 
 
 # gettext_lang() / gettext_country() #
+
 
 def test_gettext_lang_uses_pycountrys_locale_dir_when_available():
     f = gettext_lang('en')
@@ -131,8 +135,10 @@ def test_gettext_country_falls_back_to_iso_3166_without_pycountry(monkeypatch):
 
 # Virtaal's own ISO catalogs (lite or pseudo translations) #
 
+
 def _install_catalog(locale_dir, lang, domain, entries):
     from translate.tools.pocompile import convertmo
+
     po = 'msgid ""\nmsgstr "Content-Type: text/plain; charset=UTF-8\\n"\n'
     po += ''.join('\nmsgid "%s"\nmsgstr "%s"\n' % pair for pair in entries.items())
     po_file = locale_dir / (lang + domain + '.po')
@@ -163,6 +169,7 @@ def test_shipped_language_name_lite_catalogs_are_read(tmp_path, monkeypatch):
     import pycountry
 
     from virtaal.support.libi18n import lite
+
     po_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'po')
     monkeypatch.setattr(platform, 'locale_dir', str(tmp_path))
     entries = [line.split('/') for line in lite.read_linguas(os.path.join(po_dir, 'LINGUAS-lite'))]
@@ -184,6 +191,7 @@ def test_pycountrys_catalog_wins_over_virtaals_own(tmp_path, monkeypatch):
 
 
 # forceunicode() #
+
 
 def test_forceunicode_passes_through_none():
     assert forceunicode(None) is None
@@ -244,15 +252,18 @@ def test_tr_lang_by_code_keeps_a_dialects_country():
     assert tr_lang('de')('Portuguese (Brazil)', 'pt_BR') == 'Portugiesisch (Brasilien)'
 
 
-@pytest.mark.parametrize('english,name,expected', [
-    ('Chinese', '中文; 汉语; 华语', '中文'),
-    ('Irish', 'irsk; gælisk (irsk)', 'irsk'),
-    # A semicolon standing in for the English name's own comma.
-    ('Gaelic, Scottish', 'Gėlų; škotų', 'Gėlų; škotų'),
-    # Inside a qualifier.
-    ('Bislama', 'Bislama (Vanuatu; Kuzey Pasifik)', 'Bislama (Vanuatu; Kuzey Pasifik)'),
-    ('German', 'Deutsch', 'Deutsch'),
-])
+@pytest.mark.parametrize(
+    'english,name,expected',
+    [
+        ('Chinese', '中文; 汉语; 华语', '中文'),
+        ('Irish', 'irsk; gælisk (irsk)', 'irsk'),
+        # A semicolon standing in for the English name's own comma.
+        ('Gaelic, Scottish', 'Gėlų; škotų', 'Gėlų; škotų'),
+        # Inside a qualifier.
+        ('Bislama', 'Bislama (Vanuatu; Kuzey Pasifik)', 'Bislama (Vanuatu; Kuzey Pasifik)'),
+        ('German', 'Deutsch', 'Deutsch'),
+    ],
+)
 def test_first_alternative(english, name, expected):
     assert _first_alternative(english, name) == expected
 

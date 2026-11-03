@@ -30,10 +30,14 @@ def _unit(source='hello'):
 
 # query()
 
+
 def test_query_does_nothing_when_source_and_target_languages_match():
     model = _model(source_lang='en', target_lang='en')
-    model.tmclient = SimpleNamespace(translate_unit=lambda *a: (_ for _ in ()).throw(
-        AssertionError('should not query with a misconfigured en->en pair')))
+    model.tmclient = SimpleNamespace(
+        translate_unit=lambda *a: (_ for _ in ()).throw(
+            AssertionError('should not query with a misconfigured en->en pair')
+        )
+    )
     matches = []
     model.connect('match-found', lambda m, q, r: matches.append((q, r)))
 
@@ -44,8 +48,9 @@ def test_query_does_nothing_when_source_and_target_languages_match():
 
 def test_query_emits_a_cached_match_without_calling_the_client():
     model = _model(cache={'hello': [{'target': 'Hallo'}]})
-    model.tmclient = SimpleNamespace(translate_unit=lambda *a: (_ for _ in ()).throw(
-        AssertionError('should use the cache')))
+    model.tmclient = SimpleNamespace(
+        translate_unit=lambda *a: (_ for _ in ()).throw(AssertionError('should use the cache'))
+    )
     matches = []
     model.connect('match-found', lambda m, q, r: matches.append((q, r)))
 
@@ -56,8 +61,9 @@ def test_query_emits_a_cached_match_without_calling_the_client():
 
 def test_query_emits_nothing_for_a_cached_negative_result():
     model = _model(cache={'hello': None})
-    model.tmclient = SimpleNamespace(translate_unit=lambda *a: (_ for _ in ()).throw(
-        AssertionError('should use the cache')))
+    model.tmclient = SimpleNamespace(
+        translate_unit=lambda *a: (_ for _ in ()).throw(AssertionError('should use the cache'))
+    )
     matches = []
     model.connect('match-found', lambda m, q, r: matches.append((q, r)))
 
@@ -91,6 +97,7 @@ def test_query_includes_the_checker_style_when_set():
 
 # _handle_matches()
 
+
 def test_handle_matches_caches_none_and_emits_nothing_when_there_are_no_matches():
     model = _model()
     matches = []
@@ -118,14 +125,22 @@ def test_handle_matches_labels_each_match_then_emits():
 
 # push_store() / upload_store()
 
+
 def test_push_store_only_sends_translated_units():
     added = []
     model = _model()
     model.tmclient = SimpleNamespace(add_store=lambda *a: added.append(a))
-    translated = SimpleNamespace(source='hello', target='Hallo', getcontext=lambda: '', istranslated=lambda: True)
-    untranslated = SimpleNamespace(source='bye', target='', getcontext=lambda: '', istranslated=lambda: False)
-    store_controller = SimpleNamespace(store=SimpleNamespace(
-        get_units=lambda: [translated, untranslated], get_filename=lambda: 'file.po'))
+    translated = SimpleNamespace(
+        source='hello', target='Hallo', getcontext=lambda: '', istranslated=lambda: True
+    )
+    untranslated = SimpleNamespace(
+        source='bye', target='', getcontext=lambda: '', istranslated=lambda: False
+    )
+    store_controller = SimpleNamespace(
+        store=SimpleNamespace(
+            get_units=lambda: [translated, untranslated], get_filename=lambda: 'file.po'
+        )
+    )
 
     model.push_store(store_controller)
 
@@ -138,7 +153,9 @@ def test_push_store_only_sends_translated_units():
 def test_push_store_resets_the_cache():
     model = _model(cache={'stale': 'entry'})
     model.tmclient = SimpleNamespace(add_store=lambda *a: None)
-    store_controller = SimpleNamespace(store=SimpleNamespace(get_units=lambda: [], get_filename=lambda: 'file.po'))
+    store_controller = SimpleNamespace(
+        store=SimpleNamespace(get_units=lambda: [], get_filename=lambda: 'file.po')
+    )
 
     model.push_store(store_controller)
 
@@ -161,7 +178,9 @@ def test_unit2dict_extracts_the_relevant_fields():
     assert unit2dict(unit) == {'source': 'hello', 'target': 'Hallo', 'context': 'greeting'}
 
 
-@pytest.mark.parametrize('reply', [{'source': 'x'}, 'text', 42, None, [1, 'x'], [{'target': 'only'}]])
+@pytest.mark.parametrize(
+    'reply', [{'source': 'x'}, 'text', 42, None, [1, 'x'], [{'target': 'only'}]]
+)
 def test_handle_matches_treats_a_reply_of_another_shape_as_no_matches(reply):
     # #4437: JSON that isn't a list of matches raised TypeError.
     model = _model()

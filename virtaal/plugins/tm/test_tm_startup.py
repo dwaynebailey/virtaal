@@ -18,7 +18,16 @@ from virtaal.plugins.tm.models.currentfile import TMModel as CurrentFileTMModel
 from virtaal.plugins.tm.tmcontroller import TMController
 from virtaal.test.test_scaffolding import TestScaffolding
 
-MODELS = ['_dummytm', 'amagama', 'apertium', 'currentfile', 'google_translate', 'localtm', 'moses', 'remotetm']
+MODELS = [
+    '_dummytm',
+    'amagama',
+    'apertium',
+    'currentfile',
+    'google_translate',
+    'localtm',
+    'moses',
+    'remotetm',
+]
 
 
 class TestTMStartup(TestScaffolding):
@@ -35,10 +44,12 @@ class TestTMStartup(TestScaffolding):
         monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args) and None)
         self.launched = []
         real_popen = subprocess.Popen
+
         def popen(command, **kwargs):
             # A child that lives until it's killed, in place of tmserver.
             self.launched.append(command)
             return real_popen([sys.executable, '-c', 'import time; time.sleep(60)'], **kwargs)
+
         monkeypatch.setattr(subprocess, 'Popen', popen)
         self.controllers = []
         yield
@@ -47,7 +58,8 @@ class TestTMStartup(TestScaffolding):
 
     def _controller(self, *enabled):
         controller = TMController(
-            self.main_controller, {'disabled_models': [m for m in MODELS if m not in enabled]})
+            self.main_controller, {'disabled_models': [m for m in MODELS if m not in enabled]}
+        )
         self.controllers.append(controller)
         return controller
 
@@ -69,10 +81,13 @@ class TestTMStartup(TestScaffolding):
     def test_current_file_model_matches_against_the_open_file(self):
         model = self._controller('currentfile').plugin_controller.plugins['currentfile']
 
-        found = self._matches(model, 'You must specify a folder or a translation file for --terminology')
+        found = self._matches(
+            model, 'You must specify a folder or a translation file for --terminology'
+        )
 
         assert [m['target'] for m in found[0]] == [
-            "U moet 'n gids of vertaallêer spesifiseer vir --terminology"]
+            "U moet 'n gids of vertaallêer spesifiseer vir --terminology"
+        ]
         assert found[0][0]['tmsource'] == 'This file'
 
     def test_current_file_model_adds_a_newly_opened_file(self):
@@ -184,5 +199,6 @@ class TestTMStartup(TestScaffolding):
 
 class _Configure:
     """A main window configure event, moved to C{x}."""
+
     def __init__(self, x):
         self.x, self.y, self.width, self.height = x, 0, 800, 600

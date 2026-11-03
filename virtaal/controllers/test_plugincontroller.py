@@ -34,10 +34,12 @@ def test_get_plugin_class_stays_quiet_when_a_candidate_location_is_missing(monke
     # is expected, not an error worth logging.
     pc = _make_controller()
     real_import = builtins.__import__
+
     def fake_import(name, *a, **k):
         if name.startswith('some.candidate.location'):
             raise ModuleNotFoundError("No module named 'some'", name='some')
         return real_import(name, *a, **k)
+
     monkeypatch.setattr('builtins.__import__', fake_import)
     monkeypatch.setattr(plugincontroller.pan_app, 'DEBUG', True)
     caplog.set_level(logging.DEBUG)
@@ -54,10 +56,12 @@ def test_get_plugin_class_logs_a_plugins_own_missing_dependency(monkeypatch, cap
     # not "no such plugin".
     pc = _make_controller()
     real_import = builtins.__import__
+
     def fake_import(name, *a, **k):
         if name.startswith('some.candidate.location'):
             raise ModuleNotFoundError("No module named 'ipython'", name='ipython')
         return real_import(name, *a, **k)
+
     monkeypatch.setattr('builtins.__import__', fake_import)
     monkeypatch.setattr(plugincontroller.pan_app, 'DEBUG', True)
     caplog.set_level(logging.DEBUG)
@@ -69,6 +73,7 @@ def test_get_plugin_class_logs_a_plugins_own_missing_dependency(monkeypatch, cap
 
 
 # __init__() / for_backend() #
+
 
 def test_init_registers_itself_on_the_owning_controller_by_default():
     controller = SimpleNamespace()
@@ -103,8 +108,9 @@ def test_a_0_7_install_folders_plugins_are_not_loaded(tmp_path):
         assert 'virtaal_plugins' not in sys.modules
     """)
     env = dict(os.environ, HOME=str(tmp_path), APPDATA=str(tmp_path))
-    result = subprocess.run([sys.executable, '-c', script], env=env,
-                            capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        [sys.executable, '-c', script], env=env, capture_output=True, text=True, timeout=120
+    )
     assert result.returncode == 0, result.stderr
 
 
@@ -113,7 +119,9 @@ def test_user_plugins_found_only_in_the_config_folder(tmp_path, monkeypatch):
         (tmp_path / folder / 'virtaal_plugins').mkdir(parents=True)
         (tmp_path / folder / 'virtaal_plugins' / '__init__.py').write_text('')
     monkeypatch.delitem(sys.modules, 'virtaal_plugins', raising=False)
-    monkeypatch.setattr(plugincontroller.pan_app, 'get_config_dir', lambda: str(tmp_path / 'config'))
+    monkeypatch.setattr(
+        plugincontroller.pan_app, 'get_config_dir', lambda: str(tmp_path / 'config')
+    )
 
     monkeypatch.syspath_prepend(str(tmp_path / 'install'))
     assert not plugincontroller._user_plugins_found()
@@ -126,8 +134,9 @@ def test_for_backend_builds_a_specialized_controller():
     owner = object()
     get_disabled = lambda: []
 
-    pc = PluginController.for_backend(owner, 'TMModel', 'tm', object, get_disabled,
-                                       class_info_attribs=('display_name',))
+    pc = PluginController.for_backend(
+        owner, 'TMModel', 'tm', object, get_disabled, class_info_attribs=('display_name',)
+    )
 
     assert pc.controller is owner
     assert pc.PLUGIN_CLASSNAME == 'TMModel'
@@ -139,6 +148,7 @@ def test_for_backend_builds_a_specialized_controller():
 
 
 # disable_plugin() #
+
 
 def test_disable_plugin_destroys_and_removes_it():
     pc = _make_controller()
@@ -164,6 +174,7 @@ def test_disable_plugin_does_nothing_for_an_unknown_name():
 
 
 # enable_plugin() #
+
 
 def test_enable_plugin_returns_none_when_already_enabled():
     pc = _make_controller()
@@ -199,6 +210,7 @@ def test_enable_plugin_returns_none_when_unsupported():
 
     def _raise(name, controller):
         raise PluginUnsupported('no thanks')
+
     pc._get_plugin_class = lambda name: _raise
 
     assert pc.enable_plugin('myplugin') is None
@@ -210,6 +222,7 @@ def test_enable_plugin_returns_none_and_logs_on_unexpected_error(caplog):
 
     def _raise(name, controller):
         raise RuntimeError('boom')
+
     pc._get_plugin_class = lambda name: _raise
 
     with caplog.at_level(logging.ERROR):
@@ -221,6 +234,7 @@ def test_enable_plugin_returns_none_and_logs_on_unexpected_error(caplog):
 
 # get_plugin_info() #
 
+
 def test_get_plugin_info_collects_the_class_info_attribs():
     pc = _make_controller()
 
@@ -228,6 +242,7 @@ def test_get_plugin_info_collects_the_class_info_attribs():
         display_name = 'Fake'
         description = 'A fake plugin'
         version = '1.0'
+
     pc._get_plugin_class = lambda name: FakePlugin
 
     assert pc.get_plugin_info('fake') == {
@@ -239,12 +254,15 @@ def test_get_plugin_info_collects_the_class_info_attribs():
 
 # load_plugins() #
 
+
 def test_load_plugins_queues_only_the_enabled_ones(monkeypatch):
     pc = _make_controller()
     pc.get_disabled_plugins = lambda: ['skip_me']
     pc._find_plugin_names = lambda: ['a', 'skip_me', 'b']
     idle_calls = []
-    monkeypatch.setattr(plugincontroller.GLib, 'idle_add', lambda func, name: idle_calls.append((func, name)))
+    monkeypatch.setattr(
+        plugincontroller.GLib, 'idle_add', lambda func, name: idle_calls.append((func, name))
+    )
     pc.plugins['stale'] = object()
     pc.pluginmodules['stale'] = object()
 
@@ -257,6 +275,7 @@ def test_load_plugins_queues_only_the_enabled_ones(monkeypatch):
 
 
 # shutdown() #
+
 
 def test_shutdown_disables_every_loaded_plugin():
     pc = _make_controller()
@@ -271,21 +290,27 @@ def test_shutdown_disables_every_loaded_plugin():
 
 # get_disabled_plugins() #
 
+
 def test_get_disabled_plugins_reads_from_settings(monkeypatch):
     pc = _make_controller()
-    monkeypatch.setattr(plugincontroller.pan_app.settings, 'plugin_state',
-                         {'a': 'Enabled', 'b': 'Disabled', 'c': 'DISABLED'})
+    monkeypatch.setattr(
+        plugincontroller.pan_app.settings,
+        'plugin_state',
+        {'a': 'Enabled', 'b': 'Disabled', 'c': 'DISABLED'},
+    )
 
     assert set(pc.get_disabled_plugins()) == {'b', 'c'}
 
 
 # _get_plugin_class() #
 
+
 def test_get_plugin_class_returns_a_loaded_plugins_class():
     pc = _make_controller()
 
     class FakePlugin:
         pass
+
     pc.plugins['x'] = FakePlugin()
 
     assert pc._get_plugin_class('x') is FakePlugin
@@ -321,9 +346,11 @@ def test_get_plugin_class_raises_when_the_module_has_no_such_class():
 
 # _find_plugin_names() #
 
+
 def _make_plugin_package(tmp_path, monkeypatch, names):
     import sys
     import types
+
     for name in names:
         (tmp_path / f'{name}.py').write_text('')
     package = types.ModuleType('fake_plugin_package')
@@ -380,6 +407,7 @@ def test_find_plugin_names_skips_a_module_that_cannot_be_imported():
 def test_find_plugin_names_skips_a_plain_module_with_no_path(monkeypatch):
     import sys
     import types
+
     plain_module = types.ModuleType('fake_plain_module')  # no __path__: not a package
     monkeypatch.setitem(sys.modules, 'fake_plain_module', plain_module)
     pc = _make_controller()
@@ -398,11 +426,15 @@ def test_find_plugin_names_skips_wrongly_named_submodules(tmp_path, monkeypatch)
 
 # _is_wrong_plugin_name() #
 
-@pytest.mark.parametrize('name,expected', [
-    ('.hidden', True),
-    ('test_something', True),
-    ('__pycache__', True),
-    ('a_real_plugin', False),
-])
+
+@pytest.mark.parametrize(
+    'name,expected',
+    [
+        ('.hidden', True),
+        ('test_something', True),
+        ('__pycache__', True),
+        ('a_real_plugin', False),
+    ],
+)
 def test_is_wrong_plugin_name(name, expected):
     assert PluginController._is_wrong_plugin_name(name) is expected

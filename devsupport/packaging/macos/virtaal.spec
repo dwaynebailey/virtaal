@@ -31,7 +31,11 @@ PACKAGING = ROOT / "devsupport" / "packaging" / "macos"
 sys.path.insert(0, str(ROOT))
 from virtaal.__version__ import ver as virtaal_version  # noqa: E402
 from virtaal.support.libi18n.lite import (  # noqa: E402
-    bundle_languages, expected_catalogs, is_unused_catalog, missing_catalogs, mismatched_catalogs,
+    bundle_languages,
+    expected_catalogs,
+    is_unused_catalog,
+    mismatched_catalogs,
+    missing_catalogs,
     read_linguas,
 )
 
@@ -59,6 +63,7 @@ COPYRIGHT = "Copyright 2007-2026 Translate. GNU General Public License."
 # venv path) via the actually-imported translate module, same style as
 # everything else in this file.
 import translate  # noqa: E402
+
 TRANSLATE_SHARE = Path(translate.__file__).parent / "share"
 
 # The UI languages this build ships; the gi hooks bundle GTK's and GLib's
@@ -80,7 +85,9 @@ mo_files = [
 try:
     _gtkmac_prefix = subprocess.run(
         ["brew", "--prefix", "gtk-mac-integration"],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
     _gtkmac_locale_dir = Path(_gtkmac_prefix) / "share" / "locale"
 except (OSError, subprocess.CalledProcessError):
@@ -89,7 +96,10 @@ except (OSError, subprocess.CalledProcessError):
 # with ctypes, so nothing else pulls it in.
 try:
     _gettext_prefix = subprocess.run(
-        ["brew", "--prefix", "gettext"], capture_output=True, text=True, check=True,
+        ["brew", "--prefix", "gettext"],
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
 except (OSError, subprocess.CalledProcessError):
     _gettext_prefix = ""
@@ -100,17 +110,28 @@ if not GETTEXTPO.is_file():
 # Frameworks/. On Intel nothing else puts these there: pycurl's own
 # libunistring goes in its .dylibs/, and the libintl there is an older one
 # (without gl_get_setlocale_null_lock) unless it's this one.
-GETTEXTPO_DEPS = [Path(line.split()[0]) for line in subprocess.run(
-    ["otool", "-L", str(GETTEXTPO)], capture_output=True, text=True, check=True,
-).stdout.splitlines()[2:] if line.split()[0].startswith(("/opt/homebrew/", "/usr/local/"))]
-
+GETTEXTPO_DEPS = [
+    Path(line.split()[0])
+    for line in subprocess.run(
+        ["otool", "-L", str(GETTEXTPO)],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()[2:]
+    if line.split()[0].startswith(("/opt/homebrew/", "/usr/local/"))
+]
 
 
 def _brew_prefix(formula):
     try:
-        return Path(subprocess.run(
-            ["brew", "--prefix", formula], capture_output=True, text=True, check=True,
-        ).stdout.strip())
+        return Path(
+            subprocess.run(
+                ["brew", "--prefix", formula],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+        )
     except (OSError, subprocess.CalledProcessError):
         return Path("/nonexistent")
 
@@ -119,15 +140,25 @@ def _brew_prefix(formula):
 # Its icons are SVG, so they need librsvg's GdkPixbuf loader too.
 ADWAITA = _brew_prefix("adwaita-icon-theme") / "share" / "icons" / "Adwaita"
 ADWAITA_PARTS = ["index.theme", "symbolic", "scalable", "16x16"]
-SVG_LOADER = (_brew_prefix("librsvg") / "lib" / "gdk-pixbuf-2.0" / "2.10.0"
-              / "loaders" / "libpixbufloader_svg.so")
+SVG_LOADER = (
+    _brew_prefix("librsvg")
+    / "lib"
+    / "gdk-pixbuf-2.0"
+    / "2.10.0"
+    / "loaders"
+    / "libpixbufloader_svg.so"
+)
 for _required in [ADWAITA / part for part in ADWAITA_PARTS] + [SVG_LOADER]:
     if not _required.exists():
         raise SystemExit("Not found (brew install adwaita-icon-theme librsvg): %s" % _required)
 
 gtkmac_mo_files = [
     (str(p), str(Path("share", "locale") / p.relative_to(_gtkmac_locale_dir).parent))
-    for p in (_gtkmac_locale_dir.rglob("*.mo") if _gtkmac_locale_dir and _gtkmac_locale_dir.is_dir() else [])
+    for p in (
+        _gtkmac_locale_dir.rglob("*.mo")
+        if _gtkmac_locale_dir and _gtkmac_locale_dir.is_dir()
+        else []
+    )
     if p.relative_to(_gtkmac_locale_dir).parts[0] in bundle_languages(LANGUAGES)
 ]
 
@@ -154,7 +185,10 @@ datas = [
     (str(ROOT / "AUTHORS.md"), "."),
 ]
 datas += [
-    (str(ADWAITA / part), "share/icons/Adwaita" if part == "index.theme" else "share/icons/Adwaita/" + part)
+    (
+        str(ADWAITA / part),
+        "share/icons/Adwaita" if part == "index.theme" else "share/icons/Adwaita/" + part,
+    )
     for part in ADWAITA_PARTS
 ]
 datas += mo_files + gtkmac_mo_files
@@ -164,8 +198,14 @@ if _bundle_enchant:
 
 # lxml modules nothing imports; PyInstaller's lxml hook collects them all.
 UNUSED_LXML = [
-    "lxml.objectify", "lxml.sax", "lxml.builder", "lxml.html.builder", "lxml.html.diff",
-    "lxml.html._difflib", "lxml.html._diffcommand", "lxml.isoschematron",
+    "lxml.objectify",
+    "lxml.sax",
+    "lxml.builder",
+    "lxml.html.builder",
+    "lxml.html.diff",
+    "lxml.html._difflib",
+    "lxml.html._diffcommand",
+    "lxml.isoschematron",
 ]
 
 
@@ -181,11 +221,13 @@ def _not_enchant_dialog(name):
         "enchant.checker.wxSpellCheckerDialog",
     )
 
+
 a = Analysis(  # noqa: F821
     [str(ROOT / "bin" / "virtaal")],
     pathex=[str(ROOT)],
     binaries=(
-        [(str(GETTEXTPO), ".")] + [(str(dep), ".") for dep in GETTEXTPO_DEPS]
+        [(str(GETTEXTPO), ".")]
+        + [(str(dep), ".") for dep in GETTEXTPO_DEPS]
         + [(str(SVG_LOADER), "lib/gdk-pixbuf/loaders")]
     ),
     datas=datas,
@@ -233,10 +275,17 @@ a.datas = babel_data.trim(a.datas, str(ROOT / "po"))
 # add the SVG one, at the path the hook uses for the rest.
 _LOADER_CACHE = next(src for dest, src, _kind in a.datas if dest == "lib/gdk-pixbuf/loaders.cache")
 _svg_entry = subprocess.run(
-    ["gdk-pixbuf-query-loaders", str(SVG_LOADER)], capture_output=True, text=True, check=True,
+    ["gdk-pixbuf-query-loaders", str(SVG_LOADER)],
+    capture_output=True,
+    text=True,
+    check=True,
 ).stdout.replace('"' + str(SVG_LOADER.parent.parent), '"@executable_path/lib/gdk-pixbuf')
 with open(_LOADER_CACHE, "a", encoding="utf-8") as _cache:
-    _cache.write("\n" + "\n".join(line for line in _svg_entry.splitlines() if not line.startswith("#")) + "\n")
+    _cache.write(
+        "\n"
+        + "\n".join(line for line in _svg_entry.splitlines() if not line.startswith("#"))
+        + "\n"
+    )
 
 a.datas = [entry for entry in a.datas if not is_unused_catalog(entry[0])]
 

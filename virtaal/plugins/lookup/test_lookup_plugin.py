@@ -21,7 +21,8 @@ from virtaal.views.widgets.selectdialog import SelectDialog
 
 class _OfflineManifest:
     """The thesaurus model checks the asset manifest at start-up and on
-        every language change."""
+    every language change."""
+
     checks = []
 
     def ensure_fresh(self, on_done=None):
@@ -35,16 +36,19 @@ class _OfflineManifest:
 
 
 def _labels(menu):
-    return [i.get_label() for i in menu.get_children() if isinstance(i, Gtk.MenuItem) and i.get_label()]
+    return [
+        i.get_label() for i in menu.get_children() if isinstance(i, Gtk.MenuItem) and i.get_label()
+    ]
 
 
 def _lookup_submenu(menu):
-    item = next((i for i in menu.get_children() if (i.get_label() or '').startswith('Look-up "')), None)
+    item = next(
+        (i for i in menu.get_children() if (i.get_label() or '').startswith('Look-up "')), None
+    )
     return item and _labels(item.get_submenu())
 
 
 class TestLookupPlugin(TestScaffolding):
-
     def setup_class(self):
         TestScaffolding.setup_class(self)
         # Without it no text is rendered into the textboxes.
@@ -67,7 +71,9 @@ class TestLookupPlugin(TestScaffolding):
         text = textbox.get_text()
         start = text.index(word)
         textbox.buffer.select_range(
-            textbox.buffer.get_iter_at_offset(start), textbox.buffer.get_iter_at_offset(start + len(word)))
+            textbox.buffer.get_iter_at_offset(start),
+            textbox.buffer.get_iter_at_offset(start + len(word)),
+        )
         menu = Gtk.Menu()
         textbox.emit('populate-popup', menu)
         return menu
@@ -103,7 +109,10 @@ class TestLookupPlugin(TestScaffolding):
 
         def choose(dialog, items=None, parent=None):
             shown.append((dialog.dialog.get_title(), sorted(i['name'] for i in items)))
-            dialog.emit('item-disabled', next(i for i in items if i['data']['internal_name'] == 'weblookup'))
+            dialog.emit(
+                'item-disabled', next(i for i in items if i['data']['internal_name'] == 'weblookup')
+            )
+
         monkeypatch.setattr(SelectDialog, 'run', choose)
         plugin = Plugin('lookup', self.main_controller)
         try:
@@ -115,12 +124,17 @@ class TestLookupPlugin(TestScaffolding):
         plugin = Plugin('lookup', self.main_controller)
         try:
             assert sorted(plugin.controller.plugin_controller.plugins) == ['thesaurus']
-            assert _lookup_submenu(self._context_menu(self._show_unit().sources[0], 'directory')) is None
+            assert (
+                _lookup_submenu(self._context_menu(self._show_unit().sources[0], 'directory'))
+                is None
+            )
         finally:
             plugin.destroy()
 
     def test_with_every_service_disabled_the_context_menu_is_unchanged(self):
-        (self.config_dir / 'plugins.ini').write_text('[lookup]\ndisabled_models = weblookup,thesaurus\n')
+        (self.config_dir / 'plugins.ini').write_text(
+            '[lookup]\ndisabled_models = weblookup,thesaurus\n'
+        )
         source = self._show_unit().sources[0]
         before = _labels(self._context_menu(source, 'directory'))
         plugin = Plugin('lookup', self.main_controller)

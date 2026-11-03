@@ -15,56 +15,77 @@ from virtaal.support.libi18n.numbers import localise_digits
 # Only imported lazily (see mainview.py's _on_shortcuts()), so _() is
 # already installed by the time this module-level list is built.
 SHORTCUT_GROUPS = [
-    (_("Global"), [
-        ("<Primary>o", _("Open a file")),
-        ("<Primary>s", _("Save the current file")),
-        ("<Primary><Shift>s", _("Save the current file under a new name")),
-        ("<Primary>w", _("Close the current file")),
-        ("<Primary>q", _("Quit Virtaal")),
-        ("<Primary>p", _("Show preferences dialog")),
-        ("<Primary>i" if platform.is_mac else "<Alt>Return", _("Show file properties and statistics")),
-        ("F11", _("Toggle fullscreen mode")),
-        ("<Primary>slash" if platform.is_mac else "<Primary>question", _("Show this Keyboard Shortcuts window")),
-    ]),
-    (_("Navigation"), [
-        ("Return", _("Move to next translation")),
-        ("<Primary>Up", _("Move to previous unit")),
-        ("<Primary>Down", _("Move to next unit")),
-        ("<Primary>Page_Up", _("Move 10 units up")),
-        ("<Primary>Page_Down", _("Move 10 units down")),
-        ("<Primary>Home", _("Move to first unit")),
-        ("<Primary>End", _("Move to last unit")),
-        ("<Primary>f F3", _("Search")),
-        ("<Primary>g", _("Move to next search match")),
-        ("<Primary><Shift>g", _("Move to previous search match")),
-    ]),
-    (_("Units"), [
-        ("<Alt>Left", _("Select previous placeable")),
-        ("<Alt>Right", _("Select next placeable")),
-        ("<Alt>Down", _("Insert the selected placeable")),
-        ("<Primary><Shift>v", _("Replace the translation with the source")),
-        ("<Primary>c", _("Copy the source, if nothing is selected")),
-        ("<Shift>Return", _("Enter a new line")),
-        ("<Control>Return", _("Next Unit and Advance State")),
-        ("<Control><Shift>Return", _("Next Unit and Reverse State")),
-        ("<Primary>z", _("Undo the last change")),
-        ("<Primary><Shift>z", _("Redo the last undone change")),
-    ]),
-    (_("Plug-ins"), [
-        ("<Primary>1", _("Use the first translation suggestion")),
-        ("F8", _("Show/Hide checks")),
-        ("F9", _("Show translation suggestions for this unit")),
-        ("<Primary>F9", _("Turn translation suggestions on or off")),
-        ("Escape", _("Hide translation suggestions, if shown")),
-        ("<Primary>t", _("Add a term to the local terminology file")),
-    ]),
-    (_("Moving focus"), [
-        ("Tab", _("Move to the next target field")),
-        ("<Shift>Tab", _("Move to the previous target field")),
-        ("<Control>Tab", _("Jump to the language-pair selector")),
-        ("<Control><Shift>Tab", _('Jump to the "Navigation:" mode selector')),
-        ("Escape", _("Close the search bar and return to normal editing")),
-    ]),
+    (
+        _("Global"),
+        [
+            ("<Primary>o", _("Open a file")),
+            ("<Primary>s", _("Save the current file")),
+            ("<Primary><Shift>s", _("Save the current file under a new name")),
+            ("<Primary>w", _("Close the current file")),
+            ("<Primary>q", _("Quit Virtaal")),
+            ("<Primary>p", _("Show preferences dialog")),
+            (
+                "<Primary>i" if platform.is_mac else "<Alt>Return",
+                _("Show file properties and statistics"),
+            ),
+            ("F11", _("Toggle fullscreen mode")),
+            (
+                "<Primary>slash" if platform.is_mac else "<Primary>question",
+                _("Show this Keyboard Shortcuts window"),
+            ),
+        ],
+    ),
+    (
+        _("Navigation"),
+        [
+            ("Return", _("Move to next translation")),
+            ("<Primary>Up", _("Move to previous unit")),
+            ("<Primary>Down", _("Move to next unit")),
+            ("<Primary>Page_Up", _("Move 10 units up")),
+            ("<Primary>Page_Down", _("Move 10 units down")),
+            ("<Primary>Home", _("Move to first unit")),
+            ("<Primary>End", _("Move to last unit")),
+            ("<Primary>f F3", _("Search")),
+            ("<Primary>g", _("Move to next search match")),
+            ("<Primary><Shift>g", _("Move to previous search match")),
+        ],
+    ),
+    (
+        _("Units"),
+        [
+            ("<Alt>Left", _("Select previous placeable")),
+            ("<Alt>Right", _("Select next placeable")),
+            ("<Alt>Down", _("Insert the selected placeable")),
+            ("<Primary><Shift>v", _("Replace the translation with the source")),
+            ("<Primary>c", _("Copy the source, if nothing is selected")),
+            ("<Shift>Return", _("Enter a new line")),
+            ("<Control>Return", _("Next Unit and Advance State")),
+            ("<Control><Shift>Return", _("Next Unit and Reverse State")),
+            ("<Primary>z", _("Undo the last change")),
+            ("<Primary><Shift>z", _("Redo the last undone change")),
+        ],
+    ),
+    (
+        _("Plug-ins"),
+        [
+            ("<Primary>1", _("Use the first translation suggestion")),
+            ("F8", _("Show/Hide checks")),
+            ("F9", _("Show translation suggestions for this unit")),
+            ("<Primary>F9", _("Turn translation suggestions on or off")),
+            ("Escape", _("Hide translation suggestions, if shown")),
+            ("<Primary>t", _("Add a term to the local terminology file")),
+        ],
+    ),
+    (
+        _("Moving focus"),
+        [
+            ("Tab", _("Move to the next target field")),
+            ("<Shift>Tab", _("Move to the previous target field")),
+            ("<Control>Tab", _("Jump to the language-pair selector")),
+            ("<Control><Shift>Tab", _('Jump to the "Navigation:" mode selector')),
+            ("Escape", _("Close the search bar and return to normal editing")),
+        ],
+    ),
 ]
 
 
@@ -94,7 +115,7 @@ MAC_KEYS = {
 
 def mac_keycaps(accelerator):
     """The keycap labels for each of C{accelerator}'s space-separated
-        alternatives, or None if one doesn't parse."""
+    alternatives, or None if one doesn't parse."""
     combos = []
     for part in accelerator.split():
         key, mods = Gtk.accelerator_parse(part)
@@ -137,7 +158,7 @@ def use_mac_keycaps(widget):
 
 class ShortcutsWindow(Gtk.ShortcutsWindow):
     """A native GTK shortcuts-overview window, built from SHORTCUT_GROUPS,
-        reachable from Help > Keyboard Shortcuts."""
+    reachable from Help > Keyboard Shortcuts."""
 
     def __init__(self, parent):
         super().__init__(transient_for=parent, modal=False)
@@ -145,8 +166,7 @@ class ShortcutsWindow(Gtk.ShortcutsWindow):
         for title, shortcuts in SHORTCUT_GROUPS:
             group = Gtk.ShortcutsGroup(visible=True, title=title)
             for accelerator, desc in shortcuts:
-                group.add(Gtk.ShortcutsShortcut(
-                    visible=True, accelerator=accelerator, title=desc))
+                group.add(Gtk.ShortcutsShortcut(visible=True, accelerator=accelerator, title=desc))
             section.add(group)
         self._localise_page_numbers(section)
         self.add(section)

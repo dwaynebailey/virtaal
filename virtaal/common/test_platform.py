@@ -110,15 +110,23 @@ def test_not_flatpak():
 
 
 def test_appimage():
-    p = Platform(os_name='posix', sys_platform='linux', frozen=True,
-                 environ={'APPIMAGE': '/home/u/Virtaal-linux-x86_64.AppImage'})
+    p = Platform(
+        os_name='posix',
+        sys_platform='linux',
+        frozen=True,
+        environ={'APPIMAGE': '/home/u/Virtaal-linux-x86_64.AppImage'},
+    )
     assert p.is_appimage
 
 
 def test_not_appimage_when_not_frozen():
     # Inherited by anything the AppImage starts.
-    p = Platform(os_name='posix', sys_platform='linux', frozen=False,
-                 environ={'APPIMAGE': '/home/u/Virtaal-linux-x86_64.AppImage'})
+    p = Platform(
+        os_name='posix',
+        sys_platform='linux',
+        frozen=False,
+        environ={'APPIMAGE': '/home/u/Virtaal-linux-x86_64.AppImage'},
+    )
     assert not p.is_appimage
 
 
@@ -133,14 +141,22 @@ def test_install_method_macos_dmg():
 
 
 def test_install_method_flatpak_takes_priority_over_frozen():
-    p = Platform(os_name='posix', sys_platform='linux', frozen=True,
-                 environ={'FLATPAK_ID': 'org.translate.Virtaal'})
+    p = Platform(
+        os_name='posix',
+        sys_platform='linux',
+        frozen=True,
+        environ={'FLATPAK_ID': 'org.translate.Virtaal'},
+    )
     assert p.install_method() == 'Flatpak'
 
 
 def test_install_method_appimage():
-    p = Platform(os_name='posix', sys_platform='linux', frozen=True,
-                 environ={'APPIMAGE': '/home/u/Virtaal-linux-x86_64.AppImage'})
+    p = Platform(
+        os_name='posix',
+        sys_platform='linux',
+        frozen=True,
+        environ={'APPIMAGE': '/home/u/Virtaal-linux-x86_64.AppImage'},
+    )
     assert p.install_method() == 'AppImage'
 
 
@@ -178,8 +194,12 @@ def test_use_app_name_in_title_linux():
 
 # build_type() / ci_name() #
 
+
 def test_build_type_flatpak():
-    assert Platform(frozen=False, environ={'FLATPAK_ID': 'io.github.translate.Virtaal'}).build_type() == 'flatpak'
+    assert (
+        Platform(frozen=False, environ={'FLATPAK_ID': 'io.github.translate.Virtaal'}).build_type()
+        == 'flatpak'
+    )
 
 
 def test_build_type_frozen():
@@ -205,21 +225,27 @@ def test_build_type_of_this_checkout_is_source():
     assert Platform(frozen=False, environ={}).build_type() == 'source'
 
 
-@pytest.mark.parametrize('environ, expected', [
-    ({'GITHUB_ACTIONS': 'true', 'CI': 'true'}, 'github-actions'),
-    ({'CI': 'true'}, 'ci'),
-    ({'CI': '1'}, 'ci'),
-    ({'CI': 'false'}, None),
-    ({}, None),
-])
+@pytest.mark.parametrize(
+    'environ, expected',
+    [
+        ({'GITHUB_ACTIONS': 'true', 'CI': 'true'}, 'github-actions'),
+        ({'CI': 'true'}, 'ci'),
+        ({'CI': '1'}, 'ci'),
+        ({'CI': 'false'}, None),
+        ({}, None),
+    ],
+)
 def test_ci_name(environ, expected):
     assert Platform(environ=environ).ci_name() == expected
 
 
-@pytest.mark.parametrize('environ, expected', [
-    ({'VIRTAAL_TEST_INSTANCE': '1'}, True),
-    ({'VIRTAAL_TEST_INSTANCE': ''}, False),
-    ({}, False),
-])
+@pytest.mark.parametrize(
+    'environ, expected',
+    [
+        ({'VIRTAAL_TEST_INSTANCE': '1'}, True),
+        ({'VIRTAAL_TEST_INSTANCE': ''}, False),
+        ({}, False),
+    ],
+)
 def test_is_test_instance(environ, expected):
     assert Platform(environ=environ).is_test_instance() is expected

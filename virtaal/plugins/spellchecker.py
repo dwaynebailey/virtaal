@@ -35,7 +35,7 @@ def _is_dictionary_entry(label):
 
 def _in_placeable(textbox, start, end):
     """Whether the text from C{start} to C{end} is in a placeable that
-        isn't translated, such as a variable."""
+    isn't translated, such as a variable."""
     gui_info = getattr(getattr(textbox, 'elem', None), 'gui_info', None)
     if gui_info is None:
         return False
@@ -85,6 +85,7 @@ class Plugin(BasePlugin):
         # all), so both need catching here, not just ImportError.
         try:
             import gi
+
             gi.require_version('GtkSpell', '3.0')
             from gi.repository import GtkSpell as gtkspell
         except (ImportError, ValueError) as e:
@@ -102,7 +103,9 @@ class Plugin(BasePlugin):
         unit_view = main_controller.unit_controller.view
         self.unit_view = unit_view
         self._signal_tracker = SignalTracker()
-        self._signal_tracker.connect(self.unit_view, 'textview-language-changed', self._on_unit_lang_changed)
+        self._signal_tracker.connect(
+            self.unit_view, 'textview-language-changed', self._on_unit_lang_changed
+        )
 
         # For some reason the i18n of gtkspell doesn't work on Windows, so we
         # intervene. We also don't want the Languages submenu, so we remove it.
@@ -134,9 +137,12 @@ class Plugin(BasePlugin):
             # same emission - running after them means "Languages" can be
             # removed before the menu is ever shown, instead of shrinking
             # an already-visible popup (which GTK doesn't support cleanly).
-            self._signal_tracker.connect(textbox, 'populate-popup', self._on_populate_popup, after=True)
-            self._signal_tracker.connect(textbox.get_buffer(), 'apply-tag', self._on_apply_tag, textbox)
-
+            self._signal_tracker.connect(
+                textbox, 'populate-popup', self._on_populate_popup, after=True
+            )
+            self._signal_tracker.connect(
+                textbox.get_buffer(), 'apply-tag', self._on_apply_tag, textbox
+            )
 
     # METHODS #
 
@@ -159,7 +165,6 @@ class Plugin(BasePlugin):
             spell.detach()
         text_view.spell_lang = None
 
-
     # SIGNAL HANDLERS #
     def _on_unit_lang_changed(self, unit_view, text_view, language):
         if not self.gtkspell:
@@ -170,9 +175,15 @@ class Plugin(BasePlugin):
 
         # A bare code tries its default region first (en: en_US, #4675),
         # then the search below for any of its regions.
-        regions = DEFAULT_REGIONS.get(language, []) if '_' not in language and '@' not in language else []
+        regions = (
+            DEFAULT_REGIONS.get(language, []) if '_' not in language and '@' not in language else []
+        )
         language = enchant_tag(language)
-        if regions and language not in self._seen_languages and self.enchant.dict_exists(regions[0]):
+        if (
+            regions
+            and language not in self._seen_languages
+            and self.enchant.dict_exists(regions[0])
+        ):
             self._seen_languages[language] = regions[0]
 
         if not language in self._seen_languages and not self.enchant.dict_exists(language):
@@ -180,7 +191,7 @@ class Plugin(BasePlugin):
             # For the cases where it requires one, we look for the first language
             # code that enchant supports and use that one.
             for code in self._enchant_languages:
-                if code.startswith(language+'_'):
+                if code.startswith(language + '_'):
                     self._seen_languages[language] = code
                     language = code
                     break
@@ -237,7 +248,7 @@ class Plugin(BasePlugin):
         except Exception as e:
             logging.exception("Could not initialize spell checking: %s", e)
             self.gtkspell = None
-            #TODO: unload plugin
+            # TODO: unload plugin
 
     def _on_apply_tag(self, buffer, tag, start, end, textbox):
         """Don't mark words in placeables (variables, tags) as misspelled."""

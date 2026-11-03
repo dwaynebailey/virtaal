@@ -70,17 +70,26 @@ class _FakeMainController:
 def test_base_model_name_is_excluded_from_the_item_list(monkeypatch):
     pc = _FakePluginController(
         ['basemodel', 'realbackend'],
-        {'realbackend': {'display_name': 'Real Backend', 'description': 'desc'}})
+        {'realbackend': {'display_name': 'Real Backend', 'description': 'desc'}},
+    )
     captured = {}
 
     def fake_select_dialog(**kwargs):
         dlg = _FakeSelectDialog(**kwargs)
         captured['dlg'] = dlg
         return dlg
+
     monkeypatch.setattr('virtaal.views.widgets.selectdialog.SelectDialog', fake_select_dialog)
 
-    select_backends(_FakeMainController(), pc, {'disabled_models': []}, 'basemodel',
-                     title='Title', message='Message', size=(1, 2))
+    select_backends(
+        _FakeMainController(),
+        pc,
+        {'disabled_models': []},
+        'basemodel',
+        title='Title',
+        message='Message',
+        size=(1, 2),
+    )
 
     names = [item['data']['internal_name'] for item in captured['dlg'].items]
     assert names == ['realbackend']
@@ -91,17 +100,26 @@ def test_item_config_is_the_configure_func_not_the_whole_plugin(monkeypatch):
     pc = _FakePluginController(
         ['backend1'],
         {'backend1': {'display_name': 'Backend 1', 'description': 'desc'}},
-        plugins={'backend1': _FakePlugin(configure_func=real_configure)})
+        plugins={'backend1': _FakePlugin(configure_func=real_configure)},
+    )
     captured = {}
 
     def fake_select_dialog(**kwargs):
         dlg = _FakeSelectDialog(**kwargs)
         captured['dlg'] = dlg
         return dlg
+
     monkeypatch.setattr('virtaal.views.widgets.selectdialog.SelectDialog', fake_select_dialog)
 
-    select_backends(_FakeMainController(), pc, {'disabled_models': []}, 'basemodel',
-                     title='Title', message='Message', size=(1, 2))
+    select_backends(
+        _FakeMainController(),
+        pc,
+        {'disabled_models': []},
+        'basemodel',
+        title='Title',
+        message='Message',
+        size=(1, 2),
+    )
 
     items = captured['dlg'].items
     assert len(items) == 1
@@ -110,19 +128,26 @@ def test_item_config_is_the_configure_func_not_the_whole_plugin(monkeypatch):
 
 def test_disabled_backend_has_no_config_even_with_a_configure_func(monkeypatch):
     pc = _FakePluginController(
-        ['backend1'],
-        {'backend1': {'display_name': 'Backend 1', 'description': 'desc'}},
-        plugins={})  # not enabled
+        ['backend1'], {'backend1': {'display_name': 'Backend 1', 'description': 'desc'}}, plugins={}
+    )  # not enabled
     captured = {}
 
     def fake_select_dialog(**kwargs):
         dlg = _FakeSelectDialog(**kwargs)
         captured['dlg'] = dlg
         return dlg
+
     monkeypatch.setattr('virtaal.views.widgets.selectdialog.SelectDialog', fake_select_dialog)
 
-    select_backends(_FakeMainController(), pc, {'disabled_models': []}, 'basemodel',
-                     title='Title', message='Message', size=(1, 2))
+    select_backends(
+        _FakeMainController(),
+        pc,
+        {'disabled_models': []},
+        'basemodel',
+        title='Title',
+        message='Message',
+        size=(1, 2),
+    )
 
     items = captured['dlg'].items
     assert items[0]['enabled'] is False
@@ -130,18 +155,28 @@ def test_disabled_backend_has_no_config_even_with_a_configure_func(monkeypatch):
 
 
 def test_item_enabled_removes_the_backend_from_disabled_models(monkeypatch):
-    pc = _FakePluginController(['backend1'], {'backend1': {'display_name': 'B', 'description': 'd'}})
+    pc = _FakePluginController(
+        ['backend1'], {'backend1': {'display_name': 'B', 'description': 'd'}}
+    )
     captured = {}
 
     def fake_select_dialog(**kwargs):
         dlg = _FakeSelectDialog(**kwargs)
         captured['dlg'] = dlg
         return dlg
+
     monkeypatch.setattr('virtaal.views.widgets.selectdialog.SelectDialog', fake_select_dialog)
     config = {'disabled_models': ['backend1']}
 
-    select_backends(_FakeMainController(), pc, config, 'basemodel',
-                     title='Title', message='Message', size=(1, 2))
+    select_backends(
+        _FakeMainController(),
+        pc,
+        config,
+        'basemodel',
+        title='Title',
+        message='Message',
+        size=(1, 2),
+    )
     item = captured['dlg'].items[0]
     captured['dlg'].handlers['item-enabled'](captured['dlg'], item)
 
@@ -151,19 +186,29 @@ def test_item_enabled_removes_the_backend_from_disabled_models(monkeypatch):
 
 def test_item_disabled_adds_the_backend_to_disabled_models(monkeypatch):
     pc = _FakePluginController(
-        ['backend1'], {'backend1': {'display_name': 'B', 'description': 'd'}},
-        plugins={'backend1': _FakePlugin()})
+        ['backend1'],
+        {'backend1': {'display_name': 'B', 'description': 'd'}},
+        plugins={'backend1': _FakePlugin()},
+    )
     captured = {}
 
     def fake_select_dialog(**kwargs):
         dlg = _FakeSelectDialog(**kwargs)
         captured['dlg'] = dlg
         return dlg
+
     monkeypatch.setattr('virtaal.views.widgets.selectdialog.SelectDialog', fake_select_dialog)
     config = {'disabled_models': []}
 
-    select_backends(_FakeMainController(), pc, config, 'basemodel',
-                     title='Title', message='Message', size=(1, 2))
+    select_backends(
+        _FakeMainController(),
+        pc,
+        config,
+        'basemodel',
+        title='Title',
+        message='Message',
+        size=(1, 2),
+    )
     item = captured['dlg'].items[0]
     captured['dlg'].handlers['item-disabled'](captured['dlg'], item)
 

@@ -25,7 +25,9 @@ from xml.sax.saxutils import quoteattr
 from corpus import CORPUS, short
 
 EDIT_SECTIONS = ('keys', 'autocorrect', 'spelling', 'glossary')
-LINGUAS = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'po', 'LINGUAS'))
+LINGUAS = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', 'po', 'LINGUAS')
+)
 SOURCE = 'Click <b>%s</b> to save {0} as file.txt on http://example.org/'
 
 
@@ -39,6 +41,7 @@ def ui_languages():
 
 def _set_option(conf, name, section, key, value):
     import configparser
+
     path = os.path.join(conf, name)
     parser = configparser.RawConfigParser()
     parser.read(path, encoding='utf-8')
@@ -51,6 +54,7 @@ def _set_option(conf, name, section, key, value):
 
 def _xml_safe(value):
     from translate.misc.xml_helpers import valid_chars_only
+
     return valid_chars_only(value)
 
 
@@ -60,11 +64,18 @@ def configure(section, conf):
         _set_option(conf, 'virtaal.ini', 'plugin_state', 'autocorrector', 'enabled')
         folder = os.path.join(conf, 'autocorr', 'af')
         os.makedirs(folder, exist_ok=True)
-        blocks = ''.join('<block-list:block block-list:abbreviated-name="fuzz%d" block-list:name=%s/>' % (
-            i, quoteattr(_xml_safe(value))) for i, (_, _, value) in enumerate(CORPUS) if _xml_safe(value))
+        blocks = ''.join(
+            '<block-list:block block-list:abbreviated-name="fuzz%d" block-list:name=%s/>'
+            % (i, quoteattr(_xml_safe(value)))
+            for i, (_, _, value) in enumerate(CORPUS)
+            if _xml_safe(value)
+        )
         with open(os.path.join(folder, 'DocumentList.xml'), 'w', encoding='utf-8') as f:
-            f.write('<?xml version="1.0" encoding="UTF-8"?>\n<block-list:block-list '
-                    'xmlns:block-list="http://openoffice.org/2001/block-list">%s</block-list:block-list>\n' % blocks)
+            f.write(
+                '<?xml version="1.0" encoding="UTF-8"?>\n<block-list:block-list '
+                'xmlns:block-list="http://openoffice.org/2001/block-list">%s</block-list:block-list>\n'
+                % blocks
+            )
     elif section == 'spelling':
         _set_option(conf, 'virtaal.ini', 'plugin_state', 'spellchecker', 'enabled')
         # English has a dictionary almost everywhere.
@@ -72,6 +83,7 @@ def configure(section, conf):
         _set_option(conf, 'virtaal.ini', 'language', 'targetlang', 'en')
     elif section == 'glossary':
         from translate.storage import po
+
         store = po.pofile()
         store.updateheader(add=True, Language='af')
         for i, (_, _, value) in enumerate(CORPUS):
@@ -83,6 +95,7 @@ def configure(section, conf):
 
 def _file(sweep, name, sources, targets=None):
     from translate.storage import po
+
     store = po.pofile()
     store.updateheader(add=True, Language='af')
     store.updateheaderplural(2, '(n != 1)')
@@ -97,6 +110,7 @@ def _file(sweep, name, sources, targets=None):
 
 def _press(widget, keyval, mods=0):
     from gi.repository import Gtk
+
     Gtk.test_widget_send_key(widget, keyval, mods)
 
 
@@ -126,25 +140,41 @@ def run(sweep, section):
     if section.startswith('ui-'):
         yield from _ui(sweep, section)
     else:
-        yield from {'keys': _keys, 'autocorrect': _autocorrect, 'spelling': _spelling,
-                    'glossary': _glossary}[section](sweep)
+        yield from {
+            'keys': _keys,
+            'autocorrect': _autocorrect,
+            'spelling': _spelling,
+            'glossary': _glossary,
+        }[section](sweep)
 
 
 def _keys(sweep):
     from gi.repository import Gdk
-    alt, ctrl, shift = Gdk.ModifierType.MOD1_MASK, Gdk.ModifierType.CONTROL_MASK, Gdk.ModifierType.SHIFT_MASK
+
+    alt, ctrl, shift = (
+        Gdk.ModifierType.MOD1_MASK,
+        Gdk.ModifierType.CONTROL_MASK,
+        Gdk.ModifierType.SHIFT_MASK,
+    )
     sources = [SOURCE.replace('%s', 'unit %d' % i) for i in range(len(CORPUS) + 1)]
     # Translated units feed word completion with corpus words.
     yield from sweep.open_file(_file(sweep, 'keys.po', sources, [''] + [v for _, _, v in CORPUS]))
     sc = sweep.mc.store_controller
     presses = [
-        (Gdk.KEY_Right, alt), (Gdk.KEY_Right, alt), (Gdk.KEY_Left, alt),  # next, next, previous placeable
+        (Gdk.KEY_Right, alt),
+        (Gdk.KEY_Right, alt),
+        (Gdk.KEY_Left, alt),  # next, next, previous placeable
         (Gdk.KEY_Down, alt),  # insert placeable
         (Gdk.KEY_Escape, 0),
         (Gdk.KEY_v, ctrl | shift),  # copy the source
-        (Gdk.KEY_e, 0), (Gdk.KEY_n, 0), (Gdk.KEY_Tab, 0),  # type, accept a completion
-        (Gdk.KEY_z, ctrl), (Gdk.KEY_z, ctrl | shift),  # undo, redo
-        (Gdk.KEY_Home, 0), (Gdk.KEY_End, shift), (Gdk.KEY_BackSpace, 0),
+        (Gdk.KEY_e, 0),
+        (Gdk.KEY_n, 0),
+        (Gdk.KEY_Tab, 0),  # type, accept a completion
+        (Gdk.KEY_z, ctrl),
+        (Gdk.KEY_z, ctrl | shift),  # undo, redo
+        (Gdk.KEY_Home, 0),
+        (Gdk.KEY_End, shift),
+        (Gdk.KEY_BackSpace, 0),
     ]
     for i, (case, value) in enumerate(sweep.cases('keys'), start=1):
         try:
@@ -166,7 +196,9 @@ def _keys(sweep):
 def _autocorrect(sweep):
     # By corpus position, as configure() numbered them, whatever --only or a skip list leaves out.
     index = {name: i for i, (_, name, _) in enumerate(CORPUS)}
-    yield from sweep.open_file(_file(sweep, 'autocorrect.po', ['Open the file %d' % i for i in range(4)]))
+    yield from sweep.open_file(
+        _file(sweep, 'autocorrect.po', ['Open the file %d' % i for i in range(4)])
+    )
     sc = sweep.mc.store_controller
     for case, value in sweep.cases('autocorrect'):
         i = index[case]
@@ -194,7 +226,10 @@ def _autocorrect(sweep):
 
 def _spelling(sweep):
     from gi.repository import Gtk
-    yield from sweep.open_file(_file(sweep, 'spelling.po', ['Maak die lêer %d oop' % i for i in range(4)]))
+
+    yield from sweep.open_file(
+        _file(sweep, 'spelling.po', ['Maak die lêer %d oop' % i for i in range(4)])
+    )
     sc = sweep.mc.store_controller
     for i, (case, value) in enumerate(sweep.cases('spelling')):
         try:
@@ -219,6 +254,7 @@ def _spelling(sweep):
 
 def _glossary(sweep):
     from gi.repository import Gdk
+
     values = [v for _, _, v in CORPUS]
     sources = ['Use %s and file%d here' % (v, i) for i, v in enumerate(values)]
     yield from sweep.open_file(_file(sweep, 'glossary.po', sources))
@@ -241,19 +277,41 @@ def _glossary(sweep):
 def _ui(sweep, section):
     """Build the windows and dialogs whose text is translated."""
     from gi.repository import Gtk
+
     Gtk.Dialog.run = lambda dialog, *args: Gtk.ResponseType.CANCEL
     Gtk.NativeDialog.run = lambda dialog, *args: Gtk.ResponseType.CANCEL
     mc = sweep.mc
     steps = [
         ('open', lambda: None),
-        ('modes', lambda: [mc.mode_controller.select_mode_by_name(name) for name in list(mc.mode_controller.modes)]
-         + [mc.mode_controller.select_mode_by_name('Default')]),
-        ('search', lambda: (mc.mode_controller.select_mode_by_name('Search'),
-                            mc.mode_controller.modes['Search'].ent_search.set_text('file'))),
-    ] + [(name, (lambda item: lambda: mc.view.gui.get_object(item).activate())(item)) for name, item in (
-        ('preferences', 'mnu_prefs'), ('properties', 'mnu_properties'), ('quality checks', 'mnu_checks'),
-        ('about', 'mnu_about'), ('shortcuts', 'mnu_shortcuts'))]
+        (
+            'modes',
+            lambda: (
+                [
+                    mc.mode_controller.select_mode_by_name(name)
+                    for name in list(mc.mode_controller.modes)
+                ]
+                + [mc.mode_controller.select_mode_by_name('Default')]
+            ),
+        ),
+        (
+            'search',
+            lambda: (
+                mc.mode_controller.select_mode_by_name('Search'),
+                mc.mode_controller.modes['Search'].ent_search.set_text('file'),
+            ),
+        ),
+    ] + [
+        (name, (lambda item: lambda: mc.view.gui.get_object(item).activate())(item))
+        for name, item in (
+            ('preferences', 'mnu_prefs'),
+            ('properties', 'mnu_properties'),
+            ('quality checks', 'mnu_checks'),
+            ('about', 'mnu_about'),
+            ('shortcuts', 'mnu_shortcuts'),
+        )
+    ]
     from malformed import PO
+
     path = os.path.join(sweep.args.workdir, 'ui.po')
     with open(path, 'wb') as f:
         f.write(PO)
@@ -268,7 +326,11 @@ def _ui(sweep, section):
             while time.monotonic() < deadline:
                 yield
             for window in Gtk.Window.list_toplevels():
-                if window is not mc.view.main_window and window.get_visible() and window.get_transient_for():
+                if (
+                    window is not mc.view.main_window
+                    and window.get_visible()
+                    and window.get_transient_for()
+                ):
                     window.hide()
         except Exception:
             sweep.failed()

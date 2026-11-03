@@ -35,13 +35,17 @@ class TMView(BaseView, GObjectWrapper):
         # suggestions are off - see TMController.summon().
         self.summoned = False
         self.max_matches = max_matches
-        self._should_show_tmwindow = False # should it be displayed now (even if it doesn't, due to application focus?
+        self._should_show_tmwindow = (
+            False  # should it be displayed now (even if it doesn't, due to application focus?
+        )
         self._signal_tracker = SignalTracker()
 
         self.tmwindow = TMWindow(self)
         main_window = self.controller.main_controller.view.main_window
         set_popup_parent(self.tmwindow, main_window)
-        self._may_show_tmwindow = main_window.props.is_active # is it allowed to display now (application is in focus)?
+        self._may_show_tmwindow = (
+            main_window.props.is_active
+        )  # is it allowed to display now (application is in focus)?
         # The main window's last geometry, and the timer that ends a move
         # or resize - see _on_configure_mainwindow().
         self._mainwindow_geometry = None
@@ -50,15 +54,25 @@ class TMView(BaseView, GObjectWrapper):
         self._editor = None
         self._editor_allocation = None
 
-        self._signal_tracker.connect(self.tmwindow.treeview, 'row-activated', self._on_row_activated)
+        self._signal_tracker.connect(
+            self.tmwindow.treeview, 'row-activated', self._on_row_activated
+        )
         self._signal_tracker.connect(
             controller.main_controller.store_controller.view.parent_widget.get_vscrollbar(),
-            'value-changed', self._on_store_view_scroll)
+            'value-changed',
+            self._on_store_view_scroll,
+        )
         self._signal_tracker.connect(main_window, 'grab-notify', self._on_grab_notify_mainwindow)
-        self._signal_tracker.connect(main_window, 'notify::is-active', self._on_active_notify_mainwindow)
+        self._signal_tracker.connect(
+            main_window, 'notify::is-active', self._on_active_notify_mainwindow
+        )
         self._signal_tracker.connect(main_window, 'configure_event', self._on_configure_mainwindow)
-        self._signal_tracker.connect(controller.main_controller.store_controller, 'store-closed', self._on_store_closed)
-        self._signal_tracker.connect(controller.main_controller.store_controller, 'store-loaded', self._on_store_loaded)
+        self._signal_tracker.connect(
+            controller.main_controller.store_controller, 'store-closed', self._on_store_closed
+        )
+        self._signal_tracker.connect(
+            controller.main_controller.store_controller, 'store-loaded', self._on_store_loaded
+        )
 
         self._setup_key_bindings()
         self._setup_menu_items()
@@ -75,8 +89,12 @@ class TMView(BaseView, GObjectWrapper):
         for i in range(1, 10):
             numstr = str(i)
             numkey = Gdk.KEY_0 + i
-            Gtk.AccelMap.add_entry("<Virtaal>/TM/Select match " + numstr, numkey, Gdk.ModifierType.CONTROL_MASK)
-            self.accel_group.connect_by_path("<Virtaal>/TM/Select match " + numstr, self._on_select_match)
+            Gtk.AccelMap.add_entry(
+                "<Virtaal>/TM/Select match " + numstr, numkey, Gdk.ModifierType.CONTROL_MASK
+            )
+            self.accel_group.connect_by_path(
+                "<Virtaal>/TM/Select match " + numstr, self._on_select_match
+            )
 
         mainview = self.controller.main_controller.view
         mainview.add_accel_group(self.accel_group)
@@ -87,7 +105,9 @@ class TMView(BaseView, GObjectWrapper):
         self.mnui_view = mainview.gui.get_object('menuitem_view')
         self.menu = self.mnui_view.get_submenu()
 
-        self.mnu_suggestions = Gtk.CheckMenuItem.new_with_mnemonic(label=_('Translation _Suggestions'))
+        self.mnu_suggestions = Gtk.CheckMenuItem.new_with_mnemonic(
+            label=_('Translation _Suggestions')
+        )
         self.mnu_suggestions.show()
         self.menu.append(self.mnu_suggestions)
 
@@ -95,7 +115,9 @@ class TMView(BaseView, GObjectWrapper):
         self.mnu_summon.show()
         self.menu.append(self.mnu_summon)
 
-        Gtk.AccelMap.add_entry("<Virtaal>/TM/Toggle Show TM", Gdk.KEY_F9, Gdk.ModifierType.CONTROL_MASK)
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/TM/Toggle Show TM", Gdk.KEY_F9, Gdk.ModifierType.CONTROL_MASK
+        )
         Gtk.AccelMap.add_entry("<Virtaal>/TM/Show TM for Unit", Gdk.KEY_F9, 0)
         accel_group = self.menu.get_accel_group()
         if accel_group is None:
@@ -109,12 +131,11 @@ class TMView(BaseView, GObjectWrapper):
         self.mnu_suggestions.set_active(True)
         self.mnu_summon.connect('activate', lambda *_args: self.controller.summon())
 
-
     # ACCESSORS #
     def _get_active(self):
         return self.mnu_suggestions.get_active()
-    active = property(_get_active)
 
+    active = property(_get_active)
 
     # METHODS #
     def clear(self):
@@ -139,7 +160,7 @@ class TMView(BaseView, GObjectWrapper):
         for match in matches:
             tooltip = ''
             if len(liststore) < 9:
-                tooltip = _('Ctrl+%(number_key)d') % {"number_key": len(liststore)+1}
+                tooltip = _('Ctrl+%(number_key)d') % {"number_key": len(liststore) + 1}
             liststore.append([match, tooltip])
 
         if len(liststore) > 0:
@@ -160,7 +181,7 @@ class TMView(BaseView, GObjectWrapper):
 
     def suspend(self):
         """Keep the TM window hidden while another popup (e.g. the target's
-            completion list) is over the editor, until L{resume}."""
+        completion list) is over the editor, until L{resume}."""
         self._on_mainwindow_focus_lost()
 
     def resume(self):
@@ -168,11 +189,14 @@ class TMView(BaseView, GObjectWrapper):
 
     def select_backends(self, parent):
         from virtaal.views.backendselect import select_backends
+
         select_backends(
-            self.controller.main_controller, self.controller.plugin_controller,
-            self.controller.config, 'basetmmodel',
-            #l10n: The 'sources' here refer to different translation memory plugins,
-            #such as local tm, open-tran.eu, the current file, etc.
+            self.controller.main_controller,
+            self.controller.plugin_controller,
+            self.controller.config,
+            'basetmmodel',
+            # l10n: The 'sources' here refer to different translation memory plugins,
+            # such as local tm, open-tran.eu, the current file, etc.
             title=_('Select sources of Translation Memory'),
             message=_('Select the sources that should be queried for translation memory'),
             size=(550, 580),
@@ -185,9 +209,9 @@ class TMView(BaseView, GObjectWrapper):
 
     def select_match_index(self, index):
         """Select the TM match with the given index (first match is 1).
-            This method causes a row in the TM window's C{Gtk.TreeView} to be
-            selected and activated. This runs this class's C{_on_select_match()}
-            method which runs C{select_match()}."""
+        This method causes a row in the TM window's C{Gtk.TreeView} to be
+        selected and activated. This runs this class's C{_on_select_match()}
+        method which runs C{select_match()}."""
         if index < 0 or not self.isvisible:
             return
 
@@ -195,7 +219,7 @@ class TMView(BaseView, GObjectWrapper):
         liststore = self.tmwindow.liststore
         itr = liststore.get_iter_first()
 
-        i=1
+        i = 1
         while itr and i < index and liststore.iter_is_valid(itr):
             itr = liststore.iter_next(itr)
             i += 1
@@ -210,9 +234,9 @@ class TMView(BaseView, GObjectWrapper):
     def show(self, force=False):
         """Show the TM window."""
         if not (self.active or self.summoned) or (self.isvisible and not force):
-            return # This window is already visible
+            return  # This window is already visible
         if not len(self.tmwindow.liststore):
-            return # Nothing to show
+            return  # Nothing to show
         if not self._may_show_tmwindow:
             self._should_show_tmwindow = True
             return
@@ -229,6 +253,7 @@ class TMView(BaseView, GObjectWrapper):
 
     def update_geometry(self):
         """Update the TM window's position and size."""
+
         def update():
             selected = self._get_selected_unit_view()
             if selected:
@@ -260,7 +285,6 @@ class TMView(BaseView, GObjectWrapper):
             # There is no unit. Nothing to do.
             return None
         return self.controller.main_controller.unit_controller.view.targets[n]
-
 
     # EVENT HANDLERS #
     def _on_editor_size_allocate(self, editor, allocation):
@@ -304,7 +328,7 @@ class TMView(BaseView, GObjectWrapper):
         if not self._should_show_tmwindow or self.isvisible:
             return
         if not self.controller.storecursor:
-            return # No store loaded
+            return  # No store loaded
         self.show()
 
         selected = self._get_selected_unit_view()
@@ -330,7 +354,9 @@ class TMView(BaseView, GObjectWrapper):
             self._on_mainwindow_focus_lost()
             if self._move_settle_id:
                 GLib.source_remove(self._move_settle_id)
-            self._move_settle_id = GLib.timeout_add(self.MOVE_SETTLE_DELAY, self._on_mainwindow_settled)
+            self._move_settle_id = GLib.timeout_add(
+                self.MOVE_SETTLE_DELAY, self._on_mainwindow_settled
+            )
             return
         if self._should_show_tmwindow:
             # For some reason tvc_tm_source needs this help to recalculate its

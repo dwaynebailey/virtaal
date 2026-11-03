@@ -31,9 +31,12 @@ class LanguageView(BaseView):
     def _create_dialogs(self):
         from .widgets.langadddialog import LanguageAddDialog
         from .widgets.langselectdialog import LanguageSelectDialog
+
         langs = [LanguageModel(lc) for lc in LanguageModel.languages]
         langs.sort(key=lambda x: locale.strxfrm(x.name))
-        self.select_dialog = LanguageSelectDialog(langs, parent=self.controller.main_controller.view.main_window)
+        self.select_dialog = LanguageSelectDialog(
+            langs, parent=self.controller.main_controller.view.main_window
+        )
         self.select_dialog.btn_add.connect('clicked', self._on_addlang_clicked)
         self.select_dialog.btn_edit.connect('clicked', self._on_editlang_clicked)
 
@@ -81,7 +84,10 @@ class LanguageView(BaseView):
         return pairlabel
 
     def notify_same_langs(self):
-        GLib.idle_add(self.controller.main_controller.view.show_same_lang_notice, lambda: self._on_other_activated(None))
+        GLib.idle_add(
+            self.controller.main_controller.view.show_same_lang_notice,
+            lambda: self._on_other_activated(None),
+        )
 
     def notify_diff_langs(self):
         GLib.idle_add(self.controller.main_controller.view.hide_same_lang_notice)
@@ -115,10 +121,8 @@ class LanguageView(BaseView):
             if i not in range(self.controller.NUM_RECENT):
                 break
             self.recent_items[i].get_child().set_text_with_mnemonic(
-                "_%(accesskey)d. %(language_pair)s" % {
-                    "accesskey": i + 1,
-                    "language_pair": self._get_display_string(*pair)
-                }
+                "_%(accesskey)d. %(language_pair)s"
+                % {"accesskey": i + 1, "language_pair": self._get_display_string(*pair)}
             )
             i += 1
 
@@ -130,7 +134,6 @@ class LanguageView(BaseView):
 
         self.menu.show_all()
         self.popupbutton.text = self.recent_items[0].get_child().get_text()[3:]
-
 
     # EVENT HANDLERS #
     def _on_addlang_clicked(self, button):
@@ -160,7 +163,7 @@ class LanguageView(BaseView):
 
     def _on_editlang_clicked(self, button):
         """Override the plural information of the selected target language,
-            for files that don't declare their own."""
+        for files that don't declare their own."""
         code = self.select_dialog.get_selected_target_lang()
         if code not in LanguageModel.languages:
             return
@@ -191,15 +194,19 @@ class LanguageView(BaseView):
     def _on_other_activated(self, menuitem):
         if not getattr(self, 'select_dialog', None):
             self._create_dialogs()
-        if self.select_dialog.run(self.controller.source_lang.code, self.controller.target_lang.code):
+        if self.select_dialog.run(
+            self.controller.source_lang.code, self.controller.target_lang.code
+        ):
             self.controller.set_language_pair(
                 self.select_dialog.get_selected_source_lang(),
-                self.select_dialog.get_selected_target_lang()
+                self.select_dialog.get_selected_target_lang(),
             )
         self.controller.main_controller.unit_controller.view.targets[0].grab_focus()
 
     def _on_pairitem_activated(self, menuitem, item_n):
-        logging.debug('Selected language pair: %s' % (self.recent_items[item_n].get_child().get_text()))
+        logging.debug(
+            'Selected language pair: %s' % (self.recent_items[item_n].get_child().get_text())
+        )
         pair = self.controller.recent_pairs[item_n]
         self.controller.set_language_pair(*pair)
         self.controller.main_controller.unit_controller.view.targets[0].grab_focus()

@@ -96,6 +96,7 @@ def corpus_file(workdir, sweep, ext, field, translated=False):
     unit, in order. translated: the value is the translation too."""
     from translate.misc.multistring import multistring
     from translate.storage import po, tbx, tmx, ts2, xliff
+
     store = {
         'po': po.pofile,
         'xlf': lambda: xliff.xlifffile(sourcelanguage='en', targetlanguage='af'),
@@ -187,8 +188,12 @@ class Sweep:
         self.mc.open_file(path)
         yield from self.settle(20)
         # Plug-ins load after the first file opens; let them finish first.
-        yield from self.wait_for(lambda: self.mc.plugin_controller is not None
-                                 and 'terminology' in self.mc.plugin_controller.plugins)
+        yield from self.wait_for(
+            lambda: (
+                self.mc.plugin_controller is not None
+                and 'terminology' in self.mc.plugin_controller.plugins
+            )
+        )
         yield from self.settle(20)
 
     def wait_for(self, condition, frames=3000):
@@ -218,6 +223,7 @@ class Sweep:
 
     def reload_target(self, index):
         from translate.storage import factory
+
         store = factory.getobject(self.mc.store_controller.store.get_filename())
         units = [u for u in store.units if not u.isheader()]
         return str(units[index].target)
@@ -226,9 +232,11 @@ class Sweep:
 
     def target(self):
         from translate.misc.xml_helpers import valid_chars_only
+
         for sweep, name, text, expect in (
-                ('target', 'target.po', TARGET_PO, lambda v: v),
-                ('target-xliff', 'target.xlf', TARGET_XLIFF, valid_chars_only)):
+            ('target', 'target.po', TARGET_PO, lambda v: v),
+            ('target-xliff', 'target.xlf', TARGET_XLIFF, valid_chars_only),
+        ):
             if not self.runs(sweep):
                 continue
             yield from self.open_file(self.write_file(name, text))
@@ -266,11 +274,15 @@ class Sweep:
         self.undo()
         yield from self.settle(5)
         if textbox.get_text() != '':
-            self.rec.problem('undo-mismatch', 'undo insert', 'after undo: %s' % short(textbox.get_text()))
+            self.rec.problem(
+                'undo-mismatch', 'undo insert', 'after undo: %s' % short(textbox.get_text())
+            )
         self.redo()
         yield from self.settle(5)
         if textbox.get_text() != expected:
-            self.rec.problem('undo-mismatch', 'redo insert', 'after redo: %s' % short(textbox.get_text()))
+            self.rec.problem(
+                'undo-mismatch', 'redo insert', 'after redo: %s' % short(textbox.get_text())
+            )
             return
 
         sc.cursor.force_index(1)
@@ -295,7 +307,11 @@ class Sweep:
             yield from self.open_file(path)
             units = sc.store.get_units()
             if len(units) != len(names):
-                self.rec.problem('setup', 'unit count', '%s: %d units for %d values' % (sweep, len(units), len(names)))
+                self.rec.problem(
+                    'setup',
+                    'unit count',
+                    '%s: %d units for %d values' % (sweep, len(units), len(names)),
+                )
                 continue
             for case, index in self.cases(sweep, [(None, name, i) for i, name in enumerate(names)]):
                 try:
@@ -305,7 +321,11 @@ class Sweep:
                     strings = getattr(units[index].source, 'strings', [str(units[index].source)])
                     for textbox, expected in zip(self.mc.unit_controller.view.sources, strings):
                         if textbox.get_text() != str(expected):
-                            self.rec.problem('display-mismatch', '', 'source shows %s' % short(textbox.get_text()))
+                            self.rec.problem(
+                                'display-mismatch',
+                                '',
+                                'source shows %s' % short(textbox.get_text()),
+                            )
                 except Exception:
                     self.failed()
             sc.set_modified(False)
@@ -316,6 +336,7 @@ class Sweep:
 
         from virtaal.common import pan_app
         from virtaal.support.tmdb import TMDB
+
         db = TMDB(os.path.join(pan_app.get_config_dir(), 'tm.db'))
         # Queries only reach the full-text search once the TM has entries.
         path, _ = corpus_file(self.args.workdir, 'tm-seed', 'po', 'source', translated=True)
@@ -390,6 +411,7 @@ class Sweep:
 
     def addterm(self):
         from translate.storage import factory
+
         yield from self.open_file(self.write_file('addterm.po', TARGET_PO))
         terminology = self.mc.plugin_controller.plugins['terminology'].controller
         localfile = terminology.plugin_controller.plugins['localfile']
@@ -402,8 +424,12 @@ class Sweep:
                 try:
                     dialog.reset()
                     dialog.cmb_termfile.set_active(0)
-                    self.fill(dialog.ent_source, value if field == 'source' else '%s-bron%d' % (field, i))
-                    self.fill(dialog.ent_target, value if field == 'target' else '%s-doel%d' % (field, i))
+                    self.fill(
+                        dialog.ent_source, value if field == 'source' else '%s-bron%d' % (field, i)
+                    )
+                    self.fill(
+                        dialog.ent_target, value if field == 'target' else '%s-doel%d' % (field, i)
+                    )
                     yield from self.settle(2)
                     source = dialog.ent_source.get_text()
                     target = dialog.ent_target.get_text()
@@ -413,18 +439,30 @@ class Sweep:
                     if not dialog.btn_add_term.props.sensitive:
                         continue
                     if not (source.strip() and target.strip()):
-                        self.rec.problem('accepted-blank', 'blank term',
-                                         'OK enabled for (%s, %s)' % (short(source), short(target)))
+                        self.rec.problem(
+                            'accepted-blank',
+                            'blank term',
+                            'OK enabled for (%s, %s)' % (short(source), short(target)),
+                        )
                     dialog.add_term_unit(source, target)
                     yield from self.settle(5)
                     unit = factory.getobject(glossary).units[-1]
                     if not str(unit.source):
-                        self.rec.problem('file-invalid', 'second header', 'the new term has an empty source')
+                        self.rec.problem(
+                            'file-invalid', 'second header', 'the new term has an empty source'
+                        )
                     if (str(unit.source), str(unit.target)) != (source, target):
-                        self.rec.problem('term-roundtrip', '', 'saved (%s, %s)' % (short(str(unit.source)),
-                                                                                 short(str(unit.target))))
+                        self.rec.problem(
+                            'term-roundtrip',
+                            '',
+                            'saved (%s, %s)' % (short(str(unit.source)), short(str(unit.target))),
+                        )
                     elif field == 'comment' and value.strip() and value not in unit.getnotes():
-                        self.rec.problem('term-roundtrip', 'comment', 'comment saved as %s' % short(unit.getnotes()))
+                        self.rec.problem(
+                            'term-roundtrip',
+                            'comment',
+                            'comment saved as %s' % short(unit.getnotes()),
+                        )
                 except Exception:
                     self.failed()
 
@@ -442,8 +480,12 @@ class Sweep:
                 yield from self.settle(2)
                 shown = dialog.lbl_add_term_errors.get_text()
                 # The label shows CR and CRLF as LF.
-                if shown != 'Existing translations: ' + value.replace('\r\n', '\n').replace('\r', '\n'):
-                    self.rec.problem('display-mismatch', 'existing translations', 'label shows %s' % short(shown))
+                if shown != 'Existing translations: ' + value.replace('\r\n', '\n').replace(
+                    '\r', '\n'
+                ):
+                    self.rec.problem(
+                        'display-mismatch', 'existing translations', 'label shows %s' % short(shown)
+                    )
             except Exception:
                 self.failed()
 
@@ -453,6 +495,7 @@ class Sweep:
         from virtaal.common import pan_app
         from virtaal.models.langmodel import LanguageModel
         from virtaal.views.widgets.langadddialog import LanguageAddDialog
+
         no_plural = TARGET_PO.replace('"Plural-Forms: nplurals=2; plural=(n != 1);\\n"\n', '')
         yield from self.open_file(self.write_file('addlang.po', no_plural))
         lc = self.mc.lang_controller
@@ -489,9 +532,15 @@ class Sweep:
                     lc._on_quit(self.mc)
                     pan_app.settings.write()
                     reread = pan_app.load_config(langs_ini)
-                    if reread.get(code, {}).get('name') != name or reread.get(code, {}).get('plural') != plural:
-                        self.rec.problem('config-roundtrip', 'langs.ini',
-                                         'read back %s' % short(str(reread.get(code))))
+                    if (
+                        reread.get(code, {}).get('name') != name
+                        or reread.get(code, {}).get('plural') != plural
+                    ):
+                        self.rec.problem(
+                            'config-roundtrip',
+                            'langs.ini',
+                            'read back %s' % short(str(reread.get(code))),
+                        )
                     settings = pan_app.Settings(pan_app.settings.filename)
                     previous, pan_app.settings = pan_app.settings, settings
                     try:
@@ -505,14 +554,18 @@ class Sweep:
                     LanguageModel.languages.clear()
                     LanguageModel.languages.update(original_langs)
                     lc.new_langs[:] = []
-                    lc.recent_pairs = [p for p in lc.recent_pairs
-                                       if p[0].code in original_langs and p[1].code in original_langs]
+                    lc.recent_pairs = [
+                        p
+                        for p in lc.recent_pairs
+                        if p[0].code in original_langs and p[1].code in original_langs
+                    ]
                     lc.save_recent()
                     if os.path.exists(langs_ini):
                         os.remove(langs_ini)
 
     def _check_plural_header(self, store):
         import gettext
+
         try:
             nplurals, plural = store.getheaderplural()
             if plural:
@@ -522,6 +575,7 @@ class Sweep:
 
     def lookup(self):
         from virtaal.plugins.lookup.models.weblookup import WebLookupAddDialog, _slugify
+
         yield from self.open_file(self.write_file('lookup.po', TARGET_PO))
         lookup = self.mc.plugin_controller.plugins['lookup'].controller
         model = lookup.plugin_controller.plugins['weblookup']
@@ -537,20 +591,32 @@ class Sweep:
                         continue
                     dialog.taken_ids = {u['id'] for u in builtins}
                     self.fill(dialog.ent_url_name, value if field == 'name' else 'Fuzz site %d' % i)
-                    self.fill(dialog.ent_url, value if field == 'url' else 'https://example.org/?q=%(query)s')
+                    self.fill(
+                        dialog.ent_url,
+                        value if field == 'url' else 'https://example.org/?q=%(query)s',
+                    )
                     yield from self.settle(3)
                     name, url = dialog.ent_url_name.get_text(), dialog.ent_url.get_text()
                     dialog._update_ok_sensitivity()
                     if not dialog.btn_url_ok.get_sensitive():
                         continue
-                    entry = {'id': _slugify(name), 'display_name': name, 'url': url, 'quoted': False, 'enabled': True}
+                    entry = {
+                        'id': _slugify(name),
+                        'display_name': name,
+                        'url': url,
+                        'quoted': False,
+                        'enabled': True,
+                    }
                     model.URLDATA = builtins + [entry]
                     model._save_urldata()
                     model._load_urldata()
                     custom = [u for u in model.URLDATA if u.get('id') == entry['id']]
                     if not custom or (custom[0]['display_name'], custom[0]['url']) != (name, url):
-                        self.rec.problem('config-roundtrip', 'weblookup.ini',
-                                         'read back %s' % short(str(custom[0] if custom else None)))
+                        self.rec.problem(
+                            'config-roundtrip',
+                            'weblookup.ini',
+                            'read back %s' % short(str(custom[0] if custom else None)),
+                        )
                     model.create_menu_items('word', 'source', 'en', 'af', None)
                 except Exception:
                     self.failed()
@@ -562,19 +628,33 @@ class Sweep:
         from translate.storage import factory
 
         from virtaal.common import pan_app
+
         yield from self.open_file(self.write_file('translator.po', TARGET_PO))
         window = Gtk.Window()
         entry = Gtk.Entry()
         window.add(entry)
         window.show_all()
-        expected_fields = {'Project-Id-Version', 'Report-Msgid-Bugs-To', 'POT-Creation-Date', 'PO-Revision-Date',
-                           'Last-Translator', 'Language-Team', 'Language', 'MIME-Version', 'Content-Type',
-                           'Content-Transfer-Encoding', 'Plural-Forms', 'X-Generator'}
+        expected_fields = {
+            'Project-Id-Version',
+            'Report-Msgid-Bugs-To',
+            'POT-Creation-Date',
+            'PO-Revision-Date',
+            'Last-Translator',
+            'Language-Team',
+            'Language',
+            'MIME-Version',
+            'Content-Type',
+            'Content-Transfer-Encoding',
+            'Plural-Forms',
+            'X-Generator',
+        }
         for field in ('name', 'email', 'team'):
             for i, (case, value) in enumerate(self.cases('translator-' + field)):
                 try:
                     # A header changed by an earlier case would be blamed on this one.
-                    yield from self.open_file(self.write_file('translator-%s-%d.po' % (field, i), TARGET_PO))
+                    yield from self.open_file(
+                        self.write_file('translator-%s-%d.po' % (field, i), TARGET_PO)
+                    )
                     self.fill(entry, value)
                     yield from self.settle(2)
                     details = {'name': 'Fuzz Tester', 'email': 'fuzz@example.org', 'team': 'Team'}
@@ -582,15 +662,28 @@ class Sweep:
                     for key, text in details.items():
                         pan_app.settings.translator[key] = text
                     pan_app.settings.write()
-                    if pan_app.Settings(pan_app.settings.filename).translator[field] != details[field]:
-                        self.rec.problem('config-roundtrip', 'virtaal.ini', 'translator %s read back differently' % field)
+                    if (
+                        pan_app.Settings(pan_app.settings.filename).translator[field]
+                        != details[field]
+                    ):
+                        self.rec.problem(
+                            'config-roundtrip',
+                            'virtaal.ini',
+                            'translator %s read back differently' % field,
+                        )
                     self.mc.store_controller.set_modified(True)
                     if self.mc.save_file():
-                        header = factory.getobject(self.mc.store_controller.store.get_filename()).parseheader()
+                        header = factory.getobject(
+                            self.mc.store_controller.store.get_filename()
+                        ).parseheader()
                         extra = set(header) - expected_fields
                         if extra or header.get('Plural-Forms') != 'nplurals=2; plural=(n != 1);':
-                            self.rec.problem('header-injection', '', 'header fields %r, Plural-Forms %r' % (
-                                sorted(extra), header.get('Plural-Forms')))
+                            self.rec.problem(
+                                'header-injection',
+                                '',
+                                'header fields %r, Plural-Forms %r'
+                                % (sorted(extra), header.get('Plural-Forms')),
+                            )
                 except Exception:
                     self.failed()
         for key, text in (('name', 'Fuzz Tester'), ('email', 'fuzz@example.org'), ('team', '')):
@@ -615,11 +708,16 @@ class Sweep:
 
     def files(self):
         from malformed import READ_ONLY_FORMATS, file_cases
+
         folder = os.path.join(self.args.workdir, 'files')
         os.makedirs(folder, exist_ok=True)
         cases = file_cases()
         for sweep in dict.fromkeys(sweep for sweep, *_ in cases):
-            own = [(None, name, (ext, content, must_open)) for s, name, ext, content, must_open in cases if s == sweep]
+            own = [
+                (None, name, (ext, content, must_open))
+                for s, name, ext, content, must_open in cases
+                if s == sweep
+            ]
             for i, (case, (ext, content, must_open)) in enumerate(self.cases(sweep, own)):
                 path = os.path.join(folder, '%s-%d%s' % (sweep, i, '.' + ext if ext else ''))
                 try:
@@ -628,13 +726,16 @@ class Sweep:
                     else:
                         with open(path, 'wb') as f:
                             f.write(content)
-                    yield from self._open_and_save(path, must_open, save=ext not in READ_ONLY_FORMATS)
+                    yield from self._open_and_save(
+                        path, must_open, save=ext not in READ_ONLY_FORMATS
+                    )
                 except Exception:
                     self.failed()
 
     def _open_and_save(self, path, must_open, save=True, save_to=None, save_may_fail=False):
         """Open a file, visit its units, edit one, save and reload it."""
         from translate.storage import factory
+
         sc = self.mc.store_controller
         opened = self.refusable(lambda: self.mc.open_file(path))
         yield from self.settle(5)
@@ -673,6 +774,7 @@ class Sweep:
 
     def paths(self):
         from malformed import PO
+
         base = os.path.join(self.args.workdir, 'paths')
         windows = sys.platform.startswith('win')
 
@@ -724,27 +826,41 @@ class Sweep:
             cases += [
                 ('reserved name', lambda: os.path.join(base, 'CON.po'), False, False),
                 ('trailing dot', lambda: put('trailing.po') + '.', False, False),
-                ('extended-length path', lambda: '\\\\?\\' + os.path.abspath(put('extended.po')), False, False),
+                (
+                    'extended-length path',
+                    lambda: '\\\\?\\' + os.path.abspath(put('extended.po')),
+                    False,
+                    False,
+                ),
             ]
-        for case, (make, must_open, save_may_fail) in self.cases('paths', [(None, c, (m, o, f)) for c, m, o, f in cases]):
+        for case, (make, must_open, save_may_fail) in self.cases(
+            'paths', [(None, c, (m, o, f)) for c, m, o, f in cases]
+        ):
             try:
                 path = make()
                 if path is None:
                     self.rec.note('not possible here')
                     continue
-                yield from self._open_and_save(path, must_open, save_to=path, save_may_fail=save_may_fail)
+                yield from self._open_and_save(
+                    path, must_open, save_to=path, save_may_fail=save_may_fail
+                )
             except Exception:
                 self.failed()
 
-        for case, value in self.cases('saving', [(None, 'over an existing file', None),
-                                                 (None, 'into a missing folder', None)]):
+        for case, value in self.cases(
+            'saving', [(None, 'over an existing file', None), (None, 'into a missing folder', None)]
+        ):
             try:
                 source = put('save-source.po')
                 if case == 'over an existing file':
                     yield from self._open_and_save(source, True, save_to=put('existing.po'))
                 else:
-                    yield from self._open_and_save(source, True, save_to=os.path.join(base, 'nowhere', 'x.po'),
-                                                   save_may_fail=True)
+                    yield from self._open_and_save(
+                        source,
+                        True,
+                        save_to=os.path.join(base, 'nowhere', 'x.po'),
+                        save_may_fail=True,
+                    )
             except Exception:
                 self.failed()
         for root, dirs, _ in os.walk(base):
@@ -755,6 +871,7 @@ class Sweep:
 def main():
     global GLib, Gtk
     import gi
+
     gi.require_version('Gtk', '3.0')
     from gi.repository import GLib, Gtk
     from record import SLOW_SECONDS, Recorder
@@ -769,26 +886,33 @@ def main():
     args = parser.parse_args()
 
     # Service sweeps wait for slow replies on purpose.
-    recorder = Recorder(args.results, args.case_timeout,
-                        slow_seconds=None if args.section.startswith('service-') else SLOW_SECONDS)
+    recorder = Recorder(
+        args.results,
+        args.case_timeout,
+        slow_seconds=None if args.section.startswith('service-') else SLOW_SECONDS,
+    )
     recorder.sweep = args.section
     recorder.install()
 
     from virtaal.common import pan_app
-    service = args.section[len('service-'):] if args.section.startswith('service-') else None
+
+    service = args.section[len('service-') :] if args.section.startswith('service-') else None
     if service:
         import services
+
         url = services.start_server()
         services.configure(service, url, pan_app.get_config_dir())
     editing_section = args.section in EDIT_SECTIONS or args.section.startswith('ui-')
     if editing_section:
         import editing
+
         editing.configure(args.section, pan_app.get_config_dir())
         # virtaal.ini was read on import; take the section's changes.
         pan_app.settings.read()
     pan_app.settings.translator['name'] = 'Fuzz Tester'
     pan_app.settings.translator['email'] = 'fuzz@example.org'
     from virtaal.main import Virtaal
+
     if service:
         services.patch_fixed_urls(service, url)
 

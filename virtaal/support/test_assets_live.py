@@ -23,7 +23,8 @@ from gi.repository import GLib
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('VIRTAAL_LIVE_ASSETS') != '1',
-    reason="set VIRTAAL_LIVE_ASSETS=1 to download every asset")
+    reason="set VIRTAAL_LIVE_ASSETS=1 to download every asset",
+)
 
 PARALLEL = 6
 PER_DOWNLOAD_SECONDS = 300
@@ -36,8 +37,9 @@ def manifest(tmp_path_factory):
     config_dir = tmp_path_factory.mktemp('config')
     fetched = []
     loop = GLib.MainLoop()
-    AssetManifest(config_dir=str(config_dir), schedule_after_idle_lull=lambda cb: cb()).ensure_fresh(
-        on_done=lambda: (fetched.append(True), loop.quit()))
+    AssetManifest(
+        config_dir=str(config_dir), schedule_after_idle_lull=lambda cb: cb()
+    ).ensure_fresh(on_done=lambda: (fetched.append(True), loop.quit()))
     GLib.timeout_add_seconds(60, loop.quit)
     loop.run()
     cache = config_dir / 'asset-manifest.yaml'
@@ -127,22 +129,38 @@ def test_every_spelling_dictionary(manifest, tmp_path):
     # locale downloads, into one folder.
     target = tmp_path / 'enchant' / 'hunspell'
     entries = manifest['dictionary']
-    jobs = [(locale, lambda done, l=locale, e=entry: DictionaryDownloader(
-                 l, on_done=done, target_dir=str(target)).start_with_known_files(
-                 e['folder'], [f['name'] for f in e['files']]))
-            for locale, entry in sorted(entries.items())]
+    jobs = [
+        (
+            locale,
+            lambda done, l=locale, e=entry: DictionaryDownloader(
+                l, on_done=done, target_dir=str(target)
+            ).start_with_known_files(e['folder'], [f['name'] for f in e['files']]),
+        )
+        for locale, entry in sorted(entries.items())
+    ]
     downloaded = _download_all(jobs)
 
-    failures = {locale: 'download %s' % ('timed out' if downloaded.get(locale) is None else 'failed')
-                for locale in entries if downloaded.get(locale) is not True}
+    failures = {
+        locale: 'download %s' % ('timed out' if downloaded.get(locale) is None else 'failed')
+        for locale in entries
+        if downloaded.get(locale) is not True
+    }
     checked = sorted(locale for locale in entries if locale not in failures)
     env = dict(os.environ, XDG_CONFIG_HOME=str(tmp_path))
-    run = subprocess.run([sys.executable, '-c', _SPELL_CHECK, json.dumps(checked)],
-                         env=env, capture_output=True, text=True, timeout=900)
+    run = subprocess.run(
+        [sys.executable, '-c', _SPELL_CHECK, json.dumps(checked)],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=900,
+    )
     assert not run.returncode, run.stderr[-2000:]
     failures.update(json.loads(run.stdout))
     assert not failures, '%d of %d dictionaries:\n%s' % (
-        len(failures), len(entries), _report(failures))
+        len(failures),
+        len(entries),
+        _report(failures),
+    )
 
 
 @pytest.mark.timeout(3600)
@@ -152,9 +170,15 @@ def test_every_thesaurus(manifest, tmp_path):
 
     groups = _groups(manifest['thesaurus'])
     targets = {key: tmp_path / str(i) for i, key in enumerate(groups)}
-    jobs = [(key, lambda done, l=locales[0], key=key: ThesaurusDownloader(
-                 l, on_done=done, target_dir=str(targets[key])).start_with_known_files(key[0], list(key[1])))
-            for key, locales in groups.items()]
+    jobs = [
+        (
+            key,
+            lambda done, l=locales[0], key=key: ThesaurusDownloader(
+                l, on_done=done, target_dir=str(targets[key])
+            ).start_with_known_files(key[0], list(key[1])),
+        )
+        for key, locales in groups.items()
+    ]
     downloaded = _download_all(jobs)
 
     failures = {}
@@ -172,7 +196,10 @@ def test_every_thesaurus(manifest, tmp_path):
         if problem:
             failures.update(dict.fromkeys(locales, problem))
     assert not failures, '%d of %d thesauruses:\n%s' % (
-        len(failures), len(manifest['thesaurus']), _report(failures))
+        len(failures),
+        len(manifest['thesaurus']),
+        _report(failures),
+    )
 
 
 @pytest.mark.timeout(3600)
@@ -181,23 +208,33 @@ def test_every_autocorrect_list(manifest, tmp_path):
     from virtaal.support.autocorrect_downloader import AutocorrectDownloader
 
     entries = manifest['autocorrect']
-    jobs = [(locale, lambda done, l=locale, e=entry: AutocorrectDownloader(
-                 l, on_done=done, target_dir=str(tmp_path / l)).start_with_known_files(
-                 e['folder'], [f['name'] for f in e['files']]))
-            for locale, entry in sorted(entries.items())]
+    jobs = [
+        (
+            locale,
+            lambda done, l=locale, e=entry: AutocorrectDownloader(
+                l, on_done=done, target_dir=str(tmp_path / l)
+            ).start_with_known_files(e['folder'], [f['name'] for f in e['files']]),
+        )
+        for locale, entry in sorted(entries.items())
+    ]
     downloaded = _download_all(jobs)
 
     corrector = AutoCorrector(SimpleNamespace(), acorpath=str(tmp_path))
     failures = {}
     for locale in entries:
         if downloaded.get(locale) is not True:
-            failures[locale] = 'download %s' % ('timed out' if downloaded.get(locale) is None else 'failed')
+            failures[locale] = 'download %s' % (
+                'timed out' if downloaded.get(locale) is None else 'failed'
+            )
             continue
         corrector.load_dictionary(locale, force=True)
         if corrector.unreadable or not corrector.correctiondict:
             failures[locale] = 'unreadable' if corrector.unreadable else 'no corrections loaded'
     assert not failures, '%d of %d autocorrect lists:\n%s' % (
-        len(failures), len(entries), _report(failures))
+        len(failures),
+        len(entries),
+        _report(failures),
+    )
 
 
 @pytest.mark.timeout(300)
@@ -208,7 +245,9 @@ def test_every_offered_language_resolves(manifest, tmp_path):
 
     from virtaal.support.asset_manifest import AssetManifest
 
-    linguas = (Path(__file__).resolve().parents[2] / 'po' / 'LINGUAS').read_text(encoding='utf-8').split()
+    linguas = (
+        (Path(__file__).resolve().parents[2] / 'po' / 'LINGUAS').read_text(encoding='utf-8').split()
+    )
     codes = sorted(set(data.languages) | set(linguas))
     lookup = AssetManifest(config_dir=str(tmp_path))
     lookup._data = manifest
@@ -217,6 +256,9 @@ def test_every_offered_language_resolves(manifest, tmp_path):
         keys = manifest[kind]
         for code in codes:
             base = code.replace('-', '_').split('@')[0].split('_')[0]
-            if any(k == base or k.startswith(base + '_') for k in keys) and lookup.get(kind, code) is None:
+            if (
+                any(k == base or k.startswith(base + '_') for k in keys)
+                and lookup.get(kind, code) is None
+            ):
                 missing.append('%s %s' % (kind, code))
     assert not missing, 'offered languages with assets that resolve to none:\n' + '\n'.join(missing)

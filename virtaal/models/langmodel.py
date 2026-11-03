@@ -20,7 +20,7 @@ gettext_lang = tr_lang(ui_language)
 
 def same_language(code, langcode):
     """Whether a file's own language C{code} (e.g. "en-US") is the language
-        Virtaal knows as C{langcode} (e.g. "en")."""
+    Virtaal knows as C{langcode} (e.g. "en")."""
     return bool(code) and LanguageModel(code).code == langcode
 
 
@@ -37,30 +37,30 @@ class LanguageModel(BaseModel):
     # INITIALIZERS #
     def __init__(self, langcode='und'):
         """Constructor.
-            Looks up the language information based on the given language code
-            (C{langcode})."""
+        Looks up the language information based on the given language code
+        (C{langcode})."""
         super().__init__()
         if not self.languages:
             self.languages.update(toolkit_langs)
         self.load(langcode)
 
-
     # SPECIAL METHODS #
     def __eq__(self, otherlang):
         """Check that the C{code}, C{nplurals} and C{plural} attributes are the
-            same. The C{name} attribute may differ, seeing as it is localised.
+        same. The C{name} attribute may differ, seeing as it is localised.
 
-            @type  otherlang: LanguageModel
-            @param otherlang: The language to compare the current instance to."""
-        return  isinstance(otherlang, LanguageModel) and \
-                self.code     == otherlang.code and \
-                self.nplurals == otherlang.nplurals and \
-                self.plural   == otherlang.plural
-
+        @type  otherlang: LanguageModel
+        @param otherlang: The language to compare the current instance to."""
+        return (
+            isinstance(otherlang, LanguageModel)
+            and self.code == otherlang.code
+            and self.nplurals == otherlang.nplurals
+            and self.plural == otherlang.plural
+        )
 
     # METHODS #
     def load(self, langcode):
-        #FIXME: what if we get language code with different capitalization?
+        # FIXME: what if we get language code with different capitalization?
         if langcode not in self.languages:
             try:
                 langcode = self._match_normalized_langcode(langcode)
@@ -85,5 +85,5 @@ class LanguageModel(BaseModel):
     def _match_normalized_langcode(self, langcode):
         languages_keys = list(self.languages.keys())
         normalized_keys = [data.normalize_code(lang) for lang in languages_keys]
-        i =  normalized_keys.index(data.normalize_code(langcode))
+        i = normalized_keys.index(data.normalize_code(langcode))
         return languages_keys[i]

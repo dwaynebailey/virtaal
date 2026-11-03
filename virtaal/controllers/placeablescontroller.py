@@ -55,7 +55,11 @@ class PlaceablesController(BaseController):
         ]
 
     def _init_parsers(self):
-        disabled = [name for name, state in pan_app.settings.placeable_state.items() if state.lower() == 'disabled']
+        disabled = [
+            name
+            for name, state in pan_app.settings.placeable_state.items()
+            if state.lower() == 'disabled'
+        ]
 
         self.parsers = []
         for parser in general.parsers:
@@ -69,84 +73,80 @@ class PlaceablesController(BaseController):
 
         # Test for presence of parser classes by hand
         self.parser_info[general.CamelCasePlaceable.parse] = (
-            #l10n: See http://en.wikipedia.org/wiki/CamelCase
+            # l10n: See http://en.wikipedia.org/wiki/CamelCase
             _('CamelCase'),
-            _('Words with internal capitalization, such as some brand names and WikiWords')
+            _('Words with internal capitalization, such as some brand names and WikiWords'),
         )
         self.parser_info[general.CapsPlaceable.parse] = (
             _('Capitals'),
-            #l10n: this refers to "UPPERCASE" / "CAPITAL" letters
-            _('Words containing uppercase letters only')
+            # l10n: this refers to "UPPERCASE" / "CAPITAL" letters
+            _('Words containing uppercase letters only'),
         )
         self.parser_info[general.OptionPlaceable.parse] = (
             _('Command Line Options'),
-            _('Application command line options, such as --help, -h and -I')
+            _('Application command line options, such as --help, -h and -I'),
         )
-        self.parser_info[general.EmailPlaceable.parse] = (
-            _('E-mail'),
-            _('E-mail addresses')
-        )
+        self.parser_info[general.EmailPlaceable.parse] = (_('E-mail'), _('E-mail addresses'))
         self.parser_info[general.FilePlaceable.parse] = (
             _('File Names'),
-            _('Paths referring to file locations')
+            _('Paths referring to file locations'),
         )
         self.parser_info[general.FormattingPlaceable.parse] = (
             _('Placeholders (printf)'),
-            _('Placeholders used in "printf" strings')
+            _('Placeholders used in "printf" strings'),
         )
         self.parser_info[general.PythonFormattingPlaceable.parse] = (
             _('Placeholders (Python)'),
-            _('Placeholders in Python strings')
+            _('Placeholders in Python strings'),
         )
         self.parser_info[general.JavaMessageFormatPlaceable.parse] = (
             _('Placeholders (Java)'),
-            _('Placeholders in Java strings')
+            _('Placeholders in Java strings'),
         )
         self.parser_info[general.QtFormattingPlaceable.parse] = (
             _('Placeholders (Qt)'),
-            _('Placeholders in Qt strings')
+            _('Placeholders in Qt strings'),
         )
         self.parser_info[general.NumberPlaceable.parse] = (
             _('Numbers'),
-            #l10n: 'decimal fractions' refer to numbers like 0.2 or 499,99
-            _('Integer numbers and decimal fractions')
+            # l10n: 'decimal fractions' refer to numbers like 0.2 or 499,99
+            _('Integer numbers and decimal fractions'),
         )
         self.parser_info[general.PunctuationPlaceable.parse] = (
             _('Punctuation'),
-            _('Symbols and less frequently used punctuation marks')
+            _('Symbols and less frequently used punctuation marks'),
         )
         self.parser_info[general.UrlPlaceable.parse] = (
             _('URLs'),
-            _('URLs, hostnames and IP addresses')
+            _('URLs, hostnames and IP addresses'),
         )
         self.parser_info[general.XMLEntityPlaceable.parse] = (
-            #l10n: see http://en.wikipedia.org/wiki/Character_entity_reference
+            # l10n: see http://en.wikipedia.org/wiki/Character_entity_reference
             _('XML Entities'),
-            _('Entity references, such as &amp; and &#169;')
+            _('Entity references, such as &amp; and &#169;'),
         )
         self.parser_info[general.XMLTagPlaceable.parse] = (
             _('XML Tags'),
-            _('XML tags, such as <b> and </i>')
+            _('XML tags, such as <b> and </i>'),
         )
         # This code should eventually be used to add the SpacesPlaceable, but
         # it is not working well yet. We add the strings for translation so
         # that we won't need to break the string freeze later when it works.
-#        self.parser_info[general.AltAttrPlaceable.parse] = (
-#            _('"alt" Attributes'),
-#            _('Placeable for "alt" attributes (as found in HTML)')
-#        )
-#        self.parser_info[general.SpacesPlaceable.parse] = (
-#            _('Spaces'),
-#            _('Double spaces and spaces in unexpected positions')
-#        )
+        #        self.parser_info[general.AltAttrPlaceable.parse] = (
+        #            _('"alt" Attributes'),
+        #            _('Placeable for "alt" attributes (as found in HTML)')
+        #        )
+        #        self.parser_info[general.SpacesPlaceable.parse] = (
+        #            _('Spaces'),
+        #            _('Double spaces and spaces in unexpected positions')
+        #        )
 
-        _('Spaces'),
+        (_('Spaces'),)
         _('Double spaces and spaces in unexpected positions')
-        _('"alt" Attributes'),
+        (_('"alt" Attributes'),)
         _('Placeable for "alt" attributes (as found in HTML)')
-        _('Placeholders (Drupal)'),
+        (_('Placeholders (Drupal)'),)
         _('Placeholders in Drupal strings')
-
 
     # METHODS #
     def add_parsers(self, *newparsers):
@@ -170,9 +170,9 @@ class PlaceablesController(BaseController):
 
     def apply_parsers(self, elems, parsers=None):
         """Apply all selected placeable parsers to the list of string elements
-            given.
+        given.
 
-            @param elems: The list of C{StringElem}s to apply the parsers to."""
+        @param elems: The list of C{StringElem}s to apply the parsers to."""
         if not isinstance(elems, list) and isinstance(elems, StringElem):
             elems = [elems]
 
@@ -185,9 +185,9 @@ class PlaceablesController(BaseController):
 
     def get_parsers_for_textbox(self, textbox):
         """Get the parsers that should be applied to the given text box.
-            This is intended for use by C{TextBox} to supply it with appropriate
-            parsers, based on whether the text box is used for source- or target
-            text."""
+        This is intended for use by C{TextBox} to supply it with appropriate
+        parsers, based on whether the text box is used for source- or target
+        text."""
         if textbox in self.main_controller.unit_controller.view.targets:
             tgt_parsers = []
             return [p for p in self.parsers if p.__self__ not in self.non_target_placeables]
@@ -213,7 +213,6 @@ class PlaceablesController(BaseController):
                 changed = True
         if changed:
             self.emit('parsers-changed')
-
 
     # EVENT HANDLERS #
     def _on_style_set(self, widget, prev_style=None):

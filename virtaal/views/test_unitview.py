@@ -99,9 +99,7 @@ def _make_view(source_forms, target):
 def test_each_target_gets_its_own_matching_source_for_gettext_plurals():
     # Two real source forms (msgid, msgid_plural) - target[i]'s
     # selector_textbox should be sources[i], not always sources[0].
-    view = _make_view(
-        ['%d file', '%d files'],
-        multistring(['form 0', 'form 1']))
+    view = _make_view(['%d file', '%d files'], multistring(['form 0', 'form 1']))
     view._layout_update_targets()
 
     assert view.targets[0].selector_textbox is view.sources[0]
@@ -110,9 +108,7 @@ def test_each_target_gets_its_own_matching_source_for_gettext_plurals():
 
 def test_targets_fall_back_to_the_single_source_when_there_is_only_one():
     # .qm-style: one source covers every plural target form.
-    view = _make_view(
-        ['%n file(s) selected'],
-        multistring(['form 0', 'form 1']))
+    view = _make_view(['%n file(s) selected'], multistring(['form 0', 'form 1']))
     view._layout_update_targets()
 
     assert view.targets[0].selector_textbox is view.sources[0]
@@ -120,9 +116,7 @@ def test_targets_fall_back_to_the_single_source_when_there_is_only_one():
 
 
 def test_every_target_anchors_tm_suggestions_below_the_last_target_and_the_comment():
-    view = _make_view(
-        ['%d file', '%d files'],
-        multistring(['form 0', 'form 1']))
+    view = _make_view(['%d file', '%d files'], multistring(['form 0', 'form 1']))
     last_parent = _FakeParent()
     view.targets[1].get_parent = lambda: last_parent
     view._layout_update_targets()
@@ -156,8 +150,16 @@ class _FakeMenuWidget:
 
 class _FakeSetupMenusGui:
     def __init__(self):
-        names = ('mnu_cut', 'mnu_copy', 'mnu_paste', 'mnu_placnext', 'mnu_placprev', 'mnu_transfer',
-                 'mnu_placinsert', 'menu_edit')
+        names = (
+            'mnu_cut',
+            'mnu_copy',
+            'mnu_paste',
+            'mnu_placnext',
+            'mnu_placprev',
+            'mnu_transfer',
+            'mnu_placinsert',
+            'menu_edit',
+        )
         self._widgets = {name: _FakeMenuWidget() for name in names}
 
     def get_object(self, name):
@@ -187,10 +189,14 @@ def test_cut_copy_paste_disabled_before_any_store_event():
     # a real store-closed event fires, which never happens on a fresh
     # startup with no file ever opened.
     view = UnitView.__new__(UnitView)
-    main_controller = type('_MC', (), {
-        'view': _FakeSetupMenusMainView(),
-        'store_controller': _FakeSetupMenusStoreController(),
-    })()
+    main_controller = type(
+        '_MC',
+        (),
+        {
+            'view': _FakeSetupMenusMainView(),
+            'store_controller': _FakeSetupMenusStoreController(),
+        },
+    )()
     view.controller = type('_C', (), {'main_controller': main_controller})()
 
     view._setup_menus()
@@ -275,12 +281,23 @@ class _FakeWindow:
         return self
 
 
-@pytest.mark.parametrize('windows, expected', [
-    (lambda main: [main, _FakeWindow(active=True, over=main)], 1),
-    (lambda main: [main, _FakeWindow(over=main), _FakeWindow(active=True, over=_FakeWindow(over=main))], 2),
-    (lambda main: [main, _FakeWindow(active=True)], None),
-    (lambda main: [main, _FakeWindow(active=True, visible=False, over=main)], None),
-], ids=['dialog', 'dialog over a dialog', 'unrelated window', 'hidden dialog'])
+@pytest.mark.parametrize(
+    'windows, expected',
+    [
+        (lambda main: [main, _FakeWindow(active=True, over=main)], 1),
+        (
+            lambda main: [
+                main,
+                _FakeWindow(over=main),
+                _FakeWindow(active=True, over=_FakeWindow(over=main)),
+            ],
+            2,
+        ),
+        (lambda main: [main, _FakeWindow(active=True)], None),
+        (lambda main: [main, _FakeWindow(active=True, visible=False, over=main)], None),
+    ],
+    ids=['dialog', 'dialog over a dialog', 'unrelated window', 'hidden dialog'],
+)
 def test_active_dialog_is_an_active_window_over_the_main_one(monkeypatch, windows, expected):
     main = _FakeWindow()
     toplevels = windows(main)
@@ -289,8 +306,14 @@ def test_active_dialog_is_an_active_window_over_the_main_one(monkeypatch, window
     assert _active_dialog(main) is (None if expected is None else toplevels[expected])
 
 
-@pytest.mark.parametrize('action, signal', [('_on_cut', 'cut-clipboard'), ('_on_copy', 'copy-clipboard'),
-                                            ('_on_paste', 'paste-clipboard')])
+@pytest.mark.parametrize(
+    'action, signal',
+    [
+        ('_on_cut', 'cut-clipboard'),
+        ('_on_copy', 'copy-clipboard'),
+        ('_on_paste', 'paste-clipboard'),
+    ],
+)
 def test_clipboard_actions_go_to_a_focused_dialog_field(dialog_entry, action, signal):
     # #4609: on macOS, Cmd+V in Preferences pasted into the translation.
     entry, emitted = dialog_entry
@@ -301,7 +324,11 @@ def test_clipboard_actions_go_to_a_focused_dialog_field(dialog_entry, action, si
     getattr(view, action)(None)
 
     assert emitted == [signal]
-    assert (target.buffer.cut_calls, target.buffer.copy_calls, target.buffer.paste_calls) == ([], [], [])
+    assert (target.buffer.cut_calls, target.buffer.copy_calls, target.buffer.paste_calls) == (
+        [],
+        [],
+        [],
+    )
 
 
 def test_paste_does_nothing_when_the_dialog_has_no_text_field_focused(monkeypatch):
@@ -524,6 +551,7 @@ def test_copy_stays_enabled_with_nothing_selected():
 
 # _on_target_key_pressed() #
 
+
 def _view_for_key_press():
     view = UnitView.__new__(UnitView)
     view.unit = object()
@@ -540,7 +568,9 @@ def test_on_target_key_pressed_enter_focuses_the_next_visible_target():
     view = _view_for_key_press()
     focused = []
     view.focus_text_view = lambda tb: focused.append(tb)
-    next_textbox = SimpleNamespace(get_parent=lambda: SimpleNamespace(props=SimpleNamespace(visible=True)))
+    next_textbox = SimpleNamespace(
+        get_parent=lambda: SimpleNamespace(props=SimpleNamespace(visible=True))
+    )
 
     result = view._on_target_key_pressed(None, None, 'enter', next_textbox)
 
@@ -636,9 +666,13 @@ def test_on_target_key_pressed_shift_tab_does_nothing_at_the_first_target():
 def test_on_target_key_pressed_ctrl_tab_focuses_the_language_controller():
     view = _view_for_key_press()
     focused = []
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        lang_controller=SimpleNamespace(view=SimpleNamespace(focus=lambda: focused.append(True))),
-    ))
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            lang_controller=SimpleNamespace(
+                view=SimpleNamespace(focus=lambda: focused.append(True))
+            ),
+        )
+    )
 
     result = view._on_target_key_pressed(None, None, 'ctrl-tab', None)
 
@@ -649,9 +683,13 @@ def test_on_target_key_pressed_ctrl_tab_focuses_the_language_controller():
 def test_on_target_key_pressed_ctrl_shift_tab_focuses_the_mode_controller():
     view = _view_for_key_press()
     focused = []
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        mode_controller=SimpleNamespace(view=SimpleNamespace(focus=lambda: focused.append(True))),
-    ))
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            mode_controller=SimpleNamespace(
+                view=SimpleNamespace(focus=lambda: focused.append(True))
+            ),
+        )
+    )
 
     result = view._on_target_key_pressed(None, None, 'ctrl-shift-tab', None)
 
@@ -666,6 +704,7 @@ def test_on_target_key_pressed_unrecognized_eventname_falls_through():
 
 
 # is_modified() / get_target_n() / set_target_n() #
+
 
 def test_is_modified_reflects_the_modified_flag():
     view = UnitView.__new__(UnitView)
@@ -712,6 +751,7 @@ def test_set_target_n_places_the_cursor_when_a_position_is_given():
 
 
 # insert_placeable() #
+
 
 class _FakeSource:
     def __init__(self, elems):
@@ -777,10 +817,12 @@ def test_select_first_placeables_skips_hidden_targets():
     view = UnitView.__new__(UnitView)
     visible_source, hidden_source = _FakeSource(['a']), _FakeSource(['b'])
     parent = lambda visible: SimpleNamespace(props=SimpleNamespace(visible=visible))
-    view._widgets = {'targets': [
-        SimpleNamespace(selector_textbox=visible_source, get_parent=lambda: parent(True)),
-        SimpleNamespace(selector_textbox=hidden_source, get_parent=lambda: parent(False)),
-    ]}
+    view._widgets = {
+        'targets': [
+            SimpleNamespace(selector_textbox=visible_source, get_parent=lambda: parent(True)),
+            SimpleNamespace(selector_textbox=hidden_source, get_parent=lambda: parent(False)),
+        ]
+    }
 
     view.select_first_placeables()
 
@@ -789,6 +831,7 @@ def test_select_first_placeables_skips_hidden_targets():
 
 
 # copy_original() #
+
 
 def _copy_original_view(source_text, target_lang_code, role='target'):
     view = UnitView.__new__(UnitView)
@@ -842,6 +885,7 @@ def test_copy_original_applies_punctuation_translation_when_it_differs():
 
 # do_start_editing() #
 
+
 def test_do_start_editing_focuses_the_first_target():
     view = UnitView.__new__(UnitView)
     view._widgets = {'targets': ['t0', 't1']}
@@ -855,6 +899,7 @@ def test_do_start_editing_focuses_the_first_target():
 
 # load_unit() #
 
+
 def test_load_unit_does_nothing_when_the_same_unit_is_already_loaded():
     view = UnitView.__new__(UnitView)
     unit = object()
@@ -865,6 +910,7 @@ def test_load_unit_does_nothing_when_the_same_unit_is_already_loaded():
 
 
 # update_languages() / _update_textview_language() #
+
 
 class _FakePangoContext:
     def __init__(self):
@@ -889,11 +935,14 @@ def test_update_languages_applies_fonts_and_languages_to_sources_and_targets():
     view._widgets = {'sources': [src], 'targets': [tgt]}
     emitted = []
     view.emit = lambda signal, *args: emitted.append((signal, args))
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        lang_controller=SimpleNamespace(
-            source_lang=SimpleNamespace(code='en'),
-            target_lang=SimpleNamespace(code='fr'),
-        )))
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            lang_controller=SimpleNamespace(
+                source_lang=SimpleNamespace(code='en'),
+                target_lang=SimpleNamespace(code='fr'),
+            )
+        )
+    )
 
     view.update_languages()
 
@@ -906,6 +955,7 @@ def test_update_languages_applies_fonts_and_languages_to_sources_and_targets():
 
 # _create_workflow_liststore() #
 
+
 def test_create_workflow_liststore_returns_an_empty_store_without_a_workflow():
     view = UnitView.__new__(UnitView)
     view.controller = SimpleNamespace(current_unit=SimpleNamespace(_workflow=None))
@@ -916,6 +966,7 @@ def test_create_workflow_liststore_returns_an_empty_store_without_a_workflow():
 
 
 # _layout_update_notes() #
+
 
 def test_layout_update_notes_shows_a_long_translator_comment_in_full():
     view = UnitView.__new__(UnitView)
@@ -959,6 +1010,7 @@ _XLIFF_NOTES = b'''<?xml version="1.0"?>
 def test_programmer_notes_include_xliff_notes_with_no_or_another_origin():
     # #2076: Angular's i18n extraction writes notes like these.
     from translate.storage import xliff
+
     units = xliff.xlifffile.parsestring(_XLIFF_NOTES).units
 
     assert _programmer_notes(units[0]) == 'Blub'
@@ -967,6 +1019,7 @@ def test_programmer_notes_include_xliff_notes_with_no_or_another_origin():
 
 def test_programmer_notes_leave_out_po_translator_comments():
     from translate.storage import pypo
+
     unit = pypo.pofile.parsestring(b'# Checked\n#. Toolbar\nmsgid "Save"\nmsgstr ""\n').units[0]
 
     assert _programmer_notes(unit) == 'Toolbar'
@@ -1010,6 +1063,7 @@ def test_notes_are_indented_secondary_text():
 
 # _layout_update_sources() / _layout_update_targets() - unit-is-None branch #
 
+
 def test_layout_update_sources_hides_extra_boxes_when_no_unit_is_loaded():
     view = UnitView.__new__(UnitView)
     view._create_sources = lambda: None
@@ -1050,6 +1104,7 @@ def test_layout_update_targets_hides_extra_boxes_when_no_unit_is_loaded():
 
 # _layout_update_states() / advance_workflow_state() / update_state() #
 
+
 def test_layout_update_states_hides_the_state_widget_without_any_state_names():
     view = UnitView.__new__(UnitView)
     widget = SimpleNamespace(hidden=[])
@@ -1080,7 +1135,9 @@ def test_layout_update_states_names_the_icon_only_state_buttons():
 def test_advance_workflow_state_does_nothing_without_a_stateful_unit():
     view = UnitView.__new__(UnitView)
     view.unit = SimpleNamespace(STATE=False)
-    view._widgets = {'state': SimpleNamespace(move_state=lambda offset: pytest.fail('must not move state'))}
+    view._widgets = {
+        'state': SimpleNamespace(move_state=lambda offset: pytest.fail('must not move state'))
+    }
 
     view.advance_workflow_state(1)  # must not raise
 
@@ -1096,6 +1153,7 @@ def test_update_state_selects_by_name():
 
 
 # _on_state_changed() #
+
 
 def test_on_state_changed_updates_workflow_state_and_marks_modified():
     view = UnitView.__new__(UnitView)
@@ -1124,6 +1182,7 @@ def test_on_state_changed_skips_setting_state_without_a_workflow():
 
 # _on_key_press_event() #
 
+
 def test_on_key_press_event_resets_must_advance_for_a_non_enter_key():
     view = UnitView.__new__(UnitView)
     view.must_advance = True
@@ -1136,7 +1195,13 @@ def test_on_key_press_event_resets_must_advance_for_a_non_enter_key():
 
 # _unselectable_states() #
 
-_STATE_NAMES = {0: 'Untranslated', 30: 'Needs work', 80: 'Needs review', 100: 'Translated', 120: 'Reviewed'}
+_STATE_NAMES = {
+    0: 'Untranslated',
+    30: 'Needs work',
+    80: 'Needs review',
+    100: 'Translated',
+    120: 'Reviewed',
+}
 
 
 def _states_view(target, plural=False):
@@ -1146,13 +1211,16 @@ def _states_view(target, plural=False):
     return view
 
 
-@pytest.mark.parametrize('target, plural, unselectable', [
-    ('', False, ['Untranslated', 'Translated', 'Reviewed']),
-    (None, False, ['Untranslated', 'Translated', 'Reviewed']),
-    ('Oop', False, ['Untranslated']),
-    (SimpleNamespace(strings=['een', '']), True, ['Untranslated', 'Translated', 'Reviewed']),
-    (SimpleNamespace(strings=['een', 'twee']), True, ['Untranslated']),
-])
+@pytest.mark.parametrize(
+    'target, plural, unselectable',
+    [
+        ('', False, ['Untranslated', 'Translated', 'Reviewed']),
+        (None, False, ['Untranslated', 'Translated', 'Reviewed']),
+        ('Oop', False, ['Untranslated']),
+        (SimpleNamespace(strings=['een', '']), True, ['Untranslated', 'Translated', 'Reviewed']),
+        (SimpleNamespace(strings=['een', 'twee']), True, ['Untranslated']),
+    ],
+)
 def test_an_empty_target_cant_be_translated_or_reviewed(target, plural, unselectable):
     # Needs work/Needs review stay available, e.g. XLIFF needs-translation.
     assert _states_view(target, plural)._unselectable_states() == unselectable
@@ -1167,7 +1235,8 @@ def test_typing_updates_which_states_can_be_picked():
     updates = []
     view._widgets = {'targets': [tb], 'state': SimpleNamespace(set_unselectable=updates.append)}
     view.controller.main_controller = SimpleNamespace(
-        lang_controller=SimpleNamespace(get_target_nplurals=lambda: 1))
+        lang_controller=SimpleNamespace(get_target_nplurals=lambda: 1)
+    )
     view.modified = lambda: None
 
     view._on_target_changed(None, 0)
@@ -1177,6 +1246,7 @@ def test_typing_updates_which_states_can_be_picked():
 
 # _on_target_changed() #
 
+
 def test_on_target_changed_writes_a_plain_string_target_and_marks_modified():
     view = UnitView.__new__(UnitView)
     tb = _FakeTextbox()
@@ -1184,8 +1254,11 @@ def test_on_target_changed_writes_a_plain_string_target_and_marks_modified():
     tb.get_text = lambda: 'hello'
     view._widgets = {'targets': [tb]}
     view.unit = SimpleNamespace(STATE={}, hasplural=lambda: False, target=None)
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        lang_controller=SimpleNamespace(get_target_nplurals=lambda: 1)))
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            lang_controller=SimpleNamespace(get_target_nplurals=lambda: 1)
+        )
+    )
     modified_calls = []
     view.modified = lambda: modified_calls.append(True)
 
@@ -1202,8 +1275,11 @@ def test_on_target_changed_raises_for_a_nonzero_index_on_a_non_plural_unit():
     tb.get_text = lambda: 'hello'
     view._widgets = {'targets': [None, tb]}
     view.unit = SimpleNamespace(STATE={}, hasplural=lambda: False)
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        lang_controller=SimpleNamespace(get_target_nplurals=lambda: 1)))
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            lang_controller=SimpleNamespace(get_target_nplurals=lambda: 1)
+        )
+    )
     view.modified = lambda: None
 
     with pytest.raises(IndexError):
@@ -1216,9 +1292,14 @@ def test_on_target_changed_pads_and_writes_a_plural_target():
     tb.elem = None
     tb.get_text = lambda: 'two'
     view._widgets = {'targets': [None, tb]}
-    view.unit = SimpleNamespace(STATE={}, hasplural=lambda: True, target=SimpleNamespace(strings=['one']))
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        lang_controller=SimpleNamespace(get_target_nplurals=lambda: 3)))
+    view.unit = SimpleNamespace(
+        STATE={}, hasplural=lambda: True, target=SimpleNamespace(strings=['one'])
+    )
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            lang_controller=SimpleNamespace(get_target_nplurals=lambda: 3)
+        )
+    )
     modified_calls = []
     view.modified = lambda: modified_calls.append(True)
 
@@ -1235,8 +1316,11 @@ def test_on_target_changed_writes_a_placeable_element_and_marks_modified():
     tb.elem = elem
     view._widgets = {'targets': [tb]}
     view.unit = SimpleNamespace(STATE={}, hasplural=lambda: False, rich_target=[None])
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        lang_controller=SimpleNamespace(get_target_nplurals=lambda: 1)))
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            lang_controller=SimpleNamespace(get_target_nplurals=lambda: 1)
+        )
+    )
     modified_calls = []
     view.modified = lambda: modified_calls.append(True)
 
@@ -1253,8 +1337,11 @@ def test_on_target_changed_pads_a_plural_rich_target_before_writing_the_element(
     tb.elem = elem
     view._widgets = {'targets': [None, tb]}
     view.unit = SimpleNamespace(STATE={}, hasplural=lambda: True, rich_target=['one'])
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        lang_controller=SimpleNamespace(get_target_nplurals=lambda: 3)))
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            lang_controller=SimpleNamespace(get_target_nplurals=lambda: 3)
+        )
+    )
     modified_calls = []
     view.modified = lambda: modified_calls.append(True)
 
@@ -1265,6 +1352,7 @@ def test_on_target_changed_pads_a_plural_rich_target_before_writing_the_element(
 
 
 # _on_textbox_paste_clipboard() / _on_textbox_focused() / _on_textbox_unfocused() #
+
 
 def test_on_textbox_paste_clipboard_emits_paste_start_with_offsets():
     view = UnitView.__new__(UnitView)
@@ -1277,7 +1365,9 @@ def test_on_textbox_paste_clipboard_emits_paste_start_with_offsets():
 
     view._on_textbox_paste_clipboard(textbox, 2)
 
-    assert emitted == [('paste-start', ('hello world', {'insert_offset': 5, 'selection_offset': 5}, 2))]
+    assert emitted == [
+        ('paste-start', ('hello world', {'insert_offset': 5, 'selection_offset': 5}, 2))
+    ]
 
 
 def test_on_textbox_focused_recomputes_edit_menu_sensitivity():
@@ -1301,6 +1391,7 @@ def test_on_textbox_unfocused_recomputes_edit_menu_sensitivity():
 
 
 # update_plural_forms() #
+
 
 def _plural_forms_view(unit):
     view = UnitView.__new__(UnitView)

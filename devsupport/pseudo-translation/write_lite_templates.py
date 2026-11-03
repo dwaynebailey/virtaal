@@ -35,24 +35,46 @@ EXCLUDED_WITHIN = {"FileChooser", "FontButton"}
 KEEP = {
     # The UI's text direction - a right-to-left language translates it
     # to default:RTL.
-    "gtk30": ["default:LTR",
-              # The recent files menu numbers its first ten items with a
-              # mnemonic, the rest without.
-              "recent menu label\x04_%d. %s", "recent menu label\x04%d. %s"],
+    "gtk30": [
+        "default:LTR",
+        # The recent files menu numbers its first ten items with a
+        # mnemonic, the rest without.
+        "recent menu label\x04_%d. %s",
+        "recent menu label\x04%d. %s",
+    ],
     # GLib.format_size() in Properties: a harvest only sees one file
     # size's unit.
-    "glib20": ["byte\0bytes", "format-size\x04%u %s", "format-size\x04%.1f\xa0%s",
-               "kB", "MB", "GB", "TB", "PB", "EB"],
+    "glib20": [
+        "byte\0bytes",
+        "format-size\x04%u %s",
+        "format-size\x04%.1f\xa0%s",
+        "kB",
+        "MB",
+        "GB",
+        "TB",
+        "PB",
+        "EB",
+    ],
     # The spelling menu's items depend on the word: suggestions, too many
     # suggestions, or none.
     "gtkspell3": ["<i>(no suggestions)</i>", 'Add "%s" to Dictionary', "Ignore All", "More..."],
     # The macOS app menu is native, so no harvest sees it. Virtaal sets
     # no Window menu, so Window, Minimize and Bring All to Front never
     # show; About %s labels Virtaal's own About item.
-    "gtk-mac-integration": ["About %s", "Services", "Hide %s", "Hide Others", "Show All", "Quit %s"],
+    "gtk-mac-integration": [
+        "About %s",
+        "Services",
+        "Hide %s",
+        "Hide Others",
+        "Show All",
+        "Quit %s",
+    ],
 }
-WITHIN_NAMES = {"Menu": "menus", "AboutDialog": "About dialog",
-                "ShortcutsWindow": "Keyboard Shortcuts window"}
+WITHIN_NAMES = {
+    "Menu": "menus",
+    "AboutDialog": "About dialog",
+    "ShortcutsWindow": "Keyboard Shortcuts window",
+}
 TAG_RE = re.compile(r"(?:vt|gtk|glib|iso|spell|mac)!?:")
 WINDOW_RE = re.compile(r"^(\w+) (?:'(.*)'|None)$")
 
@@ -103,10 +125,15 @@ def write_template(domain, originals):
     project = "%s lite" % domain
     if os.path.exists(path):
         old = factory.getobject(path)
-        old_notes = {(unit.getcontext() or "", str(unit.source)):
-                     "\n".join(line for line in unit.getnotes("developer").splitlines()
-                               if not line.startswith("Seen in: "))
-                     for unit in old.units if not unit.isheader()}
+        old_notes = {
+            (unit.getcontext() or "", str(unit.source)): "\n".join(
+                line
+                for line in unit.getnotes("developer").splitlines()
+                if not line.startswith("Seen in: ")
+            )
+            for unit in old.units
+            if not unit.isheader()
+        }
         project = old.parseheader().get("Project-Id-Version", "PACKAGE VERSION")
         if project == "PACKAGE VERSION":
             project = "%s lite" % domain
@@ -114,8 +141,12 @@ def write_template(domain, originals):
         os.makedirs(os.path.dirname(path), exist_ok=True)
     # ttk's base header, so no translator, revision date or Language (pot2po
     # would copy that over each merged .po's own), and no generator.
-    store.updateheader(add=True, Project_Id_Version=project, Content_Type="text/plain; charset=UTF-8",
-                       X_Generator=None)
+    store.updateheader(
+        add=True,
+        Project_Id_Version=project,
+        Content_Type="text/plain; charset=UTF-8",
+        X_Generator=None,
+    )
     for original in sorted(originals, key=lambda o: (o.rpartition("\x04")[2].lower(), o)):
         context, _, msgid = original.rpartition("\x04")
         forms = msgid.split("\0")
@@ -135,15 +166,33 @@ def write_template(domain, originals):
 def merge(domain, template):
     for po in sorted(glob.glob(os.path.join(LITE_DIR, domain, "*.po"))):
         merged = po + ".new"
-        subprocess.run([sys.executable, "-m", "translate.convert.pot2po", "--progress=none", "--nofuzzymatching",
-                        "-t", po, template, merged], check=True)
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "translate.convert.pot2po",
+                "--progress=none",
+                "--nofuzzymatching",
+                "-t",
+                po,
+                template,
+                merged,
+            ],
+            check=True,
+        )
         os.replace(merged, po)
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("resolved", nargs="+", help="resolve_sources.py outputs, e.g. one per platform")
-    parser.add_argument("--merge", action="store_true", help="also update each lite .po to its new template")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "resolved", nargs="+", help="resolve_sources.py outputs, e.g. one per platform"
+    )
+    parser.add_argument(
+        "--merge", action="store_true", help="also update each lite .po to its new template"
+    )
     args = parser.parse_args()
     found = harvested(args.resolved)
     for domain in DOMAINS:

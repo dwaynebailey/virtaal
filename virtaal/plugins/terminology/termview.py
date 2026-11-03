@@ -17,11 +17,13 @@ _default_bg = '#eeffee'
 _inverse_fg = '#c7ffff'
 _inverse_bg = '#003700'
 
+
 class TerminologyGUIInfo(StringElemGUI):
     """
     GUI info object for terminology placeables. A placeable with more than
     one match offers them as insert candidates to choose from.
     """
+
     # MEMBERS #
     fg = _default_fg
     bg = _default_bg
@@ -29,7 +31,6 @@ class TerminologyGUIInfo(StringElemGUI):
     def __init__(self, elem, textbox, **kwargs):
         assert elem.__class__.__name__ == 'TerminologyPlaceable'
         super().__init__(elem, textbox, **kwargs)
-
 
     # METHODS #
     def get_insert_candidates(self):
@@ -41,6 +42,7 @@ class TerminologyGUIInfo(StringElemGUI):
     @classmethod
     def update_style(self, widget):
         from gi.repository import Gtk
+
         _style = widget.get_style_context()
         fg = _style.get_color(Gtk.StateType.NORMAL)
         found, bg = _style.lookup_color('theme_base_color')
@@ -64,16 +66,18 @@ class TerminologyView(BaseView):
         self.controller = controller
         self._signal_tracker = SignalTracker()
 
-
     # METHODS #
     def destroy(self):
         self._signal_tracker.disconnect_all()
 
     def select_backends(self, parent):
         from virtaal.views.backendselect import select_backends
+
         select_backends(
-            self.controller.main_controller, self.controller.plugin_controller,
-            self.controller.config, 'basetermmodel',
+            self.controller.main_controller,
+            self.controller.plugin_controller,
+            self.controller.config,
+            'basetermmodel',
             title=_('Select Terminology Sources'),
             message=_('Select the sources of terminology suggestions'),
             size=(self.controller.config['backends_dialog_width'], 300),

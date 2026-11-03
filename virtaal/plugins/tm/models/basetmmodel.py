@@ -15,7 +15,7 @@ from virtaal.common.configurable import Configurable
 from virtaal.models.basemodel import BaseModel
 
 
-#http://effbot.org/zone/re-sub.htm#unescape-html
+# http://effbot.org/zone/re-sub.htm#unescape-html
 def unescape_html_entities(text):
     def fixup(m):
         text = m.group(0)
@@ -29,6 +29,7 @@ def unescape_html_entities(text):
         else:
             return entity
         return text
+
     return re.sub(r"&(#[0-9]+|\w+);", fixup, text)
 
 
@@ -37,7 +38,14 @@ class BaseTMModel(BaseModel, Configurable):
 
     __gtype_name__ = None
     __gsignals__ = {
-        'match-found': (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_STRING, GObject.TYPE_PYOBJECT,))
+        'match-found': (
+            GObject.SignalFlags.RUN_FIRST,
+            None,
+            (
+                GObject.TYPE_STRING,
+                GObject.TYPE_PYOBJECT,
+            ),
+        )
     }
 
     CONFIG_FILENAME = "tm.ini"
@@ -57,16 +65,16 @@ class BaseTMModel(BaseModel, Configurable):
     def __init__(self, controller):
         """Initialise the model and connects it to the appropriate events.
 
-            Only call this from child classes once the object was successfully
-            created and want to be connected to signals."""
+        Only call this from child classes once the object was successfully
+        created and want to be connected to signals."""
         super().__init__()
         self.config = {}
         self.controller = controller
         self._signal_tracker = SignalTracker()
         self._signal_tracker.connect(self.controller, 'start-query', self.query)
 
-        #static suggestion cache for slow TM queries
-        #TODO: cache invalidation, maybe decorate query to automate cache handling?
+        # static suggestion cache for slow TM queries
+        # TODO: cache invalidation, maybe decorate query to automate cache handling?
         self.cache = {}
 
         self.source_lang = None
@@ -80,7 +88,6 @@ class BaseTMModel(BaseModel, Configurable):
         self._signal_tracker.connect(lang_controller, 'source-lang-changed', self._set_source_lang)
         self._signal_tracker.connect(lang_controller, 'target-lang-changed', self._set_target_lang)
         self._signal_tracker.connect(checks_controller, 'checker-set', self._set_checker)
-
 
     # METHODS #
     def destroy(self):
@@ -96,7 +103,7 @@ class BaseTMModel(BaseModel, Configurable):
 
     def hold_until_languages_known(self, tmcontroller, unit):
         """True if the model knows its languages. Otherwise keep this query
-            to run once they are known, and return False (#4677)."""
+        to run once they are known, and return False (#4677)."""
         if self.languages_known:
             return True
         self._held_query = (tmcontroller, unit)
@@ -127,22 +134,22 @@ class BaseTMModel(BaseModel, Configurable):
     def _set_source_lang(self, controller, language):
         """private method for baseline handling of source language
         change events"""
-        if (language != self.source_lang):
+        if language != self.source_lang:
             self.source_lang = language
             self.cache = {}
             self.set_source_lang(language)
 
     def _set_target_lang(self, controller, language):
         """private method for baseline handling of target language change events"""
-        if (language != self.target_lang):
+        if language != self.target_lang:
             self.target_lang = language
             self.cache = {}
             self.set_target_lang(language)
 
     def _set_checker(self, controller, checker):
         """private method for handling of project style change events"""
-        if (checker != self.checker):
+        if checker != self.checker:
             self.checker = checker
-            #TODO: consider:
-            #self.cache = {}
+            # TODO: consider:
+            # self.cache = {}
             self.set_checker(checker)

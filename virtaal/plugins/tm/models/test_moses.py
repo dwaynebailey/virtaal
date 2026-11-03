@@ -29,7 +29,9 @@ def _fake_controller():
     lang_controller.target_lang = SimpleNamespace(code='en')
     checks_controller = connectable()
     checks_controller.code = 'standard'
-    main_controller = SimpleNamespace(lang_controller=lang_controller, checks_controller=checks_controller)
+    main_controller = SimpleNamespace(
+        lang_controller=lang_controller, checks_controller=checks_controller
+    )
     controller = connectable()
     controller.main_controller = main_controller
     return controller
@@ -53,8 +55,10 @@ class _FakeMosesClient:
 # backs more than one language pair. MosesClient itself is imported
 # locally inside _init_plugin(), so patch it at its source module.
 
+
 def _init_plugin(monkeypatch, model, config):
     import virtaal.support.mosesclient as mosesclient_module
+
     monkeypatch.setattr(mosesclient_module, 'MosesClient', _FakeMosesClient)
     model.config = config
     model._init_plugin()
@@ -62,8 +66,11 @@ def _init_plugin(monkeypatch, model, config):
 
 def test_init_loads_config_and_builds_clients(monkeypatch):
     import virtaal.support.mosesclient as mosesclient_module
+
     monkeypatch.setattr(mosesclient_module, 'MosesClient', _FakeMosesClient)
-    monkeypatch.setattr(TMModel, 'load_config', lambda self: setattr(self, 'config', {'fr->en': 'http://a'}))
+    monkeypatch.setattr(
+        TMModel, 'load_config', lambda self: setattr(self, 'config', {'fr->en': 'http://a'})
+    )
 
     model = TMModel('moses', _fake_controller())
 
@@ -100,6 +107,7 @@ def test_init_plugin_creates_separate_clients_for_different_servers(monkeypatch)
 
 
 # query() / _handle_response()
+
 
 def test_query_does_nothing_for_an_unconfigured_language_pair():
     model = _model()

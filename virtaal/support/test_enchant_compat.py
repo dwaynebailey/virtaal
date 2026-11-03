@@ -20,6 +20,7 @@ needs_enchant = pytest.mark.skipif(import_enchant() is None, reason="pyenchant i
 def _gtkspell_available():
     try:
         import gi
+
         gi.require_version('GtkSpell', '3.0')
         from gi.repository import GtkSpell  # noqa: F401
     except (ImportError, ValueError):
@@ -61,6 +62,7 @@ def test_self_check_without_enchant(monkeypatch):
 
 # What the packaged builds' smoke tests run, here against the real libraries.
 
+
 @needs_enchant
 def test_self_check_reports_the_enchant_library_and_providers():
     import enchant
@@ -76,6 +78,7 @@ def test_self_check_reports_the_enchant_library_and_providers():
 @needs_enchant
 def test_self_check_spell_checks_with_an_installed_dictionary():
     import enchant
+
     if not (enchant.dict_exists('en_US') and _gtkspell_available()):
         pytest.skip("needs GtkSpell and an en_US dictionary")
 
@@ -103,16 +106,19 @@ def test_run_module_prints_the_report(monkeypatch, capsys):
     assert capsys.readouterr().out == 'enchant: none\n'
 
 
-@pytest.mark.parametrize('code, tag', [
-    ('af', 'af'),
-    ('nl_BE', 'nl_BE'),
-    ('en-GB', 'en_GB'),
-    ('ca@valencia', 'ca_VALENCIA'),
-    ('sr@latin', 'sr_LATIN'),
-    ('sr_Latn', 'sr_LATN'),
-    ('sr_Latn_RS', 'sr_LATNRS'),
-    ('ca_ES_valencia', 'ca_ESVALENCIA'),
-])
+@pytest.mark.parametrize(
+    'code, tag',
+    [
+        ('af', 'af'),
+        ('nl_BE', 'nl_BE'),
+        ('en-GB', 'en_GB'),
+        ('ca@valencia', 'ca_VALENCIA'),
+        ('sr@latin', 'sr_LATIN'),
+        ('sr_Latn', 'sr_LATN'),
+        ('sr_Latn_RS', 'sr_LATNRS'),
+        ('ca_ES_valencia', 'ca_ESVALENCIA'),
+    ],
+)
 def test_enchant_tag(code, tag):
     # Enchant finds only "language_PART" names (#4665).
     assert enchant_tag(code) == tag

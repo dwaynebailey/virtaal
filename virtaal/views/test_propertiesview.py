@@ -27,6 +27,7 @@ def _fresh_builder_cache(monkeypatch):
 @pytest.fixture(autouse=True)
 def _english_ui(monkeypatch):
     from virtaal.common import pan_app
+
     monkeypatch.setattr(pan_app, 'ui_language', 'en')
 
 
@@ -71,6 +72,7 @@ def test_statistics_counts_requested_states_absent_from_stats_as_zero():
 
 # _nice_percentage() #
 
+
 def test_nice_percentage_zero_numerator():
     assert _nice_percentage(0, 100) == '(0%)'
 
@@ -89,12 +91,14 @@ def test_nice_percentage_general_case():
 
 def test_nice_percentage_uses_the_ui_languages_format(monkeypatch):
     from virtaal.common import pan_app
+
     monkeypatch.setattr(pan_app, 'ui_language', 'de')
 
     assert _nice_percentage(1, 8) == '(12,5\xa0%)'
 
 
 # PropertiesView construction #
+
 
 def _real_builder():
     builder = Gtk.Builder()
@@ -105,13 +109,16 @@ def _real_builder():
 def _fake_controller(builder=None, store=None):
     builder = builder or _real_builder()
     main_window = Gtk.Window()
-    mainview = SimpleNamespace(gui=builder, main_window=main_window, add_accel_group=lambda ag: None)
+    mainview = SimpleNamespace(
+        gui=builder, main_window=main_window, add_accel_group=lambda ag: None
+    )
     main_controller = SimpleNamespace(
         view=mainview,
         store_controller=SimpleNamespace(get_store=lambda: store),
     )
-    controller = SimpleNamespace(main_controller=main_controller, update_gui_data=lambda: None,
-                                 save_file=lambda: True)
+    controller = SimpleNamespace(
+        main_controller=main_controller, update_gui_data=lambda: None, save_file=lambda: True
+    )
     return controller
 
 
@@ -166,19 +173,36 @@ def test_get_widgets_loads_every_named_widget_and_configures_the_dialog():
 
     view._get_widgets()
 
-    for name in ('tbl_properties', 'lbl_type', 'lbl_location', 'lbl_filesize',
-                 'lbl_word_total', 'lbl_string_total',
-                 'vbox_word_labels', 'vbox_word_stats', 'vbox_word_perc',
-                 'vbox_string_labels', 'vbox_string_stats', 'vbox_string_perc',
-                 'lbl_saved_heading', 'lbl_live_heading',
-                 'lbl_word_live_total', 'lbl_string_live_total',
-                 'vbox_word_live_stats', 'vbox_string_live_stats',
-                 'dialog', 'infobar'):
+    for name in (
+        'tbl_properties',
+        'lbl_type',
+        'lbl_location',
+        'lbl_filesize',
+        'lbl_word_total',
+        'lbl_string_total',
+        'vbox_word_labels',
+        'vbox_word_stats',
+        'vbox_word_perc',
+        'vbox_string_labels',
+        'vbox_string_stats',
+        'vbox_string_perc',
+        'lbl_saved_heading',
+        'lbl_live_heading',
+        'lbl_word_live_total',
+        'lbl_string_live_total',
+        'vbox_word_live_stats',
+        'vbox_string_live_stats',
+        'dialog',
+        'infobar',
+    ):
         assert view._widgets[name] is not None
-    assert view._widgets['dialog'].get_transient_for() is controller.main_controller.view.main_window
+    assert (
+        view._widgets['dialog'].get_transient_for() is controller.main_controller.view.main_window
+    )
 
 
 # show() #
+
 
 def _show_ready_view(**controller_kwargs):
     controller = _fake_controller(**controller_kwargs)
@@ -212,9 +236,15 @@ def test_show_calls_update_gui_data():
     assert calls == [True]
 
 
-_LIVE_ONLY_WIDGETS = ('infobar', 'lbl_saved_heading', 'lbl_live_heading',
-                      'lbl_word_live_total', 'lbl_string_live_total',
-                      'vbox_word_live_stats', 'vbox_string_live_stats')
+_LIVE_ONLY_WIDGETS = (
+    'infobar',
+    'lbl_saved_heading',
+    'lbl_live_heading',
+    'lbl_word_live_total',
+    'lbl_string_live_total',
+    'vbox_word_live_stats',
+    'vbox_string_live_stats',
+)
 
 
 def test_show_hides_the_unsaved_changes_widgets_for_an_unmodified_file():
@@ -241,7 +271,9 @@ def test_show_puts_the_infobar_above_the_notebook():
 
     children = view._widgets['dialog'].get_content_area().get_children()
 
-    assert children.index(view._widgets['infobar']) < children.index(view.gui.get_object('notebook2'))
+    assert children.index(view._widgets['infobar']) < children.index(
+        view.gui.get_object('notebook2')
+    )
 
 
 def _modified_view():
@@ -303,6 +335,7 @@ def test_infobar_save_refreshes_the_dialog_after_a_successful_save():
 
     def update_gui_data():
         view.stats, view.live_stats = view.live_stats, None
+
     view.controller.update_gui_data = update_gui_data
     view._widgets['infobar'].response(Gtk.ResponseType.ACCEPT)
 
@@ -356,6 +389,7 @@ def test_show_populates_stats_labels_in_state_order():
 
 def test_show_uses_the_ui_languages_number_format(monkeypatch):
     from virtaal.common import pan_app
+
     monkeypatch.setattr(pan_app, 'ui_language', 'fa')
     view = _show_ready_view()
     view.stats = {
@@ -408,8 +442,11 @@ def test_show_sets_file_type_and_location():
 
 def test_show_translates_the_file_type(monkeypatch):
     import builtins
+
     real = builtins._
-    monkeypatch.setattr(builtins, '_', lambda s: 'Gettext PO-lêer' if s == 'Gettext PO file' else real(s))
+    monkeypatch.setattr(
+        builtins, '_', lambda s: 'Gettext PO-lêer' if s == 'Gettext PO file' else real(s)
+    )
     view = _show_ready_view()
     view.data = {'file_type': 'Gettext PO file'}
 
@@ -447,6 +484,7 @@ def test_show_gives_a_large_file_size_in_a_larger_unit():
 
 def test_show_gives_the_file_size_in_the_ui_languages_digits(monkeypatch):
     from virtaal.common import pan_app
+
     monkeypatch.setattr(pan_app, 'ui_language', 'ne')
     view = _show_ready_view()
     view.data = {'file_type': 'PO', 'file_size': 18_700}
@@ -469,7 +507,9 @@ def test_show_leaves_file_size_untouched_when_absent():
 
 def test_show_presents_the_transient_parent_again_after_closing(monkeypatch):
     calls = []
-    monkeypatch.setattr('virtaal.views.propertiesview.GLib.idle_add', lambda func, *a: calls.append((func, a)))
+    monkeypatch.setattr(
+        'virtaal.views.propertiesview.GLib.idle_add', lambda func, *a: calls.append((func, a))
+    )
     view = _show_ready_view()
 
     view.show()

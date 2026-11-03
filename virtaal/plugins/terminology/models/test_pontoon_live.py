@@ -26,7 +26,8 @@ from virtaal.support.httpclient import HTTPClient
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('VIRTAAL_LIVE_SERVICES') != '1',
-    reason="set VIRTAAL_LIVE_SERVICES=1 to query the live Pontoon server")
+    reason="set VIRTAAL_LIVE_SERVICES=1 to query the live Pontoon server",
+)
 
 LINGUAS = Path(__file__).resolve().parents[4] / 'po' / 'LINGUAS'
 
@@ -49,9 +50,14 @@ def _download(tmp_path, tgtlang):
 
     def get(url, callback, etag=None, error_callback=None, download=False):
         urls.append(url)
-        return real_get(url, callback, etag,
-                        error_callback=lambda request, status: (errors.append(status), loop.quit()),
-                        download=download)
+        return real_get(
+            url,
+            callback,
+            etag,
+            error_callback=lambda request, status: (errors.append(status), loop.quit()),
+            download=download,
+        )
+
     model.client.get = get
 
     model._check_for_update('en', tgtlang)
@@ -70,7 +76,10 @@ def test_a_language_pontoon_has_no_terminology_for(tmp_path):
 def test_a_random_shipped_language_downloads_and_parses(tmp_path):
     languages = LINGUAS.read_text(encoding='utf-8').split()
     language = os.environ.get('VIRTAAL_PONTOON_LANGUAGE') or random.choice(languages)
-    print('Pontoon terminology for %s (VIRTAAL_PONTOON_LANGUAGE=%s repeats this)' % (language, language))
+    print(
+        'Pontoon terminology for %s (VIRTAAL_PONTOON_LANGUAGE=%s repeats this)'
+        % (language, language)
+    )
 
     saved, status, url = _download(tmp_path, language)
     assert status is None, '%s: HTTP %s' % (url, status)

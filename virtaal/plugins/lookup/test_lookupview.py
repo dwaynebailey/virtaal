@@ -111,7 +111,9 @@ def test_top_level_model_items_go_directly_into_the_context_menu():
 
     view._on_populate_popup(_FakeTextbox('word'), menu)
 
-    top_level_labels = [i.get_label() for i in menu.get_children() if isinstance(i, Gtk.MenuItem) and i.get_label()]
+    top_level_labels = [
+        i.get_label() for i in menu.get_children() if isinstance(i, Gtk.MenuItem) and i.get_label()
+    ]
     assert 'Synonyms' in top_level_labels
     assert 'Google' not in top_level_labels
 
@@ -122,7 +124,9 @@ def test_nested_model_items_stay_under_the_look_up_submenu():
 
     view._on_populate_popup(_FakeTextbox('word'), menu)
 
-    lookup_item = next(i for i in menu.get_children() if isinstance(i, Gtk.MenuItem) and i.get_submenu())
+    lookup_item = next(
+        i for i in menu.get_children() if isinstance(i, Gtk.MenuItem) and i.get_submenu()
+    )
     submenu_labels = [i.get_label() for i in lookup_item.get_submenu().get_children()]
     assert submenu_labels == ['Google']
 

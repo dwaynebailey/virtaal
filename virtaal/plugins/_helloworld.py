@@ -19,7 +19,7 @@ class Plugin(BasePlugin):
     default_config = {
         "name": "Hello World",
         "question": "Stop annoying you?",
-        "info": "Store loaded!"
+        "info": "Store loaded!",
     }
 
     # INITIALIZERS #
@@ -34,11 +34,12 @@ class Plugin(BasePlugin):
         self.annoy = True
 
     def _init_plugin(self):
-        self._store_loaded_id = self.main_controller.store_controller.connect('store-loaded', self.on_store_loaded)
+        self._store_loaded_id = self.main_controller.store_controller.connect(
+            'store-loaded', self.on_store_loaded
+        )
 
         if self.main_controller.store_controller.get_store():
             self.on_store_loaded(self.main_controller.store_controller)
-
 
     # METHODS #
     def destroy(self):
@@ -47,12 +48,15 @@ class Plugin(BasePlugin):
             self.main_controller.store_controller.cursor.disconnect(self._cursor_changed_id)
         self.save_config()
 
-
     # EVENT HANDLERS #
     def on_store_loaded(self, storecontroller):
         self.main_controller.show_info(self.config["name"], self.config["info"])
-        self._cursor_changed_id = storecontroller.cursor.connect('cursor-changed', self.on_cursor_change)
+        self._cursor_changed_id = storecontroller.cursor.connect(
+            'cursor-changed', self.on_cursor_change
+        )
 
     def on_cursor_change(self, cursor):
         if self.annoy:
-            self.annoy = not self.main_controller.show_prompt(self.config["name"], self.config["question"])
+            self.annoy = not self.main_controller.show_prompt(
+                self.config["name"], self.config["question"]
+            )

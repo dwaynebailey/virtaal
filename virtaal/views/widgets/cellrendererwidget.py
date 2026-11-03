@@ -19,12 +19,16 @@ SIGNAL_RUN_FIRST = SignalFlags.RUN_FIRST
 class CellRendererWidget(Gtk.CellRenderer):
     __gtype_name__ = 'CellRendererWidget'
     __gproperties__ = {
-        'widget': (TYPE_PYOBJECT, 'Widget', 'The column containing the widget to render', PARAM_READWRITE),
+        'widget': (
+            TYPE_PYOBJECT,
+            'Widget',
+            'The column containing the widget to render',
+            PARAM_READWRITE,
+        ),
     }
 
     XPAD = 2
     YPAD = 2
-
 
     # INITIALIZERS #
     def __init__(self, strfunc, default_width=-1, widget_func=None):
@@ -36,7 +40,6 @@ class CellRendererWidget(Gtk.CellRenderer):
         self.widget_func = widget_func or (lambda item: None)
         self.props.mode = Gtk.CellRendererMode.EDITABLE
 
-
     # INTERFACE METHODS #
     def do_set_property(self, pspec, value):
         setattr(self, pspec.name, value)
@@ -46,7 +49,12 @@ class CellRendererWidget(Gtk.CellRenderer):
 
     def do_get_size(self, widget, cell_area=None):
         if cell_area is not None:
-            return self.XPAD, self.YPAD, cell_area.width - 2*self.XPAD, cell_area.height - 2*self.YPAD
+            return (
+                self.XPAD,
+                self.YPAD,
+                cell_area.width - 2 * self.XPAD,
+                cell_area.height - 2 * self.YPAD,
+            )
 
         width = widget.get_allocation().width
         if width <= 1:
@@ -56,11 +64,11 @@ class CellRendererWidget(Gtk.CellRenderer):
 
         if self.widget:
             _minimum, natural = self.widget.get_preferred_size()
-            width =  max(width,  natural.width)
+            width = max(width, natural.width)
             height = max(height, natural.height)
 
         height += self.YPAD * 2
-        width  += self.XPAD * 2
+        width += self.XPAD * 2
 
         return self.XPAD, self.YPAD, width, height
 
@@ -76,14 +84,8 @@ class CellRendererWidget(Gtk.CellRenderer):
         h = cell_area.height - 2 * self.YPAD
         layout = self.create_pango_layout(self.strfunc(self.widget), widget, w)
         layout_w, layout_h = layout.get_pixel_size()
-        y = y + (h-layout_h)/2
-        Gtk.render_layout(
-            context=widget.get_style_context(),
-            cr=window,
-            x=x,
-            y=y,
-            layout=layout
-        )
+        y = y + (h - layout_h) / 2
+        Gtk.render_layout(context=widget.get_style_context(), cr=window, x=x, y=y, layout=layout)
 
     def do_start_editing(self, event, treeview, path, bg_area, cell_area, flags):
         model = treeview.get_model()
@@ -94,7 +96,7 @@ class CellRendererWidget(Gtk.CellRenderer):
             editable = CellWidget(widget)
             editable.show_all()
             editable.grab_focus()
-            #TODO: focus the button
+            # TODO: focus the button
             return editable
 
     # METHODS #
@@ -115,11 +117,15 @@ class CellRendererWidget(Gtk.CellRenderer):
 
 class CellWidget(Gtk.HBox, Gtk.CellEditable):
     __gtype_name__ = 'CellWidget'
-    __gsignals__ = {
-        'modified': (SIGNAL_RUN_FIRST, None, ())
-    }
+    __gsignals__ = {'modified': (SIGNAL_RUN_FIRST, None, ())}
     __gproperties__ = {
-        'editing-canceled': (bool, 'Editing cancelled', 'Editing was cancelled', False, PARAM_READWRITE),
+        'editing-canceled': (
+            bool,
+            'Editing cancelled',
+            'Editing was cancelled',
+            False,
+            PARAM_READWRITE,
+        ),
     }
 
     # INITIALIZERS #
@@ -129,7 +135,6 @@ class CellWidget(Gtk.HBox, Gtk.CellEditable):
             if w.get_parent() is not None:
                 w.get_parent().remove(w)
             self.pack_start(w, True, True, 0)
-
 
     # INTERFACE METHODS #
     def do_editing_done(self, *args):

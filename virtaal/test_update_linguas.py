@@ -12,18 +12,22 @@ import shutil
 
 import pytest
 
-SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "po", "update-linguas.py")
+SCRIPT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "po", "update-linguas.py"
+)
 
-TEMPLATE = ('msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-            'msgid "One"\nmsgstr ""\n\nmsgid "Two"\nmsgstr ""\n\n'
-            'msgid "Three"\nmsgstr ""\n\nmsgid "Four"\nmsgstr ""\n')
+TEMPLATE = (
+    'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+    'msgid "One"\nmsgstr ""\n\nmsgid "Two"\nmsgstr ""\n\n'
+    'msgid "Three"\nmsgstr ""\n\nmsgid "Four"\nmsgstr ""\n'
+)
 
 needs_gettext = pytest.mark.skipif(not shutil.which("msgmerge"), reason="needs gettext's msgmerge")
 
 
 def _po(**targets):
     """A catalog translating the template's msgids given as keyword
-        arguments; a value of None marks one fuzzy."""
+    arguments; a value of None marks one fuzzy."""
     text = 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
     for msgid, target in targets.items():
         fuzzy = "#, fuzzy\n" if target is None else ""
@@ -44,7 +48,8 @@ def linguas(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "LEVEL_ONE_TOLERANCE", 1)
     monkeypatch.setattr(module, "library_gaps", lambda: {})
     (tmp_path / "virtaal.priorities.yaml").write_text(
-        "domains:\n  virtaal:\n    '1': [One]\n    1~: [Two, Three, Gone]\n", encoding="utf-8")
+        "domains:\n  virtaal:\n    '1': [One]\n    1~: [Two, Three, Gone]\n", encoding="utf-8"
+    )
     (tmp_path / "virtaal.pot").write_text(TEMPLATE, encoding="utf-8")
     (tmp_path / "de.po").write_text(_po(One="Eins", Two="Zwei"), encoding="utf-8")
     (tmp_path / "vi.po").write_text(_po(One="Một", Two=None), encoding="utf-8")
@@ -95,22 +100,31 @@ def test_level_one_leaves_out_messages_no_longer_in_the_template(linguas):
 
 @needs_gettext
 def test_readiness_counts_level_one_strings_missing_and_the_threshold_margin(linguas):
-    assert linguas.readiness(["de", "en_ZA", "fr", "vi"]) == {"de": (0, 1, 0), "fr": (1, 0, 1), "vi": (0, 2, -1)}
+    assert linguas.readiness(["de", "en_ZA", "fr", "vi"]) == {
+        "de": (0, 1, 0),
+        "fr": (1, 0, 1),
+        "vi": (0, 2, -1),
+    }
 
 
-@pytest.mark.parametrize("state, version, expected", [
-    ((0, 1, 0), "1.1.0", "level 1"),
-    # 50% ships one missing a core string, but only before 1.1.0.
-    ((1, 0, 1), "1.0.0", "50%"),
-    ((1, 0, 1), "1.1.0", None),
-    ((0, 2, -1), "1.0.0", None),
-])
+@pytest.mark.parametrize(
+    "state, version, expected",
+    [
+        ((0, 1, 0), "1.1.0", "level 1"),
+        # 50% ships one missing a core string, but only before 1.1.0.
+        ((1, 0, 1), "1.0.0", "50%"),
+        ((1, 0, 1), "1.1.0", None),
+        ((0, 2, -1), "1.0.0", None),
+    ],
+)
 def test_which_rule_ships_a_translation(linguas, state, version, expected):
     assert linguas.ships(state, version) == expected
 
 
 @needs_gettext
-def test_report_groups_translations_by_the_rule_that_ships_them(linguas, tmp_path, monkeypatch, capsys):
+def test_report_groups_translations_by_the_rule_that_ships_them(
+    linguas, tmp_path, monkeypatch, capsys
+):
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(tmp_path / "summary.md"))
 
     assert _run(linguas, monkeypatch, "--report") == 0
@@ -130,7 +144,10 @@ def test_report_groups_translations_by_the_rule_that_ships_them(linguas, tmp_pat
 def test_cut_off_excludes_what_the_release_rule_doesnt_ship(linguas, tmp_path, monkeypatch):
     assert _run(linguas, monkeypatch, "--cut-off", "1.0.0") == 0
 
-    assert linguas.excluded() == {"ach": "reasons", "vi": "level 1 incomplete at 1.0.0 (0 core, 2 other strings missing)"}
+    assert linguas.excluded() == {
+        "ach": "reasons",
+        "vi": "level 1 incomplete at 1.0.0 (0 core, 2 other strings missing)",
+    }
     assert (tmp_path / "LINGUAS").read_text(encoding="utf-8") == "de\nen_ZA\nfr\n"
 
 
@@ -149,14 +166,18 @@ def test_cut_off_counts_the_libraries_level_one_too(linguas, tmp_path, monkeypat
 
     assert _run(linguas, monkeypatch, "--cut-off", "1.1.0") == 0
 
-    assert linguas.excluded()["de"] == "level 1 incomplete at 1.1.0 (1 core, 1 other strings missing)"
+    assert (
+        linguas.excluded()["de"] == "level 1 incomplete at 1.1.0 (1 core, 1 other strings missing)"
+    )
 
 
 @needs_gettext
 def test_progress_writes_each_translations_standing(linguas, tmp_path, monkeypatch):
     (tmp_path / "virtaal.priorities.yaml").write_text(
         "domains:\n  virtaal:\n    '1': [One]\n    1~: [Two, Three]\n    '2': [Four]\n"
-        "  gtk30:\n    '1': [_Open]\n", encoding="utf-8")
+        "  gtk30:\n    '1': [_Open]\n",
+        encoding="utf-8",
+    )
     monkeypatch.setattr(linguas, "library_gaps", lambda: {"de": (1, 0)})
 
     assert _run(linguas, monkeypatch, "--progress", str(tmp_path / "progress.json")) == 0
@@ -166,18 +187,27 @@ def test_progress_writes_each_translations_standing(linguas, tmp_path, monkeypat
     languages = {lang["code"]: lang for lang in data["languages"]}
     assert set(languages) == {"de", "fr", "vi"}
     assert languages["de"] == {
-        "code": "de", "name": "German", "endonym": "Deutsch",
-        "core_missing": 1, "rest_missing": 1, "needed": 1,
-        "level2_missing": 1, "level3_missing": 0, "ships": "50%",
+        "code": "de",
+        "name": "German",
+        "endonym": "Deutsch",
+        "core_missing": 1,
+        "rest_missing": 1,
+        "needed": 1,
+        "level2_missing": 1,
+        "level3_missing": 0,
+        "ships": "50%",
     }
     assert (languages["fr"]["core_missing"], languages["fr"]["ships"]) == (1, "50%")
 
 
-@pytest.mark.parametrize("lang, names", [
-    ("pt_BR", ("Portuguese (Brazil)", "português (Brasil)")),
-    ("sr@latin", ("Serbian (Latin)", "srpski (latinica)")),
-    ("son", ("Songhai languages", "Songhai languages")),
-    ("xqz", ("xqz", "xqz")),
-])
+@pytest.mark.parametrize(
+    "lang, names",
+    [
+        ("pt_BR", ("Portuguese (Brazil)", "português (Brasil)")),
+        ("sr@latin", ("Serbian (Latin)", "srpski (latinica)")),
+        ("son", ("Songhai languages", "Songhai languages")),
+        ("xqz", ("xqz", "xqz")),
+    ],
+)
 def test_names_come_from_cldr_then_iso_639(linguas, lang, names):
     assert linguas._names(lang) == names

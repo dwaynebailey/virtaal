@@ -19,13 +19,16 @@ def _plugin(tmp_path, poedit_exists=False, lokalize_rc_exists=False):
     plugin = migration.Plugin.__new__(migration.Plugin)
     plugin.internal_name = 'migration'
     plugin.poedit_dir = str(tmp_path / 'poedit')
-    plugin.lokalize_rc = str(tmp_path / 'lokalizerc') if not lokalize_rc_exists else str(tmp_path / 'lokalizerc')
+    plugin.lokalize_rc = (
+        str(tmp_path / 'lokalizerc') if not lokalize_rc_exists else str(tmp_path / 'lokalizerc')
+    )
     plugin.lokalize_tm_dir = str(tmp_path / 'lokalize_tm')
     return plugin
 
 
 # _has_anything_to_migrate() / _poedit_config_exists(): the cheap,
 # parse-free gate for whether to prompt the user at all.
+
 
 def test_has_anything_to_migrate_is_false_when_nothing_exists(tmp_path):
     plugin = _plugin(tmp_path)
@@ -88,6 +91,7 @@ def test_poedit_config_exists_false_without_a_registry_on_windows(tmp_path, monk
 # poedit_settings_import(): the headerless-INI parsing trick (Poedit's
 # own config file has no [section] header at all).
 
+
 def _poedit_plugin(tmp_path, content=None, monkeypatch=None):
     if monkeypatch is not None:
         monkeypatch.setattr(platform, 'is_mac', False)
@@ -103,11 +107,15 @@ def test_poedit_settings_import_reads_the_headerless_config_file(tmp_path, monke
     monkeypatch.setattr(migration.pan_app.settings, 'general', {})
     monkeypatch.setattr(migration.pan_app.settings, 'translator', {})
     monkeypatch.setattr(migration.pan_app.settings, 'write', lambda: None)
-    plugin = _poedit_plugin(tmp_path, monkeypatch=monkeypatch, content=(
-        'last_file_path = /tmp/project\n'
-        'translator_name = Jane\n'
-        'translator_email = jane@example.com\n'
-    ))
+    plugin = _poedit_plugin(
+        tmp_path,
+        monkeypatch=monkeypatch,
+        content=(
+            'last_file_path = /tmp/project\n'
+            'translator_name = Jane\n'
+            'translator_email = jane@example.com\n'
+        ),
+    )
 
     plugin.poedit_settings_import()
 
@@ -128,7 +136,9 @@ def test_poedit_settings_import_reads_the_macos_config_file(tmp_path, monkeypatc
     assert settings.translator == {'name': 'Jane'}
 
 
-def test_poedit_settings_import_does_nothing_without_a_config_file_or_registry(tmp_path, monkeypatch):
+def test_poedit_settings_import_does_nothing_without_a_config_file_or_registry(
+    tmp_path, monkeypatch
+):
     monkeypatch.setattr(platform, 'is_windows', False)
     plugin = _poedit_plugin(tmp_path, monkeypatch=monkeypatch)
 
@@ -137,9 +147,14 @@ def test_poedit_settings_import_does_nothing_without_a_config_file_or_registry(t
     assert plugin.migrated == []
 
 
-def test_poedit_settings_import_records_nothing_when_the_file_has_no_useful_keys(tmp_path, monkeypatch):
-    monkeypatch.setattr(migration.pan_app.settings, 'write', lambda: (_ for _ in ()).throw(
-        AssertionError('should not write with nothing to save')))
+def test_poedit_settings_import_records_nothing_when_the_file_has_no_useful_keys(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        migration.pan_app.settings,
+        'write',
+        lambda: (_ for _ in ()).throw(AssertionError('should not write with nothing to save')),
+    )
     plugin = _poedit_plugin(tmp_path, monkeypatch=monkeypatch, content='unrelated_key = value\n')
 
     plugin.poedit_settings_import()
@@ -148,6 +163,7 @@ def test_poedit_settings_import_records_nothing_when_the_file_has_no_useful_keys
 
 
 # lokalize_settings_import()
+
 
 def test_lokalize_settings_import_reads_identity_and_last_project_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(migration.pan_app.settings, 'general', {})
@@ -186,6 +202,7 @@ def test_lokalize_settings_import_does_nothing_without_an_rc_file(tmp_path):
 # "*-journal.db" companion are real Lokalize TM databases (a
 # "*.remotedb" just points at a remote server, nothing local to read).
 
+
 def test_lokalize_tm_import_only_passes_through_real_local_databases(tmp_path):
     plugin = _plugin(tmp_path)
     tm_dir = tmp_path / 'lokalize_tm'
@@ -212,6 +229,7 @@ def test_lokalize_tm_import_does_nothing_without_the_tm_directory(tmp_path):
 
 # do_lokalize_tm_import(): Lokalize's own normalized schema
 # (source_strings/target_strings/main) and tm_config fallbacks.
+
 
 def _lokalize_db(tmp_path, name='project.db', with_config=True, with_rows=True):
     db_path = tmp_path / name
@@ -265,7 +283,8 @@ def test_do_lokalize_tm_import_falls_back_when_tm_config_is_missing(tmp_path):
     plugin.tmdb = _FakeTMDB()
     plugin.migrated = []
     plugin.main_controller = SimpleNamespace(
-        lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='fr')))
+        lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='fr'))
+    )
 
     plugin.do_lokalize_tm_import(db_path)
 
@@ -317,6 +336,7 @@ def test_do_lokalize_tm_import_closes_the_connection_even_if_the_query_fails(tmp
 
 # _init_plugin(): the overall migrate-or-stay-silent orchestration.
 
+
 def _plugin_for_init(tmp_path, has_anything, accepts=True):
     plugin = _plugin(tmp_path)
     plugin.config = {'tmdb': str(tmp_path / 'tm.db')}
@@ -349,7 +369,9 @@ def test_init_plugin_disables_without_migrating_when_the_user_declines(tmp_path,
     monkeypatch.setattr(migration.pan_app.settings, 'plugin_state', disabled)
     monkeypatch.setattr(migration.pan_app.settings, 'write', lambda: None)
     plugin = _plugin_for_init(tmp_path, has_anything=True, accepts=False)
-    plugin.poedit_settings_import = lambda: (_ for _ in ()).throw(AssertionError('should not migrate'))
+    plugin.poedit_settings_import = lambda: (_ for _ in ()).throw(
+        AssertionError('should not migrate')
+    )
 
     plugin._init_plugin()
 
@@ -386,15 +408,19 @@ def test_init_plugin_shows_nothing_migrated_when_all_imports_find_nothing(tmp_pa
 
     plugin._init_plugin()
 
-    assert plugin._shown == [('Nothing migrated', 'Virtaal was not able to migrate any settings or data')]
+    assert plugin._shown == [
+        ('Nothing migrated', 'Virtaal was not able to migrate any settings or data')
+    ]
 
 
 # The Windows registry: Poedit keeps its settings there when there's no
 # config file.
 
+
 class _FakeWinreg:
     """The calls migration makes on winreg, over a dict of keys, each a
-        list of (name, data) values."""
+    list of (name, data) values."""
+
     HKEY_CURRENT_USER = 'HKCU'
     REG_SZ = 1
 
@@ -445,11 +471,16 @@ def _settings(monkeypatch):
 
 def test_poedit_settings_import_reads_the_registry(tmp_path, monkeypatch):
     settings = _settings(monkeypatch)
-    _registry(monkeypatch, {POEDIT_KEY: [
-        ('last_file_path', r'C:\Projects'),
-        ('translator_name', 'Jane'),
-        ('translator_email', 'jane@example.com'),
-    ]})
+    _registry(
+        monkeypatch,
+        {
+            POEDIT_KEY: [
+                ('last_file_path', r'C:\Projects'),
+                ('translator_name', 'Jane'),
+                ('translator_email', 'jane@example.com'),
+            ]
+        },
+    )
     plugin = _poedit_plugin(tmp_path, monkeypatch=monkeypatch)
 
     plugin.poedit_settings_import()
@@ -459,12 +490,19 @@ def test_poedit_settings_import_reads_the_registry(tmp_path, monkeypatch):
     assert plugin.migrated == ['Poedit settings']
 
 
-def test_poedit_settings_import_leaves_out_a_setting_missing_from_the_registry(tmp_path, monkeypatch):
+def test_poedit_settings_import_leaves_out_a_setting_missing_from_the_registry(
+    tmp_path, monkeypatch
+):
     settings = _settings(monkeypatch)
-    _registry(monkeypatch, {POEDIT_KEY: [
-        ('translator_name', 'Jane'),
-        ('last_file_path', r'C:\Projects'),
-    ]})
+    _registry(
+        monkeypatch,
+        {
+            POEDIT_KEY: [
+                ('translator_name', 'Jane'),
+                ('last_file_path', r'C:\Projects'),
+            ]
+        },
+    )
     plugin = _poedit_plugin(tmp_path, monkeypatch=monkeypatch)
 
     plugin.poedit_settings_import()
@@ -487,6 +525,7 @@ def test_poedit_settings_import_does_nothing_without_poedit_in_the_registry(tmp_
 @pytest.mark.skipif(not platform.is_windows, reason='needs the Windows registry')
 def test_poedit_settings_import_reads_the_real_registry(tmp_path, monkeypatch):
     import winreg
+
     key_path = r'Software\Vaclav Slavik\Poedit'
     try:
         winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path))
@@ -512,6 +551,7 @@ def test_poedit_settings_import_reads_the_real_registry(tmp_path, monkeypatch):
 
 # The plugin as Virtaal starts it: everything found under the user's
 # home directory.
+
 
 def _start(tmp_path, monkeypatch, accepts):
     home = tmp_path / 'home'

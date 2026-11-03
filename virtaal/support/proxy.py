@@ -24,7 +24,7 @@ def uses_desktop_proxy():
 
 def desktop_proxy(url):
     """The proxy for C{url}, '' for a direct connection, or C{None} when
-        the proxy environment variables apply (set, or the lookup failed)."""
+    the proxy environment variables apply (set, or the lookup failed)."""
     if urllib.request.getproxies_environment():
         return None
     # The local TM server, even when the desktop lists no exceptions.
@@ -60,4 +60,6 @@ def urlopen(url, timeout):
     if proxy is None or proxy and parse.urlsplit(proxy).scheme not in ('http', 'https'):
         return urllib.request.urlopen(url, timeout=timeout)
     proxies = {parse.urlsplit(url).scheme: proxy} if proxy else {}
-    return urllib.request.build_opener(urllib.request.ProxyHandler(proxies)).open(url, timeout=timeout)
+    return urllib.request.build_opener(urllib.request.ProxyHandler(proxies)).open(
+        url, timeout=timeout
+    )

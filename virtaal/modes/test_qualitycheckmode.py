@@ -25,6 +25,7 @@ def _mode(**overrides):
 
 # _prepare_stats() #
 
+
 def test_prepare_stats_names_every_non_meta_check_with_failures():
     mode = _mode(
         store_controller=SimpleNamespace(
@@ -79,7 +80,9 @@ def test_prepare_stats_can_keep_a_selected_check_with_no_failures_left():
             cursor=SimpleNamespace(),
         ),
         main_controller=SimpleNamespace(
-            checks_controller=SimpleNamespace(get_checker=lambda: None, get_check_name=lambda c: c.upper())
+            checks_controller=SimpleNamespace(
+                get_checker=lambda: None, get_check_name=lambda c: c.upper()
+            )
         ),
     )
 
@@ -90,6 +93,7 @@ def test_prepare_stats_can_keep_a_selected_check_with_no_failures_left():
 
 
 # update_indices() #
+
 
 def test_update_indices_does_nothing_without_a_cursor_model():
     mode = _mode(storecursor=SimpleNamespace(model=None))
@@ -121,7 +125,11 @@ def test_update_indices_shows_only_the_selected_checks_units():
 
 def test_update_indices_lists_a_unit_failing_two_selected_checks_once():
     cursor = SimpleNamespace(model=[object()] * 3, indices=None)
-    mode = _mode(storecursor=cursor, filter_checks=['printf', 'brackets'], stats={'printf': [1], 'brackets': [1, 2]})
+    mode = _mode(
+        storecursor=cursor,
+        filter_checks=['printf', 'brackets'],
+        stats={'printf': [1], 'brackets': [1, 2]},
+    )
 
     mode.update_indices()
 
@@ -138,6 +146,7 @@ def test_update_indices_is_empty_when_the_selected_checks_have_no_failures():
 
 
 # _update_button_label() #
+
 
 def _button_with_checks(*names_and_active):
     btn = PopupMenuButton()
@@ -193,6 +202,7 @@ def test_update_button_label_truncates_after_three_checks():
 
 # _create_menu_entries() #
 
+
 def test_create_menu_entries_builds_one_item_per_named_check():
     mode = _mode(
         checks_names={'brackets': 'Brackets'},
@@ -226,6 +236,7 @@ def test_create_menu_entries_clears_previous_entries_first():
 
 # _on_check_menuitem_toggled() #
 
+
 def test_on_check_menuitem_toggled_rebuilds_filter_checks_from_active_items():
     btn = _button_with_checks(('brackets', True), ('printf', False))
     items = btn.menu.get_children()
@@ -243,6 +254,7 @@ def test_on_check_menuitem_toggled_rebuilds_filter_checks_from_active_items():
 
 # _on_store_saved() #
 
+
 def test_on_store_saved_refreshes_the_menu_but_keeps_the_units_under_review():
     cursor = SimpleNamespace(model=[object()] * 3, indices=[0, 2])
     btn = _button_with_checks()
@@ -255,7 +267,9 @@ def test_on_store_saved_refreshes_the_menu_but_keeps_the_units_under_review():
             cursor=cursor,
         ),
         main_controller=SimpleNamespace(
-            checks_controller=SimpleNamespace(get_checker=lambda: None, get_check_name=lambda c: 'Brackets')
+            checks_controller=SimpleNamespace(
+                get_checker=lambda: None, get_check_name=lambda c: 'Brackets'
+            )
         ),
     )
 
@@ -270,6 +284,7 @@ def test_on_store_saved_refreshes_the_menu_but_keeps_the_units_under_review():
 
 # _on_checks_changed() #
 
+
 def test_on_checks_changed_uses_the_stores_checks_without_rebuilding_them():
     cursor = SimpleNamespace(model=[object()] * 3, indices=[0, 2])
     btn = _button_with_checks()
@@ -282,7 +297,9 @@ def test_on_checks_changed_uses_the_stores_checks_without_rebuilding_them():
             cursor=cursor,
         ),
         main_controller=SimpleNamespace(
-            checks_controller=SimpleNamespace(get_checker=lambda: None, get_check_name=lambda c: 'Brackets')
+            checks_controller=SimpleNamespace(
+                get_checker=lambda: None, get_check_name=lambda c: 'Brackets'
+            )
         ),
     )
 
@@ -294,6 +311,7 @@ def test_on_checks_changed_uses_the_stores_checks_without_rebuilding_them():
 
 # unselected() #
 
+
 def test_unselected_disconnects_the_tracked_signals():
     disconnected = []
     mode = _mode(
@@ -301,7 +319,9 @@ def test_unselected_disconnects_the_tracked_signals():
         _store_saved_id=2,
         _checks_changed_id=3,
         main_controller=SimpleNamespace(
-            checks_controller=SimpleNamespace(disconnect=lambda i: disconnected.append(('checker', i)))
+            checks_controller=SimpleNamespace(
+                disconnect=lambda i: disconnected.append(('checker', i))
+            )
         ),
         store_controller=SimpleNamespace(disconnect=lambda i: disconnected.append(('store', i))),
     )

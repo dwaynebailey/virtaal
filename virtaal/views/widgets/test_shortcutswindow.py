@@ -42,39 +42,58 @@ def _restore_shortcuts_module(monkeypatch):
 
 
 @pytest.mark.parametrize('is_mac, accelerator', [(True, '<Primary>i'), (False, '<Alt>Return')])
-def test_properties_shortcut_matches_the_platform(monkeypatch, _restore_shortcuts_module, is_mac, accelerator):
+def test_properties_shortcut_matches_the_platform(
+    monkeypatch, _restore_shortcuts_module, is_mac, accelerator
+):
     # Cmd+I is the macOS convention for an item's info (Finder's Get Info).
     monkeypatch.setattr(platform, 'is_mac', is_mac)
     module = importlib.reload(shortcutswindow)
 
-    shortcuts = dict((description, accel) for _title, group in module.SHORTCUT_GROUPS for accel, description in group)
+    shortcuts = dict(
+        (description, accel)
+        for _title, group in module.SHORTCUT_GROUPS
+        for accel, description in group
+    )
 
     assert shortcuts['Show file properties and statistics'] == accelerator
 
 
 def test_save_as_is_listed():
-    shortcuts = dict((description, accel) for _title, group in SHORTCUT_GROUPS for accel, description in group)
+    shortcuts = dict(
+        (description, accel) for _title, group in SHORTCUT_GROUPS for accel, description in group
+    )
 
     assert shortcuts['Save the current file under a new name'] == '<Primary><Shift>s'
 
 
-@pytest.mark.parametrize('is_mac, accelerator', [(True, '<Primary>slash'), (False, '<Primary>question')])
-def test_keyboard_shortcuts_shortcut_matches_the_platform(monkeypatch, _restore_shortcuts_module, is_mac, accelerator):
+@pytest.mark.parametrize(
+    'is_mac, accelerator', [(True, '<Primary>slash'), (False, '<Primary>question')]
+)
+def test_keyboard_shortcuts_shortcut_matches_the_platform(
+    monkeypatch, _restore_shortcuts_module, is_mac, accelerator
+):
     # macOS reserves Cmd+? for opening the Help menu.
     monkeypatch.setattr(platform, 'is_mac', is_mac)
     module = importlib.reload(shortcutswindow)
 
-    shortcuts = dict((description, accel) for _title, group in module.SHORTCUT_GROUPS for accel, description in group)
+    shortcuts = dict(
+        (description, accel)
+        for _title, group in module.SHORTCUT_GROUPS
+        for accel, description in group
+    )
 
     assert shortcuts['Show this Keyboard Shortcuts window'] == accelerator
 
 
-@pytest.mark.parametrize('description, accelerator', [
-    ('Next Unit and Advance State', '<Control>Return'),
-    ('Next Unit and Reverse State', '<Control><Shift>Return'),
-    ('Jump to the language-pair selector', '<Control>Tab'),
-    ('Jump to the "Navigation:" mode selector', '<Control><Shift>Tab'),
-])
+@pytest.mark.parametrize(
+    'description, accelerator',
+    [
+        ('Next Unit and Advance State', '<Control>Return'),
+        ('Next Unit and Reverse State', '<Control><Shift>Return'),
+        ('Jump to the language-pair selector', '<Control>Tab'),
+        ('Jump to the "Navigation:" mode selector', '<Control><Shift>Tab'),
+    ],
+)
 def test_textbox_shortcuts_use_control_on_every_platform(description, accelerator):
     # Handled by the target textbox as literal Ctrl, never Cmd on macOS.
     shortcuts = dict((desc, accel) for _title, group in SHORTCUT_GROUPS for accel, desc in group)
@@ -82,13 +101,17 @@ def test_textbox_shortcuts_use_control_on_every_platform(description, accelerato
     assert shortcuts[description] == accelerator
 
 
-@pytest.mark.parametrize('lang, expected', [
-    ('en', '_2'),
-    ('ar_EG', '_٢'),
-])
+@pytest.mark.parametrize(
+    'lang, expected',
+    [
+        ('en', '_2'),
+        ('ar_EG', '_٢'),
+    ],
+)
 def test_page_numbers_use_the_ui_languages_digits(monkeypatch, lang, expected):
     # GTK titles the pages of a long section itself, as it adds them.
     from virtaal.common import pan_app
+
     monkeypatch.setattr(pan_app, 'ui_language', lang)
     window = ShortcutsWindow.__new__(ShortcutsWindow)
     stack = Gtk.Stack()
@@ -100,15 +123,18 @@ def test_page_numbers_use_the_ui_languages_digits(monkeypatch, lang, expected):
     assert stack.child_get_property(page, 'title') == expected
 
 
-@pytest.mark.parametrize('accelerator, expected', [
-    ('<Meta>o', [['⌘', 'O']]),
-    ('<Meta><Shift>s', [['⇧', '⌘', 'S']]),
-    ('<Control><Shift>Return', [['⌃', '⇧', '↩']]),
-    ('<Alt>Left', [['⌥', '←']]),
-    ('<Shift>Tab', [['⇧', '⇥']]),
-    ('Escape', [['⎋']]),
-    ('<Meta>f F3', [['⌘', 'F'], ['F3']]),
-])
+@pytest.mark.parametrize(
+    'accelerator, expected',
+    [
+        ('<Meta>o', [['⌘', 'O']]),
+        ('<Meta><Shift>s', [['⇧', '⌘', 'S']]),
+        ('<Control><Shift>Return', [['⌃', '⇧', '↩']]),
+        ('<Alt>Left', [['⌥', '←']]),
+        ('<Shift>Tab', [['⇧', '⇥']]),
+        ('Escape', [['⎋']]),
+        ('<Meta>f F3', [['⌘', 'F'], ['F3']]),
+    ],
+)
 def test_mac_keycaps_use_apple_symbols_and_order(accelerator, expected):
     assert shortcutswindow.mac_keycaps(accelerator) == expected
 
@@ -144,9 +170,11 @@ def test_other_platforms_keep_gtks_own_labels(monkeypatch):
     parent = Gtk.Window()
 
     window = ShortcutsWindow(parent)
-    rows = [[child.get_text() for child in label.get_children()]
-            for label in shortcutswindow._shortcut_labels(window)
-            if label.get_accelerator() == '<Shift>Tab']
+    rows = [
+        [child.get_text() for child in label.get_children()]
+        for label in shortcutswindow._shortcut_labels(window)
+        if label.get_accelerator() == '<Shift>Tab'
+    ]
 
     # The row and its search copy.
     assert rows == [['Shift', '+', 'Tab']] * 2

@@ -23,8 +23,7 @@ def test_open_bug_report_opens_the_prefilled_template(monkeypatch):
     controller.open_bug_report()
 
     assert len(opened) == 1
-    assert opened[0].startswith(
-        'https://github.com/translate/virtaal/issues/new?')
+    assert opened[0].startswith('https://github.com/translate/virtaal/issues/new?')
     assert 'template=bug_report.yml' in opened[0]
 
 
@@ -69,7 +68,9 @@ def test_init_wires_the_view_and_store_signals(monkeypatch):
 
 def test_activate_shows_the_view_and_schedules_a_recent_files_refresh(monkeypatch):
     idle_calls = []
-    monkeypatch.setattr('gi.repository.GLib.idle_add', lambda func, **kw: idle_calls.append((func, kw)))
+    monkeypatch.setattr(
+        'gi.repository.GLib.idle_add', lambda func, **kw: idle_calls.append((func, kw))
+    )
     controller = WelcomeScreenController.__new__(WelcomeScreenController)
     controller.view = _FakeView(controller)
 

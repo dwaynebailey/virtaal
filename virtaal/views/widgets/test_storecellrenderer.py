@@ -198,6 +198,7 @@ def test_does_not_paint_a_selected_non_fuzzy_row():
 
 # compute_optimal_height() - remaining dispatch branches #
 
+
 def test_compute_optimal_height_invisible_container_is_a_noop():
     box = Gtk.Box()
     box.set_visible(False)
@@ -277,8 +278,8 @@ def test_compute_optimal_height_textview_survives_a_buggy_length_difference(monk
             raise TypeError("slice indices must be integers or None or have an __index__ method")
 
     monkeypatch.setattr(
-        'virtaal.views.widgets.storecellrenderer.factory.getlanguage',
-        lambda code: _BuggyLang())
+        'virtaal.views.widgets.storecellrenderer.factory.getlanguage', lambda code: _BuggyLang()
+    )
 
     compute_optimal_height(textview, 200)  # must not raise
 
@@ -299,6 +300,7 @@ def test_compute_optimal_height_label_with_only_whitespace_gets_zero_height():
 
 # do_set_property() / do_get_property() #
 
+
 def test_property_roundtrip_via_the_gobject_property_interface():
     renderer = StoreCellRenderer(None)
 
@@ -309,11 +311,14 @@ def test_property_roundtrip_via_the_gobject_property_interface():
 
 # _get_pango_layout() #
 
+
 def test_get_pango_layout_sets_the_wrapped_markup_text():
     renderer = StoreCellRenderer(None)
     textview = Gtk.TextView()
 
-    layout = renderer._get_pango_layout(textview, 'hello <world>', 200, rendering.get_source_font_description())
+    layout = renderer._get_pango_layout(
+        textview, 'hello <world>', 200, rendering.get_source_font_description()
+    )
 
     assert 'hello' in layout.get_text()
 
@@ -322,28 +327,35 @@ def test_get_pango_layout_defaults_a_falsy_text_to_empty():
     renderer = StoreCellRenderer(None)
     textview = Gtk.TextView()
 
-    layout = renderer._get_pango_layout(textview, None, 200, rendering.get_source_font_description())
+    layout = renderer._get_pango_layout(
+        textview, None, 200, rendering.get_source_font_description()
+    )
 
     assert layout.get_text() == ''
 
 
 # compute_cell_height() #
 
+
 def _renderer_for_unit(source, target):
-    renderer = StoreCellRenderer(SimpleNamespace(
-        controller=SimpleNamespace(
-            main_controller=SimpleNamespace(
-                lang_controller=SimpleNamespace(
-                    source_lang=SimpleNamespace(code='en'),
-                    target_lang=SimpleNamespace(code='en'),
-                )
+    renderer = StoreCellRenderer(
+        SimpleNamespace(
+            controller=SimpleNamespace(
+                main_controller=SimpleNamespace(
+                    lang_controller=SimpleNamespace(
+                        source_lang=SimpleNamespace(code='en'),
+                        target_lang=SimpleNamespace(code='en'),
+                    )
+                ),
+                # A falsy store makes _row_needs_exact_height() always pick
+                # the real-measurement branch these tests are exercising.
+                get_store=lambda: None,
             ),
-            # A falsy store makes _row_needs_exact_height() always pick
-            # the real-measurement branch these tests are exercising.
-            get_store=lambda: None,
-        ),
-        _treeview=SimpleNamespace(mark_row_estimated=lambda unit: None, mark_row_measured_exactly=lambda unit: None),
-    ))
+            _treeview=SimpleNamespace(
+                mark_row_estimated=lambda unit: None, mark_row_measured_exactly=lambda unit: None
+            ),
+        )
+    )
     renderer.unit = SimpleNamespace(STATE={}, isfuzzy=lambda: False, source=source, target=target)
     return renderer
 
@@ -373,12 +385,15 @@ def test_compute_cell_height_right_aligns_for_rtl():
 
 # _row_needs_exact_height() / _unit_index() - the estimate/exact split #
 
+
 def _fake_unit():
     return SimpleNamespace(STATE={}, isfuzzy=lambda: False)
 
 
 def _fake_treeview(visible_start, visible_end, model=None):
-    return SimpleNamespace(get_cached_visible_range=lambda: (visible_start, visible_end), get_model=lambda: model)
+    return SimpleNamespace(
+        get_cached_visible_range=lambda: (visible_start, visible_end), get_model=lambda: model
+    )
 
 
 def test_row_needs_exact_height_true_for_the_last_row_even_far_off_range():
@@ -464,6 +479,7 @@ def test_unit_index_rebuilds_only_when_the_store_changes():
 
 # _estimate_text_height() / _font_metrics() #
 
+
 def test_estimate_text_height_is_positive_and_grows_with_more_text():
     renderer = StoreCellRenderer(None)
     textview = Gtk.TextView()
@@ -480,7 +496,9 @@ def test_estimate_text_height_treats_falsy_text_as_a_single_line():
     renderer = StoreCellRenderer(None)
     textview = Gtk.TextView()
 
-    height = renderer._estimate_text_height(textview, '', 200, rendering.get_source_font_description())
+    height = renderer._estimate_text_height(
+        textview, '', 200, rendering.get_source_font_description()
+    )
 
     assert height > 0
 
@@ -499,6 +517,7 @@ def test_font_metrics_are_cached_per_font_description():
 
 # compute_cell_height() - the estimate/exact split, end to end #
 
+
 def _renderer_for_bulk_store(store, index, visible_start=0, visible_end=5):
     marks = []
     treeview = SimpleNamespace(
@@ -509,24 +528,29 @@ def _renderer_for_bulk_store(store, index, visible_start=0, visible_end=5):
         mark_row_measured_exactly=lambda unit: marks.append(('exact', unit)),
         schedule_revalidate_visible_estimated_rows=lambda: marks.append(('revalidate',)),
     )
-    renderer = StoreCellRenderer(SimpleNamespace(
-        controller=SimpleNamespace(
-            main_controller=SimpleNamespace(
-                lang_controller=SimpleNamespace(
-                    source_lang=SimpleNamespace(code='en'),
-                    target_lang=SimpleNamespace(code='en'),
-                )
+    renderer = StoreCellRenderer(
+        SimpleNamespace(
+            controller=SimpleNamespace(
+                main_controller=SimpleNamespace(
+                    lang_controller=SimpleNamespace(
+                        source_lang=SimpleNamespace(code='en'),
+                        target_lang=SimpleNamespace(code='en'),
+                    )
+                ),
+                get_store=lambda: store,
             ),
-            get_store=lambda: store,
-        ),
-        _treeview=treeview,
-    ))
+            _treeview=treeview,
+        )
+    )
     renderer.unit = store[index]
     return renderer, marks
 
 
 def test_compute_cell_height_uses_the_cheap_estimate_far_outside_the_viewport():
-    store = [SimpleNamespace(STATE={}, isfuzzy=lambda: False, source=f's{i}', target=f't{i}') for i in range(200)]
+    store = [
+        SimpleNamespace(STATE={}, isfuzzy=lambda: False, source=f's{i}', target=f't{i}')
+        for i in range(200)
+    ]
     renderer, marks = _renderer_for_bulk_store(store, index=100)
     textview = Gtk.TextView()
 
@@ -539,7 +563,10 @@ def test_compute_cell_height_uses_the_cheap_estimate_far_outside_the_viewport():
 
 
 def test_compute_cell_height_uses_a_real_layout_within_the_viewport():
-    store = [SimpleNamespace(STATE={}, isfuzzy=lambda: False, source=f's{i}', target=f't{i}') for i in range(200)]
+    store = [
+        SimpleNamespace(STATE={}, isfuzzy=lambda: False, source=f's{i}', target=f't{i}')
+        for i in range(200)
+    ]
     renderer, marks = _renderer_for_bulk_store(store, index=2)
     textview = Gtk.TextView()
 
@@ -550,6 +577,7 @@ def test_compute_cell_height_uses_a_real_layout_within_the_viewport():
 
 
 # check_editor_height() #
+
 
 def _sized_textbox(height, visible=True):
     # Realized (via a real OffscreenWindow, like _realized_textview()
@@ -579,11 +607,13 @@ def _sized_textbox(height, visible=True):
 def test_check_editor_height_shrinks_a_too_tall_textbox():
     renderer = StoreCellRenderer(None)
     tall_target = _sized_textbox(500)
-    editor = SimpleNamespace(_widgets={
-        'notes': {},
-        'sources': [],
-        'targets': [tall_target],
-    })
+    editor = SimpleNamespace(
+        _widgets={
+            'notes': {},
+            'sources': [],
+            'targets': [tall_target],
+        }
+    )
 
     renderer.check_editor_height(editor, width=200, parentheight=100)
 
@@ -594,11 +624,13 @@ def test_check_editor_height_skips_an_invisible_textbox():
     renderer = StoreCellRenderer(None)
     hidden_target = _sized_textbox(500, visible=False)
     visible_source = _sized_textbox(500)
-    editor = SimpleNamespace(_widgets={
-        'notes': {},
-        'sources': [visible_source],
-        'targets': [hidden_target],
-    })
+    editor = SimpleNamespace(
+        _widgets={
+            'notes': {},
+            'sources': [visible_source],
+            'targets': [hidden_target],
+        }
+    )
 
     renderer.check_editor_height(editor, width=200, parentheight=100)
 
@@ -617,11 +649,13 @@ def test_check_editor_height_gives_up_when_notes_leave_no_room():
     # same as _sized_textbox()'s own targets/sources, or its explicit
     # request never shows up in the computed size it reports.
     huge_note = _sized_textbox(1000)
-    editor = SimpleNamespace(_widgets={
-        'notes': {'note1': huge_note},
-        'sources': [],
-        'targets': [tall_target],
-    })
+    editor = SimpleNamespace(
+        _widgets={
+            'notes': {'note1': huge_note},
+            'sources': [],
+            'targets': [tall_target],
+        }
+    )
 
     renderer.check_editor_height(editor, width=200, parentheight=100)  # must not raise
 
@@ -631,6 +665,7 @@ def test_check_editor_height_gives_up_when_notes_leave_no_room():
 
 
 # do_get_size() - the non-editable branch and the resize-debounce cache #
+
 
 def _renderer_with_view(is_resizing=False):
     treeview = SimpleNamespace(
@@ -767,6 +802,7 @@ def test_set_unit_clears_the_cell_background_for_a_non_fuzzy_unit():
 
 # do_render() #
 
+
 def test_do_render_paints_nothing_and_returns_true_when_editable():
     renderer = StoreCellRenderer(None)
     renderer.editable = True
@@ -783,13 +819,17 @@ def test_do_render_paints_the_source_and_target_layouts(monkeypatch):
     # logic (source/target offsets, which layout goes where) anyway.
     paints = []
     monkeypatch.setattr(
-        Gtk, 'render_layout',
-        lambda context, cr, x, y, layout: paints.append({'x': x, 'y': y, 'layout': layout}))
+        Gtk,
+        'render_layout',
+        lambda context, cr, x, y, layout: paints.append({'x': x, 'y': y, 'layout': layout}),
+    )
     renderer = _renderer_with_view()
     renderer.editable = False
     widget = _toplevel_widget()
 
-    renderer.do_render(object(), widget, _rectangle(200, 50), _rectangle(200, 50), Gtk.CellRendererState(0))
+    renderer.do_render(
+        object(), widget, _rectangle(200, 50), _rectangle(200, 50), Gtk.CellRendererState(0)
+    )
 
     assert len(paints) == 2
     assert paints[0]['layout'] is renderer.source_layout
@@ -802,8 +842,10 @@ def test_do_render_keeps_the_text_off_the_row_edges_and_apart(monkeypatch, direc
     # #4287: the source text touched the window's left side.
     paints = []
     monkeypatch.setattr(
-        Gtk, 'render_layout',
-        lambda context, cr, x, y, layout: paints.append({'x': x, 'layout': layout}))
+        Gtk,
+        'render_layout',
+        lambda context, cr, x, y, layout: paints.append({'x': x, 'layout': layout}),
+    )
     renderer = _renderer_with_view()
     renderer.editable = False
     widget = _toplevel_widget()
@@ -812,7 +854,9 @@ def test_do_render_keeps_the_text_off_the_row_edges_and_apart(monkeypatch, direc
     margin = rendering.UNIT_MARGIN
     column_width = (width - 3 * margin) / 2
 
-    renderer.do_render(object(), widget, _rectangle(width, 50), _rectangle(width, 50), Gtk.CellRendererState(0))
+    renderer.do_render(
+        object(), widget, _rectangle(width, 50), _rectangle(width, 50), Gtk.CellRendererState(0)
+    )
 
     first, second = margin, margin + column_width + margin
     if direction == Gtk.TextDirection.LTR:
@@ -833,13 +877,18 @@ def test_do_render_forces_a_real_layout_for_a_row_do_get_size_only_estimated(mon
     # None) raises).
     paints = []
     monkeypatch.setattr(
-        Gtk, 'render_layout',
-        lambda context, cr, x, y, layout: paints.append(layout))
-    store = [SimpleNamespace(STATE={}, isfuzzy=lambda: False, source=f's{i}', target=f't{i}') for i in range(200)]
+        Gtk, 'render_layout', lambda context, cr, x, y, layout: paints.append(layout)
+    )
+    store = [
+        SimpleNamespace(STATE={}, isfuzzy=lambda: False, source=f's{i}', target=f't{i}')
+        for i in range(200)
+    ]
     renderer, _marks = _renderer_for_bulk_store(store, index=100)  # outside the fake viewport
     widget = _toplevel_widget()
 
-    renderer.do_render(object(), widget, _rectangle(200, 50), _rectangle(200, 50), Gtk.CellRendererState(0))
+    renderer.do_render(
+        object(), widget, _rectangle(200, 50), _rectangle(200, 50), Gtk.CellRendererState(0)
+    )
 
     assert renderer.source_layout is not None
     assert renderer.target_layout is not None
@@ -850,11 +899,16 @@ def test_do_render_leaves_a_row_do_get_size_only_estimated_for_revalidation(monk
     # GTK still holds the estimated height, which can be a line short
     # (#3990) - only the revalidation's row_changed() makes it re-query.
     monkeypatch.setattr(Gtk, 'render_layout', lambda context, cr, x, y, layout: None)
-    store = [SimpleNamespace(STATE={}, isfuzzy=lambda: False, source=f's{i}', target=f't{i}') for i in range(200)]
+    store = [
+        SimpleNamespace(STATE={}, isfuzzy=lambda: False, source=f's{i}', target=f't{i}')
+        for i in range(200)
+    ]
     renderer, marks = _renderer_for_bulk_store(store, index=100)  # outside the fake viewport
     widget = _toplevel_widget()
 
-    renderer.do_render(object(), widget, _rectangle(200, 50), _rectangle(200, 50), Gtk.CellRendererState(0))
+    renderer.do_render(
+        object(), widget, _rectangle(200, 50), _rectangle(200, 50), Gtk.CellRendererState(0)
+    )
 
     assert ('exact', store[100]) not in marks
     assert marks[-1] == ('revalidate',)
@@ -862,11 +916,16 @@ def test_do_render_leaves_a_row_do_get_size_only_estimated_for_revalidation(monk
 
 # _on_editor_done() / _on_modified() #
 
+
 def test_on_editor_done_emits_editing_done_with_the_editors_state():
     renderer = StoreCellRenderer(None)
-    editor = SimpleNamespace(get_path=lambda: '/tmp/f.po:1', must_advance=True, is_modified=lambda: False)
+    editor = SimpleNamespace(
+        get_path=lambda: '/tmp/f.po:1', must_advance=True, is_modified=lambda: False
+    )
     emitted = []
-    renderer.connect('editing-done', lambda r, path, advance, modified: emitted.append((path, advance, modified)))
+    renderer.connect(
+        'editing-done', lambda r, path, advance, modified: emitted.append((path, advance, modified))
+    )
 
     result = renderer._on_editor_done(editor)
 
@@ -886,21 +945,29 @@ def test_on_modified_emits_modified():
 
 # _gap_edges() / _paint_gaps() #
 
+
 def _gap_renderer(rows, unit_index, n=10):
     store = [_fake_unit() for _ in range(n)]
     model = StoreTreeModel(store, rows=rows)
-    renderer = StoreCellRenderer(SimpleNamespace(controller=SimpleNamespace(get_store=lambda: store)))
+    renderer = StoreCellRenderer(
+        SimpleNamespace(controller=SimpleNamespace(get_store=lambda: store))
+    )
     renderer.unit = store[unit_index]
-    return renderer, SimpleNamespace(get_model=lambda: model, get_allocation=lambda: SimpleNamespace(height=0))
+    return renderer, SimpleNamespace(
+        get_model=lambda: model, get_allocation=lambda: SimpleNamespace(height=0)
+    )
 
 
-@pytest.mark.parametrize('rows, unit_index, edges', [
-    ([2, 3, 7], 3, (False, False)),  # follows unit 2 directly
-    ([2, 3, 7], 7, (True, True)),    # units 4-6 and 8-9 hidden
-    ([2, 3, 7], 2, (True, False)),   # units 0-1 hidden
-    ([0, 1, 9], 0, (False, False)),
-    ([0, 1, 9], 9, (True, False)),   # last unit of the file
-])
+@pytest.mark.parametrize(
+    'rows, unit_index, edges',
+    [
+        ([2, 3, 7], 3, (False, False)),  # follows unit 2 directly
+        ([2, 3, 7], 7, (True, True)),  # units 4-6 and 8-9 hidden
+        ([2, 3, 7], 2, (True, False)),  # units 0-1 hidden
+        ([0, 1, 9], 0, (False, False)),
+        ([0, 1, 9], 9, (True, False)),  # last unit of the file
+    ],
+)
 def test_gap_edges_mark_where_units_are_hidden(rows, unit_index, edges):
     renderer, treeview = _gap_renderer(rows, unit_index)
 
@@ -965,9 +1032,12 @@ def test_paint_gaps_puts_the_bottom_line_above_the_last_rows_scroll_padding():
 
 # _clear_last_row_padding() #
 
+
 def _padding_treeview(found=True):
     base = SimpleNamespace(red=1.0, green=1.0, blue=1.0, alpha=1.0)
-    return SimpleNamespace(get_style_context=lambda: SimpleNamespace(lookup_color=lambda name: (found, base)))
+    return SimpleNamespace(
+        get_style_context=lambda: SimpleNamespace(lookup_color=lambda name: (found, base))
+    )
 
 
 def test_clear_last_row_padding_repaints_a_fuzzy_last_rows_padding():
@@ -976,7 +1046,9 @@ def test_clear_last_row_padding_repaints_a_fuzzy_last_rows_padding():
     renderer._last_row_padding = lambda treeview: 100
     cr = _RecordingCairo()
 
-    renderer._clear_last_row_padding(cr, _padding_treeview(), SimpleNamespace(x=0, y=50, width=300, height=140))
+    renderer._clear_last_row_padding(
+        cr, _padding_treeview(), SimpleNamespace(x=0, y=50, width=300, height=140)
+    )
 
     assert cr.rectangles == [(0, 90, 300, 100)]
 
@@ -988,12 +1060,15 @@ def test_clear_last_row_padding_leaves_other_rows_alone(fuzzy, padding):
     renderer._last_row_padding = lambda treeview: padding
     cr = _RecordingCairo()
 
-    renderer._clear_last_row_padding(cr, _padding_treeview(), SimpleNamespace(x=0, y=50, width=300, height=140))
+    renderer._clear_last_row_padding(
+        cr, _padding_treeview(), SimpleNamespace(x=0, y=50, width=300, height=140)
+    )
 
     assert cr.rectangles == []
 
 
 # Growing the editing row while typing (#4182) #
+
 
 def test_compute_optimal_height_textview_keeps_the_source_estimate_after_the_first_keystroke():
     textview = _realized_textview('')
@@ -1042,7 +1117,8 @@ def _regrow_renderer(monkeypatch, measured, editor_height=100, is_resizing=False
     renderer.view._treeview.get_cursor = lambda: ('path', column)
     renderer.view._treeview.scroll_to_cell = lambda *args: resizes.append(('scroll',) + args)
     renderer.view._treeview.get_toplevel = lambda: SimpleNamespace(
-        get_allocation=lambda: SimpleNamespace(width=400))
+        get_allocation=lambda: SimpleNamespace(width=400)
+    )
     renderer.view._treeview.get_columns = lambda: [column]
     renderer._editor_height = editor_height
     monkeypatch.setattr(renderer, '_measure_editor', lambda *_args: measured)
@@ -1087,7 +1163,8 @@ def test_a_target_buffer_change_schedules_one_regrow_per_burst_of_edits(monkeypa
     scheduled = []
     monkeypatch.setattr(
         'virtaal.views.widgets.storecellrenderer.GLib.idle_add',
-        lambda func, *args: scheduled.append((func, args)))
+        lambda func, *args: scheduled.append((func, args)),
+    )
     target = Gtk.TextView()
     editor = SimpleNamespace(targets=[target], sources=[])
     renderer._watch_editor_textboxes(editor)
@@ -1106,9 +1183,12 @@ def test_a_source_gets_its_scroll_refreshed_on_resize_but_never_regrows_the_row(
     scheduled = []
     monkeypatch.setattr(
         'virtaal.views.widgets.storecellrenderer.GLib.idle_add',
-        lambda func, *args: scheduled.append((func, args)))
+        lambda func, *args: scheduled.append((func, args)),
+    )
     allocated = []
-    monkeypatch.setattr(renderer, '_on_textbox_size_allocate', lambda textbox, _alloc: allocated.append(textbox))
+    monkeypatch.setattr(
+        renderer, '_on_textbox_size_allocate', lambda textbox, _alloc: allocated.append(textbox)
+    )
     source = Gtk.TextView()
     editor = SimpleNamespace(targets=[], sources=[source])
     renderer._watch_editor_textboxes(editor)
@@ -1128,7 +1208,8 @@ def test_a_textbox_whose_height_changed_gets_its_scroll_refreshed_once(monkeypat
     scheduled = []
     monkeypatch.setattr(
         'virtaal.views.widgets.storecellrenderer.GLib.idle_add',
-        lambda func, *args: scheduled.append((func, args)))
+        lambda func, *args: scheduled.append((func, args)),
+    )
     target = SimpleNamespace()
 
     renderer._on_textbox_size_allocate(target, SimpleNamespace(height=41))
@@ -1142,10 +1223,13 @@ def test_refresh_textbox_scroll_ends_a_running_scroll_animation_then_resizes():
     # GtkTextView skips its scroll-page update on an allocation while the
     # adjustment animates; set_value() is what ends the animation.
     calls = []
-    adjustment = SimpleNamespace(get_value=lambda: 20, set_value=lambda value: calls.append(('set_value', value)))
+    adjustment = SimpleNamespace(
+        get_value=lambda: 20, set_value=lambda value: calls.append(('set_value', value))
+    )
     target = SimpleNamespace(
         get_parent=lambda: SimpleNamespace(get_vadjustment=lambda: adjustment),
-        queue_resize=lambda: calls.append('queue_resize'))
+        queue_resize=lambda: calls.append('queue_resize'),
+    )
 
     StoreCellRenderer._refresh_textbox_scroll(target)
 
@@ -1208,6 +1292,7 @@ def test_do_start_editing_watches_the_target_buffers_once():
 
 
 # _content_width() #
+
 
 class _Window(Gtk.Window):
     def get_allocation(self):

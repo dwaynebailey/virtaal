@@ -26,7 +26,7 @@ def _one_line(*values):
 
 class MainController(BaseController):
     """The main controller that initializes the others and contains the main
-        program loop."""
+    program loop."""
 
     __gtype_name__ = 'MainController'
     __gsignals__ = {
@@ -64,7 +64,6 @@ class MainController(BaseController):
     def destroy(self):
         self.store_controller.destroy()
 
-
     # ACCESSORS #
     def get_store(self):
         """Returns the store model of the current open translation store or C{None}."""
@@ -76,9 +75,9 @@ class MainController(BaseController):
 
     def get_translator_details(self):
         """The translator's name, e-mail address and team, asking for all
-            three in one dialog if the name or e-mail is missing; the team
-            is optional. Each is one line: they go into the PO header,
-            where a newline starts a new header field (#4339)."""
+        three in one dialog if the name or e-mail is missing; the team
+        is optional. Each is one line: they go into the PO header,
+        where a newline starts a new header field (#4339)."""
         translator = pan_app.settings.translator
         details = _one_line(translator["name"], translator["email"], translator["team"])
         if all(details[:2]):
@@ -97,72 +96,91 @@ class MainController(BaseController):
 
     def _get_checks_controller(self):
         return self._checks_controller
+
     def _set_checks_controller(self, value):
         self._checks_controller = value
         self.emit('controller-registered', self._checks_controller)
+
     checks_controller = property(_get_checks_controller, _set_checks_controller)
 
     def _get_lang_controller(self):
         return self._lang_controller
+
     def _set_lang_controller(self, value):
         self._lang_controller = value
         self.emit('controller-registered', self._lang_controller)
+
     lang_controller = property(_get_lang_controller, _set_lang_controller)
 
     def _get_mode_controller(self):
         return self._mode_controller
+
     def _set_mode_controller(self, value):
         self._mode_controller = value
         self.emit('controller-registered', self._mode_controller)
+
     mode_controller = property(_get_mode_controller, _set_mode_controller)
 
     def _get_placeables_controller(self):
         return self._placeables_controller
+
     def _set_placeables_controller(self, value):
         self._placeables_controller = value
         self.emit('controller-registered', self._placeables_controller)
+
     placeables_controller = property(_get_placeables_controller, _set_placeables_controller)
 
     def _get_plugin_controller(self):
         return self._plugin_controller
+
     def _set_plugin_controller(self, value):
         self._plugin_controller = value
         self.emit('controller-registered', self._plugin_controller)
+
     plugin_controller = property(_get_plugin_controller, _set_plugin_controller)
 
     def _get_store_controller(self):
         return self._store_controller
+
     def _set_store_controller(self, value):
         self._store_controller = value
         self.emit('controller-registered', self._store_controller)
+
     store_controller = property(_get_store_controller, _set_store_controller)
 
     def _get_undo_controller(self):
         return self._undo_controller
+
     def _set_undo_controller(self, value):
         self._undo_controller = value
         self.emit('controller-registered', self._undo_controller)
+
     undo_controller = property(_get_undo_controller, _set_undo_controller)
 
     def _get_unit_controller(self):
         return self._unit_controller
+
     def _set_unit_controller(self, value):
         self._unit_controller = value
         self.emit('controller-registered', self._unit_controller)
+
     unit_controller = property(_get_unit_controller, _set_unit_controller)
 
     def _get_welcomescreen_controller(self):
         return self._welcomescreen_controller
+
     def _set_welcomescreen_controller(self, value):
         self._welcomescreen_controller = value
         self.emit('controller-registered', self._welcomescreen_controller)
-    welcomescreen_controller = property(_get_welcomescreen_controller, _set_welcomescreen_controller)
 
+    welcomescreen_controller = property(
+        _get_welcomescreen_controller, _set_welcomescreen_controller
+    )
 
     # METHODS #
     def open_file(self, filename=None, uri='', forget_dir=False):
         """Open the file given by C{filename}.
-            @returns: The filename opened, or C{None} if an error has occurred."""
+        @returns: The filename opened, or C{None} if an error has occurred."""
         # The wait below pumps the main loop, which can re-enter this
         # same method (e.g. a macOS "open file" event arriving while
         # placeables_controller never gets constructed at all, as
@@ -190,6 +208,7 @@ class MainController(BaseController):
             Gtk.main_iteration()
         else:
             import logging
+
             logging.warning('open_file(): gave up waiting for placeables_controller')
         if filename is None:
             self._opening_file = False
@@ -208,12 +227,14 @@ class MainController(BaseController):
 
         if filename.startswith('file://'):
             if platform.is_windows:
-                filename = filename[len('file:///'):]
+                filename = filename[len('file:///') :]
             else:
-                filename = filename[len('file://'):]
+                filename = filename[len('file://') :]
 
         if self.store_controller.store and self.store_controller.store.get_filename() == filename:
-            promptmsg = _('You selected the currently open file for opening. Do you want to reload the file?')
+            promptmsg = _(
+                'You selected the currently open file for opening. Do you want to reload the file?'
+            )
             if not self.show_prompt(msg=promptmsg):
                 return False
 
@@ -224,10 +245,14 @@ class MainController(BaseController):
             return True
         except Exception as exc:
             import logging
+
             logging.exception('MainController.open_file(filename="%s", uri="%s")' % (filename, uri))
             self.last_open_error = str(exc)
             self.show_error(
-                filename + ":\n" + _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.") % {'error_message': str(exc)}
+                filename
+                + ":\n"
+                + _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
+                % {'error_message': str(exc)}
             )
             return False
 
@@ -235,14 +260,15 @@ class MainController(BaseController):
         # Save on the disk a localized version of the tutorial using the
         # current locale.
         from virtaal.support.tutorial import create_localized_tutorial
+
         filename = create_localized_tutorial()
 
         # Open the file just created on the fly.
         self.open_file(filename, forget_dir=True)
         import os.path
         import shutil
-        shutil.rmtree(os.path.dirname(filename))
 
+        shutil.rmtree(os.path.dirname(filename))
 
     def save_file(self, filename=None, force_saveas=False):
         # we return True on success
@@ -259,7 +285,8 @@ class MainController(BaseController):
         # prompts or the write itself, not after (#517).
         if filename and os.path.exists(filename) and not os.access(filename, os.W_OK):
             self.show_error(
-                _("%(filename)s is read-only.\n\nTry saving to a different location.") % {'filename': filename}
+                _("%(filename)s is read-only.\n\nTry saving to a different location.")
+                % {'filename': filename}
             )
             return False
 
@@ -279,10 +306,14 @@ class MainController(BaseController):
             return True
         except OSError as exc:
             self.show_error(
-                _("Could not save file.\n\n%(error_message)s\n\nTry saving to a different location.") % {'error_message': str(exc)}
+                _(
+                    "Could not save file.\n\n%(error_message)s\n\nTry saving to a different location."
+                )
+                % {'error_message': str(exc)}
             )
         except Exception as exc:
             import logging
+
             logging.exception('MainController.save_file(filename="%s")' % (filename))
             self.show_error(
                 _("Could not save file.\n\n%(error_message)s") % {'error_message': str(exc)}
@@ -290,18 +321,18 @@ class MainController(BaseController):
         return False
 
     def binary_export(self):
-        #let's try to suggest a filename:
+        # let's try to suggest a filename:
         filename = self.store_controller.get_bundle_filename()
         if filename is None:
             filename = self.get_store_filename() or ''
-        if not (filename.endswith('.po') or filename.endswith('.po.bz2') or filename.endswith('.po.gz')):
-            self.show_error(
-                _("Can only export Gettext PO files")
-            )
+        if not (
+            filename.endswith('.po') or filename.endswith('.po.bz2') or filename.endswith('.po.gz')
+        ):
+            self.show_error(_("Can only export Gettext PO files"))
             return False
 
         if filename.endswith('.po'):
-            #TODO: do something better, especially for files like fr.po and gnome-shell.po.master.fr.po
+            # TODO: do something better, especially for files like fr.po and gnome-shell.po.master.fr.po
             filename = filename[:-3] + '.mo'
         else:
             filename = 'messages.mo'
@@ -313,10 +344,14 @@ class MainController(BaseController):
             return True
         except OSError as exc:
             self.show_error(
-                _("Could not export file.\n\n%(error_message)s\n\nTry saving to a different location.") % {'error_message': str(exc)}
+                _(
+                    "Could not export file.\n\n%(error_message)s\n\nTry saving to a different location."
+                )
+                % {'error_message': str(exc)}
             )
         except Exception as exc:
             import logging
+
             logging.exception('MainController.binary_export(filename="%s")' % (filename))
             self.show_error(
                 _("Could not export file.\n\n%(error_message)s") % {'error_message': str(exc)}
@@ -335,7 +370,9 @@ class MainController(BaseController):
         self.store_controller.close_file()
 
     def revert_file(self, filename=None):
-        confirm = self.show_prompt(_("Revert to Saved"), _("Revert to the last saved copy and lose all changes?"))
+        confirm = self.show_prompt(
+            _("Revert to Saved"), _("Revert to the last saved copy and lose all changes?")
+        )
         if not confirm:
             return
 
@@ -344,14 +381,16 @@ class MainController(BaseController):
             self.mode_controller.refresh_mode()
         except Exception as exc:
             import logging
+
             logging.exception('MainController.revert_file(filename="%s")' % (filename))
             self.show_error(
-                _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.") % {'error_message': str(exc)}
+                _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
+                % {'error_message': str(exc)}
             )
 
     def update_file(self, filename, uri=''):
         """Update the current file using the file given by C{filename} as template.
-            @returns: The filename opened, or C{None} if an error has occurred."""
+        @returns: The filename opened, or C{None} if an error has occurred."""
         if self.store_controller.is_modified():
             response = self.view.show_save_confirm_dialog()
             if response == 'save':
@@ -362,7 +401,9 @@ class MainController(BaseController):
             # Unnecessary to test for 'discard'
 
         if self.store_controller.store and self.store_controller.store.get_filename() == filename:
-            promptmsg = _('You selected the currently open file for opening. Do you want to reload the file?')
+            promptmsg = _(
+                'You selected the currently open file for opening. Do you want to reload the file?'
+            )
             if not self.show_prompt(msg=promptmsg):
                 return False
 
@@ -372,9 +413,13 @@ class MainController(BaseController):
             return True
         except Exception as exc:
             import logging
-            logging.exception('MainController.update_file(filename="%s", uri="%s")' % (filename, uri))
+
+            logging.exception(
+                'MainController.update_file(filename="%s", uri="%s")' % (filename, uri)
+            )
             self.show_error(
-                _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.") % {'error_message': str(exc)}
+                _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
+                % {'error_message': str(exc)}
             )
             return False
 
@@ -403,7 +448,11 @@ class MainController(BaseController):
         # Gtk.main_quit() below - force any open dialog closed first.
         dialogs_open = False
         for window in Gtk.Window.list_toplevels():
-            if isinstance(window, Gtk.Dialog) and window is not self.view.main_window and window.get_visible():
+            if (
+                isinstance(window, Gtk.Dialog)
+                and window is not self.view.main_window
+                and window.get_visible()
+            ):
                 window.response(Gtk.ResponseType.CANCEL)
                 dialogs_open = True
         if dialogs_open:

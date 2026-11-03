@@ -99,7 +99,9 @@ def test_translate_unit_includes_the_system_param_when_multilang():
 def test_translate_unit_wires_the_callback_to_a_successful_response():
     client, requests = _client_with_captured_requests()
     calls = []
-    client.translate_unit('hi there', callback=lambda source, translation: calls.append((source, translation)))
+    client.translate_unit(
+        'hi there', callback=lambda source, translation: calls.append((source, translation))
+    )
 
     response_body = xmlrpclib.dumps(({'text': 'daar'},), methodresponse=True)
     requests[0].emit('http-success', response_body)
@@ -125,7 +127,8 @@ def test_loads_safe_disables_multilang_on_unknown_system_fault():
     client = MosesClient('http://example.com')
     client.set_multilang(True)
     fault_body = xmlrpclib.dumps(
-        xmlrpclib.Fault(1, 'Unknown translation system id: xx'), methodresponse=True)
+        xmlrpclib.Fault(1, 'Unknown translation system id: xx'), methodresponse=True
+    )
 
     result = client._loads_safe(fault_body)
 

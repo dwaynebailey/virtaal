@@ -25,9 +25,7 @@ class LanguageAddDialog:
         super().__init__()
 
         self.gui = BaseView.load_builder_file(
-            ["virtaal", "virtaal.ui"],
-            root='LanguageAdder',
-            domain='virtaal'
+            ["virtaal", "virtaal.ui"], root='LanguageAdder', domain='virtaal'
         )
 
         self._get_widgets()
@@ -49,32 +47,38 @@ class LanguageAddDialog:
 
         self.dialog = self.gui.get_object('LanguageAdder')
 
-
     # ACCESSORS #
     def _get_langname(self):
         return self.ent_langname.get_text()
+
     def _set_langname(self, value):
         self.ent_langname.set_text(value)
+
     langname = property(_get_langname, _set_langname)
 
     def _get_langcode(self):
         return self.ent_langcode.get_text()
+
     def _set_langcode(self, value):
         self.ent_langcode.set_text(value)
+
     langcode = property(_get_langcode, _set_langcode)
 
     def _get_nplurals(self):
         return int(self.sbtn_nplurals.get_value())
+
     def _set_nplurals(self, value):
         self.sbtn_nplurals.set_value(int(value))
+
     nplurals = property(_get_nplurals, _set_nplurals)
 
     def _get_plural(self):
         return self.ent_plural.get_text()
+
     def _set_plural(self, value):
         self.ent_plural.set_text(value)
-    plural = property(_get_plural, _set_plural)
 
+    plural = property(_get_plural, _set_plural)
 
     # METHODS #
     def clear(self):
@@ -98,7 +102,7 @@ class LanguageAddDialog:
 
     def run_edit(self, name, code, nplurals, plural):
         """Edit a known language's plural information; its name and code
-            stay as they are."""
+        stay as they are."""
         self._editing = True
         self.clear()
         self.langname, self.langcode, self.nplurals, self.plural = name, code, nplurals, plural
@@ -134,7 +138,6 @@ class LanguageAddDialog:
             return _('Language code %s is already used.') % code
 
         return ''
-
 
     # EVENT HANDLERS #
     def _on_input_changed(self, entry):

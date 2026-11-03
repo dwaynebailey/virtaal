@@ -111,6 +111,7 @@ def test_dialog_raising_does_not_recurse_or_propagate(monkeypatch):
 # _show_dialog(): dialog focus on macOS (#3865-adjacent - same missing
 # show()/present() bug, found while auditing for other hidden instances)
 
+
 def test_show_dialog_shows_before_presenting(monkeypatch):
     from gi.repository import Gtk
 

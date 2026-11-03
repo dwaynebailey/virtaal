@@ -11,11 +11,7 @@ from virtaal.plugins.lookup.models import thesaurus as thesaurus_module
 from virtaal.plugins.lookup.models.thesaurus import _WORD_ANNOTATION_RE, LookupModel
 from virtaal.support import mythes
 
-SAMPLE_DAT = (
-    'UTF-8\n'
-    'abaja|1\n'
-    '-|abaja|sukmana|płaszcz\n'
-).encode()
+SAMPLE_DAT = ('UTF-8\nabaja|1\n-|abaja|sukmana|płaszcz\n').encode()
 
 
 class _FakeUndoController:
@@ -122,15 +118,23 @@ class _FakeDownloader:
         self.known_files_call = (folder, files)
 
 
-def _make_model(source_lang=None, target_lang=None, manifest_entries=None, manifest_has_data=None, lull_calls=None,
-                 downloader_factory=None):
+def _make_model(
+    source_lang=None,
+    target_lang=None,
+    manifest_entries=None,
+    manifest_has_data=None,
+    lull_calls=None,
+    downloader_factory=None,
+):
     lull_calls = lull_calls if lull_calls is not None else []
     _FakeDownloader.instances = []
     return LookupModel(
-        'thesaurus', _FakeController(source_lang, target_lang),
+        'thesaurus',
+        _FakeController(source_lang, target_lang),
         asset_manifest=_FakeAssetManifest(manifest_entries, has_data=manifest_has_data),
         schedule_after_idle_lull=lambda callback: lull_calls.append(callback),
-        downloader_factory=downloader_factory or _FakeDownloader)
+        downloader_factory=downloader_factory or _FakeDownloader,
+    )
 
 
 def _write_dat(cache_dir, locale_code, content):
@@ -141,7 +145,11 @@ def _write_dat(cache_dir, locale_code, content):
 
 def _patch_threads(monkeypatch):
     threads = []
-    monkeypatch.setattr(thesaurus_module.threading, 'Thread', lambda **kwargs: threads.append(_FakeThread(**kwargs)) or threads[-1])
+    monkeypatch.setattr(
+        thesaurus_module.threading,
+        'Thread',
+        lambda **kwargs: threads.append(_FakeThread(**kwargs)) or threads[-1],
+    )
     return threads
 
 
@@ -155,7 +163,9 @@ def test_create_menu_items_offers_a_download_when_nothing_is_cached(monkeypatch,
     assert 'Download' in items[0].get_label()
 
 
-def test_create_menu_items_starts_a_background_parse_when_a_dat_is_cached_but_not_yet_parsed(monkeypatch, tmp_path):
+def test_create_menu_items_starts_a_background_parse_when_a_dat_is_cached_but_not_yet_parsed(
+    monkeypatch, tmp_path
+):
     monkeypatch.setattr(thesaurus_module, 'thesaurus_cache_dir', lambda: str(tmp_path))
     _write_dat(tmp_path, 'pl_PL', SAMPLE_DAT)
     threads = _patch_threads(monkeypatch)
@@ -266,8 +276,9 @@ def test_create_menu_items_inserts_the_bare_word_without_its_mythes_annotation()
 
     items = model.create_menu_items('small', 'source', 'pl_PL', 'en', None)
 
-    annotated_item = next(i for i in items[0].get_submenu().get_children()
-                           if i.get_label() == 'bantam (similar term)')
+    annotated_item = next(
+        i for i in items[0].get_submenu().get_children() if i.get_label() == 'bantam (similar term)'
+    )
     annotated_item.activate()
 
     assert calls == ['bantam']
@@ -461,7 +472,9 @@ def test_downloads_after_a_lull_when_the_manifest_has_an_entry(monkeypatch, tmp_
     assert downloader.known_files_call == ('pl', ['th_pl_PL.dat'])
 
 
-def test_marks_unavailable_directly_when_a_fetched_manifest_confirms_no_entry(monkeypatch, tmp_path):
+def test_marks_unavailable_directly_when_a_fetched_manifest_confirms_no_entry(
+    monkeypatch, tmp_path
+):
     # The manifest is comprehensive once fetched - a miss here is
     # authoritative, not "we don't know yet" - must not redo a live
     # check every cold start for a locale with genuinely no thesaurus.
@@ -500,7 +513,10 @@ def test_lazily_constructs_a_real_asset_manifest_when_none_is_injected(monkeypat
 # the manifest's own idle-lull-gated refresh window - whichever wins
 # first must not be redundantly clobbered/duplicated by the other.
 
-def test_on_available_does_not_start_a_second_download_once_the_manifest_already_started_one(monkeypatch, tmp_path):
+
+def test_on_available_does_not_start_a_second_download_once_the_manifest_already_started_one(
+    monkeypatch, tmp_path
+):
     monkeypatch.setattr(thesaurus_module, 'thesaurus_cache_dir', lambda: str(tmp_path))
     model = _make_model()
     model._start_download('pl_PL', 'pl', ['th_pl_PL.dat'])  # the manifest path won already
@@ -512,7 +528,9 @@ def test_on_available_does_not_start_a_second_download_once_the_manifest_already
     assert 'pl_PL' not in model._checking
 
 
-def test_on_unavailable_does_not_override_a_download_the_manifest_already_started(monkeypatch, tmp_path):
+def test_on_unavailable_does_not_override_a_download_the_manifest_already_started(
+    monkeypatch, tmp_path
+):
     monkeypatch.setattr(thesaurus_module, 'thesaurus_cache_dir', lambda: str(tmp_path))
     model = _make_model()
     model._start_download('pl_PL', 'pl', ['th_pl_PL.dat'])
@@ -528,6 +546,7 @@ def test_on_unavailable_does_not_override_a_download_the_manifest_already_starte
 # fetch, not the .dat file itself) - a locale confirmed to have no
 # thesaurus in the repo at all should never offer a "Download" button
 # that would only ever fail.
+
 
 def _patch_idle_add_to_run_immediately(monkeypatch):
     monkeypatch.setattr(thesaurus_module.GLib, 'idle_add', lambda func, *args: func(*args))
@@ -550,7 +569,9 @@ def test_check_marks_a_locale_unavailable_when_nothing_is_found(monkeypatch):
 def test_check_starts_a_download_when_a_thesaurus_is_found(monkeypatch):
     monkeypatch.setattr(thesaurus_module, 'fetch_dictionary_tree', lambda: {})
     monkeypatch.setattr(thesaurus_module, 'list_dictionary_folders', lambda tree: {})
-    monkeypatch.setattr(thesaurus_module, 'find_dictionary', lambda *a, **k: ('pl', ['th_pl_PL.dat']))
+    monkeypatch.setattr(
+        thesaurus_module, 'find_dictionary', lambda *a, **k: ('pl', ['th_pl_PL.dat'])
+    )
     _patch_idle_add_to_run_immediately(monkeypatch)
     model = _make_model()
     model._checking.add('pl_PL')
@@ -600,9 +621,11 @@ def test_create_menu_items_shows_the_language_name_while_downloading():
 # create_menu_items() must never reach it for those, on every single
 # right-click, for every locale without a cached thesaurus.
 
+
 def _fail_if_called(monkeypatch):
     def boom(locale_code):
         raise AssertionError('_cached_dat_path() must not be called here')
+
     monkeypatch.setattr(thesaurus_module, '_cached_dat_path', boom)
 
 
@@ -667,7 +690,8 @@ def test_create_menu_items_offers_a_download_when_the_cache_has_no_dat(monkeypat
 def test_synonyms_are_grouped_under_their_part_of_speech():
     model = _make_model()
     model._thesauruses['pl_PL'] = mythes.parse_thesaurus(
-        'UTF-8\nabaja|1\n(noun)|sukmana|płaszcz\n'.encode())
+        'UTF-8\nabaja|1\n(noun)|sukmana|płaszcz\n'.encode()
+    )
 
     items = model.create_menu_items('abaja', 'source', 'pl_PL', 'en', None)
 
@@ -706,6 +730,7 @@ def test_on_download_finished_does_not_start_a_second_parse(monkeypatch, tmp_pat
 def test_check_that_cannot_reach_the_server_can_be_retried(monkeypatch):
     def offline():
         raise OSError('Network is unreachable')
+
     monkeypatch.setattr(thesaurus_module, 'fetch_dictionary_tree', offline)
     _patch_idle_add_to_run_immediately(monkeypatch)
     model = _make_model()
@@ -715,7 +740,9 @@ def test_check_that_cannot_reach_the_server_can_be_retried(monkeypatch):
 
     assert 'af_ZA' not in model._checking
     assert 'af_ZA' not in model._unavailable
-    assert 'Download' in model.create_menu_items('word', 'source', 'af_ZA', 'en', None)[0].get_label()
+    assert (
+        'Download' in model.create_menu_items('word', 'source', 'af_ZA', 'en', None)[0].get_label()
+    )
 
 
 def test_parse_loads_a_cached_dat(monkeypatch, tmp_path):
@@ -728,7 +755,11 @@ def test_parse_loads_a_cached_dat(monkeypatch, tmp_path):
 
     assert 'pl_PL' not in model._parsing
     items = model.create_menu_items('abaja', 'source', 'pl_PL', 'en', None)
-    assert [i.get_label() for i in items[0].get_submenu().get_children()] == ['abaja', 'sukmana', 'płaszcz']
+    assert [i.get_label() for i in items[0].get_submenu().get_children()] == [
+        'abaja',
+        'sukmana',
+        'płaszcz',
+    ]
 
 
 def test_parse_of_a_corrupt_dat_is_not_retried(monkeypatch, tmp_path):

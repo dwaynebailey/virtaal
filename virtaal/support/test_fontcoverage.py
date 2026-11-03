@@ -47,7 +47,12 @@ def test_messages_reads_every_catalog(tmp_path):
 
 def test_current_platform(monkeypatch):
     from virtaal.common.platform import platform
-    for is_mac, is_windows, expected in ((True, False, 'macos'), (False, True, 'windows'), (False, False, 'linux')):
+
+    for is_mac, is_windows, expected in (
+        (True, False, 'macos'),
+        (False, True, 'windows'),
+        (False, False, 'linux'),
+    ):
         monkeypatch.setattr(platform, 'is_mac', is_mac)
         monkeypatch.setattr(platform, 'is_windows', is_windows)
         assert fontcoverage.current_platform() == expected
@@ -63,7 +68,9 @@ def test_check_includes_language_names(tmp_path):
     _write_mo(tmp_path / 'af' / 'virtaal.mo', {'Open': 'Oop'})
     font_descs = {'ui': Pango.FontDescription.from_string('Sans 10')}
     assert fontcoverage.check(str(tmp_path), font_descs) == {}
-    report = fontcoverage.check(str(tmp_path), font_descs, endonym=lambda code: 'Afri%skaans' % NO_GLYPH)
+    report = fontcoverage.check(
+        str(tmp_path), font_descs, endonym=lambda code: 'Afri%skaans' % NO_GLYPH
+    )
     assert report == {('ui', NO_GLYPH): {'af'}}
 
 
@@ -82,8 +89,10 @@ def test_format_report_counts_only_new_gaps():
     assert 'ui font, ja: known, #2: b (U+0062 LATIN SMALL LETTER B)\n' in text
     assert 'ui font, af: NEW: b (U+0062 LATIN SMALL LETTER B)\n' in text
     assert 'editor font, af: NEW: b (U+0062 LATIN SMALL LETTER B)\n' in text
-    assert ('editor font: #4 displays now: z (U+007A LATIN SMALL LETTER Z); if it is fixed, remove it from KNOWN_GAPS\n'
-            in text)
+    assert (
+        'editor font: #4 displays now: z (U+007A LATIN SMALL LETTER Z); if it is fixed, remove it from KNOWN_GAPS\n'
+        in text
+    )
     assert '#2 displays now' not in text
     assert text.endswith('new: 2\n')
 
@@ -95,6 +104,7 @@ def test_missing_skips_control_characters():
 
 def test_fonts_add_the_platform_fallbacks():
     from virtaal.views import rendering
+
     font_descs = fontcoverage.fonts()
     assert set(font_descs) == {'ui', 'editor'}
     for font in font_descs.values():
@@ -103,6 +113,7 @@ def test_fonts_add_the_platform_fallbacks():
 
 def test_main_writes_the_report(tmp_path, monkeypatch):
     from virtaal.common import pan_app
+
     _write_mo(tmp_path / 'mo' / 'af' / 'virtaal.mo', {'Open': 'Oop'})
     monkeypatch.setattr(pan_app, '_repo_root', lambda: str(tmp_path))
     monkeypatch.setattr(fontcoverage, 'KNOWN_GAPS', [])
@@ -115,6 +126,7 @@ def test_main_writes_the_report(tmp_path, monkeypatch):
 
 def test_main_prints_the_report_without_a_file(tmp_path, monkeypatch, capsys):
     from virtaal.common import pan_app
+
     _write_mo(tmp_path / 'mo' / 'af' / 'virtaal.mo', {'Open': 'Oop'})
     monkeypatch.setattr(pan_app, '_repo_root', lambda: str(tmp_path))
     monkeypatch.setattr(fontcoverage, 'KNOWN_GAPS', [])
@@ -129,7 +141,10 @@ def test_run_module_reads_the_package_catalogs(tmp_path, monkeypatch):
 
     from virtaal.common import pan_app
     from virtaal.common.platform import platform
-    _write_mo(tmp_path / 'locale' / 'af' / 'LC_MESSAGES' / 'virtaal.mo', {'Open': 'Oop%s' % NO_GLYPH})
+
+    _write_mo(
+        tmp_path / 'locale' / 'af' / 'LC_MESSAGES' / 'virtaal.mo', {'Open': 'Oop%s' % NO_GLYPH}
+    )
     monkeypatch.setattr(pan_app, '_repo_root', lambda: str(tmp_path / 'checkout'))
     monkeypatch.setattr(platform, 'locale_dir', str(tmp_path / 'locale'))
     out = tmp_path / 'report.txt'

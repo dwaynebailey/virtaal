@@ -12,7 +12,11 @@ ROOT = Path(os.getcwd())
 
 sys.path.insert(0, str(ROOT))
 from virtaal.support.libi18n.lite import (  # noqa: E402
-    bundle_languages, expected_catalogs, is_unused_catalog, missing_catalogs, mismatched_catalogs,
+    bundle_languages,
+    expected_catalogs,
+    is_unused_catalog,
+    mismatched_catalogs,
+    missing_catalogs,
     read_linguas,
 )
 
@@ -22,13 +26,20 @@ import babel_data  # noqa: E402
 # translate-toolkit's own data (langmodels/, stoplist-en), which
 # translate.misc.file_discovery looks for under share/ when frozen.
 import translate  # noqa: E402
+
 TRANSLATE_SHARE = Path(translate.__file__).parent / "share"
 
 LANGUAGES = read_linguas(ROOT / "po" / "LINGUAS")
 
-ARCH_LIBDIR = Path("/usr/lib") / subprocess.run(
-    ["gcc", "-print-multiarch"], capture_output=True, text=True, check=True,
-).stdout.strip()
+ARCH_LIBDIR = (
+    Path("/usr/lib")
+    / subprocess.run(
+        ["gcc", "-print-multiarch"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+)
 
 
 def _required(path):
@@ -64,10 +75,16 @@ for _name in ("im-ibus.so", "im-fcitx5.so", "im-wayland.so", "im-xim.so"):
 IMMODULES_DEST = "lib/gtk-3.0/3.0.0/immodules"
 IMMODULES_CACHE = ROOT / "build" / "appimage" / "immodules.cache.in"
 IMMODULES_CACHE.parent.mkdir(parents=True, exist_ok=True)
-IMMODULES_CACHE.write_text(subprocess.run(
-    [str(_required(ARCH_LIBDIR / "libgtk-3-0" / "gtk-query-immodules-3.0"))] + [str(p) for p in IMMODULES],
-    capture_output=True, text=True, check=True,
-).stdout.replace(str(IMMODULES_DIR), "@BUNDLE@/" + IMMODULES_DEST), encoding="utf-8")
+IMMODULES_CACHE.write_text(
+    subprocess.run(
+        [str(_required(ARCH_LIBDIR / "libgtk-3-0" / "gtk-query-immodules-3.0"))]
+        + [str(p) for p in IMMODULES],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.replace(str(IMMODULES_DIR), "@BUNDLE@/" + IMMODULES_DEST),
+    encoding="utf-8",
+)
 
 # Adwaita, as a run from source has, for hosts without GNOME's icons.
 # Ubuntu 22.04's has its symbolic icons in scalable/ and 16x16/. Not its
@@ -86,7 +103,10 @@ datas = [
     (str(IMMODULES_CACHE), "lib/gtk-3.0/3.0.0"),
 ]
 datas += [
-    (str(ADWAITA / part), "share/icons/Adwaita" if part == "index.theme" else "share/icons/Adwaita/" + part)
+    (
+        str(ADWAITA / part),
+        "share/icons/Adwaita" if part == "index.theme" else "share/icons/Adwaita/" + part,
+    )
     for part in ADWAITA_PARTS
 ]
 datas += mo_files
@@ -94,8 +114,14 @@ datas += mo_files
 
 # lxml modules nothing imports; PyInstaller's lxml hook collects them all.
 UNUSED_LXML = [
-    "lxml.objectify", "lxml.sax", "lxml.builder", "lxml.html.builder", "lxml.html.diff",
-    "lxml.html._difflib", "lxml.html._diffcommand", "lxml.isoschematron",
+    "lxml.objectify",
+    "lxml.sax",
+    "lxml.builder",
+    "lxml.html.builder",
+    "lxml.html.diff",
+    "lxml.html._difflib",
+    "lxml.html._diffcommand",
+    "lxml.isoschematron",
 ]
 
 
@@ -158,12 +184,16 @@ shutil.rmtree(SCHEMAS, ignore_errors=True)
 SCHEMAS.mkdir(parents=True)
 for _schema in Path("/usr/share/glib-2.0/schemas").glob("org.gtk.Settings.*.gschema.xml"):
     shutil.copy(_schema, SCHEMAS)
-subprocess.run([str(_required(ARCH_LIBDIR / "glib-2.0" / "glib-compile-schemas")), str(SCHEMAS)], check=True)
+subprocess.run(
+    [str(_required(ARCH_LIBDIR / "glib-2.0" / "glib-compile-schemas")), str(SCHEMAS)], check=True
+)
 _compiled = "share/glib-2.0/schemas/gschemas.compiled"
 if not any(dest == _compiled for dest, _src, _kind in a.datas):
     raise SystemExit("PyInstaller bundled no %s" % _compiled)
-a.datas = [(dest, str(SCHEMAS / "gschemas.compiled") if dest == _compiled else src, kind)
-           for dest, src, kind in a.datas]
+a.datas = [
+    (dest, str(SCHEMAS / "gschemas.compiled") if dest == _compiled else src, kind)
+    for dest, src, kind in a.datas
+]
 
 # gtkspell3's enchant must be the relocatable one, not Ubuntu's.
 _enchant_sources = [src for dest, src, _kind in a.binaries if dest == "libenchant-2.so.2"]

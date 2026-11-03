@@ -27,10 +27,12 @@ def prepare(query_str):
     query_str = query_str.replace("\n", " __::__ ")
     return query_str
 
+
 def fixup(source, response):
     source = forceunicode(source)
     response = forceunicode(response)
     from translate.filters.autocorrect import correct
+
     tmp = correct(source, response)
     if tmp:
         response = tmp
@@ -68,26 +70,28 @@ class MosesClient(GObject.GObject, HTTPClient):
 
     def translate_unit(self, unit_source, callback=None, target_language=None):
         parameters = {
-                'text': prepare(unit_source),
+            'text': prepare(unit_source),
         }
         if self.multilang:
             parameters['system'] = target_language
 
-        request_body = xmlrpclib.dumps(
-                (parameters,), "translate"
-        )
+        request_body = xmlrpclib.dumps((parameters,), "translate")
         request = HTTPRequest(
-            self.url, "POST", request_body,
+            self.url,
+            "POST",
+            request_body,
             headers=["Content-Type: text/xml", "Content-Length: %s" % len(request_body)],
         )
         request.source_text = unit_source
         self.add(request)
 
         if callback:
+
             def call_callback(request, response):
                 return callback(
                     request.source_text, self._handle_response(request.source_text, response)
                 )
+
             request.connect("http-success", call_callback)
 
     def _loads_safe(self, response):
@@ -97,7 +101,7 @@ class MosesClient(GObject.GObject, HTTPClient):
         except xmlrpclib.Fault as exc:
             if "Unknown translation system id" in exc.faultString:
                 self.set_multilang(False)
-                #TODO: consider redoing the request now that multilang is False
+                # TODO: consider redoing the request now that multilang is False
                 return None
         except Exception as exc:
             logging.debug('XML-RPC exception: %s' % (exc))

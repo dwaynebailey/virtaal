@@ -53,8 +53,12 @@ class TerminologyModel(BaseTerminologyModel):
         lang_controller = self.main_controller.lang_controller
         self.source_lang = lang_controller.source_lang.code
         self.target_lang = lang_controller.target_lang.code
-        self._signal_tracker.connect(lang_controller, 'source-lang-changed', self._on_lang_changed, 'source')
-        self._signal_tracker.connect(lang_controller, 'target-lang-changed', self._on_lang_changed, 'target')
+        self._signal_tracker.connect(
+            lang_controller, 'source-lang-changed', self._on_lang_changed, 'source'
+        )
+        self._signal_tracker.connect(
+            lang_controller, 'target-lang-changed', self._on_lang_changed, 'target'
+        )
 
         self.update_terms()
 
@@ -75,7 +79,6 @@ class TerminologyModel(BaseTerminologyModel):
         self.matcher = terminologymatcher(self.store)
         TerminologyPlaceable.matchers.append(self.matcher)
 
-
     # ACCESSORS #
     def _get_curr_term_filename(self, srclang=None, tgtlang=None, ext=None):
         if srclang is None:
@@ -90,8 +93,8 @@ class TerminologyModel(BaseTerminologyModel):
             if filename.startswith(base):
                 return filename
         return base + os.extsep + ext
-    curr_term_filename = property(_get_curr_term_filename)
 
+    curr_term_filename = property(_get_curr_term_filename)
 
     # METHODS #
     def update_terms(self, srclang=None, tgtlang=None):
@@ -124,6 +127,7 @@ class TerminologyModel(BaseTerminologyModel):
             return True
         stats = os.stat(localfile)
         from datetime import datetime
+
         return (time.mktime(datetime.now().timetuple()) - stats.st_mtime) > THREE_DAYS
 
     def _check_for_update(self, srclang, tgtlang):
@@ -142,15 +146,18 @@ class TerminologyModel(BaseTerminologyModel):
         if logging.root.level != logging.DEBUG:
             self.client.get(url, callback, etag, download=True)
         else:
+
             def error_log(request, result):
                 logging.debug('Could not get %s: status %d' % (url, request.status))
+
             self.client.get(url, callback, etag, error_callback=error_log, download=True)
 
     def _get_ext_from_url(self, url):
         from urllib.parse import urlparse
+
         parsed = urlparse(url)
-        #dir, filename = os.path.split(parsed.path)
-        #rewritten for compatibility with Python 2.4:
+        # dir, filename = os.path.split(parsed.path)
+        # rewritten for compatibility with Python 2.4:
         dir, filename = os.path.split(parsed[2])
         if not filename or '.' not in filename:
             return None
@@ -165,6 +172,7 @@ class TerminologyModel(BaseTerminologyModel):
         from io import BytesIO
 
         from translate.storage.factory import _guess_extension
+
         s = BytesIO(content)
         try:
             return _guess_extension(s)
@@ -204,7 +212,9 @@ class TerminologyModel(BaseTerminologyModel):
                 ext = os.path.splitext(localfile)[1].lstrip(os.extsep)
 
             if not self._parses_as(result, ext):
-                logging.debug('Response for %s does not parse as %s - discarding' % (localfile, ext))
+                logging.debug(
+                    'Response for %s does not parse as %s - discarding' % (localfile, ext)
+                )
                 self.init_matcher(localfile if os.path.isfile(localfile) else '')
                 return
 
@@ -231,12 +241,11 @@ class TerminologyModel(BaseTerminologyModel):
 
     def _update_term_file(self, srclang, tgtlang):
         """Update the terminology file for the given languages."""
-        self.init_matcher() # Make sure that the matcher is empty until we have an update
+        self.init_matcher()  # Make sure that the matcher is empty until we have an update
         filename = self._get_curr_term_filename(srclang, tgtlang)
         localfile = os.path.join(self.TERMDIR, filename)
 
         self._check_for_update(srclang, tgtlang)
-
 
     # SIGNAL HANDLERS #
     def _on_lang_changed(self, lang_controller, lang, which):

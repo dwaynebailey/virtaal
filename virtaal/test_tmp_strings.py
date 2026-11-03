@@ -14,7 +14,7 @@ POT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
 
 def _format_names():
     """translate-toolkit's name for every format its factory opens, as
-        far as each one's optional dependencies are installed."""
+    far as each one's optional dependencies are installed."""
     names = {base.TranslationStore.Name}
     for module, cls in factory._classes_str.values():
         try:

@@ -11,6 +11,7 @@ from virtaal.common.configurable import Configurable
 class PluginUnsupported(Exception):
     pass
 
+
 class BasePlugin(Configurable):
     """The base interface to be implemented by all plug-ins."""
 
@@ -44,14 +45,14 @@ class BasePlugin(Configurable):
     # METHODS #
     def configure(self, parent):
         """Shows C{self.controller}'s backend-selection dialog and persists
-            the resulting config. Used by plug-ins that set
-            C{self.configure_func = self.configure}."""
+        the resulting config. Used by plug-ins that set
+        C{self.configure_func = self.configure}."""
         self.controller.view.select_backends(parent)
         self.save_config()
 
     def destroy(self):
         """This method is called by C{PluginController.shutdown()} and should be
-            implemented by all plug-ins that need to do clean-up."""
+        implemented by all plug-ins that need to do clean-up."""
         if self.controller is not None:
             self.save_config()
             self.controller.destroy()

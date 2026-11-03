@@ -32,11 +32,11 @@ _PRE_ORDER = {'alpha': 0, 'beta': 1, 'rc': 2}
 
 def _parse_version(version_string):
     """Parse a plain vMAJOR.MINOR.PATCH[-alpha|beta|rcN] string into a
-        tuple that sorts correctly - a release with no pre-release
-        suffix always sorts after any pre-release of the same core
-        version (pre-rank 99), and alpha < beta < rc for same-numbered
-        pre-releases. Raises ValueError on anything else, rather than
-        guessing - see is_newer()'s own fail-closed handling of that."""
+    tuple that sorts correctly - a release with no pre-release
+    suffix always sorts after any pre-release of the same core
+    version (pre-rank 99), and alpha < beta < rc for same-numbered
+    pre-releases. Raises ValueError on anything else, rather than
+    guessing - see is_newer()'s own fail-closed handling of that."""
     match = _VERSION_RE.match(version_string.strip())
     if not match:
         raise ValueError('unrecognised version string: %r' % (version_string,))
@@ -61,13 +61,13 @@ def is_newer(remote_version, local_version):
 
 def find_asset_url(assets, plat=platform):
     """Pick the release asset's browser_download_url matching this
-        platform, or None if no confident match exists - either an
-        unsupported platform (e.g. a Linux Flatpak, which isn't frozen
-        and so never checks) or a release missing the expected
-        asset. Names are exactly what .github/workflows/ci.yml's
-        release job produces: 'virtaal-<version>-setup.exe' and the
-        version-independent 'Virtaal-macos-<arch>.dmg' and
-        'Virtaal-linux-<arch>.AppImage'."""
+    platform, or None if no confident match exists - either an
+    unsupported platform (e.g. a Linux Flatpak, which isn't frozen
+    and so never checks) or a release missing the expected
+    asset. Names are exactly what .github/workflows/ci.yml's
+    release job produces: 'virtaal-<version>-setup.exe' and the
+    version-independent 'Virtaal-macos-<arch>.dmg' and
+    'Virtaal-linux-<arch>.AppImage'."""
     if plat.is_windows:
         suffix = '-setup.exe'
         matches = [a for a in assets if a.get('name', '').endswith(suffix)]
@@ -84,11 +84,11 @@ def find_asset_url(assets, plat=platform):
 
 class UpdateChecker:
     """Checks once, asynchronously, whether a newer release exists than
-        local_version - calling on_update_available(tag_name, html_url,
-        asset_url) if so, where asset_url is find_asset_url()'s result
-        (None if no matching downloadable asset was found). Silent
-        (just logs) on any failure: network errors must never surface
-        as an application error to the user."""
+    local_version - calling on_update_available(tag_name, html_url,
+    asset_url) if so, where asset_url is find_asset_url()'s result
+    (None if no matching downloadable asset was found). Silent
+    (just logs) on any failure: network errors must never surface
+    as an application error to the user."""
 
     def __init__(self, local_version, on_update_available):
         self.local_version = local_version

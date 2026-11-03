@@ -26,7 +26,6 @@ def test_nplurals_spinner_has_a_real_range():
     assert dialog.nplurals == 3
 
 
-
 def test_plural_note_does_not_stretch_the_dialog():
     # The note under the plural fields set the dialog's width, so a long
     # translation of it widened the whole dialog.
@@ -37,6 +36,7 @@ def test_plural_note_does_not_stretch_the_dialog():
     note.set_text(note.get_text() * 6)
 
     assert dialog.dialog.get_preferred_width().natural_width < natural_width * 1.25
+
 
 def test_nplurals_setter_accepts_a_value():
     """_set_nplurals() was missing its value parameter entirely - the
@@ -176,10 +176,20 @@ def test_run_edit_prefills_the_language_and_fixes_its_name_and_code():
     seen = []
 
     def run(clear=True):
-        seen.append((clear, dialog.dialog.get_title(), dialog.ent_langname.get_sensitive(),
-                     dialog.ent_langcode.get_sensitive(), dialog.langname, dialog.langcode,
-                     dialog.nplurals, dialog.plural))
+        seen.append(
+            (
+                clear,
+                dialog.dialog.get_title(),
+                dialog.ent_langname.get_sensitive(),
+                dialog.ent_langcode.get_sensitive(),
+                dialog.langname,
+                dialog.langcode,
+                dialog.nplurals,
+                dialog.plural,
+            )
+        )
         return True
+
     dialog.run = run
 
     assert dialog.run_edit('Ukrainian', 'uk', 3, 'n%10==1 ? 0 : 1')
@@ -200,7 +210,12 @@ def test_enter_in_any_field_activates_ok():
     # OK stays insensitive until the code is valid, so Enter can't add a bad one.
     dialog = LanguageAddDialog()
 
-    for entry in (dialog.ent_langname, dialog.ent_langcode, dialog.ent_plural, dialog.sbtn_nplurals):
+    for entry in (
+        dialog.ent_langname,
+        dialog.ent_langcode,
+        dialog.ent_plural,
+        dialog.sbtn_nplurals,
+    ):
         assert entry.get_activates_default()
 
 

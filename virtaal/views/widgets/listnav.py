@@ -23,7 +23,7 @@ class ListNavigator(Gtk.HBox):
     __gsignals__ = {
         'back-clicked': (GObject.SignalFlags.RUN_FIRST, None, ()),
         'forward-clicked': (GObject.SignalFlags.RUN_FIRST, None, ()),
-        'selection-changed': (GObject.SignalFlags.RUN_FIRST, None, (object,))
+        'selection-changed': (GObject.SignalFlags.RUN_FIRST, None, (object,)),
     }
 
     COL_DISPLAY, COL_VALUE = range(2)
@@ -55,7 +55,9 @@ class ListNavigator(Gtk.HBox):
         self.btn_back = Gtk.Button()
         self.btn_forward = Gtk.Button()
         self.btn_back.add(Gtk.Arrow(arrow_type=Gtk.ArrowType.LEFT, shadow_type=Gtk.ShadowType.NONE))
-        self.btn_forward.add(Gtk.Arrow(arrow_type=Gtk.ArrowType.RIGHT, shadow_type=Gtk.ShadowType.NONE))
+        self.btn_forward.add(
+            Gtk.Arrow(arrow_type=Gtk.ArrowType.RIGHT, shadow_type=Gtk.ShadowType.NONE)
+        )
 
         self.tvw_items, self.lst_items = self._init_treeview()
         frame = Gtk.Frame()
@@ -114,11 +116,11 @@ class ListNavigator(Gtk.HBox):
 
     def set_model(self, model, unselectable=None, select_first=True, select_name=None):
         """Set the model for the C{Gtk.TreeView} in the pop-up window.
-            @type  select_first: bool
-            @param select_first: Whether or not the first row should be selected
-            @type  select_name: str
-            @param select_name: The row with this display value is selected.
-                This overrides C{select_first}."""
+        @type  select_first: bool
+        @param select_first: Whether or not the first row should be selected
+        @type  select_name: str
+        @param select_name: The row with this display value is selected.
+            This overrides C{select_first}."""
         if model.get_column_type(self.COL_DISPLAY) != GObject.TYPE_STRING:
             raise ValueError('Column %d does not contain "string" values' % (self.COL_DISPLAY))
         if model.get_column_type(self.COL_VALUE) != GObject.TYPE_PYOBJECT:
@@ -175,7 +177,6 @@ class ListNavigator(Gtk.HBox):
                 self.tvw_items.get_selection().select_iter(row.iter)
                 return
 
-
     # EVENT HANDLERS #
     def _on_back_clicked(self, button):
         self.emit('back-clicked')
@@ -191,7 +192,11 @@ class ListNavigator(Gtk.HBox):
         # See virtaal.views.widgets.textbox.TextBox._on_key_pressed for an
         # explanation of the filter below.
         filtered_state = event.get_state() & (
-                    Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK | Gdk.ModifierType.MOD4_MASK | Gdk.ModifierType.SHIFT_MASK)
+            Gdk.ModifierType.CONTROL_MASK
+            | Gdk.ModifierType.MOD1_MASK
+            | Gdk.ModifierType.MOD4_MASK
+            | Gdk.ModifierType.SHIFT_MASK
+        )
         keyval = event.keyval
 
         if filtered_state == 0:
@@ -220,13 +225,14 @@ class ListNavigator(Gtk.HBox):
         index = model.get_path(itr)[0]
         self.btn_back.set_sensitive(index > 0 and self._is_selectable(model, model[index - 1].iter))
         self.btn_forward.set_sensitive(
-            index < len(model) - 1 and self._is_selectable(model, model[index + 1].iter))
+            index < len(model) - 1 and self._is_selectable(model, model[index + 1].iter)
+        )
 
     def _on_selection_changed(self, selection):
         model, itr = selection.get_selected()
         if not model or not itr:
             return
-        selected_name  = model.get_value(itr, self.COL_DISPLAY)
+        selected_name = model.get_value(itr, self.COL_DISPLAY)
         selected_value = model.get_value(itr, self.COL_VALUE)
 
         self.btn_popup.set_label(selected_name)

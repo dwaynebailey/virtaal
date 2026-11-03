@@ -22,13 +22,13 @@ class TMModel(remotetm.TMModel):
     __gtype_name__ = 'LocalTMModel'
     display_name = _('Local Translation Memory')
     description = _('Previous translations you have made')
-    #l10n: Try to keep this as short as possible.
+    # l10n: Try to keep this as short as possible.
     shortname = _('Local TM')
 
     default_config = {
-        "tmserver_bind" : "localhost",
-        "tmserver_port" : "55555",
-        "tmdb" : os.path.join(pan_app.get_config_dir(), "tm.db")
+        "tmserver_bind": "localhost",
+        "tmserver_port": "55555",
+        "tmdb": os.path.join(pan_app.get_config_dir(), "tm.db"),
     }
 
     # INITIALIZERS #
@@ -44,12 +44,19 @@ class TMModel(remotetm.TMModel):
         # Do not use super() here, as remotetm.TMModel does a bit more than we
         # want in this case.
         BaseTMModel.__init__(self, controller)
-        self._signal_tracker.connect(self.controller.main_controller.store_controller, "store-saved", self.push_store)
+        self._signal_tracker.connect(
+            self.controller.main_controller.store_controller, "store-saved", self.push_store
+        )
 
     def _check_config(self):
         """Replace config values the server can't use (#4340)."""
         self.config["tmserver_port"] = pan_app.config_int(
-            self.config["tmserver_port"], int(self.default_config["tmserver_port"]), 1, 65535, "tmserver_port")
+            self.config["tmserver_port"],
+            int(self.default_config["tmserver_port"]),
+            1,
+            65535,
+            "tmserver_port",
+        )
         # One try here: finding a free port otherwise looks the host up
         # once per port tried, for minutes, and then fails. Resolving
         # isn't enough either: "1.5" is an address, but not this host's.
@@ -64,7 +71,9 @@ class TMModel(remotetm.TMModel):
             logging.warning("Using %s for tmserver_bind: %r can't be used (%s)", default, host, e)
             self.config["tmserver_bind"] = default
         # Relative to the config folder, not wherever Virtaal was started.
-        self.config["tmdb"] = os.path.join(pan_app.get_config_dir(), os.path.expanduser(self.config["tmdb"]))
+        self.config["tmdb"] = os.path.join(
+            pan_app.get_config_dir(), os.path.expanduser(self.config["tmdb"])
+        )
 
     def _pick_port(self):
         # test if port specified in config is free
@@ -77,11 +86,15 @@ class TMModel(remotetm.TMModel):
         # upstream between releases 3.18.1 and 3.19.0 - see
         # virtaal/support/tmserver.py, which vendors it.
         from virtaal.support import helperprocess
+
         command = helperprocess.command("virtaal.support.tmserver")
         command += [
-            "-b", self.config["tmserver_bind"],
-            "-p", str(port),
-            "-d", self.config["tmdb"],
+            "-b",
+            self.config["tmserver_bind"],
+            "-p",
+            str(port),
+            "-d",
+            self.config["tmdb"],
             "--min-similarity=%d" % controller.min_quality,
             "--max-candidates=%d" % controller.max_matches,
         ]
@@ -110,10 +123,12 @@ class TMModel(remotetm.TMModel):
         self._signal_tracker.disconnect_all()
         if platform.is_windows:
             import ctypes
+
             ctypes.windll.kernel32.TerminateProcess(int(self.tmserver._handle), -1)
             logging.debug("killing tmserver with handle %d" % int(self.tmserver._handle))
         else:
             import signal
+
             os.kill(self.tmserver.pid, signal.SIGTERM)
             logging.debug("killing tmserver with pid %d" % self.tmserver.pid)
 
@@ -129,10 +144,11 @@ def test_port(host, port):
 
 def find_free_port(host, min_port, max_port):
     import random
+
     port_range = list(range(min_port, max_port))
     random.shuffle(port_range)
     for port in port_range:
         if test_port(host, port):
             return port
-    #FIXME: shall we throw an exception if no free port is found?
+    # FIXME: shall we throw an exception if no free port is found?
     return None

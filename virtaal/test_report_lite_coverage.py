@@ -10,12 +10,18 @@ import os
 
 import pytest
 
-SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      "devsupport", "pseudo-translation", "report_lite_coverage.py")
+SCRIPT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "devsupport",
+    "pseudo-translation",
+    "report_lite_coverage.py",
+)
 
-TEMPLATE = ('msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-            'msgid "Open"\nmsgstr ""\n\nmsgctxt "Stock label"\nmsgid "_Close"\nmsgstr ""\n\n'
-            'msgid "byte"\nmsgid_plural "bytes"\nmsgstr[0] ""\nmsgstr[1] ""\n')
+TEMPLATE = (
+    'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+    'msgid "Open"\nmsgstr ""\n\nmsgctxt "Stock label"\nmsgid "_Close"\nmsgstr ""\n\n'
+    'msgid "byte"\nmsgid_plural "bytes"\nmsgstr[0] ""\nmsgstr[1] ""\n'
+)
 
 
 @pytest.fixture
@@ -31,7 +37,9 @@ def coverage(tmp_path, monkeypatch):
     (po_dir / "LINGUAS-lite").write_text("gtk30/zu\niso_639/zu\n", encoding="utf-8")
     (po_dir / "virtaal.priorities.yaml").write_text(
         "domains:\n  gtk30:\n    '1': [Open]\n    1~: [\"Stock label\\x04_Close\", byte]\n"
-        "  iso639-3:\n    '1': [English]\n", encoding="utf-8")
+        "  iso639-3:\n    '1': [English]\n",
+        encoding="utf-8",
+    )
     # Upstream: pt covers everything (pt_BR falls back to it), af half.
     everything = {"Open": "Abrir", "Stock label\x04_Close": "_Fechar", "byte\0bytes": "byte\0bytes"}
     lite.write_mo(str(upstream / "pt" / "LC_MESSAGES" / "gtk30.mo"), everything)
@@ -40,12 +48,18 @@ def coverage(tmp_path, monkeypatch):
     # zu's lite catalog fills _Close, not byte.
     (po_dir / "lite" / "gtk30" / "zu.po").write_text(
         'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-        'msgctxt "Stock label"\nmsgid "_Close"\nmsgstr "_Vala"\n', encoding="utf-8")
+        'msgctxt "Stock label"\nmsgid "_Close"\nmsgstr "_Vala"\n',
+        encoding="utf-8",
+    )
     monkeypatch.setattr(module, "PO_DIR", str(po_dir))
     monkeypatch.setattr(module, "LITE_DIR", str(po_dir / "lite"))
     monkeypatch.setattr(lite, "LIBRARY_NAMESPACES", {"gtk30": "Gtk", "gtkspell3": "GtkSpell"})
-    monkeypatch.setattr(lite, "library_locale_dir", lambda ns: str(upstream) if ns == "Gtk" else None)
-    monkeypatch.setattr(module, "_name_translated", lambda lite, lang, name, domain="iso639-3": lang != "af")
+    monkeypatch.setattr(
+        lite, "library_locale_dir", lambda ns: str(upstream) if ns == "Gtk" else None
+    )
+    monkeypatch.setattr(
+        module, "_name_translated", lambda lite, lang, name, domain="iso639-3": lang != "af"
+    )
     return module, lite
 
 
@@ -54,14 +68,18 @@ def test_reports_what_neither_upstream_nor_shipped_lite_translates(coverage):
 
     report, skipped = module.missing(lite)
 
-    assert report == {"gtk30": {"af": ["Stock label\x04_Close", "byte\0bytes"], "zu": ["byte\0bytes"]}}
+    assert report == {
+        "gtk30": {"af": ["Stock label\x04_Close", "byte\0bytes"], "zu": ["byte\0bytes"]}
+    }
     assert skipped == ["gtkspell3"]
 
 
 def test_markdown_lists_each_language_and_message(coverage):
     module, lite = coverage
 
-    summary, _, details = module.markdown(*module.missing(lite), "macOS (Homebrew)").partition("<details>")
+    summary, _, details = module.markdown(*module.missing(lite), "macOS (Homebrew)").partition(
+        "<details>"
+    )
 
     assert "| GTK (3 strings) | af (2 strings), zu (1) |" in summary
     assert "| gtkspell | not on this build host, so not shipped |" in summary
@@ -80,7 +98,9 @@ def test_main_warns_once_and_writes_the_job_summary(coverage, tmp_path, monkeypa
     assert out.count("::warning") == 1
     assert "::warning title=Lite coverage gaps (Windows (gvsbuild))::" in out
     assert "2 shipped language(s) show 3 library message(s)" in out
-    assert "## Lite coverage - Windows (gvsbuild)" in (tmp_path / "summary.md").read_text(encoding="utf-8")
+    assert "## Lite coverage - Windows (gvsbuild)" in (tmp_path / "summary.md").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_main_stays_quiet_outside_github_actions(coverage, monkeypatch, capsys):
@@ -107,4 +127,7 @@ def test_markdown_leads_with_the_level_one_gaps(coverage):
 
     text = module.markdown(report, skipped, "macOS (Homebrew)", module.level_one_gaps(lite, report))
 
-    assert "Level 1 (the release rule, `po/update-linguas.py --cut-off`): af (3 strings), zu (1)." in text
+    assert (
+        "Level 1 (the release rule, `po/update-linguas.py --cut-off`): af (3 strings), zu (1)."
+        in text
+    )

@@ -71,9 +71,7 @@ from virtaal.models import langmodel  # noqa: E402
 from virtaal.support import statsdb  # noqa: E402
 
 _ALLOWLIST_PATH = (
-    Path(__file__).resolve().parent.parent
-    / "devsupport"
-    / "known-deprecation-warnings.txt"
+    Path(__file__).resolve().parent.parent / "devsupport" / "known-deprecation-warnings.txt"
 )
 
 _WATCHED_CATEGORIES = (DeprecationWarning, PendingDeprecationWarning)
@@ -100,13 +98,18 @@ def pytest_warning_recorded(warning_message, when, nodeid, location):
             # An isolated subprocess hands its warnings back to the
             # parent, which re-records them (see _run_group).
             with open(path, "a", encoding="utf-8") as f:
-                f.write(json.dumps({
-                    "warning": message,
-                    "category": warning_message.category.__name__,
-                    "filename": warning_message.filename,
-                    "lineno": warning_message.lineno,
-                    "nodeid": nodeid,
-                }) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "warning": message,
+                            "category": warning_message.category.__name__,
+                            "filename": warning_message.filename,
+                            "lineno": warning_message.lineno,
+                            "nodeid": nodeid,
+                        }
+                    )
+                    + "\n"
+                )
 
 
 def _is_testscaffolding_subclass(cls):
@@ -255,10 +258,10 @@ def _make_report(item, when, passed, output=""):
     if passed:
         call = runner.CallInfo.from_call(lambda: None, when)
     else:
+
         def _raise():
-            raise AssertionError(
-                "subprocess-isolated run failed (issue #3738):\n" + output
-            )
+            raise AssertionError("subprocess-isolated run failed (issue #3738):\n" + output)
+
         call = runner.CallInfo.from_call(_raise, when)
     return runner.pytest_runtest_makereport(item, call)
 
@@ -296,10 +299,15 @@ def _run_group(item, group):
         stacks_path = os.path.join(tmp, "stacks.txt")
         proc = subprocess.Popen(
             [
-                sys.executable, "-m", "pytest",
-                "-p", "no:cacheprovider",
-                "--basetemp", os.path.join(tmp, "basetemp"),
-                "-q", *nodeids,
+                sys.executable,
+                "-m",
+                "pytest",
+                "-p",
+                "no:cacheprovider",
+                "--basetemp",
+                os.path.join(tmp, "basetemp"),
+                "-q",
+                *nodeids,
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -322,14 +330,16 @@ def _run_group(item, group):
     for line in lines:
         if "warning" in line:
             category = getattr(builtins, line["category"])
-            item.ihook.pytest_warning_recorded.call_historic(kwargs={
-                "warning_message": warnings.WarningMessage(
-                    category(line["warning"]), category, line["filename"], line["lineno"]
-                ),
-                "when": "runtest",
-                "nodeid": line["nodeid"],
-                "location": None,
-            })
+            item.ihook.pytest_warning_recorded.call_historic(
+                kwargs={
+                    "warning_message": warnings.WarningMessage(
+                        category(line["warning"]), category, line["filename"], line["lineno"]
+                    ),
+                    "when": "runtest",
+                    "nodeid": line["nodeid"],
+                    "location": None,
+                }
+            )
             continue
         report = item.config.hook.pytest_report_from_serializable(
             config=item.config, data=line["report"]
@@ -357,14 +367,16 @@ def _run_group(item, group):
 
 
 def _warn_hung(item, message):
-    item.ihook.pytest_warning_recorded.call_historic(kwargs={
-        "warning_message": warnings.WarningMessage(
-            UserWarning(message), UserWarning, __file__, 0
-        ),
-        "when": "runtest",
-        "nodeid": item.nodeid,
-        "location": None,
-    })
+    item.ihook.pytest_warning_recorded.call_historic(
+        kwargs={
+            "warning_message": warnings.WarningMessage(
+                UserWarning(message), UserWarning, __file__, 0
+            ),
+            "when": "runtest",
+            "nodeid": item.nodeid,
+            "location": None,
+        }
+    )
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -424,6 +436,7 @@ def _isolate_settings_file(tmp_path_factory):
     import, and code under test saves it (#4082). Save to a temporary
     file instead."""
     from virtaal.common import pan_app
+
     pan_app.settings.filename = str(tmp_path_factory.mktemp("config") / "virtaal.ini")
 
 
@@ -442,6 +455,7 @@ def _no_stats_cache_fill(monkeypatch):
     """Opening a file would otherwise start a child process filling the
     stats cache. test_statsworker.py tests the real one."""
     from virtaal.support import statsworker
+
     monkeypatch.setattr(statsworker, 'fill_in_background', lambda filename: None)
 
 

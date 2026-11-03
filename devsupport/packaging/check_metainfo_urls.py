@@ -59,7 +59,7 @@ def fetch_status(url):
 def check_url(url, kind, fetch, sleep):
     """None if url is fine, else (level, message), level 'error' or 'warning'."""
     if kind == 'screenshot' and url.startswith(REPO_RAW_PREFIX):
-        relpath = url[len(REPO_RAW_PREFIX):]
+        relpath = url[len(REPO_RAW_PREFIX) :]
         if (REPO_ROOT / relpath).is_file():
             return None
         return 'error', '%s: %s is not in the repository' % (url, relpath)

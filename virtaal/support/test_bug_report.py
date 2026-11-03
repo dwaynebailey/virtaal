@@ -41,13 +41,15 @@ def test_source_checkout_leaves_install_method_unset():
 
 def test_version_uses_version_string():
     from virtaal import __version__
+
     fields = _fields(build_bug_report_url(plat=Platform()))
     assert fields['version'] == __version__.version_string()
 
 
 def test_extra_fields_override_builtin():
-    fields = _fields(build_bug_report_url(
-        extra_fields={'logs': 'Traceback...', 'os': 'Other'}, plat=Platform()))
+    fields = _fields(
+        build_bug_report_url(extra_fields={'logs': 'Traceback...', 'os': 'Other'}, plat=Platform())
+    )
     assert fields['logs'] == 'Traceback...'
     assert fields['os'] == 'Other'
 
@@ -55,9 +57,14 @@ def test_extra_fields_override_builtin():
 def test_template_version_placeholder_is_current():
     # 5e7cca9 is no real commit, so a report that copied the placeholder
     # stands out.
-    template = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir,
-                            '.github', 'ISSUE_TEMPLATE', 'bug_report.yml')
+    template = os.path.join(
+        os.path.dirname(__file__),
+        os.pardir,
+        os.pardir,
+        '.github',
+        'ISSUE_TEMPLATE',
+        'bug_report.yml',
+    )
     with open(template, encoding='utf-8') as f:
-        placeholder = re.search(
-            r'id: version\n(?:.*\n)*?\s+placeholder: (.*)', f.read()).group(1)
+        placeholder = re.search(r'id: version\n(?:.*\n)*?\s+placeholder: (.*)', f.read()).group(1)
     assert placeholder == "%s (5e7cca9)" % __version__.ver

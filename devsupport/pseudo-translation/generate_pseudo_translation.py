@@ -40,6 +40,7 @@ default (so bin/virtaal's --pseudo-translation* options work with no
 separate install step) - pass --localedir to write
 somewhere else instead, e.g. a frozen build's own share/locale/.
 """
+
 import argparse
 import os
 import re
@@ -58,8 +59,7 @@ RTL_ISOLATE_END = "\u2069"  # POP DIRECTIONAL ISOLATE
 def rewrite_bidi(self, string):
     if not isinstance(string, StringElem):
         string = StringElem(string)
-    return self._rewrite_prepend_append(
-        string, RTL_ISOLATE_START + "[", "]" + RTL_ISOLATE_END)
+    return self._rewrite_prepend_append(string, RTL_ISOLATE_START + "[", "]" + RTL_ISOLATE_END)
 
 
 # podebug.convertpo() always instantiates the module's own podebug
@@ -90,9 +90,8 @@ LIBRARY_SOURCES = {
     "iso3166-1": ("iso:", "pycountry"),
 }
 
-MO_MAGIC = 0x950412de
-MO_HEADER = ("Content-Type: text/plain; charset=UTF-8\n"
-             "Plural-Forms: nplurals=2; plural=(n != 1);\n")
+MO_MAGIC = 0x950412DE
+MO_HEADER = "Content-Type: text/plain; charset=UTF-8\nPlural-Forms: nplurals=2; plural=(n != 1);\n"
 
 
 def _repo_root():
@@ -113,9 +112,9 @@ def read_mo_originals(path):
     count, table = struct.unpack(byteorder + "II", data[8:16])
     originals = []
     for i in range(count):
-        length, offset = struct.unpack(byteorder + "II", data[table + 8 * i:table + 8 * i + 8])
+        length, offset = struct.unpack(byteorder + "II", data[table + 8 * i : table + 8 * i + 8])
         if length:
-            originals.append(data[offset:offset + length].decode("utf-8"))
+            originals.append(data[offset : offset + length].decode("utf-8"))
     return originals
 
 
@@ -133,8 +132,18 @@ def write_mo(path, messages):
         entries.append(struct.pack("<II", len(string), position))
         position += len(string) + 1
     with open(path, "wb") as f:
-        f.write(struct.pack("<7I", MO_MAGIC, 0, len(keys), originals_table,
-                            originals_table + 8 * len(keys), 0, 0))
+        f.write(
+            struct.pack(
+                "<7I",
+                MO_MAGIC,
+                0,
+                len(keys),
+                originals_table,
+                originals_table + 8 * len(keys),
+                0,
+                0,
+            )
+        )
         f.write(b"".join(entries))
         f.write(b"".join(string + b"\0" for string in strings))
 
@@ -146,11 +155,15 @@ def lite_template_keys(domain):
     if not os.path.isfile(path):
         return None
     from translate.storage import pypo
+
     with open(path, "rb") as f:
         units = pypo.pofile(f).units
-    return {(unit.getcontext() + "\x04" if unit.getcontext() else "") + str(unit.source.strings[0]
-                                                                         if unit.hasplural() else unit.source)
-            for unit in units if not unit.isheader()}
+    return {
+        (unit.getcontext() + "\x04" if unit.getcontext() else "")
+        + str(unit.source.strings[0] if unit.hasplural() else unit.source)
+        for unit in units
+        if not unit.isheader()
+    }
 
 
 URL_RE = re.compile(r"^(https?|ftp|mailto):\S*$")
@@ -196,23 +209,29 @@ def read_levels(path=None):
     """{domain: {key: level}} from a priority file (default
     po/virtaal.priorities.yaml)."""
     import yaml
+
     path = path or os.path.join(_repo_root(), "po", "virtaal.priorities.yaml")
     with open(path, encoding="utf-8") as f:
         domains = yaml.safe_load(f)["domains"]
-    return {domain: {key: level for level, keys in by_level.items() for key in keys}
-            for domain, by_level in domains.items()}
+    return {
+        domain: {key: level for level, keys in by_level.items() for key in keys}
+        for domain, by_level in domains.items()
+    }
 
 
 def _template_originals():
     """po/virtaal.pot's messages, as read_mo_originals() gives them."""
     from translate.storage import po
+
     template = po.pofile.parsefile(os.path.join(_repo_root(), "po", "virtaal.pot"))
     originals = []
     for unit in template.units:
         if unit.isheader() or unit.isobsolete():
             continue
         prefix = unit.getcontext() + "\x04" if unit.getcontext() else ""
-        originals.append(prefix + ("\0".join(unit.source.strings) if unit.hasplural() else str(unit.source)))
+        originals.append(
+            prefix + ("\0".join(unit.source.strings) if unit.hasplural() else str(unit.source))
+        )
     return originals
 
 
@@ -221,8 +240,10 @@ def library_locale_dir(namespace):
     prefix of a GI namespace's typelib, or None."""
     if namespace == "pycountry":
         import pycountry
+
         return pycountry.LOCALES_DIR
     import gi
+
     try:
         if namespace in ("Gtk", "GtkSpell", "GtkosxApplication"):
             gi.require_version("Gtk", "3.0")
@@ -233,6 +254,7 @@ def library_locale_dir(namespace):
         # (GtkosxApplication off macOS).
         return None
     from gi import _gi
+
     path = _gi.Repository.get_default().get_typelib_path(namespace)
     while path and os.path.dirname(path) != path:
         path = os.path.dirname(path)
@@ -265,6 +287,7 @@ def fullest_catalog(locale_dirs, domain):
 def _keep_untranslated(path):
     """Clears path's translation of each message _untranslated() names."""
     from translate.storage import po
+
     store = po.pofile.parsefile(path)
     for unit in store.units:
         if not unit.isheader() and _untranslated(unit.source):
@@ -301,9 +324,12 @@ def _generate_library_mos(mo_dir, localedir, levels=None):
             print("No installed %s catalog found, skipping it" % domain, file=sys.stderr)
             continue
         originals = read_mo_originals(source)
-        write_mo(os.path.join(mo_dir, domain + ".mo"),
-                 tag_by_level(originals, levels.get(domain, {})) if levels is not None
-                 else tag_messages(originals, tag, lite_template_keys(domain)))
+        write_mo(
+            os.path.join(mo_dir, domain + ".mo"),
+            tag_by_level(originals, levels.get(domain, {}))
+            if levels is not None
+            else tag_messages(originals, tag, lite_template_keys(domain)),
+        )
 
 
 def generate_locale(code, localedir=None, priorities=None):
@@ -328,9 +354,14 @@ def generate_locale(code, localedir=None, priorities=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--localedir", default=None,
-                         help="Where to write share/locale-style output (default: sys.prefix/share/locale)")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--localedir",
+        default=None,
+        help="Where to write share/locale-style output (default: sys.prefix/share/locale)",
+    )
     args = parser.parse_args()
 
     for code in LOCALES:

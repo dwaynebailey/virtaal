@@ -48,10 +48,10 @@ def list_dictionary_folders(tree_json):
     folder that has its own dictionaries.xcu. Pure function, no I/O."""
     if tree_json.get('truncated'):
         logging.warning(
-            'LibreOffice dictionaries tree response was truncated - '
-            'some languages may be missing')
+            'LibreOffice dictionaries tree response was truncated - some languages may be missing'
+        )
     return {
-        entry['path'][:-len(_XCU_SUFFIX)]: entry.get('sha')
+        entry['path'][: -len(_XCU_SUFFIX)]: entry.get('sha')
         for entry in tree_json.get('tree', [])
         if entry.get('path', '').endswith(_XCU_SUFFIX)
     }
@@ -93,14 +93,8 @@ def parse_dictionaries_xcu(xml_bytes, dict_format='DICT_SPELL'):
         if _prop_value(node, 'Format') != dict_format:
             continue
         locations = (_prop_value(node, 'Locations') or '').split()
-        files = [
-            f[len('%origin%/'):] if f.startswith('%origin%/') else f
-            for f in locations
-        ]
-        locales = [
-            loc.replace('-', '_')
-            for loc in (_prop_value(node, 'Locales') or '').split()
-        ]
+        files = [f[len('%origin%/') :] if f.startswith('%origin%/') else f for f in locations]
+        locales = [loc.replace('-', '_') for loc in (_prop_value(node, 'Locales') or '').split()]
         if files and locales:
             result.append({'files': files, 'locales': locales})
     return result
@@ -194,6 +188,7 @@ def find_dictionary(locale_code, folders, fetch_xcu, dict_format='DICT_SPELL'):
 
 # --- Network I/O - thin, replaceable wrappers around the pure logic above ---
 
+
 def _get(url):
     with proxy.urlopen(url, timeout=10) as response:
         return response.read()
@@ -236,6 +231,7 @@ def fetch_dictionary_file(folder, filename):
 
 # --- Where downloaded dictionaries need to end up for enchant to find them ---
 
+
 def dictionary_write_dir():
     """Where enchant's hunspell backend looks for user-installed
     dictionaries.
@@ -247,6 +243,7 @@ def dictionary_write_dir():
     matching enchant.get_user_config_dir() (Python) plus that name.
     """
     import enchant
+
     return os.path.join(enchant.get_user_config_dir(), 'hunspell')
 
 

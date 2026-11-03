@@ -66,8 +66,11 @@ def test_show_at_selects_the_first_candidate():
 
     assert popup.is_showing()
     assert popup.selected_index() == 0
-    assert [row.get_child().get_label() for row in popup.listbox.get_children()] == \
-        ['argief', 'dokument', 'lêer']
+    assert [row.get_child().get_label() for row in popup.listbox.get_children()] == [
+        'argief',
+        'dokument',
+        'lêer',
+    ]
 
 
 def test_show_at_without_candidates_does_not_show():

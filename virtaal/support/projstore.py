@@ -136,9 +136,7 @@ class ProjectStore:
         )
 
     # METHODS #
-    def append_file(
-        self, afile, fname, ftype: str = "trans", delete_orig: bool = False
-    ):
+    def append_file(self, afile, fname, ftype: str = "trans", delete_orig: bool = False):
         """
         Append the given file to the project with the given filename, marked
         to be of type ``ftype`` ('src', 'trans', 'tgt').

@@ -27,8 +27,7 @@ def _fake_view_with_selection(text=None):
     textbox = SimpleNamespace(buffer=Gtk.TextBuffer())
     if text is not None:
         textbox.buffer.set_text(text)
-        textbox.buffer.select_range(
-            textbox.buffer.get_start_iter(), textbox.buffer.get_end_iter())
+        textbox.buffer.select_range(textbox.buffer.get_start_iter(), textbox.buffer.get_end_iter())
     return view, textbox, calls
 
 
@@ -86,6 +85,7 @@ def test_run_shows_before_presenting():
 
 def test_run_restores_the_parents_focus_on_close(monkeypatch):
     from virtaal.plugins.terminology.models.localfile import localfileview
+
     monkeypatch.setattr(localfileview.GLib, 'idle_add', lambda func, *args: func(*args))
 
     add_dialog = TermAddDialog.__new__(TermAddDialog)
@@ -138,8 +138,11 @@ def test_init_wires_entry_changed_signals_to_on_entry_changed(monkeypatch):
     # otherwise pure widget-wiring boilerplate not worth faking.
     calls = []
     monkeypatch.setattr(TermAddDialog, '_on_entry_changed', lambda self, entry: calls.append(entry))
-    model = SimpleNamespace(controller=SimpleNamespace(main_controller=SimpleNamespace(
-        lang_controller=None, unit_controller=None)))
+    model = SimpleNamespace(
+        controller=SimpleNamespace(
+            main_controller=SimpleNamespace(lang_controller=None, unit_controller=None)
+        )
+    )
 
     dialog = TermAddDialog(model=model)
 
@@ -152,8 +155,11 @@ def test_init_wires_entry_changed_signals_to_on_entry_changed(monkeypatch):
 
 
 def test_termfile_combo_ellipsizes_long_paths():
-    model = SimpleNamespace(controller=SimpleNamespace(main_controller=SimpleNamespace(
-        lang_controller=None, unit_controller=None)))
+    model = SimpleNamespace(
+        controller=SimpleNamespace(
+            main_controller=SimpleNamespace(lang_controller=None, unit_controller=None)
+        )
+    )
     dialog = TermAddDialog(model=model)
     path = '/very/long/directory/' * 10 + 'terminology.po'
 
@@ -274,8 +280,8 @@ def test_add_file_clicked_adds_the_file_on_accept(monkeypatch, tmp_path):
     config = {'files': []}
     fake_controller = SimpleNamespace(main_controller=SimpleNamespace(view=None))
     model = SimpleNamespace(
-        controller=fake_controller, config=config,
-        save_config=lambda: None, load_files=lambda: None)
+        controller=fake_controller, config=config, save_config=lambda: None, load_files=lambda: None
+    )
     dialog = FileSelectDialog(model=model)
     dialog.add_chooser = _FakeAddChooser(Gtk.ResponseType.ACCEPT, filenames=[str(picked)])
 
@@ -288,11 +294,16 @@ def test_add_file_clicked_shows_an_error_for_a_file_that_no_longer_exists(monkey
     monkeypatch.setattr(FileSelectDialog, '_init_add_chooser', lambda self: None)
     config = {'files': []}
     errors = []
-    fake_controller = SimpleNamespace(main_controller=SimpleNamespace(
-        view=SimpleNamespace(show_error_dialog=lambda title, message: errors.append((title, message)))))
+    fake_controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            view=SimpleNamespace(
+                show_error_dialog=lambda title, message: errors.append((title, message))
+            )
+        )
+    )
     model = SimpleNamespace(
-        controller=fake_controller, config=config,
-        save_config=lambda: None, load_files=lambda: None)
+        controller=fake_controller, config=config, save_config=lambda: None, load_files=lambda: None
+    )
     dialog = FileSelectDialog(model=model)
     dialog.add_chooser = _FakeAddChooser(Gtk.ResponseType.ACCEPT, filenames=['/no/such/file.po'])
 
@@ -309,8 +320,11 @@ def test_add_file_clicked_skips_a_filename_already_in_the_list(monkeypatch, tmp_
     picked.write_text('')
     config = {'files': [str(picked)]}
     model = SimpleNamespace(
-        controller=SimpleNamespace(main_controller=SimpleNamespace(view=None)), config=config,
-        save_config=lambda: None, load_files=lambda: None)
+        controller=SimpleNamespace(main_controller=SimpleNamespace(view=None)),
+        config=config,
+        save_config=lambda: None,
+        load_files=lambda: None,
+    )
     dialog = FileSelectDialog(model=model)
     dialog.add_chooser = _FakeAddChooser(Gtk.ResponseType.ACCEPT, filenames=[str(picked)])
 
@@ -322,7 +336,9 @@ def test_add_file_clicked_skips_a_filename_already_in_the_list(monkeypatch, tmp_
 def test_add_file_clicked_restores_the_parents_focus_regardless_of_response(monkeypatch):
     monkeypatch.setattr(FileSelectDialog, '_init_add_chooser', lambda self: None)
     calls = []
-    monkeypatch.setattr(localfileview.GLib, 'idle_add', lambda func, *args: calls.append((func, args)))
+    monkeypatch.setattr(
+        localfileview.GLib, 'idle_add', lambda func, *args: calls.append((func, args))
+    )
     dialog = FileSelectDialog(model=SimpleNamespace(controller=None, config={'files': []}))
     dialog.add_chooser = _FakeAddChooser(Gtk.ResponseType.CANCEL)
 
@@ -332,6 +348,7 @@ def test_add_file_clicked_restores_the_parents_focus_regardless_of_response(monk
 
 
 # LocalFileView.destroy() #
+
 
 def test_destroy_disconnects_signals_and_removes_menu_items():
     view = LocalFileView.__new__(LocalFileView)
@@ -350,12 +367,14 @@ def test_destroy_disconnects_signals_and_removes_menu_items():
 
 # LocalFileView.addterm / .fileselect properties #
 
+
 def test_addterm_property_lazily_constructs_and_caches(monkeypatch):
     created = []
 
     class _FakeAddDialog:
         def __init__(self, model):
             created.append(model)
+
     monkeypatch.setattr(localfileview, 'TermAddDialog', _FakeAddDialog)
     view = LocalFileView.__new__(LocalFileView)
     view.term_model = 'model'
@@ -375,6 +394,7 @@ def test_fileselect_property_lazily_constructs_and_caches(monkeypatch):
     class _FakeFileSelect:
         def __init__(self, model):
             created.append(model)
+
     monkeypatch.setattr(localfileview, 'FileSelectDialog', _FakeFileSelect)
     view = LocalFileView.__new__(LocalFileView)
     view.term_model = 'model'
@@ -389,6 +409,7 @@ def test_fileselect_property_lazily_constructs_and_caches(monkeypatch):
 
 
 # LocalFileView's trivial event-handler delegators #
+
 
 def test_on_add_term_runs_the_addterm_dialog():
     view = LocalFileView.__new__(LocalFileView)
@@ -426,9 +447,12 @@ def test_populate_popup_does_nothing_for_a_whitespace_only_selection():
 
 # FileSelectDialog._init_treeview()'s extend-file selection logic #
 
+
 def test_init_treeview_lists_configured_files_and_marks_the_extend_file(monkeypatch):
     monkeypatch.setattr(FileSelectDialog, '_init_add_chooser', lambda self: None)
-    model = SimpleNamespace(controller=None, config={'files': ['a.po', 'b.po'], 'extendfile': 'b.po'})
+    model = SimpleNamespace(
+        controller=None, config={'files': ['a.po', 'b.po'], 'extendfile': 'b.po'}
+    )
 
     dialog = FileSelectDialog(model=model)
 
@@ -453,11 +477,13 @@ def test_init_treeview_defaults_to_the_first_file_when_none_is_marked_to_extend(
 
 # FileSelectDialog.clear_selection() / run() #
 
+
 def test_clear_selection_unselects_all_rows():
     dialog = FileSelectDialog.__new__(FileSelectDialog)
     unselected = []
     dialog.tvw_termfiles = SimpleNamespace(
-        get_selection=lambda: SimpleNamespace(unselect_all=lambda: unselected.append(True)))
+        get_selection=lambda: SimpleNamespace(unselect_all=lambda: unselected.append(True))
+    )
 
     dialog.clear_selection()
 
@@ -514,7 +540,9 @@ def test_file_select_dialog_run_sets_the_transient_parent_when_given_a_real_widg
 
 def test_file_select_dialog_run_restores_the_parents_focus_on_close(monkeypatch):
     idle_calls = []
-    monkeypatch.setattr(localfileview.GLib, 'idle_add', lambda func, *args: idle_calls.append((func, args)))
+    monkeypatch.setattr(
+        localfileview.GLib, 'idle_add', lambda func, *args: idle_calls.append((func, args))
+    )
     top_window = _FakeTopWindow()
     dialog = FileSelectDialog.__new__(FileSelectDialog)
     dialog.dialog = _FakeFileSelectGtkDialog(transient_for=top_window)
@@ -526,6 +554,7 @@ def test_file_select_dialog_run_restores_the_parents_focus_on_close(monkeypatch)
 
 
 # FileSelectDialog's remaining event handlers - real Gtk.ListStore/TreeView #
+
 
 def _dialog_with_files(files, extendfile=''):
     dialog = FileSelectDialog.__new__(FileSelectDialog)
@@ -581,8 +610,13 @@ def test_on_remove_file_clicked_picks_a_new_extend_file_when_removing_the_curren
 
 def test_on_open_termfile_clicked_does_nothing_without_a_selection():
     dialog = _dialog_with_files(['a.po'])
-    dialog.term_model = SimpleNamespace(controller=SimpleNamespace(main_controller=SimpleNamespace(
-        open_file=lambda f: pytest.fail('must not open without a selection'))))
+    dialog.term_model = SimpleNamespace(
+        controller=SimpleNamespace(
+            main_controller=SimpleNamespace(
+                open_file=lambda f: pytest.fail('must not open without a selection')
+            )
+        )
+    )
 
     dialog._on_open_termfile_clicked(None)
 
@@ -590,8 +624,9 @@ def test_on_open_termfile_clicked_does_nothing_without_a_selection():
 def test_on_open_termfile_clicked_opens_the_selected_file():
     dialog = _dialog_with_files(['a.po', 'b.po'])
     opened = []
-    dialog.term_model = SimpleNamespace(controller=SimpleNamespace(
-        main_controller=SimpleNamespace(open_file=opened.append)))
+    dialog.term_model = SimpleNamespace(
+        controller=SimpleNamespace(main_controller=SimpleNamespace(open_file=opened.append))
+    )
     dialog.tvw_termfiles.get_selection().select_path(Gtk.TreePath(1))
 
     dialog._on_open_termfile_clicked(None)
@@ -621,7 +656,9 @@ def test_on_selection_changed_enables_buttons_with_a_selection():
 def test_on_toggle_marks_only_the_toggled_row_as_the_extend_file():
     dialog = _dialog_with_files(['a.po', 'b.po'], extendfile='a.po')
     saved = []
-    dialog.term_model = SimpleNamespace(config={'extendfile': 'a.po'}, save_config=lambda: saved.append(True))
+    dialog.term_model = SimpleNamespace(
+        config={'extendfile': 'a.po'}, save_config=lambda: saved.append(True)
+    )
 
     dialog._on_toggle(None, '1')  # toggle b.po
 
@@ -631,6 +668,7 @@ def test_on_toggle_marks_only_the_toggled_row_as_the_extend_file():
 
 
 # TermAddDialog.add_term_unit() #
+
 
 class _FakeTermUnit:
     def __init__(self, source):
@@ -708,6 +746,7 @@ def test_add_term_unit_skips_the_note_when_the_comment_is_empty():
 
 # TermAddDialog._on_entry_changed() #
 
+
 def _entry_changed_dialog(duplicates=None, same_src_units=None, source='cat', target='kat'):
     dialog = TermAddDialog.__new__(TermAddDialog)
     dialog.btn_add_term = Gtk.Button()
@@ -766,7 +805,9 @@ def test_on_entry_changed_warns_about_an_existing_translation_for_the_same_sourc
     assert 'kitty' in dialog.lbl_add_term_errors.get_text()
 
 
-@pytest.mark.parametrize('target', ['stoor & bewaar', 'a <br> b', '<span foreground="red">x</span>'])
+@pytest.mark.parametrize(
+    'target', ['stoor & bewaar', 'a <br> b', '<span foreground="red">x</span>']
+)
 def test_on_entry_changed_shows_an_existing_translation_as_text_not_markup(target):
     # #4342: an unescaped "&" was rejected as markup, leaving the label's
     # previous text; a tag was rendered.

@@ -28,13 +28,14 @@ class _FakeClient:
 def test_writes_a_single_dat_file(tmp_path):
     client = _FakeClient()
     done = []
-    downloader = ThesaurusDownloader('pl_PL', on_done=done.append,
-                                      client=client, target_dir=str(tmp_path))
+    downloader = ThesaurusDownloader(
+        'pl_PL', on_done=done.append, client=client, target_dir=str(tmp_path)
+    )
 
     downloader.start_with_known_files('pl', ['th_pl_PL_v2.dat'])
     assert client.last_url() == (
-        'https://raw.githubusercontent.com/LibreOffice/dictionaries/master/'
-        'pl/th_pl_PL_v2.dat')
+        'https://raw.githubusercontent.com/LibreOffice/dictionaries/master/pl/th_pl_PL_v2.dat'
+    )
 
     _, dat_cb, _ = client.calls[-1]
     dat_cb(None, b'dat content')
@@ -49,8 +50,9 @@ def test_ignores_a_non_dat_file_without_fetching_it(tmp_path):
     # rather than fetched for nothing.
     client = _FakeClient()
     done = []
-    downloader = ThesaurusDownloader('fr_FR', on_done=done.append,
-                                      client=client, target_dir=str(tmp_path))
+    downloader = ThesaurusDownloader(
+        'fr_FR', on_done=done.append, client=client, target_dir=str(tmp_path)
+    )
 
     downloader.start_with_known_files('fr_FR', ['th_fr_FR_v2.dat', 'th_fr_FR_v2.idx'])
     assert client.last_url().endswith('.dat')
@@ -65,8 +67,9 @@ def test_ignores_a_non_dat_file_without_fetching_it(tmp_path):
 def test_no_dat_files_gives_up_without_any_request(tmp_path):
     client = _FakeClient()
     done = []
-    downloader = ThesaurusDownloader('fr_FR', on_done=done.append,
-                                      client=client, target_dir=str(tmp_path))
+    downloader = ThesaurusDownloader(
+        'fr_FR', on_done=done.append, client=client, target_dir=str(tmp_path)
+    )
 
     downloader.start_with_known_files('fr_FR', ['th_fr_FR_v2.idx'])
 
@@ -77,8 +80,9 @@ def test_no_dat_files_gives_up_without_any_request(tmp_path):
 def test_file_error_cleans_up_and_gives_up(tmp_path):
     client = _FakeClient()
     done = []
-    downloader = ThesaurusDownloader('pl_PL', on_done=done.append,
-                                      client=client, target_dir=str(tmp_path))
+    downloader = ThesaurusDownloader(
+        'pl_PL', on_done=done.append, client=client, target_dir=str(tmp_path)
+    )
 
     downloader.start_with_known_files('pl', ['a.dat', 'b.dat'])
     _, a_cb, _ = client.calls[-1]
@@ -106,11 +110,14 @@ def test_write_failure_cleans_up_and_gives_up_instead_of_crashing(tmp_path, monk
 
     def raises():
         raise OSError('disk full')
+
     monkeypatch.setattr(thesaurus_downloader.pan_app, 'get_config_dir', raises)
 
     client = _FakeClient()
     done = []
-    downloader = ThesaurusDownloader('pl_PL', on_done=done.append, client=client)  # no target_dir override
+    downloader = ThesaurusDownloader(
+        'pl_PL', on_done=done.append, client=client
+    )  # no target_dir override
 
     downloader.start_with_known_files('pl', ['th_pl_PL_v2.dat'])
     _, dat_cb, _ = client.calls[-1]
@@ -121,6 +128,7 @@ def test_write_failure_cleans_up_and_gives_up_instead_of_crashing(tmp_path, monk
 
 def test_default_target_dir_uses_the_shared_thesaurus_cache_layout(tmp_path, monkeypatch):
     import virtaal.support.thesaurus_downloader as thesaurus_downloader
+
     monkeypatch.setattr(thesaurus_downloader.pan_app, 'get_config_dir', lambda: str(tmp_path))
 
     client = _FakeClient()
@@ -138,8 +146,9 @@ def test_a_404_tries_the_dictionaries_subfolder(tmp_path):
     # manifest lists only the file name (#4656).
     client = _FakeClient()
     done = []
-    downloader = ThesaurusDownloader('ca_ES', on_done=done.append,
-                                      client=client, target_dir=str(tmp_path))
+    downloader = ThesaurusDownloader(
+        'ca_ES', on_done=done.append, client=client, target_dir=str(tmp_path)
+    )
 
     downloader.start_with_known_files('ca', ['th_ca_ES_v3.dat'])
     _, _dat_cb, dat_err = client.calls[-1]

@@ -42,20 +42,25 @@ def _button_labels(widget):
 
 def _press(monkeypatch, response, typed=None):
     """Make Gtk.Dialog.run() return C{response}, after typing C{typed}
-        into an EntryDialog."""
+    into an EntryDialog."""
+
     def run(dialog):
         if typed is not None:
             dialog.ent_input.set_text(typed)
         return response
+
     monkeypatch.setattr(Gtk.Dialog, 'run', run)
 
 
-@pytest.mark.parametrize('name, message_type', [
-    ('error_dialog', Gtk.MessageType.ERROR),
-    ('prompt_dialog', Gtk.MessageType.QUESTION),
-    ('info_dialog', Gtk.MessageType.INFO),
-    ('confirm_dialog', Gtk.MessageType.QUESTION),
-])
+@pytest.mark.parametrize(
+    'name, message_type',
+    [
+        ('error_dialog', Gtk.MessageType.ERROR),
+        ('prompt_dialog', Gtk.MessageType.QUESTION),
+        ('info_dialog', Gtk.MessageType.INFO),
+        ('confirm_dialog', Gtk.MessageType.QUESTION),
+    ],
+)
 def test_message_dialogs_are_modal_on_the_main_window(view, name, message_type):
     dialog = getattr(view, name)
 
@@ -93,12 +98,15 @@ def test_confirm_dialog_offers_save_discard_and_cancel_defaulting_to_save(view):
     assert dialog._MainView__save_button is save
 
 
-@pytest.mark.parametrize('response, expected', [
-    (Gtk.ResponseType.YES, 'save'),
-    (Gtk.ResponseType.NO, 'discard'),
-    (Gtk.ResponseType.CANCEL, 'cancel'),
-    (Gtk.ResponseType.DELETE_EVENT, 'cancel'),
-])
+@pytest.mark.parametrize(
+    'response, expected',
+    [
+        (Gtk.ResponseType.YES, 'save'),
+        (Gtk.ResponseType.NO, 'discard'),
+        (Gtk.ResponseType.CANCEL, 'cancel'),
+        (Gtk.ResponseType.DELETE_EVENT, 'cancel'),
+    ],
+)
 def test_show_save_confirm_dialog_runs_the_real_dialog(view, monkeypatch, response, expected):
     _press(monkeypatch, response)
 

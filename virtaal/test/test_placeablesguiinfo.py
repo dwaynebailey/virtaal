@@ -41,13 +41,20 @@ def _fake_textbox(role='source'):
 
 # StringElemGUI.__init__ #
 
+
 def test_init_rejects_a_non_stringelem():
     with pytest.raises(ValueError):
         StringElemGUI(elem='not a StringElem', textbox=_fake_textbox())
 
 
 def test_init_accepts_fg_bg_cursor_allowed_overrides():
-    gui = StringElemGUI(elem=StringElem('hi'), textbox=_fake_textbox(), fg='#123456', bg='#abcdef', cursor_allowed=False)
+    gui = StringElemGUI(
+        elem=StringElem('hi'),
+        textbox=_fake_textbox(),
+        fg='#123456',
+        bg='#abcdef',
+        cursor_allowed=False,
+    )
 
     assert gui.fg == '#123456'
     assert gui.bg == '#abcdef'
@@ -61,6 +68,7 @@ def test_init_ignores_an_unrecognised_kwarg():
 
 
 # create_tags() #
+
 
 def test_create_tags_with_string_colors():
     gui = StringElemGUI(elem=StringElem('hi'), textbox=_fake_textbox(), fg='#ff0000', bg='#00ff00')
@@ -94,6 +102,7 @@ def test_create_tags_skips_falsy_colors():
 
 
 # create_repr_widgets() / copy() / get_insert_candidates() / has_*_widget() #
+
 
 def test_base_create_repr_widgets_adds_no_widgets():
     gui = StringElemGUI(elem=StringElem('hi'), textbox=_fake_textbox())
@@ -139,6 +148,7 @@ def test_has_start_and_end_widget_reflect_the_widgets_list():
 
 # _count_anchors() #
 
+
 def test_count_anchors_counts_child_anchors_before_the_iter():
     buffer = Gtk.TextBuffer()
     buffer.set_text('ab')
@@ -149,6 +159,7 @@ def test_count_anchors_counts_child_anchors_before_the_iter():
 
 
 # Real rendering, via a real PlaceablesController and the placeables.po/xliff fixtures #
+
 
 class TestRealPlaceableRendering(TestScaffolding):
     def setup_class(self):
@@ -177,7 +188,9 @@ class TestRealPlaceableRendering(TestScaffolding):
     def test_render_produces_a_pilcrow_widget_for_a_newline(self):
         textbox = self._target_for(self.po_store, 'First line.\nSecond line.')
 
-        newline_elem = next(e for e in textbox.elem.depth_first() if isinstance(e.gui_info, NewlineGUI))
+        newline_elem = next(
+            e for e in textbox.elem.depth_first() if isinstance(e.gui_info, NewlineGUI)
+        )
 
         assert len(newline_elem.gui_info.widgets) == 1
         assert newline_elem.gui_info.widgets[0].get_label() == '¶'
@@ -204,9 +217,11 @@ class TestRealPlaceableRendering(TestScaffolding):
 
     def test_treeindex_to_iter_at_the_end_is_the_buffer_end(self):
         # A search match ending the text is highlighted to its last char.
-        for store, text in ((self.po_store, '%s files copied'),
-                            (self.po_store, 'First line.\nSecond line.'),
-                            (self.xliff_store, 'Click here to continue.')):
+        for store, text in (
+            (self.po_store, '%s files copied'),
+            (self.po_store, 'First line.\nSecond line.'),
+            (self.xliff_store, 'Click here to continue.'),
+        ):
             textbox = self._target_for(store, text)
 
             assert textbox.elem.gui_info.treeindex_to_iter(len(textbox.elem)).is_end()
@@ -219,8 +234,10 @@ class TestRealPlaceableRendering(TestScaffolding):
             gui_info, elem_len = textbox.elem.gui_info, len(textbox.elem)
 
             for index in range(elem_len + 1):
-                assert (gui_info.treeindex_to_iter(index, elem_len=elem_len).get_offset()
-                        == gui_info.treeindex_to_iter(index).get_offset())
+                assert (
+                    gui_info.treeindex_to_iter(index, elem_len=elem_len).get_offset()
+                    == gui_info.treeindex_to_iter(index).get_offset()
+                )
 
     def test_iter_sub_with_index_yields_each_child_with_its_offset(self):
         textbox = self._target_for(self.po_store, '%s files copied')
@@ -231,13 +248,17 @@ class TestRealPlaceableRendering(TestScaffolding):
 
     def test_index_finds_a_childs_offset(self):
         textbox = self._target_for(self.po_store, '%s files copied')
-        placeable = next(e for e in textbox.elem.depth_first() if e.__class__ not in textbox.unselectables)
+        placeable = next(
+            e for e in textbox.elem.depth_first() if e.__class__ not in textbox.unselectables
+        )
 
         assert textbox.elem.gui_info.index(placeable) == 0
 
     def test_elem_at_offset_finds_the_placeable_at_its_own_position(self):
         textbox = self._target_for(self.po_store, '%s files copied')
-        placeable = next(e for e in textbox.elem.depth_first() if e.__class__ not in textbox.unselectables)
+        placeable = next(
+            e for e in textbox.elem.depth_first() if e.__class__ not in textbox.unselectables
+        )
 
         assert textbox.elem.gui_info.elem_at_offset(0) is placeable
 
@@ -250,7 +271,9 @@ class TestRealPlaceableRendering(TestScaffolding):
     def test_g_placeable_wraps_its_content_in_bracket_widgets(self):
         textbox = self._target_for(self.xliff_store, 'Click here to continue.')
 
-        g_elem = next(e for e in textbox.elem.depth_first() if isinstance(e.gui_info, GPlaceableGUI))
+        g_elem = next(
+            e for e in textbox.elem.depth_first() if isinstance(e.gui_info, GPlaceableGUI)
+        )
 
         assert len(g_elem.gui_info.widgets) == 2
         assert g_elem.gui_info.widgets[0].get_label() == '<1|'
@@ -259,7 +282,9 @@ class TestRealPlaceableRendering(TestScaffolding):
     def test_x_placeable_is_a_single_standalone_widget(self):
         textbox = self._target_for(self.xliff_store, 'A line breakafter it.')
 
-        x_elem = next(e for e in textbox.elem.depth_first() if isinstance(e.gui_info, XPlaceableGUI))
+        x_elem = next(
+            e for e in textbox.elem.depth_first() if isinstance(e.gui_info, XPlaceableGUI)
+        )
 
         assert len(x_elem.gui_info.widgets) == 1
         assert x_elem.gui_info.widgets[0].get_label() == '[2]'
@@ -276,13 +301,16 @@ class TestRealPlaceableRendering(TestScaffolding):
     def test_unknown_xml_placeable_shows_its_tag_name(self):
         textbox = self._target_for(self.xliff_store, 'A placeholder: CODE here.')
 
-        ph_elem = next(e for e in textbox.elem.depth_first() if isinstance(e.gui_info, UnknownXMLGUI))
+        ph_elem = next(
+            e for e in textbox.elem.depth_first() if isinstance(e.gui_info, UnknownXMLGUI)
+        )
 
         assert ph_elem.gui_info.widgets[0].get_label() == '{ph|'
         assert ph_elem.gui_info.widgets[1].get_label() == '}'
 
 
 # update_style() #
+
 
 def test_update_style_sets_the_base_class_colours_from_the_widget():
     widget = Gtk.Label()

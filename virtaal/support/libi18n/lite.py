@@ -20,7 +20,7 @@ import os
 import re
 import struct
 
-MO_MAGIC = 0x950412de
+MO_MAGIC = 0x950412DE
 
 # The GI namespace whose install prefix holds each library's catalogs.
 LIBRARY_NAMESPACES = {
@@ -39,6 +39,7 @@ def library_locale_dir(namespace):
     typelib, or None if it isn't installed."""
     try:
         import gi
+
         if namespace in ("Gtk", "GtkSpell"):
             gi.require_version("Gtk", "3.0")
             gi.require_version(namespace, "3.0")
@@ -46,6 +47,7 @@ def library_locale_dir(namespace):
             gi.require_version(namespace, "1.0")
         __import__("gi.repository." + namespace)
         from gi import _gi
+
         path = _gi.Repository.get_default().get_typelib_path(namespace)
     except (ImportError, ValueError):
         return None
@@ -59,9 +61,10 @@ def library_locale_dir(namespace):
 
 def _libintl_default_dir(domain):
     """Where libintl looks for domain's catalogs unless told
-        otherwise, or None."""
+    otherwise, or None."""
     import ctypes
     import ctypes.util
+
     try:
         name = ctypes.util.find_library("intl")
         libintl = ctypes.CDLL(name) if name else ctypes.CDLL(None)
@@ -76,7 +79,7 @@ def _libintl_default_dir(domain):
 
 def upstream_locale_dir(domain):
     """share/locale/ holding a library domain's own catalogs on this
-        host, or None."""
+    host, or None."""
     if domain in LIBRARY_NAMESPACES:
         return library_locale_dir(LIBRARY_NAMESPACES[domain])
     if domain == GETTEXT_TOOLS:
@@ -100,9 +103,13 @@ def read_mo(path):
     count, originals, translations = struct.unpack(order + "III", data[8:20])
     raw = {}
     for i in range(count):
-        olength, ooffset = struct.unpack(order + "II", data[originals + 8 * i:originals + 8 * i + 8])
-        tlength, toffset = struct.unpack(order + "II", data[translations + 8 * i:translations + 8 * i + 8])
-        raw[data[ooffset:ooffset + olength]] = data[toffset:toffset + tlength]
+        olength, ooffset = struct.unpack(
+            order + "II", data[originals + 8 * i : originals + 8 * i + 8]
+        )
+        tlength, toffset = struct.unpack(
+            order + "II", data[translations + 8 * i : translations + 8 * i + 8]
+        )
+        raw[data[ooffset : ooffset + olength]] = data[toffset : toffset + tlength]
     charset = _charset(raw.get(b"", b"").decode("ascii", "replace"))
     return {key.decode(charset): value.decode(charset) for key, value in raw.items()}
 
@@ -112,6 +119,7 @@ def read_lite_po(path):
     messages, header (original "") included, keyed as read_mo() keys
     them."""
     from translate.storage import pypo
+
     with open(path, "rb") as f:
         store = pypo.pofile(f)
     messages = {}
@@ -142,8 +150,18 @@ def write_mo(path, messages):
         position += len(string) + 1
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "wb") as f:
-        f.write(struct.pack("<7I", MO_MAGIC, 0, len(keys), originals_table,
-                            originals_table + 8 * len(keys), 0, 0))
+        f.write(
+            struct.pack(
+                "<7I",
+                MO_MAGIC,
+                0,
+                len(keys),
+                originals_table,
+                originals_table + 8 * len(keys),
+                0,
+                0,
+            )
+        )
         f.write(b"".join(entries))
         f.write(b"".join(string + b"\0" for string in strings))
 
@@ -155,12 +173,16 @@ def mismatched_catalogs(datas, mo_files):
     ((destination, source, typecode) entries) bundles from somewhere
     else - e.g. GTK's own copy, which its PyInstaller hook collects at
     the same destination as a merged lite catalog."""
-    ours = {os.path.normpath(os.path.join(dest_dir, os.path.basename(source))): source
-            for source, dest_dir in mo_files}
-    return [(dest, source, ours[os.path.normpath(dest)])
-            for dest, source, _typecode in datas
-            if os.path.normpath(dest) in ours
-            and os.path.normpath(source) != os.path.normpath(ours[os.path.normpath(dest)])]
+    ours = {
+        os.path.normpath(os.path.join(dest_dir, os.path.basename(source))): source
+        for source, dest_dir in mo_files
+    }
+    return [
+        (dest, source, ours[os.path.normpath(dest)])
+        for dest, source, _typecode in datas
+        if os.path.normpath(dest) in ours
+        and os.path.normpath(source) != os.path.normpath(ours[os.path.normpath(dest)])
+    ]
 
 
 # Catalogs a frozen build never reads: atk10 (GTK3 has no accessibility
@@ -177,10 +199,10 @@ def is_unused_catalog(dest):
     database a frozen build never reads."""
     parts = os.path.normpath(dest).split(os.sep)
     if parts[:2] == ["pycountry", "databases"] and parts[-1].endswith(".json"):
-        return parts[-1][:-len(".json")] not in PYCOUNTRY_DOMAINS
+        return parts[-1][: -len(".json")] not in PYCOUNTRY_DOMAINS
     if not parts[-1].endswith(".mo"):
         return False
-    domain = parts[-1][:-len(".mo")]
+    domain = parts[-1][: -len(".mo")]
     if parts[0] == "pycountry":
         return domain not in PYCOUNTRY_DOMAINS
     return domain in UNUSED_DOMAINS
@@ -208,7 +230,10 @@ def expected_catalogs(languages, mo_files, domains=("gtk30", "glib20")):
     a frozen build of languages must bundle: virtaal.mo for each, and
     each of domains' catalogs where this build host's library has one
     for that exact language or mo_files merges a lite one."""
-    ours = {os.path.normpath(os.path.join(dest_dir, os.path.basename(source))) for source, dest_dir in mo_files}
+    ours = {
+        os.path.normpath(os.path.join(dest_dir, os.path.basename(source)))
+        for source, dest_dir in mo_files
+    }
     upstream = {domain: library_locale_dir(LIBRARY_NAMESPACES[domain]) for domain in domains}
     expected = set()
     for lang in languages:
@@ -216,8 +241,10 @@ def expected_catalogs(languages, mo_files, domains=("gtk30", "glib20")):
         for domain in domains:
             dest = _destination(lang, domain)
             locale_dir = upstream[domain]
-            if dest in ours or (locale_dir and os.path.isfile(
-                    os.path.join(locale_dir, lang, "LC_MESSAGES", domain + ".mo"))):
+            if dest in ours or (
+                locale_dir
+                and os.path.isfile(os.path.join(locale_dir, lang, "LC_MESSAGES", domain + ".mo"))
+            ):
                 expected.add(dest)
     return expected
 

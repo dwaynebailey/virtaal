@@ -118,15 +118,18 @@ def test_update_style_detects_a_light_theme():
         settings.set_property('gtk-application-prefer-dark-theme', original)
 
 
-@pytest.mark.parametrize('state_n, styled', [
-    (StateEnum.EMPTY, False),
-    (StateEnum.NEEDS_WORK, True),
-    (StateEnum.REJECTED, True),
-    (StateEnum.NEEDS_REVIEW, True),
-    (StateEnum.UNREVIEWED - 1, True),
-    (StateEnum.UNREVIEWED, False),
-    (StateEnum.FINAL, False),
-])
+@pytest.mark.parametrize(
+    'state_n, styled',
+    [
+        (StateEnum.EMPTY, False),
+        (StateEnum.NEEDS_WORK, True),
+        (StateEnum.REJECTED, True),
+        (StateEnum.NEEDS_REVIEW, True),
+        (StateEnum.UNREVIEWED - 1, True),
+        (StateEnum.UNREVIEWED, False),
+        (StateEnum.FINAL, False),
+    ],
+)
 def test_state_style_covers_the_states_needing_work(state_n, styled):
     expected = {'background': theme.current_theme['fuzzy_row_bg']} if styled else {}
 
@@ -141,6 +144,7 @@ def test_state_style_follows_the_current_theme(monkeypatch):
 
 def test_unit_style_uses_the_saved_state():
     from translate.storage import pypo
+
     unit = pypo.pofile().addsourceunit('Open')
     unit.target = 'Maak oop'
     unit.markfuzzy(True)

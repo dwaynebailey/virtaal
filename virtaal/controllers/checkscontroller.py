@@ -21,7 +21,7 @@ check_names = {
     'blank': _("Blank"),
     'brackets': _("Brackets"),
     'compendiumconflicts': _("Compendium conflict"),
-    #l10n: Name of a quality check. Your names go in the "translator-credits" message, not here
+    # l10n: Name of a quality check. Your names go in the "translator-credits" message, not here
     'credits': _("Translator credits"),
     'doublequoting': _("Double quotes"),
     'doublespacing': _("Double spaces"),
@@ -59,10 +59,9 @@ check_names = {
     'validchars': _("Valid characters"),
     'variables': _("Placeholders"),
     'xmltags': _("XML tags"),
-
-# Consider:
-#  -  hassuggestion
-#  -  isreview
+    # Consider:
+    #  -  hassuggestion
+    #  -  isreview
 }
 
 
@@ -71,8 +70,8 @@ class ChecksController(BaseController):
 
     __gtype_name__ = 'ChecksController'
     __gsignals__ = {
-        'checker-set':  (GObject.SignalFlags.RUN_FIRST, None, (object,)),
-        'unit-checked': (GObject.SignalFlags.RUN_FIRST, None, (object, object, object))
+        'checker-set': (GObject.SignalFlags.RUN_FIRST, None, (object,)),
+        'unit-checked': (GObject.SignalFlags.RUN_FIRST, None, (object, object, object)),
     }
 
     CHECK_TIMEOUT = 500
@@ -89,7 +88,9 @@ class ChecksController(BaseController):
         main_controller.store_controller.connect('store-loaded', self._on_store_loaded)
         main_controller.unit_controller.connect('unit-modified', self._on_unit_modified)
         if main_controller.lang_controller:
-            main_controller.lang_controller.connect('target-lang-changed', self._on_target_lang_changed)
+            main_controller.lang_controller.connect(
+                'target-lang-changed', self._on_target_lang_changed
+            )
         else:
             main_controller.connect('controller-registered', self._on_controller_registered)
 
@@ -97,17 +98,19 @@ class ChecksController(BaseController):
         self._checker = None
         self._check_timer_active = False
         self._checker_code_to_name = {
-              None: _('Default'),
-              # we keep the "openoffice" key for compatibility with the toolkit
-              # and existing file headers
-              "openoffice":  _('LibreOffice'),
-              "mozilla": _('Mozilla'),
-              "kde": _('KDE'),
-              "qt": _('Qt'),
-              "gnome": _('GNOME'),
-              "drupal": _('Drupal'),
+            None: _('Default'),
+            # we keep the "openoffice" key for compatibility with the toolkit
+            # and existing file headers
+            "openoffice": _('LibreOffice'),
+            "mozilla": _('Mozilla'),
+            "kde": _('KDE'),
+            "qt": _('Qt'),
+            "gnome": _('GNOME'),
+            "drupal": _('Drupal'),
         }
-        self._checker_name_to_code = dict([(value, key) for (key, value) in self._checker_code_to_name.items()])
+        self._checker_name_to_code = dict(
+            [(value, key) for (key, value) in self._checker_code_to_name.items()]
+        )
         self._checker_info = None
         self._checker_menu_items = {}
         self._cursor_connection = ()
@@ -126,34 +129,40 @@ class ChecksController(BaseController):
             from translate.filters import checks
 
             from virtaal.support.qtchecks import QtChecker
+
             self._checker_info = {
                 # XXX: Add other checkers below with a localisable string as key
                 #      (used on the GUI) and a checker class as the value.
-                None:    checks.StandardChecker,
+                None: checks.StandardChecker,
                 'openoffice': checks.OpenOfficeChecker,
-                'mozilla':    checks.MozillaChecker,
-                'drupal':     checks.DrupalChecker,
-                'gnome':      checks.GnomeChecker,
-                'kde':        checks.KdeChecker,
-                'qt':         QtChecker,
+                'mozilla': checks.MozillaChecker,
+                'drupal': checks.DrupalChecker,
+                'gnome': checks.GnomeChecker,
+                'kde': checks.KdeChecker,
+                'qt': QtChecker,
             }
         return self._checker_info
+
     checker_info = property(_get_checker_info)
 
     def _get_projview(self):
         from virtaal.views.checksprojview import ChecksProjectView
+
         if self._projview is None:
             self._projview = ChecksProjectView(self)
             self._projview.show()
         return self._projview
+
     projview = property(_get_projview)
 
     def _get_unitview(self):
         from virtaal.views.checksunitview import ChecksUnitView
+
         if self._unitview is None:
             self._unitview = ChecksUnitView(self)
             self._unitview.show()
         return self._unitview
+
     unitview = property(_get_unitview)
 
     def default_checker_code(self, store):
@@ -162,6 +171,7 @@ class ChecksController(BaseController):
         if code:
             return code
         from translate.storage import qm, ts2
+
         format_codes = (
             (ts2.tsfile, 'qt'),
             (qm.qmfile, 'qt'),
@@ -186,14 +196,16 @@ class ChecksController(BaseController):
         store = self.store_controller.get_store()
         if store is not None:
             from virtaal.support.extrachecks import with_extra_checks
+
             self._checker = with_extra_checks(self._checker, store._trans_store)
 
         self.emit('checker-set', code)
-        self.projview.set_checker_name(self._checker_code_to_name.get(code, self._checker_code_to_name[None]))
+        self.projview.set_checker_name(
+            self._checker_code_to_name.get(code, self._checker_code_to_name[None])
+        )
         self.code = code
         if self.main_controller.unit_controller.current_unit:
             self.check_unit(self.main_controller.unit_controller.current_unit)
-
 
     # METHODS #
     def check_unit(self, unit):
@@ -221,18 +233,22 @@ class ChecksController(BaseController):
             # haven't changed units yet, probably strange timing issue
             return
         self._check_timer_active = True
-        GLib.timeout_add(self.CHECK_TIMEOUT, self._check_timer_expired, self.last_unit, priority=GLib.PRIORITY_LOW)
+        GLib.timeout_add(
+            self.CHECK_TIMEOUT,
+            self._check_timer_expired,
+            self.last_unit,
+            priority=GLib.PRIORITY_LOW,
+        )
 
     def get_check_name(self, check):
         """Return the human readable form of the given check name."""
         name = check_names.get(check, None)
         if not name and check.startswith('check-'):
-            check = check[len('check-'):]
+            check = check[len('check-') :]
             name = check_names.get(check, None)
         if not name:
             name = check
         return name
-
 
     # EVENT HANDLERS #
     def _on_controller_registered(self, main_controller, controller):
@@ -246,10 +262,10 @@ class ChecksController(BaseController):
     def _on_target_lang_changed(self, lang_controller, langcode):
         current_checker = self.get_checker()
         if current_checker:
-           current_checker.config.updatetargetlanguage(langcode)
-           self.emit('checker-set', self.code)
-           if self.last_unit:
-               self.check_unit(self.last_unit)
+            current_checker.config.updatetargetlanguage(langcode)
+            self.emit('checker-set', self.code)
+            if self.last_unit:
+                self.check_unit(self.last_unit)
 
     def _on_store_loaded(self, store_controller):
         self.set_checker_by_code(self.default_checker_code(store_controller.store._trans_store))
@@ -258,7 +274,7 @@ class ChecksController(BaseController):
             widget.disconnect(connect_id)
         self._cursor_connection = (
             store_controller.cursor,
-            store_controller.cursor.connect('cursor-changed', self._on_cursor_changed)
+            store_controller.cursor.connect('cursor-changed', self._on_cursor_changed),
         )
         self._on_cursor_changed(store_controller.cursor)
 

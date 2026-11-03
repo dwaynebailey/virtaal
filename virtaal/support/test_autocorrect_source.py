@@ -66,10 +66,12 @@ def test_find_document_list_folder_returns_none_when_nothing_matches():
 
 
 def test_download_document_list_writes_the_real_file(monkeypatch, tmp_path):
-    monkeypatch.setattr(autocorrect_source, 'fetch_autocorrect_folders',
-                         lambda: CONTENTS_LISTING)
-    monkeypatch.setattr(autocorrect_source, 'fetch_document_list',
-                         lambda folder: {'af-ZA': AF_ZA_DOCUMENT_LIST}[folder])
+    monkeypatch.setattr(autocorrect_source, 'fetch_autocorrect_folders', lambda: CONTENTS_LISTING)
+    monkeypatch.setattr(
+        autocorrect_source,
+        'fetch_document_list',
+        lambda folder: {'af-ZA': AF_ZA_DOCUMENT_LIST}[folder],
+    )
 
     dest = download_document_list('af_ZA', target_dir=str(tmp_path))
 
@@ -78,8 +80,7 @@ def test_download_document_list_writes_the_real_file(monkeypatch, tmp_path):
 
 
 def test_download_document_list_returns_none_when_no_folder_guess(monkeypatch, tmp_path):
-    monkeypatch.setattr(autocorrect_source, 'fetch_autocorrect_folders',
-                         lambda: CONTENTS_LISTING)
+    monkeypatch.setattr(autocorrect_source, 'fetch_autocorrect_folders', lambda: CONTENTS_LISTING)
     result = download_document_list('xx_YY', target_dir=str(tmp_path))
     assert result is None
 
@@ -88,11 +89,11 @@ def test_download_document_list_returns_none_on_a_real_404(monkeypatch, tmp_path
     """A folder can exist (it's a real GitHub directory) without a
     DocumentList.xml inside it - the Contents-API listing only proves
     the directory exists, not its contents."""
+
     def fetch_document_list_404(folder):
         raise HTTPError(autocorrect_source.RAW_BASE + folder, 404, 'Not Found', None, None)
 
-    monkeypatch.setattr(autocorrect_source, 'fetch_autocorrect_folders',
-                         lambda: CONTENTS_LISTING)
+    monkeypatch.setattr(autocorrect_source, 'fetch_autocorrect_folders', lambda: CONTENTS_LISTING)
     monkeypatch.setattr(autocorrect_source, 'fetch_document_list', fetch_document_list_404)
 
     result = download_document_list('af_ZA', target_dir=str(tmp_path))

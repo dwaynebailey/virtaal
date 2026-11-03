@@ -8,8 +8,9 @@
 import logging
 
 
-def select_backends(main_controller, plugin_controller, config, base_model_name,
-                     title, message, size, parent=None):
+def select_backends(
+    main_controller, plugin_controller, config, base_model_name, title, message, size, parent=None
+):
     """Build and run a SelectDialog listing plugin_controller's available
     backend models, wiring enable/disable through to plugin_controller and
     config['disabled_models'] - the terminology/TM/look-up views' own
@@ -31,13 +32,15 @@ def select_backends(main_controller, plugin_controller, config, base_model_name,
             continue
         enabled = plugin_name in plugin_controller.plugins
         backend_config = enabled and plugin_controller.plugins[plugin_name].configure_func or None
-        items.append({
-            'name': info['display_name'],
-            'desc': info['description'],
-            'data': {'internal_name': plugin_name},
-            'enabled': enabled,
-            'config': backend_config,
-        })
+        items.append(
+            {
+                'name': info['display_name'],
+                'desc': info['description'],
+                'data': {'internal_name': plugin_name},
+                'enabled': enabled,
+                'config': backend_config,
+            }
+        )
 
     def item_enabled(dlg, item):
         internal_name = item['data']['internal_name']

@@ -32,7 +32,9 @@ class _FakeCurl:
 
 
 class _FakeRequest:
-    def __init__(self, url, id, method='GET', data=None, headers=None, user_agent=None, params=None):
+    def __init__(
+        self, url, id, method='GET', data=None, headers=None, user_agent=None, params=None
+    ):
         self.url = url
         self.id = id
         self.method = method
@@ -81,7 +83,9 @@ def test_translate_unit_wires_the_callback_with_decoded_json(monkeypatch):
     client, requests = _make_client(monkeypatch)
     calls = []
 
-    client.translate_unit('hello', 'en', 'af', callback=lambda widget, id, data: calls.append((id, data)))
+    client.translate_unit(
+        'hello', 'en', 'af', callback=lambda widget, id, data: calls.append((id, data))
+    )
 
     _fire_callback(requests[0], {'target': 'hallo'})
     assert calls == [('hello', {'target': 'hallo'})]
@@ -105,8 +109,9 @@ def test_add_unit_wires_the_callback_with_decoded_json(monkeypatch):
     client, requests = _make_client(monkeypatch)
     calls = []
 
-    client.add_unit({'source': 'hello'}, 'en', 'af',
-                     callback=lambda widget, id, data: calls.append((id, data)))
+    client.add_unit(
+        {'source': 'hello'}, 'en', 'af', callback=lambda widget, id, data: calls.append((id, data))
+    )
 
     _fire_callback(requests[0], {'status': 'ok'})
     assert calls == [('hello', {'status': 'ok'})]
@@ -130,8 +135,9 @@ def test_update_unit_wires_the_callback_with_decoded_json(monkeypatch):
     client, requests = _make_client(monkeypatch)
     calls = []
 
-    client.update_unit({'source': 'hello'}, 'en', 'af',
-                        callback=lambda widget, id, data: calls.append((id, data)))
+    client.update_unit(
+        {'source': 'hello'}, 'en', 'af', callback=lambda widget, id, data: calls.append((id, data))
+    )
 
     _fire_callback(requests[0], {'status': 'ok'})
     assert calls == [('hello', {'status': 'ok'})]
@@ -153,8 +159,9 @@ def test_forget_unit_wires_the_callback_with_decoded_json(monkeypatch):
     client, requests = _make_client(monkeypatch)
     calls = []
 
-    client.forget_unit('hello', 'en', 'af',
-                        callback=lambda widget, id, data: calls.append((id, data)))
+    client.forget_unit(
+        'hello', 'en', 'af', callback=lambda widget, id, data: calls.append((id, data))
+    )
 
     _fire_callback(requests[0], {'status': 'ok'})
     assert calls == [('hello', {'status': 'ok'})]
@@ -212,7 +219,9 @@ def test_upload_store_wires_the_callback_with_decoded_json(monkeypatch):
     calls = []
     store = _FakeStore('test.po')
 
-    client.upload_store(store, 'en', 'af', callback=lambda widget, id, data: calls.append((id, data)))
+    client.upload_store(
+        store, 'en', 'af', callback=lambda widget, id, data: calls.append((id, data))
+    )
 
     _fire_callback(requests[0], {'status': 'ok'})
     assert calls == [('test.po', {'status': 'ok'})]
@@ -259,14 +268,21 @@ def test_add_store_wires_the_callback_with_decoded_json(monkeypatch):
     client, requests = _make_client(monkeypatch)
     calls = []
 
-    client.add_store('test.po', {'units': []}, 'en', 'af',
-                      callback=lambda widget, id, data: calls.append((id, data)))
+    client.add_store(
+        'test.po',
+        {'units': []},
+        'en',
+        'af',
+        callback=lambda widget, id, data: calls.append((id, data)),
+    )
 
     _fire_callback(requests[0], {'status': 'ok'})
     assert calls == [('test.po', {'status': 'ok'})]
 
 
-@pytest.mark.parametrize('reply', [b'<html>502 Bad Gateway</html>', b'', b'[{"source": "x"', b'\xff\xfe'])
+@pytest.mark.parametrize(
+    'reply', [b'<html>502 Bad Gateway</html>', b'', b'[{"source": "x"', b'\xff\xfe']
+)
 def test_a_reply_that_is_not_json_is_dropped_without_raising(monkeypatch, reply):
     # #4437: an error page or a cut-off reply showed the crash dialog.
     client, requests = _make_client(monkeypatch)

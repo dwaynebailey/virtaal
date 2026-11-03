@@ -18,10 +18,9 @@ class DefaultMode(BaseMode):
     # INITIALIZERS #
     def __init__(self, controller):
         """Constructor.
-            @type  controller: virtaal.controllers.ModeController
-            @param controller: The ModeController that managing program modes."""
+        @type  controller: virtaal.controllers.ModeController
+        @param controller: The ModeController that managing program modes."""
         self.controller = controller
-
 
     # METHODS #
     def selected(self):

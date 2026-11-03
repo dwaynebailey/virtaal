@@ -42,6 +42,7 @@ class ThesaurusDownloader:
         self.target_dir = target_dir
         if client is None:
             from virtaal.support.httpclient import HTTPClient
+
             client = HTTPClient()
             client.set_virtaal_useragent()
         self._client = client
@@ -75,7 +76,9 @@ class ThesaurusDownloader:
         self._client.get(
             urls[0],
             lambda request, result, fn=filename: self._on_file(fn, result),
-            error_callback=lambda request, status, fn=filename, rest=urls[1:]: self._on_file_missing(fn, status, rest),
+            error_callback=lambda request, status, fn=filename, rest=urls[1:]: (
+                self._on_file_missing(fn, status, rest)
+            ),
             download=True,
         )
 
@@ -98,8 +101,9 @@ class ThesaurusDownloader:
         self._fetch_next_file()
 
     def _on_file_error(self, filename, status):
-        logging.debug('thesaurus download: could not get %s/%s: status=%r',
-                       self._folder, filename, status)
+        logging.debug(
+            'thesaurus download: could not get %s/%s: status=%r', self._folder, filename, status
+        )
         for path in self._written:
             os.remove(path)
         self._give_up()

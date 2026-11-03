@@ -89,7 +89,9 @@ def _fake_gtkspell(existing=None, get_from_text_view_raises=None):
     return SimpleNamespace(Checker=_Checker), created
 
 
-@pytest.mark.parametrize("language,expected", [("pt", "pt_PT"), ("de", "de_DE"), ("ca", "ca_ES"), ("sr", "sr_RS")])
+@pytest.mark.parametrize(
+    "language,expected", [("pt", "pt_PT"), ("de", "de_DE"), ("ca", "ca_ES"), ("sr", "sr_RS")]
+)
 def test_on_unit_lang_changed_maps_to_country_variant(language, expected):
     """Regression: a `==` vs `=` typo made these branches no-ops, so 'pt'
     and 'de' were probed against enchant as themselves instead of the
@@ -100,7 +102,9 @@ def test_on_unit_lang_changed_maps_to_country_variant(language, expected):
     plugin._seen_languages = {}
     plugin._enchant_languages = []
 
-    Plugin._on_unit_lang_changed(plugin, unit_view=None, text_view=SimpleNamespace(), language=language)
+    Plugin._on_unit_lang_changed(
+        plugin, unit_view=None, text_view=SimpleNamespace(), language=language
+    )
 
     assert plugin.enchant.checked == [expected]
 
@@ -120,7 +124,9 @@ def test_on_unit_lang_changed_falls_back_to_any_region_without_the_default_one()
         Plugin._on_unit_lang_changed(plugin, unit_view=None, text_view=text_view, language='es')
 
     assert plugin.enchant.checked == ['es_ES', 'es']
-    assert calls == [((plugin._activate_checker, text_view, 'es_MX'), {'priority': GLib.PRIORITY_LOW})]
+    assert calls == [
+        ((plugin._activate_checker, text_view, 'es_MX'), {'priority': GLib.PRIORITY_LOW})
+    ]
 
 
 def test_on_unit_lang_changed_does_nothing_once_gtkspell_is_gone():
@@ -129,7 +135,9 @@ def test_on_unit_lang_changed_does_nothing_once_gtkspell_is_gone():
     plugin = Plugin.__new__(Plugin)
     plugin.gtkspell = None
 
-    Plugin._on_unit_lang_changed(plugin, unit_view=None, text_view=None, language='en')  # must not raise
+    Plugin._on_unit_lang_changed(
+        plugin, unit_view=None, text_view=None, language='en'
+    )  # must not raise
 
 
 def test_on_unit_lang_changed_reuses_a_previously_seen_country_variant():
@@ -147,7 +155,9 @@ def test_on_unit_lang_changed_reuses_a_previously_seen_country_variant():
 
     # Already resolved once, so enchant is never re-asked about 'xx' itself.
     assert plugin.enchant.checked == []
-    assert calls == [((plugin._activate_checker, text_view, 'xx_YY'), {'priority': GLib.PRIORITY_LOW})]
+    assert calls == [
+        ((plugin._activate_checker, text_view, 'xx_YY'), {'priority': GLib.PRIORITY_LOW})
+    ]
 
 
 def test_on_unit_lang_changed_finds_a_country_variant_enchant_supports():
@@ -164,7 +174,9 @@ def test_on_unit_lang_changed_finds_a_country_variant_enchant_supports():
         Plugin._on_unit_lang_changed(plugin, unit_view=None, text_view=text_view, language='xx')
 
     assert plugin._seen_languages['xx'] == 'xx_YY'
-    assert calls == [((plugin._activate_checker, text_view, 'xx_YY'), {'priority': GLib.PRIORITY_LOW})]
+    assert calls == [
+        ((plugin._activate_checker, text_view, 'xx_YY'), {'priority': GLib.PRIORITY_LOW})
+    ]
 
 
 def test_on_unit_lang_changed_asks_enchant_for_the_locales_tag():
@@ -179,9 +191,13 @@ def test_on_unit_lang_changed_asks_enchant_for_the_locales_tag():
     with pytest.MonkeyPatch.context() as mp:
         calls = []
         mp.setattr(GLib, 'idle_add', lambda *a, **k: calls.append((a, k)))
-        Plugin._on_unit_lang_changed(plugin, unit_view=None, text_view=text_view, language='ca@valencia')
+        Plugin._on_unit_lang_changed(
+            plugin, unit_view=None, text_view=text_view, language='ca@valencia'
+        )
 
-    assert calls == [((plugin._activate_checker, text_view, 'ca_VALENCIA'), {'priority': GLib.PRIORITY_LOW})]
+    assert calls == [
+        ((plugin._activate_checker, text_view, 'ca_VALENCIA'), {'priority': GLib.PRIORITY_LOW})
+    ]
 
 
 def test_on_unit_lang_changed_disables_and_caches_a_language_with_no_dictionary(monkeypatch):
@@ -236,10 +252,12 @@ def test_on_unit_lang_changed_skips_an_already_active_language():
 
 # _disable_checking() #
 
+
 def test_disable_checking_is_a_noop_when_already_disabled():
     plugin = Plugin.__new__(Plugin)
-    plugin.gtkspell = SimpleNamespace(Checker=SimpleNamespace(
-        get_from_text_view=lambda tv: pytest.fail('should not be called')))
+    plugin.gtkspell = SimpleNamespace(
+        Checker=SimpleNamespace(get_from_text_view=lambda tv: pytest.fail('should not be called'))
+    )
     text_view = SimpleNamespace(spell_lang=None)
 
     plugin._disable_checking(text_view)  # must not raise
@@ -289,6 +307,7 @@ def test_disable_checking_ignores_a_systemerror_from_get_from_text_view(caplog):
 
 # _activate_checker() #
 
+
 def test_activate_checker_reuses_an_existing_checker():
     existing = _FakeChecker()
     plugin = Plugin.__new__(Plugin)
@@ -325,6 +344,7 @@ def test_activate_checker_rebinds_gtkspells_domain_after_creating_a_checker(monk
     # catalogs, so a lite or pseudo translation of it is only read if
     # bound again after.
     from virtaal.plugins import spellchecker
+
     rebound = []
     monkeypatch.setattr(spellchecker, 'rebind_library_domain', rebound.append)
     plugin = Plugin.__new__(Plugin)
@@ -365,7 +385,6 @@ def test_activate_checker_disables_the_plugin_on_an_unexpected_error():
     assert plugin.gtkspell is None
 
 
-
 def _lang_plugin(monkeypatch, known_dicts):
     plugin = Plugin.__new__(Plugin)
     plugin.gtkspell, created = _fake_gtkspell(existing=None)
@@ -373,7 +392,9 @@ def _lang_plugin(monkeypatch, known_dicts):
     plugin._seen_languages = {}
     plugin._enchant_languages = sorted(known_dicts)
     scheduled = []
-    monkeypatch.setattr(spellchecker.GLib, 'idle_add', lambda func, *args, **kw: scheduled.append((func, args)))
+    monkeypatch.setattr(
+        spellchecker.GLib, 'idle_add', lambda func, *args, **kw: scheduled.append((func, args))
+    )
     return plugin, created, scheduled
 
 
@@ -429,7 +450,6 @@ def test_activate_checker_sets_the_language_before_attaching():
     assert order == ['set_language', 'attach']
 
 
-
 def test_activate_checker_leaves_nothing_attached_when_set_language_fails():
     class _Checker(_FakeChecker):
         get_from_text_view = staticmethod(lambda tv: None)
@@ -448,6 +468,7 @@ def test_activate_checker_leaves_nothing_attached_when_set_language_fails():
 
 
 # _on_populate_popup() #
+
 
 def _menu_with(*labels_or_separator):
     """A real Gtk.Menu, populated with real Gtk.MenuItems for each label
@@ -472,8 +493,12 @@ def test_fix_menu_removes_a_translated_languages_item(monkeypatch):
     # gtkspell shows "Languages" from its own gtkspell3 catalog, so a
     # translated UI only matches through that same domain.
     from virtaal.plugins import spellchecker
-    monkeypatch.setattr(spellchecker.GLib, 'dgettext',
-                        lambda domain, msgid: 'Tale' if (domain, msgid) == ('gtkspell3', 'Languages') else msgid)
+
+    monkeypatch.setattr(
+        spellchecker.GLib,
+        'dgettext',
+        lambda domain, msgid: 'Tale' if (domain, msgid) == ('gtkspell3', 'Languages') else msgid,
+    )
     menu = _menu_with('Ignore All', 'Tale')
     plugin = Plugin.__new__(Plugin)
 
@@ -516,9 +541,12 @@ def _read_only_textview():
 
 def test_fix_menu_offers_no_suggestions_for_read_only_source_text(monkeypatch):
     from virtaal.plugins import spellchecker
+
     monkeypatch.setattr(spellchecker.GLib, 'dgettext', lambda domain, msgid: msgid)
     # gtkspell's items come before the text view's own, up to a separator
-    menu = _menu_with('The', 'More...', 'Add "virtaal" to Dictionary', 'Ignore All', 'Languages', None, 'Copy')
+    menu = _menu_with(
+        'The', 'More...', 'Add "virtaal" to Dictionary', 'Ignore All', 'Languages', None, 'Copy'
+    )
     plugin = Plugin.__new__(Plugin)
 
     plugin._on_populate_popup(textbox=_read_only_textview(), menu=menu)
@@ -533,8 +561,14 @@ def test_fix_menu_offers_no_suggestions_for_read_only_source_text(monkeypatch):
 
 def test_fix_menu_keeps_translated_dictionary_items_for_read_only_text(monkeypatch):
     from virtaal.plugins import spellchecker
-    translations = {'Ignore All': 'Ignoreer almal', 'Add "%s" to Dictionary': 'Voeg "%s" by die woordeboek'}
-    monkeypatch.setattr(spellchecker.GLib, 'dgettext', lambda domain, msgid: translations.get(msgid, msgid))
+
+    translations = {
+        'Ignore All': 'Ignoreer almal',
+        'Add "%s" to Dictionary': 'Voeg "%s" by die woordeboek',
+    }
+    monkeypatch.setattr(
+        spellchecker.GLib, 'dgettext', lambda domain, msgid: translations.get(msgid, msgid)
+    )
     menu = _menu_with('The', 'Voeg "virtaal" by die woordeboek', 'Ignoreer almal', None, 'Copy')
     plugin = Plugin.__new__(Plugin)
 
@@ -567,6 +601,7 @@ def test_fix_menu_removes_a_leading_separator_with_nothing_before_it():
 
 
 # _connect_to_textboxes() / destroy() #
+
 
 def test_connect_to_textboxes_wires_populate_popup():
     plugin = Plugin.__new__(Plugin)
@@ -640,6 +675,7 @@ def test_appimage_passes_the_frozen_build_check(monkeypatch):
     """The AppImage bundles gtkspell3 with its own GTK."""
     try:
         import gi
+
         gi.require_version('GtkSpell', '3.0')
         from gi.repository import GtkSpell  # noqa: F401
     except (ImportError, ValueError):
@@ -666,12 +702,14 @@ def test_unsupported_on_windows_with_a_non_ascii_username(monkeypatch):
 def test_unsupported_without_gtkspell(monkeypatch):
     """The GtkSpell typelib isn't always installed."""
     import gi
+
     require_version = gi.require_version
 
     def missing_gtkspell(namespace, version):
         if namespace == 'GtkSpell':
             raise ValueError('Namespace GtkSpell not available')
         return require_version(namespace, version)
+
     monkeypatch.setattr(gi, 'require_version', missing_gtkspell)
     monkeypatch.setattr(platform, 'is_frozen', False)
     monkeypatch.setattr(platform, 'is_windows', False)
@@ -684,6 +722,7 @@ def test_unsupported_without_a_usable_enchant(monkeypatch):
     """#4313: a leftover "enchant" directory isn't pyenchant."""
     try:
         import gi
+
         gi.require_version('GtkSpell', '3.0')
         from gi.repository import GtkSpell  # noqa: F401
     except (ImportError, ValueError):
@@ -713,6 +752,7 @@ def test_spellchecker_dependencies_importable():
 
     try:
         import gi
+
         gi.require_version("GtkSpell", "3.0")
         from gi.repository import GtkSpell  # noqa: F401
     except (ImportError, ValueError):

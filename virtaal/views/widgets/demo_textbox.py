@@ -30,6 +30,7 @@ class TextWindow(Gtk.Window):
         self.connect('destroy', lambda *args: Gtk.main_quit())
         self.set_size_request(600, 100)
 
+
 class TestTextBox:
     def __init__(self):
         self.window = TextWindow()
@@ -38,5 +39,7 @@ class TestTextBox:
 if __name__ == '__main__':
     window = TextWindow()
     window.show_all()
-    window.textbox.set_text('Ģët <a href="http://www.example.com" alt="Ģët &brand;!">&brandLong;</a>')
+    window.textbox.set_text(
+        'Ģët <a href="http://www.example.com" alt="Ģët &brand;!">&brandLong;</a>'
+    )
     Gtk.main()

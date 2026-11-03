@@ -18,11 +18,10 @@ class StoreTreeView(Gtk.TreeView):
     The extended C{Gtk.TreeView} we use display our units.
     This class was adapted from the old C{UnitGrid} class.
     """
+
     __gtype_name__ = 'StoreTreeView'
 
-    __gsignals__ = {
-        'modified': (GObject.SignalFlags.RUN_FIRST, None, ())
-    }
+    __gsignals__ = {'modified': (GObject.SignalFlags.RUN_FIRST, None, ())}
 
     # INITIALIZERS #
     def __init__(self, view):
@@ -78,12 +77,24 @@ class StoreTreeView(Gtk.TreeView):
         # to add pretty key-bindings next to menu items and does not really care if an accelerator
         # path has a connected handler.
         mainview = self.view.controller.main_controller.view
-        mainview.gui.get_object('mnu_up').connect('activate', lambda *args: self._move_up(None, None, None, None))
-        mainview.gui.get_object('mnu_down').connect('activate', lambda *args: self._move_down(None, None, None, None))
-        mainview.gui.get_object('mnu_pageup').connect('activate', lambda *args: self._move_pgup(None, None, None, None))
-        mainview.gui.get_object('mnu_pagedown').connect('activate', lambda *args: self._move_pgdown(None, None, None, None))
-        mainview.gui.get_object('mnu_first').connect('activate', lambda *args: self._move_first(None, None, None, None))
-        mainview.gui.get_object('mnu_last').connect('activate', lambda *args: self._move_last(None, None, None, None))
+        mainview.gui.get_object('mnu_up').connect(
+            'activate', lambda *args: self._move_up(None, None, None, None)
+        )
+        mainview.gui.get_object('mnu_down').connect(
+            'activate', lambda *args: self._move_down(None, None, None, None)
+        )
+        mainview.gui.get_object('mnu_pageup').connect(
+            'activate', lambda *args: self._move_pgup(None, None, None, None)
+        )
+        mainview.gui.get_object('mnu_pagedown').connect(
+            'activate', lambda *args: self._move_pgdown(None, None, None, None)
+        )
+        mainview.gui.get_object('mnu_first').connect(
+            'activate', lambda *args: self._move_first(None, None, None, None)
+        )
+        mainview.gui.get_object('mnu_last').connect(
+            'activate', lambda *args: self._move_last(None, None, None, None)
+        )
 
     def _make_renderer(self):
         renderer = StoreCellRenderer(self.view)
@@ -204,11 +215,10 @@ class StoreTreeView(Gtk.TreeView):
                 path = Gtk.TreePath((row,))
                 model.row_changed(path, model.get_iter(path))
 
-
     # METHODS #
     def select_index(self, index, force=False):
         """Select the row with the given index.
-            @param force: Start editing it even if it is already selected."""
+        @param force: Start editing it even if it is already selected."""
         model = self.get_model()
         if not model or not isinstance(model, StoreTreeModel):
             return
@@ -217,13 +227,15 @@ class StoreTreeView(Gtk.TreeView):
             return
         newpath = Gtk.TreePath(path)
         selected = self.get_selection().get_selected()
-        selected_path = isinstance(selected[1], Gtk.TreeIter) and model.get_path(selected[1]) or None
+        selected_path = (
+            isinstance(selected[1], Gtk.TreeIter) and model.get_path(selected[1]) or None
+        )
 
         if force or selected[1] is None or (selected_path and selected_path != newpath):
             self._start_editing_cycle(model, newpath)
 
     def _start_editing_cycle(self, model, path):
-        #logging.debug('_start_editing_cycle()->self.set_cursor(path="%s")' % (path))
+        # logging.debug('_start_editing_cycle()->self.set_cursor(path="%s")' % (path))
         # XXX: Both of the "self.set_cursor()" calls below are necessary in
         #      order to have both bug 869 fixed and keep search highlighting
         #      in working order. After exhaustive inspection of the
@@ -240,11 +252,13 @@ class StoreTreeView(Gtk.TreeView):
         # Guard against change_cursor() below (deferred via idle_add)
         # running after a different file's model is now current.
         scheduled_model = model
+
         def change_cursor():
             self._waiting_for_row_change -= 1
             if self.get_model() is not scheduled_model:
                 return
             self.set_cursor(path, self.get_columns()[0], start_editing=True)
+
         self._waiting_for_row_change += 1
         GLib.idle_add(change_cursor, priority=GLib.PRIORITY_DEFAULT_IDLE)
 
@@ -278,9 +292,9 @@ class StoreTreeView(Gtk.TreeView):
 
     def set_visible_rows(self, rows):
         """Show only the units at the sorted store indices C{rows}, or every
-            unit for C{None}.
-            @returns: C{None} if nothing changed, else C{'changed'} or, for
-                a new model, C{'rebuilt'}. Either way GTK has stopped editing."""
+        unit for C{None}.
+        @returns: C{None} if nothing changed, else C{'changed'} or, for
+            a new model, C{'rebuilt'}. Either way GTK has stopped editing."""
         model = self.get_model()
         if not isinstance(model, StoreTreeModel) or model.visible_rows == rows:
             return None
@@ -307,8 +321,8 @@ class StoreTreeView(Gtk.TreeView):
 
     def _keyboard_move(self, offset, advance=False):
         """Move the cursor C{offset} units.
-            @param advance: The move comes from Enter, so finish the current
-            unit even when there is no unit to move to."""
+        @param advance: The move comes from Enter, so finish the current
+        unit even when there is no unit to move to."""
         if not self.view.controller.get_store():
             return
 
@@ -382,7 +396,6 @@ class StoreTreeView(Gtk.TreeView):
     def _move_last(self, _accel_group, _acceleratable, _keyval, _modifier):
         return self._keyboard_jump(last=True)
 
-
     # EVENT HANDLERS #
     def _on_button_press(self, widget, event):
         # If the event did not happen in the treeview, but in the
@@ -441,7 +454,7 @@ class StoreTreeView(Gtk.TreeView):
 
     def _restart_editing(self, path, column):
         """Re-place the editor after a resize, without taking focus from a
-            widget outside this tree view, such as the search box."""
+        widget outside this tree view, such as the search box."""
         window = self.get_toplevel()
         focus = window.get_focus() if isinstance(window, Gtk.Window) else None
         self.set_cursor(path, column, start_editing=True)

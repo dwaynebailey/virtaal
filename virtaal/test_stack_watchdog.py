@@ -12,8 +12,12 @@ import textwrap
 
 import pytest
 
-WATCHDOG = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        "devsupport", "testing", "stack_watchdog.py")
+WATCHDOG = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "devsupport",
+    "testing",
+    "stack_watchdog.py",
+)
 
 spec = importlib.util.spec_from_file_location("stack_watchdog", WATCHDOG)
 stack_watchdog = importlib.util.module_from_spec(spec)
@@ -37,6 +41,7 @@ HANGING = textwrap.dedent("""
 
     parent_stuck() if sys.argv[1] == "parent" else child_stuck()
 """)
+
 
 def test_returns_the_commands_own_exit_code():
     assert stack_watchdog.main(["", "30", "--", sys.executable, "-c", "raise SystemExit(3)"]) == 3

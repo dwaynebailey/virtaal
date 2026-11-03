@@ -1,4 +1,3 @@
-
 from gi.repository import Gdk, Gtk, Pango
 
 from virtaal.controllers.baseplugin import BasePlugin
@@ -50,10 +49,14 @@ class Plugin(BasePlugin):
     def _setup_key_bindings(self):
         """Setup Gtk+ key bindings (accelerators)."""
 
-        Gtk.AccelMap.add_entry("<Virtaal>/View/IPython Console", Gdk.KEY_y, Gdk.ModifierType.CONTROL_MASK)
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/View/IPython Console", Gdk.KEY_y, Gdk.ModifierType.CONTROL_MASK
+        )
 
         self.accel_group = Gtk.AccelGroup()
-        self.accel_group.connect_by_path("<Virtaal>/View/IPython Console", self._on_menuitem_activated)
+        self.accel_group.connect_by_path(
+            "<Virtaal>/View/IPython Console", self._on_menuitem_activated
+        )
 
         self.main_controller.view.add_accel_group(self.accel_group)
 
@@ -72,12 +75,11 @@ class Plugin(BasePlugin):
 
         self.menuitem.connect('activate', self._on_menuitem_activated)
 
-
     # METHODS #
     def show_console(self, *args):
         if not self.window:
             ns = {
-                '__builtins__' : __builtins__,
+                '__builtins__': __builtins__,
                 'mc': self.main_controller,
                 'mv': self.main_controller.view,
                 'sc': self.main_controller.store_controller,
@@ -95,7 +97,6 @@ class Plugin(BasePlugin):
             self.window.connect('destroy', self._on_console_destroyed)
         self.window.show_all()
         self.window.grab_focus()
-
 
     # EVENT HANDLERS #
     def _on_console_destroyed(self, *args):

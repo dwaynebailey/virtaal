@@ -73,7 +73,10 @@ def test_init_registers_the_terminology_parsers():
     controller, main_controller = _make_controller()
 
     assert list(terminology.parsers) == main_controller.placeables_controller.added_parsers
-    assert terminology.TerminologyPlaceable in main_controller.placeables_controller.non_target_placeables
+    assert (
+        terminology.TerminologyPlaceable
+        in main_controller.placeables_controller.non_target_placeables
+    )
 
 
 def test_init_connects_to_parsers_changed():
@@ -93,11 +96,16 @@ def test_init_connects_lang_controller_signals():
 def test_init_registers_the_gui_info_for_terminology_placeables():
     controller, main_controller = _make_controller()
 
-    assert (terminology.TerminologyPlaceable, TerminologyGUIInfo) in placeablesguiinfo.element_gui_map
+    assert (
+        terminology.TerminologyPlaceable,
+        TerminologyGUIInfo,
+    ) in placeablesguiinfo.element_gui_map
 
 
 def test_init_does_not_duplicate_the_gui_info_registration():
-    placeablesguiinfo.element_gui_map.insert(0, (terminology.TerminologyPlaceable, TerminologyGUIInfo))
+    placeablesguiinfo.element_gui_map.insert(
+        0, (terminology.TerminologyPlaceable, TerminologyGUIInfo)
+    )
     before = list(placeablesguiinfo.element_gui_map)
 
     controller, main_controller = _make_controller()
@@ -107,7 +115,9 @@ def test_init_does_not_duplicate_the_gui_info_registration():
 
 def test_init_applies_the_default_style_immediately(monkeypatch):
     calls = []
-    monkeypatch.setattr(TerminologyGUIInfo, 'update_style', classmethod(lambda cls, widget: calls.append(widget)))
+    monkeypatch.setattr(
+        TerminologyGUIInfo, 'update_style', classmethod(lambda cls, widget: calls.append(widget))
+    )
 
     controller, main_controller = _make_controller()
 
@@ -175,10 +185,15 @@ def test_rescan_current_unit_reparses_every_source(monkeypatch):
     controller, main_controller = _make_controller()
     sources = [_FakeSource(), _FakeSource()]
     reselected = []
-    main_controller.unit_controller = SimpleNamespace(view=SimpleNamespace(
-        sources=sources, select_first_placeables=lambda: reselected.append(True)))
+    main_controller.unit_controller = SimpleNamespace(
+        view=SimpleNamespace(
+            sources=sources, select_first_placeables=lambda: reselected.append(True)
+        )
+    )
     parse_calls = []
-    monkeypatch.setattr(termcontroller, 'elem_parse', lambda elem, parsers: parse_calls.append((elem, parsers)))
+    monkeypatch.setattr(
+        termcontroller, 'elem_parse', lambda elem, parsers: parse_calls.append((elem, parsers))
+    )
 
     controller.rescan_current_unit()
 
@@ -192,7 +207,9 @@ def test_rescan_current_unit_reparses_every_source(monkeypatch):
 
 def test_rescan_current_unit_stops_without_a_store_cursor():
     controller, main_controller = _make_controller()
-    main_controller.unit_controller = SimpleNamespace(view=SimpleNamespace(sources=[], select_first_placeables=lambda: None))
+    main_controller.unit_controller = SimpleNamespace(
+        view=SimpleNamespace(sources=[], select_first_placeables=lambda: None)
+    )
     main_controller.store_controller = SimpleNamespace(cursor=None)
 
     controller.rescan_current_unit()  # must not raise
@@ -200,11 +217,14 @@ def test_rescan_current_unit_stops_without_a_store_cursor():
 
 def test_rescan_current_unit_refreshes_the_current_store_row():
     controller, main_controller = _make_controller()
-    main_controller.unit_controller = SimpleNamespace(view=SimpleNamespace(sources=[], select_first_placeables=lambda: None))
+    main_controller.unit_controller = SimpleNamespace(
+        view=SimpleNamespace(sources=[], select_first_placeables=lambda: None)
+    )
     calls = []
     treeview = SimpleNamespace(refresh_current_row=lambda: calls.append(True))
     main_controller.store_controller = SimpleNamespace(
-        cursor=object(), view=SimpleNamespace(_treeview=treeview))
+        cursor=object(), view=SimpleNamespace(_treeview=treeview)
+    )
 
     controller.rescan_current_unit()
 
@@ -234,7 +254,9 @@ def test_on_placeables_changed_leaves_an_already_present_parser_alone():
 def test_on_style_set_updates_the_terminology_gui_info(monkeypatch):
     controller, main_controller = _make_controller()
     calls = []
-    monkeypatch.setattr(TerminologyGUIInfo, 'update_style', classmethod(lambda cls, widget: calls.append(widget)))
+    monkeypatch.setattr(
+        TerminologyGUIInfo, 'update_style', classmethod(lambda cls, widget: calls.append(widget))
+    )
 
     controller._on_style_set(main_controller.view.main_window)
 

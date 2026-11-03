@@ -43,7 +43,8 @@ class TestTerminologyModelsStartup(TestScaffolding):
         PlaceablesController(self.main_controller)
         # Every model is built by the tests themselves.
         self.term_controller = TerminologyController(
-            self.main_controller, {'disabled_models': ['localfile', 'autoterm', 'pontoon']})
+            self.main_controller, {'disabled_models': ['localfile', 'autoterm', 'pontoon']}
+        )
         self.unit_controller.load_unit(self.trans_store.units[1])
         self.unit_view = self.unit_controller.view
 
@@ -52,16 +53,28 @@ class TestTerminologyModelsStartup(TestScaffolding):
         monkeypatch.setattr(pan_app, 'get_config_dir', lambda: str(tmp_path))
         # Other tests destroy dialogs built from the shared builders.
         monkeypatch.setattr(baseview, '_builders', {})
-        monkeypatch.setitem(pan_app.settings.language, 'recentlangs',
-                            pan_app.settings.language['recentlangs'])
+        monkeypatch.setitem(
+            pan_app.settings.language, 'recentlangs', pan_app.settings.language['recentlangs']
+        )
         self.requests = []
-        monkeypatch.setattr(HTTPClient, 'get', lambda client, url, callback, etag=None, **kwargs:
-                            self.requests.append((url, etag, kwargs)))
+        monkeypatch.setattr(
+            HTTPClient,
+            'get',
+            lambda client, url, callback, etag=None, **kwargs: self.requests.append(
+                (url, etag, kwargs)
+            ),
+        )
         langs = self.lang_controller
         # Only the full app builds the language controller's view.
-        monkeypatch.setattr(langs, 'view', SimpleNamespace(
-            update_recent_pairs=lambda: None, notify_same_langs=lambda: None,
-            notify_diff_langs=lambda: None))
+        monkeypatch.setattr(
+            langs,
+            'view',
+            SimpleNamespace(
+                update_recent_pairs=lambda: None,
+                notify_same_langs=lambda: None,
+                notify_diff_langs=lambda: None,
+            ),
+        )
         for name in ('_source_lang', '_target_lang', 'recent_pairs'):
             monkeypatch.setattr(langs, name, getattr(langs, name))
         matchers = list(TerminologyPlaceable.matchers)
@@ -79,7 +92,8 @@ class TestTerminologyModelsStartup(TestScaffolding):
             paths.append(str(path))
         monkeypatch.setitem(localfile.TerminologyModel.default_config, 'extendfile', paths[0])
         (tmp_path / 'terminology.ini').write_text(
-            '[localfile]\nfiles = %s\nextendfile = %s\n' % (','.join(paths), paths[-1]))
+            '[localfile]\nfiles = %s\nextendfile = %s\n' % (','.join(paths), paths[-1])
+        )
         model = localfile.TerminologyModel('localfile', self.term_controller)
         self.models.append(model)
         return model, paths
@@ -100,7 +114,9 @@ class TestTerminologyModelsStartup(TestScaffolding):
         assert [len(store.units) for store in model.stores] == [2]
         assert model.matcher in TerminologyPlaceable.matchers
 
-    def test_reloading_local_files_replaces_the_matcher_and_skips_blank_names(self, tmp_path, monkeypatch):
+    def test_reloading_local_files_replaces_the_matcher_and_skips_blank_names(
+        self, tmp_path, monkeypatch
+    ):
         model, paths = self._local_model(tmp_path, monkeypatch)
         old_matcher = model.matcher
         model.config['files'] = ['', paths[0]]
@@ -124,7 +140,9 @@ class TestTerminologyModelsStartup(TestScaffolding):
 
         assert model.get_store_for_filename(str(tmp_path / 'other.po')) is None
 
-    def test_destroying_the_local_model_removes_its_matcher_and_menu_items(self, tmp_path, monkeypatch):
+    def test_destroying_the_local_model_removes_its_matcher_and_menu_items(
+        self, tmp_path, monkeypatch
+    ):
         model, _paths = self._local_model(tmp_path, monkeypatch)
         self.models.remove(model)
         edit_menu = model.view.menu
@@ -161,16 +179,24 @@ class TestTerminologyModelsStartup(TestScaffolding):
             accel_group = edit_menu.get_accel_group()
             assert accel_group is not None
             assert accel_group is not original
-            assert accel_group in Gtk.accel_groups_from_object(self.main_controller.view.main_window)
+            assert accel_group in Gtk.accel_groups_from_object(
+                self.main_controller.view.main_window
+            )
         finally:
             edit_menu.set_accel_group(original)
 
     def test_the_menu_items_open_their_dialogs_over_the_main_window(self, tmp_path, monkeypatch):
         opened = []
-        monkeypatch.setattr(localfileview.TermAddDialog, 'run',
-                            lambda dialog, parent=None: opened.append(('add', parent)))
-        monkeypatch.setattr(localfileview.FileSelectDialog, 'run',
-                            lambda dialog, parent=None: opened.append(('files', parent)))
+        monkeypatch.setattr(
+            localfileview.TermAddDialog,
+            'run',
+            lambda dialog, parent=None: opened.append(('add', parent)),
+        )
+        monkeypatch.setattr(
+            localfileview.FileSelectDialog,
+            'run',
+            lambda dialog, parent=None: opened.append(('files', parent)),
+        )
         model, _paths = self._local_model(tmp_path, monkeypatch)
         main_window = self.main_controller.view.main_window
 
@@ -194,10 +220,15 @@ class TestTerminologyModelsStartup(TestScaffolding):
     def _add_term_items(self, textbox):
         menu = Gtk.Menu()
         textbox.emit('populate-popup', menu)
-        return [item.get_label() for item in menu.get_children()
-                if isinstance(item, Gtk.MenuItem) and (item.get_label() or '').startswith('Add Term')]
+        return [
+            item.get_label()
+            for item in menu.get_children()
+            if isinstance(item, Gtk.MenuItem) and (item.get_label() or '').startswith('Add Term')
+        ]
 
-    def test_source_and_target_context_menus_offer_the_selection_as_a_term(self, tmp_path, monkeypatch):
+    def test_source_and_target_context_menus_offer_the_selection_as_a_term(
+        self, tmp_path, monkeypatch
+    ):
         self._local_model(tmp_path, monkeypatch)
 
         for textbox in (self.unit_view.sources[0], self.unit_view.targets[0]):
@@ -252,8 +283,12 @@ class TestTerminologyModelsStartup(TestScaffolding):
     def test_add_term_starts_from_the_selected_source_and_target_text(self, tmp_path, monkeypatch):
         model, paths = self._local_model(tmp_path, monkeypatch, files=2)
         source, target = self.unit_view.sources[0], self.unit_view.targets[0]
-        source.buffer.select_range(source.buffer.get_start_iter(), source.buffer.get_iter_at_offset(8))
-        target.buffer.select_range(target.buffer.get_start_iter(), target.buffer.get_iter_at_offset(3))
+        source.buffer.select_range(
+            source.buffer.get_start_iter(), source.buffer.get_iter_at_offset(8)
+        )
+        target.buffer.select_range(
+            target.buffer.get_start_iter(), target.buffer.get_iter_at_offset(3)
+        )
         dialog = model.view.addterm
 
         dialog.reset()
@@ -280,7 +315,9 @@ class TestTerminologyModelsStartup(TestScaffolding):
     # Pontoon and the localization terminology downloads #
 
     @pytest.mark.parametrize('module', [pontoon, autoterm])
-    def test_a_download_model_starts_with_an_empty_matcher_and_fetches_terms(self, module, tmp_path, monkeypatch):
+    def test_a_download_model_starts_with_an_empty_matcher_and_fetches_terms(
+        self, module, tmp_path, monkeypatch
+    ):
         self.lang_controller.set_language_pair('en', 'af')
 
         model, termdir = self._web_model(module, tmp_path, monkeypatch)
@@ -289,7 +326,8 @@ class TestTerminologyModelsStartup(TestScaffolding):
         assert model.matcher in TerminologyPlaceable.matchers
         assert len(model.store.units) == 0
         assert [url for url, _etag, _kwargs in self.requests] == [
-            module.TerminologyModel._l10n_URL % {'srclang': 'en', 'tgtlang': 'af'}]
+            module.TerminologyModel._l10n_URL % {'srclang': 'en', 'tgtlang': 'af'}
+        ]
 
     @pytest.mark.parametrize('module', [pontoon, autoterm])
     def test_a_download_model_follows_a_target_language_change(self, module, tmp_path, monkeypatch):
@@ -301,7 +339,8 @@ class TestTerminologyModelsStartup(TestScaffolding):
 
         assert model.target_lang == 'de'
         assert [url for url, _etag, _kwargs in self.requests] == [
-            module.TerminologyModel._l10n_URL % {'srclang': 'en', 'tgtlang': 'de'}]
+            module.TerminologyModel._l10n_URL % {'srclang': 'en', 'tgtlang': 'de'}
+        ]
 
     def test_pontoon_logs_a_failed_download_when_debugging(self, tmp_path, monkeypatch):
         monkeypatch.setattr(logging.root, 'level', logging.DEBUG)

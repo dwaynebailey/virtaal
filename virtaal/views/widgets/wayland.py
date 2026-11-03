@@ -15,6 +15,6 @@ def is_wayland():
 
 def set_popup_parent(popup, parent):
     """On Wayland, a popup window without a parent opens as a window of its
-        own: it can't be placed, and it takes the focus from C{parent}."""
+    own: it can't be placed, and it takes the focus from C{parent}."""
     if is_wayland():
         popup.set_transient_for(parent)

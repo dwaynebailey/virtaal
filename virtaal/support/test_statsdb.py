@@ -40,6 +40,7 @@ def test_load_file_with_an_empty_source_string(tmp_path):
 
 # wordsinunit() #
 
+
 def test_wordsinunit_counts_every_plural_form():
     # multistring.strings puts the multistring itself first (which
     # counts as its own primary form) followed by the remaining plural
@@ -60,13 +61,15 @@ def test_wordsinunit_counts_every_plural_form():
 
 # transaction() #
 
+
 def test_transaction_rolls_back_and_reraises_on_failure():
     rolled_back = []
     committed = []
 
     class _FakeCache:
-        con = SimpleNamespace(commit=lambda: committed.append(True),
-                               rollback=lambda: rolled_back.append(True))
+        con = SimpleNamespace(
+            commit=lambda: committed.append(True), rollback=lambda: rolled_back.append(True)
+        )
 
         @statsdb.transaction
         def boom(self):
@@ -80,6 +83,7 @@ def test_transaction_rolls_back_and_reraises_on_failure():
 
 
 # FileTotals / emptyfilechecks() #
+
 
 def test_file_totals_delitem_removes_the_row(tmp_path):
     cache = statsdb.StatsCache(str(tmp_path / "stats.db"))
@@ -103,6 +107,7 @@ def test_emptyfiletotals_is_all_zero():
 
 # file_extended_totals() / filetotals(extended=True) #
 
+
 def test_file_extended_totals_breaks_down_by_state(tmp_path):
     po_content = (
         'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
@@ -124,7 +129,8 @@ def test_filetotals_with_extended_includes_the_breakdown(tmp_path):
     po_file = tmp_path / "test.po"
     po_file.write_text(
         'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-        'msgid "Hello"\nmsgstr "Bonjour"\n')
+        'msgid "Hello"\nmsgstr "Bonjour"\n'
+    )
     cache = statsdb.StatsCache(str(tmp_path / "stats.db"))
     store = factory.getobject(str(po_file))
 
@@ -136,8 +142,10 @@ def test_filetotals_with_extended_includes_the_breakdown(tmp_path):
 
 # get_unit_stats() #
 
+
 def test_get_unit_stats_warns_and_returns_empty_for_an_unknown_unit(tmp_path, caplog):
     import logging
+
     cache = statsdb.StatsCache(str(tmp_path / "stats.db"))
 
     with caplog.at_level(logging.WARNING):
@@ -149,11 +157,13 @@ def test_get_unit_stats_warns_and_returns_empty_for_an_unknown_unit(tmp_path, ca
 
 # file_fails_test() #
 
+
 def test_file_fails_test_finds_the_dummy_noerror_entry(tmp_path):
     po_file = tmp_path / "test.po"
     po_file.write_text(
         'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-        'msgid "Hello"\nmsgstr "Bonjour"\n')
+        'msgid "Hello"\nmsgstr "Bonjour"\n'
+    )
     cache = statsdb.StatsCache(str(tmp_path / "stats.db"))
     checker = checks.UnitChecker()
 
@@ -163,11 +173,13 @@ def test_file_fails_test_finds_the_dummy_noerror_entry(tmp_path):
 
 # _getfileid()'s remaining branches #
 
+
 def test_getfileid_accepts_a_bytes_filename(tmp_path):
     po_file = tmp_path / "test.po"
     po_file.write_text(
         'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-        'msgid "Hello"\nmsgstr "Bonjour"\n')
+        'msgid "Hello"\nmsgstr "Bonjour"\n'
+    )
     cache = statsdb.StatsCache(str(tmp_path / "stats.db"))
 
     fileid = cache._getfileid(str(po_file).encode())
@@ -179,7 +191,8 @@ def test_getfileid_calls_a_callable_store(tmp_path):
     po_file = tmp_path / "test.po"
     po_file.write_text(
         'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-        'msgid "Hello"\nmsgstr "Bonjour"\n')
+        'msgid "Hello"\nmsgstr "Bonjour"\n'
+    )
     cache = statsdb.StatsCache(str(tmp_path / "stats.db"))
     calls = []
 
@@ -193,6 +206,7 @@ def test_getfileid_calls_a_callable_store(tmp_path):
 
 
 # close() #
+
 
 def test_close_closes_every_cached_connection_and_clears_the_registry(tmp_path):
     # Swap out the real, shared class-level cache pool for the
@@ -266,13 +280,17 @@ def test_a_database_from_an_older_toolkit_is_recreated(tmp_path, fresh_caches):
 def _write_truncated_database(path):
     statsdb.StatsCache(str(path)).close()
     data = path.read_bytes()
-    path.write_bytes(data[:len(data) // 3])
+    path.write_bytes(data[: len(data) // 3])
 
 
-@pytest.mark.parametrize('corrupt', [
-    lambda path: path.write_text('not a database\n'),
-    _write_truncated_database,
-], ids=['not SQLite', 'truncated'])
+@pytest.mark.parametrize(
+    'corrupt',
+    [
+        lambda path: path.write_text('not a database\n'),
+        _write_truncated_database,
+    ],
+    ids=['not SQLite', 'truncated'],
+)
 def test_a_corrupt_database_is_replaced(tmp_path, fresh_caches, corrupt, caplog):
     # #4430: it's only a cache, so a corrupt one mustn't stop files opening.
     path = tmp_path / "stats.db"
@@ -299,7 +317,9 @@ def test_a_database_path_that_cant_be_opened_falls_back_to_memory(tmp_path, fres
 
     assert stats['translated'] == [0]
     assert (path / "keep").read_text() == 'mine'
-    assert [r.getMessage().split(',')[0] for r in caplog.records] == ['Keeping statistics in memory']
+    assert [r.getMessage().split(',')[0] for r in caplog.records] == [
+        'Keeping statistics in memory'
+    ]
 
 
 def test_an_unusable_database_path_is_only_reported_once(tmp_path, fresh_caches, caplog):
@@ -335,6 +355,7 @@ def test_a_failed_open_is_not_kept_for_the_next_call(tmp_path, fresh_caches, mon
     assert first.con is not None
     assert statsdb.StatsCache(str(path)) is first
 
+
 def test_the_default_database_is_in_the_home_directory(tmp_path, monkeypatch, fresh_caches):
     monkeypatch.setattr(statsdb.StatsCache, 'defaultfile', None)
     monkeypatch.setenv('HOME', str(tmp_path))
@@ -346,8 +367,11 @@ def test_the_default_database_is_in_the_home_directory(tmp_path, monkeypatch, fr
     assert os.path.exists(statsdb.StatsCache.defaultfile)
 
 
-def test_the_default_database_in_flatpak_is_under_xdg_cache_home(tmp_path, monkeypatch, fresh_caches):
+def test_the_default_database_in_flatpak_is_under_xdg_cache_home(
+    tmp_path, monkeypatch, fresh_caches
+):
     from virtaal.common.platform import platform
+
     monkeypatch.setattr(statsdb.StatsCache, 'defaultfile', None)
     monkeypatch.setattr(platform, 'is_windows', False)
     monkeypatch.setattr(platform, 'is_flatpak', True)
@@ -355,5 +379,6 @@ def test_the_default_database_in_flatpak_is_under_xdg_cache_home(tmp_path, monke
 
     statsdb.StatsCache()
 
-    assert statsdb.StatsCache.defaultfile == \
-        os.path.join(os.path.realpath(str(tmp_path)), 'translate_toolkit', 'stats.db')
+    assert statsdb.StatsCache.defaultfile == os.path.join(
+        os.path.realpath(str(tmp_path)), 'translate_toolkit', 'stats.db'
+    )

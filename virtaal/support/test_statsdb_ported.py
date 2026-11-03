@@ -130,9 +130,12 @@ def test_filestats(tmp_path):
 
 
 def _fileid_row(cache, filename):
-    cache.cur.execute("""
+    cache.cur.execute(
+        """
         SELECT fileid, st_mtime, st_size FROM files
-        WHERE path=?;""", (os.path.realpath(filename),))
+        WHERE path=?;""",
+        (os.path.realpath(filename),),
+    )
     return cache.cur.fetchone()
 
 

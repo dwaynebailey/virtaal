@@ -23,7 +23,7 @@ def _patch(file_class):
 
     def compat_parse(self, fluentsrc):
         if isinstance(fluentsrc, bytes) and fluentsrc.startswith(BOM_UTF8):
-            fluentsrc = fluentsrc[len(BOM_UTF8):]
+            fluentsrc = fluentsrc[len(BOM_UTF8) :]
         parse(self, fluentsrc)
 
     file_class.parse = compat_parse

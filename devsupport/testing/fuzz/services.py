@@ -48,6 +48,7 @@ BAD_REPLIES = [
 
 class Mock:
     """What the server answers; the sweep changes it between cases."""
+
     service = None
     value = 'Stoor die lêer'
     reply = None  # a BAD_REPLIES name, or None to answer with value
@@ -57,30 +58,44 @@ class Mock:
 def good_body(service, path, value):
     if service in ('amagama', 'remotetm'):
         query = unquote(path.rsplit('/unit/', 1)[-1].split('?')[0]) if '/unit/' in path else 'x'
-        return json.dumps([{'source': query, 'target': value, 'quality': 90, 'rank': 90}]).encode(), \
-            'application/json'
+        return json.dumps(
+            [{'source': query, 'target': value, 'quality': 90, 'rank': 90}]
+        ).encode(), 'application/json'
     if service == 'apertium':
         if 'listPairs' in path:
-            return json.dumps({'responseStatus': 200, 'responseData': [
-                {'sourceLanguage': 'en', 'targetLanguage': 'af'}]}).encode(), 'application/json'
-        return json.dumps({'responseStatus': 200, 'responseData': {'translatedText': value}}).encode(), \
-            'application/json'
+            return json.dumps(
+                {
+                    'responseStatus': 200,
+                    'responseData': [{'sourceLanguage': 'en', 'targetLanguage': 'af'}],
+                }
+            ).encode(), 'application/json'
+        return json.dumps(
+            {'responseStatus': 200, 'responseData': {'translatedText': value}}
+        ).encode(), 'application/json'
     if service == 'google':
         if '/languages' in path:
-            return json.dumps({'data': {'languages': [{'language': 'en'}, {'language': 'af'}]}}).encode(), \
-                'application/json'
-        return json.dumps({'data': {'translations': [{'translatedText': value}]}}).encode(), 'application/json'
+            return json.dumps(
+                {'data': {'languages': [{'language': 'en'}, {'language': 'af'}]}}
+            ).encode(), 'application/json'
+        return json.dumps(
+            {'data': {'translations': [{'translatedText': value}]}}
+        ).encode(), 'application/json'
     if service == 'moses':
-        return xmlrpc.client.dumps(({'text': value},), methodresponse=True).encode('utf-8', 'surrogatepass'), \
-            'text/xml'
+        return xmlrpc.client.dumps(({'text': value},), methodresponse=True).encode(
+            'utf-8', 'surrogatepass'
+        ), 'text/xml'
     if service == 'pontoon':
         from xml.sax.saxutils import escape
-        return ('<?xml version="1.0" encoding="UTF-8"?><martif type="TBX" xml:lang="en"><text><body>'
-                '<termEntry><langSet xml:lang="en"><tig><term>file</term></tig></langSet>'
-                '<langSet xml:lang="af"><tig><term>%s</term></tig></langSet></termEntry>'
-                '</body></text></martif>' % escape(value)).encode('utf-8', 'surrogatepass'), 'application/x-tbx'
+
+        return (
+            '<?xml version="1.0" encoding="UTF-8"?><martif type="TBX" xml:lang="en"><text><body>'
+            '<termEntry><langSet xml:lang="en"><tig><term>file</term></tig></langSet>'
+            '<langSet xml:lang="af"><tig><term>%s</term></tig></langSet></termEntry>'
+            '</body></text></martif>' % escape(value)
+        ).encode('utf-8', 'surrogatepass'), 'application/x-tbx'
     if service == 'autoterm':
         from translate.storage import po
+
         store = po.pofile()
         store.updateheader(add=True, Language='af')
         store.addsourceunit('file').target = value
@@ -96,11 +111,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         Mock.requests += 1
         body, ctype = good_body(Mock.service, self.path, Mock.value)
         status = 200
-        reply = dict((name, (code, data, kind)) for name, code, data, kind in BAD_REPLIES).get(Mock.reply)
+        reply = dict((name, (code, data, kind)) for name, code, data, kind in BAD_REPLIES).get(
+            Mock.reply
+        )
         if reply:
             status, data, kind = reply
             if Mock.reply == 'truncated':
-                data, kind = body[:len(body) // 2], ctype
+                data, kind = body[: len(body) // 2], ctype
             elif Mock.reply == '5 MB':
                 data, kind = body + b' ' * 5000000, ctype
             elif Mock.reply == 'slow':
@@ -132,6 +149,7 @@ def start_server():
 
 def _set_option(conf, name, section, key, value):
     import configparser
+
     path = os.path.join(conf, name)
     parser = configparser.RawConfigParser()
     parser.read(path, encoding='utf-8')
@@ -151,8 +169,13 @@ def configure(service, url, conf):
         _set_option(conf, name, section, key, value)
 
     tm_off = {'_dummytm', 'remotetm', 'apertium', 'google_translate', 'moses', 'amagama'}
-    model = {'amagama': 'amagama', 'remotetm': 'remotetm', 'apertium': 'apertium', 'moses': 'moses',
-             'google': 'google_translate'}.get(service)
+    model = {
+        'amagama': 'amagama',
+        'remotetm': 'remotetm',
+        'apertium': 'apertium',
+        'moses': 'moses',
+        'google': 'google_translate',
+    }.get(service)
     if model:
         tm_off.discard(model)
     set_option('plugins.ini', 'tm', 'disabled_models', ','.join(sorted(tm_off)))
@@ -175,16 +198,22 @@ def patch_fixed_urls(service, url):
     Runs after Virtaal is imported, before the plug-ins load."""
     if service == 'apertium':
         from virtaal.plugins.tm.models import apertium
+
         apertium.TMModel.url = url
     elif service == 'google':
         from virtaal.plugins.tm.models import google_translate
-        google_translate.TMModel.translate_url = url + '/translate?key=%(key)s&q=%(message)s&source=%(from)s&target=%(to)s'
+
+        google_translate.TMModel.translate_url = (
+            url + '/translate?key=%(key)s&q=%(message)s&source=%(from)s&target=%(to)s'
+        )
         google_translate.TMModel.languages_url = url + '/languages?key=%(key)s'
     elif service == 'pontoon':
         from virtaal.plugins.terminology.models import pontoon
+
         pontoon.TerminologyModel._l10n_URL = url + '/terminology/%(tgtlang)s.tbx'
     elif service == 'autoterm':
         from virtaal.plugins.terminology.models import autoterm
+
         autoterm.TerminologyModel._l10n_URL = url + '/l10n/%(srclang)s/%(tgtlang)s'
 
 
@@ -192,6 +221,7 @@ def query_file(workdir, count):
     """A PO file with distinct sources, one per case, so no reply comes
     from a client's cache."""
     from translate.storage import po
+
     store = po.pofile()
     store.updateheader(add=True, Language='af')
     store.updateheaderplural(2, '(n != 1)')
@@ -213,8 +243,11 @@ def check_display(sweep, rec):
         layout = window.match_renderer._get_pango_layout(window.treeview, target, 400, None)
         shown = layout.get_text()
         if any(target.count(c) != shown.count(c) for c in '<>&'):
-            rec.problem('display-mismatch', 'suggestion markup', 'suggestion %s shows as %s' % (
-                short(target), short(shown)))
+            rec.problem(
+                'display-mismatch',
+                'suggestion markup',
+                'suggestion %s shows as %s' % (short(target), short(shown)),
+            )
 
 
 def cases():
@@ -297,6 +330,7 @@ def _run_localtm(sweep, name):
 
     from virtaal.common import pan_app
     from virtaal.support.tmdb import TMDB
+
     path = query_file(sweep.args.workdir, len(CORPUS) + 1)
     store = factory.getobject(path)
     units = [u for u in store.units if not u.isheader()]
@@ -304,9 +338,13 @@ def _run_localtm(sweep, name):
         unit.target = value
     seeded = path.replace('.po', '-tm.po')
     store.savefile(seeded)
-    TMDB(os.path.join(pan_app.get_config_dir(), 'tm.db')).add_store(factory.getobject(seeded), 'en', 'af')
+    TMDB(os.path.join(pan_app.get_config_dir(), 'tm.db')).add_store(
+        factory.getobject(seeded), 'en', 'af'
+    )
     yield from sweep.open_file(path)
-    for i, (case, value) in enumerate(sweep.cases(name, [(None, 'corpus: ' + n, v) for _, n, v in CORPUS])):
+    for i, (case, value) in enumerate(
+        sweep.cases(name, [(None, 'corpus: ' + n, v) for _, n, v in CORPUS])
+    ):
         try:
             sweep.mc.store_controller.cursor.force_index(i)
             yield from sweep.settle(75)

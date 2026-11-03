@@ -43,7 +43,9 @@ def _sensitivity(view):
 def test_set_unavailable_modes_greys_out_only_those_modes():
     view = _view_with_modes('All', 'Incomplete', 'Search')
     changed = []
-    view.cmb_modes.get_model().connect('row-changed', lambda model, path, it: changed.append(str(path)))
+    view.cmb_modes.get_model().connect(
+        'row-changed', lambda model, path, it: changed.append(str(path))
+    )
 
     view.set_unavailable_modes(['Incomplete'])
 
@@ -62,9 +64,11 @@ def test_set_unavailable_modes_with_nothing_makes_every_mode_available_again():
 
 # Context selector #
 
+
 def _context_view():
     view = ModeView.__new__(ModeView)
     from virtaal.common import GObjectWrapper
+
     GObjectWrapper.__init__(view)
     # Kept referenced: a collected top bar destroys the selector with it.
     view.top_bar = Gtk.Box()
@@ -77,6 +81,7 @@ def _context_view():
 def test_navigation_bar_keeps_off_the_window_sides():
     # #4287
     from virtaal.views import rendering
+
     view, _selected = _context_view()
 
     assert view.top_bar.get_margin_start() == rendering.UNIT_MARGIN
@@ -85,6 +90,7 @@ def test_navigation_bar_keeps_off_the_window_sides():
 
 def test_context_selector_offers_none_to_all(monkeypatch):
     from virtaal.common import pan_app
+
     monkeypatch.setattr(pan_app, 'ui_language', 'en')
     view, _selected = _context_view()
 
@@ -93,6 +99,7 @@ def test_context_selector_offers_none_to_all(monkeypatch):
 
 def test_context_selector_counts_use_the_ui_languages_digits(monkeypatch):
     from virtaal.common import pan_app
+
     monkeypatch.setattr(pan_app, 'ui_language', 'ar_EG')
 
     view, _selected = _context_view()
@@ -120,7 +127,6 @@ def test_select_context_shows_it_without_emitting():
 
     assert view.cmb_context.get_active_id() == 'all'
     assert selected == []
-
 
 
 def test_the_navigation_mnemonic_opens_the_mode_list():

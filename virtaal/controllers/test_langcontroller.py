@@ -56,11 +56,16 @@ def test_init_wires_the_store_loaded_and_quit_signals(monkeypatch, tmp_path):
     assert main_controller.lang_controller is controller
     assert controller.view is None
     assert ('quit', controller._on_quit) in main_controller.connected
-    assert ('store-loaded', controller._on_store_loaded) in main_controller.store_controller.connected
+    assert (
+        'store-loaded',
+        controller._on_store_loaded,
+    ) in main_controller.store_controller.connected
 
 
 def test_init_loads_the_configured_source_and_target_langs(monkeypatch, tmp_path):
-    controller, _ = _make_controller(monkeypatch, tmp_path, _FakeSettings(sourcelang='fr', targetlang='de'))
+    controller, _ = _make_controller(
+        monkeypatch, tmp_path, _FakeSettings(sourcelang='fr', targetlang='de')
+    )
 
     assert controller.source_lang.code == 'fr'
     assert controller.target_lang.code == 'de'
@@ -93,7 +98,9 @@ def test_init_loads_previously_saved_new_languages(monkeypatch, tmp_path):
 
 
 def test_load_recent_parses_saved_pairs(monkeypatch, tmp_path):
-    controller, _ = _make_controller(monkeypatch, tmp_path, _FakeSettings(recentlangs='en,af|fr,de'))
+    controller, _ = _make_controller(
+        monkeypatch, tmp_path, _FakeSettings(recentlangs='en,af|fr,de')
+    )
 
     assert [(s.code, t.code) for s, t in controller.recent_pairs] == [('en', 'af'), ('fr', 'de')]
 
@@ -175,7 +182,8 @@ def test_set_language_pair_truncates_to_num_recent(monkeypatch, tmp_path):
     controller, _ = _make_controller(monkeypatch, tmp_path)
     controller.view = _view_stub()
     controller.recent_pairs = [
-        (LanguageModel(f'src{i}'), LanguageModel(f'tgt{i}')) for i in range(LanguageController.NUM_RECENT)
+        (LanguageModel(f'src{i}'), LanguageModel(f'tgt{i}'))
+        for i in range(LanguageController.NUM_RECENT)
     ]
 
     controller.set_language_pair('newsrc', 'newtgt')
@@ -305,7 +313,9 @@ def test_get_detected_langs_returns_none_for_unidentified_codes(monkeypatch, tmp
     assert tgtlang is None
 
 
-@pytest.mark.parametrize('recentlangs', ['x,y,en|en,af', 'x|en,af', 'en,|en,af', ',|en,af', 'en,af|'])
+@pytest.mark.parametrize(
+    'recentlangs', ['x,y,en|en,af', 'x|en,af', 'en,|en,af', ',|en,af', 'en,af|']
+)
 def test_load_recent_skips_a_malformed_pair(monkeypatch, tmp_path, recentlangs):
     # #4331: a language code containing "," or "|" stopped every later launch.
     controller, _ = _make_controller(monkeypatch, tmp_path, _FakeSettings(recentlangs=recentlangs))
@@ -317,7 +327,10 @@ def test_save_recent_leaves_out_a_pair_whose_code_has_a_separator(monkeypatch, t
     controller, _ = _make_controller(monkeypatch, tmp_path)
     bad = LanguageModel('en')
     bad.code = 'x,y'
-    controller.recent_pairs = [(LanguageModel('en'), bad), (LanguageModel('en'), LanguageModel('af'))]
+    controller.recent_pairs = [
+        (LanguageModel('en'), bad),
+        (LanguageModel('en'), LanguageModel('af')),
+    ]
 
     controller.save_recent()
 
@@ -481,8 +494,9 @@ class _FakeLanguageView:
 def test_on_store_loaded_creates_the_view_and_sets_the_language_pair(monkeypatch, tmp_path):
     controller, main_controller = _make_controller(monkeypatch, tmp_path)
     created = []
-    monkeypatch.setattr('virtaal.views.langview.LanguageView',
-                         lambda c: created.append(c) or _FakeLanguageView(c))
+    monkeypatch.setattr(
+        'virtaal.views.langview.LanguageView', lambda c: created.append(c) or _FakeLanguageView(c)
+    )
     store = main_controller.store_controller.store = SimpleNamespace(
         get_source_language=lambda: 'fr',
         get_target_language=lambda: 'zzunknown',
@@ -517,7 +531,9 @@ def test_on_store_loaded_reuses_an_existing_view(monkeypatch, tmp_path):
 
 
 def test_on_store_loaded_falls_back_to_the_current_source_lang(monkeypatch, tmp_path):
-    controller, main_controller = _make_controller(monkeypatch, tmp_path, _FakeSettings(sourcelang='en'))
+    controller, main_controller = _make_controller(
+        monkeypatch, tmp_path, _FakeSettings(sourcelang='en')
+    )
     controller.view = _view_stub()
     main_controller.store_controller.store = SimpleNamespace(
         get_source_language=lambda: None,
@@ -532,6 +548,7 @@ def test_on_store_loaded_falls_back_to_the_current_source_lang(monkeypatch, tmp_
 
 # get_target_nplurals() #
 
+
 def _with_store(main_controller, declared):
     store = SimpleNamespace(get_declared_nplurals=lambda: declared)
     main_controller.store_controller.get_store = lambda: store
@@ -540,14 +557,18 @@ def _with_store(main_controller, declared):
 
 def test_target_nplurals_follow_the_files_plural_forms(monkeypatch, tmp_path):
     # #3197: GNOME's Ukrainian has 4 forms, translate-toolkit's 3.
-    controller, main_controller = _make_controller(monkeypatch, tmp_path, _FakeSettings(targetlang='uk'))
+    controller, main_controller = _make_controller(
+        monkeypatch, tmp_path, _FakeSettings(targetlang='uk')
+    )
     _with_store(main_controller, 4)
 
     assert controller.get_target_nplurals() == 4
 
 
 def test_target_nplurals_follow_the_language_without_plural_forms(monkeypatch, tmp_path):
-    controller, main_controller = _make_controller(monkeypatch, tmp_path, _FakeSettings(targetlang='uk'))
+    controller, main_controller = _make_controller(
+        monkeypatch, tmp_path, _FakeSettings(targetlang='uk')
+    )
     _with_store(main_controller, None)
 
     assert controller.get_target_nplurals() == 3

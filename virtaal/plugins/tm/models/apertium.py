@@ -36,8 +36,8 @@ APY_LANGUAGES = {
 
 def apy_codes(code):
     """APY's possible codes for a Virtaal language code, most specific
-        first: ca@valencia gives cat_valencia then cat, pt_BR gives
-        por_BR then por. APY lists ISO 639-3 codes (#4664)."""
+    first: ca@valencia gives cat_valencia then cat, pt_BR gives
+    por_BR then por. APY lists ISO 639-3 codes (#4664)."""
     base, _, variant = code.replace('@', '_').partition('_')
     language = APY_LANGUAGES.get(base)
     if language is None:
@@ -72,15 +72,11 @@ class TMModel(BaseTMModel):
         self.url_translate = "%(url)s/translate" % {"url": self.url}
         langreq = RESTRequest(self.url_getpairs, '')
         self.client.add(langreq)
-        langreq.connect(
-            'http-success',
-            lambda langreq, response: self.got_language_pairs(response)
-        )
+        langreq.connect('http-success', lambda langreq, response: self.got_language_pairs(response))
         for signal in ('http-client-error', 'http-server-error'):
             langreq.connect(signal, lambda langreq, status: self.set_languages_known())
 
         super().__init__(controller)
-
 
     # METHODS #
     def query(self, tmcontroller, unit):
@@ -106,13 +102,12 @@ class TMModel(BaseTMModel):
             req = RESTRequest(self.url_translate + "?" + urlencode(values), '')
             self.client.add(req)
             req.connect(
-                'http-success',
-                lambda req, response: self.got_translation(response, query_str)
+                'http-success', lambda req, response: self.got_translation(response, query_str)
             )
 
     def _apy_pair(self):
         """The most specific listed APY pair for the current languages, or
-            None."""
+        None."""
         for source in apy_codes(self.source_lang or ''):
             for target in apy_codes(self.target_lang or ''):
                 if (source, target) in self.language_pairs:
@@ -126,7 +121,9 @@ class TMModel(BaseTMModel):
             if data['responseStatus'] != 200:
                 logging.debug("Failed to get languages:\n%s", (data['responseDetails']))
                 return
-            self.language_pairs = [(pair['sourceLanguage'], pair['targetLanguage']) for pair in data['responseData']]
+            self.language_pairs = [
+                (pair['sourceLanguage'], pair['targetLanguage']) for pair in data['responseData']
+            ]
         except (ValueError, KeyError, TypeError) as exc:
             # Not JSON, or of another shape (#4438).
             logging.warning("Ignoring an Apertium language list it can't read: %s", exc)
@@ -149,11 +146,11 @@ class TMModel(BaseTMModel):
             return
         target = unescape_html_entities(target)
         if target.endswith("\n") and not query_str.endswith("\n"):
-            target = target[:-1]# chop of \n
+            target = target[:-1]  # chop of \n
         match = {
             'source': query_str,
             'target': target,
-            #l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for optimal vertical display.
+            # l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for optimal vertical display.
             'tmsource': _('Apertium'),
         }
         self.cache[query_str] = [match]

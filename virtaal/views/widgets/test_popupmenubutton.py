@@ -207,8 +207,8 @@ def test_toggled_handlers_fill_the_menu_before_it_opens(monkeypatch):
     assert calls == ['fill', 'popup']
 
 
-
 # close_on_enter() #
+
 
 def _key_event(keyval):
     event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)

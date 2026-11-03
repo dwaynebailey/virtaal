@@ -62,7 +62,6 @@ class CompletionPopup(Gtk.Window):
         self.scrolled_window.add(self.listbox)
         self.add(self.scrolled_window)
 
-
     # METHODS #
     def is_showing(self):
         return self._on_accept is not None
@@ -183,7 +182,6 @@ class CompletionPopup(Gtk.Window):
         rtl = textview.get_direction() == Gtk.TextDirection.RTL
         x, y = popup_position(anchor, (width, height), bounds, rtl)
         self.move(x, y)
-
 
     # EVENT HANDLERS #
     def _on_configure_toplevel(self, toplevel, event):

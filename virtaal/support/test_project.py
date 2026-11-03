@@ -18,6 +18,7 @@ from virtaal.support.projstore import ProjectStore
 
 # split_extensions() #
 
+
 def test_split_extensions_strips_a_single_three_letter_extension():
     assert split_extensions('document.odt') == ('document', 'odt')
 
@@ -56,6 +57,7 @@ def test_split_extensions_returns_nothing_for_a_single_bare_three_letter_name():
 
 # Project.__init__() / __del__() #
 
+
 def test_init_creates_a_default_projstore_when_none_given():
     project = Project()
 
@@ -91,9 +93,14 @@ def test_del_does_nothing_without_a_store():
 
 # trivial proxies #
 
+
 def test_add_source_proxies_to_the_store():
     calls = []
-    store = SimpleNamespace(append_sourcefile=lambda afile, fname: calls.append((afile, fname)) or ('fileobj', 'sources/x.po'))
+    store = SimpleNamespace(
+        append_sourcefile=lambda afile, fname: (
+            calls.append((afile, fname)) or ('fileobj', 'sources/x.po')
+        )
+    )
     project = Project(store)
 
     result = project.add_source('srcfile', 'x.po')
@@ -182,7 +189,9 @@ def test_save_proxies_to_the_store():
 
 def test_update_file_proxies_to_the_store():
     calls = []
-    store = SimpleNamespace(update_file=lambda proj_fname, infile: calls.append((proj_fname, infile)))
+    store = SimpleNamespace(
+        update_file=lambda proj_fname, infile: calls.append((proj_fname, infile))
+    )
     project = Project(store)
 
     project.update_file('sources/x.po', 'newfile')
@@ -193,9 +202,14 @@ def test_update_file_proxies_to_the_store():
 def test_add_source_convert_adds_then_converts_the_added_source():
     calls = []
     store = SimpleNamespace(
-        append_sourcefile=lambda afile, fname: calls.append(('add', afile, fname)) or ('srcfileobj', 'sources/x.odt'))
+        append_sourcefile=lambda afile, fname: (
+            calls.append(('add', afile, fname)) or ('srcfileobj', 'sources/x.odt')
+        )
+    )
     project = Project(store)
-    project.convert_forward = lambda fname, convert_options=None: calls.append(('convert', fname, convert_options)) or ('transfileobj', 'trans/x.odt.xlf')
+    project.convert_forward = lambda fname, convert_options=None: (
+        calls.append(('convert', fname, convert_options)) or ('transfileobj', 'trans/x.odt.xlf')
+    )
 
     result = project.add_source_convert('srcfile', 'x.odt', convert_options={'opt': 1})
 
@@ -206,7 +220,10 @@ def test_add_source_convert_adds_then_converts_the_added_source():
 # Project.convert_forward() - real ProjectStore + real files, with only
 # the external translate.convert.factory.convert() call stubbed out #
 
-def _stub_convert(monkeypatch, tmp_path, ext='xlf', content=b'converted', capture=None, created=None):
+
+def _stub_convert(
+    monkeypatch, tmp_path, ext='xlf', content=b'converted', capture=None, created=None
+):
     def fake_convert(inputfile, template, options, convert_options):
         if capture is not None:
             capture['template'] = template
@@ -216,6 +233,7 @@ def _stub_convert(monkeypatch, tmp_path, ext='xlf', content=b'converted', captur
         if created is not None:
             created.append(out_path)
         return open(out_path, 'rb'), ext
+
     monkeypatch.setattr(project_module.convert_factory, 'convert', fake_convert)
 
 
@@ -283,7 +301,9 @@ def test_convert_forward_reuses_a_previously_recorded_template(tmp_path, monkeyp
     assert getattr(capture['template'], 'name', None) == str(templ_path)
 
 
-def test_convert_forward_finds_the_original_source_as_a_template_via_reverse_lookup(tmp_path, monkeypatch):
+def test_convert_forward_finds_the_original_source_as_a_template_via_reverse_lookup(
+    tmp_path, monkeypatch
+):
     capture = {}
     _stub_convert(monkeypatch, tmp_path, capture=capture)
     src_path = tmp_path / 'greeting.odt'
@@ -321,7 +341,9 @@ def test_convert_forward_removes_the_previous_output_before_reconverting(tmp_pat
     assert 'trans/old-output.xlf' not in store
 
 
-def test_convert_forward_keeps_the_previous_output_when_overwrite_is_disabled(tmp_path, monkeypatch):
+def test_convert_forward_keeps_the_previous_output_when_overwrite_is_disabled(
+    tmp_path, monkeypatch
+):
     _stub_convert(monkeypatch, tmp_path)
     src_path = tmp_path / 'greeting.odt'
     src_path.write_bytes(b'source bytes')
@@ -346,7 +368,9 @@ def test_convert_forward_applies_an_output_suffix(tmp_path, monkeypatch):
     project = Project(store)
     project.add_source(str(src_path))
 
-    _outputfile, output_fname = project.convert_forward('sources/greeting.odt', output_suffix='-translated')
+    _outputfile, output_fname = project.convert_forward(
+        'sources/greeting.odt', output_suffix='-translated'
+    )
 
     assert output_fname == 'trans/greeting-translated.odt.xlf'
 
@@ -364,7 +388,9 @@ def test_convert_forward_collapses_a_redundant_double_extension(tmp_path, monkey
     assert output_fname == 'targets/doc.odt'
 
 
-def test_convert_forward_falls_back_to_the_current_directory_without_a_real_input_file(tmp_path, monkeypatch):
+def test_convert_forward_falls_back_to_the_current_directory_without_a_real_input_file(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     _stub_convert(monkeypatch, tmp_path)
     store = ProjectStore()

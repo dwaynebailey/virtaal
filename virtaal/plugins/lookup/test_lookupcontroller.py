@@ -19,14 +19,17 @@ def _bare_controller(**kwargs):
 
 def test_init_builds_the_disabled_model_list_and_loads_plugins(monkeypatch):
     monkeypatch.setattr(
-        'virtaal.plugins.lookup.lookupcontroller.LookupView', lambda controller: SimpleNamespace())
+        'virtaal.plugins.lookup.lookupcontroller.LookupView', lambda controller: SimpleNamespace()
+    )
     captured = {}
 
     def fake_for_backend(owner, classname, category, interface, get_disabled):
         captured['args'] = (owner, classname, category, interface, get_disabled)
         return SimpleNamespace(load_plugins=lambda: captured.setdefault('loaded', True))
+
     monkeypatch.setattr(
-        'virtaal.controllers.plugincontroller.PluginController.for_backend', fake_for_backend)
+        'virtaal.controllers.plugincontroller.PluginController.for_backend', fake_for_backend
+    )
 
     plugin = SimpleNamespace(main_controller=object())
     config = {'disabled_models': ['weblookup']}
@@ -44,10 +47,12 @@ def test_init_builds_the_disabled_model_list_and_loads_plugins(monkeypatch):
 
 def test_init_defaults_disabled_models_to_empty_when_not_configured(monkeypatch):
     monkeypatch.setattr(
-        'virtaal.plugins.lookup.lookupcontroller.LookupView', lambda controller: SimpleNamespace())
+        'virtaal.plugins.lookup.lookupcontroller.LookupView', lambda controller: SimpleNamespace()
+    )
     monkeypatch.setattr(
         'virtaal.controllers.plugincontroller.PluginController.for_backend',
-        lambda *a: SimpleNamespace(load_plugins=lambda: None))
+        lambda *a: SimpleNamespace(load_plugins=lambda: None),
+    )
 
     controller = LookupController(SimpleNamespace(main_controller=object()), {})
 

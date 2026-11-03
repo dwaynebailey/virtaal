@@ -103,6 +103,7 @@ def test_add_dialog_derives_an_id_from_the_typed_name(monkeypatch):
         dialog.ent_url_name.set_text('My Site')
         dialog.ent_url.set_text('http://example.com/?q=%(query)s')
         return Gtk.ResponseType.OK
+
     monkeypatch.setattr(dialog.dialog, 'run', _type_and_confirm)
 
     url = dialog.run()
@@ -110,13 +111,15 @@ def test_add_dialog_derives_an_id_from_the_typed_name(monkeypatch):
     assert url['id'] == 'my_site'
 
 
-
-@pytest.mark.parametrize('url, ok', [
-    (' ', False),
-    ('\t', False),
-    ('\n', False),
-    ('http://example.com/?q=%(query)s', True),
-])
+@pytest.mark.parametrize(
+    'url, ok',
+    [
+        (' ', False),
+        ('\t', False),
+        ('\n', False),
+        ('http://example.com/?q=%(query)s', True),
+    ],
+)
 def test_add_dialog_needs_a_url_with_text(monkeypatch, url, ok):
     monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
     dialog = WebLookupAddDialog(parent=None)
@@ -127,6 +130,7 @@ def test_add_dialog_needs_a_url_with_text(monkeypatch, url, ok):
         dialog.ent_url.set_text(url)
         seen['ok'] = dialog.btn_url_ok.get_sensitive()
         return Gtk.ResponseType.CANCEL
+
     monkeypatch.setattr(dialog.dialog, 'run', _type_and_confirm)
 
     dialog.run()
@@ -142,11 +146,13 @@ def test_add_dialog_saves_the_name_and_url_trimmed(monkeypatch):
         dialog.ent_url_name.set_text(' My Site ')
         dialog.ent_url.set_text(' http://example.com/?q=%(query)s\n')
         return Gtk.ResponseType.OK
+
     monkeypatch.setattr(dialog.dialog, 'run', _type_and_confirm)
 
     url = dialog.run()
 
     assert (url['display_name'], url['url']) == ('My Site', 'http://example.com/?q=%(query)s')
+
 
 def test_config_dialog_opens_over_its_parent_with_its_icon():
     parent = Gtk.Window()
@@ -168,18 +174,23 @@ def test_a_lookup_added_in_the_config_dialog_is_listed(monkeypatch):
         dialog.add_dialog.ent_url_name.set_text('My Site')
         dialog.add_dialog.ent_url.set_text('https://example.org/?q=%(query)s')
         return Gtk.ResponseType.OK
+
     monkeypatch.setattr(dialog.add_dialog.dialog, 'run', _type_and_confirm)
 
     dialog.btn_url_add.clicked()
 
     assert dialog.urldata[-1] == {
-        'id': 'my_site', 'display_name': 'My Site', 'url': 'https://example.org/?q=%(query)s',
-        'quoted': False, 'enabled': True,
+        'id': 'my_site',
+        'display_name': 'My Site',
+        'url': 'https://example.org/?q=%(query)s',
+        'quoted': False,
+        'enabled': True,
     }
     assert dialog.lst_urls[-1][dialog.COL_NAME] == 'My Site'
 
 
 # Disabling a web look-up
+
 
 def _model(monkeypatch, tmp_path):
     monkeypatch.setattr(weblookup.pan_app, 'get_config_dir', lambda: str(tmp_path))
@@ -200,8 +211,18 @@ def test_disabled_defaults_are_shipped_disabled(monkeypatch, tmp_path):
 def test_create_menu_items_skips_a_disabled_lookup(monkeypatch, tmp_path):
     model = _model(monkeypatch, tmp_path)
     model.URLDATA = [
-        {'display_name': 'On', 'url': 'http://example.com/?q=%(query)s', 'quoted': False, 'enabled': True},
-        {'display_name': 'Off', 'url': 'http://example.org/?q=%(query)s', 'quoted': False, 'enabled': False},
+        {
+            'display_name': 'On',
+            'url': 'http://example.com/?q=%(query)s',
+            'quoted': False,
+            'enabled': True,
+        },
+        {
+            'display_name': 'Off',
+            'url': 'http://example.org/?q=%(query)s',
+            'quoted': False,
+            'enabled': False,
+        },
     ]
 
     items = model.create_menu_items('word', 'source', 'en', 'en', None)
@@ -212,7 +233,9 @@ def test_create_menu_items_skips_a_disabled_lookup(monkeypatch, tmp_path):
 def test_create_menu_items_treats_a_missing_enabled_key_as_enabled(monkeypatch, tmp_path):
     # A user's own custom entry, saved before this key existed.
     model = _model(monkeypatch, tmp_path)
-    model.URLDATA = [{'display_name': 'Custom', 'url': 'http://example.com/?q=%(query)s', 'quoted': False}]
+    model.URLDATA = [
+        {'display_name': 'Custom', 'url': 'http://example.com/?q=%(query)s', 'quoted': False}
+    ]
 
     items = model.create_menu_items('word', 'source', 'en', 'en', None)
 
@@ -221,7 +244,9 @@ def test_create_menu_items_treats_a_missing_enabled_key_as_enabled(monkeypatch, 
 
 def _lookup_urls(monkeypatch, tmp_path, urls, query='word', role='source'):
     model = _model(monkeypatch, tmp_path)
-    model.URLDATA = [{'display_name': str(n), 'url': url, 'quoted': False} for n, url in enumerate(urls)]
+    model.URLDATA = [
+        {'display_name': str(n), 'url': url, 'quoted': False} for n, url in enumerate(urls)
+    ]
     opened = []
     monkeypatch.setattr(model, '_on_lookup', lambda item, url: opened.append(url))
     for item in model.create_menu_items(query, role, 'en', 'af', None):
@@ -231,13 +256,17 @@ def _lookup_urls(monkeypatch, tmp_path, urls, query='word', role='source'):
 
 def test_create_menu_items_keeps_a_literal_percent_in_a_url(monkeypatch, tmp_path):
     # #4350: one of these used to raise, which dropped every look-up.
-    opened = _lookup_urls(monkeypatch, tmp_path, [
-        'https://example.org/search?q=%(query)s&in=my%20bookmarks',
-        'https://example.org/100%/?q=%(query)s',
-        'https://example.org/my%20site?q=%(query)s',
-        'https://example.org/?q=%(query)s&name=%(name)s&n=%s',
-        'https://example.org/?q=%(query)s',
-    ])
+    opened = _lookup_urls(
+        monkeypatch,
+        tmp_path,
+        [
+            'https://example.org/search?q=%(query)s&in=my%20bookmarks',
+            'https://example.org/100%/?q=%(query)s',
+            'https://example.org/my%20site?q=%(query)s',
+            'https://example.org/?q=%(query)s&name=%(name)s&n=%s',
+            'https://example.org/?q=%(query)s',
+        ],
+    )
 
     assert opened == [
         'https://example.org/search?q=word&in=my%20bookmarks',
@@ -249,9 +278,15 @@ def test_create_menu_items_keeps_a_literal_percent_in_a_url(monkeypatch, tmp_pat
 
 
 def test_create_menu_items_fills_every_placeholder_and_a_doubled_percent(monkeypatch, tmp_path):
-    opened = _lookup_urls(monkeypatch, tmp_path, [
-        'https://%(querylang)s.example.org/%(nonquerylang)s/%(srclang)s-%(tgtlang)s/%(query)s?off=50%%',
-    ], query='a b', role='target')
+    opened = _lookup_urls(
+        monkeypatch,
+        tmp_path,
+        [
+            'https://%(querylang)s.example.org/%(nonquerylang)s/%(srclang)s-%(tgtlang)s/%(query)s?off=50%%',
+        ],
+        query='a b',
+        role='target',
+    )
 
     assert opened == ['https://af.example.org/en/en-af/a%20b?off=50%']
 
@@ -275,7 +310,8 @@ def test_activating_a_lookup_opens_its_url_in_the_browser(monkeypatch, tmp_path)
 def test_load_urldata_defaults_a_saved_entry_without_enabled_to_enabled(monkeypatch, tmp_path):
     monkeypatch.setattr(weblookup.pan_app, 'get_config_dir', lambda: str(tmp_path))
     (tmp_path / 'weblookup.ini').write_text(
-        '[Old Custom]\ndisplay_name = Old Custom\nurl = http://example.com/?q=%(query)s\nquoted = False\n')
+        '[Old Custom]\ndisplay_name = Old Custom\nurl = http://example.com/?q=%(query)s\nquoted = False\n'
+    )
 
     model = LookupModel('weblookup', controller=None)
 
@@ -289,7 +325,8 @@ def test_load_urldata_ignores_an_entry_without_a_name_or_url(monkeypatch, tmp_pa
     (tmp_path / 'weblookup.ini').write_text(
         '[No Name]\nurl = http://example.com/?q=%(query)s\n'
         '[No URL]\ndisplay_name = No URL\n'
-        '[Good]\ndisplay_name = Good\nurl = http://example.org/?q=%(query)s\n')
+        '[Good]\ndisplay_name = Good\nurl = http://example.org/?q=%(query)s\n'
+    )
 
     model = LookupModel('weblookup', controller=None)
 
@@ -297,13 +334,15 @@ def test_load_urldata_ignores_an_entry_without_a_name_or_url(monkeypatch, tmp_pa
     assert 'Good' in names and 'No URL' not in names
     assert caplog.text.count('without a name or URL') == 2
 
+
 def test_load_urldata_adds_new_defaults_missing_from_a_saved_config(monkeypatch, tmp_path):
     # A config saved before Bing/Yahoo existed only has the original
     # three entries - they shouldn't vanish just because a user
     # already had a weblookup.ini.
     monkeypatch.setattr(weblookup.pan_app, 'get_config_dir', lambda: str(tmp_path))
     (tmp_path / 'weblookup.ini').write_text(
-        '[Google]\ndisplay_name = Google\nurl = http://www.google.com/search?q=%(query)s\nquoted = True\nenabled = True\n')
+        '[Google]\ndisplay_name = Google\nurl = http://www.google.com/search?q=%(query)s\nquoted = True\nenabled = True\n'
+    )
 
     model = LookupModel('weblookup', controller=None)
 
@@ -364,7 +403,9 @@ def test_load_urldata_takes_a_builtins_name_and_url_from_the_code(monkeypatch, t
     monkeypatch.setattr(weblookup.pan_app, 'get_config_dir', lambda: str(tmp_path))
     (tmp_path / 'weblookup.ini').write_text(
         '[virtaal-google]\nid = virtaal-google\ndisplay_name = ﺝﻮﺠﻟ\n'
-        'url = http://old.example.com/?q=%(query)s\nquoted = False\nenabled = False\n', encoding='utf-8')
+        'url = http://old.example.com/?q=%(query)s\nquoted = False\nenabled = False\n',
+        encoding='utf-8',
+    )
 
     model = LookupModel('weblookup', controller=None)
 
@@ -377,7 +418,9 @@ def test_load_urldata_migrates_a_beta3_bare_builtin_id(monkeypatch, tmp_path):
     monkeypatch.setattr(weblookup.pan_app, 'get_config_dir', lambda: str(tmp_path))
     (tmp_path / 'weblookup.ini').write_text(
         '[google]\nid = google\ndisplay_name = ﺝﻮﺠﻟ\n'
-        'url = http://www.google.com/search?q=%(query)s\nquoted = True\nenabled = False\n', encoding='utf-8')
+        'url = http://www.google.com/search?q=%(query)s\nquoted = True\nenabled = False\n',
+        encoding='utf-8',
+    )
 
     model = LookupModel('weblookup', controller=None)
 
@@ -396,13 +439,15 @@ def test_load_urldata_migrates_a_beta3_http_url_to_the_current_https_one(monkeyp
     monkeypatch.setattr(weblookup.pan_app, 'get_config_dir', lambda: str(tmp_path))
     (tmp_path / 'weblookup.ini').write_text(
         '[bing]\nid = bing\ndisplay_name = Bing\n'
-        'url = http://www.bing.com/search?q=%(query)s\nquoted = True\nenabled = True\n')
+        'url = http://www.bing.com/search?q=%(query)s\nquoted = True\nenabled = True\n'
+    )
 
     model = LookupModel('weblookup', controller=None)
 
     bing = [u for u in model.URLDATA if u['display_name'] == 'Bing']
     assert [(u['id'], u['url'], u['enabled']) for u in bing] == [
-        ('virtaal-bing', 'https://www.bing.com/search?q=%(query)s', True)]
+        ('virtaal-bing', 'https://www.bing.com/search?q=%(query)s', True)
+    ]
 
 
 def test_load_urldata_keeps_a_beta3_custom_entry_that_shared_a_builtins_id(monkeypatch, tmp_path):
@@ -411,7 +456,8 @@ def test_load_urldata_keeps_a_beta3_custom_entry_that_shared_a_builtins_id(monke
     monkeypatch.setattr(weblookup.pan_app, 'get_config_dir', lambda: str(tmp_path))
     (tmp_path / 'weblookup.ini').write_text(
         '[google]\nid = google\ndisplay_name = Google\n'
-        'url = https://www.google.co.za/search?q=%(query)s\nquoted = False\nenabled = True\n')
+        'url = https://www.google.co.za/search?q=%(query)s\nquoted = False\nenabled = True\n'
+    )
 
     model = LookupModel('weblookup', controller=None)
 
@@ -426,7 +472,9 @@ def test_load_urldata_resolves_a_pre_id_save_by_its_url(monkeypatch, tmp_path):
     # UI was. The URL still identifies the built-in.
     monkeypatch.setattr(weblookup.pan_app, 'get_config_dir', lambda: str(tmp_path))
     (tmp_path / 'weblookup.ini').write_text(
-        '[ﺝﻮﺠﻟ]\ndisplay_name = ﺝﻮﺠﻟ\nurl = http://www.google.com/search?q=%(query)s\nquoted = True\n', encoding='utf-8')
+        '[ﺝﻮﺠﻟ]\ndisplay_name = ﺝﻮﺠﻟ\nurl = http://www.google.com/search?q=%(query)s\nquoted = True\n',
+        encoding='utf-8',
+    )
 
     model = LookupModel('weblookup', controller=None)
 
@@ -445,7 +493,8 @@ def test_load_urldata_drops_a_builtin_no_longer_in_the_code(monkeypatch, tmp_pat
 def test_load_urldata_resolves_a_legacy_saves_id_by_display_name(monkeypatch, tmp_path):
     monkeypatch.setattr(weblookup.pan_app, 'get_config_dir', lambda: str(tmp_path))
     (tmp_path / 'weblookup.ini').write_text(
-        '[Google]\ndisplay_name = Google\nurl = http://www.google.com/search?q=%(query)s\nquoted = True\nenabled = True\n')
+        '[Google]\ndisplay_name = Google\nurl = http://www.google.com/search?q=%(query)s\nquoted = True\nenabled = True\n'
+    )
 
     model = LookupModel('weblookup', controller=None)
 
@@ -466,10 +515,17 @@ def test_configure_saves_immediately_rather_than_waiting_for_destroy(monkeypatch
             # dialog - a real dialog's urldata only reflects this once
             # run() returns, not before.
             self.urldata = [
-                {'display_name': 'Only', 'url': 'http://example.com/?q=%(query)s', 'quoted': False, 'enabled': True},
+                {
+                    'display_name': 'Only',
+                    'url': 'http://example.com/?q=%(query)s',
+                    'quoted': False,
+                    'enabled': True,
+                },
             ]
 
-    monkeypatch.setattr(weblookup, 'WebLookupConfigDialog', lambda parent: _FakeConfigureDialog(parent))
+    monkeypatch.setattr(
+        weblookup, 'WebLookupConfigDialog', lambda parent: _FakeConfigureDialog(parent)
+    )
     parent = type('_FakeParent', (), {'get_toplevel': lambda self: None})()
 
     model.configure(parent)
@@ -480,12 +536,19 @@ def test_configure_saves_immediately_rather_than_waiting_for_destroy(monkeypatch
 
 # Built-ins are locked to enable/disable
 
+
 def _builtin():
     return dict(LookupModel.URLDATA[0])
 
 
 def _custom():
-    return {'id': 'mine', 'display_name': 'Mine', 'url': 'http://example.com', 'quoted': False, 'enabled': True}
+    return {
+        'id': 'mine',
+        'display_name': 'Mine',
+        'url': 'http://example.com',
+        'quoted': False,
+        'enabled': True,
+    }
 
 
 def test_quote_toggle_is_ignored_on_a_builtin():
@@ -527,13 +590,16 @@ def test_slugify_collapses_whitespace():
     assert weblookup._slugify(' My   Site ') == 'my_site'
 
 
-@pytest.mark.parametrize('name, taken, ok', [
-    ('My Site', set(), True),
-    ('Virtaal-Google', set(), False),
-    ('bing ', {'bing'}, False),
-    ('My  site', {'my_site'}, False),
-    ('Google', {'virtaal-google'}, True),
-])
+@pytest.mark.parametrize(
+    'name, taken, ok',
+    [
+        ('My Site', set(), True),
+        ('Virtaal-Google', set(), False),
+        ('bing ', {'bing'}, False),
+        ('My  site', {'my_site'}, False),
+        ('Google', {'virtaal-google'}, True),
+    ],
+)
 def test_add_dialog_rejects_a_reserved_or_taken_name(monkeypatch, name, taken, ok):
     monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
     dialog = WebLookupAddDialog(parent=None)
@@ -545,6 +611,7 @@ def test_add_dialog_rejects_a_reserved_or_taken_name(monkeypatch, name, taken, o
         seen['ok'] = dialog.btn_url_ok.get_sensitive()
         seen['error'] = dialog.lbl_url_name_error.get_visible()
         return Gtk.ResponseType.CANCEL
+
     monkeypatch.setattr(dialog.dialog, 'run', _type_and_confirm)
 
     dialog.run(taken)

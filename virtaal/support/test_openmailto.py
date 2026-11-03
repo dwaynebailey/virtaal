@@ -41,6 +41,7 @@ def reloaded_as():
 
 # BaseController #
 
+
 def test_base_controller_open_is_not_implemented():
     controller = openmailto.BaseController('generic')
 
@@ -49,6 +50,7 @@ def test_base_controller_open_is_not_implemented():
 
 
 # Controller._invoke() / Controller.open() - real subprocess launching #
+
 
 def test_invoke_uses_windows_startupinfo_and_disables_closefds(monkeypatch):
     # subprocess.STARTUPINFO/STARTF_USESHOWWINDOW don't exist as
@@ -61,15 +63,19 @@ def test_invoke_uses_windows_startupinfo_and_disables_closefds(monkeypatch):
     class FakeStartupInfo:
         def __init__(self):
             self.dwFlags = 0
+
     monkeypatch.setattr(subprocess, 'STARTUPINFO', FakeStartupInfo, raising=False)
     monkeypatch.setattr(subprocess, 'STARTF_USESHOWWINDOW', 1, raising=False)
 
     popen_calls = []
+
     class FakePopen:
         def __init__(self, *args, **kwargs):
             popen_calls.append((args, kwargs))
+
         def wait(self):
             return 0
+
     monkeypatch.setattr(subprocess, 'Popen', FakePopen)
 
     controller = openmailto.Controller('start')
@@ -143,6 +149,7 @@ def test_open_returns_false_when_the_program_does_not_exist():
 
 # open() - module-level dispatcher #
 
+
 def test_open_delegates_to_the_platforms_registered_controller(monkeypatch):
     calls = []
     monkeypatch.setattr(openmailto, '_open', lambda filename: calls.append(filename) or True)
@@ -154,6 +161,7 @@ def test_open_delegates_to_the_platforms_registered_controller(monkeypatch):
 
 
 # _fix_addersses() #
+
 
 def test_fix_addresses_drops_empty_header_values():
     result = openmailto._fix_addersses(to='', cc=None, subject='Hello')
@@ -191,14 +199,20 @@ def test_fix_addresses_leaves_unrelated_kwargs_untouched():
 
 # mailto_format() #
 
+
 def test_mailto_format_builds_a_plain_address_only_uri():
     assert openmailto.mailto_format(address='a@example.com') == 'mailto:a@example.com'
 
 
 def test_mailto_format_includes_to_cc_bcc_subject_and_body():
     result = openmailto.mailto_format(
-        address='a@example.com', to='b@example.com', cc='c@example.com',
-        bcc='d@example.com', subject='Hi', body='Hello there')
+        address='a@example.com',
+        to='b@example.com',
+        cc='c@example.com',
+        bcc='d@example.com',
+        subject='Hi',
+        body='Hello there',
+    )
 
     assert result.startswith('mailto:a@example.com?')
     assert 'to=b@example.com' in result
@@ -220,9 +234,12 @@ def test_mailto_format_defaults_the_address_to_empty():
 
 # mailto() #
 
+
 def test_mailto_builds_the_uri_and_opens_it(monkeypatch):
     built = []
-    monkeypatch.setattr(openmailto, 'mailto_format', lambda **kwargs: built.append(kwargs) or 'mailto:built')
+    monkeypatch.setattr(
+        openmailto, 'mailto_format', lambda **kwargs: built.append(kwargs) or 'mailto:built'
+    )
     opened = []
     monkeypatch.setattr(openmailto, 'open', lambda uri: opened.append(uri) or True)
 
@@ -236,6 +253,7 @@ def test_mailto_builds_the_uri_and_opens_it(monkeypatch):
 
 # Windows branch (module-level Start controller / os.startfile) #
 
+
 def test_windows_branch_registers_a_start_controller_using_os_startfile(reloaded_as, monkeypatch):
     module = reloaded_as(is_windows=True, is_mac=False)
     called = []
@@ -247,11 +265,14 @@ def test_windows_branch_registers_a_start_controller_using_os_startfile(reloaded
     assert called == ['somefile.po']
 
 
-def test_windows_start_controller_returns_false_when_nothing_handles_the_file(reloaded_as, monkeypatch):
+def test_windows_start_controller_returns_false_when_nothing_handles_the_file(
+    reloaded_as, monkeypatch
+):
     module = reloaded_as(is_windows=True, is_mac=False)
 
     def raise_missing(filename):
         raise OSError('No application is associated with the specified file')
+
     monkeypatch.setattr(module.os, 'startfile', raise_missing, raising=False)
 
     assert module.open('somefile.po') is False
@@ -259,8 +280,11 @@ def test_windows_start_controller_returns_false_when_nothing_handles_the_file(re
 
 # Unix branch (module-level KfmClient/detect_desktop_environment/get) #
 
+
 def test_unix_branch_opens_with_xdg_open(reloaded_as, monkeypatch):
-    monkeypatch.setattr(shutil, 'which', lambda cmd: '/usr/bin/xdg-open' if cmd == 'xdg-open' else None)
+    monkeypatch.setattr(
+        shutil, 'which', lambda cmd: '/usr/bin/xdg-open' if cmd == 'xdg-open' else None
+    )
 
     module = reloaded_as(is_windows=False, is_mac=False)
 
@@ -272,7 +296,9 @@ def test_unix_branch_opens_with_xdg_open_without_an_x_display(reloaded_as, monke
     # #4338: on Wayland without XWayland, desktop detection ran xprop,
     # which can't reach an X display.
     monkeypatch.delenv('DISPLAY', raising=False)
-    monkeypatch.setattr(shutil, 'which', lambda cmd: '/usr/bin/xdg-open' if cmd == 'xdg-open' else None)
+    monkeypatch.setattr(
+        shutil, 'which', lambda cmd: '/usr/bin/xdg-open' if cmd == 'xdg-open' else None
+    )
 
     commands = []
     monkeypatch.setattr(subprocess, 'check_output', lambda cmd, *a, **kw: commands.append(cmd))
@@ -289,5 +315,6 @@ def test_unix_branch_falls_back_to_webbrowser_without_xdg_open(reloaded_as, monk
     module = reloaded_as(is_windows=False, is_mac=False)
 
     import webbrowser
+
     assert module._controllers == {}
     assert module._open is webbrowser.open

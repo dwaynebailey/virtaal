@@ -62,14 +62,20 @@ def test_open_file_shows_a_translated_error_message_on_failure():
     controller = MainController.__new__(MainController)
     controller._opening_file = False
     controller._placeables_controller = object()
-    controller._store_controller = SimpleNamespace(is_modified=lambda: False, open_file=raise_missing, store=None)
+    controller._store_controller = SimpleNamespace(
+        is_modified=lambda: False, open_file=raise_missing, store=None
+    )
     errors = []
-    controller.view = SimpleNamespace(busy=_not_busy, show_error_dialog=lambda message, parent=None: errors.append(message))
+    controller.view = SimpleNamespace(
+        busy=_not_busy, show_error_dialog=lambda message, parent=None: errors.append(message)
+    )
 
     result = controller.open_file('missing.po')
 
     assert result is False
-    assert errors == ['missing.po:\nCould not open file.\n\nThe file does not exist.\n\nTry opening a different file.']
+    assert errors == [
+        'missing.po:\nCould not open file.\n\nThe file does not exist.\n\nTry opening a different file.'
+    ]
     assert controller.last_open_error == 'The file does not exist.'
 
 
@@ -110,7 +116,9 @@ def test_quit_closes_every_open_dialog_not_just_the_first(monkeypatch):
 
     controller = MainController.__new__(MainController)
     controller.view = SimpleNamespace(main_window=main_window)
-    monkeypatch.setattr(Gtk.Window, 'list_toplevels', lambda: [main_window, outer_dialog, inner_dialog])
+    monkeypatch.setattr(
+        Gtk.Window, 'list_toplevels', lambda: [main_window, outer_dialog, inner_dialog]
+    )
     responses = []
     monkeypatch.setattr(outer_dialog, 'response', lambda r: responses.append((outer_dialog, r)))
     monkeypatch.setattr(inner_dialog, 'response', lambda r: responses.append((inner_dialog, r)))
@@ -139,7 +147,9 @@ def test_open_file_with_no_filename_actually_opens_the_chosen_one(monkeypatch):
         store=None,
     )
     controller._mode_controller = SimpleNamespace(refresh_mode=lambda: None)
-    controller.view = SimpleNamespace(busy=_not_busy, open_file=lambda: controller.open_file('chosen.po'))
+    controller.view = SimpleNamespace(
+        busy=_not_busy, open_file=lambda: controller.open_file('chosen.po')
+    )
 
     controller.open_file(None)
 
@@ -274,7 +284,9 @@ def test_save_file_clears_force_saveas_after_a_successful_save():
     assert controller.get_force_saveas() is False
 
 
-@pytest.mark.skipif(platform.is_windows, reason="os.chmod doesn't model POSIX write permission on Windows")
+@pytest.mark.skipif(
+    platform.is_windows, reason="os.chmod doesn't model POSIX write permission on Windows"
+)
 def test_save_file_rejects_a_readonly_target_before_ever_calling_save(tmp_path):
     # A Save As target can be read-only too (the original file, confirmed
     # to replace) - must fail here, before any header-info prompts (#517).
@@ -283,7 +295,9 @@ def test_save_file_rejects_a_readonly_target_before_ever_calling_save(tmp_path):
     real_file.write_text("")
     os.chmod(real_file, 0o444)
     errors = []
-    controller.view = SimpleNamespace(show_error_dialog=lambda message, parent=None: errors.append(message))
+    controller.view = SimpleNamespace(
+        show_error_dialog=lambda message, parent=None: errors.append(message)
+    )
 
     try:
         result = controller.save_file(filename=str(real_file))
@@ -298,7 +312,9 @@ def test_save_file_rejects_a_readonly_target_before_ever_calling_save(tmp_path):
 def test_do_save_file_shows_an_error_dialog_on_oserror():
     controller = _controller_for_save(save_raises=OSError('disk full'))
     errors = []
-    controller.view = SimpleNamespace(show_error_dialog=lambda message, parent=None: errors.append(message))
+    controller.view = SimpleNamespace(
+        show_error_dialog=lambda message, parent=None: errors.append(message)
+    )
 
     result = controller.save_file(filename='explicit.po')
 
@@ -316,7 +332,9 @@ def test_do_save_file_shows_an_error_dialog_on_a_generic_exception(monkeypatch):
     _translate_only(monkeypatch, "Could not save file.\n\n%(error_message)s")
     controller = _controller_for_save(save_raises=ValueError('unexpected'))
     errors = []
-    controller.view = SimpleNamespace(show_error_dialog=lambda message, parent=None: errors.append(message))
+    controller.view = SimpleNamespace(
+        show_error_dialog=lambda message, parent=None: errors.append(message)
+    )
 
     result = controller.save_file(filename='explicit.po')
 
@@ -370,7 +388,10 @@ def test_show_template_update_notice_delegates_to_the_view():
     shown = []
     controller = MainController.__new__(MainController)
     controller.view = SimpleNamespace(
-        show_template_update_notice=lambda title, before, after: shown.append((title, before, after)))
+        show_template_update_notice=lambda title, before, after: shown.append(
+            (title, before, after)
+        )
+    )
 
     controller.show_template_update_notice('File Updated', {'total': 1}, {'total': 2})
 
@@ -378,6 +399,7 @@ def test_show_template_update_notice_delegates_to_the_view():
 
 
 # open_file()'s remaining branches: save-confirm, file:// stripping, reload-prompt #
+
 
 def _controller_for_open_file(is_modified=False, store=None):
     controller = MainController.__new__(MainController)
@@ -404,7 +426,9 @@ def test_open_file_loads_the_file_while_the_view_shows_it_is_busy():
         calls.append('idle')
 
     controller.view.busy = busy
-    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: calls.append('opened')
+    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: calls.append(
+        'opened'
+    )
     controller._mode_controller.refresh_mode = lambda: calls.append('refreshed')
 
     assert controller.open_file('/home/user/af.xlf') is True
@@ -414,7 +438,9 @@ def test_open_file_loads_the_file_while_the_view_shows_it_is_busy():
 def test_open_file_returns_false_when_the_user_cancels_the_save_prompt():
     controller = _controller_for_open_file(is_modified=True)
     controller.view.show_save_confirm_dialog = lambda: 'cancel'
-    controller._store_controller.open_file = lambda *a, **k: pytest.fail('must not open without resolving the save prompt')
+    controller._store_controller.open_file = lambda *a, **k: pytest.fail(
+        'must not open without resolving the save prompt'
+    )
 
     assert controller.open_file('other.po') is False
 
@@ -424,7 +450,9 @@ def test_open_file_saves_first_when_the_user_confirms_the_save_prompt():
     controller = _controller_for_open_file(is_modified=True)
     controller.view.show_save_confirm_dialog = lambda: 'save'
     controller.save_file = lambda: calls.append('saved') or True
-    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: calls.append(('opened', filename))
+    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: calls.append(
+        ('opened', filename)
+    )
 
     result = controller.open_file('other.po')
 
@@ -436,7 +464,9 @@ def test_open_file_returns_false_when_the_save_itself_fails():
     controller = _controller_for_open_file(is_modified=True)
     controller.view.show_save_confirm_dialog = lambda: 'save'
     controller.save_file = lambda: False
-    controller._store_controller.open_file = lambda *a, **k: pytest.fail('must not open after a failed save')
+    controller._store_controller.open_file = lambda *a, **k: pytest.fail(
+        'must not open after a failed save'
+    )
 
     assert controller.open_file('other.po') is False
 
@@ -445,7 +475,9 @@ def test_open_file_strips_a_windows_file_uri(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', True)
     opened = []
     controller = _controller_for_open_file()
-    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: opened.append(filename)
+    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: opened.append(
+        filename
+    )
 
     controller.open_file('file:///C:/translations/af.po')
 
@@ -456,7 +488,9 @@ def test_open_file_strips_a_posix_file_uri(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', False)
     opened = []
     controller = _controller_for_open_file()
-    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: opened.append(filename)
+    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: opened.append(
+        filename
+    )
 
     controller.open_file('file:///home/user/af.po')
 
@@ -474,7 +508,9 @@ def test_open_file_reloads_the_currently_open_file_on_confirmation():
     opened = []
     controller = _controller_for_open_file(store=SimpleNamespace(get_filename=lambda: 'current.po'))
     controller.view.show_prompt_dialog = lambda **kwargs: True
-    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: opened.append(filename)
+    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: opened.append(
+        filename
+    )
 
     result = controller.open_file('current.po')
 
@@ -483,6 +519,7 @@ def test_open_file_reloads_the_currently_open_file_on_confirmation():
 
 
 # open_tutorial() #
+
 
 def test_open_tutorial_opens_a_localized_copy_and_cleans_up_afterwards(monkeypatch):
     tmpdir = tempfile.mkdtemp()
@@ -501,6 +538,7 @@ def test_open_tutorial_opens_a_localized_copy_and_cleans_up_afterwards(monkeypat
 
 
 # update_file() #
+
 
 def _controller_for_update_file(is_modified=False, store=None):
     controller = MainController.__new__(MainController)
@@ -529,7 +567,9 @@ def test_update_file_succeeds_and_refreshes_the_mode():
 def test_update_file_returns_false_when_the_user_cancels_the_save_prompt():
     controller = _controller_for_update_file(is_modified=True)
     controller.view.show_save_confirm_dialog = lambda: 'cancel'
-    controller._store_controller.update_file = lambda *a: pytest.fail('must not update without resolving the save prompt')
+    controller._store_controller.update_file = lambda *a: pytest.fail(
+        'must not update without resolving the save prompt'
+    )
 
     assert controller.update_file('template.pot') is False
 
@@ -539,7 +579,9 @@ def test_update_file_saves_first_when_the_user_confirms_the_save_prompt():
     controller = _controller_for_update_file(is_modified=True)
     controller.view.show_save_confirm_dialog = lambda: 'save'
     controller.save_file = lambda: calls.append('saved') or True
-    controller._store_controller.update_file = lambda filename, uri: calls.append(('update', filename))
+    controller._store_controller.update_file = lambda filename, uri: calls.append(
+        ('update', filename)
+    )
 
     result = controller.update_file('template.pot')
 
@@ -551,7 +593,9 @@ def test_update_file_returns_false_when_the_save_itself_fails():
     controller = _controller_for_update_file(is_modified=True)
     controller.view.show_save_confirm_dialog = lambda: 'save'
     controller.save_file = lambda: False
-    controller._store_controller.update_file = lambda *a: pytest.fail('must not update after a failed save')
+    controller._store_controller.update_file = lambda *a: pytest.fail(
+        'must not update after a failed save'
+    )
 
     assert controller.update_file('template.pot') is False
 
@@ -570,6 +614,7 @@ def test_update_file_shows_an_error_on_failure():
 
     def raise_missing(filename, uri):
         raise OSError('nope')
+
     controller._store_controller.update_file = raise_missing
 
     result = controller.update_file('missing.pot')
@@ -580,10 +625,13 @@ def test_update_file_shows_an_error_on_failure():
 
 # revert_file() #
 
+
 def test_revert_file_does_nothing_when_the_user_declines_to_confirm():
     controller = MainController.__new__(MainController)
     controller.view = SimpleNamespace(show_prompt_dialog=lambda **kwargs: False)
-    controller._store_controller = SimpleNamespace(revert_file=lambda: pytest.fail('must not revert without confirmation'))
+    controller._store_controller = SimpleNamespace(
+        revert_file=lambda: pytest.fail('must not revert without confirmation')
+    )
 
     controller.revert_file()
 
@@ -608,6 +656,7 @@ def test_revert_file_shows_an_error_on_failure():
 
     def raise_missing():
         raise OSError('gone')
+
     controller._store_controller = SimpleNamespace(revert_file=raise_missing)
 
     controller.revert_file(filename='was.po')
@@ -616,6 +665,7 @@ def test_revert_file_shows_an_error_on_failure():
 
 
 # close_file()'s remaining branch #
+
 
 def test_close_file_does_not_close_when_the_save_itself_fails():
     calls = []
@@ -634,6 +684,7 @@ def test_close_file_does_not_close_when_the_save_itself_fails():
 
 
 # binary_export()'s remaining branches #
+
 
 def test_binary_export_falls_back_to_the_store_filename_without_a_bundle_filename():
     controller = _controller_for_export(bundle_filename=None)
@@ -657,19 +708,28 @@ def test_binary_export_shows_an_error_and_returns_false_on_a_generic_exception(m
 
 # get_translator_details() #
 
+
 def test_get_translator_details_returns_the_configured_details(monkeypatch):
-    monkeypatch.setattr(pan_app.settings, 'translator', {'name': 'Dwayne', 'email': 'd@example.com', 'team': 'af'})
+    monkeypatch.setattr(
+        pan_app.settings, 'translator', {'name': 'Dwayne', 'email': 'd@example.com', 'team': 'af'}
+    )
     controller = MainController.__new__(MainController)
-    controller.view = SimpleNamespace(show_translator_dialog=lambda *args: pytest.fail('must not ask'))
+    controller.view = SimpleNamespace(
+        show_translator_dialog=lambda *args: pytest.fail('must not ask')
+    )
 
     assert controller.get_translator_details() == ('Dwayne', 'd@example.com', 'af')
 
 
 def test_get_translator_details_accepts_an_empty_team(monkeypatch):
     # #4595: many translators have no team; the dialog came back on every save.
-    monkeypatch.setattr(pan_app.settings, 'translator', {'name': 'Dwayne', 'email': 'd@example.com', 'team': ''})
+    monkeypatch.setattr(
+        pan_app.settings, 'translator', {'name': 'Dwayne', 'email': 'd@example.com', 'team': ''}
+    )
     controller = MainController.__new__(MainController)
-    controller.view = SimpleNamespace(show_translator_dialog=lambda *args: pytest.fail('must not ask'))
+    controller.view = SimpleNamespace(
+        show_translator_dialog=lambda *args: pytest.fail('must not ask')
+    )
 
     assert controller.get_translator_details() == ('Dwayne', 'd@example.com', '')
 
@@ -679,7 +739,8 @@ def test_get_translator_details_asks_once_for_all_three_when_the_email_is_missin
     controller = MainController.__new__(MainController)
     asked = []
     controller.view = SimpleNamespace(
-        show_translator_dialog=lambda *args: asked.append(args) or ('Dwayne', 'd@example.com', 'af'))
+        show_translator_dialog=lambda *args: asked.append(args) or ('Dwayne', 'd@example.com', 'af')
+    )
 
     assert controller.get_translator_details() == ('Dwayne', 'd@example.com', 'af')
     assert asked == [('Dwayne', '', '')]
@@ -693,24 +754,40 @@ def test_get_translator_details_keeps_what_is_known_when_cancelled(monkeypatch):
     assert controller.get_translator_details() == ('Dwayne', '', '')
 
 
-
 def test_get_translator_details_keeps_each_detail_on_one_line(monkeypatch):
     # #4339: a pasted newline added or replaced PO header fields.
-    monkeypatch.setattr(pan_app.settings, 'translator', {
-        'name': 'Me\nPlural-Forms: nplurals=9; plural=0;', 'email': ' d@example.com\t', 'team': 'af\r\n'})
+    monkeypatch.setattr(
+        pan_app.settings,
+        'translator',
+        {
+            'name': 'Me\nPlural-Forms: nplurals=9; plural=0;',
+            'email': ' d@example.com\t',
+            'team': 'af\r\n',
+        },
+    )
     controller = MainController.__new__(MainController)
-    controller.view = SimpleNamespace(show_translator_dialog=lambda *args: pytest.fail('must not ask'))
+    controller.view = SimpleNamespace(
+        show_translator_dialog=lambda *args: pytest.fail('must not ask')
+    )
 
     assert controller.get_translator_details() == (
-        'Me Plural-Forms: nplurals=9; plural=0;', 'd@example.com', 'af')
+        'Me Plural-Forms: nplurals=9; plural=0;',
+        'd@example.com',
+        'af',
+    )
 
 
 def test_get_translator_details_asks_when_a_detail_is_only_whitespace(monkeypatch):
-    monkeypatch.setattr(pan_app.settings, 'translator', {'name': '\n', 'email': 'd@example.com', 'team': 'af'})
+    monkeypatch.setattr(
+        pan_app.settings, 'translator', {'name': '\n', 'email': 'd@example.com', 'team': 'af'}
+    )
     controller = MainController.__new__(MainController)
     asked = []
     controller.view = SimpleNamespace(
-        show_translator_dialog=lambda *args: asked.append(args) or ('Dwayne\nX', 'd@example.com', 'af'))
+        show_translator_dialog=lambda *args: (
+            asked.append(args) or ('Dwayne\nX', 'd@example.com', 'af')
+        )
+    )
 
     assert controller.get_translator_details() == ('Dwayne X', 'd@example.com', 'af')
     assert asked == [('', 'd@example.com', 'af')]
@@ -718,10 +795,13 @@ def test_get_translator_details_asks_when_a_detail_is_only_whitespace(monkeypatc
 
 # trivial delegators #
 
+
 def test_select_unit_delegates_to_the_store_controller():
     calls = []
     controller = MainController.__new__(MainController)
-    controller._store_controller = SimpleNamespace(select_unit=lambda unit, force: calls.append((unit, force)))
+    controller._store_controller = SimpleNamespace(
+        select_unit=lambda unit, force: calls.append((unit, force))
+    )
 
     controller.select_unit('a-unit', force=True)
 
@@ -730,14 +810,18 @@ def test_select_unit_delegates_to_the_store_controller():
 
 def test_show_prompt_delegates_to_the_view():
     controller = MainController.__new__(MainController)
-    controller.view = SimpleNamespace(show_prompt_dialog=lambda title, message, parent: (title, message, parent))
+    controller.view = SimpleNamespace(
+        show_prompt_dialog=lambda title, message, parent: (title, message, parent)
+    )
 
     assert controller.show_prompt('T', 'M', parent='P') == ('T', 'M', 'P')
 
 
 def test_show_info_delegates_to_the_view():
     controller = MainController.__new__(MainController)
-    controller.view = SimpleNamespace(show_info_dialog=lambda title, message, parent: (title, message, parent))
+    controller.view = SimpleNamespace(
+        show_info_dialog=lambda title, message, parent: (title, message, parent)
+    )
 
     assert controller.show_info('T', 'M', parent='P') == ('T', 'M', 'P')
 
@@ -753,6 +837,7 @@ def test_run_shows_the_view():
 
 
 # load_plugins() / destroy() #
+
 
 def test_load_plugins_delegates_when_a_plugin_controller_is_registered():
     controller = MainController.__new__(MainController)
@@ -784,6 +869,7 @@ def test_destroy_delegates_to_the_store_controller():
 # plugin_controller / welcomescreen_controller properties - the only two
 # never exercised by any real controller's own construction #
 
+
 def test_plugin_controller_property_emits_controller_registered():
     controller = MainController.__new__(MainController)
     GObjectWrapper.__init__(controller)
@@ -811,6 +897,7 @@ def test_welcomescreen_controller_property_emits_controller_registered():
 
 
 # quit()'s remaining branches - no dialogs open, in each case #
+
 
 def test_quit_saves_first_when_the_user_confirms_the_save_prompt(monkeypatch):
     monkeypatch.setattr(Gtk.Window, 'list_toplevels', lambda: [])

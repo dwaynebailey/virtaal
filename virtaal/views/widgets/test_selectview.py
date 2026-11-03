@@ -14,10 +14,12 @@ from virtaal.views.widgets.selectview import SelectView
 
 
 def _make_view():
-    return SelectView(items=[
-        {'name': 'A', 'enabled': True, 'data': 'a'},
-        {'name': 'B', 'enabled': True, 'data': 'b'},
-    ])
+    return SelectView(
+        items=[
+            {'name': 'A', 'enabled': True, 'data': 'a'},
+            {'name': 'B', 'enabled': True, 'data': 'b'},
+        ]
+    )
 
 
 def test_selection_change_does_not_start_editing(monkeypatch):
@@ -70,8 +72,16 @@ def test_enter_calls_config_directly_when_the_row_has_one():
     # what a mouse click on the button itself already does, instead of
     # needing a second press once editing starts.
     calls = []
-    sview = SelectView(items=[{'name': 'A', 'enabled': True, 'data': 'a',
-                                'config': lambda parent: calls.append(parent)}])
+    sview = SelectView(
+        items=[
+            {
+                'name': 'A',
+                'enabled': True,
+                'data': 'a',
+                'config': lambda parent: calls.append(parent),
+            }
+        ]
+    )
     sview.set_cursor(Gtk.TreePath.new_from_indices([0]))
 
     sview._on_key_press(sview, SimpleNamespace(keyval=Gdk.KEY_Return))
@@ -90,8 +100,9 @@ def test_other_keys_are_left_to_the_default_handling():
 
 def test_column_width_accounts_for_a_configure_button_on_any_row():
     plain = SelectView(items=[{'name': 'A', 'enabled': True, 'data': 'a'}])
-    with_button = SelectView(items=[{'name': 'A', 'enabled': True, 'data': 'a',
-                                      'config': lambda parent: None}])
+    with_button = SelectView(
+        items=[{'name': 'A', 'enabled': True, 'data': 'a', 'config': lambda parent: None}]
+    )
 
     assert with_button.namedesc_col.get_min_width() > plain.namedesc_col.get_min_width()
 
@@ -175,8 +186,10 @@ def _row_text(sview, row=0):
 
 @pytest.mark.parametrize('bold_name', [True, False])
 def test_a_row_shows_markup_characters_in_its_name_and_description(bold_name):
-    sview = SelectView(items=[{'name': 'Spelling & Grammar', 'desc': 'Tags, such as <b> & </i>',
-                               'data': 'a'}], bold_name=bold_name)
+    sview = SelectView(
+        items=[{'name': 'Spelling & Grammar', 'desc': 'Tags, such as <b> & </i>', 'data': 'a'}],
+        bold_name=bold_name,
+    )
     widget = sview.get_model()[0][4].get_children()[0]
 
     assert widget.lbl_name.get_text() == 'Spelling & Grammar'

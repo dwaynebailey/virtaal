@@ -249,7 +249,8 @@ def test_popup_key_press_ignores_up_with_a_modifier_held():
     navigator.btn_popup.popup.show()
 
     handled = navigator._on_popup_key_press_event(
-        navigator.btn_popup, _key_event(Gdk.KEY_Up, Gdk.ModifierType.CONTROL_MASK))
+        navigator.btn_popup, _key_event(Gdk.KEY_Up, Gdk.ModifierType.CONTROL_MASK)
+    )
 
     assert handled is False
     assert _selected_name(navigator) == 'two'
@@ -328,13 +329,18 @@ def test_unselectable_rows_are_greyed_out():
     assert sensitive == [False, True]
 
 
-@pytest.mark.parametrize('selected, back, forward', [
-    ('two', False, True),  # "skip" before it can't be picked
-    ('three', True, False),
-    ('skip', False, True),
-])
+@pytest.mark.parametrize(
+    'selected, back, forward',
+    [
+        ('two', False, True),  # "skip" before it can't be picked
+        ('three', True, False),
+        ('skip', False, True),
+    ],
+)
 def test_back_and_forward_need_a_selectable_neighbour(selected, back, forward):
-    navigator = _make_navigator(['skip', 'two', 'three'], unselectable=['skip'], select_name=selected)
+    navigator = _make_navigator(
+        ['skip', 'two', 'three'], unselectable=['skip'], select_name=selected
+    )
 
     assert navigator.btn_back.get_sensitive() is back
     assert navigator.btn_forward.get_sensitive() is forward

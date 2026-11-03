@@ -73,10 +73,7 @@ def main():
         # after any fixed delay as the top-level one above.
         terminology_plugin = main_controller.plugin_controller.plugins["terminology"]
         term_plugin_controller = terminology_plugin.controller.plugin_controller
-        if (
-            term_plugin_controller is None
-            or "localfile" not in term_plugin_controller.plugins
-        ):
+        if term_plugin_controller is None or "localfile" not in term_plugin_controller.plugins:
             return GLib.SOURCE_CONTINUE
 
         park_cursor(window)

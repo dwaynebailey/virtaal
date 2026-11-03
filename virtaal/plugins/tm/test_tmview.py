@@ -38,17 +38,24 @@ def _tmview(liststore=None, isvisible=False, active=True, may_show=True, target=
     if liststore is None:
         liststore = Gtk.ListStore(GObject.TYPE_PYOBJECT, GObject.TYPE_STRING)
     view.tmwindow = SimpleNamespace(
-        liststore=liststore, treeview=_FakeTreeview(), tvc_match='tvc_match',
-        show_all=lambda: None, hide=lambda: None, update_geometry=lambda widget: None,
-        get_child=lambda: SimpleNamespace(show_all=lambda: None), realize=lambda: None)
+        liststore=liststore,
+        treeview=_FakeTreeview(),
+        tvc_match='tvc_match',
+        show_all=lambda: None,
+        hide=lambda: None,
+        update_geometry=lambda widget: None,
+        get_child=lambda: SimpleNamespace(show_all=lambda: None),
+        realize=lambda: None,
+    )
     unit_view = SimpleNamespace(
-        focused_target_n=None if target is None else 0, targets=[target], _widgets={})
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        unit_controller=SimpleNamespace(view=unit_view)))
+        focused_target_n=None if target is None else 0, targets=[target], _widgets={}
+    )
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(unit_controller=SimpleNamespace(view=unit_view))
+    )
     view.mnu_suggestions = SimpleNamespace(get_active=lambda: active)
     view.summoned = False
     return view
-
 
 
 def _process_events():
@@ -57,6 +64,7 @@ def _process_events():
 
 
 # select_match_index(): Ctrl+n shortcut navigation into the TM list
+
 
 def test_select_match_index_does_nothing_when_the_window_is_not_visible():
     view = _tmview(isvisible=False)
@@ -103,6 +111,7 @@ def test_select_match_index_does_nothing_past_the_end_of_the_list():
 
 # display_matches(): tooltip only names the first nine (Ctrl+1..Ctrl+9)
 
+
 def test_display_matches_adds_a_shortcut_tooltip_for_the_first_nine_only():
     view = _tmview()
     shown = []
@@ -141,6 +150,7 @@ def test_display_matches_does_not_show_the_window_when_there_are_no_matches():
 
 
 # show()/hide()/clear(): visibility guards
+
 
 def test_show_shows_summoned_suggestions_even_when_they_are_off():
     store = Gtk.ListStore(GObject.TYPE_PYOBJECT, GObject.TYPE_STRING)
@@ -259,6 +269,7 @@ def test_clear_empties_the_matches_and_hides_the_window():
 # shadows the main window without a focus-out event, so grab-notify is
 # what actually hides/re-shows the popup around it.
 
+
 def _view_for_grab_notify(should_show=False, isvisible=False, storecursor=object()):
     view = _tmview(isvisible=isvisible)
     view._should_show_tmwindow = should_show
@@ -337,6 +348,7 @@ def test_grab_notify_shadowed_does_nothing_when_already_hidden():
 # _on_active_notify_mainwindow(): real WM-level focus changes (Alt+Tab
 # to another app), which grab-notify never sees.
 
+
 def test_active_notify_mainwindow_hides_a_visible_window_when_deactivated():
     view = _view_for_grab_notify(isvisible=True)
     hidden = []
@@ -365,6 +377,7 @@ def test_active_notify_mainwindow_reshows_a_pending_window_when_activated():
 
 # _on_configure_mainwindow(): recompute geometry only for a pending
 # (shadowed-but-should-show) window, not on every window move/resize.
+
 
 def _configure_event(x=10, y=20, width=800, height=600):
     return SimpleNamespace(x=x, y=y, width=width, height=height)
@@ -397,6 +410,7 @@ def test_configure_mainwindow_does_nothing_without_a_pending_show():
 
 # Moving or resizing the main window (#3924) #
 
+
 def _moving_view(monkeypatch, isvisible=True, is_active=True):
     view = _view_for_grab_notify(isvisible=isvisible)
     events = []
@@ -404,9 +418,14 @@ def _moving_view(monkeypatch, isvisible=True, is_active=True):
     view.show = lambda: (events.append('show'), setattr(view, 'isvisible', True))
     view.tmwindow.update_geometry = lambda widget: events.append('geometry')
     view.controller.main_controller = SimpleNamespace(
-        view=SimpleNamespace(main_window=SimpleNamespace(props=SimpleNamespace(is_active=is_active))))
+        view=SimpleNamespace(
+            main_window=SimpleNamespace(props=SimpleNamespace(is_active=is_active))
+        )
+    )
     timers = []
-    monkeypatch.setattr('virtaal.plugins.tm.tmview.GLib.timeout_add', lambda ms, f: timers.append(f) or len(timers))
+    monkeypatch.setattr(
+        'virtaal.plugins.tm.tmview.GLib.timeout_add', lambda ms, f: timers.append(f) or len(timers)
+    )
     monkeypatch.setattr('virtaal.plugins.tm.tmview.GLib.source_remove', lambda timer_id: None)
     view._on_configure_mainwindow(None, _configure_event())  # where the window starts
     return view, events, timers
@@ -464,6 +483,7 @@ def test_suggestions_wait_for_focus_if_the_window_isnt_active_when_it_settles(mo
 
 # _on_store_view_scroll() / _on_toggle_show_tm()
 
+
 def test_store_view_scroll_hides_a_visible_window_once_the_target_is_out_of_view():
     view = _tmview(isvisible=True)
     hidden = []
@@ -504,7 +524,9 @@ def test_selected_target_in_view_follows_the_list_scroll_position():
     window.show_all()
     _process_events()
     view = _tmview(isvisible=True, target=target)
-    view.controller.main_controller.store_controller = SimpleNamespace(view=SimpleNamespace(parent_widget=scrolled))
+    view.controller.main_controller.store_controller = SimpleNamespace(
+        view=SimpleNamespace(parent_widget=scrolled)
+    )
 
     assert view._selected_target_in_view()
 
@@ -569,6 +591,7 @@ def test_toggle_show_tm_does_nothing_when_state_already_matches():
 
 # get_target_width() / _get_selected_unit_view()
 
+
 def test_get_target_width_returns_minus_one_without_a_unit_view():
     view = TMView.__new__(TMView)
     view.controller = SimpleNamespace()
@@ -579,15 +602,20 @@ def test_get_target_width_returns_minus_one_without_a_unit_view():
 def test_get_target_width_reads_the_focused_targets_allocation():
     view = TMView.__new__(TMView)
     textview = SimpleNamespace(get_allocation=lambda: SimpleNamespace(width=321))
-    view.controller = SimpleNamespace(unit_view=SimpleNamespace(focused_target_n=0, targets=[textview]))
+    view.controller = SimpleNamespace(
+        unit_view=SimpleNamespace(focused_target_n=0, targets=[textview])
+    )
 
     assert view.get_target_width() == 321
 
 
 def test_get_selected_unit_view_returns_none_without_a_focused_unit():
     view = TMView.__new__(TMView)
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        unit_controller=SimpleNamespace(view=SimpleNamespace(focused_target_n=None, targets=[]))))
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            unit_controller=SimpleNamespace(view=SimpleNamespace(focused_target_n=None, targets=[]))
+        )
+    )
 
     assert view._get_selected_unit_view() is None
 
@@ -595,13 +623,19 @@ def test_get_selected_unit_view_returns_none_without_a_focused_unit():
 def test_get_selected_unit_view_returns_the_focused_target():
     view = TMView.__new__(TMView)
     target = object()
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(
-        unit_controller=SimpleNamespace(view=SimpleNamespace(focused_target_n=1, targets=['first', target]))))
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            unit_controller=SimpleNamespace(
+                view=SimpleNamespace(focused_target_n=1, targets=['first', target])
+            )
+        )
+    )
 
     assert view._get_selected_unit_view() is target
 
 
 # destroy() / select_backends() / select_match() / update_geometry() #
+
 
 def test_destroy_disconnects_signals_and_removes_the_suggestions_menu_item():
     view = TMView.__new__(TMView)
@@ -622,9 +656,12 @@ def test_destroy_disconnects_signals_and_removes_the_suggestions_menu_item():
 def test_select_backends_delegates_to_the_backend_selector(monkeypatch):
     view = TMView.__new__(TMView)
     view.controller = SimpleNamespace(
-        main_controller='main-controller', plugin_controller='plugin-controller', config='config')
+        main_controller='main-controller', plugin_controller='plugin-controller', config='config'
+    )
     calls = []
-    monkeypatch.setattr('virtaal.views.backendselect.select_backends', lambda *a, **k: calls.append((a, k)))
+    monkeypatch.setattr(
+        'virtaal.views.backendselect.select_backends', lambda *a, **k: calls.append((a, k))
+    )
     parent = object()
 
     view.select_backends(parent)
@@ -676,6 +713,7 @@ def test_update_geometry_does_nothing_without_a_focused_target(monkeypatch):
 
 # _on_grab_notify_mainwindow()'s popup-menu guard (#3689) #
 
+
 def test_grab_notify_shadowed_by_a_popup_menu_does_not_hide(monkeypatch):
     view = _view_for_grab_notify(isvisible=True)
     hidden = []
@@ -688,6 +726,7 @@ def test_grab_notify_shadowed_by_a_popup_menu_does_not_hide(monkeypatch):
 
 
 # remaining trivial event handlers #
+
 
 def test_on_hide_tm_hides_the_window_and_takes_the_key():
     view = TMView.__new__(TMView)
@@ -709,6 +748,7 @@ def test_on_hide_tm_leaves_escape_alone_when_nothing_is_shown():
 
 def test_on_hide_tm_closes_a_popup_over_the_suggestions_first(monkeypatch):
     from virtaal.views.widgets.popupwidgetbutton import PopupWidgetButton
+
     monkeypatch.setattr(PopupWidgetButton, 'hide_open_popup', classmethod(lambda cls: True))
     view = TMView.__new__(TMView)
     view.isvisible = True
@@ -766,10 +806,13 @@ def test_on_store_loaded_enables_the_suggestions_toggle():
 
 # __init__() / _setup_key_bindings() / _setup_menu_items() #
 
+
 def test_setup_key_bindings_registers_hide_and_select_match_accelerators(monkeypatch):
     view = TMView.__new__(TMView)
     added = []
-    view.controller = SimpleNamespace(main_controller=SimpleNamespace(view=SimpleNamespace(add_accel_group=added.append)))
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(view=SimpleNamespace(add_accel_group=added.append))
+    )
     registered = []
     monkeypatch.setattr(Gtk.AccelMap, 'add_entry', lambda path, key, mods: registered.append(path))
 
@@ -808,6 +851,7 @@ def test_setup_menu_items_adds_a_translation_suggestions_toggle():
     def shortcut(item):
         _found, key = Gtk.AccelMap.lookup_entry(item.get_accel_path())
         return key.accel_key, key.accel_mods
+
     # Cmd+F9 on macOS, via virtaal.accel
     assert shortcut(view.mnu_suggestions) == (Gdk.KEY_F9, Gdk.ModifierType.CONTROL_MASK)
     assert shortcut(view.mnu_summon) == (Gdk.KEY_F9, 0)
@@ -828,11 +872,17 @@ def test_init_wires_key_bindings_menu_and_store_signals():
     store_controller = _FakeSignalSource()
     store_controller.view = SimpleNamespace(parent_widget=Gtk.ScrolledWindow())
     added_accel_groups = []
-    controller = SimpleNamespace(main_controller=SimpleNamespace(
-        view=SimpleNamespace(menubar=None, gui=_real_builder(), main_window=main_window,
-                              add_accel_group=added_accel_groups.append),
-        store_controller=store_controller,
-    ))
+    controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            view=SimpleNamespace(
+                menubar=None,
+                gui=_real_builder(),
+                main_window=main_window,
+                add_accel_group=added_accel_groups.append,
+            ),
+            store_controller=store_controller,
+        )
+    )
 
     view = TMView(controller, max_matches=5)
 
@@ -845,6 +895,7 @@ def test_init_wires_key_bindings_menu_and_store_signals():
 
 
 # suspend() / resume(): kept hidden while the target's completion list is open
+
 
 def test_suspend_hides_a_visible_window_until_resume():
     view = _view_for_grab_notify(isvisible=True)
@@ -874,6 +925,7 @@ def test_matches_arriving_while_suspended_wait_for_resume():
 
 # #3972: never show an empty TM window
 
+
 def test_show_does_nothing_without_matches():
     view = _tmview(isvisible=False)
     shown = []
@@ -897,6 +949,7 @@ def test_clear_drops_a_pending_show():
 
 
 # _on_editor_size_allocate(): the target grows and shrinks while typing
+
 
 def test_editor_size_change_moves_the_visible_window():
     view = _tmview(isvisible=True)
@@ -925,7 +978,9 @@ def test_show_follows_the_unit_editor_once():
     editor = Gtk.Box()
     view.controller.main_controller.unit_controller.view._widgets['vbox_editor'] = editor
     view._signal_tracker = SimpleNamespace(connected=[])
-    view._signal_tracker.connect = lambda widget, signal, handler: view._signal_tracker.connected.append((widget, signal))
+    view._signal_tracker.connect = lambda widget, signal, handler: (
+        view._signal_tracker.connected.append((widget, signal))
+    )
 
     view._follow_editor()
     view._follow_editor()

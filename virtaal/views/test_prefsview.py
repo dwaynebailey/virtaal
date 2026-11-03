@@ -50,7 +50,9 @@ def test_run_restores_the_parents_focus_on_close(monkeypatch):
 
 def _load_widgets():
     view = PreferencesView.__new__(PreferencesView)
-    gui = BaseView.load_builder_file(["virtaal", "virtaal.ui"], root='PreferencesDlg', domain="virtaal")
+    gui = BaseView.load_builder_file(
+        ["virtaal", "virtaal.ui"], root='PreferencesDlg', domain="virtaal"
+    )
     view._widgets = {
         'cmb_ui_language': gui.get_object('cmb_ui_language'),
         'scrwnd_placeables': gui.get_object('scrwnd_placeables'),
@@ -60,8 +62,11 @@ def _load_widgets():
 
 
 def test_init_language_gui_puts_system_default_first_then_the_available_languages(monkeypatch):
-    monkeypatch.setattr(prefsview.pan_app, 'get_available_ui_languages',
-                         lambda: [('af', 'Afrikaans'), ('fr', 'French')])
+    monkeypatch.setattr(
+        prefsview.pan_app,
+        'get_available_ui_languages',
+        lambda: [('af', 'Afrikaans'), ('fr', 'French')],
+    )
     view = _load_widgets()
 
     view._init_language_gui()
@@ -71,10 +76,14 @@ def test_init_language_gui_puts_system_default_first_then_the_available_language
 
 
 def test_init_language_gui_adds_each_languages_own_name(monkeypatch):
-    monkeypatch.setattr(prefsview.pan_app, 'get_available_ui_languages',
-                         lambda: [('fr', 'Französisch'), ('de', 'Deutsch'), ('zzz', 'zzz')])
-    monkeypatch.setattr(prefsview.pan_app, 'get_language_endonym',
-                         {'fr': 'français', 'de': 'Deutsch'}.get)
+    monkeypatch.setattr(
+        prefsview.pan_app,
+        'get_available_ui_languages',
+        lambda: [('fr', 'Französisch'), ('de', 'Deutsch'), ('zzz', 'zzz')],
+    )
+    monkeypatch.setattr(
+        prefsview.pan_app, 'get_language_endonym', {'fr': 'français', 'de': 'Deutsch'}.get
+    )
     view = _load_widgets()
 
     view._init_language_gui()
@@ -113,7 +122,9 @@ def test_get_language_endonym_falls_back_to_cldr():
 
 
 def test_ui_language_property_round_trips_through_the_combo(monkeypatch):
-    monkeypatch.setattr(prefsview.pan_app, 'get_available_ui_languages', lambda: [('af', 'Afrikaans')])
+    monkeypatch.setattr(
+        prefsview.pan_app, 'get_available_ui_languages', lambda: [('af', 'Afrikaans')]
+    )
     view = _load_widgets()
     view._init_language_gui()
 
@@ -149,7 +160,9 @@ def test_placeables_page_scrolled_window_propagates_natural_width():
 def test_placeables_description_does_not_widen_the_dialog():
     # A long translation of the description (French is about 1.5 times
     # the English) set the whole dialog's width.
-    gui = BaseView.load_builder_file(["virtaal", "virtaal.ui"], root='PreferencesDlg', domain="virtaal")
+    gui = BaseView.load_builder_file(
+        ["virtaal", "virtaal.ui"], root='PreferencesDlg', domain="virtaal"
+    )
     dialog = gui.get_object('PreferencesDlg')
     label = gui.get_object('label19')
     natural_width = dialog.get_preferred_width().natural_width
@@ -198,7 +211,9 @@ def test_plugin_data_restores_scroll_position_after_a_rebuild(monkeypatch):
     # hanging a real macOS CI runner for 10+ minutes before being
     # force-cancelled.
     idle_calls = []
-    monkeypatch.setattr(prefsview.GLib, 'idle_add', lambda func, *args: idle_calls.append((func, args)))
+    monkeypatch.setattr(
+        prefsview.GLib, 'idle_add', lambda func, *args: idle_calls.append((func, args))
+    )
 
     view = _load_widgets()
     view._init_plugins_page()
@@ -306,7 +321,10 @@ def _load_full_view(monkeypatch, source_lang=None, target_lang=None):
 def test_get_widgets_makes_the_dialog_transient_for_the_main_window(monkeypatch):
     view = _load_full_view(monkeypatch)
 
-    assert view._widgets['dialog'].get_transient_for() is view.controller.main_controller.view.main_window
+    assert (
+        view._widgets['dialog'].get_transient_for()
+        is view.controller.main_controller.view.main_window
+    )
 
 
 def test_init_gui_wires_the_default_fonts_button(monkeypatch):
@@ -322,7 +340,9 @@ def test_init_gui_wires_the_default_fonts_button(monkeypatch):
 
 
 def test_init_font_gui_previews_both_fonts_with_the_whole_language_pair(monkeypatch):
-    monkeypatch.setattr(prefsview, 'tr_lang', lambda code: (lambda name, lang_code=None: f'{name} [{code}]'))
+    monkeypatch.setattr(
+        prefsview, 'tr_lang', lambda code: lambda name, lang_code=None: f'{name} [{code}]'
+    )
     monkeypatch.setattr(prefsview.platform, 'is_windows', False)
     source_lang = SimpleNamespace(code='fr')
     target_lang = SimpleNamespace(code='am')
@@ -346,7 +366,9 @@ def test_init_font_gui_leaves_the_default_preview_for_an_unknown_language_code(m
     default_preview = Gtk.FontButton().get_preview_text()
 
     view = _load_full_view(
-        monkeypatch, source_lang=SimpleNamespace(code='not-a-real-code'), target_lang=SimpleNamespace(code='fr'),
+        monkeypatch,
+        source_lang=SimpleNamespace(code='not-a-real-code'),
+        target_lang=SimpleNamespace(code='fr'),
     )
 
     assert view._widgets['fbtn_source'].get_preview_text() == default_preview
@@ -355,9 +377,10 @@ def test_init_font_gui_leaves_the_default_preview_for_an_unknown_language_code(m
 
 # _pair_preview_text() #
 
+
 def test_pair_preview_text_rtl(monkeypatch):
     monkeypatch.setattr(prefsview.platform, 'is_windows', False)
-    monkeypatch.setattr(prefsview, 'tr_lang', lambda code: (lambda name, lang_code=None: name))
+    monkeypatch.setattr(prefsview, 'tr_lang', lambda code: lambda name, lang_code=None: name)
     view = PreferencesView.__new__(PreferencesView)
     view._widgets = {'fbtn_target': Gtk.Button()}
     view._widgets['fbtn_target'].set_direction(Gtk.TextDirection.RTL)
@@ -369,7 +392,7 @@ def test_pair_preview_text_rtl(monkeypatch):
 
 def test_pair_preview_text_ltr_default(monkeypatch):
     monkeypatch.setattr(prefsview.platform, 'is_windows', False)
-    monkeypatch.setattr(prefsview, 'tr_lang', lambda code: (lambda name, lang_code=None: name))
+    monkeypatch.setattr(prefsview, 'tr_lang', lambda code: lambda name, lang_code=None: name)
     view = PreferencesView.__new__(PreferencesView)
     view._widgets = {'fbtn_target': Gtk.Button()}
     view._widgets['fbtn_target'].set_direction(Gtk.TextDirection.LTR)
@@ -381,7 +404,7 @@ def test_pair_preview_text_ltr_default(monkeypatch):
 
 def test_pair_preview_text_uses_french_quotes_on_windows(monkeypatch):
     monkeypatch.setattr(prefsview.platform, 'is_windows', True)
-    monkeypatch.setattr(prefsview, 'tr_lang', lambda code: (lambda name, lang_code=None: name))
+    monkeypatch.setattr(prefsview, 'tr_lang', lambda code: lambda name, lang_code=None: name)
     view = PreferencesView.__new__(PreferencesView)
     view._widgets = {'fbtn_target': Gtk.Button()}
     view._widgets['fbtn_target'].set_direction(Gtk.TextDirection.LTR)
@@ -393,7 +416,9 @@ def test_pair_preview_text_uses_french_quotes_on_windows(monkeypatch):
 
 def test_on_font_button_clicked_presents_the_open_font_dialog_and_restores_focus(monkeypatch):
     idle_calls = []
-    monkeypatch.setattr(prefsview.GLib, 'idle_add', lambda func, *args: idle_calls.append((func, args)))
+    monkeypatch.setattr(
+        prefsview.GLib, 'idle_add', lambda func, *args: idle_calls.append((func, args))
+    )
     view = _load_full_view(monkeypatch)
     prefs_dialog = view._widgets['dialog']
     prefs_dialog.show()
@@ -405,8 +430,11 @@ def test_on_font_button_clicked_presents_the_open_font_dialog_and_restores_focus
         # including whatever earlier test files left un-destroyed.
         # Restrict it to this test's own two dialogs so it doesn't
         # depend on - or crash on - that ambient global state.
-        monkeypatch.setattr(prefsview.Gtk.Window, 'list_toplevels',
-                             staticmethod(lambda: [prefs_dialog, font_dialog]))
+        monkeypatch.setattr(
+            prefsview.Gtk.Window,
+            'list_toplevels',
+            staticmethod(lambda: [prefs_dialog, font_dialog]),
+        )
         presented = []
         monkeypatch.setattr(font_dialog, 'present', lambda: presented.append(True))
 
@@ -449,7 +477,9 @@ def test_placeables_data_returns_the_select_views_items(monkeypatch):
 
 def test_placeables_data_restores_scroll_position_after_a_rebuild(monkeypatch):
     idle_calls = []
-    monkeypatch.setattr(prefsview.GLib, 'idle_add', lambda func, *args: idle_calls.append((func, args)))
+    monkeypatch.setattr(
+        prefsview.GLib, 'idle_add', lambda func, *args: idle_calls.append((func, args))
+    )
     view = _load_full_view(monkeypatch)
 
     view.placeables_data = _make_plugin_items(50, enabled_name='Plugin 25')

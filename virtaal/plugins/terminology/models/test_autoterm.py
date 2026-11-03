@@ -47,8 +47,15 @@ class _FakeClient:
         self.calls = []
 
     def get(self, url, callback, etag, error_callback=None, download=False):
-        self.calls.append(dict(url=url, callback=callback, etag=etag,
-                                error_callback=error_callback, download=download))
+        self.calls.append(
+            dict(
+                url=url,
+                callback=callback,
+                etag=etag,
+                error_callback=error_callback,
+                download=download,
+            )
+        )
 
 
 def _fake_self():
@@ -129,7 +136,9 @@ def test_process_header_with_no_localfile_derives_the_name_from_the_url(tmp_path
     fake_self.source_lang = 'en'
     fake_self.target_lang = 'fr'
 
-    TerminologyModel._process_header(fake_self, _FakeRequest(effective_url='http://x/terms.po'), GOOD_PO, localfile=None)
+    TerminologyModel._process_header(
+        fake_self, _FakeRequest(effective_url='http://x/terms.po'), GOOD_PO, localfile=None
+    )
 
     assert open(os.path.join(str(tmp_path), 'en__fr.po'), 'rb').read() == GOOD_PO
 
@@ -139,7 +148,9 @@ def test_process_header_with_no_extension_in_the_url_guesses_from_content(tmp_pa
     fake_self.source_lang = 'en'
     fake_self.target_lang = 'fr'
 
-    TerminologyModel._process_header(fake_self, _FakeRequest(effective_url='http://x/download'), GOOD_PO, localfile=None)
+    TerminologyModel._process_header(
+        fake_self, _FakeRequest(effective_url='http://x/download'), GOOD_PO, localfile=None
+    )
 
     assert open(os.path.join(str(tmp_path), 'en__fr.po'), 'rb').read() == GOOD_PO
 
@@ -150,7 +161,9 @@ def test_process_header_defaults_to_po_when_nothing_can_be_guessed(tmp_path):
     fake_self.target_lang = 'fr'
     garbage = b'not a translation file at all, just plain garbage'
 
-    TerminologyModel._process_header(fake_self, _FakeRequest(effective_url='http://x/download'), garbage, localfile=None)
+    TerminologyModel._process_header(
+        fake_self, _FakeRequest(effective_url='http://x/download'), garbage, localfile=None
+    )
 
     # _parses_as() rejects it before a file ever gets written, but the
     # ext-guessing still had to fall all the way through to the 'po'
@@ -162,7 +175,9 @@ def test_process_header_saves_the_etag_from_the_response_headers(tmp_path):
     fake_self = _fake_self()
     localfile = os.path.join(str(tmp_path), 'en__fr.po')
 
-    TerminologyModel._process_header(fake_self, _FakeRequest(headers=b'ETag: "abc123"\r\n'), GOOD_PO, localfile=localfile)
+    TerminologyModel._process_header(
+        fake_self, _FakeRequest(headers=b'ETag: "abc123"\r\n'), GOOD_PO, localfile=localfile
+    )
 
     assert fake_self.config[os.path.abspath(localfile)] == 'abc123'
 
@@ -183,6 +198,7 @@ def test_process_header_an_unhandled_status_resets_the_matcher(tmp_path):
 
 
 # init_matcher() #
+
 
 def test_init_matcher_with_no_file_builds_an_empty_store():
     fake_self = _fake_self()
@@ -217,6 +233,7 @@ def test_init_matcher_removes_the_previous_matcher_first():
 
 # _get_curr_term_filename() #
 
+
 def test_get_curr_term_filename_defaults_to_the_instances_own_languages():
     fake_self = _fake_self()
     fake_self.source_lang = 'en'
@@ -239,6 +256,7 @@ def test_get_curr_term_filename_falls_back_to_po_when_nothing_exists():
 
 
 # is_update_needed() #
+
 
 def test_is_update_needed_is_true_when_no_local_file_exists():
     fake_self = _fake_self()
@@ -266,11 +284,14 @@ def test_is_update_needed_is_true_for_a_stale_file(tmp_path):
 
 # update_terms() #
 
+
 def test_update_terms_with_neither_language_is_a_noop(monkeypatch):
     fake_self = _fake_self()
     fake_self.source_lang = None
     fake_self.target_lang = None
-    monkeypatch.setattr(fake_self, 'is_update_needed', lambda *a: pytest.fail('should not be called'))
+    monkeypatch.setattr(
+        fake_self, 'is_update_needed', lambda *a: pytest.fail('should not be called')
+    )
 
     TerminologyModel.update_terms(fake_self)  # must not raise
 
@@ -310,6 +331,7 @@ def test_update_terms_downloads_when_needed(monkeypatch, tmp_path):
 
 
 # _check_for_update() #
+
 
 def test_check_for_update_sends_a_known_etag(tmp_path):
     fake_self = _fake_self()
@@ -355,6 +377,7 @@ def test_check_for_update_adds_an_error_callback_at_debug_level(monkeypatch):
 
 # _get_ext_from_url() #
 
+
 def test_get_ext_from_url_extracts_the_extension():
     fake_self = _fake_self()
 
@@ -381,6 +404,7 @@ def test_get_ext_from_url_returns_none_for_a_trailing_dot_with_nothing_after_it(
 
 # _get_ext_from_store_guess() #
 
+
 def test_get_ext_from_store_guess_recognises_a_real_po_file():
     fake_self = _fake_self()
 
@@ -395,11 +419,14 @@ def test_get_ext_from_store_guess_returns_none_for_unrecognisable_content():
 
 # _update_term_file() #
 
+
 def test_update_term_file_resets_the_matcher_before_checking_for_an_update(monkeypatch):
     fake_self = _fake_self()
     calls = []
     monkeypatch.setattr(fake_self, 'init_matcher', lambda: calls.append('init_matcher'))
-    monkeypatch.setattr(fake_self, '_check_for_update', lambda s, t: calls.append(('_check_for_update', s, t)))
+    monkeypatch.setattr(
+        fake_self, '_check_for_update', lambda s, t: calls.append(('_check_for_update', s, t))
+    )
 
     TerminologyModel._update_term_file(fake_self, 'en', 'fr')
 
@@ -407,6 +434,7 @@ def test_update_term_file_resets_the_matcher_before_checking_for_an_update(monke
 
 
 # _on_lang_changed() #
+
 
 def test_on_lang_changed_updates_the_attribute_and_refreshes_terms(monkeypatch):
     fake_self = _fake_self()

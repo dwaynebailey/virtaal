@@ -30,11 +30,14 @@ def _po(charset, target):
     return data
 
 
-@pytest.mark.parametrize('charset, target', [
-    ('ISO-8859-1', 'Stoor die lêer'),
-    ('KOI8-R', 'Сохранить файл'),
-    ('UTF-8', 'Stoor die lêer'),
-])
+@pytest.mark.parametrize(
+    'charset, target',
+    [
+        ('ISO-8859-1', 'Stoor die lêer'),
+        ('KOI8-R', 'Сохранить файл'),
+        ('UTF-8', 'Stoor die lêer'),
+    ],
+)
 def test_a_po_file_in_its_header_charset_opens(charset, target):
     # #4390: translate-toolkit 3.19.0+ raised UnicodeDecodeError for the
     # legacy charsets.
@@ -66,7 +69,9 @@ def test_a_utf8_file_whose_header_names_a_non_ascii_charset_opens_and_saves_as_u
 
 
 def test_rescue_charset_leaves_real_utf16_and_unknown_charsets_alone():
-    real_utf16 = 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-16\\n"\n'.encode('utf-16')
+    real_utf16 = 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-16\\n"\n'.encode(
+        'utf-16'
+    )
     unknown = b'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=NO-SUCH\\n"\n'
 
     assert poparser_compat._rescue_charset(real_utf16) == real_utf16

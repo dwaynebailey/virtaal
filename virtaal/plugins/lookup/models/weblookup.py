@@ -15,13 +15,13 @@ _PLACEHOLDER_RE = re.compile(r'%%|%\((query|querylang|nonquerylang|srclang|tgtla
 
 def _fill_url(url, values):
     """Replace the C{%(name)s} placeholders (and C{%%}) in a look-up URL,
-        leaving any other C{%}, such as C{%20}, as it is (#4350)."""
+    leaving any other C{%}, such as C{%20}, as it is (#4350)."""
     return _PLACEHOLDER_RE.sub(lambda m: values[m.group(1)] if m.group(1) else '%', url)
 
 
 def _slugify(display_name):
     """A stable id derived from a user's own typed name, so they're
-        never asked for one directly - "My Site" -> "my_site"."""
+    never asked for one directly - "My Site" -> "my_site"."""
     return '_'.join(display_name.split()).lower()
 
 
@@ -37,6 +37,7 @@ def is_builtin(urlinfo):
 def _without_scheme(url):
     return url.split('://', 1)[-1]
 
+
 from gi.repository import GLib, Gtk, Pango
 
 from virtaal.common import pan_app
@@ -48,7 +49,7 @@ class LookupModel(BaseLookupModel):
     """Look-up the selected string on the web."""
 
     __gtype_name__ = 'WebLookupModel'
-    #l10n: plugin name
+    # l10n: plugin name
     display_name = _('Web Look-up')
     description = _('Look-up the selected text on a web site')
 
@@ -137,7 +138,11 @@ class LookupModel(BaseLookupModel):
             elif not is_builtin(u):
                 if not u.get('display_name') or not u.get('url'):
                     # Not something Virtaal saved (#4340).
-                    logging.warning("Ignoring a web look-up in %s without a name or URL: %r", self.urldata_file, u)
+                    logging.warning(
+                        "Ignoring a web look-up in %s without a name or URL: %r",
+                        self.urldata_file,
+                        u,
+                    )
                     continue
                 u['quoted'] = u.get('quoted') == 'True'
                 u.setdefault('id', _slugify(u['display_name']))
@@ -149,9 +154,9 @@ class LookupModel(BaseLookupModel):
     def _builtin_id(saved, defaults):
         """The built-in id a saved entry belongs to, or C{None} if custom.
 
-            A bare id (1.0.0-beta3: C{google}) or no id (older) only
-            counts if the URL is still the built-in's own, over either
-            http or https."""
+        A bare id (1.0.0-beta3: C{google}) or no id (older) only
+        counts if the URL is still the built-in's own, over either
+        http or https."""
         saved_id = saved.get('id')
         if saved_id in defaults:
             return saved_id
@@ -161,7 +166,6 @@ class LookupModel(BaseLookupModel):
             if saved_id is None or BUILTIN_PREFIX + saved_id == d['id']:
                 return d['id']
         return None
-
 
     # METHODS #
     def configure(self, parent):
@@ -184,13 +188,16 @@ class LookupModel(BaseLookupModel):
                 uquery = '"' + uquery + '"'
 
             i = Gtk.MenuItem(label=urlinfo['display_name'])
-            lookup_str = _fill_url(urlinfo['url'], {
-                'query':        uquery,
-                'querylang':    querylang,
-                'nonquerylang': nonquerylang,
-                'srclang':      srclang,
-                'tgtlang':      tgtlang
-            })
+            lookup_str = _fill_url(
+                urlinfo['url'],
+                {
+                    'query': uquery,
+                    'querylang': querylang,
+                    'nonquerylang': nonquerylang,
+                    'srclang': srclang,
+                    'tgtlang': tgtlang,
+                },
+            )
             i.connect('activate', self._on_lookup, lookup_str)
             items.append(i)
         return items
@@ -210,10 +217,10 @@ class LookupModel(BaseLookupModel):
     def destroy(self):
         self._save_urldata()
 
-
     # SIGNAL HANDLERS #
     def _on_lookup(self, menuitem, url):
         from virtaal.support.openmailto import open
+
         open(url)
 
 
@@ -225,9 +232,7 @@ class WebLookupConfigDialog:
     # INITIALIZERS #
     def __init__(self, parent):
         self.gui = BaseView.load_builder_file(
-            ["virtaal", "virtaal.ui"],
-            root='WebLookupManager',
-            domain='virtaal'
+            ["virtaal", "virtaal.ui"], root='WebLookupManager', domain='virtaal'
         )
 
         self._get_widgets()
@@ -261,7 +266,7 @@ class WebLookupConfigDialog:
         cell = Gtk.CellRendererToggle()
         cell.set_radio(False)
         cell.connect('toggled', self._on_enabled_toggled)
-        #l10n: Whether this look-up is offered at all
+        # l10n: Whether this look-up is offered at all
         col = Gtk.TreeViewColumn(_('Enabled'))
         col.pack_start(cell, True)
         col.add_attribute(cell, 'active', self.COL_ENABLED)
@@ -288,7 +293,7 @@ class WebLookupConfigDialog:
         cell = Gtk.CellRendererToggle()
         cell.set_radio(False)
         cell.connect('toggled', self._on_quote_toggled)
-        #l10n: Whether the selected text should be surrounded by "quotes"
+        # l10n: Whether the selected text should be surrounded by "quotes"
         col = Gtk.TreeViewColumn(_('Quote Query'))
         col.pack_start(cell, True)
         col.add_attribute(cell, 'active', self.COL_QUOTE)
@@ -301,16 +306,18 @@ class WebLookupConfigDialog:
         self.btn_url_add.connect('clicked', self._on_add_clicked)
         self.btn_url_remove.connect('clicked', self._on_remove_clicked)
 
-
     # ACCESSORS #
     def _get_urldata(self):
         return [row[self.COL_DATA] for row in self.lst_urls]
+
     def _set_urldata(self, value):
         self.lst_urls.clear()
         for url in value:
-            self.lst_urls.append((url.get('enabled', True), url['display_name'], url['url'], url['quoted'], url))
-    urldata = property(_get_urldata, _set_urldata)
+            self.lst_urls.append(
+                (url.get('enabled', True), url['display_name'], url['url'], url['quoted'], url)
+            )
 
+    urldata = property(_get_urldata, _set_urldata)
 
     # METHODS #
     def run(self, parent=None):
@@ -324,7 +331,6 @@ class WebLookupConfigDialog:
         self.dialog.hide()
         if transient_for is not None:
             GLib.idle_add(transient_for.present)
-
 
     # SIGNAL HANDLERS #
     def _lock_builtin_cell(self, column, cell, model, it, data=None):
@@ -344,7 +350,9 @@ class WebLookupConfigDialog:
 
     def _on_selection_changed(self, selection):
         model, it = selection.get_selected()
-        self.btn_url_remove.set_sensitive(it is not None and not is_builtin(model[it][self.COL_DATA]))
+        self.btn_url_remove.set_sensitive(
+            it is not None and not is_builtin(model[it][self.COL_DATA])
+        )
 
     def _on_enabled_toggled(self, cell, path):
         new_value = not self.lst_urls[path][self.COL_ENABLED]
@@ -365,9 +373,7 @@ class WebLookupAddDialog:
     # INITIALIZERS #
     def __init__(self, parent):
         self.gui = BaseView.load_builder_file(
-            ["virtaal", "virtaal.ui"],
-            root='WebLookupAdd',
-            domain='virtaal'
+            ["virtaal", "virtaal.ui"], root='WebLookupAdd', domain='virtaal'
         )
         self._get_widgets()
         self.taken_ids = set()
@@ -380,18 +386,24 @@ class WebLookupAddDialog:
         self.ent_url.connect('changed', self._on_field_changed)
 
     def _get_widgets(self):
-        widget_names = ('btn_url_cancel', 'btn_url_ok', 'cbtn_url_quote', 'ent_url_name', 'ent_url', 'lbl_url_name_error')
+        widget_names = (
+            'btn_url_cancel',
+            'btn_url_ok',
+            'cbtn_url_quote',
+            'ent_url_name',
+            'ent_url',
+            'lbl_url_name_error',
+        )
 
         for name in widget_names:
             setattr(self, name, self.gui.get_object(name))
 
         self.dialog = self.gui.get_object('WebLookupAdd')
 
-
     # METHODS #
     def run(self, taken_ids=()):
         """@param taken_ids: Ids already in use - a name deriving one of
-            these (or a reserved built-in one) can't be added."""
+        these (or a reserved built-in one) can't be added."""
         self.taken_ids = set(taken_ids)
         self.ent_url.set_text('')
         self.ent_url_name.set_text('')
@@ -412,14 +424,13 @@ class WebLookupAddDialog:
 
         name = self.ent_url_name.get_text().strip()
         self.url = {
-            'id':             _slugify(name),
-            'display_name':   name,
-            'url':            self.ent_url.get_text().strip(),
-            'quoted':         self.cbtn_url_quote.get_active(),
-            'enabled':        True,
+            'id': _slugify(name),
+            'display_name': name,
+            'url': self.ent_url.get_text().strip(),
+            'quoted': self.cbtn_url_quote.get_active(),
+            'enabled': True,
         }
         return self.url
-
 
     # EVENT HANDLERS #
     def _on_field_changed(self, entry):
@@ -430,12 +441,14 @@ class WebLookupAddDialog:
         self.lbl_url_name_error.set_text(error)
         self.lbl_url_name_error.set_visible(bool(error))
         self.btn_url_ok.set_sensitive(
-            bool(self.ent_url_name.get_text().strip()) and bool(self.ent_url.get_text().strip()) and not error
+            bool(self.ent_url_name.get_text().strip())
+            and bool(self.ent_url.get_text().strip())
+            and not error
         )
 
     def _name_error(self, url_id):
         if url_id.startswith(BUILTIN_PREFIX):
-            #l10n: "virtaal-" is a literal prefix - leave it untranslated
+            # l10n: "virtaal-" is a literal prefix - leave it untranslated
             return _('Names starting with "virtaal-" are reserved.')
         if url_id in self.taken_ids:
             return _('A web look-up with this name already exists.')

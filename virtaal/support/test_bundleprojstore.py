@@ -63,9 +63,7 @@ class TestBundleProjectStore:
         bundle = bundleprojstore.BundleProjectStore(self.bundle_file)
         try:
             # Add a simple file
-            test_file = tempfile.NamedTemporaryFile(
-                mode="wb", suffix=".txt", delete=False
-            )
+            test_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False)
             test_file.write(b"test content")
             test_file.close()
 
@@ -95,9 +93,7 @@ class TestBundleProjectStore:
         bundle = bundleprojstore.BundleProjectStore(self.bundle_file)
         try:
             # Create a temporary file
-            test_file = tempfile.NamedTemporaryFile(
-                mode="wb", suffix=".txt", delete=False
-            )
+            test_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False)
             test_file.write(b"test content for cross-device test")
             test_file.close()
 
@@ -133,9 +129,7 @@ class TestBundleProjectStore:
 
         try:
             # Add initial content
-            test_file1 = tempfile.NamedTemporaryFile(
-                mode="wb", suffix=".txt", delete=False
-            )
+            test_file1 = tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False)
             test_file1.write(b"initial content")
             test_file1.close()
             with open(test_file1.name, "rb") as f:
@@ -207,9 +201,7 @@ class TestBundleProjectStore:
         try:
             # Add files
             for i in range(3):
-                test_file = tempfile.NamedTemporaryFile(
-                    mode="wb", suffix=".txt", delete=False
-                )
+                test_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False)
                 test_file.write(f"content {i}".encode())
                 test_file.close()
                 with open(test_file.name, "rb") as f:

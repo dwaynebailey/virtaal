@@ -14,12 +14,12 @@ class TMModel(BaseTMModel):
     __gtype_name__ = 'RemoteTMModel'
     display_name = _('Remote Server')
     description = _('A translation memory server')
-    #l10n: Try to keep this as short as possible.
+    # l10n: Try to keep this as short as possible.
     shortname = _('Remote TM')
 
     default_config = {
-        "host" : "localhost",
-        "port" : "55555",
+        "host": "localhost",
+        "port": "55555",
     }
 
     # INITIALIZERS #
@@ -30,9 +30,9 @@ class TMModel(BaseTMModel):
         url = "http://%s:%s/tmserver" % (self.config["host"], self.config["port"])
 
         from virtaal.support import tmclient
+
         self.tmclient = tmclient.TMClient(url)
         self.tmclient.set_virtaal_useragent()
-
 
     # METHODS #
     def query(self, tmcontroller, unit):
@@ -51,7 +51,9 @@ class TMModel(BaseTMModel):
             params = {}
             if self.checker:
                 params['style'] = self.checker
-            self.tmclient.translate_unit(query_str, self.source_lang, self.target_lang, self._handle_matches, params)
+            self.tmclient.translate_unit(
+                query_str, self.source_lang, self.target_lang, self._handle_matches, params
+            )
 
     def _handle_matches(self, widget, query_str, matches):
         """Handle the matches when returned from self.tmclient."""
@@ -59,7 +61,7 @@ class TMModel(BaseTMModel):
         if not isinstance(matches, list):
             matches = []
         matches = [m for m in matches if isinstance(m, dict) and 'source' in m and 'target' in m]
-        self.cache[query_str] = matches or None # None instead of empty list
+        self.cache[query_str] = matches or None  # None instead of empty list
         if matches:
             for match in matches:
                 match['tmsource'] = self.shortname
@@ -69,16 +71,20 @@ class TMModel(BaseTMModel):
         """Add units in store to TM database on save."""
         units = []
         for unit in store_controller.store.get_units():
-            if  unit.istranslated():
+            if unit.istranslated():
                 units.append(unit2dict(unit))
-        #FIXME: do we get source and target langs from
-        #store_controller or from tm state?
-        self.tmclient.add_store(store_controller.store.get_filename(), units, self.source_lang, self.target_lang)
+        # FIXME: do we get source and target langs from
+        # store_controller or from tm state?
+        self.tmclient.add_store(
+            store_controller.store.get_filename(), units, self.source_lang, self.target_lang
+        )
         self.cache = {}
 
     def upload_store(self, store_controller):
         """Upload store to TM server."""
-        self.tmclient.upload_store(store_controller.store._trans_store, self.source_lang, self.target_lang)
+        self.tmclient.upload_store(
+            store_controller.store._trans_store, self.source_lang, self.target_lang
+        )
         self.cache = {}
 
 

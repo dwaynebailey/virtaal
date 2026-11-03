@@ -30,9 +30,7 @@ class Plugin(BasePlugin):
     display_name = _('Migration Assistant')
     version = 0.1
 
-    default_config = {
-        "tmdb": path.join(pan_app.get_config_dir(), "tm.db")
-    }
+    default_config = {"tmdb": path.join(pan_app.get_config_dir(), "tm.db")}
 
     def __init__(self, internal_name, main_controller):
         self.internal_name = internal_name
@@ -65,7 +63,9 @@ class Plugin(BasePlugin):
             return
 
         message = _('Should Virtaal try to import settings and data from other applications?')
-        must_migrate = self.main_controller.show_prompt(_('Import data from other applications?'), message)
+        must_migrate = self.main_controller.show_prompt(
+            _('Import data from other applications?'), message
+        )
         if not must_migrate:
             logging.debug('Migration not done due to user choice')
         else:
@@ -94,15 +94,17 @@ class Plugin(BasePlugin):
 
     def _has_anything_to_migrate(self):
         """Cheap existence-only checks (no parsing) for whether *any*
-            supported source has real data to offer - the gate for
-            whether to prompt at all."""
+        supported source has real data to offer - the gate for
+        whether to prompt at all."""
         if self._poedit_config_exists():
             return True
         if path.exists(self.lokalize_rc):
             return True
         if path.isdir(self.lokalize_tm_dir):
-            if any(name.endswith('.db') and not name.endswith('-journal.db')
-                   for name in os.listdir(self.lokalize_tm_dir)):
+            if any(
+                name.endswith('.db') and not name.endswith('-journal.db')
+                for name in os.listdir(self.lokalize_tm_dir)
+            ):
                 return True
         return False
 
@@ -152,6 +154,7 @@ class Plugin(BasePlugin):
             contents = StringIO('[poedit_headerless_file]\n' + poedit_config_file.read())
             poedit_config_file.close()
             self.poedit_config.read_file(contents)
+
             def get_thing(item):
                 return self.poedit_config.get('poedit_headerless_file', item, fallback=None)
 
@@ -194,7 +197,9 @@ class Plugin(BasePlugin):
         pan_app.settings.translator['name'] = lokalize_identity['authorname']
         pan_app.settings.translator['email'] = lokalize_identity['authoremail']
         pan_app.settings.translator['team'] = lokalize_identity['defaultmailinglist']
-        pan_app.settings.general['lastdir'] = path.dirname(dict(lokalize_config.items('State'))['project'])
+        pan_app.settings.general['lastdir'] = path.dirname(
+            dict(lokalize_config.items('State'))['project']
+        )
 
         pan_app.settings.write()
         self.migrated.append(_("Lokalize settings"))
@@ -242,11 +247,8 @@ class Plugin(BasePlugin):
                 JOIN target_strings ON main.target = target_strings.id;
             """)
             count = 0
-            for (source, target) in cursor:
-                unit = { "source" : source,
-                         "target" : target,
-                         "context" : ""
-                         }
+            for source, target in cursor:
+                unit = {"source": source, "target": target, "context": ""}
                 self.tmdb.add_dict(unit, source_lang, target_lang, commit=False)
                 count += 1
         finally:
@@ -254,5 +256,7 @@ class Plugin(BasePlugin):
 
         if count:
             self.tmdb.connection.commit()
-            self.migrated.append(_("Lokalize's Translation Memory: %(database_name)s") % \
-                    {"database_name": path.basename(filename)})
+            self.migrated.append(
+                _("Lokalize's Translation Memory: %(database_name)s")
+                % {"database_name": path.basename(filename)}
+            )

@@ -17,12 +17,13 @@ from .basetmmodel import BaseTMModel, unescape_html_entities
 
 # Some codes are weird or can be reused for others
 code_translation = {
-    'fl': 'tl', # Filipino -> Tagalog
-    'he': 'iw', # Weird code Google uses for Hebrew
-    'nb': 'no', # Google maps no (Norwegian) to its Norwegian (Bokmål) (nb) translator
+    'fl': 'tl',  # Filipino -> Tagalog
+    'he': 'iw',  # Weird code Google uses for Hebrew
+    'nb': 'no',  # Google maps no (Norwegian) to its Norwegian (Bokmål) (nb) translator
 }
 
 virtaal_referrer = "https://virtaal.translatehouse.org/"
+
 
 class TMModel(BaseTMModel):
     """This is a Google Translate translation memory model.
@@ -34,7 +35,7 @@ class TMModel(BaseTMModel):
     """
 
     __gtype_name__ = 'GoogleTranslateTMModel'
-    #l10n: The name of Google Translate in your language (translated in most languages). See http://translate.google.com/
+    # l10n: The name of Google Translate in your language (translated in most languages). See http://translate.google.com/
     display_name = _('Google Translate')
     description = _("Unreviewed machine translations from Google's translation service")
     default_config = {'api_key': ''}
@@ -55,10 +56,7 @@ class TMModel(BaseTMModel):
         self.languages_known = False
         langreq = RESTRequest(self.languages_url % {'key': self.config['api_key']}, '')
         self.client.add(langreq)
-        langreq.connect(
-            'http-success',
-            lambda langreq, response: self.got_languages(response)
-        )
+        langreq.connect('http-success', lambda langreq, response: self.got_languages(response))
         for signal in ('http-client-error', 'http-server-error'):
             langreq.connect(signal, lambda langreq, status: self.got_error(status, None))
 
@@ -70,7 +68,7 @@ class TMModel(BaseTMModel):
         query_str = unit.source
         # Google's Terms of Service says the whole URL must be less than "2K"
         # characters.
-        query_str = query_str[:2000 - len(self.translate_url)]
+        query_str = query_str[: 2000 - len(self.translate_url)]
         source_lang = code_translation.get(self.source_lang, self.source_lang).replace('_', '-')
         target_lang = code_translation.get(self.target_lang, self.target_lang).replace('_', '-')
         if source_lang not in self._languages or target_lang not in self._languages:
@@ -81,10 +79,10 @@ class TMModel(BaseTMModel):
             self.emit('match-found', query_str, self.cache[query_str])
         else:
             real_url = self.translate_url % {
-                'key':     self.config['api_key'],
+                'key': self.config['api_key'],
                 'message': quote_plus(query_str.encode('utf-8')),
-                'from':    source_lang,
-                'to':      target_lang,
+                'from': source_lang,
+                'to': target_lang,
             }
 
             req = RESTRequest(real_url, '')
@@ -92,16 +90,13 @@ class TMModel(BaseTMModel):
             # Google's Terms of Service says we need a proper HTTP referrer
             req.curl.setopt(pycurl.REFERER, virtaal_referrer)
             req.connect(
-                'http-success',
-                lambda req, response: self.got_translation(response, query_str)
+                'http-success', lambda req, response: self.got_translation(response, query_str)
             )
             req.connect(
-                'http-client-error',
-                lambda req, response: self.got_error(response, query_str)
+                'http-client-error', lambda req, response: self.got_error(response, query_str)
             )
             req.connect(
-                'http-server-error',
-                lambda req, response: self.got_error(response, query_str)
+                'http-server-error', lambda req, response: self.got_error(response, query_str)
             )
 
     def got_translation(self, val, query_str):
@@ -127,8 +122,8 @@ class TMModel(BaseTMModel):
         match = {
             'source': query_str,
             'target': target_unescaped,
-            #l10n: Try to keep this as short as possible. Feel free to transliterate.
-            'tmsource': _('Google')
+            # l10n: Try to keep this as short as possible. Feel free to transliterate.
+            'tmsource': _('Google'),
         }
         self.cache[query_str] = [match]
         self.emit('match-found', query_str, [match])

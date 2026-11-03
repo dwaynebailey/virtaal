@@ -53,6 +53,8 @@ class WordAtCursorSelector:
         buf.select_range(start, end)
 
     def _iter_at_event(self, textbox, event):
-        bx, by = textbox.window_to_buffer_coords(Gtk.TextWindowType.WIDGET, int(event.x), int(event.y))
+        bx, by = textbox.window_to_buffer_coords(
+            Gtk.TextWindowType.WIDGET, int(event.x), int(event.y)
+        )
         found, it = textbox.get_iter_at_location(bx, by)
         return it if found else None

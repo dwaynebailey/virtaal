@@ -25,18 +25,17 @@ class Cursor(GObjectWrapper):
 
     __gsignals__ = {
         "cursor-changed": (GObject.SignalFlags.RUN_FIRST, None, ()),
-        "cursor-empty":   (GObject.SignalFlags.RUN_FIRST, None, ()),
+        "cursor-empty": (GObject.SignalFlags.RUN_FIRST, None, ()),
         "indices-changed": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
-
 
     # INITIALIZERS #
     def __init__(self, model, indices, circular=True):
         """Constructor.
-            @type  model: anything
-            @param model: The model (usually a collection) to which the cursor is applicable.
-            @type  indices: ordered collection
-            @param indices: The valid values for C{self.index}."""
+        @type  model: anything
+        @param model: The model (usually a collection) to which the cursor is applicable.
+        @type  indices: ordered collection
+        @param indices: The valid values for C{self.index}."""
         GObjectWrapper.__init__(self)
 
         self.model = model
@@ -50,18 +49,19 @@ class Cursor(GObjectWrapper):
         # A unit the cursor is on without it being in indices - see visit().
         self._visiting = None
 
-
     # ACCESSORS #
     def _get_pos(self):
         return self._pos
+
     def _set_pos(self, value):
         if not self._indices:
             return
         value = max(0, min(value, len(self._indices) - 1))
         if value == self._pos:
-            return # Don't unnecessarily move the cursor (or emit 'cursor-changed', more specifically)
+            return  # Don't unnecessarily move the cursor (or emit 'cursor-changed', more specifically)
         self._pos = value
         self.emit('cursor-changed')
+
     pos = property(_get_pos, _set_pos)
 
     def _get_index(self):
@@ -73,28 +73,32 @@ class Cursor(GObjectWrapper):
         if self.pos >= l_indices:
             return l_indices - 1
         return self._indices[self.pos]
+
     def _set_index(self, index):
         """Move the cursor to the cursor to the position specified by C{index}.
-            @type  index: int
-            @param index: The index that the cursor should point to."""
+        @type  index: int
+        @param index: The index that the cursor should point to."""
         was_visiting = self._visiting is not None
         self._visiting = None
         oldpos = self._pos
         self.pos = bisect_left(self._indices, index)
         if was_visiting and self._indices and self._pos == oldpos:
             self.emit('cursor-changed')
+
     index = property(_get_index, _set_index)
 
     def _get_indices(self):
         return self._indices
+
     def _set_indices(self, value):
         self._replace_indices(value)
         self.emit('indices-changed')
+
     indices = property(_get_indices, _set_indices)
 
     def set_indices(self, value, keep_current=False):
         """Set C{indices}. With C{keep_current}, a current index that isn't
-            in C{value} stays as a visited one instead of moving."""
+        in C{value} stays as a visited one instead of moving."""
         if keep_current and self._visiting is None and self._indices:
             current = self.index
             if current not in value:
@@ -114,7 +118,9 @@ class Cursor(GObjectWrapper):
                 self._visiting = None
                 self._pos = self._indices.index(visiting)
             else:
-                self._pos = min(bisect_left(self._indices, visiting), max(len(self._indices) - 1, 0))
+                self._pos = min(
+                    bisect_left(self._indices, visiting), max(len(self._indices) - 1, 0)
+                )
             if not self._indices:
                 self.emit('cursor-empty')
             return
@@ -134,9 +140,9 @@ class Cursor(GObjectWrapper):
     # METHODS #
     def deref(self):
         """Dereference the cursor to the item in the model that the cursor is
-            currently pointing to.
+        currently pointing to.
 
-            @returns: C{self.model[self.index]}, or C{None} if any error occurred."""
+        @returns: C{self.model[self.index]}, or C{None} if any error occurred."""
         if self._visiting is None and not self._indices:
             # index is -1 here, which would silently deref the last item.
             return None
@@ -148,8 +154,8 @@ class Cursor(GObjectWrapper):
 
     def visit(self, index):
         """Move the cursor to C{index} even if it isn't in C{self.indices},
-            without adding it: the next move goes to the nearest unit in
-            C{self.indices} by position."""
+        without adding it: the next move goes to the nearest unit in
+        C{self.indices} by position."""
         if index in self._indices:
             self.index = index
             return
@@ -164,9 +170,9 @@ class Cursor(GObjectWrapper):
 
     def move(self, offset):
         """Move the cursor C{offset} positions down.
-            The cursor wraps around if C{circular=True} was given when the
-            cursor was created, otherwise it stops at the first or last
-            position."""
+        The cursor wraps around if C{circular=True} was given when the
+        cursor was created, otherwise it stops at the first or last
+        position."""
         if not self._indices:
             return
         if self._visiting is not None:

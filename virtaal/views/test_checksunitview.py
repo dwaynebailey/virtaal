@@ -17,10 +17,11 @@ def _make_view():
     store_controller = SimpleNamespace(connect=lambda *args: None)
     main_controller = SimpleNamespace(
         view=SimpleNamespace(
-            main_window=main_window,
-            gui=SimpleNamespace(get_object=lambda name: Gtk.MenuItem())),
+            main_window=main_window, gui=SimpleNamespace(get_object=lambda name: Gtk.MenuItem())
+        ),
         store_controller=store_controller,
-        unit_controller=SimpleNamespace(view=SimpleNamespace(sources=[Gtk.Label()])))
+        unit_controller=SimpleNamespace(view=SimpleNamespace(sources=[Gtk.Label()])),
+    )
     controller = SimpleNamespace(main_controller=main_controller, get_check_name=lambda name: name)
     view = ChecksUnitView(controller)
     main_window.add(view.btn_checks)
@@ -111,15 +112,23 @@ def test_new_rows_after_a_clean_unit_are_measured():
 
     _update(view, {'printf': 'Different printf variables', 'xmltags': 'Different XML tags'})
 
-    assert _rows(view) == [('printf', 'Different printf variables'), ('xmltags', 'Different XML tags')]
+    assert _rows(view) == [
+        ('printf', 'Different printf variables'),
+        ('xmltags', 'Different XML tags'),
+    ]
     assert view.btn_checks.popup.get_preferred_size()[1].height > one_row
 
 
 def _place(view):
     view._top_limit = lambda: 0
     natural = view.btn_checks.popup.get_child().get_preferred_size()[1]
-    return view.update_geometry(view.btn_checks.popup, None, None, SimpleNamespace(x=0, y=10000),
-                                (0, 0, natural.width, natural.height))
+    return view.update_geometry(
+        view.btn_checks.popup,
+        None,
+        None,
+        SimpleNamespace(x=0, y=10000),
+        (0, 0, natural.width, natural.height),
+    )
 
 
 def test_long_descriptions_wrap_to_the_maximum_width():
@@ -128,7 +137,8 @@ def test_long_descriptions_wrap_to_the_maximum_width():
     _update(view, {'xmltags': 'Different XML tags'})
     one_line = view.btn_checks.popup.get_preferred_size()[1].height
     view.controller.main_controller.unit_controller.view.sources[0] = SimpleNamespace(
-        get_allocation=lambda: SimpleNamespace(width=400))
+        get_allocation=lambda: SimpleNamespace(width=400)
+    )
 
     _update(view, {'xmltags': 'Different XML tags ' * 20})
     x, y, width, height = _place(view)
@@ -142,7 +152,8 @@ def test_placing_wrapped_descriptions_again_changes_nothing():
     view = _make_view()
     view.btn_checks.set_active(True)
     view.controller.main_controller.unit_controller.view.sources[0] = SimpleNamespace(
-        get_allocation=lambda: SimpleNamespace(width=400))
+        get_allocation=lambda: SimpleNamespace(width=400)
+    )
     _update(view, {'xmltags': 'Different XML tags ' * 20})
     _place(view)
     placed = _place(view)
@@ -163,7 +174,9 @@ def test_the_button_has_no_tooltip_repeating_its_label():
 def _geometry(view, button_y, natural_height, top):
     view._top_limit = lambda: top
     view._unscrolled_height = lambda height: height
-    return view.update_geometry(None, None, None, SimpleNamespace(x=0, y=button_y), (0, 0, 100, natural_height))
+    return view.update_geometry(
+        None, None, None, SimpleNamespace(x=0, y=button_y), (0, 0, 100, natural_height)
+    )
 
 
 def test_the_popup_keeps_its_height_when_it_fits_above_the_button():
@@ -206,14 +219,20 @@ def test_a_scrolling_popup_shows_only_whole_rows():
     view = _make_view()
     _update(view, {'check%d' % i: 'Description %d' % i for i in range(6)})
     view.controller.main_controller.unit_controller.view.sources[0] = SimpleNamespace(
-        get_allocation=lambda: SimpleNamespace(width=400))
+        get_allocation=lambda: SimpleNamespace(width=400)
+    )
     view._top_limit = lambda: 0
     view._unscrolled_height = lambda height: height
     row = view.box_checks.get_children()[0].get_preferred_height()[1]
     spacing = view.box_checks.get_spacing()
     natural = view.box_checks.get_preferred_height()[1] + 10
 
-    height = view.update_geometry(None, None, None, SimpleNamespace(x=0, y=int(natural - (row + spacing) * 2.5)),
-                                  (0, 0, 100, natural))[3]
+    height = view.update_geometry(
+        None,
+        None,
+        None,
+        SimpleNamespace(x=0, y=int(natural - (row + spacing) * 2.5)),
+        (0, 0, 100, natural),
+    )[3]
 
     assert height == 10 + 3 * row + 2 * spacing

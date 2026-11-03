@@ -6,17 +6,25 @@ numbering system.
 Needs Babel and network access (for CLDR's numberingSystems.json, at
 the CLDR version Babel ships). Rerun after upgrading Babel.
 """
+
 import json
 import os
 import urllib.request
 
 from babel import Locale, core, localedata
 
-NUMBERING_SYSTEMS_URL = ("https://raw.githubusercontent.com/unicode-org/cldr-json/"
-                         "%s.0.0/cldr-json/cldr-core/supplemental/numberingSystems.json")
+NUMBERING_SYSTEMS_URL = (
+    "https://raw.githubusercontent.com/unicode-org/cldr-json/"
+    "%s.0.0/cldr-json/cldr-core/supplemental/numberingSystems.json"
+)
 LATIN = "0123456789"
-OUTPUT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                      "virtaal", "support", "libi18n", "cldr_numbering_systems.py")
+OUTPUT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "virtaal",
+    "support",
+    "libi18n",
+    "cldr_numbering_systems.py",
+)
 
 HEADER = '''#
 # Copyright (C) Virtaal contributors.
@@ -39,8 +47,11 @@ def main():
         systems = json.load(response)["supplemental"]["numberingSystems"]
 
     used = {Locale.parse(code).default_numbering_system for code in localedata.locale_identifiers()}
-    table = {name: systems[name]["_digits"] for name in used
-             if systems[name].get("_digits", LATIN) != LATIN}
+    table = {
+        name: systems[name]["_digits"]
+        for name in used
+        if systems[name].get("_digits", LATIN) != LATIN
+    }
 
     with open(OUTPUT, "w", encoding="utf-8") as f:
         f.write(HEADER % version)

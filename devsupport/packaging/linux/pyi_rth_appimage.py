@@ -37,14 +37,19 @@ def _setup():
     # the IBus candidate window and the text being typed jump about; its
     # IBus module doesn't. Only when IBus is the desktop's input method
     # and nothing else was chosen. helperprocess.host_env() drops it again.
-    if (os.environ.get('WAYLAND_DISPLAY') and 'GTK_IM_MODULE' not in os.environ
-            and '@im=ibus' in os.environ.get('XMODIFIERS', '')):
+    if (
+        os.environ.get('WAYLAND_DISPLAY')
+        and 'GTK_IM_MODULE' not in os.environ
+        and '@im=ibus' in os.environ.get('XMODIFIERS', '')
+    ):
         os.environ['GTK_IM_MODULE'] = 'ibus'
         os.environ['_VIRTAAL_SET_GTK_IM_MODULE'] = '1'
 
     # pyenchant sets enchant's prefix to this path's grandparent, where
     # the bundled providers are (enchant/lib/enchant-2/).
-    os.environ.setdefault('PYENCHANT_LIBRARY_PATH', os.path.join(bundle, 'enchant', 'lib', 'libenchant-2.so.2'))
+    os.environ.setdefault(
+        'PYENCHANT_LIBRARY_PATH', os.path.join(bundle, 'enchant', 'lib', 'libenchant-2.so.2')
+    )
 
 
 _setup()

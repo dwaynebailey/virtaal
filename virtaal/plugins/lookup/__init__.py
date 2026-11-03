@@ -32,8 +32,12 @@ class Plugin(BasePlugin):
         self.load_config()
         self.config['disabled_models'] = self.config['disabled_models'].split(',')
         self.config['backends_dialog_width'] = pan_app.config_int(
-            self.config['backends_dialog_width'], self.default_config['backends_dialog_width'], 1, 32767,
-            'backends_dialog_width')
+            self.config['backends_dialog_width'],
+            self.default_config['backends_dialog_width'],
+            1,
+            32767,
+            'backends_dialog_width',
+        )
         self._init_plugin()
 
     def _init_plugin(self):

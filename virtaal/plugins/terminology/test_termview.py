@@ -117,14 +117,21 @@ def test_select_backends_delegates_to_backendselect(monkeypatch):
     )
     view = TerminologyView(controller)
     calls = []
-    monkeypatch.setattr('virtaal.views.backendselect.select_backends',
-                         lambda *args, **kwargs: calls.append((args, kwargs)))
+    monkeypatch.setattr(
+        'virtaal.views.backendselect.select_backends',
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
     parent = object()
 
     view.select_backends(parent)
 
     assert len(calls) == 1
     args, kwargs = calls[0]
-    assert args == ('main-controller', 'plugin-controller', {'backends_dialog_width': 300}, 'basetermmodel')
+    assert args == (
+        'main-controller',
+        'plugin-controller',
+        {'backends_dialog_width': 300},
+        'basetermmodel',
+    )
     assert kwargs['parent'] is parent
     assert kwargs['size'] == (300, 300)

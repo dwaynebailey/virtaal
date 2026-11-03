@@ -26,7 +26,9 @@ def _controller(**availability):
         store_controller=SimpleNamespace(cursor=SimpleNamespace(circular=True)),
     )
     controller.unavailable = None
-    controller.view = SimpleNamespace(set_unavailable_modes=lambda names: setattr(controller, 'unavailable', names))
+    controller.view = SimpleNamespace(
+        set_unavailable_modes=lambda names: setattr(controller, 'unavailable', names)
+    )
     return controller
 
 
@@ -71,7 +73,9 @@ def _selecting_controller(**availability):
     controller.view.remove_mode_widgets = lambda widgets: None
     controller.view.select_mode = lambda displayname: None
     controller.view.show = lambda: None
-    controller.view.set_context_sensitive = lambda sensitive: setattr(controller, 'context_sensitive', sensitive)
+    controller.view.set_context_sensitive = lambda sensitive: setattr(
+        controller, 'context_sensitive', sensitive
+    )
     controller.emit = lambda signal, mode: emitted.append(mode.name)
     return controller, selected, emitted
 
@@ -86,7 +90,9 @@ def test_select_mode_selects_an_available_mode():
 
 
 def test_select_mode_remembers_the_mode_it_replaced():
-    controller, selected, emitted = _selecting_controller(default=True, incomplete=True, search=True)
+    controller, selected, emitted = _selecting_controller(
+        default=True, incomplete=True, search=True
+    )
     controller.select_mode(controller.modes['incomplete'])
 
     controller.select_mode(controller.modes['search'])
@@ -109,7 +115,9 @@ def test_select_mode_selects_the_default_mode_instead_of_an_unavailable_one():
 def test_select_mode_sets_whether_the_cursor_wraps():
     # Search and checks step through hits; other modes are the document
     # and stop at its ends (#3789).
-    controller, _selected, _emitted = _selecting_controller(default=True, search=True, qualitycheck=True)
+    controller, _selected, _emitted = _selecting_controller(
+        default=True, search=True, qualitycheck=True
+    )
     cursor = controller.main_controller.store_controller.cursor
 
     controller.select_mode(controller.modes['default'])
@@ -147,7 +155,10 @@ def test_context_selected_is_passed_to_the_store_view_then_announced():
     controller = _controller(default=True)
     events = []
     controller.main_controller = SimpleNamespace(
-        store_controller=SimpleNamespace(view=SimpleNamespace(set_context=lambda c: events.append(('rows', c)))))
+        store_controller=SimpleNamespace(
+            view=SimpleNamespace(set_context=lambda c: events.append(('rows', c)))
+        )
+    )
     controller.emit = lambda signal, context: events.append((signal, context))
 
     controller._on_context_selected(None, 2)
@@ -156,6 +167,7 @@ def test_context_selected_is_passed_to_the_store_view_then_announced():
 
 
 # Choosing a mode from the list (#1925) #
+
 
 def _choosing_controller(monkeypatch, mode):
     controller = _controller(default=True)
@@ -166,7 +178,9 @@ def _choosing_controller(monkeypatch, mode):
     events = []
     target = SimpleNamespace(grab_focus=lambda: events.append('focus unit'))
     controller.main_controller = SimpleNamespace(
-        unit_controller=SimpleNamespace(view=SimpleNamespace(targets=[target], focused_target_n=None)),
+        unit_controller=SimpleNamespace(
+            view=SimpleNamespace(targets=[target], focused_target_n=None)
+        ),
         store_controller=SimpleNamespace(get_store=lambda: object()),
     )
     idles = []
@@ -175,6 +189,7 @@ def _choosing_controller(monkeypatch, mode):
     def run_idles():
         while idles:
             idles.pop(0)()
+
     return controller, events, run_idles
 
 
@@ -242,11 +257,13 @@ def test_choosing_a_mode_with_a_menu_opens_it_then_goes_to_the_unit(monkeypatch)
 
         def disconnect(self, handler_id):
             pass
+
     menu = _Menu()
     button = SimpleNamespace(menu=menu, get_sensitive=lambda: True)
     button.set_active = lambda active: events.append('menu open')
     controller, events, run_idles = _choosing_controller(
-        monkeypatch, SimpleNamespace(widgets=[button], btn_popup=button))
+        monkeypatch, SimpleNamespace(widgets=[button], btn_popup=button)
+    )
 
     _choose_from_list(controller, 'Quality Checks')
     run_idles()
@@ -258,7 +275,9 @@ def test_choosing_a_mode_with_a_menu_opens_it_then_goes_to_the_unit(monkeypatch)
 
 
 def test_choosing_search_leaves_focus_to_its_entry(monkeypatch):
-    controller, events, run_idles = _choosing_controller(monkeypatch, SimpleNamespace(widgets=['entry']))
+    controller, events, run_idles = _choosing_controller(
+        monkeypatch, SimpleNamespace(widgets=['entry'])
+    )
 
     _choose_from_list(controller, 'Search')
     run_idles()

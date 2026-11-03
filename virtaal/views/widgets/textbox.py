@@ -34,11 +34,11 @@ def colors_equal(a, b):
 
 def unlock_partly_covered_leaves(elem, start, end):
     """Make each non-editable leaf that [start, end) only partly covers
-        plain text, since the toolkit refuses to edit inside one. Every
-        such leaf with text is parsed from the text (%s, &amp;, a newline),
-        so a reparse recognises whatever is left of it. With start == end,
-        this unlocks a leaf that offset falls strictly inside of.
-        @returns: Whether any leaf was unlocked."""
+    plain text, since the toolkit refuses to edit inside one. Every
+    such leaf with text is parsed from the text (%s, &amp;, a newline),
+    so a reparse recognises whatever is left of it. With start == end,
+    this unlocks a leaf that offset falls strictly inside of.
+    @returns: Whether any leaf was unlocked."""
     unlocked = False
     for leaf in elem.flatten():
         if leaf.iseditable:
@@ -57,20 +57,25 @@ def unlock_partly_covered_leaves(elem, start, end):
 _suggestion_provider = None
 _suggestion_color = None
 
+
 def _ensure_suggestion_css(screen):
     """Style a suggestion's selection as subtle text rather than a real
-        selection. Screen-wide, since the selection node doesn't see
-        providers added to the textview's own style context."""
+    selection. Screen-wide, since the selection node doesn't see
+    providers added to the textview's own style context."""
     global _suggestion_provider, _suggestion_color
     color = current_theme['subtle_fg']
     if _suggestion_provider is None:
         _suggestion_provider = Gtk.CssProvider()
         Gtk.StyleContext.add_provider_for_screen(
-            screen, _suggestion_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            screen, _suggestion_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
     if color != _suggestion_color:
-        _suggestion_provider.load_from_data((
-            'textview.suggestion text selection '
-            '{ color: %s; background-color: transparent; }' % color).encode())
+        _suggestion_provider.load_from_data(
+            (
+                'textview.suggestion text selection '
+                '{ color: %s; background-color: transparent; }' % color
+            ).encode()
+        )
         _suggestion_color = color
 
 
@@ -95,15 +100,26 @@ class TextBox(Gtk.TextView):
         'alt-left': [(Gdk.KEY_Left, Gdk.ModifierType.MOD1_MASK)],
         'alt-right': [(Gdk.KEY_Right, Gdk.ModifierType.MOD1_MASK)],
         'enter': [(Gdk.KEY_Return, 0), (Gdk.KEY_KP_Enter, 0)],
-        'ctrl-enter': [(Gdk.KEY_Return, Gdk.ModifierType.CONTROL_MASK),
-                       (Gdk.KEY_KP_Enter, Gdk.ModifierType.CONTROL_MASK)],
-        'ctrl-shift-enter': [(Gdk.KEY_Return, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK),
-                             (Gdk.KEY_KP_Enter, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK)],
-        'shift-tab': [(Gdk.KEY_ISO_Left_Tab, Gdk.ModifierType.SHIFT_MASK), (Gdk.KEY_Tab, Gdk.ModifierType.SHIFT_MASK)],
-        'ctrl-tab': [(Gdk.KEY_ISO_Left_Tab, Gdk.ModifierType.CONTROL_MASK),
-                     (Gdk.KEY_Tab, Gdk.ModifierType.CONTROL_MASK)],
-        'ctrl-shift-tab': [(Gdk.KEY_ISO_Left_Tab, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK),
-                           (Gdk.KEY_Tab, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK)],
+        'ctrl-enter': [
+            (Gdk.KEY_Return, Gdk.ModifierType.CONTROL_MASK),
+            (Gdk.KEY_KP_Enter, Gdk.ModifierType.CONTROL_MASK),
+        ],
+        'ctrl-shift-enter': [
+            (Gdk.KEY_Return, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK),
+            (Gdk.KEY_KP_Enter, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK),
+        ],
+        'shift-tab': [
+            (Gdk.KEY_ISO_Left_Tab, Gdk.ModifierType.SHIFT_MASK),
+            (Gdk.KEY_Tab, Gdk.ModifierType.SHIFT_MASK),
+        ],
+        'ctrl-tab': [
+            (Gdk.KEY_ISO_Left_Tab, Gdk.ModifierType.CONTROL_MASK),
+            (Gdk.KEY_Tab, Gdk.ModifierType.CONTROL_MASK),
+        ],
+        'ctrl-shift-tab': [
+            (Gdk.KEY_ISO_Left_Tab, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK),
+            (Gdk.KEY_Tab, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK),
+        ],
     }
     """A table of name-keybinding mappings. The name (key) is passed as the
     second parameter to the 'key-pressed' event."""
@@ -150,7 +166,9 @@ class TextBox(Gtk.TextView):
             # This should always happen, because the text boxes are created
             # when the unit controller is created, which happens before the
             # creation of the placeables- and undo controllers.
-            self.__controller_connect_id = main_controller.connect('controller-registered', self.__on_controller_register)
+            self.__controller_connect_id = main_controller.connect(
+                'controller-registered', self.__on_controller_register
+            )
         if text:
             self.set_text(text)
 
@@ -167,9 +185,9 @@ class TextBox(Gtk.TextView):
         self.buffer.connect('end-user-action', self._on_end_user_action)
         self.buffer.connect('mark-set', self._on_mark_set)
 
-
     def _get_suggestion(self):
         return self._suggestion
+
     def _set_suggestion(self, value):
         if value is None:
             self.hide_suggestion()
@@ -177,21 +195,27 @@ class TextBox(Gtk.TextView):
             self.get_style_context().remove_class('suggestion')
             return
 
-        if not (isinstance(value, dict) and \
-                'text'   in value and value['text'] and \
-                'offset' in value and value['offset'] >= 0):
+        if not (
+            isinstance(value, dict)
+            and 'text' in value
+            and value['text']
+            and 'offset' in value
+            and value['offset'] >= 0
+        ):
             raise ValueError('invalid suggestion dictionary: %s' % (value))
 
         if self.suggestion_is_visible():
             self.suggestion = None
         self._suggestion = value
         self.show_suggestion()
+
     suggestion = property(_get_suggestion, _set_suggestion)
 
     @property
     def completion_popup(self):
         if self._completion_popup is None:
             from virtaal.views.widgets.completionpopup import CompletionPopup
+
             self._completion_popup = CompletionPopup()
         return self._completion_popup
 
@@ -203,7 +227,7 @@ class TextBox(Gtk.TextView):
 
     def get_text(self, start_iter=None, end_iter=None):
         """Return the text rendered in this text box.
-            Uses C{Gtk.TextBuffer.get_text()}."""
+        Uses C{Gtk.TextBuffer.get_text()}."""
         if isinstance(start_iter, int):
             start_iter = self.buffer.get_iter_at_offset(start_iter)
         if isinstance(end_iter, int):
@@ -216,9 +240,9 @@ class TextBox(Gtk.TextView):
 
     def set_text(self, text, update=False):
         """Set the text rendered in this text box.
-            Uses C{Gtk.TextBuffer.set_text()}.
-            @type  text: str|str|L{StringElem}
-            @param text: The text to render in this text box."""
+        Uses C{Gtk.TextBuffer.set_text()}.
+        @type  text: str|str|L{StringElem}
+        @param text: The text to render in this text box."""
         if not isinstance(text, StringElem):
             text = StringElem(text)
 
@@ -236,7 +260,9 @@ class TextBox(Gtk.TextView):
 
             # We have to edit the existing .elem for the sake of the undo controller
             if self.placeables_controller:
-                self.elem.sub = [elem_parse(text, self.placeables_controller.get_parsers_for_textbox(self))]
+                self.elem.sub = [
+                    elem_parse(text, self.placeables_controller.get_parsers_for_textbox(self))
+                ]
                 self.elem.prune()
             else:
                 self.elem.sub = [text]
@@ -245,19 +271,18 @@ class TextBox(Gtk.TextView):
             self.update_tree()
         self.emit("changed")
 
-
     # METHODS #
     def add_default_gui_info(self, elem):
         """Add default GUI info to string elements in the tree that does not
-            have any GUI info.
+        have any GUI info.
 
-            Only leaf nodes are (currently) extended with a C{StringElemGUI}
-            (or sub-class) instance. Other nodes has C{gui_info} set to C{None}.
+        Only leaf nodes are (currently) extended with a C{StringElemGUI}
+        (or sub-class) instance. Other nodes has C{gui_info} set to C{None}.
 
-            @type  elem: StringElem
-            @param elem: The root of the string element tree to add default
-                GUI info to.
-            """
+        @type  elem: StringElem
+        @param elem: The root of the string element tree to add default
+            GUI info to.
+        """
         if not isinstance(elem, StringElem):
             return
 
@@ -273,9 +298,9 @@ class TextBox(Gtk.TextView):
         if getattr(elem, 'gui_info', None):
             if offset is None:
                 offset = self.elem.gui_info.index(elem)
-            #logging.debug('offset for %s: %d' % (repr(elem), offset))
+            # logging.debug('offset for %s: %d' % (repr(elem), offset))
             if offset >= 0:
-                #logging.debug('[%s] at offset %d' % (str(elem).encode('utf-8'), offset))
+                # logging.debug('[%s] at offset %d' % (str(elem).encode('utf-8'), offset))
                 start_index = offset
                 end_index = offset + elem.gui_info.length()
                 for tag, tag_start, tag_end in elem.gui_info.create_tags():
@@ -299,10 +324,12 @@ class TextBox(Gtk.TextView):
                     if tag_end > end_index:
                         tag_end = end_index
 
-                    #logging.debug('  Apply tag at interval (%d, %d) [%s]' % (tag_start, tag_end, self.get_text(*iters)))
-                    if not include_subtree or \
-                            not colors_equal(elem.gui_info.fg, placeablesguiinfo.StringElemGUI.fg) or \
-                            not colors_equal(elem.gui_info.bg, placeablesguiinfo.StringElemGUI.bg):
+                    # logging.debug('  Apply tag at interval (%d, %d) [%s]' % (tag_start, tag_end, self.get_text(*iters)))
+                    if (
+                        not include_subtree
+                        or not colors_equal(elem.gui_info.fg, placeablesguiinfo.StringElemGUI.fg)
+                        or not colors_equal(elem.gui_info.bg, placeablesguiinfo.StringElemGUI.bg)
+                    ):
                         self.buffer.get_tag_table().add(tag)
                         self._placeable_tags.append(tag)
                         start_iter = self.buffer.get_iter_at_offset(tag_start)
@@ -312,7 +339,7 @@ class TextBox(Gtk.TextView):
         if include_subtree:
             for sub, index in elem.gui_info.iter_sub_with_index():
                 if isinstance(sub, StringElem):
-                    self.apply_gui_info(sub, offset=index+offset)
+                    self.apply_gui_info(sub, offset=index + offset)
 
     def _remove_placeable_tags(self):
         tagtable = self.buffer.get_tag_table()
@@ -334,7 +361,7 @@ class TextBox(Gtk.TextView):
 
     def insert_translation(self, elem):
         """Insert C{elem}'s translation at the cursor, or offer its candidates
-            to choose from. Returns C{False} if the insert waits on a choice."""
+        to choose from. Returns C{False} if the insert waits on a choice."""
         candidates = elem.gui_info.get_insert_candidates()
         if candidates:
             self._show_insert_candidates(candidates)
@@ -387,10 +414,13 @@ class TextBox(Gtk.TextView):
             else:
                 start = end = self.buffer.props.cursor_position
             self.completion_popup.show_at(
-                self, start, candidates,
+                self,
+                start,
+                candidates,
                 lambda text: self._insert_candidate(text, start, end),
             )
             return False
+
         GLib.idle_add(show)
 
     def _insert_candidate(self, text, start, end):
@@ -399,8 +429,9 @@ class TextBox(Gtk.TextView):
         if recording:
             self.undo_controller.record_start()
         if end > start:
-            self.buffer.delete(self.buffer.get_iter_at_offset(start),
-                               self.buffer.get_iter_at_offset(end))
+            self.buffer.delete(
+                self.buffer.get_iter_at_offset(start), self.buffer.get_iter_at_offset(end)
+            )
         self.refresh_cursor_pos = start
         self.buffer.insert(self.buffer.get_iter_at_offset(start), text)
         if recording:
@@ -410,7 +441,7 @@ class TextBox(Gtk.TextView):
 
     def move_elem_selection(self, offset):
         """Move the source placeable selection C{offset} places, stopping at
-            the first and last placeable."""
+        the first and last placeable."""
         source = self.selector_textbox
         elems = source.selectable_elems()
         if not elems:
@@ -439,16 +470,15 @@ class TextBox(Gtk.TextView):
     def _has_valid_selection(self, elems):
         # The selection goes stale when the text is re-parsed (e.g. a
         # terminology rescan replaces the placeables).
-        return self.selected_elem_index is not None and \
-            any(e is self.selected_elem for e in elems)
+        return self.selected_elem_index is not None and any(e is self.selected_elem for e in elems)
 
     @staticmethod
     def __set_selector_fg(widget, color):
         """Colour one selector's parent - override_color() is
-            deprecated. Tracks its own provider on the widget itself,
-            since each of self.selector_textboxes' parents needs its
-            own (this recolours all of them on every selection
-            change)."""
+        deprecated. Tracks its own provider on the widget itself,
+        since each of self.selector_textboxes' parents needs its
+        own (this recolours all of them on every selection
+        change)."""
         style = widget.get_style_context()
         old = getattr(widget, '_selector_fg_provider', None)
         if old is not None:
@@ -474,7 +504,7 @@ class TextBox(Gtk.TextView):
 
     def place_cursor(self, cursor_pos):
         cursor_iter = self.buffer.get_iter_at_offset(cursor_pos)
-        #logging.debug('setting cursor to position %d' % (cursor_pos))
+        # logging.debug('setting cursor to position %d' % (cursor_pos))
         self.buffer.place_cursor(cursor_iter)
         # Make sure the cursor is visible to reduce jitters (with backspace at
         # the end of a long unit with scrollbar, for example). Unlike
@@ -484,8 +514,8 @@ class TextBox(Gtk.TextView):
     def refresh(self, preserve_selection=True, update=False):
         """Refresh the text box by setting its text to the current text."""
         if not self.props.visible:
-            return # Don't refresh if this text box is not going to be seen anyway
-        #logging.debug('self.refresh_cursor_pos = %d' % (self.refresh_cursor_pos))
+            return  # Don't refresh if this text box is not going to be seen anyway
+        # logging.debug('self.refresh_cursor_pos = %d' % (self.refresh_cursor_pos))
         if self.refresh_cursor_pos < 0:
             self.refresh_cursor_pos = self.buffer.props.cursor_position
         selection = [itr.get_offset() for itr in self.buffer.get_selection_bounds()]
@@ -504,7 +534,6 @@ class TextBox(Gtk.TextView):
             self.place_cursor(self.refresh_cursor_pos)
         self.refresh_cursor_pos = -1
 
-
         self.emit('refreshed', self.elem)
 
     def select_elem(self, elem=None, offset=None):
@@ -513,9 +542,9 @@ class TextBox(Gtk.TextView):
 
         if elem is None and offset is None:
             # Clear current selection
-            #logging.debug('Clearing selected placeable from %s' % (repr(self)))
+            # logging.debug('Clearing selected placeable from %s' % (repr(self)))
             if self.selected_elem is not None:
-                #logging.debug('Selected item *was* %s' % (repr(self.selected_elem)))
+                # logging.debug('Selected item *was* %s' % (repr(self.selected_elem)))
                 self.selected_elem.gui_info = None
                 self.add_default_gui_info(self.selected_elem)
                 self.selected_elem = None
@@ -551,9 +580,14 @@ class TextBox(Gtk.TextView):
             i += 1
         self.selected_elem_index = i
         self.selected_elem = elem
-        #logging.debug('Selected element: %s (%s)' % (repr(self.selected_elem), str(self.selected_elem)))
+        # logging.debug('Selected element: %s (%s)' % (repr(self.selected_elem), str(self.selected_elem)))
         if not hasattr(elem, 'gui_info') or not elem.gui_info:
-            elem.gui_info = placeablesguiinfo.StringElemGUI(elem, self, fg=current_theme['selected_placeable_fg'], bg=current_theme['selected_placeable_bg'])
+            elem.gui_info = placeablesguiinfo.StringElemGUI(
+                elem,
+                self,
+                fg=current_theme['selected_placeable_fg'],
+                bg=current_theme['selected_placeable_bg'],
+            )
         else:
             elem.gui_info.fg = current_theme['selected_placeable_fg']
             elem.gui_info.bg = current_theme['selected_placeable_bg']
@@ -579,7 +613,7 @@ class TextBox(Gtk.TextView):
             self.buffer.get_iter_at_offset(self.suggestion['offset']),
             self.buffer.get_iter_at_offset(
                 self.suggestion['offset'] + len(self.suggestion['text'])
-            )
+            ),
         )
         self.buffer.select_range(*iters)
         _ensure_suggestion_css(self.get_screen())
@@ -592,10 +626,12 @@ class TextBox(Gtk.TextView):
             return False
         start_offset = selection[0].get_offset()
         text = self.buffer.get_text(*selection, include_hidden_chars=False)
-        return self.suggestion['text'] and \
-                self.suggestion['text'] == text and \
-                self.suggestion['offset'] >= 0 and \
-                self.suggestion['offset'] == start_offset
+        return (
+            self.suggestion['text']
+            and self.suggestion['text'] == text
+            and self.suggestion['offset'] >= 0
+            and self.suggestion['offset'] == start_offset
+        )
 
     def update_tree(self):
         if not self.placeables_controller:
@@ -618,7 +654,6 @@ class TextBox(Gtk.TextView):
         # At this point we have a tree of string elements with GUI info.
         self.apply_gui_info(self.elem)
 
-
     # EVENT HANDLERS #
     def __on_controller_register(self, main_controller, controller):
         if controller is main_controller.placeables_controller:
@@ -626,8 +661,7 @@ class TextBox(Gtk.TextView):
         elif controller is main_controller.undo_controller:
             self.undo_controller = controller
 
-        if self.placeables_controller is not None and \
-                self.undo_controller is not None:
+        if self.placeables_controller is not None and self.undo_controller is not None:
             main_controller.disconnect(self.__controller_connect_id)
 
     def _on_begin_user_action(self, buffer):
@@ -645,8 +679,9 @@ class TextBox(Gtk.TextView):
         before = itr.copy()
         before.backward_char()
         anchor = before.get_child_anchor()
-        return anchor is not None and \
-            any(getattr(w, 'is_newline_marker', False) for w in anchor.get_widgets())
+        return anchor is not None and any(
+            getattr(w, 'is_newline_marker', False) for w in anchor.get_widgets()
+        )
 
     def _on_mark_set(self, buffer, itr, mark):
         if mark is not buffer.get_insert():
@@ -669,8 +704,12 @@ class TextBox(Gtk.TextView):
         if self.undo_controller.model.recording:
             self.undo_controller.record_stop()
         # A typed placeable's widgets only reach the buffer in the deferred refresh.
-        if self.elem is not None and not self._structural_change_pending and \
-                not self._render_pending and not self._matches_tree(self.get_text(), self.buffer.get_char_count()):
+        if (
+            self.elem is not None
+            and not self._structural_change_pending
+            and not self._render_pending
+            and not self._matches_tree(self.get_text(), self.buffer.get_char_count())
+        ):
             logging.warning('Target text out of step with its placeables: %r', self.elem)
             self._structural_change_pending = True
         if self._structural_change_pending:
@@ -685,9 +724,17 @@ class TextBox(Gtk.TextView):
             self.refresh_cursor_pos = -1
             self.emit("changed")
 
-    def _delete_at_placeable_boundary(self, start_iter, start_elem, start_elem_offset,
-                                       start_elem_len, cursor_pos, key_is_delete,
-                                       start_offset, end_offset):
+    def _delete_at_placeable_boundary(
+        self,
+        start_iter,
+        start_elem,
+        start_elem_offset,
+        start_elem_len,
+        cursor_pos,
+        key_is_delete,
+        start_offset,
+        end_offset,
+    ):
         """Handle a single-character Backspace/Delete landing on one of
         the four boundary positions around a placeable, per the table
         below. Returns (done, deleted, parent, index, start_offset,
@@ -698,18 +745,18 @@ class TextBox(Gtk.TextView):
         #################################
         #  Placeable:  |<<|content|>>|  #
         #  Cursor:     a  b       c  d  #
-        #===============================#
+        # ===============================#
         #           Editable            #
-        #===============================#
+        # ===============================#
         #   |  Backspace  |  Delete     #
-        #---|-------------|-------------#
+        # ---|-------------|-------------#
         # a |  N/A        |  Placeable  #
         # b |  Nothing    | @Delete "c" #
         # c | @Delete "t" |  Nothing    #
         # d |  Placeable  |  N/A        #
-        #===============================#
+        # ===============================#
         #         Non-Editable          #
-        #===============================#
+        # ===============================#
         # a |  N/A        |  Placeable  #
         # b | *Nothing    | *Nothing    #
         # c | *Nothing    | *Nothing    #
@@ -730,11 +777,11 @@ class TextBox(Gtk.TextView):
         has_start_widget = has_end_widget = False
         if hasattr(start_elem, 'gui_info'):
             has_start_widget = start_elem.gui_info.has_start_widget()
-            has_end_widget   = start_elem.gui_info.has_end_widget()
+            has_end_widget = start_elem.gui_info.has_end_widget()
 
         if cursor_pos == start_elem_offset:
             position = 'a'
-        elif has_start_widget and cursor_pos == start_elem_offset+1:
+        elif has_start_widget and cursor_pos == start_elem_offset + 1:
             position = 'b'
         elif has_end_widget and cursor_pos == start_elem_offset + start_elem_len - 1:
             position = 'c'
@@ -744,14 +791,15 @@ class TextBox(Gtk.TextView):
         done = False
         # If the current state is in the table, handle it
         if position:
-            #logging.debug('(a)<<(b)content(c)>>(d)   pos=%s' % (position))
+            # logging.debug('(a)<<(b)content(c)>>(d)   pos=%s' % (position))
             if (position == 'a' and not key_is_delete) or (position == 'd' and key_is_delete):
                 # "N/A" fields in table
                 pass
             elif (position == 'a' and key_is_delete) or (position == 'd' and not key_is_delete):
                 # "Placeable" fields
-                if (position == 'a' and (has_start_widget or not start_elem.iseditable)) or \
-                        (position == 'd' and (has_end_widget or not start_elem.iseditable)):
+                if (position == 'a' and (has_start_widget or not start_elem.iseditable)) or (
+                    position == 'd' and (has_end_widget or not start_elem.iseditable)
+                ):
                     deleted = start_elem.copy()
                     parent = self.elem.get_parent_elem(start_elem)
                     index = self.elem.elem_offset(start_elem)
@@ -788,14 +836,14 @@ class TextBox(Gtk.TextView):
 
     def _matches_tree(self, text, length):
         """Whether a buffer with C{text} and C{length} positions (text and
-            widgets) shows self.elem as it is now."""
+        widgets) shows self.elem as it is now."""
         self.add_default_gui_info(self.elem)
         return text == str(self.elem) and length == self.elem.gui_info.length()
 
     def _delete_inside_widget_leaf(self, leaf, start, end):
         """Delete tree range [start, end) from the content of C{leaf}, a
-            placeable shown with widgets (<g>). Unlike delete_range(), this
-            keeps the placeable when all of its content goes."""
+        placeable shown with widgets (<g>). Unlike delete_range(), this
+        keeps the placeable when all of its content goes."""
         leaf_offset = self.elem.elem_offset(leaf)
         text = str(leaf)
         local_start, local_end = start - leaf_offset, end - leaf_offset
@@ -806,7 +854,7 @@ class TextBox(Gtk.TextView):
 
     def _reparse_at(self, tree_offset):
         """Reparse the plain leaves either side of C{tree_offset} after an
-            edit there. @returns: Whether new placeables were found."""
+        edit there. @returns: Whether new placeables were found."""
         parsers = self.placeables_controller.get_parsers_for_textbox(self)
         found = False
         for offset in sorted({max(tree_offset - 1, 0), tree_offset}):
@@ -847,10 +895,10 @@ class TextBox(Gtk.TextView):
             end_elem_len = 0
             end_elem_offset = self.elem.gui_info.length()
 
-        #logging.debug('pre-checks: %s[%d:%d]' % (repr(self.elem), start_offset, end_offset))
-        #logging.debug('start_elem_offset= %d\tend_elem_offset= %d' % (start_elem_offset, end_elem_offset))
-        #logging.debug('start_elem_len   = %d\tend_elem_len   = %d' % (start_elem_len, end_elem_len))
-        #logging.debug('start_offset     = %d\tend_offset     = %d' % (start_offset, end_offset))
+        # logging.debug('pre-checks: %s[%d:%d]' % (repr(self.elem), start_offset, end_offset))
+        # logging.debug('start_elem_offset= %d\tend_elem_offset= %d' % (start_elem_offset, end_elem_offset))
+        # logging.debug('start_elem_len   = %d\tend_elem_len   = %d' % (start_elem_len, end_elem_len))
+        # logging.debug('start_offset     = %d\tend_offset     = %d' % (start_offset, end_offset))
 
         # Per definition of a selection, cursor_pos must be at either
         # start_offset or end_offset
@@ -860,9 +908,17 @@ class TextBox(Gtk.TextView):
         deleted, parent, index = None, None, None
 
         if abs(start_offset - end_offset) == 1:
-            done, deleted, parent, index, start_offset, end_offset = self._delete_at_placeable_boundary(
-                start_iter, start_elem, start_elem_offset, start_elem_len, cursor_pos,
-                key_is_delete, start_offset, end_offset,
+            done, deleted, parent, index, start_offset, end_offset = (
+                self._delete_at_placeable_boundary(
+                    start_iter,
+                    start_elem,
+                    start_elem_offset,
+                    start_elem_len,
+                    cursor_pos,
+                    key_is_delete,
+                    start_offset,
+                    end_offset,
+                )
             )
             if deleted is not None:
                 # Make GTK delete the whole placeable, widgets included.
@@ -873,7 +929,7 @@ class TextBox(Gtk.TextView):
                 buffer.stop_emission_by_name('delete-range')
                 return
 
-        #logging.debug('%s[%d] >===> %s[%d]' % (repr(start_elem), start_offset, repr(end_elem), end_offset))
+        # logging.debug('%s[%d] >===> %s[%d]' % (repr(start_elem), start_offset, repr(end_elem), end_offset))
 
         structural = False
         if not done:
@@ -882,10 +938,15 @@ class TextBox(Gtk.TextView):
             if unlock_partly_covered_leaves(self.elem, start_tree_offset, end_tree_offset):
                 self.add_default_gui_info(self.elem)
                 structural = True
-            if start_elem is end_elem and start_elem.isleaf() and start_elem.iseditable and \
-                    (start_elem.gui_info.has_start_widget() or start_elem.gui_info.has_end_widget()):
+            if (
+                start_elem is end_elem
+                and start_elem.isleaf()
+                and start_elem.iseditable
+                and (start_elem.gui_info.has_start_widget() or start_elem.gui_info.has_end_widget())
+            ):
                 deleted, parent, index = self._delete_inside_widget_leaf(
-                    start_elem, start_tree_offset, end_tree_offset)
+                    start_elem, start_tree_offset, end_tree_offset
+                )
             else:
                 deleted, parent, index = self.elem.delete_range(start_tree_offset, end_tree_offset)
 
@@ -909,13 +970,14 @@ class TextBox(Gtk.TextView):
             # placeable), or the deletion may change which placeables
             # there are: the buffer then needs rebuilding from the tree.
             remaining = self.get_text(None, start_iter) + self.get_text(end_iter, None)
-            remaining_len = self.buffer.get_char_count() - (end_iter.get_offset() - start_iter.get_offset())
+            remaining_len = self.buffer.get_char_count() - (
+                end_iter.get_offset() - start_iter.get_offset()
+            )
             if structural or not self._matches_tree(remaining, remaining_len):
                 self._structural_change_pending = True
             self.elem_before_edit = before
             self.emit(
-                'text-deleted', deleted, parent, index,
-                self.buffer.props.cursor_position, self.elem
+                'text-deleted', deleted, parent, index, self.buffer.props.cursor_position, self.elem
             )
 
     def _on_insert_text(self, buffer, iter, ins_text, length):
@@ -941,25 +1003,29 @@ class TextBox(Gtk.TextView):
         unlocked = unlock_partly_covered_leaves(self.elem, tree_offset, tree_offset)
         if unlocked:
             self.add_default_gui_info(self.elem)
-        left = gui_info.elem_at_offset(buff_offset-1)
+        left = gui_info.elem_at_offset(buff_offset - 1)
         right = gui_info.elem_at_offset(buff_offset)
 
-        #logging.debug('"%s[[%s]]%s" | elem=%s[%d] | left=%s right=%s' % (
+        # logging.debug('"%s[[%s]]%s" | elem=%s[%d] | left=%s right=%s' % (
         #    buffer.get_text(buffer.get_start_iter(), iter),
         #    ins_text,
         #    buffer.get_text(iter, buffer.get_end_iter()),
         #    repr(self.elem), buff_offset,
         #    repr(left), repr(right)
-        #))
+        # ))
 
         inside = self._insert_inside_placeable(iter, ins_text)
         succeeded = bool(inside)
-        if inside is None and not (left is None and right is None) and (left is not right or not str(left)):
+        if (
+            inside is None
+            and not (left is None and right is None)
+            and (left is not right or not str(left))
+        ):
             succeeded = self.elem.insert_between(left, right, ins_text)
-            #logging.debug('self.elem.insert_between(%s, %s, "%s"): %s' % (repr(left), repr(right), ins_text, succeeded))
+            # logging.debug('self.elem.insert_between(%s, %s, "%s"): %s' % (repr(left), repr(right), ins_text, succeeded))
         if not succeeded and inside is None:
             succeeded = self.elem.insert(tree_offset, ins_text)
-            #logging.debug('self.elem.insert(%d, "%s"): %s' % (tree_offset, ins_text, succeeded))
+            # logging.debug('self.elem.insert(%d, "%s"): %s' % (tree_offset, ins_text, succeeded))
 
         if succeeded:
             self.elem.prune()
@@ -969,7 +1035,7 @@ class TextBox(Gtk.TextView):
             cursor_pos += len(ins_text)
             self.refresh_cursor_pos = cursor_pos
             self._live_insert_pending = (tree_offset, unlocked)
-            #logging.debug('text-inserted: %s@%d of %s' % (ins_text, iter.get_offset(), repr(self.elem)))
+            # logging.debug('text-inserted: %s@%d of %s' % (ins_text, iter.get_offset(), repr(self.elem)))
             self.elem_before_edit = before
             self.emit('text-inserted', ins_text, buff_offset, self.elem)
         else:
@@ -978,10 +1044,10 @@ class TextBox(Gtk.TextView):
 
     def _insert_inside_placeable(self, itr, text):
         """Insert C{text} into the paired placeable (<g>) whose opening
-            widget is just before C{itr} or closing widget just after it:
-            the tree can't tell those positions from just outside it.
-            @returns: None if C{itr} isn't at either, else whether the
-            text was inserted."""
+        widget is just before C{itr} or closing widget just after it:
+        the tree can't tell those positions from just outside it.
+        @returns: None if C{itr} isn't at either, else whether the
+        text was inserted."""
         gui_info = self.elem.gui_info
         offset = itr.get_offset()
         for widget_offset, widget_index in ((offset, 1), (offset - 1, 0)):
@@ -991,8 +1057,11 @@ class TextBox(Gtk.TextView):
             if anchor is None:
                 continue
             elem = gui_info.elem_at_offset(widget_offset)
-            if elem is None or len(elem.gui_info.widgets) < 2 or \
-                    not any(w is elem.gui_info.widgets[widget_index] for w in anchor.get_widgets()):
+            if (
+                elem is None
+                or len(elem.gui_info.widgets) < 2
+                or not any(w is elem.gui_info.widgets[widget_index] for w in anchor.get_widgets())
+            ):
                 continue
             if not elem.iseditable:
                 return False
@@ -1034,12 +1103,14 @@ class TextBox(Gtk.TextView):
 
         scheduled_elem = self.elem
         self._render_pending = True
+
         def do_refresh():
             self._render_pending = False
             if self.elem is scheduled_elem:
                 self.refresh(update=True)
                 self.place_cursor(target_cursor_pos)
             return False
+
         GLib.idle_add(do_refresh)
 
     def _on_key_pressed(self, widget, event, *args):
@@ -1054,7 +1125,7 @@ class TextBox(Gtk.TextView):
                 self.hide_suggestion()
                 self.buffer.insert(
                     self.buffer.get_iter_at_offset(self.suggestion['offset']),
-                    self.suggestion['text']
+                    self.suggestion['text'],
                 )
                 self.suggestion = None
                 self.emit("changed")
@@ -1062,17 +1133,17 @@ class TextBox(Gtk.TextView):
             self.suggestion = None
 
         # Uncomment the following block to get nice textual logging of key presses in the textbox
-        #keyname = '<unknown>'
+        # keyname = '<unknown>'
         # for attr in dir(Gtk.keysyms):
         #    if getattr(Gtk.keysyms, attr) == event.keyval:
         #        keyname = attr
-        #statenames = []
-        #for attr in [a for a in ('MOD1_MASK', 'MOD2_MASK', 'MOD3_MASK', 'MOD4_MASK', 'MOD5_MASK', 'CONTROL_MASK', 'SHIFT_MASK', 'RELEASE_MASK', 'LOCK_MASK', 'SUPER_MASK', 'HYPER_MASK', 'META_MASK')]:
+        # statenames = []
+        # for attr in [a for a in ('MOD1_MASK', 'MOD2_MASK', 'MOD3_MASK', 'MOD4_MASK', 'MOD5_MASK', 'CONTROL_MASK', 'SHIFT_MASK', 'RELEASE_MASK', 'LOCK_MASK', 'SUPER_MASK', 'HYPER_MASK', 'META_MASK')]:
         #    if event.get_state() & getattr(Gtk.gdk, attr):
         #        statenames.append(attr)
-        #statenames = '|'.join(statenames)
-        #logging.debug('Key pressed: %s (%s)' % (keyname, statenames))
-        #logging.debug('state (raw): %x' % (event.get_state(),))
+        # statenames = '|'.join(statenames)
+        # logging.debug('Key pressed: %s (%s)' % (keyname, statenames))
+        # logging.debug('state (raw): %x' % (event.get_state(),))
 
         # Filter out unimportant flags that is present with other keyboard
         # layouts and input methods. The following has been encountered:
@@ -1080,7 +1151,11 @@ class TextBox(Gtk.TextView):
         # * LEAVE_NOTIFY_MASK - Arabic keyboard layout (?) (bug 926)
         # * 0x2000000 - IBus input method (bug 1281)
         filtered_state = event.get_state() & (
-                    Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK | Gdk.ModifierType.MOD4_MASK | Gdk.ModifierType.SHIFT_MASK)
+            Gdk.ModifierType.CONTROL_MASK
+            | Gdk.ModifierType.MOD1_MASK
+            | Gdk.ModifierType.MOD4_MASK
+            | Gdk.ModifierType.SHIFT_MASK
+        )
 
         for name, keyslist in self.SPECIAL_KEYS.items():
             for keyval, state in keyslist:
@@ -1094,9 +1169,12 @@ class TextBox(Gtk.TextView):
         Returns C{True} if the key was used by the popup."""
         if event.is_modifier:
             return True
-        state = event.get_state() & (Gdk.ModifierType.CONTROL_MASK |
-            Gdk.ModifierType.MOD1_MASK | Gdk.ModifierType.MOD4_MASK |
-            Gdk.ModifierType.SHIFT_MASK)
+        state = event.get_state() & (
+            Gdk.ModifierType.CONTROL_MASK
+            | Gdk.ModifierType.MOD1_MASK
+            | Gdk.ModifierType.MOD4_MASK
+            | Gdk.ModifierType.SHIFT_MASK
+        )
         popup = self._completion_popup
         if not state:
             if event.keyval in (Gdk.KEY_Up, Gdk.KEY_KP_Up):
@@ -1119,7 +1197,6 @@ class TextBox(Gtk.TextView):
             self._completion_popup.dismiss()
         self.suggestion = None
         self.refresh_cursor_pos = -1
-
 
     # SPECIAL METHODS #
     def __repr__(self):

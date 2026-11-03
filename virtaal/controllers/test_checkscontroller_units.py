@@ -28,8 +28,11 @@ class TestChecksOnAStore(TestScaffolding):
     @pytest.fixture(autouse=True)
     def _store(self, monkeypatch):
         self.timers = []
-        monkeypatch.setattr(checkscontroller_module.GLib, 'timeout_add',
-                            lambda delay, func, *args, **kwargs: self.timers.append(lambda: func(*args)))
+        monkeypatch.setattr(
+            checkscontroller_module.GLib,
+            'timeout_add',
+            lambda delay, func, *args, **kwargs: self.timers.append(lambda: func(*args)),
+        )
         self.store_controller.open_file(self.testfile[1])
         self.unit = self.store_controller.cursor.deref()
         self.unit_controller.load_unit(self.unit)
@@ -37,7 +40,9 @@ class TestChecksOnAStore(TestScaffolding):
         self.checkers = []
         controller = self.checks_controller
         handlers = [
-            controller.connect('unit-checked', lambda c, unit, checker, failures: self.checked.append(unit)),
+            controller.connect(
+                'unit-checked', lambda c, unit, checker, failures: self.checked.append(unit)
+            ),
             controller.connect('checker-set', lambda c, code: self.checkers.append(code)),
         ]
         yield
@@ -56,7 +61,9 @@ class TestChecksOnAStore(TestScaffolding):
         self.checks_controller.set_checker_by_name('No such project')
 
         assert self.checks_controller.code is None
-        assert type(_toolkit_checker(self.checks_controller.get_checker())) is checks.StandardChecker
+        assert (
+            type(_toolkit_checker(self.checks_controller.get_checker())) is checks.StandardChecker
+        )
 
     def test_choosing_a_checker_checks_the_current_unit_again(self):
         self.checks_controller.set_checker_by_code('gnome')
@@ -64,7 +71,9 @@ class TestChecksOnAStore(TestScaffolding):
         assert self.checked == [self.unit]
 
     def test_a_checker_without_a_target_language_checks_for_none(self, monkeypatch):
-        monkeypatch.setattr(LanguageController, 'target_lang', property(lambda self: SimpleNamespace(code='')))
+        monkeypatch.setattr(
+            LanguageController, 'target_lang', property(lambda self: SimpleNamespace(code=''))
+        )
 
         self.checks_controller.set_checker_by_code('gnome')
 

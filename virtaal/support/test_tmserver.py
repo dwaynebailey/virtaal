@@ -115,7 +115,9 @@ def test_translate_unit_matches_a_source_containing_a_newline(tmp_path):
     # #4333: a multi-line source used to get HTTP 404 and no suggestions.
     app, port = _start_server(tmp_path / 'tm.db')
     source = 'Open the file\nnow please'
-    app.tmdb.add_dict({'source': source, 'target': 'Maak die lêer\nnou oop', 'context': ''}, 'en', 'af')
+    app.tmdb.add_dict(
+        {'source': source, 'target': 'Maak die lêer\nnou oop', 'context': ''}, 'en', 'af'
+    )
 
     matches = _translate(port, source, 'en', 'af')
 
@@ -155,8 +157,11 @@ def _decoded_path(monkeypatch, environ):
 
 
 def test_decode_path_drops_the_query_string_and_the_script_name(monkeypatch):
-    environ = {'REQUEST_URI': '/tm/en/af/unit/Open%2FSave?callback=x',
-               'SCRIPT_NAME': '/tm', 'PATH_INFO': '/en/af/unit/Open%2FSave'}
+    environ = {
+        'REQUEST_URI': '/tm/en/af/unit/Open%2FSave?callback=x',
+        'SCRIPT_NAME': '/tm',
+        'PATH_INFO': '/en/af/unit/Open%2FSave',
+    }
 
     assert _decoded_path(monkeypatch, environ) == '/en/af/unit/Open/Save'
 
@@ -167,11 +172,14 @@ def test_decode_path_keeps_path_info_without_a_request_uri(monkeypatch):
     assert _decoded_path(monkeypatch, environ) == '/en/af/unit/Open%2FSave'
 
 
-@pytest.mark.parametrize('source', [
-    'Press AND hold the power button',
-    'Do NOT remove the cover while printing',
-    'Place the printer NEAR the wall outlet',
-])
+@pytest.mark.parametrize(
+    'source',
+    [
+        'Press AND hold the power button',
+        'Do NOT remove the cover while printing',
+        'Place the printer NEAR the wall outlet',
+    ],
+)
 def test_translate_unit_matches_a_source_with_a_capitalised_fts_operator(tmp_path, source):
     # #4332: an unquoted AND, NOT or NEAR made the full-text query fail.
     app, port = _start_server(tmp_path / 'tm.db')
@@ -185,7 +193,9 @@ def test_translate_unit_matches_a_source_with_a_capitalised_fts_operator(tmp_pat
 def test_add_unit_then_translate_unit_round_trips_over_http(tmp_path):
     _, port = _start_server(tmp_path / 'tm.db')
 
-    status, body = _request(port, 'PUT', '/en/fr/unit/cat', json.dumps({'source': 'cat', 'target': 'chat'}))
+    status, body = _request(
+        port, 'PUT', '/en/fr/unit/cat', json.dumps({'source': 'cat', 'target': 'chat'})
+    )
 
     assert status == 200
     assert body == ''
@@ -197,7 +207,9 @@ def test_update_unit_changes_the_target(tmp_path):
     _, port = _start_server(tmp_path / 'tm.db')
     _request(port, 'PUT', '/en/fr/unit/dog', json.dumps({'source': 'dog', 'target': 'wrong'}))
 
-    status, body = _request(port, 'POST', '/en/fr/unit/dog', json.dumps({'source': 'dog', 'target': 'chien'}))
+    status, body = _request(
+        port, 'POST', '/en/fr/unit/dog', json.dumps({'source': 'dog', 'target': 'chien'})
+    )
 
     assert status == 200
     assert body == ''
@@ -214,7 +226,7 @@ def test_translate_unit_wraps_response_in_jsonp_callback(tmp_path):
     assert status == 200
     assert body.startswith('myCallback(')
     assert body.endswith(')')
-    assert json.loads(body[len('myCallback('):-1])[0]['target'] == 'oiseau'
+    assert json.loads(body[len('myCallback(') : -1])[0]['target'] == 'oiseau'
 
 
 def test_forget_unit_returns_the_not_implemented_stub(tmp_path):
@@ -288,12 +300,15 @@ def test_unknown_path_returns_404(tmp_path):
 
 # __init__()'s bytes-tmdbfile decode and tmfiles-loading branches #
 
+
 def test_init_decodes_a_bytes_tmdbfile(tmp_path):
     db_path = str(tmp_path / 'tm.db').encode(sys.getfilesystemencoding())
 
     server = tmserver.TMServer(db_path, None)
 
-    assert server.tmdb.add_dict({'source': 'cat', 'target': 'chat', 'context': ''}, 'en', 'fr') is None
+    assert (
+        server.tmdb.add_dict({'source': 'cat', 'target': 'chat', 'context': ''}, 'en', 'fr') is None
+    )
     assert server.tmdb.translate_unit('cat', 'en', 'fr')
 
 
@@ -301,7 +316,9 @@ def test_init_loads_a_single_tm_file(tmp_path):
     po_path = tmp_path / 'seed.po'
     po_path.write_text('msgid "cat"\nmsgstr "chat"\n')
 
-    server = tmserver.TMServer(str(tmp_path / 'tm.db'), str(po_path), source_lang='en', target_lang='fr')
+    server = tmserver.TMServer(
+        str(tmp_path / 'tm.db'), str(po_path), source_lang='en', target_lang='fr'
+    )
 
     matches = server.tmdb.translate_unit('cat', 'en', 'fr')
     assert matches[0]['target'] == 'chat'
@@ -313,13 +330,16 @@ def test_init_loads_a_list_of_tm_files(tmp_path):
     po2 = tmp_path / 'b.po'
     po2.write_text('msgid "dog"\nmsgstr "chien"\n')
 
-    server = tmserver.TMServer(str(tmp_path / 'tm.db'), [str(po1), str(po2)], source_lang='en', target_lang='fr')
+    server = tmserver.TMServer(
+        str(tmp_path / 'tm.db'), [str(po1), str(po2)], source_lang='en', target_lang='fr'
+    )
 
     assert server.tmdb.translate_unit('cat', 'en', 'fr')[0]['target'] == 'chat'
     assert server.tmdb.translate_unit('dog', 'en', 'fr')[0]['target'] == 'chien'
 
 
 # build_parser() #
+
 
 def test_build_parser_defaults():
     args = tmserver.build_parser().parse_args([])
@@ -335,12 +355,31 @@ def test_build_parser_defaults():
 
 
 def test_build_parser_parses_provided_options():
-    args = tmserver.build_parser().parse_args([
-        '-d', 'my.db', '-f', 'a.po', '-f', 'b.po', '-s', 'en', '-t', 'fr',
-        '-b', '0.0.0.0', '-p', '9999',
-        '--max-candidates', '5', '--min-similarity', '50', '--max-length', '500',
-        '--debug',
-    ])
+    args = tmserver.build_parser().parse_args(
+        [
+            '-d',
+            'my.db',
+            '-f',
+            'a.po',
+            '-f',
+            'b.po',
+            '-s',
+            'en',
+            '-t',
+            'fr',
+            '-b',
+            '0.0.0.0',
+            '-p',
+            '9999',
+            '--max-candidates',
+            '5',
+            '--min-similarity',
+            '50',
+            '--max-length',
+            '500',
+            '--debug',
+        ]
+    )
 
     assert args.tmdbfile == 'my.db'
     assert args.tmfiles == ['a.po', 'b.po']
@@ -356,9 +395,12 @@ def test_build_parser_parses_provided_options():
 
 # main() - in-process, with the actual server bind/listen stubbed out #
 
+
 def test_main_runs_the_server_with_the_parsed_bind_and_port(monkeypatch, tmp_path):
     calls = []
-    monkeypatch.setattr(sys, 'argv', ['tmserver', '-d', str(tmp_path / 'tm.db'), '-b', '127.0.0.1', '-p', '1234'])
+    monkeypatch.setattr(
+        sys, 'argv', ['tmserver', '-d', str(tmp_path / 'tm.db'), '-b', '127.0.0.1', '-p', '1234']
+    )
     monkeypatch.setattr(tmserver.Bottle, 'run', lambda self, **kwargs: calls.append(kwargs))
 
     tmserver.main()
@@ -366,12 +408,16 @@ def test_main_runs_the_server_with_the_parsed_bind_and_port(monkeypatch, tmp_pat
     assert calls == [{'host': '127.0.0.1', 'port': 1234, 'server': 'cheroot', 'quiet': True}]
 
 
-def test_main_uses_a_more_verbose_format_and_keeps_cheroot_noisy_when_debugging(monkeypatch, tmp_path):
+def test_main_uses_a_more_verbose_format_and_keeps_cheroot_noisy_when_debugging(
+    monkeypatch, tmp_path
+):
     run_calls = []
     basic_config_calls = []
     monkeypatch.setattr(sys, 'argv', ['tmserver', '-d', str(tmp_path / 'tm.db'), '--debug'])
     monkeypatch.setattr(tmserver.Bottle, 'run', lambda self, **kwargs: run_calls.append(kwargs))
-    monkeypatch.setattr(tmserver.logging, 'basicConfig', lambda **kwargs: basic_config_calls.append(kwargs))
+    monkeypatch.setattr(
+        tmserver.logging, 'basicConfig', lambda **kwargs: basic_config_calls.append(kwargs)
+    )
 
     tmserver.main()
 
@@ -385,6 +431,7 @@ def test_main_swallows_a_keyboard_interrupt_from_the_server(monkeypatch, tmp_pat
 
     def raise_interrupt(self, **kwargs):
         raise KeyboardInterrupt
+
     monkeypatch.setattr(tmserver.Bottle, 'run', raise_interrupt)
 
     tmserver.main()  # must not raise
@@ -397,13 +444,25 @@ def test_main_serves_over_http_as_the_subprocess_localtm_spawns(tmp_path):
     # parsing and application.rest.run() call, not just the class.
     port = _free_port()
     command = [
-        sys.executable, '-m', 'virtaal.support.tmserver',
-        '-b', '127.0.0.1', '-p', str(port), '-d', str(tmp_path / 'tm.db'),
+        sys.executable,
+        '-m',
+        'virtaal.support.tmserver',
+        '-b',
+        '127.0.0.1',
+        '-p',
+        str(port),
+        '-d',
+        str(tmp_path / 'tm.db'),
     ]
     proc = subprocess.Popen(command, env=os.environ.copy())
     try:
         _wait_for_port(port)
-        _request(port, 'PUT', '/tmserver/en/fr/unit/owl', json.dumps({'source': 'owl', 'target': 'hibou'}))
+        _request(
+            port,
+            'PUT',
+            '/tmserver/en/fr/unit/owl',
+            json.dumps({'source': 'owl', 'target': 'hibou'}),
+        )
 
         status, body = _request(port, 'GET', '/tmserver/en/fr/unit/owl')
 

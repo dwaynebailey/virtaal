@@ -53,11 +53,14 @@ def _is_cached(path):
 
 # state_lists() #
 
+
 def test_state_lists_match_the_stats_cache_for_po(tmp_path):
     path = _po(tmp_path)
     store = factory.getobject(path)
 
-    expected = statsdb.StatsCache(str(tmp_path / 'stats.db')).filestatestats(path, store, extended=True)
+    expected = statsdb.StatsCache(str(tmp_path / 'stats.db')).filestatestats(
+        path, store, extended=True
+    )
 
     assert statsworker.state_lists(store) == expected
 
@@ -68,13 +71,16 @@ def test_state_lists_match_the_stats_cache_for_xliff_states(tmp_path):
     path.write_text(XLIFF, encoding="utf-8")
     store = factory.getobject(str(path))
 
-    expected = statsdb.StatsCache(str(tmp_path / 'stats.db')).filestatestats(str(path), store, extended=True)
+    expected = statsdb.StatsCache(str(tmp_path / 'stats.db')).filestatestats(
+        str(path), store, extended=True
+    )
 
     assert statsworker.state_lists(store) == expected
     assert len(expected['extended']) > 2
 
 
 # fill_in_background() / wait() #
+
 
 def test_fill_in_background_caches_the_file_on_disk(tmp_path):
     path = _po(tmp_path)
@@ -126,13 +132,16 @@ def test_no_fill_starts_while_the_stats_are_kept_in_memory(tmp_path, monkeypatch
     # #4430: a child couldn't use the file either, and would warn again.
     monkeypatch.setattr(statsdb.StatsCache, 'unusable_files', {statsdb.StatsCache().defaultfile})
     started = []
-    monkeypatch.setattr(statsworker.subprocess, 'Popen', lambda *args, **kwargs: started.append(args))
+    monkeypatch.setattr(
+        statsworker.subprocess, 'Popen', lambda *args, **kwargs: started.append(args)
+    )
 
     fill_in_background(_po(tmp_path))
 
     assert started == []
     assert statsworker._running is None
     assert statsworker._queued == []
+
 
 def test_wait_returns_at_once_with_nothing_queued():
     statsworker.wait()

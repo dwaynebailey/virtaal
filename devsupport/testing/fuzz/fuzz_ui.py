@@ -67,11 +67,24 @@ FREEZE_LIMIT = 8
 MAX_RESTARTS = 20
 DEBUGGERS = {
     'gdb': ['gdb', '-q', '--batch', '-ex', 'run', '-ex', 'thread apply all bt full', '--args'],
-    'lldb': ['lldb', '-b', '-k', 'bt all', '-k', 'quit', '-o', 'process launch', '-o', 'continue', '--'],
+    'lldb': [
+        'lldb',
+        '-b',
+        '-k',
+        'bt all',
+        '-k',
+        'quit',
+        '-o',
+        'process launch',
+        '-o',
+        'continue',
+        '--',
+    ],
 }
 
 
 # ISOLATED CONFIG #
+
 
 def config_dir(home):
     if sys.platform.startswith('win'):
@@ -88,18 +101,24 @@ def prepare_home(root):
     conf = config_dir(home)
     os.makedirs(conf)
     with open(os.path.join(conf, 'virtaal.ini'), 'w', encoding='utf-8') as f:
-        f.write('[language]\nsourcelang = en\ntargetlang = af\n'
-                '[translator]\nname = Fuzz Tester\nemail = fuzz@example.org\nteam = af@example.org\n'
-                '[plugin_state]\nspellchecker = disabled\nautocorrector = disabled\n'
-                '_ipython_console = disabled\n_python_console = disabled\n')
+        f.write(
+            '[language]\nsourcelang = en\ntargetlang = af\n'
+            '[translator]\nname = Fuzz Tester\nemail = fuzz@example.org\nteam = af@example.org\n'
+            '[plugin_state]\nspellchecker = disabled\nautocorrector = disabled\n'
+            '_ipython_console = disabled\n_python_console = disabled\n'
+        )
     with open(os.path.join(conf, 'plugins.ini'), 'w', encoding='utf-8') as f:
-        f.write('[terminology]\ndisabled_models = autoterm,pontoon\n'
-                '[tm]\ndisabled_models = _dummytm,remotetm,apertium,google_translate,moses,amagama\n'
-                '[lookup]\ndisabled_models = thesaurus\n')
+        f.write(
+            '[terminology]\ndisabled_models = autoterm,pontoon\n'
+            '[tm]\ndisabled_models = _dummytm,remotetm,apertium,google_translate,moses,amagama\n'
+            '[lookup]\ndisabled_models = thesaurus\n'
+        )
     glossary = os.path.join(conf, 'terminology.po')
     with open(glossary, 'w', encoding='utf-8') as f:
-        f.write('msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n"Language: af\\n"\n\n'
-                'msgid "file"\nmsgstr "l\u00eaer"\n')
+        f.write(
+            'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n"Language: af\\n"\n\n'
+            'msgid "file"\nmsgstr "l\u00eaer"\n'
+        )
     with open(os.path.join(conf, 'terminology.ini'), 'w', encoding='utf-8') as f:
         f.write('[localfile]\nfiles = %s\nextendfile = %s\n' % (glossary, glossary))
     return home
@@ -123,6 +142,7 @@ def child_env(home):
 
 # CHILD PROCESSES #
 
+
 def run_child(args, env, outdir, name, debugger, limit):
     """Run a child; returns (results, finished, stderr text)."""
     results_path = os.path.join(outdir, name + '.jsonl')
@@ -144,7 +164,11 @@ def run_child(args, env, outdir, name, debugger, limit):
 
 
 def _glib_line(line):
-    for level, kind in (('-CRITICAL **', 'critical'), ('-ERROR **', 'critical'), ('-WARNING **', 'glib-warning')):
+    for level, kind in (
+        ('-CRITICAL **', 'critical'),
+        ('-ERROR **', 'critical'),
+        ('-WARNING **', 'glib-warning'),
+    ):
         if level in line and not any(text in line for text in GLIB_IGNORE):
             message = line.split('**:', 1)[-1].strip()
             # Drop the timestamp GLib puts first.
@@ -168,11 +192,18 @@ def parse_child(results_path, stderr):
             for line in f:
                 event = json.loads(line)
                 if event['event'] == 'begin':
-                    open_case = {'sweep': event['sweep'], 'case': event['case'], 'problems': [], 'elapsed': None}
+                    open_case = {
+                        'sweep': event['sweep'],
+                        'case': event['case'],
+                        'problems': [],
+                        'elapsed': None,
+                    }
                     found.append(open_case)
                     by_key[(event['sweep'], event['case'])] = open_case
                 elif event['event'] == 'problem' and open_case is not None:
-                    open_case['problems'].append({k: event[k] for k in ('kind', 'signature', 'detail')})
+                    open_case['problems'].append(
+                        {k: event[k] for k in ('kind', 'signature', 'detail')}
+                    )
                 elif event['event'] == 'end' and open_case is not None:
                     open_case['elapsed'] = event['elapsed']
                     open_case = None
@@ -182,7 +213,7 @@ def parse_child(results_path, stderr):
     current = None
     for line in stderr.splitlines():
         if line.startswith(STDERR_MARKER):
-            event = json.loads(line[len(STDERR_MARKER):])
+            event = json.loads(line[len(STDERR_MARKER) :])
             if event['event'] == 'begin':
                 current = by_key.get((event['sweep'], event['case']))
             elif event['event'] == 'end':
@@ -192,8 +223,12 @@ def parse_child(results_path, stderr):
         if glib:
             kind, signature, detail = glib
             if current is None:
-                current = {'sweep': found[-1]['sweep'] if found else 'setup', 'case': OUTSIDE_CASE,
-                           'problems': [], 'elapsed': 0}
+                current = {
+                    'sweep': found[-1]['sweep'] if found else 'setup',
+                    'case': OUTSIDE_CASE,
+                    'problems': [],
+                    'elapsed': 0,
+                }
                 found.append(current)
             current['problems'].append({'kind': kind, 'signature': signature, 'detail': detail})
     return found, finished, stderr
@@ -206,7 +241,7 @@ def died_in(cases, stderr):
     if TIMEOUT_MARKER not in after:
         return {'kind': 'crash', 'signature': '', 'detail': after[-3000:]}
     # A debugger's own output can follow the dump; keep the dump.
-    dump = after[after.index(TIMEOUT_MARKER):][:3000]
+    dump = after[after.index(TIMEOUT_MARKER) :][:3000]
     frames = re.findall(r'File "([^"]+)", line \d+ in (\w+)', dump)
     own = [name for path, name in frames if is_virtaal_path(path)]
     return {'kind': 'timeout', 'signature': own[0] if own else '', 'detail': dump}
@@ -216,10 +251,14 @@ def run_section(section, env, outdir, debugger, platform):
     """Every case of a section, restarting after a case that kills the
     process; known freezes run alone with a short time limit."""
     sweeps = SECTIONS[section]
-    freezes = [(sweep, case) for entry in map(results.normalize, KNOWN_BUGS)
-               if entry['kind'] == 'timeout' and platform in entry['platforms']
-               for sweep in entry['sweeps'] if sweep in sweeps
-               for case in entry['cases']]
+    freezes = [
+        (sweep, case)
+        for entry in map(results.normalize, KNOWN_BUGS)
+        if entry['kind'] == 'timeout' and platform in entry['platforms']
+        for sweep in entry['sweeps']
+        if sweep in sweeps
+        for case in entry['cases']
+    ]
     collected = []
     skip = set(freezes)
     workdir = os.path.join(outdir, section + '-files')
@@ -229,9 +268,22 @@ def run_section(section, env, outdir, debugger, platform):
         with open(skip_file, 'w', encoding='utf-8') as f:
             json.dump(sorted(skip), f)
         cases, finished, stderr = run_child(
-            [os.path.join(HERE, 'sweep.py'), section, '--workdir', workdir, '--skip-file', skip_file,
-             '--case-timeout', str(CASE_TIMEOUT)],
-            env, outdir, '%s-%d' % (section, attempt), debugger, limit=3600)
+            [
+                os.path.join(HERE, 'sweep.py'),
+                section,
+                '--workdir',
+                workdir,
+                '--skip-file',
+                skip_file,
+                '--case-timeout',
+                str(CASE_TIMEOUT),
+            ],
+            env,
+            outdir,
+            '%s-%d' % (section, attempt),
+            debugger,
+            limit=3600,
+        )
         collected += cases
         skip |= {(c['sweep'], c['case']) for c in cases}
         if finished:
@@ -240,30 +292,59 @@ def run_section(section, env, outdir, debugger, platform):
         if unfinished:
             unfinished[-1]['problems'].append(died_in(cases, stderr))
         else:
-            collected.append({'sweep': sweeps[0], 'case': OUTSIDE_CASE, 'elapsed': 0,
-                              'problems': [died_in(cases, stderr)]})
+            collected.append(
+                {
+                    'sweep': sweeps[0],
+                    'case': OUTSIDE_CASE,
+                    'elapsed': 0,
+                    'problems': [died_in(cases, stderr)],
+                }
+            )
             break
 
     for sweep, case in freezes:
         cases, finished, stderr = run_child(
-            [os.path.join(HERE, 'sweep.py'), section, '--workdir', workdir, '--only', '%s/%s' % (sweep, case),
-             '--case-timeout', str(FREEZE_LIMIT)],
-            env, outdir, '%s-freeze-%s' % (sweep, case.replace(' ', '_').replace('/', '_')), debugger,
-            limit=FREEZE_LIMIT + 300)
+            [
+                os.path.join(HERE, 'sweep.py'),
+                section,
+                '--workdir',
+                workdir,
+                '--only',
+                '%s/%s' % (sweep, case),
+                '--case-timeout',
+                str(FREEZE_LIMIT),
+            ],
+            env,
+            outdir,
+            '%s-freeze-%s' % (sweep, case.replace(' ', '_').replace('/', '_')),
+            debugger,
+            limit=FREEZE_LIMIT + 300,
+        )
         own = [c for c in cases if c['case'] == case]
         if own and own[-1]['elapsed'] is None:
             own[-1]['problems'].append(died_in(cases, stderr))
         elif not own:
-            problem = died_in(cases, stderr) if not finished else {
-                'kind': 'not-run', 'signature': '', 'detail': 'the case never started'}
+            problem = (
+                died_in(cases, stderr)
+                if not finished
+                else {'kind': 'not-run', 'signature': '', 'detail': 'the case never started'}
+            )
             cases.append({'sweep': sweep, 'case': case, 'elapsed': 0, 'problems': [problem]})
         collected += cases
     return [c for c in collected if c['case'] != OUTSIDE_CASE or c['problems']]
 
 
 def run_random(args, env, outdir, debugger):
-    child_args = [os.path.abspath(__file__), '--random-child', '--seed', str(args.seed),
-                  '--log', args.log, '--case-timeout', str(CASE_TIMEOUT)]
+    child_args = [
+        os.path.abspath(__file__),
+        '--random-child',
+        '--seed',
+        str(args.seed),
+        '--log',
+        args.log,
+        '--case-timeout',
+        str(CASE_TIMEOUT),
+    ]
     if args.duration_seconds:
         child_args += ['--duration-seconds', str(args.duration_seconds)]
         limit = args.duration_seconds * 2 + 300
@@ -276,13 +357,20 @@ def run_random(args, env, outdir, debugger):
         if unfinished:
             unfinished[-1]['problems'].append(died_in(cases, stderr))
         else:
-            cases.append({'sweep': 'random', 'case': OUTSIDE_CASE, 'elapsed': 0,
-                          'problems': [died_in(cases, stderr)]})
+            cases.append(
+                {
+                    'sweep': 'random',
+                    'case': OUTSIDE_CASE,
+                    'elapsed': 0,
+                    'problems': [died_in(cases, stderr)],
+                }
+            )
     print('random part: %d actions' % len(cases))
     return [c for c in cases if c['problems']]
 
 
 # THE RANDOM PART (in the child) #
+
 
 class Fuzzer:
     def __init__(self, seed, log_path, recorder):
@@ -303,11 +391,16 @@ class Fuzzer:
         self.corpus = CORPUS
         self.rng = random.Random(seed)
         self.rec = recorder
-        self.testfiles = [os.path.join(TESTFILES_DIR, name) for name in DEFAULT_TESTFILES
-                          if os.path.exists(os.path.join(TESTFILES_DIR, name))]
+        self.testfiles = [
+            os.path.join(TESTFILES_DIR, name)
+            for name in DEFAULT_TESTFILES
+            if os.path.exists(os.path.join(TESTFILES_DIR, name))
+        ]
         if not self.testfiles:
             raise RuntimeError('No test fixtures found under %s' % TESTFILES_DIR)
-        self._log_file = open(log_path, 'a', buffering=1, encoding='utf-8', errors='backslashreplace')
+        self._log_file = open(
+            log_path, 'a', buffering=1, encoding='utf-8', errors='backslashreplace'
+        )
         self._tempdir = tempfile.mkdtemp(prefix='virtaal-fuzz-')
         self.iteration = 0
 
@@ -378,7 +471,9 @@ class Fuzzer:
         self._load_current_unit()
 
     def _act_switch_mode(self):
-        self.mode_controller.select_mode_by_name(self.rng.choice(list(self.mode_controller.modes.keys())))
+        self.mode_controller.select_mode_by_name(
+            self.rng.choice(list(self.mode_controller.modes.keys()))
+        )
 
     def _act_edit_target(self):
         unit = self.store_controller.cursor and self.store_controller.cursor.deref()
@@ -413,7 +508,9 @@ class Fuzzer:
         if self.store_controller.store is None:
             return
         ext = os.path.splitext(self.store_controller.get_store_filename() or '.po')[1] or '.po'
-        self.store_controller.save_file(os.path.join(self._tempdir, 'fuzz-save-%d%s' % (self.iteration, ext)))
+        self.store_controller.save_file(
+            os.path.join(self._tempdir, 'fuzz-save-%d%s' % (self.iteration, ext))
+        )
 
     def _act_close_reopen(self):
         self.store_controller.close_file()
@@ -421,7 +518,9 @@ class Fuzzer:
         self._load_current_unit()
 
     def _act_resize_window(self):
-        self.main_controller.view.main_window.resize(self.rng.randint(300, 1200), self.rng.randint(200, 900))
+        self.main_controller.view.main_window.resize(
+            self.rng.randint(300, 1200), self.rng.randint(200, 900)
+        )
 
     def _act_advance_state(self):
         # Ctrl+Enter/Ctrl+Shift+Enter and the Navigation menu items.
@@ -471,6 +570,7 @@ class Fuzzer:
 
 def random_child(args):
     import gi
+
     gi.require_version('Gtk', '3.0')
     sys.path.insert(1, REPO_ROOT)
     from record import Recorder
@@ -479,8 +579,10 @@ def random_child(args):
     recorder.sweep = 'random'
     recorder.install()
     fuzzer = Fuzzer(args.seed, args.log, recorder)
-    fuzzer.run(iterations=None if args.duration_seconds else args.iterations,
-               duration_seconds=args.duration_seconds)
+    fuzzer.run(
+        iterations=None if args.duration_seconds else args.iterations,
+        duration_seconds=args.duration_seconds,
+    )
     recorder.done()
 
 
@@ -491,8 +593,9 @@ def report(found, outdir, platform):
     outcome = results.classify(found, KNOWN_BUGS, platform)
     issue_check = True
     if os.environ.get('GITHUB_ACTIONS'):
-        states = results.fetch_issue_states([e['issue'] for e in KNOWN_BUGS if e.get('issue')],
-                                            token=os.environ.get('GITHUB_TOKEN'))
+        states = results.fetch_issue_states(
+            [e['issue'] for e in KNOWN_BUGS if e.get('issue')], token=os.environ.get('GITHUB_TOKEN')
+        )
         issue_check = bool(states)
         results.check_closed(outcome, KNOWN_BUGS, states)
     text = results.summary(outcome, platform, issue_check)
@@ -505,26 +608,50 @@ def report(found, outdir, platform):
 
 # MAIN #
 
+
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--iterations', type=int, default=500,
-                        help='Random actions to perform (default: 500). Ignored with --duration-seconds.')
-    parser.add_argument('--duration-seconds', type=int, default=None,
-                        help='Run the random part for this long instead of a number of actions.')
-    parser.add_argument('--seed', type=int, default=None,
-                        help='Seed for the random part, printed so a run can be replayed.')
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        '--iterations',
+        type=int,
+        default=500,
+        help='Random actions to perform (default: 500). Ignored with --duration-seconds.',
+    )
+    parser.add_argument(
+        '--duration-seconds',
+        type=int,
+        default=None,
+        help='Run the random part for this long instead of a number of actions.',
+    )
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=None,
+        help='Seed for the random part, printed so a run can be replayed.',
+    )
     weekly = ('service-', 'ui-')
     nightly = [s for s in SECTIONS if not s.startswith(weekly)]
-    parser.add_argument('--sections', default=','.join(nightly),
-                        help='Sweep sections to run; "services" and "ui" stand for all service-* and ui-* '
-                             'ones (default: all but those, which run weekly): %s' % ', '.join(SECTIONS))
+    parser.add_argument(
+        '--sections',
+        default=','.join(nightly),
+        help='Sweep sections to run; "services" and "ui" stand for all service-* and ui-* '
+        'ones (default: all but those, which run weekly): %s' % ', '.join(SECTIONS),
+    )
     parser.add_argument('--no-sweep', action='store_true', help='Skip the corpus sweep.')
     parser.add_argument('--no-random', action='store_true', help='Skip the random part.')
-    parser.add_argument('--results', default=None,
-                        help='Directory for results and child logs (default: a new temp dir).')
+    parser.add_argument(
+        '--results',
+        default=None,
+        help='Directory for results and child logs (default: a new temp dir).',
+    )
     parser.add_argument('--log', default=None, help='Action log of the random part.')
-    parser.add_argument('--debugger', choices=sorted(DEBUGGERS),
-                        help='Run each child under this debugger, for native crash backtraces.')
+    parser.add_argument(
+        '--debugger',
+        choices=sorted(DEBUGGERS),
+        help='Run each child under this debugger, for native crash backtraces.',
+    )
     parser.add_argument('--random-child', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--case-timeout', type=int, default=CASE_TIMEOUT, help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -555,16 +682,21 @@ def main():
                 start = time.monotonic()
                 env = child_env(prepare_home(os.path.join(root, section)))
                 if section.startswith('ui-'):
-                    env['LANGUAGE'] = section[len('ui-'):]
+                    env['LANGUAGE'] = section[len('ui-') :]
                 cases = run_section(section, env, outdir, args.debugger, platform)
-                print('sweep %s: %d cases in %.0f s' % (section, len(cases), time.monotonic() - start))
+                print(
+                    'sweep %s: %d cases in %.0f s' % (section, len(cases), time.monotonic() - start)
+                )
                 found += cases
         if not args.no_random:
-            found += run_random(args, child_env(prepare_home(os.path.join(root, 'random'))), outdir, args.debugger)
+            found += run_random(
+                args, child_env(prepare_home(os.path.join(root, 'random'))), outdir, args.debugger
+            )
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
     return report(found, outdir, platform)
+
 
 if __name__ == '__main__':
     sys.exit(main())

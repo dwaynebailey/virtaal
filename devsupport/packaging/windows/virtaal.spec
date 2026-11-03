@@ -30,8 +30,13 @@ from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.win32.versioninfo import (
-    FixedFileInfo, StringFileInfo, StringStruct, StringTable, VarFileInfo,
-    VarStruct, VSVersionInfo,
+    FixedFileInfo,
+    StringFileInfo,
+    StringStruct,
+    StringTable,
+    VarFileInfo,
+    VarStruct,
+    VSVersionInfo,
 )
 
 ROOT = Path(os.getcwd())
@@ -39,7 +44,11 @@ ROOT = Path(os.getcwd())
 sys.path.insert(0, str(ROOT))
 from virtaal.__version__ import ver as virtaal_version  # noqa: E402
 from virtaal.support.libi18n.lite import (  # noqa: E402
-    bundle_languages, expected_catalogs, is_unused_catalog, missing_catalogs, mismatched_catalogs,
+    bundle_languages,
+    expected_catalogs,
+    is_unused_catalog,
+    mismatched_catalogs,
+    missing_catalogs,
     read_linguas,
 )
 
@@ -62,6 +71,7 @@ import enchant_data  # noqa: E402
 # dynamically (not a hardcoded venv path) via the actually-imported
 # translate module, same style as everything else in this file.
 import translate  # noqa: E402
+
 TRANSLATE_SHARE = Path(translate.__file__).parent / "share"
 
 # pyenchant's Windows wheel is self-contained (libenchant + backends +
@@ -70,6 +80,7 @@ TRANSLATE_SHARE = Path(translate.__file__).parent / "share"
 # path is enough - see module_collection_mode below.
 try:
     import enchant
+
     ENCHANT_DATA = Path(enchant.__file__).parent / "data"
 except ImportError:
     ENCHANT_DATA = None
@@ -79,7 +90,7 @@ COPYRIGHT = "Copyright 2007-2026 Translate. GNU General Public License."
 
 def _version_tuple(ver):
     """VSVersionInfo needs a plain 4-int tuple - ver is e.g. "1.0.0-beta1",
-        so take the numeric release part only and pad/truncate to 4."""
+    so take the numeric release part only and pad/truncate to 4."""
     nums = [int(n) for n in re.findall(r'\d+', ver.split('-')[0])][:4]
     return tuple(nums + [0] * (4 - len(nums)))
 
@@ -92,24 +103,29 @@ version_info = VSVersionInfo(
         prodvers=_ver_tuple,
         mask=0x3F,
         flags=0x0,
-        OS=0x4,       # VOS_NT_WINDOWS32
+        OS=0x4,  # VOS_NT_WINDOWS32
         fileType=0x1,  # VFT_APP
         subtype=0x0,
         date=(0, 0),
     ),
     kids=[
-        StringFileInfo([
-            StringTable('040904B0', [
-                StringStruct('CompanyName', 'Translate'),
-                StringStruct('FileDescription', 'Virtaal'),
-                StringStruct('FileVersion', virtaal_version),
-                StringStruct('InternalName', 'virtaal'),
-                StringStruct('LegalCopyright', COPYRIGHT),
-                StringStruct('OriginalFilename', 'virtaal.exe'),
-                StringStruct('ProductName', 'Virtaal'),
-                StringStruct('ProductVersion', virtaal_version),
-            ]),
-        ]),
+        StringFileInfo(
+            [
+                StringTable(
+                    '040904B0',
+                    [
+                        StringStruct('CompanyName', 'Translate'),
+                        StringStruct('FileDescription', 'Virtaal'),
+                        StringStruct('FileVersion', virtaal_version),
+                        StringStruct('InternalName', 'virtaal'),
+                        StringStruct('LegalCopyright', COPYRIGHT),
+                        StringStruct('OriginalFilename', 'virtaal.exe'),
+                        StringStruct('ProductName', 'Virtaal'),
+                        StringStruct('ProductVersion', virtaal_version),
+                    ],
+                ),
+            ]
+        ),
         # 1033 = LANG_ENGLISH/SUBLANG_ENGLISH_US, 1200 = Unicode codepage -
         # must match the StringTable's own '040904B0' (same two values,
         # hex-encoded) or Explorer's Properties dialog won't show the
@@ -178,8 +194,14 @@ if ENCHANT_DATA is not None and ENCHANT_DATA.is_dir():
 
 # lxml modules nothing imports; PyInstaller's lxml hook collects them all.
 UNUSED_LXML = [
-    "lxml.objectify", "lxml.sax", "lxml.builder", "lxml.html.builder", "lxml.html.diff",
-    "lxml.html._difflib", "lxml.html._diffcommand", "lxml.isoschematron",
+    "lxml.objectify",
+    "lxml.sax",
+    "lxml.builder",
+    "lxml.html.builder",
+    "lxml.html.diff",
+    "lxml.html._difflib",
+    "lxml.html._diffcommand",
+    "lxml.isoschematron",
 ]
 
 
@@ -194,6 +216,7 @@ def _not_enchant_dialog(name):
         "enchant.checker.GtkSpellCheckerDialog",
         "enchant.checker.wxSpellCheckerDialog",
     )
+
 
 a = Analysis(  # noqa: F821
     [str(ROOT / "bin" / "virtaal")],
@@ -230,8 +253,15 @@ a = Analysis(  # noqa: F821
     # is belt-and-suspenders regardless, and costs nothing since it's
     # dead weight here either way).
     excludes=[
-        "FixTk", "tcl", "tk", "_tkinter", "tkinter", "Tkinter", "devsupport",
-    ] + UNUSED_LXML,
+        "FixTk",
+        "tcl",
+        "tk",
+        "_tkinter",
+        "tkinter",
+        "Tkinter",
+        "devsupport",
+    ]
+    + UNUSED_LXML,
     noarchive=False,
 )
 a.datas = babel_data.trim(a.datas, str(ROOT / "po"))

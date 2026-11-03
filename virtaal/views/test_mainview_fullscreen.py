@@ -24,6 +24,7 @@ def _labels(container):
 
 class _Toggle:
     """View > Fullscreen as its handler sees it."""
+
     def __init__(self, active):
         self.active = active
 
@@ -39,8 +40,12 @@ class TestFullscreenMenus(TestScaffolding):
         self.view = self.main_controller.view
         # The window manager's part: don't fullscreen a real window.
         self.window_states = []
-        monkeypatch.setattr(self.view.main_window, 'fullscreen', lambda: self.window_states.append('fullscreen'))
-        monkeypatch.setattr(self.view.main_window, 'unfullscreen', lambda: self.window_states.append('unfullscreen'))
+        monkeypatch.setattr(
+            self.view.main_window, 'fullscreen', lambda: self.window_states.append('fullscreen')
+        )
+        monkeypatch.setattr(
+            self.view.main_window, 'unfullscreen', lambda: self.window_states.append('unfullscreen')
+        )
         monkeypatch.setattr(platform, 'is_mac', False)
         self.menus = _labels(self.view.menubar)
         yield
@@ -103,9 +108,13 @@ class TestFullscreenMenus(TestScaffolding):
         # a test's synthetic press without a click doesn't reliably get.
         self._fullscreen(True)
         popups = []
-        monkeypatch.setattr(self.view.app_menu, 'popup_at_widget',
-                            lambda widget, widget_anchor, menu_anchor, event: popups.append(
-                                (widget, widget_anchor, menu_anchor)))
+        monkeypatch.setattr(
+            self.view.app_menu,
+            'popup_at_widget',
+            lambda widget, widget_anchor, menu_anchor, event: popups.append(
+                (widget, widget_anchor, menu_anchor)
+            ),
+        )
 
         self.view.btn_app.emit('pressed')
 

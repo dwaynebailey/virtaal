@@ -24,7 +24,10 @@ EXTRA_FILES = ('virtaal-python-deps.yaml', 'intltool-perl5.26-regex-fixes.patch'
 URL = 'https://github.com/translate/virtaal.git'
 # Virtaal's own source: this checkout, with whatever follows its path
 # (comments, a skip list) up to the end of the file.
-LOCAL_SOURCE = re.compile(r'^    sources:\n      - type: dir\n        path: \.\./\.\./\.\.\n(?:        .*\n|\s*\n)*\Z', re.M)
+LOCAL_SOURCE = re.compile(
+    r'^    sources:\n      - type: dir\n        path: \.\./\.\./\.\.\n(?:        .*\n|\s*\n)*\Z',
+    re.M,
+)
 
 
 def flathub_manifest(text, commit, tag=None):
@@ -47,7 +50,9 @@ def main(argv=None):
 
     args.outdir.mkdir(parents=True, exist_ok=True)
     text = (HERE / MANIFEST).read_text(encoding='utf-8')
-    (args.outdir / MANIFEST).write_text(flathub_manifest(text, args.commit, args.tag), encoding='utf-8')
+    (args.outdir / MANIFEST).write_text(
+        flathub_manifest(text, args.commit, args.tag), encoding='utf-8'
+    )
     for name in EXTRA_FILES:
         shutil.copyfile(HERE / name, args.outdir / name)
 

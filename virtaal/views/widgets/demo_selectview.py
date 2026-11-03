@@ -27,19 +27,18 @@ class SelectViewTestWindow(Gtk.Window):
 
     def create_selectview(self):
         self.items = (
-            {'enabled': True,  'name': 'item1', 'desc': 'desc1'},
-            {'enabled': False, 'name': 'item2'                 },
-            {'enabled': True,                   'desc': 'desc3'},
-            {                  'name': 'item4', 'desc': 'desc4'},
-            {'enabled': True,  'name': 'item5', 'desc': ''     },
-            {'enabled': False, 'name': '',      'desc': 'desc6'},
+            {'enabled': True, 'name': 'item1', 'desc': 'desc1'},
+            {'enabled': False, 'name': 'item2'},
+            {'enabled': True, 'desc': 'desc3'},
+            {'name': 'item4', 'desc': 'desc4'},
+            {'enabled': True, 'name': 'item5', 'desc': ''},
+            {'enabled': False, 'name': '', 'desc': 'desc6'},
         )
         self.selectview = SelectView(self.items)
         self.selectview.connect('item-enabled', self._on_item_action, 'enabled')
         self.selectview.connect('item-disabled', self._on_item_action, 'disabled')
         self.selectview.connect('item-selected', self._on_item_action, 'selected')
         return self.selectview
-
 
     def _on_item_action(self, sender, item_info, action):
         print('Item %s: %s' % (action, item_info))

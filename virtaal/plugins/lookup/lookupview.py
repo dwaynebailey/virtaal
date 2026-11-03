@@ -37,9 +37,10 @@ class LookupView(BaseView):
 
     def _connect_to_textboxes(self, unitview, textboxes):
         for textbox in textboxes:
-            self._signal_tracker.connect(textbox, 'button-press-event', self._word_selector.on_button_press)
+            self._signal_tracker.connect(
+                textbox, 'button-press-event', self._word_selector.on_button_press
+            )
             self._signal_tracker.connect(textbox, 'populate-popup', self._on_populate_popup)
-
 
     # METHODS #
     def destroy(self):
@@ -47,17 +48,19 @@ class LookupView(BaseView):
 
     def select_backends(self, parent):
         from virtaal.views.backendselect import select_backends
+
         select_backends(
-            self.controller.main_controller, self.controller.plugin_controller,
-            self.controller.config, 'baselookupmodel',
-            #l10n: The 'services' here refer to different look-up plugins,
-            #such as web look-up, etc.
+            self.controller.main_controller,
+            self.controller.plugin_controller,
+            self.controller.config,
+            'baselookupmodel',
+            # l10n: The 'services' here refer to different look-up plugins,
+            # such as web look-up, etc.
             title=_('Select Look-up Services'),
             message=_('Select the services that should be used to perform look-ups'),
             size=(self.controller.config['backends_dialog_width'], 200),
             parent=parent,
         )
-
 
     # SIGNAL HANDLERS #
 
@@ -69,9 +72,9 @@ class LookupView(BaseView):
             return
 
         selection = buf.get_text(*buf.get_selection_bounds(), include_hidden_chars=False).strip()
-        role      = textbox.role
-        srclang   = self.lang_controller.source_lang.code
-        tgtlang   = self.lang_controller.target_lang.code
+        role = textbox.role
+        srclang = self.lang_controller.source_lang.code
+        tgtlang = self.lang_controller.target_lang.code
 
         lookup_menu = Gtk.Menu()
         selection_entry = _('Look-up "%(selection)s"') % {'selection': selection}

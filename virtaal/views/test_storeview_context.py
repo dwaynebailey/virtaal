@@ -41,6 +41,7 @@ def test_visible_units_shows_everything_for_all_context_or_when_everything_match
 
 # context setting #
 
+
 @pytest.fixture
 def general_settings(monkeypatch):
     general = {}
@@ -63,6 +64,7 @@ def test_context_setting_round_trips(general_settings):
 
 # StoreView._update_visible_rows() #
 
+
 def _view(indices, index, context, change=None):
     view = StoreView.__new__(StoreView)
     view.store = ['u'] * 10
@@ -73,7 +75,9 @@ def _view(indices, index, context, change=None):
     calls = []
     view._treeview = SimpleNamespace(
         set_visible_rows=lambda rows: calls.append(('rows', rows)) or change,
-        select_index=lambda index, force=False: calls.append(('select', index) + (('force',) if force else ())),
+        select_index=lambda index, force=False: calls.append(
+            ('select', index) + (('force',) if force else ())
+        ),
         refresh_current_row=lambda: calls.append(('refresh',)),
     )
     return view, calls
@@ -123,6 +127,7 @@ def test_update_visible_rows_asked_again_mid_update_redoes_it_after():
             view.cursor.index = 1  # a nested cursor move
             view._update_visible_rows()
         return None
+
     view._treeview.set_visible_rows = set_visible_rows
 
     view._update_visible_rows()

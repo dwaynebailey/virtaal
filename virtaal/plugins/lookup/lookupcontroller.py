@@ -19,9 +19,7 @@ class LookupController(BaseController):
     """The central connection between look-up back-ends and the rest of Virtaal."""
 
     __gtype_name__ = 'LookupController'
-    __gsignals__ = {
-        'lookup-query': (GObject.SignalFlags.RUN_FIRST, None, (object,))
-    }
+    __gsignals__ = {'lookup-query': (GObject.SignalFlags.RUN_FIRST, None, (object,))}
 
     # INITIALIZERS #
     def __init__(self, plugin, config):
@@ -38,10 +36,9 @@ class LookupController(BaseController):
 
     def _load_models(self):
         self.plugin_controller = PluginController.for_backend(
-            self, 'LookupModel', 'lookup', BaseLookupModel,
-            lambda *args: self.disabled_model_names)
+            self, 'LookupModel', 'lookup', BaseLookupModel, lambda *args: self.disabled_model_names
+        )
         self.plugin_controller.load_plugins()
-
 
     # METHODS #
     def destroy(self):

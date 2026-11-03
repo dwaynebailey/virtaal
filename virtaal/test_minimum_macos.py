@@ -11,13 +11,16 @@ import plistlib
 
 import pytest
 
-PACKAGING_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                             "devsupport", "packaging", "macos")
+PACKAGING_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "devsupport", "packaging", "macos"
+)
 
 
 @pytest.fixture
 def minimum_macos():
-    spec = importlib.util.spec_from_file_location("minimum_macos", os.path.join(PACKAGING_DIR, "minimum_macos.py"))
+    spec = importlib.util.spec_from_file_location(
+        "minimum_macos", os.path.join(PACKAGING_DIR, "minimum_macos.py")
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -45,7 +48,10 @@ def test_reads_the_minimum_from_either_load_command(minimum_macos):
 
 
 def test_a_universal_binary_needs_its_highest_slice(minimum_macos):
-    assert minimum_macos.minimum_from_load_commands(BUILD_VERSION % "11.0" + BUILD_VERSION % "10.13") == "11.0"
+    assert (
+        minimum_macos.minimum_from_load_commands(BUILD_VERSION % "11.0" + BUILD_VERSION % "10.13")
+        == "11.0"
+    )
 
 
 def test_versions_compare_numerically_not_as_text(minimum_macos, tmp_path, monkeypatch):

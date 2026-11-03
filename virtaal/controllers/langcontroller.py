@@ -71,10 +71,10 @@ class LanguageController(BaseController):
                     logging.warning('Ignoring unreadable language %r in %s', code, filename)
             LanguageModel.languages.update(languages)
 
-
     # ACCESSORS #
     def _get_source_lang(self):
         return self._source_lang
+
     def _set_source_lang(self, lang):
         if isinstance(lang, str):
             lang = LanguageModel(lang)
@@ -82,10 +82,12 @@ class LanguageController(BaseController):
             return
         self._source_lang = lang
         self.emit('source-lang-changed', self._source_lang.code)
+
     source_lang = property(_get_source_lang, _set_source_lang)
 
     def _get_target_lang(self):
         return self._target_lang
+
     def _set_target_lang(self, lang):
         if isinstance(lang, str):
             lang = LanguageModel(lang)
@@ -93,6 +95,7 @@ class LanguageController(BaseController):
             return
         self._target_lang = lang
         self.emit('target-lang-changed', self._target_lang.code)
+
     target_lang = property(_get_target_lang, _set_target_lang)
 
     def set_language_pair(self, srclang, tgtlang):
@@ -106,7 +109,7 @@ class LanguageController(BaseController):
             self.recent_pairs.remove(pair)
 
         self.recent_pairs.insert(0, pair)
-        self.recent_pairs = self.recent_pairs[:self.NUM_RECENT]
+        self.recent_pairs = self.recent_pairs[: self.NUM_RECENT]
 
         self.source_lang = srclang
         self.target_lang = tgtlang
@@ -117,14 +120,17 @@ class LanguageController(BaseController):
         self._store_language_pair()
         pan_app.settings.write()
 
-
     # METHODS #
     def get_target_nplurals(self):
         """The number of plural forms to edit: the open file's own when it
-            declares them, else the target language's."""
+        declares them, else the target language's."""
         store = self.main_controller.store_controller.get_store()
         declared = store and store.get_declared_nplurals()
-        return declared or self.target_lang.nplurals or self.main_controller.store_controller.get_nplurals()
+        return (
+            declared
+            or self.target_lang.nplurals
+            or self.main_controller.store_controller.get_nplurals()
+        )
 
     def get_detected_langs(self):
         store = self.main_controller.store_controller.store
@@ -136,6 +142,7 @@ class LanguageController(BaseController):
         if not (srccode and tgtcode):
             if not self.lang_identifier:
                 from translate.lang.identify import LanguageIdentifier
+
                 self.lang_identifier = LanguageIdentifier()
             if not srccode:
                 srccode = self.lang_identifier.identify_source_lang(store.get_units())
@@ -160,11 +167,13 @@ class LanguageController(BaseController):
 
     def save_recent(self):
         # A code containing a separator can't be read back.
-        pairs = [','.join([src.code, tgt.code]) for (src, tgt) in self.recent_pairs
-                 if not any(sep in src.code + tgt.code for sep in ',|')]
+        pairs = [
+            ','.join([src.code, tgt.code])
+            for (src, tgt) in self.recent_pairs
+            if not any(sep in src.code + tgt.code for sep in ',|')
+        ]
         recent = '|'.join(pairs)
         pan_app.settings.language['recentlangs'] = recent
-
 
     # EVENT HANDLERS #
     def _on_lang_changed(self, sender, code):
@@ -205,6 +214,7 @@ class LanguageController(BaseController):
     def _on_store_loaded(self, store_controller):
         if not self.view:
             from virtaal.views.langview import LanguageView
+
             self.view = LanguageView(self)
             self.view.show()
         srclang = store_controller.store.get_source_language() or self.source_lang.code

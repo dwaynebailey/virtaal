@@ -53,7 +53,7 @@ NESTED_G_XLIFF = """<?xml version="1.0" encoding="UTF-8"?>
 
 class _Editor:
     """Edits a target the way a translator does, checking after every step
-        that the buffer still shows the target's placeable tree."""
+    that the buffer still shows the target's placeable tree."""
 
     def __init__(self, test, textbox):
         self.test = test
@@ -106,7 +106,9 @@ class _Editor:
         self.buffer.place_cursor(self.buffer.get_iter_at_offset(offset))
 
     def select(self, start, end):
-        self.buffer.select_range(self.buffer.get_iter_at_offset(end), self.buffer.get_iter_at_offset(start))
+        self.buffer.select_range(
+            self.buffer.get_iter_at_offset(end), self.buffer.get_iter_at_offset(start)
+        )
 
     def undo(self):
         self.test.undo_controller._on_undo_activated()
@@ -137,13 +139,17 @@ class TestTextBoxEditing(TestScaffolding):
         # Pumping the real main loop hangs in this suite - run idle
         # callbacks from the editor instead.
         self.idle_calls = []
-        monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: self.idle_calls.append(lambda: func(*args)))
+        monkeypatch.setattr(
+            GLib, 'idle_add', lambda func, *args: self.idle_calls.append(lambda: func(*args))
+        )
         undo = self.undo_controller
         # Every edit stays on one unit: no store cursor to navigate with.
         monkeypatch.setattr(undo, '_select_unit', lambda unit: undo._flush_pending_refresh())
         monkeypatch.setattr(undo, '_correct_state_after_undo_redo', lambda unit=None: None)
         self.warnings = []
-        monkeypatch.setattr(textbox_module.logging, 'warning', lambda msg, *args: self.warnings.append(msg % args))
+        monkeypatch.setattr(
+            textbox_module.logging, 'warning', lambda msg, *args: self.warnings.append(msg % args)
+        )
 
     def _editor(self, path, index):
         # A fresh store each time: load_unit() ignores the unit already loaded.
@@ -158,7 +164,11 @@ class TestTextBoxEditing(TestScaffolding):
         return editor
 
     def _placeables(self, editor):
-        return [e for e in editor.textbox.elem.depth_first() if isinstance(e, general.PythonFormattingPlaceable)]
+        return [
+            e
+            for e in editor.textbox.elem.depth_first()
+            if isinstance(e, general.PythonFormattingPlaceable)
+        ]
 
     def _g(self, editor):
         return [e for e in editor.textbox.elem.depth_first() if isinstance(e, base.G)]
@@ -401,12 +411,15 @@ class TestTextBoxEditing(TestScaffolding):
 
         assert editor.text == 'First line.Second line.'
 
-    @pytest.mark.parametrize('typed, left', [
-        ('কি', 'ক'),  # Bengali consonant + vowel sign
-        ('ক্ষি', 'ক্ষ'),  # Bengali conjunct + vowel sign
-        ('हिंदी', 'हिंद'),  # Devanagari
-        ('بَ', 'ب'),  # Arabic letter + fatha (#986)
-    ])
+    @pytest.mark.parametrize(
+        'typed, left',
+        [
+            ('কি', 'ক'),  # Bengali consonant + vowel sign
+            ('ক্ষি', 'ক্ষ'),  # Bengali conjunct + vowel sign
+            ('हिंदी', 'हिंद'),  # Devanagari
+            ('بَ', 'ب'),  # Arabic letter + fatha (#986)
+        ],
+    )
     def test_backspace_after_a_combining_mark_deletes_only_the_mark(self, typed, left):
         editor = self._editor(PLACEABLES_PO, 0)
         editor.place(editor.buffer.get_char_count())
@@ -427,12 +440,15 @@ class TestTextBoxEditing(TestScaffolding):
     # Pango deletes a Latin, Greek or Cyrillic letter together with its
     # marks.
 
-    @pytest.mark.parametrize('typed, left', [
-        ('é', ''),  # NFD é
-        ('Việ', 'Vi'),  # NFD ệ
-        ('ά', ''),  # NFD ά
-        ('й', ''),  # NFD й
-    ])
+    @pytest.mark.parametrize(
+        'typed, left',
+        [
+            ('é', ''),  # NFD é
+            ('Việ', 'Vi'),  # NFD ệ
+            ('ά', ''),  # NFD ά
+            ('й', ''),  # NFD й
+        ],
+    )
     def test_backspace_after_a_latin_combining_mark_deletes_the_whole_letter(self, typed, left):
         editor = self._editor(PLACEABLES_PO, 0)
         original = editor.text
@@ -451,13 +467,16 @@ class TestTextBoxEditing(TestScaffolding):
 
         assert editor.text == original + left
 
-    @pytest.mark.parametrize('cluster', [
-        'कि',  # Devanagari consonant + vowel sign
-        'กี่',  # Thai consonant + vowel + tone mark
-        'שָׁ',  # Hebrew shin + qamats + shin dot
-        'é',  # NFD é
-        '한',  # NFD 한
-    ])
+    @pytest.mark.parametrize(
+        'cluster',
+        [
+            'कि',  # Devanagari consonant + vowel sign
+            'กี่',  # Thai consonant + vowel + tone mark
+            'שָׁ',  # Hebrew shin + qamats + shin dot
+            'é',  # NFD é
+            '한',  # NFD 한
+        ],
+    )
     def test_delete_before_a_cluster_removes_all_of_it(self, cluster):
         editor = self._editor(PLACEABLES_PO, 0)
         original = editor.text
@@ -545,10 +564,13 @@ class TestTextBoxEditing(TestScaffolding):
         assert editor.text == 'Café %s café'
         assert self.unit_controller.current_unit.target == 'Café %s café'
 
-    @pytest.mark.parametrize('target, search, found', [
-        ('%s café {0} é', 'é', 'é'),  # NFD target, NFC search
-        ('%s café {0} é', 'é', 'é'),  # NFC target, NFD search
-    ])
+    @pytest.mark.parametrize(
+        'target, search, found',
+        [
+            ('%s café {0} é', 'é', 'é'),  # NFD target, NFC search
+            ('%s café {0} é', 'é', 'é'),  # NFC target, NFD search
+        ],
+    )
     def test_search_highlights_the_targets_own_code_points(self, tmp_path, target, search, found):
         path = tmp_path / 'search.po'
         path.write_text(_ONE_UNIT_PO % target, encoding='utf-8')
@@ -556,14 +578,22 @@ class TestTextBoxEditing(TestScaffolding):
         unit = self.unit_controller.current_unit
         mode = SearchMode.__new__(SearchMode)
         mode.unitview = SimpleNamespace(unit=unit, sources=[], targets=[editor.textbox])
-        mode.matches, _ = GrepFilter(searchstring=search, searchparts=('target',), ignorecase=False,
-                                     useregexp=False, max_matches=10).getmatches([unit])
+        mode.matches, _ = GrepFilter(
+            searchstring=search,
+            searchparts=('target',),
+            ignorecase=False,
+            useregexp=False,
+            max_matches=10,
+        ).getmatches([unit])
 
         mode._highlight_textbox_matches(editor.textbox, select_match=False)
 
         tag = editor.buffer.get_tag_table().lookup('search_highlight')
-        highlighted = ''.join(char for i, char in enumerate(editor.textbox.get_text())
-                              if editor.buffer.get_iter_at_offset(i).has_tag(tag))
+        highlighted = ''.join(
+            char
+            for i, char in enumerate(editor.textbox.get_text())
+            if editor.buffer.get_iter_at_offset(i).has_tag(tag)
+        )
         assert highlighted == found * 2
 
     # Random edits: whatever a translator does, the buffer keeps showing
@@ -578,8 +608,22 @@ class TestTextBoxEditing(TestScaffolding):
         original = editor.text
         for _ in range(30):
             length = editor.buffer.get_char_count()
-            action = rnd.choice(['type', 'type', 'placeable', 'newline', 'backspace', 'delete',
-                                 'place', 'arrow', 'select-delete', 'select-type', 'undo', 'redo'])
+            action = rnd.choice(
+                [
+                    'type',
+                    'type',
+                    'placeable',
+                    'newline',
+                    'backspace',
+                    'delete',
+                    'place',
+                    'arrow',
+                    'select-delete',
+                    'select-type',
+                    'undo',
+                    'redo',
+                ]
+            )
             if action == 'type':
                 editor.type(rnd.choice('ab '))
             elif action == 'placeable':

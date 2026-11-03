@@ -14,8 +14,7 @@ from translate.storage import po
 
 from virtaal.support import gettextpo
 
-pytestmark = pytest.mark.skipif(not gettextpo.available(),
-                                reason="libgettextpo is not available")
+pytestmark = pytest.mark.skipif(not gettextpo.available(), reason="libgettextpo is not available")
 
 HEADER = b'''msgid ""
 msgstr ""
@@ -79,19 +78,21 @@ def test_newlines():
 
 
 def test_plural_format():
-    entry = (b'#, c-format\nmsgid "one %d"\nmsgid_plural "many %d"\n'
-             b'msgstr[0] "een"\nmsgstr[1] "baie %s"\n')
+    entry = (
+        b'#, c-format\nmsgid "one %d"\nmsgid_plural "many %d"\n'
+        b'msgstr[0] "een"\nmsgstr[1] "baie %s"\n'
+    )
     problems = check(entry)
     assert len(problems) == 1
     assert "msgstr[1]" in problems[0]
 
 
 def test_plural_count():
-    entry = (b'msgid "one"\nmsgid_plural "many"\n'
-             b'msgstr[0] "een"\nmsgstr[1] "baie"\n')
+    entry = b'msgid "one"\nmsgid_plural "many"\nmsgstr[0] "een"\nmsgstr[1] "baie"\n'
     assert check(entry) == []
-    header = HEADER.replace(b"nplurals=2; plural=(n != 1)",
-                            b"nplurals=3; plural=(n==1 ? 0 : n==2 ? 1 : 2)")
+    header = HEADER.replace(
+        b"nplurals=2; plural=(n != 1)", b"nplurals=3; plural=(n==1 ? 0 : n==2 ? 1 : 2)"
+    )
     assert check(entry, header)
 
 
@@ -102,12 +103,11 @@ def test_header_problems_only_on_header():
     assert checker.check_unit(store.units[1]) == []
 
 
-
 def test_msgfmt_check_uses_the_units_store_header():
-    entry = (b'msgid "one"\nmsgid_plural "many"\n'
-             b'msgstr[0] "een"\nmsgstr[1] "baie"\n')
-    header = HEADER.replace(b"nplurals=2; plural=(n != 1)",
-                            b"nplurals=3; plural=(n==1 ? 0 : n==2 ? 1 : 2)")
+    entry = b'msgid "one"\nmsgid_plural "many"\nmsgstr[0] "een"\nmsgstr[1] "baie"\n'
+    header = HEADER.replace(
+        b"nplurals=2; plural=(n != 1)", b"nplurals=3; plural=(n==1 ? 0 : n==2 ? 1 : 2)"
+    )
     check = gettextpo.MsgfmtCheck()
 
     assert check.check(po.pofile.parsestring(HEADER + entry).units[-1]) is None
@@ -123,18 +123,24 @@ def test_msgfmt_check_applies_to_po_only():
 
 def test_bundled_library_only(tmp_path, monkeypatch):
     from virtaal.common.platform import Platform
+
     bundle_dir = tmp_path / "Contents" / "MacOS"
     bundle_dir.mkdir(parents=True)
     frameworks = tmp_path / "Contents" / "Frameworks"
     frameworks.mkdir()
     (frameworks / "libgettextpo.0.dylib").touch()
-    monkeypatch.setattr(gettextpo, 'platform',
-                        Platform(sys_platform='darwin', frozen=True, executable=str(bundle_dir / "virtaal")))
+    monkeypatch.setattr(
+        gettextpo,
+        'platform',
+        Platform(sys_platform='darwin', frozen=True, executable=str(bundle_dir / "virtaal")),
+    )
 
     assert list(gettextpo._library_candidates()) == [str(frameworks / "libgettextpo.0.dylib")]
 
 
-REFERENCE = os.path.join(os.path.dirname(__file__), '..', '..', 'devsupport', 'testfiles', 'msgfmt.po')
+REFERENCE = os.path.join(
+    os.path.dirname(__file__), '..', '..', 'devsupport', 'testfiles', 'msgfmt.po'
+)
 
 
 def _gettext_version():
@@ -152,7 +158,9 @@ def test_reference_file_gets_the_noted_messages():
     for unit in store.units[1:]:
         expected = re.sub(r" \(the translation holds [^)]*\)", "", unit.getnotes('developer'))
         assert expected.startswith(prefix)
-        assert (check.check(unit) or '').replace('\n', ' / ') == expected[len(prefix):], str(unit.source)
+        assert (check.check(unit) or '').replace('\n', ' / ') == expected[len(prefix) :], str(
+            unit.source
+        )
 
 
 def test_checked_messages_are_freed_with_the_rebuilt_file(monkeypatch):
@@ -177,7 +185,9 @@ C_FORMAT_PROBLEM = "number of format specifications in 'msgid' and 'msgstr' does
 
 
 def test_context_is_checked_with_its_message():
-    assert check(b'#, c-format\nmsgctxt "menu"\nmsgid "Hello %s"\nmsgstr "Hallo"\n') == [C_FORMAT_PROBLEM]
+    assert check(b'#, c-format\nmsgctxt "menu"\nmsgid "Hello %s"\nmsgstr "Hallo"\n') == [
+        C_FORMAT_PROBLEM
+    ]
 
 
 def test_check_without_a_header():
@@ -198,6 +208,7 @@ def test_a_problem_reported_outside_a_check_is_dropped():
 def ui_languages(monkeypatch):
     # Not the real one: it would switch the whole test process's UI language.
     from virtaal.common import pan_app
+
     languages = []
     monkeypatch.setattr(pan_app, 'set_ui_language', languages.append)
     return languages
@@ -216,6 +227,7 @@ def test_self_check_reports_the_library_and_a_c_format_problem(ui_languages):
 def _run_main(monkeypatch, *args):
     import runpy
     import sys
+
     monkeypatch.setattr(sys, 'argv', ['gettextpo', *args])
     # run_module() warns if the module is already imported.
     monkeypatch.delitem(sys.modules, 'virtaal.support.gettextpo')

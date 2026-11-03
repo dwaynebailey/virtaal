@@ -29,7 +29,7 @@ class TerminologyModel(BaseTerminologyModel):
 
     default_config = {
         'extendfile': os.path.join(pan_app.get_config_dir(), 'terminology.po'),
-        'files': ''
+        'files': '',
     }
 
     # INITIALIZERS #
@@ -43,7 +43,6 @@ class TerminologyModel(BaseTerminologyModel):
         self.load_config()
         self.load_files()
         self.view = LocalFileView(self)
-
 
     # METHODS #
     def destroy(self):
@@ -59,8 +58,7 @@ class TerminologyModel(BaseTerminologyModel):
         units = []
         for store in self.stores:
             for unit in store.units:
-                if unit.source.strip() == base_src_text and \
-                        unit.target.strip() == base_tgt_text:
+                if unit.source.strip() == base_src_text and unit.target.strip() == base_tgt_text:
                     return True
         return False
 

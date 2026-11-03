@@ -22,7 +22,7 @@
 # Later modifications: Copyright (C) Virtaal contributors. See the
 # AUTHORS.md file for copyright and authorship information.
 
-""" altsets.py -- An alternate implementation of Sets.py
+"""altsets.py -- An alternate implementation of Sets.py
 
 Implements set operations using sorted lists as the underlying data structure.
 
@@ -73,8 +73,16 @@ class SortedSet(GObject.GObject):
     __gsignals__ = {
         "removed": (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_INT, GObject.TYPE_PYOBJECT)),
         "added": (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_INT, GObject.TYPE_PYOBJECT)),
-        "before-remove": (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_INT, GObject.TYPE_PYOBJECT)),
-        "before-add": (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_INT, GObject.TYPE_PYOBJECT))
+        "before-remove": (
+            GObject.SignalFlags.RUN_FIRST,
+            None,
+            (GObject.TYPE_INT, GObject.TYPE_PYOBJECT),
+        ),
+        "before-add": (
+            GObject.SignalFlags.RUN_FIRST,
+            None,
+            (GObject.TYPE_INT, GObject.TYPE_PYOBJECT),
+        ),
     }
 
     def __init__(self, iterable):
@@ -98,7 +106,7 @@ class SortedSet(GObject.GObject):
     def __contains__(self, elem):
         data = self.data
         i = bisect_left(self.data, elem, 0)
-        return i<len(data) and data[i] == elem
+        return i < len(data) and data[i] == elem
 
     def add(self, elem):
         if elem not in self:
@@ -110,7 +118,7 @@ class SortedSet(GObject.GObject):
     def remove(self, elem):
         data = self.data
         i = bisect_left(self.data, elem, 0)
-        if i<len(data) and data[i] == elem:
+        if i < len(data) and data[i] == elem:
             elem = data[i]
             self.emit('before-remove', i, elem)
             del data[i]
@@ -120,6 +128,7 @@ class SortedSet(GObject.GObject):
         if not isinstance(other, SortedSet):
             other = SortedSet(other)
         return other.data
+
     _getotherdata = staticmethod(_getotherdata)
 
     def __gt__(self, other):

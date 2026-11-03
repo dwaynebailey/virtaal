@@ -17,7 +17,14 @@ class BaseTerminologyModel(BaseModel, Configurable):
 
     __gtype_name__ = None
     __gsignals__ = {
-        'match-found': (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_STRING, GObject.TYPE_PYOBJECT,))
+        'match-found': (
+            GObject.SignalFlags.RUN_FIRST,
+            None,
+            (
+                GObject.TYPE_STRING,
+                GObject.TYPE_PYOBJECT,
+            ),
+        )
     }
 
     CONFIG_FILENAME = "terminology.ini"
@@ -31,17 +38,16 @@ class BaseTerminologyModel(BaseModel, Configurable):
     def __init__(self, controller):
         """Initialise the model and connects it to the appropriate events.
 
-            Only call this from child classes once the object was successfully
-            created and want to be connected to signals."""
+        Only call this from child classes once the object was successfully
+        created and want to be connected to signals."""
         super().__init__()
         self.config = {}
         self.controller = controller
         self._signal_tracker = SignalTracker()
 
-        #static suggestion cache for slow terminology queries
-        #TODO: cache invalidation, maybe decorate query to automate cache handling?
+        # static suggestion cache for slow terminology queries
+        # TODO: cache invalidation, maybe decorate query to automate cache handling?
         self.cache = {}
-
 
     # METHODS #
     def destroy(self):

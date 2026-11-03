@@ -43,6 +43,7 @@ class AutocorrectDownloader:
         self.target_dir = target_dir
         if client is None:
             from virtaal.support.httpclient import HTTPClient
+
             client = HTTPClient()
             client.set_virtaal_useragent()
         self._client = client

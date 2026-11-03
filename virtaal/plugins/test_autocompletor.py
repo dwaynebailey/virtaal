@@ -22,11 +22,13 @@ class _Fake:
     """A plain, hashable stand-in for a widget - unlike SimpleNamespace,
     whose own __eq__ makes it unusable as a dict key (autocompletor
     keys _textbox_insert_ids by the widget itself)."""
+
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
 
 # isusable() #
+
 
 def test_isusable_rejects_a_word_at_the_length_boundary():
     ac = _ac(comp_len=4)
@@ -39,6 +41,7 @@ def test_isusable_accepts_a_word_just_over_the_boundary():
 
 
 # add_words() / _update_word_list() #
+
 
 def test_add_words_filters_out_words_too_short_to_be_usable():
     ac = _ac(comp_len=4)
@@ -73,6 +76,7 @@ def test_add_words_accumulates_frequency_across_calls():
 
 # add_words_from_units() #
 
+
 def test_add_words_from_units_splits_target_text_into_words():
     ac = _ac(comp_len=1)
     unit = SimpleNamespace(target='hello world')
@@ -93,6 +97,7 @@ def test_add_words_from_units_skips_a_unit_with_no_target():
 
 
 # autocomplete() #
+
 
 def test_autocomplete_finds_the_first_matching_prefix_by_frequency():
     ac = _ac(comp_len=1)
@@ -116,6 +121,7 @@ def test_autocomplete_returns_none_and_empty_suffix_for_no_match():
 
 # clear_words() #
 
+
 def test_clear_words_resets_frequency_and_list():
     ac = _ac(comp_len=1)
     ac.add_words(['hello'])
@@ -128,6 +134,7 @@ def test_clear_words_resets_frequency_and_list():
 
 # remove_words() - normal (in-sync) case; the desync/exception case
 # fixed in #3637 is covered separately below.
+
 
 def test_remove_words_removes_a_word_present_in_both_structures():
     ac = _ac(comp_len=1)
@@ -150,10 +157,10 @@ def test_remove_words_accepts_a_list_of_words():
 
 def test_remove_words_tolerates_a_word_freq_entry_never_synced_to_word_list():
     """add_words(update=False) - used internally by add_words_from_units()'s
-        per-unit loop - populates _word_freq without rebuilding _word_list,
-        so the two can legitimately disagree about a given word. Removing
-        such a word used to raise an uncaught ValueError from
-        _word_list.remove() (only KeyError was ever caught)."""
+    per-unit loop - populates _word_freq without rebuilding _word_list,
+    so the two can legitimately disagree about a given word. Removing
+    such a word used to raise an uncaught ValueError from
+    _word_list.remove() (only KeyError was ever caught)."""
     ac = _ac(comp_len=1)
     ac.add_words(['itisalongword'], update=False)
     assert 'itisalongword' in ac._word_freq
@@ -189,10 +196,11 @@ def test_add_words_from_units_stops_after_reaching_max_words():
 
 # widget registration #
 
+
 def _fake_widget():
     """A TextBox type tag (for isinstance checks in add_widget()/
-        remove_widget()) with its connect()/disconnect() overridden -
-        avoids constructing a real, GTK-widget-backed TextBox."""
+    remove_widget()) with its connect()/disconnect() overridden -
+    avoids constructing a real, GTK-widget-backed TextBox."""
     calls = []
     widget = TextBox.__new__(TextBox)
     widget.connect = lambda signal, handler: calls.append(('connect', signal)) or 'sigid'
@@ -274,15 +282,16 @@ def test_clear_widgets_removes_every_registered_widget():
 
 # _on_insert_text() - the actual autocomplete-while-typing logic #
 
+
 def _insert_text_box(prefix, suffix, buffer_text=None):
     """A fake textbox whose get_text() mirrors TextBox's own
-        get_text(start, end)/get_text(start) shapes, backed by a real
-        Gtk.TextBuffer for the final selection check."""
+    get_text(start, end)/get_text(start) shapes, backed by a real
+    Gtk.TextBuffer for the final selection check."""
     buf = Gtk.TextBuffer()
     buf.set_text(buffer_text if buffer_text is not None else (prefix + suffix))
     calls = []
     textbox = _Fake(
-        get_text=lambda start=0, end=None: (prefix if end is not None else suffix),
+        get_text=lambda start=0, end=None: prefix if end is not None else suffix,
         buffer=buf,
         handler_block=lambda hid: calls.append(('block', hid)),
         handler_unblock=lambda hid: calls.append(('unblock', hid)),
@@ -311,8 +320,10 @@ def test_on_insert_text_ignores_a_multi_character_insertion():
 def test_on_insert_text_does_not_suggest_in_the_middle_of_a_word(monkeypatch):
     ac = _ac(comp_len=1)
     ac.add_words(['helsinki'])
-    monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add',
-                         lambda *a, **k: pytest.fail('must not suggest mid-word'))
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda *a, **k: pytest.fail('must not suggest mid-word'),
+    )
     textbox, _ = _insert_text_box(prefix='hel', suffix='sinki')
 
     ac._on_insert_text(textbox, text='l', offset=2, elem=None)
@@ -321,8 +332,10 @@ def test_on_insert_text_does_not_suggest_in_the_middle_of_a_word(monkeypatch):
 def test_on_insert_text_does_not_suggest_a_word_shorter_than_comp_len(monkeypatch):
     ac = _ac(comp_len=10)
     ac.add_words(['helsinki'])
-    monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add',
-                         lambda *a, **k: pytest.fail('must not suggest a too-short word'))
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda *a, **k: pytest.fail('must not suggest a too-short word'),
+    )
     textbox, _ = _insert_text_box(prefix='hel', suffix='')
 
     ac._on_insert_text(textbox, text='l', offset=2, elem=None)
@@ -331,8 +344,10 @@ def test_on_insert_text_does_not_suggest_a_word_shorter_than_comp_len(monkeypatc
 def test_on_insert_text_does_not_suggest_when_the_word_is_already_complete(monkeypatch):
     ac = _ac(comp_len=1)
     ac.add_words(['hello'])
-    monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add',
-                         lambda *a, **k: pytest.fail('must not suggest an exact match'))
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda *a, **k: pytest.fail('must not suggest an exact match'),
+    )
     textbox, _ = _insert_text_box(prefix='hell', suffix='')
 
     ac._on_insert_text(textbox, text='o', offset=4, elem=None)
@@ -341,8 +356,10 @@ def test_on_insert_text_does_not_suggest_when_the_word_is_already_complete(monke
 def test_on_insert_text_does_not_suggest_without_a_matching_word(monkeypatch):
     ac = _ac(comp_len=1)
     ac.add_words(['xyzxyzxyz'])
-    monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add',
-                         lambda *a, **k: pytest.fail('must not suggest without a match'))
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda *a, **k: pytest.fail('must not suggest without a match'),
+    )
     textbox, _ = _insert_text_box(prefix='hel', suffix='')
 
     ac._on_insert_text(textbox, text='l', offset=2, elem=None)
@@ -352,8 +369,10 @@ def test_on_insert_text_schedules_and_applies_a_deferred_suggestion(monkeypatch)
     ac = _ac(comp_len=1)
     ac.add_words(['helsinki'])
     scheduled = []
-    monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add',
-                         lambda f, priority=None: scheduled.append((f, priority)))
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append((f, priority)),
+    )
     textbox, calls = _insert_text_box(prefix='he', suffix='', buffer_text='helsinki')
     ac._textbox_insert_ids = {textbox: 'sigid'}
 
@@ -371,6 +390,7 @@ def test_on_insert_text_schedules_and_applies_a_deferred_suggestion(monkeypatch)
 
 
 # Plugin - completely untested until now #
+
 
 def _plugin_main_controller(store=None, targets=None):
     calls = []
@@ -431,7 +451,9 @@ def test_plugin_destroy_disconnects_every_signal(monkeypatch):
     main_controller, calls = _plugin_main_controller(store=None, targets=[])
     plugin = Plugin('autocompletor', main_controller)
     plugin._cursor_changed_id = 'cursor-sig'
-    plugin.store_cursor = SimpleNamespace(disconnect=lambda sig: calls.append(('cursor-disconnect', sig)))
+    plugin.store_cursor = SimpleNamespace(
+        disconnect=lambda sig: calls.append(('cursor-disconnect', sig))
+    )
 
     plugin.destroy()
 

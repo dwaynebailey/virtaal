@@ -23,7 +23,7 @@ class Plugin(BasePlugin):
         # distinct concept from Pontoon's own fixed, specific source.
         'disabled_models': 'autoterm',
         'max_matches': '5',
-        'min_quality': '70'
+        'min_quality': '70',
     }
 
     # INITIALIZERS #
@@ -36,8 +36,12 @@ class Plugin(BasePlugin):
     def _init_plugin(self):
         self.load_config()
         self.config['backends_dialog_width'] = pan_app.config_int(
-            self.config['backends_dialog_width'], self.default_config['backends_dialog_width'], 1, 32767,
-            'backends_dialog_width')
+            self.config['backends_dialog_width'],
+            self.default_config['backends_dialog_width'],
+            1,
+            32767,
+            'backends_dialog_width',
+        )
         self.config['disabled_models'] = self.config['disabled_models'].split(',')
         # A profile saved before autoterm's own default disabling (see
         # default_config above) keeps whatever disabled_models it last
@@ -47,9 +51,19 @@ class Plugin(BasePlugin):
         if 'autoterm' not in self.config['disabled_models']:
             self.config['disabled_models'].append('autoterm')
         self.config['max_matches'] = pan_app.config_int(
-            self.config['max_matches'], int(self.default_config['max_matches']), 0, 1000, 'max_matches')
+            self.config['max_matches'],
+            int(self.default_config['max_matches']),
+            0,
+            1000,
+            'max_matches',
+        )
         # A quality of 0 divides by zero when matching.
         self.config['min_quality'] = pan_app.config_int(
-            self.config['min_quality'], int(self.default_config['min_quality']), 1, 100, 'min_quality')
+            self.config['min_quality'],
+            int(self.default_config['min_quality']),
+            1,
+            100,
+            'min_quality',
+        )
 
         self.controller = TerminologyController(self.main_controller, self.config)

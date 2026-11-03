@@ -6,19 +6,22 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 
-
 def debug_func(f):
     """Function decorator to start a pdb shell before calling the decorated
-        function."""
+    function."""
+
     def debuggedf(*args, **kwargs):
         import pdb
+
         pdb.set_trace()
         return f(*args, **kwargs)
+
     return debuggedf
+
 
 def log_args(fn, classname=None):
     """Function decorator that logs the call of the decorated function with
-        arguments and return value."""
+    arguments and return value."""
     if classname is None:
         classname = ''
     else:
@@ -37,14 +40,19 @@ def log_args(fn, classname=None):
 
     return logger_fn
 
+
 def log_all_methods(cls):
     """Class decorator that applies the C{log_args} decorator to all of the
-        methods in the class."""
+    methods in the class."""
     if not hasattr(cls, '__base__'):
         raise TypeError('Not a class: %s' % (cls))
     for attr in dir(cls):
         method = getattr(cls, attr)
-        if attr.startswith('__') and attr.endswith('__') or getattr(method, 'im_class', None) is not cls:
+        if (
+            attr.startswith('__')
+            and attr.endswith('__')
+            or getattr(method, 'im_class', None) is not cls
+        ):
             continue
         if callable(method):
             setattr(cls, attr, log_args(method, classname=cls.__name__))

@@ -28,7 +28,6 @@ class UndoModel(BaseModel):
         # undo-able step. See _maybe_insert_navigation().
         self._last_pushed_unit = None
 
-
     # METHODS #
     def can_undo(self):
         return 0 <= self.index < len(self.undo_stack)
@@ -46,27 +45,27 @@ class UndoModel(BaseModel):
 
     def mark_clean(self):
         """Record the current undo-stack position as "the file is
-            unmodified" - call this right after a file is opened or
-            saved."""
+        unmodified" - call this right after a file is opened or
+        saved."""
         self.clean_index = self.index
 
     def is_at_clean_position(self):
         """Whether the undo stack is currently at the position last marked
-            clean by mark_clean() - i.e. whatever's changed since then has
-            all been undone."""
+        clean by mark_clean() - i.e. whatever's changed since then has
+        all been undone."""
         return self.index == self.clean_index
 
     def peek(self):
         """The entry a following pop() would return, without consuming
-            it - lets a caller check where the stack expects the display
-            to currently be before actually undoing anything."""
+        it - lets a caller check where the stack expects the display
+        to currently be before actually undoing anything."""
         if not self.undo_stack or not (0 <= self.index < len(self.undo_stack)):
             return None
         return self.undo_stack[self.index]
 
     def peek_redo(self):
         """The entry a following pop_redo() would return, without
-            consuming it - see peek()."""
+        consuming it - see peek()."""
         if not self.redo_stack:
             return None
         return self.redo_stack[-1]
@@ -74,8 +73,8 @@ class UndoModel(BaseModel):
     @staticmethod
     def entry_unit(entry):
         """The unit an undo/redo entry (a plain dict, or a recording
-            group's list - all of whose items share one unit) is
-            anchored to."""
+        group's list - all of whose items share one unit) is
+        anchored to."""
         if isinstance(entry, list):
             entry = entry[0] if entry else None
         return entry.get('unit') if isinstance(entry, dict) else None
@@ -84,22 +83,22 @@ class UndoModel(BaseModel):
         if not self.undo_stack or not (0 <= self.index < len(self.undo_stack)):
             return None
         self.index -= 1
-        return self.undo_stack[self.index+1]
+        return self.undo_stack[self.index + 1]
 
     def push(self, undo_dict):
         """Push an undo-action onto the undo stack.
-            @type  undo_dict: dict
-            @param undo_dict: A dictionary containing undo information with the
-                following keys:
-                 - "action": Value is a callable that is called (with the "unit"
-                   value, to effect the undo).
-                 - "unit": Value is the unit on which the undo-action is applicable.
-                 - "targetn": The index of the target on which the undo is applicable.
-                 - "cursorpos": The position of the cursor after the undo.
+        @type  undo_dict: dict
+        @param undo_dict: A dictionary containing undo information with the
+            following keys:
+             - "action": Value is a callable that is called (with the "unit"
+               value, to effect the undo).
+             - "unit": Value is the unit on which the undo-action is applicable.
+             - "targetn": The index of the target on which the undo is applicable.
+             - "cursorpos": The position of the cursor after the undo.
 
-            A dict with a "kind" key (e.g. a navigation or state-change
-            act) is a different, self-describing family and skips the
-            checks above - see UndoController._perform_undo()."""
+        A dict with a "kind" key (e.g. a navigation or state-change
+        act) is a different, self-describing family and skips the
+        checks above - see UndoController._perform_undo()."""
         if 'kind' not in undo_dict:
             for key in ('action', 'unit', 'targetn', 'cursorpos'):
                 if not key in undo_dict:
@@ -117,7 +116,7 @@ class UndoModel(BaseModel):
             if self.index < 0:
                 self.undo_stack = []
             if self.index != len(self.undo_stack) - 1:
-                self.undo_stack = self.undo_stack[:self.index+1]
+                self.undo_stack = self.undo_stack[: self.index + 1]
             self.redo_stack = []
             self._resync_last_pushed_unit()
             if self._navigated_to(unit):
@@ -131,13 +130,13 @@ class UndoModel(BaseModel):
 
     def _resync_last_pushed_unit(self):
         """Recompute _last_pushed_unit from whatever's actually on top of
-            the stack now - must run right after truncating it (a fresh
-            push/record_start after undoing something discards whatever
-            redo history followed). Otherwise a stale value surviving
-            from a since-discarded future push can make the very next
-            push think it's crossing a unit boundary that, on the
-            current stack, doesn't actually lead anywhere - and insert a
-            navigation entry for it regardless."""
+        the stack now - must run right after truncating it (a fresh
+        push/record_start after undoing something discards whatever
+        redo history followed). Otherwise a stale value surviving
+        from a since-discarded future push can make the very next
+        push think it's crossing a unit boundary that, on the
+        current stack, doesn't actually lead anywhere - and insert a
+        navigation entry for it regardless."""
         self._last_pushed_unit = self.entry_unit(self.undo_stack[-1]) if self.undo_stack else None
 
     def _navigation_entry(self, unit):
@@ -156,8 +155,8 @@ class UndoModel(BaseModel):
 
     def _last_completed_entry(self):
         """The most recently pushed entry, ignoring the current
-            recording group while it's still empty (record_start()
-            already appended it before this push() call runs)."""
+        recording group while it's still empty (record_start()
+        already appended it before this push() call runs)."""
         stack = self.undo_stack
         if self.recording and stack and isinstance(stack[-1], list) and not stack[-1]:
             stack = stack[:-1]
@@ -168,12 +167,12 @@ class UndoModel(BaseModel):
 
     def attach_state_after(self, unit, state_after):
         """Record what an automatic state correction changed a unit's
-            state to, onto the text-change entry currently on top of
-            the stack for that unit - so undoing the text also
-            restores the state that came with it. A no-op unless that
-            entry is still exactly where it was pushed (nothing
-            undone/redone/pushed since) and opted in via 'state_before'
-            (see UndoController._on_unit_insert_text/_delete_text)."""
+        state to, onto the text-change entry currently on top of
+        the stack for that unit - so undoing the text also
+        restores the state that came with it. A no-op unless that
+        entry is still exactly where it was pushed (nothing
+        undone/redone/pushed since) and opted in via 'state_before'
+        (see UndoController._on_unit_insert_text/_delete_text)."""
         if self.index < 0 or self.index != len(self.undo_stack) - 1:
             return
         top = self.undo_stack[-1]
@@ -191,7 +190,7 @@ class UndoModel(BaseModel):
         if self.index < 0:
             self.undo_stack = []
         if self.index != len(self.undo_stack) - 1:
-            self.undo_stack = self.undo_stack[:self.index+1]
+            self.undo_stack = self.undo_stack[: self.index + 1]
 
         self.redo_stack = []
         self._resync_last_pushed_unit()
@@ -201,15 +200,15 @@ class UndoModel(BaseModel):
 
     def push_redo(self, redo_dict):
         """Push a redo-action onto the redo stack - see pop().
-            @type  redo_dict: dict
-            @param redo_dict: Same shape as an undo dictionary passed to
-                push(); built by the caller from whatever state undoing
-                is about to overwrite."""
+        @type  redo_dict: dict
+        @param redo_dict: Same shape as an undo dictionary passed to
+            push(); built by the caller from whatever state undoing
+            is about to overwrite."""
         self.redo_stack.append(redo_dict)
 
     def pop_redo(self):
         """Pop and return the most recently undone action, re-advancing
-            C{index} so a following undo lands back on the same entry."""
+        C{index} so a following undo lands back on the same entry."""
         if not self.redo_stack:
             return None
         self.index += 1

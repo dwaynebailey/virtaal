@@ -87,7 +87,6 @@ def test_changing_indices_keeps_the_current_unit_when_it_is_still_included():
     assert cursor.index == 3
 
 
-
 def test_set_indices_keep_current_stays_on_a_unit_no_longer_included():
     cursor, signals = _cursor([1, 3, 5])
     cursor.index = 3
@@ -102,6 +101,7 @@ def test_set_indices_keep_current_stays_on_a_unit_no_longer_included():
 
 
 # visit() #
+
 
 def test_visit_moves_to_a_unit_outside_indices_without_adding_it():
     cursor, signals = _cursor([1, 4])
@@ -202,15 +202,18 @@ def _positioned_cursor(n, pos, circular):
     return cursor, changes
 
 
-@pytest.mark.parametrize('n, pos, offset, expected', [
-    (5, 1, 1, 2),
-    (5, 1, -1, 0),
-    (5, 4, 1, 4),
-    (5, 0, -1, 0),
-    (5, 2, 10, 4),
-    (5, 2, -10, 0),
-    (1, 0, 1, 0),
-])
+@pytest.mark.parametrize(
+    'n, pos, offset, expected',
+    [
+        (5, 1, 1, 2),
+        (5, 1, -1, 0),
+        (5, 4, 1, 4),
+        (5, 0, -1, 0),
+        (5, 2, 10, 4),
+        (5, 2, -10, 0),
+        (1, 0, 1, 0),
+    ],
+)
 def test_move_stops_at_the_ends(n, pos, offset, expected):
     cursor, _changes = _positioned_cursor(n, pos, circular=False)
     cursor.move(offset)
@@ -224,32 +227,38 @@ def test_move_at_the_end_does_not_emit_cursor_changed():
     assert changes == []
 
 
-@pytest.mark.parametrize('n, pos, offset, expected', [
-    (5, 4, 1, 0),
-    (5, 0, -1, 4),
-    (5, 3, 2, 0),
-    (5, 4, 5, 4),
-    # Offsets larger than the list, such as PageDown on a short list (#3789).
-    (3, 2, 10, 0),
-    (3, 0, -10, 2),
-    (7, 5, 10, 1),
-    (7, 2, -10, 6),
-])
+@pytest.mark.parametrize(
+    'n, pos, offset, expected',
+    [
+        (5, 4, 1, 0),
+        (5, 0, -1, 4),
+        (5, 3, 2, 0),
+        (5, 4, 5, 4),
+        # Offsets larger than the list, such as PageDown on a short list (#3789).
+        (3, 2, 10, 0),
+        (3, 0, -10, 2),
+        (7, 5, 10, 1),
+        (7, 2, -10, 6),
+    ],
+)
 def test_move_circular_wraps(n, pos, offset, expected):
     cursor, _changes = _positioned_cursor(n, pos, circular=True)
     cursor.move(offset)
     assert cursor.pos == expected
 
 
-@pytest.mark.parametrize('visiting, offset, circular, expected', [
-    (6, 1, False, 8),
-    (6, -1, False, 5),
-    (9, 1, False, 8),
-    (1, -1, False, 2),
-    (6, 10, False, 8),
-    (9, 1, True, 2),
-    (1, -1, True, 8),
-])
+@pytest.mark.parametrize(
+    'visiting, offset, circular, expected',
+    [
+        (6, 1, False, 8),
+        (6, -1, False, 5),
+        (9, 1, False, 8),
+        (1, -1, False, 2),
+        (6, 10, False, 8),
+        (9, 1, True, 2),
+        (1, -1, True, 8),
+    ],
+)
 def test_move_from_a_visited_unit(visiting, offset, circular, expected):
     cursor = Cursor(None, [2, 5, 8], circular=circular)
     cursor.visit(visiting)

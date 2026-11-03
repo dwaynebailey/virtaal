@@ -39,6 +39,7 @@ def test_set_widget_font_passes_every_family_to_pango():
 
 # Font fallbacks #
 
+
 def test_font_fallbacks_keep_the_size_and_style(monkeypatch):
     monkeypatch.setattr(rendering, 'font_fallbacks', lambda: ('Ebrima',))
 
@@ -60,11 +61,14 @@ def test_font_fallbacks_leave_the_font_alone_without_fallbacks(monkeypatch):
     assert rendering.with_font_fallbacks('Sans 10') == 'Sans 10'
 
 
-@pytest.mark.parametrize('is_mac, is_windows, first', [
-    (True, False, 'Kohinoor Devanagari'),
-    (False, True, 'Ebrima'),
-    (False, False, None),
-])
+@pytest.mark.parametrize(
+    'is_mac, is_windows, first',
+    [
+        (True, False, 'Kohinoor Devanagari'),
+        (False, True, 'Ebrima'),
+        (False, False, None),
+    ],
+)
 def test_font_fallbacks_per_platform(monkeypatch, is_mac, is_windows, first):
     monkeypatch.setattr(platform, 'is_mac', is_mac)
     monkeypatch.setattr(platform, 'is_windows', is_windows)
@@ -74,8 +78,10 @@ def test_font_fallbacks_per_platform(monkeypatch, is_mac, is_windows, first):
 
 def _unknown_glyphs(text, font_name):
     import cairo
+
     gi.require_version('PangoCairo', '1.0')
     from gi.repository import PangoCairo
+
     layout = PangoCairo.create_layout(cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)))
     layout.set_text(text, -1)
     layout.set_font_description(Pango.FontDescription.from_string(font_name))
@@ -95,6 +101,7 @@ def test_macos_ui_font_renders_gtks_ratio_sign():
     # #4465: GTK's catalogs write times as "15∶30" (U+2236 RATIO), which
     # macOS 15's UI font has no glyph for.
     assert _unknown_glyphs('15∶30', rendering.with_font_fallbacks('.AppleSystemUIFont 13')) == 0
+
 
 @pytest.mark.skipif(not platform.is_windows, reason="Windows fonts")
 @pytest.mark.parametrize('font', ['Segoe UI 10', 'Consolas 10'])

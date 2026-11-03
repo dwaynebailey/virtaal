@@ -153,8 +153,11 @@ class Recorder:
             kind = 'glib-warning' if level & GLib.LogLevelFlags.LEVEL_WARNING else 'critical'
             self.problem(kind, '%s: %s' % (domain or '', message.split('\n')[0][:120]), message)
 
-        flags = (GLib.LogLevelFlags.LEVEL_WARNING | GLib.LogLevelFlags.LEVEL_CRITICAL
-                 | GLib.LogLevelFlags.LEVEL_ERROR)
+        flags = (
+            GLib.LogLevelFlags.LEVEL_WARNING
+            | GLib.LogLevelFlags.LEVEL_CRITICAL
+            | GLib.LogLevelFlags.LEVEL_ERROR
+        )
         for domain in ('Gtk', 'Gdk', 'GLib', 'GLib-GObject', 'GLib-GIO', 'Pango', 'GtkSpell', None):
             GLib.log_set_handler(domain, flags, glib_log, None)
 

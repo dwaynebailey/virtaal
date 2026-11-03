@@ -72,8 +72,11 @@ def test_activating_a_row_from_the_keyboard_accepts_the_dialog():
 
 def test_double_clicking_a_row_does_not_accept_the_dialog(monkeypatch):
     # Double-clicking the source language must still leave the target to pick.
-    monkeypatch.setattr(langselectdialog.Gtk, 'get_current_event',
-                        lambda: Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE))
+    monkeypatch.setattr(
+        langselectdialog.Gtk,
+        'get_current_event',
+        lambda: Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE),
+    )
     dialog = LanguageSelectDialog(languages=_langs('af', 'zu'))
     responses = _responses(dialog)
 

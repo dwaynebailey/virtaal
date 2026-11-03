@@ -29,6 +29,7 @@ def _model(units):
 
 # do_get_flags() / do_get_n_columns() / do_get_column_type() #
 
+
 def test_get_flags_is_a_flat_persistent_list():
     model = _model([])
 
@@ -48,6 +49,7 @@ def test_get_column_type_matches_each_columns_real_type():
 
 
 # do_get_iter() / do_get_path() #
+
 
 def test_get_iter_succeeds_for_an_in_range_path():
     model = _model([_FakeUnit(), _FakeUnit()])
@@ -73,6 +75,7 @@ def test_get_path_round_trips_an_iters_row_index():
 
 
 # do_get_value() #
+
 
 def test_get_value_column_0_returns_the_units_own_note():
     model = _model([_FakeUnit(notes='a translator note')])
@@ -121,6 +124,7 @@ def test_get_value_column_2_reflects_the_currently_editable_row():
 
 # do_iter_next() #
 
+
 def test_iter_next_advances_to_the_next_row():
     model = _model([_FakeUnit(), _FakeUnit()])
 
@@ -136,6 +140,7 @@ def test_iter_next_returns_none_past_the_last_row():
 
 
 # do_iter_children() / do_iter_has_child() / do_iter_n_children() / do_iter_nth_child() #
+
 
 def test_iter_children_of_the_root_is_the_first_row():
     model = _model([_FakeUnit(), _FakeUnit()])
@@ -179,6 +184,7 @@ def test_iter_nth_child_of_the_root_is_none_out_of_range():
 
 # do_iter_parent() #
 
+
 def test_iter_parent_is_always_none():
     model = _model([_FakeUnit()])
 
@@ -186,6 +192,7 @@ def test_iter_parent_is_always_none():
 
 
 # set_editable() #
+
 
 def test_set_editable_moves_the_editable_flag_and_notifies_both_rows():
     model = _model([_FakeUnit(), _FakeUnit(), _FakeUnit()])
@@ -200,6 +207,7 @@ def test_set_editable_moves_the_editable_flag_and_notifies_both_rows():
 
 
 # store_index_to_path() / path_to_store_index() #
+
 
 def test_store_index_to_path_wraps_the_index_in_a_tuple():
     assert _model(range(6)).store_index_to_path(5) == (5,)
@@ -219,12 +227,15 @@ def test_path_to_store_index_defaults_to_zero_without_a_path():
 
 # visible rows #
 
+
 def _rows_model(rows, n=8):
     return StoreTreeModel(['unit%d' % i for i in range(n)], rows=rows)
 
 
 def _shown(model):
-    return [model.get_value(model.get_iter((row,)), 1) for row in range(model.iter_n_children(None))]
+    return [
+        model.get_value(model.get_iter((row,)), 1) for row in range(model.iter_n_children(None))
+    ]
 
 
 def test_visible_rows_show_only_those_units_in_store_order():
@@ -249,7 +260,10 @@ def test_editable_row_is_tracked_by_store_index():
 def _signals(model):
     events = []
     model.connect('row-deleted', lambda m, path: events.append(('deleted', str(path))))
-    model.connect('row-inserted', lambda m, path, it: events.append(('inserted', str(path), m.get_value(it, 1))))
+    model.connect(
+        'row-inserted',
+        lambda m, path, it: events.append(('inserted', str(path), m.get_value(it, 1))),
+    )
     return events
 
 

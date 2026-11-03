@@ -24,18 +24,29 @@ from virtaal.common.platform import platform
 
 _xerror_prototype = ctypes.CFUNCTYPE(
     None,
-    ctypes.c_int, ctypes.c_void_p,
-    ctypes.c_char_p, ctypes.c_size_t, ctypes.c_size_t,
-    ctypes.c_int, ctypes.c_char_p,
+    ctypes.c_int,
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_size_t,
+    ctypes.c_size_t,
+    ctypes.c_int,
+    ctypes.c_char_p,
 )
 _xerror2_prototype = ctypes.CFUNCTYPE(
     None,
-    ctypes.c_int, ctypes.c_void_p,
-    ctypes.c_char_p, ctypes.c_size_t, ctypes.c_size_t,
-    ctypes.c_int, ctypes.c_char_p,
+    ctypes.c_int,
     ctypes.c_void_p,
-    ctypes.c_char_p, ctypes.c_size_t, ctypes.c_size_t,
-    ctypes.c_int, ctypes.c_char_p,
+    ctypes.c_char_p,
+    ctypes.c_size_t,
+    ctypes.c_size_t,
+    ctypes.c_int,
+    ctypes.c_char_p,
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_size_t,
+    ctypes.c_size_t,
+    ctypes.c_int,
+    ctypes.c_char_p,
 )
 
 
@@ -47,8 +58,13 @@ class _XErrorHandler(ctypes.Structure):
 
 
 # Homebrew, gvsbuild, MSYS2, Linux.
-_LIBRARY_NAMES = ('libgettextpo.0.dylib', 'libgettextpo.dylib', 'gettextpo.dll', 'libgettextpo-0.dll',
-                  'libgettextpo.so.0')
+_LIBRARY_NAMES = (
+    'libgettextpo.0.dylib',
+    'libgettextpo.dylib',
+    'gettextpo.dll',
+    'libgettextpo-0.dll',
+    'libgettextpo.so.0',
+)
 
 _SIGNATURES = {
     'po_file_create': ([], ctypes.c_void_p),
@@ -63,7 +79,10 @@ _SIGNATURES = {
     'po_message_set_msgstr': ([ctypes.c_void_p, ctypes.c_char_p], None),
     'po_message_set_msgstr_plural': ([ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p], None),
     'po_message_set_format': ([ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int], None),
-    'po_message_check_all': ([ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(_XErrorHandler)], None),
+    'po_message_check_all': (
+        [ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(_XErrorHandler)],
+        None,
+    ),
 }
 
 _lib = None
@@ -74,9 +93,11 @@ def _library_candidates():
     # A frozen build uses only its own copy. A system one (e.g. Homebrew's)
     # links another libintl, which never sees Virtaal bind gettext-tools.
     if platform.is_frozen and platform.bundle_dir:
-        for directory in (platform.bundle_dir,
-                          os.path.join(platform.bundle_dir, '_internal'),
-                          os.path.join(os.path.dirname(platform.bundle_dir), 'Frameworks')):
+        for directory in (
+            platform.bundle_dir,
+            os.path.join(platform.bundle_dir, '_internal'),
+            os.path.join(os.path.dirname(platform.bundle_dir), 'Frameworks'),
+        ):
             for name in _LIBRARY_NAMES:
                 path = os.path.join(directory, name)
                 if os.path.isfile(path):
@@ -100,7 +121,9 @@ def _load_library():
         except OSError as e:
             # A bundled copy that doesn't load is a packaging bug. PyInstaller
             # replaces the loader's own error, keeping it as the cause.
-            (logging.warning if platform.is_frozen else logging.debug)('Could not load %s: %s', name, e.__cause__ or e)
+            (logging.warning if platform.is_frozen else logging.debug)(
+                'Could not load %s: %s', name, e.__cause__ or e
+            )
             continue
         try:
             for funcname, (argtypes, restype) in _SIGNATURES.items():
@@ -206,8 +229,22 @@ class MsgfmtChecker:
             return
         self._add_problem(text)
 
-    def _on_xerror2(self, severity, message1, filename1, lineno1, column1, multiline1, text1,
-                    message2, filename2, lineno2, column2, multiline2, text2):
+    def _on_xerror2(
+        self,
+        severity,
+        message1,
+        filename1,
+        lineno1,
+        column1,
+        multiline1,
+        text1,
+        message2,
+        filename2,
+        lineno2,
+        column2,
+        multiline2,
+        text2,
+    ):
         texts = ((text1 or b'').rstrip(), (text2 or b'').strip())
         self._add_problem(b' '.join(t for t in texts if t))
 
@@ -242,15 +279,15 @@ class MsgfmtChecker:
         for flag in _unit_flags(unit):
             if flag.endswith('-format'):
                 is_format = not flag.startswith('no-')
-                format_type = flag if is_format else flag[len('no-'):]
+                format_type = flag if is_format else flag[len('no-') :]
                 lib.po_message_set_format(message, _encode(format_type), int(is_format))
         return message
 
     @staticmethod
     def _hangs(unit):
         """Whether gettext 1.0 would run out of memory checking unit: its
-            Lisp and Scheme parsers build a list as long as the count of a
-            ~N@* or ~N* inside ~{...~}."""
+        Lisp and Scheme parsers build a list as long as the count of a
+        ~N@* or ~N* inside ~{...~}."""
         flags = _unit_flags(unit)
         if 'lisp-format' not in flags and 'scheme-format' not in flags:
             return False
@@ -272,7 +309,9 @@ class MsgfmtChecker:
         self._message = self._make_message(unit)
         self._problems = []
         try:
-            self._lib.po_message_check_all(self._message, self._iterator, ctypes.byref(self._handler))
+            self._lib.po_message_check_all(
+                self._message, self._iterator, ctypes.byref(self._handler)
+            )
             return self._problems
         finally:
             self._own(self._message)
@@ -281,14 +320,13 @@ class MsgfmtChecker:
 
     def _own(self, message):
         """Hand a checked message to our file, which frees it: libgettextpo
-            has no po_message_free(). The checks only read the file's
-            header, so the file is rebuilt from that now and then."""
+        has no po_message_free(). The checks only read the file's
+        header, so the file is rebuilt from that now and then."""
         self._lib.po_message_insert(self._iterator, message)
         self._checked += 1
         if self._checked >= self.REBUILD_AFTER:
             header, self._header = self._header, None
             self.set_header(header)
-
 
 
 class MsgfmtCheck:
@@ -300,6 +338,7 @@ class MsgfmtCheck:
     @staticmethod
     def applies_to(store):
         from translate.storage import pypo
+
         return isinstance(store, pypo.pofile)
 
     @staticmethod
@@ -318,13 +357,14 @@ class MsgfmtCheck:
 
 def self_check(lang):
     """The library loaded and the msgfmt check's message for a broken
-        c-format unit, with the UI in lang - for checking a frozen build:
+    c-format unit, with the UI in lang - for checking a frozen build:
 
-        virtaal --run-module virtaal.support.gettextpo [<output file>]
+    virtaal --run-module virtaal.support.gettextpo [<output file>]
     """
     from translate.storage import po
 
     from virtaal.common import pan_app
+
     try:
         pan_app.set_ui_language(lang)
     except FileNotFoundError:
@@ -333,13 +373,16 @@ def self_check(lang):
         pass
     if not available():
         return None, None
-    store = po.pofile.parsestring(b'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-                                  b'#, c-format\nmsgid "Hello %s"\nmsgstr "Hallo"\n')
+    store = po.pofile.parsestring(
+        b'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+        b'#, c-format\nmsgid "Hello %s"\nmsgstr "Hallo"\n'
+    )
     return _lib.path, MsgfmtCheck().check(store.units[-1])
 
 
 if __name__ == '__main__':
     import sys
+
     path, message = self_check('de')
     result = 'library: %s\nmessage: %s\n' % (path, message)
     if len(sys.argv) > 1:

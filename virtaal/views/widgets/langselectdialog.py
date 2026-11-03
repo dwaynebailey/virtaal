@@ -22,9 +22,7 @@ class LanguageSelectDialog:
         super().__init__()
 
         self.gui = BaseView.load_builder_file(
-            ["virtaal", "virtaal.ui"],
-            root='LanguageSelector',
-            domain='virtaal'
+            ["virtaal", "virtaal.ui"], root='LanguageSelector', domain='virtaal'
         )
 
         self._get_widgets()
@@ -37,7 +35,14 @@ class LanguageSelectDialog:
 
     def _get_widgets(self):
         """Load the GtkBuilder file and get the widgets we would like to use."""
-        widget_names = ('btn_add', 'btn_cancel', 'btn_edit', 'btn_ok', 'tvw_sourcelang', 'tvw_targetlang')
+        widget_names = (
+            'btn_add',
+            'btn_cancel',
+            'btn_edit',
+            'btn_ok',
+            'tvw_sourcelang',
+            'tvw_targetlang',
+        )
 
         for name in widget_names:
             setattr(self, name, self.gui.get_object(name))
@@ -45,7 +50,9 @@ class LanguageSelectDialog:
         self.dialog = self.gui.get_object('LanguageSelector')
 
         self.btn_ok.connect('clicked', lambda *args: self.dialog.response(Gtk.ResponseType.OK))
-        self.btn_cancel.connect('clicked', lambda *args: self.dialog.response(Gtk.ResponseType.CANCEL))
+        self.btn_cancel.connect(
+            'clicked', lambda *args: self.dialog.response(Gtk.ResponseType.CANCEL)
+        )
         for treeview in (self.tvw_sourcelang, self.tvw_targetlang):
             treeview.connect('row-activated', self._on_row_activated)
 
@@ -61,10 +68,12 @@ class LanguageSelectDialog:
         self.tvw_targetlang.set_model(self.lst_langs_tgt)
 
         def searchfunc(model, column, key, iter):
-            if  model.get_value(iter, 0).lower().startswith(key.lower()) or \
-                model.get_value(iter, 1).lower().startswith(key.lower()):
+            if model.get_value(iter, 0).lower().startswith(key.lower()) or model.get_value(
+                iter, 1
+            ).lower().startswith(key.lower()):
                 return False
             return True
+
         self.tvw_sourcelang.set_search_equal_func(searchfunc)
         self.tvw_targetlang.set_search_equal_func(searchfunc)
 
@@ -83,7 +92,7 @@ class LanguageSelectDialog:
         self.tvw_targetlang.append_column(col)
 
         cell = Gtk.CellRendererText()
-        #l10n: This is the column heading for the language code
+        # l10n: This is the column heading for the language code
         col = Gtk.TreeViewColumn(_('Code'))
         col.pack_start(cell, True)
         col.add_attribute(cell, 'text', 1)
@@ -99,11 +108,11 @@ class LanguageSelectDialog:
 
         def sortfunc(model, iter1, iter2, col):
             return locale.strcoll(model.get_value(iter1, col), model.get_value(iter2, col))
+
         self.lst_langs_src.set_sort_func(0, sortfunc, 0)
         self.lst_langs_src.set_sort_func(1, sortfunc, 1)
         self.lst_langs_tgt.set_sort_func(0, sortfunc, 0)
         self.lst_langs_tgt.set_sort_func(1, sortfunc, 1)
-
 
     # ACCESSORS #
     def get_selected_source_lang(self):
@@ -117,7 +126,6 @@ class LanguageSelectDialog:
         if i is not None and model.iter_is_valid(i):
             return model.get_value(i, 1)
         return ''
-
 
     # METHODS #
     def clear_langs(self):

@@ -63,9 +63,11 @@ def test_colors_equal_for_matching_rgba():
 
 def test_suggestion_css_follows_a_theme_colour_change(monkeypatch):
     loaded = []
+
     class FakeProvider:
         def load_from_data(self, data):
             loaded.append(data.decode())
+
     monkeypatch.setattr(textbox_module, '_suggestion_provider', FakeProvider())
     monkeypatch.setattr(textbox_module, '_suggestion_color', None)
     monkeypatch.setitem(textbox_module.current_theme, 'subtle_fg', 'darkgrey')
@@ -133,6 +135,7 @@ def test_delete_inside_widget_leaf_deletes_a_range_outside_the_leaf_normally():
 
 class _MainController(GObject.Object):
     """Registers controllers one by one, as the real one does at start-up."""
+
     __gsignals__ = {
         'controller-registered': (GObject.SignalFlags.RUN_FIRST, None, (object,)),
     }
@@ -146,6 +149,7 @@ class _MainController(GObject.Object):
 
 class _TaggedGUI(placeablesguiinfo.StringElemGUI):
     """GUI info whose tags use the offset forms create_tags() may return."""
+
     TAGS = {'skipped': None, 'first': (0, -2), 'last': (-2, None), 'clamped': (-10, 1)}
 
     def create_tags(self):
@@ -160,8 +164,11 @@ class _TaggedGUI(placeablesguiinfo.StringElemGUI):
 
 def _tagged_offsets(textbox, name):
     tag = textbox.buffer.get_tag_table().lookup(name)
-    return [i for i in range(textbox.buffer.get_char_count())
-            if textbox.buffer.get_iter_at_offset(i).has_tag(tag)]
+    return [
+        i
+        for i in range(textbox.buffer.get_char_count())
+        if textbox.buffer.get_iter_at_offset(i).has_tag(tag)
+    ]
 
 
 class TestTextBox(TestScaffolding):
@@ -353,9 +360,7 @@ class TestTextBox(TestScaffolding):
 
         textbox.buffer.insert_interactive_at_cursor('\n', -1, True)
 
-        assert any(
-            isinstance(e, general.NewlinePlaceable) for e in textbox.elem.depth_first()
-        )
+        assert any(isinstance(e, general.NewlinePlaceable) for e in textbox.elem.depth_first())
         assert len(calls) == 1
         calls[0]()
 
@@ -380,9 +385,7 @@ class TestTextBox(TestScaffolding):
 
         textbox.buffer.insert_interactive_at_cursor('<a>', -1, True)
 
-        assert any(
-            isinstance(e, general.XMLTagPlaceable) for e in textbox.elem.depth_first()
-        )
+        assert any(isinstance(e, general.XMLTagPlaceable) for e in textbox.elem.depth_first())
         assert len(calls) == 1
         calls[0]()
 
@@ -407,7 +410,9 @@ class TestTextBox(TestScaffolding):
         # so end-user-action must only reposition the cursor, not rebuild.
         calls = self._capture_idle_add(monkeypatch)
         textbox = self._target_for('%(count)s files renamed')
-        textbox.set_text('%(count)s files renamed')  # reset - an earlier test in this shared-widget class may have mutated it
+        textbox.set_text(
+            '%(count)s files renamed'
+        )  # reset - an earlier test in this shared-widget class may have mutated it
         textbox.place_cursor(len(textbox.get_text()))
         refresh_calls = []
         monkeypatch.setattr(textbox, 'refresh', lambda *a, **kw: refresh_calls.append(1))
@@ -443,7 +448,9 @@ class TestTextBox(TestScaffolding):
         # (looks right on screen, vanishes on navigating away and back).
         self._capture_idle_add(monkeypatch)
         textbox = self._target_for('%(count)s files renamed')
-        textbox.set_text('%(count)s files renamed')  # reset - an earlier test in this shared-widget class may have mutated it
+        textbox.set_text(
+            '%(count)s files renamed'
+        )  # reset - an earlier test in this shared-widget class may have mutated it
         textbox.place_cursor(len(textbox.get_text()))
         changed_calls = []
         textbox.connect('changed', lambda *a: changed_calls.append(1))
@@ -457,7 +464,9 @@ class TestTextBox(TestScaffolding):
         # the real rebuild, since gui_info/widgets genuinely changed.
         calls = self._capture_idle_add(monkeypatch)
         textbox = self._target_for('%s files copied')
-        textbox.set_text('%s files copied')  # reset - an earlier test in this shared-widget class may have mutated it
+        textbox.set_text(
+            '%s files copied'
+        )  # reset - an earlier test in this shared-widget class may have mutated it
         textbox.place_cursor(len(textbox.get_text()))
         refresh_calls = []
         monkeypatch.setattr(textbox, 'refresh', lambda *a, **kw: refresh_calls.append(1))
@@ -483,9 +492,7 @@ class TestTextBox(TestScaffolding):
         textbox.place_cursor(len(original_text))
 
         textbox.buffer.insert_interactive_at_cursor('\n', -1, True)
-        assert any(
-            isinstance(e, general.NewlinePlaceable) for e in textbox.elem.depth_first()
-        )
+        assert any(isinstance(e, general.NewlinePlaceable) for e in textbox.elem.depth_first())
         assert len(calls) == 1
         calls[0]()
 
@@ -493,9 +500,7 @@ class TestTextBox(TestScaffolding):
         undo_info['action'](undo_info['unit'])
         textbox.refresh(update=True)
 
-        assert not any(
-            isinstance(e, general.NewlinePlaceable) for e in textbox.elem.depth_first()
-        )
+        assert not any(isinstance(e, general.NewlinePlaceable) for e in textbox.elem.depth_first())
         assert textbox.get_text() == original_text
 
     def test_undo_removes_a_typed_placeable_one_keystroke_at_a_time(self, monkeypatch):
@@ -530,9 +535,7 @@ class TestTextBox(TestScaffolding):
         textbox = self._target_for('%s files copied')
         self.undo_controller.model.clear()
         original_text = textbox.get_text()
-        textbox.buffer.select_range(
-            textbox.buffer.get_start_iter(), textbox.buffer.get_end_iter()
-        )
+        textbox.buffer.select_range(textbox.buffer.get_start_iter(), textbox.buffer.get_end_iter())
         placeable = next(
             e for e in textbox.elem.depth_first() if e.__class__ not in textbox.unselectables
         )
@@ -586,8 +589,13 @@ class TestTextBox(TestScaffolding):
             textbox.set_text(original_text)
 
         assert texts == [
-            'Maak\n', 'Maak\nx', 'Maak\nxx', 'Maak\nxx\n',
-            'Maak\nxx\ny', 'Maak\nxx\nyy', 'Maak\nxx\nyy\n',
+            'Maak\n',
+            'Maak\nx',
+            'Maak\nxx',
+            'Maak\nxx\n',
+            'Maak\nxx\ny',
+            'Maak\nxx\nyy',
+            'Maak\nxx\nyy\n',
         ]
 
     def test_loading_a_unit_selects_its_first_placeable(self):
@@ -662,7 +670,9 @@ class TestTextBox(TestScaffolding):
 
     def test_suggestion_setter_replaces_an_existing_visible_suggestion(self):
         textbox = self._target_for('%d files removed')
-        textbox.set_text('%d files removed')  # reset - an earlier test in this shared-widget class may have mutated it
+        textbox.set_text(
+            '%d files removed'
+        )  # reset - an earlier test in this shared-widget class may have mutated it
         textbox.suggestion = {'text': ' first', 'offset': len('%d files removed')}
         assert textbox.suggestion_is_visible()
 
@@ -673,7 +683,9 @@ class TestTextBox(TestScaffolding):
 
     def test_on_key_pressed_tab_accepts_a_visible_suggestion(self, monkeypatch):
         textbox = self._target_for('%d files removed')
-        textbox.set_text('%d files removed')  # reset - an earlier test in this shared-widget class may have mutated it
+        textbox.set_text(
+            '%d files removed'
+        )  # reset - an earlier test in this shared-widget class may have mutated it
         textbox.suggestion = {'text': ' extra', 'offset': len('%d files removed')}
         emitted = []
         monkeypatch.setattr(textbox, 'emit', lambda signal, *args: emitted.append((signal, args)))
@@ -687,7 +699,9 @@ class TestTextBox(TestScaffolding):
 
     def test_suggestion_is_styled_apart_from_a_real_selection(self):
         textbox = self._target_for('%d files removed')
-        textbox.set_text('%d files removed')  # reset - an earlier test in this shared-widget class may have mutated it
+        textbox.set_text(
+            '%d files removed'
+        )  # reset - an earlier test in this shared-widget class may have mutated it
         style = textbox.get_style_context()
 
         textbox.suggestion = {'text': ' extra', 'offset': len('%d files removed')}
@@ -698,7 +712,9 @@ class TestTextBox(TestScaffolding):
 
     def test_accepting_a_suggestion_drops_its_style(self, monkeypatch):
         textbox = self._target_for('%d files removed')
-        textbox.set_text('%d files removed')  # reset - an earlier test in this shared-widget class may have mutated it
+        textbox.set_text(
+            '%d files removed'
+        )  # reset - an earlier test in this shared-widget class may have mutated it
         textbox.suggestion = {'text': ' extra', 'offset': len('%d files removed')}
         monkeypatch.setattr(textbox, 'emit', lambda signal, *args: None)
 
@@ -733,8 +749,9 @@ class TestTextBox(TestScaffolding):
         # widget as mapped.
         monkeypatch.setattr(textbox_module.GLib, 'idle_add', lambda func: func())
         monkeypatch.setattr(textbox, 'get_mapped', lambda: True)
-        elem = SimpleNamespace(gui_info=SimpleNamespace(
-            get_insert_candidates=lambda: list(candidates)))
+        elem = SimpleNamespace(
+            gui_info=SimpleNamespace(get_insert_candidates=lambda: list(candidates))
+        )
         textbox.insert_translation(elem)
         return textbox.completion_popup
 
@@ -756,7 +773,8 @@ class TestTextBox(TestScaffolding):
         original_text = textbox.get_text()
         self.undo_controller.model.clear()
         textbox.buffer.select_range(
-            textbox.buffer.get_iter_at_offset(3), textbox.buffer.get_iter_at_offset(8))
+            textbox.buffer.get_iter_at_offset(3), textbox.buffer.get_iter_at_offset(8)
+        )
         popup = self._open_candidates(monkeypatch, textbox)
 
         popup.move_selection(1)
@@ -840,8 +858,7 @@ class TestTextBox(TestScaffolding):
         textbox = self._target_for('%s files copied')
         popup = self._open_candidates(monkeypatch, textbox)
 
-        result = textbox._on_key_pressed(
-            textbox, _FakeKeyEvent(Gdk.KEY_Shift_L, is_modifier=True))
+        result = textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Shift_L, is_modifier=True))
 
         assert result is True
         assert popup.is_showing()
@@ -861,7 +878,8 @@ class TestTextBox(TestScaffolding):
         textbox = self._target_for('%s files copied')
         toggled = []
         handler_id = self.unit_controller.view.connect(
-            'editor-popup-toggled', lambda view, showing: toggled.append(showing))
+            'editor-popup-toggled', lambda view, showing: toggled.append(showing)
+        )
         try:
             popup = self._open_candidates(monkeypatch, textbox)
             popup.dismiss()
@@ -874,7 +892,8 @@ class TestTextBox(TestScaffolding):
         textbox = self._target_for('%s files copied')
         toggled = []
         handler_id = self.unit_controller.view.connect(
-            'editor-popup-toggled', lambda view, showing: toggled.append(showing))
+            'editor-popup-toggled', lambda view, showing: toggled.append(showing)
+        )
         try:
             menu = Gtk.Menu()
             textbox.emit('populate-popup', menu)
@@ -892,7 +911,6 @@ class TestTextBox(TestScaffolding):
         textbox._on_event_remove_suggestion(textbox)
 
         assert not popup.is_showing()
-
 
     def _xliff_target(self):
         """The target text box for a fresh, untranslated XLIFF unit."""
@@ -1024,6 +1042,7 @@ class TestTextBox(TestScaffolding):
 
         def css(source):
             return source.get_parent()._selector_fg_provider.to_string()
+
         selector, other = target.selector_textbox, target.selector_textboxes[1]
         assert selector is target.selector_textboxes[0]
         expected = Gtk.CssProvider()
@@ -1067,8 +1086,8 @@ class TestTextBox(TestScaffolding):
         textbox.set_text('%s files copied')
         textbox.place_cursor(2)
         elem = SimpleNamespace(
-            gui_info=SimpleNamespace(get_insert_candidates=lambda: None),
-            translate=lambda: ' new')
+            gui_info=SimpleNamespace(get_insert_candidates=lambda: None), translate=lambda: ' new'
+        )
 
         assert textbox.insert_translation(elem)
 
@@ -1086,7 +1105,9 @@ class TestTextBox(TestScaffolding):
 
     def test_a_target_out_of_step_with_its_tree_is_rebuilt(self, monkeypatch):
         warnings = []
-        monkeypatch.setattr(textbox_module.logging, 'warning', lambda msg, *args: warnings.append(msg))
+        monkeypatch.setattr(
+            textbox_module.logging, 'warning', lambda msg, *args: warnings.append(msg)
+        )
         textbox = TextBox(self.main_controller, text='%s files')
         textbox.set_visible(True)
         textbox.elem.sub = [StringElem('changed')]
@@ -1103,7 +1124,9 @@ class TestTextBox(TestScaffolding):
         deleted = []
         textbox.connect('text-deleted', lambda *args: deleted.append(args))
 
-        textbox.buffer.delete(textbox.buffer.get_iter_at_offset(1), textbox.buffer.get_iter_at_offset(2))
+        textbox.buffer.delete(
+            textbox.buffer.get_iter_at_offset(1), textbox.buffer.get_iter_at_offset(2)
+        )
 
         assert deleted == []
         assert str(textbox.elem) == ''

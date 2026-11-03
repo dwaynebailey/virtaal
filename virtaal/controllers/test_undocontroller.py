@@ -17,8 +17,9 @@ from virtaal.models.undomodel import UndoModel
 
 class _FakeGuiInfo:
     """Just enough of StringElemGUI for _on_unit_insert_text's own
-        undo_action() (elem.gui_info.gui_to_tree_index()) - a flat,
-        placeable-free string needs no real offset translation."""
+    undo_action() (elem.gui_info.gui_to_tree_index()) - a flat,
+    placeable-free string needs no real offset translation."""
+
     def gui_to_tree_index(self, offset):
         return offset
 
@@ -130,11 +131,13 @@ class _FakeMainViewGui:
 
 class _FakeMainView:
     def __init__(self):
-        self.gui = _FakeMainViewGui({
-            'menu_edit': _FakeMenuItem(),
-            'mnu_undo': _FakeMenuItem(),
-            'mnu_redo': _FakeMenuItem(),
-        })
+        self.gui = _FakeMainViewGui(
+            {
+                'menu_edit': _FakeMenuItem(),
+                'mnu_undo': _FakeMenuItem(),
+                'mnu_redo': _FakeMenuItem(),
+            }
+        )
 
     def add_accel_group(self, group):
         pass
@@ -246,6 +249,7 @@ def test_undo_snapshots_the_unit_actually_undone_not_whatever_is_on_screen():
         view.unit = unit
         controller.unit_controller.current_unit = unit
         textbox.elem = StringElem(content[unit])
+
     controller.main_controller.select_unit = select_unit
 
     controller.push_current_text(textbox)
@@ -374,6 +378,7 @@ def test_redo_cursor_position_survives_a_unit_switch():
         controller.unit_controller.view.unit = unit
         controller.unit_controller.current_unit = unit
         textbox._rendered_cursor_pos = 0  # a fresh unit's own default
+
     controller.main_controller.select_unit = select_unit
 
     controller._on_unit_insert_text(None, unit_a, 'x', 0, textbox.elem, 0)
@@ -414,6 +419,7 @@ def test_crossing_units_during_undo_flushes_the_earlier_units_pending_refresh(mo
         controller.unit_controller.current_unit = unit
         textbox.elem = StringElem(content[unit])
         textbox.elem.gui_info = _FakeGuiInfo()
+
     controller.main_controller.select_unit = select_unit
 
     controller._on_unit_insert_text(None, unit_a, 'one', 0, textbox.elem, 0)
@@ -430,7 +436,9 @@ def test_crossing_units_during_undo_flushes_the_earlier_units_pending_refresh(mo
     textbox.refresh = lambda *a, **kw: (refresh_ran.append(True), orig_refresh(*a, **kw))[-1]
 
     controller._on_undo_activated()  # navigates to A - must not strand B's still-queued refresh
-    assert refresh_ran, "B's pending refresh (and whatever it commits) must run before switching away"
+    assert refresh_ran, (
+        "B's pending refresh (and whatever it commits) must run before switching away"
+    )
 
 
 def test_undo_across_units_navigates_before_reverting():
@@ -448,6 +456,7 @@ def test_undo_across_units_navigates_before_reverting():
         view.unit = unit
         controller.unit_controller.current_unit = unit
         textbox.elem = StringElem(content[unit])
+
     controller.main_controller.select_unit = select_unit
 
     controller.push_current_text(textbox)
@@ -494,6 +503,7 @@ def test_undo_across_units_restores_the_cursor_it_left_at(monkeypatch):
         textbox.elem = StringElem(content[unit])
         textbox.elem.gui_info = _FakeGuiInfo()
         textbox._rendered_cursor_pos = 0  # a fresh unit's own smart-start default
+
     controller.main_controller.select_unit = select_unit
 
     controller._on_unit_insert_text(None, unit_a, 'one', 0, textbox.elem, 0)
@@ -531,6 +541,7 @@ def test_undo_after_a_drifted_navigation_restores_the_cursor_it_left_at(monkeypa
         textbox.elem = StringElem(content[unit])
         textbox.elem.gui_info = _FakeGuiInfo()
         textbox._rendered_cursor_pos = 0  # a fresh unit's own smart-start default
+
     controller.main_controller.select_unit = select_unit
 
     controller._on_unit_insert_text(None, unit_a, 'one', 0, textbox.elem, 0)
@@ -550,9 +561,15 @@ def test_undo_redo_of_a_deliberate_state_change():
     textbox = _FakeTextbox('a')
     unit = _FakeUnit()
     controller = _make_controller(textbox, unit)
-    controller.model.push({
-        'kind': 'state', 'unit': unit, 'from_state': 80, 'from_sticky': False, 'to_state': 100,
-    })
+    controller.model.push(
+        {
+            'kind': 'state',
+            'unit': unit,
+            'from_state': 80,
+            'from_sticky': False,
+            'to_state': 100,
+        }
+    )
 
     controller._on_undo_activated()
     assert controller.unit_controller.restored_states[-1] == (80, False)
@@ -572,11 +589,18 @@ def test_undo_of_a_state_change_then_an_edit_elsewhere_navigates_first():
     def select_unit(unit, force=False):
         controller.unit_controller.view.unit = unit
         controller.unit_controller.current_unit = unit
+
     controller.main_controller.select_unit = select_unit
 
-    controller.model.push({
-        'kind': 'state', 'unit': unit_a, 'from_state': 80, 'from_sticky': False, 'to_state': 100,
-    })
+    controller.model.push(
+        {
+            'kind': 'state',
+            'unit': unit_a,
+            'from_state': 80,
+            'from_sticky': False,
+            'to_state': 100,
+        }
+    )
     select_unit(unit_b)
     controller.push_current_text(textbox)
     textbox.elem = StringElem('B2')
@@ -604,11 +628,18 @@ def test_undo_after_a_pure_navigation_navigates_before_reverting():
     def select_unit(unit, force=False):
         controller.unit_controller.view.unit = unit
         controller.unit_controller.current_unit = unit
+
     controller.main_controller.select_unit = select_unit
 
-    controller.model.push({
-        'kind': 'state', 'unit': unit_a, 'from_state': 80, 'from_sticky': False, 'to_state': 100,
-    })
+    controller.model.push(
+        {
+            'kind': 'state',
+            'unit': unit_a,
+            'from_state': 80,
+            'from_sticky': False,
+            'to_state': 100,
+        }
+    )
     select_unit(unit_b)  # e.g. Ctrl+Enter's own focus move - never pushed
 
     controller._on_undo_activated()
@@ -631,6 +662,7 @@ def test_multiple_untracked_navigations_compact_into_one_undo_step():
     def select_unit(unit, force=False):
         controller.unit_controller.view.unit = unit
         controller.unit_controller.current_unit = unit
+
     controller.main_controller.select_unit = select_unit
 
     controller.push_current_text(textbox)  # records 'A1' as the undo target
@@ -662,6 +694,7 @@ def test_redoing_a_navigation_moves_forward_regardless_of_current_position():
         view.unit = unit
         controller.unit_controller.current_unit = unit
         textbox.elem = StringElem(content.get(unit, ''))
+
     controller.main_controller.select_unit = select_unit
 
     controller.push_current_text(textbox)
@@ -716,13 +749,17 @@ def test_undo_of_a_bundled_state_change_survives_the_automatic_recheck(monkeypat
     unit.STATE = True
     unit._current_state = 80  # fuzzy, before the edit
     unit.target = 'a'  # what the real _correct_empty_state() reads - lags
-                        # behind textbox.elem until refresh() runs
+    # behind textbox.elem until refresh() runs
     controller = _make_controller(textbox, unit)
 
     orig_refresh = textbox.refresh
+
     def refresh_and_commit(*a, **kw):
         orig_refresh(*a, **kw)
-        unit.target = str(textbox.elem)  # what TextBox.refresh()'s own set_text()/'changed' chain does for real
+        unit.target = str(
+            textbox.elem
+        )  # what TextBox.refresh()'s own set_text()/'changed' chain does for real
+
     textbox.refresh = refresh_and_commit
 
     def correct_empty_state(u):
@@ -736,6 +773,7 @@ def test_undo_of_a_bundled_state_change_survives_the_automatic_recheck(monkeypat
             u._current_state = 999
         elif not target_len and not empty_state:
             u._current_state = 0
+
     controller.unit_controller._correct_empty_state = correct_empty_state
 
     controller._on_unit_delete_text(None, unit, StringElem('a'), None, 0, 0, textbox.elem, 0)
@@ -801,6 +839,7 @@ def _without_snapshot(text):
 
 def test_undo_without_a_snapshot_puts_deleted_text_back_inside_its_placeable():
     from translate.storage.placeables.base import G
+
     textbox = _without_snapshot('')
     g = G(id='1', sub=[StringElem('c')])
     textbox.elem = StringElem([StringElem('a '), g, StringElem(' d')])
@@ -818,6 +857,7 @@ def test_undo_without_a_snapshot_puts_deleted_text_back_inside_its_placeable():
 
 def test_undo_without_a_snapshot_removes_an_inserted_placeable():
     from translate.storage.placeables.base import X
+
     textbox = _without_snapshot('')
     x = X(id='2')
     x.gui_info = SimpleNamespace(widgets=[object()], length=lambda: 1)
@@ -836,5 +876,9 @@ def test_undo_without_a_snapshot_removes_an_inserted_placeable():
 def test_an_entry_without_a_cursor_position_restores_no_cursor():
     controller = _make_controller(_FakeTextbox(''), _FakeUnit())
 
-    assert controller._cursor_for_entry({'targetn': 0, 'unit': None}, use_redo_cursorpos=False) is None
-    assert controller._cursor_for_entry([{'targetn': 0, 'cursorpos': 3}], use_redo_cursorpos=False) == (0, 3)
+    assert (
+        controller._cursor_for_entry({'targetn': 0, 'unit': None}, use_redo_cursorpos=False) is None
+    )
+    assert controller._cursor_for_entry(
+        [{'targetn': 0, 'cursorpos': 3}], use_redo_cursorpos=False
+    ) == (0, 3)

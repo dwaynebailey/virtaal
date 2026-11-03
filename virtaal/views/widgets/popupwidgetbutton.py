@@ -39,10 +39,10 @@ POS_CENTER_BELOW, POS_CENTER_ABOVE, POS_NW_SW, POS_NE_SE, POS_NW_NE, POS_SW_NW, 
 #      _update_popup_geometry()
 
 _rtl_pos_map = {
-        POS_CENTER_BELOW: POS_CENTER_BELOW,
-        POS_CENTER_ABOVE: POS_CENTER_ABOVE,
-        POS_SE_NE: POS_SW_NW,
-        POS_NW_SW: POS_NE_SE,
+    POS_CENTER_BELOW: POS_CENTER_BELOW,
+    POS_CENTER_ABOVE: POS_CENTER_ABOVE,
+    POS_SE_NE: POS_SW_NW,
+    POS_NW_SW: POS_NE_SE,
 }
 
 # Frames to wait for the button to stop moving before showing the pop-up anyway.
@@ -51,9 +51,10 @@ MAX_SHOW_TICKS = 10
 
 class PopupWidgetButton(Gtk.ToggleButton):
     """Extends a C{Gtk.ToggleButton} to show a given widget in a pop-up window."""
+
     __gtype_name__ = 'PopupWidgetButton'
     __gsignals__ = {
-        'shown':  (GObject.SignalFlags.RUN_FIRST, None, ()),
+        'shown': (GObject.SignalFlags.RUN_FIRST, None, ()),
         'hidden': (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
@@ -85,7 +86,7 @@ class PopupWidgetButton(Gtk.ToggleButton):
 
         # Create pop-up window
         self.popup = Gtk.Window(type=Gtk.WindowType.POPUP)
-        self.popup.set_size_request(0,0)
+        self.popup.set_size_request(0, 0)
         self.popup.add(widget)
         widget.show_all()
         self.popup.realize()
@@ -93,10 +94,10 @@ class PopupWidgetButton(Gtk.ToggleButton):
 
         self.connect('draw', self._on_expose)
 
-
     # ACCESSORS #
     def _get_is_popup_visible(self):
         return self.popup.props.visible
+
     is_popup_visible = property(_get_is_popup_visible)
 
     def set_update_popup_geometry_func(self, func):
@@ -110,12 +111,12 @@ class PopupWidgetButton(Gtk.ToggleButton):
         # width, height = self.popup.get_child_requisition()
 
         if self.popup_pos == POS_NE_SE:
-            x -= (popup_alloc.width - btn_alloc.width)
+            x -= popup_alloc.width - btn_alloc.width
         elif self.popup_pos == POS_NW_NE:
             x += btn_alloc.width
             y = btn_window_xy.y + btn_alloc.y
         elif self.popup_pos == POS_SE_NE:
-            x -= (popup_alloc.width - btn_alloc.width)
+            x -= popup_alloc.width - btn_alloc.width
             y = btn_window_xy.y - popup_alloc.height
         elif self.popup_pos == POS_SW_NW:
             y = btn_window_xy.y - popup_alloc.height
@@ -133,7 +134,7 @@ class PopupWidgetButton(Gtk.ToggleButton):
     @classmethod
     def hide_open_popup(cls):
         """Hide a pop-up that is showing, for an Escape that would otherwise
-            go to something under it. Returns whether one was hidden."""
+        go to something under it. Returns whether one was hidden."""
         for button in list(cls._instances):
             if button.popup.props.visible:
                 button.hide_popup()
@@ -144,7 +145,9 @@ class PopupWidgetButton(Gtk.ToggleButton):
         self.set_active(True)
 
     def _do_hide_popup(self):
-        if self._parent_button_press_id and self.get_toplevel().handler_is_connected(self._parent_button_press_id):
+        if self._parent_button_press_id and self.get_toplevel().handler_is_connected(
+            self._parent_button_press_id
+        ):
             self.get_toplevel().disconnect(self._parent_button_press_id)
             self._parent_button_press_id = None
         self.update_popup()
@@ -152,13 +155,15 @@ class PopupWidgetButton(Gtk.ToggleButton):
 
     def _do_show_popup(self):
         if not self._parent_button_press_id and self.get_toplevel():
-            self._parent_button_press_id = self.get_toplevel().connect('button-press-event', self._on_focus_out_event)
+            self._parent_button_press_id = self.get_toplevel().connect(
+                'button-press-event', self._on_focus_out_event
+            )
         self.update_popup()
         self.emit('shown')
 
     def update_popup(self):
         """Show the pop-up while the button is active and its widget is
-            visible, otherwise hide it."""
+        visible, otherwise hide it."""
         if self.get_active() and self.popup.get_child().get_visible() and self._main_window_focused:
             if self.popup.props.visible:
                 self._update_popup_geometry()
@@ -208,8 +213,7 @@ class PopupWidgetButton(Gtk.ToggleButton):
 
         if callable(self._update_popup_geometry_func):
             x, y, new_width, new_height = self._update_popup_geometry_func(
-                self.popup, popup_alloc, btn_alloc, btn_window_xy,
-                (x, y, width, height)
+                self.popup, popup_alloc, btn_alloc, btn_window_xy, (x, y, width, height)
             )
             if new_width != width or new_height != height:
                 width, height = new_width, new_height
@@ -226,7 +230,6 @@ class PopupWidgetButton(Gtk.ToggleButton):
         if tuple(self.popup.get_size()) != (width, height):
             self.popup.resize(width, height)
         self.popup.get_window().get_toplevel().move_resize(x, y, width, height)
-
 
     # EVENT HANDLERS #
     def _on_focus_out_event(self, window, event):
@@ -262,7 +265,13 @@ class PopupWidgetButton(Gtk.ToggleButton):
     def _anchor(self):
         window = self.get_window()
         alloc = self.get_allocation()
-        return window and (tuple(window.get_origin()[1:]), alloc.x, alloc.y, alloc.width, alloc.height)
+        return window and (
+            tuple(window.get_origin()[1:]),
+            alloc.x,
+            alloc.y,
+            alloc.width,
+            alloc.height,
+        )
 
     def _on_expose(self, widget, event):
         # Follow the button when it moves, not on every redraw: on macOS

@@ -65,6 +65,7 @@ class Controller(BaseController):
 
     def _invoke(self, cmdline):
         import subprocess
+
         if platform.is_windows:
             closefds = False
             startupinfo = subprocess.STARTUPINFO()
@@ -73,8 +74,12 @@ class Controller(BaseController):
             closefds = True
             startupinfo = None
 
-        if (os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY') or
-                platform.is_windows or platform.is_mac):
+        if (
+            os.environ.get('DISPLAY')
+            or os.environ.get('WAYLAND_DISPLAY')
+            or platform.is_windows
+            or platform.is_mac
+        ):
             inout = subprocess.DEVNULL
         else:
             # for TTY programs, we need stdin/out
@@ -88,10 +93,17 @@ class Controller(BaseController):
             setsid = getattr(os, 'setpgrp', None)
 
         from virtaal.support import helperprocess
-        pipe = subprocess.Popen(cmdline, stdin=inout, stdout=inout,
-                                stderr=inout, close_fds=closefds,
-                                preexec_fn=setsid, startupinfo=startupinfo,
-                                env=helperprocess.host_env())
+
+        pipe = subprocess.Popen(
+            cmdline,
+            stdin=inout,
+            stdout=inout,
+            stderr=inout,
+            close_fds=closefds,
+            preexec_fn=setsid,
+            startupinfo=startupinfo,
+            env=helperprocess.host_env(),
+        )
 
         # It is assumed that this kind of tools (gnome-open, kfmclient,
         # exo-open, xdg-open and open for OSX) immediately exit after launching
@@ -133,7 +145,7 @@ if platform.is_windows:
 
 # Platform support for MacOS
 elif platform.is_mac:
-    _controllers['open']= Controller('open')
+    _controllers['open'] = Controller('open')
     _open = _controllers['open'].open
 
 
@@ -144,10 +156,12 @@ else:
         """xdg-open picks the desktop's own opener (gio, kde-open, exo-open,
         the Flatpak portal)."""
         import shutil
+
         if shutil.which('xdg-open'):
             _controllers['xdg-open'] = Controller('xdg-open')
             return _controllers['xdg-open'].open
         import webbrowser
+
         return webbrowser.open
 
     _open = get()
@@ -173,9 +187,10 @@ def _fix_addersses(**kwargs):
         except KeyError:
             pass
         except TypeError:
-            raise TypeError('string or sequence expected for "%s", ' \
-                            '%s found' % (headername,
-                                          type(headervalue).__name__))
+            raise TypeError(
+                'string or sequence expected for "%s", '
+                '%s found' % (headername, type(headervalue).__name__)
+            )
         else:
             translation_map = {'%': '%25', '&': '%26', '?': '%3F'}
             for char, replacement in translation_map.items():
@@ -189,6 +204,7 @@ def mailto_format(**kwargs):
     # @TODO: implement utf8 option
 
     from email.utils import encode_rfc2231
+
     kwargs = _fix_addersses(**kwargs)
     parts = []
     for headername in ('to', 'cc', 'bcc', 'subject', 'body', 'attach'):
@@ -199,7 +215,7 @@ def mailto_format(**kwargs):
             if headername in ('address', 'to', 'cc', 'bcc'):
                 parts.append('%s=%s' % (headername, headervalue))
             else:
-                headervalue = encode_rfc2231(headervalue) # @TODO: check
+                headervalue = encode_rfc2231(headervalue)  # @TODO: check
                 parts.append('%s=%s' % (headername, headervalue))
 
     mailto_string = 'mailto:%s' % kwargs.get('address', '')
@@ -209,8 +225,7 @@ def mailto_format(**kwargs):
     return mailto_string
 
 
-def mailto(address, to=None, cc=None, bcc=None, subject=None, body=None,
-           attach=None):
+def mailto(address, to=None, cc=None, bcc=None, subject=None, body=None, attach=None):
     '''Send an e-mail using the user's preferred composer.
 
     Open the user's preferred e-mail composer in order to send a mail to
@@ -247,24 +262,34 @@ if __name__ == '__main__':
     )
 
     parser = ArgumentParser(usage=usage, description=__doc__)
-    parser.add_argument('-v', '--version', action='version',
-                         version='%(prog)s ' + __version__)
-    parser.add_argument('-m', '--mailto', dest='mailto_mode', default=False,
-                         action='store_true', help='set mailto mode. '
-                         'If not set any other option is ignored')
-    parser.add_argument('--cc', dest='cc', help='specify a recipient to be '
-                         'copied on the e-mail')
-    parser.add_argument('--bcc', dest='bcc', help='specify a recipient to be '
-                         'blindly copied on the e-mail')
-    parser.add_argument('--subject', dest='subject',
-                         help='specify a subject for the e-mail')
-    parser.add_argument('--body', dest='body', help='specify a body for the '
-                         'e-mail. Since the user will be able to make changes '
-                         'before actually sending the e-mail, this can be used '
-                         'to provide the user with a template for the e-mail '
-                         'text may contain linebreaks')
-    parser.add_argument('--attach', dest='attach', help='specify an attachment '
-                         'for the e-mail. file must point to an existing file')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
+    parser.add_argument(
+        '-m',
+        '--mailto',
+        dest='mailto_mode',
+        default=False,
+        action='store_true',
+        help='set mailto mode. If not set any other option is ignored',
+    )
+    parser.add_argument('--cc', dest='cc', help='specify a recipient to be copied on the e-mail')
+    parser.add_argument(
+        '--bcc', dest='bcc', help='specify a recipient to be blindly copied on the e-mail'
+    )
+    parser.add_argument('--subject', dest='subject', help='specify a subject for the e-mail')
+    parser.add_argument(
+        '--body',
+        dest='body',
+        help='specify a body for the '
+        'e-mail. Since the user will be able to make changes '
+        'before actually sending the e-mail, this can be used '
+        'to provide the user with a template for the e-mail '
+        'text may contain linebreaks',
+    )
+    parser.add_argument(
+        '--attach',
+        dest='attach',
+        help='specify an attachment for the e-mail. file must point to an existing file',
+    )
     # nargs='+' makes argparse itself require at least one FILENAME/ADDRESS
     # and reject zero, with its own error - no need for optparse's old
     # manual "if not args: print_usage(); exit(1)" check any more.
@@ -274,14 +299,17 @@ if __name__ == '__main__':
     args = options.args
 
     if options.mailto_mode:
-        if not mailto(args, None, options.cc, options.bcc, options.subject,
-                      options.body, options.attach):
+        if not mailto(
+            args, None, options.cc, options.bcc, options.subject, options.body, options.attach
+        ):
             sys.exit('Unable to open the e-mail client')
     else:
         for name in ('cc', 'bcc', 'subject', 'body', 'attach'):
             if getattr(options, name):
-                parser.error('The "cc", "bcc", "subject", "body" and "attach" '
-                             'options are only accepten in mailto mode')
+                parser.error(
+                    'The "cc", "bcc", "subject", "body" and "attach" '
+                    'options are only accepten in mailto mode'
+                )
         success = False
         for arg in args:
             if not open(arg):

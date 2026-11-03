@@ -6,7 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 
-#XXX: main imports lower down
+# XXX: main imports lower down
 
 
 # Before we even try to get anything done, set up stdout and stderr on our
@@ -46,7 +46,10 @@ def _read_ini_recovering(parser, filename):
         except OSError:
             backup_path = None
         import logging
-        logging.warning("%r is corrupt (%s) - backed up to %r and starting fresh", filename, e, backup_path)
+
+        logging.warning(
+            "%r is corrupt (%s) - backed up to %r and starting fresh", filename, e, backup_path
+        )
         return backup_path
 
 
@@ -61,9 +64,18 @@ def config_int(value, default, minimum, maximum, name):
         number = None
     if number is None or not minimum <= number <= maximum:
         import logging
-        logging.warning("Using %s for %s: %r isn't a whole number from %d to %d", default, name, value, minimum, maximum)
+
+        logging.warning(
+            "Using %s for %s: %r isn't a whole number from %d to %d",
+            default,
+            name,
+            value,
+            minimum,
+            maximum,
+        )
         return default
     return number
+
 
 def _write_ini(parser, filename):
     """Write parser to filename, or log why it can't be (a directory in
@@ -72,6 +84,7 @@ def _write_ini(parser, filename):
     It is written to a temporary file that then replaces filename, so a
     write that fails part-way leaves the old file whole (#4202)."""
     import tempfile
+
     # Replace a symlink's target, not the link.
     target = os.path.realpath(filename)
     tmp = None
@@ -84,9 +97,11 @@ def _write_ini(parser, filename):
             if not os.access(target, os.W_OK):
                 raise PermissionError(f"{target!r} is read-only")
             import stat
+
             mode = stat.S_IMODE(os.stat(target).st_mode)
-        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(target),
-                                   prefix=os.path.basename(target) + '.', suffix='.tmp')
+        fd, tmp = tempfile.mkstemp(
+            dir=os.path.dirname(target), prefix=os.path.basename(target) + '.', suffix='.tmp'
+        )
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
             parser.write(f)
             f.flush()
@@ -97,6 +112,7 @@ def _write_ini(parser, filename):
         tmp = None
     except OSError as e:
         import logging
+
         logging.warning("%r can't be saved: %s", filename, e)
     finally:
         if tmp is not None:
@@ -104,6 +120,7 @@ def _write_ini(parser, filename):
                 os.remove(tmp)
             except OSError:
                 pass
+
 
 def get_config_dir():
     if platform.is_windows:
@@ -114,16 +131,18 @@ def get_config_dir():
         # The sandbox's home is discarded on exit; XDG_CONFIG_HOME persists.
         confdir = os.path.join(os.environ['XDG_CONFIG_HOME'], 'virtaal')
     else:
-        #TODO: move to ~/.config/virtaal and migrate
+        # TODO: move to ~/.config/virtaal and migrate
         confdir = os.path.expanduser('~/.virtaal')
 
     try:
         os.makedirs(confdir, exist_ok=True)
     except FileExistsError:
         import logging
+
         logging.warning("%r exists but is not a directory", confdir)
 
     return confdir
+
 
 def _build_launch_marker(timestamp):
     """The separator line written to a frozen build's log at each
@@ -131,8 +150,10 @@ def _build_launch_marker(timestamp):
     where one starts and identifies which build produced it."""
     return '=== launch %s | Virtaal %s ===\n' % (timestamp, version_string())
 
+
 _LAUNCH_MARKER_RE = re.compile(r'^=== launch .*? \| Virtaal .* ===$', re.MULTILINE)
 KEEP_LAST_N_LAUNCHES = 2
+
 
 def _trim_log_to_last_launches(path, keep=KEEP_LAST_N_LAUNCHES):
     """Keep only the last `keep` launches of an existing frozen log,
@@ -148,7 +169,8 @@ def _trim_log_to_last_launches(path, keep=KEEP_LAST_N_LAUNCHES):
     if len(markers) <= keep:
         return
     with open(path, 'w', encoding='utf-8', errors='backslashreplace') as f:
-        f.write(content[markers[-keep]:])
+        f.write(content[markers[-keep] :])
+
 
 def _open_frozen_log(path):
     """Open a frozen-build log file for append, trimmed to its last
@@ -161,17 +183,20 @@ def _open_frozen_log(path):
     _trim_log_to_last_launches(path)
     return open(path, 'a', buffering=1, encoding='utf-8', errors='backslashreplace')
 
+
 # Only for the packaged (frozen/PyInstaller) build - a windowed
 # subsystem executable has no console, so this is the only way to get
 # error messages out of it.
 def _redirect_output_to_logs():
     import time
+
     filename_template = os.path.join(get_config_dir(), '%s_virtaal.log')
     sys.stdout = _open_frozen_log(filename_template % ('stdout'))
     sys.stderr = _open_frozen_log(filename_template % ('stderr'))
     launch_marker = _build_launch_marker(time.strftime('%Y-%m-%d %H:%M:%S'))
     sys.stdout.write(launch_marker)
     sys.stderr.write(launch_marker)
+
 
 if platform.is_windows and platform.is_frozen:  # pragma: no cover
     _redirect_output_to_logs()
@@ -197,9 +222,9 @@ from virtaal.support.libi18n.locale import bind_libintl_posix, fix_libintl, fix_
 # here so _install_system_ui_language() can restore them.
 _ORIGINAL_LOCALE_ENV = {name: os.environ.get(name) for name in ('LANGUAGE', 'LANG', 'LC_ALL')}
 
-DEBUG = True # Enable debugging by default, while bin/virtaal still disables it by default.
-             # This means that if Virtaal (or parts thereof) is run in some other strange way,
-             # debugging is enabled.
+DEBUG = True  # Enable debugging by default, while bin/virtaal still disables it by default.
+# This means that if Virtaal (or parts thereof) is run in some other strange way,
+# debugging is enabled.
 
 
 x_generator = 'Virtaal ' + ver
@@ -212,8 +237,10 @@ def osx_lang():
         get_macos_preferred_languages,
         macos_to_posix,
     )
+
     languages = get_macos_preferred_languages()
     return macos_to_posix(languages[0]) if languages else None
+
 
 def get_locale_lang():
     # guess default target lang based on locale, simplify to commonly used form
@@ -223,24 +250,29 @@ def get_locale_lang():
         if lang and lang.split('.')[0] in ('C', 'POSIX'):
             lang = None
         if not lang and platform.is_mac:
-           lang = osx_lang()
+            lang = osx_lang()
         if lang:
             return data.simplify_to_common(lang)
     except Exception as e:
         import logging
+
         logging.warning("%s", e)
     return 'en'
 
+
 def name():
     import getpass
+
     name = getpass.getuser()  # username only
     # pwd is only available on UNIX
     try:
         import pwd
+
         name = pwd.getpwnam(name)[4].split(",")[0]
     except ImportError as _e:
         pass
     return name or ""
+
 
 def get_default_font():
     # The desktop's own monospace font on Linux. Bundles carry their build
@@ -248,49 +280,65 @@ def get_default_font():
     if not platform.is_mac and not platform.is_windows:
         try:
             from gi.repository import Gio
+
             source = Gio.SettingsSchemaSource.get_default()
             if source is not None and source.lookup('org.gnome.desktop.interface', True):
-                font_name = Gio.Settings.new('org.gnome.desktop.interface').get_string('monospace-font-name')
+                font_name = Gio.Settings.new('org.gnome.desktop.interface').get_string(
+                    'monospace-font-name'
+                )
                 if font_name:
                     return font_name
         except Exception:
             import logging
+
             logging.debug('Unable to read the desktop monospace font', exc_info=True)
 
     # Otherwise monospace, at GTK's default size.
     import gi
+
     gi.require_version('Gtk', '3.0')
     from gi.repository import Gtk
+
     font_name = Gtk.Label().get_pango_context().get_font_description().to_string()
     return 'monospace ' + font_name.split(' ')[-1]
 
+
 defaultfont = get_default_font()
+
 
 def _repo_root():
     """The checkout root two levels above this file - only meaningful
-        for a dev checkout, never called when C{platform.is_frozen}."""
+    for a dev checkout, never called when C{platform.is_frozen}."""
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 def _ensure_dev_library_catalogs(lang, localedir):
     """A dev checkout's version of setup.py's lite step: for each
-        library (GTK, GLib, gtkspell, gtk-mac-integration, gettext-tools), its own
-        installed catalog for C{lang} merged with Virtaal's lite one
-        from C{po/lite/}, into C{localedir} - where
-        bind_libintl_posix() then points that library. Rebuilt when
-        either source is newer. On macOS this is also what translates
-        GTK at all: there it otherwise looks in Python.app."""
+    library (GTK, GLib, gtkspell, gtk-mac-integration, gettext-tools), its own
+    installed catalog for C{lang} merged with Virtaal's lite one
+    from C{po/lite/}, into C{localedir} - where
+    bind_libintl_posix() then points that library. Rebuilt when
+    either source is newer. On macOS this is also what translates
+    GTK at all: there it otherwise looks in Python.app."""
     import logging
 
     from virtaal.support.libi18n import lite
+
     for domain in lite.LIBRARY_DOMAINS:
         lite_po = os.path.join(_repo_root(), 'po', 'lite', domain, lang + '.po')
         upstream_dir = lite.upstream_locale_dir(domain)
-        upstream_mo = os.path.join(upstream_dir, lang, 'LC_MESSAGES', domain + '.mo') if upstream_dir else None
+        upstream_mo = (
+            os.path.join(upstream_dir, lang, 'LC_MESSAGES', domain + '.mo')
+            if upstream_dir
+            else None
+        )
         sources = [p for p in (lite_po, upstream_mo) if p and os.path.isfile(p)]
         if not sources:
             continue
         target = os.path.join(localedir, lang, 'LC_MESSAGES', domain + '.mo')
-        if os.path.isfile(target) and os.path.getmtime(target) >= max(os.path.getmtime(p) for p in sources):
+        if os.path.isfile(target) and os.path.getmtime(target) >= max(
+            os.path.getmtime(p) for p in sources
+        ):
             continue
         # Built beside the target and swapped in, so a failure never
         # leaves a broken catalog behind to be reused.
@@ -303,17 +351,18 @@ def _ensure_dev_library_catalogs(lang, localedir):
             if os.path.exists(tmp_target):
                 os.remove(tmp_target)
 
+
 def _ensure_dev_locale_installed(lang, localedir):
     """A C{pip install -e .} dev checkout never actually gets
-        setup.py's own compiled C{mo/<lang>/virtaal.mo} copied into
-        C{sys.prefix}'s C{share/locale/} - a known setuptools
-        limitation with C{data_files} and editable installs. Self-heal
-        it here, once: reuse the repo's own compiled C{mo/} tree if
-        C{setup.py} already built one, otherwise compile C{po/<lang>.po}
-        directly - translate-toolkit (a hard dependency already) ships
-        the exact compiler C{setup.py} itself uses, so this needs
-        nothing beyond what's already installed, in a checkout that's
-        never run C{pip install -e .} at all."""
+    setup.py's own compiled C{mo/<lang>/virtaal.mo} copied into
+    C{sys.prefix}'s C{share/locale/} - a known setuptools
+    limitation with C{data_files} and editable installs. Self-heal
+    it here, once: reuse the repo's own compiled C{mo/} tree if
+    C{setup.py} already built one, otherwise compile C{po/<lang>.po}
+    directly - translate-toolkit (a hard dependency already) ships
+    the exact compiler C{setup.py} itself uses, so this needs
+    nothing beyond what's already installed, in a checkout that's
+    never run C{pip install -e .} at all."""
     if platform.is_frozen or platform.is_flatpak:
         return
     _ensure_dev_library_catalogs(lang, localedir)
@@ -332,6 +381,7 @@ def _ensure_dev_locale_installed(lang, localedir):
     if not os.path.isfile(po_file):
         return
     from translate.tools.pocompile import convertmo
+
     os.makedirs(os.path.dirname(target), exist_ok=True)
     fd, tmp_target = tempfile.mkstemp(dir=os.path.dirname(target))
     os.close(fd)
@@ -349,15 +399,22 @@ def _ensure_dev_locale_installed(lang, localedir):
 class Settings:
     """Handles loading/saving settings from/to a configuration file."""
 
-    sections = ["translator", "general", "language", "placeable_state", "plugin_state", "undo",
-                "installed_assets"]
+    sections = [
+        "translator",
+        "general",
+        "language",
+        "placeable_state",
+        "plugin_state",
+        "undo",
+        "installed_assets",
+    ]
 
-    translator =    {
+    translator = {
         "name": name(),
         "email": "",
         "team": "",
     }
-    general =       {
+    general = {
         "lastdir": "",
         "maximized": '',
         "windowwidth": 796,
@@ -367,7 +424,7 @@ class Settings:
         "assets_manifest_fetched": "",
         "assets_manifest_etag": "",
     }
-    language =      {
+    language = {
         "nplurals": 0,
         "plural": None,
         "recentlangs": "",
@@ -381,7 +438,7 @@ class Settings:
         "altattrplaceable": "disabled",
         "fileplaceable": "disabled",
     }
-    plugin_state =  {
+    plugin_state = {
         "_helloworld": "disabled",
     }
     undo = {
@@ -395,7 +452,7 @@ class Settings:
     # current shas to decide whether a redownload is needed.
     installed_assets = {}
 
-    def __init__(self, filename = None):
+    def __init__(self, filename=None):
         """Load settings, using the given or default filename"""
         if not filename:
             self.filename = os.path.join(get_config_dir(), default_config_name)
@@ -438,9 +495,17 @@ class Settings:
         # A code that isn't one broke every TM request (#4340): "af",
         # "zh_CN", "pt-BR", "sr@latin".
         for lang in ('sourcelang', 'targetlang'):
-            if self.language[lang] and not re.fullmatch(r'[a-z]{2,3}(?:[_-][A-Za-z0-9]+)*(?:@[A-Za-z0-9]+)?', self.language[lang]):
+            if self.language[lang] and not re.fullmatch(
+                r'[a-z]{2,3}(?:[_-][A-Za-z0-9]+)*(?:@[A-Za-z0-9]+)?', self.language[lang]
+            ):
                 import logging
-                logging.warning("Using %s for %s: %r isn't a language code", language_defaults[lang], lang, self.language[lang])
+
+                logging.warning(
+                    "Using %s for %s: %r isn't a language code",
+                    language_defaults[lang],
+                    lang,
+                    self.language[lang],
+                )
                 self.language[lang] = language_defaults[lang]
 
         # Make sure we have some kind of font names to work with, and
@@ -482,6 +547,7 @@ class Settings:
         self.language['sourcefont'] = fonts[0]
         self.language['targetfont'] = fonts[1]
 
+
 def _install_explicit_ui_language(lang, languages, fallback):
     """Shared plumbing for installing one specific language's gettext
     catalog: set the process locale, self-heal a dev checkout's
@@ -506,7 +572,9 @@ def _install_explicit_ui_language(lang, languages, fallback):
         pass
     localedir = platform.locale_dir
     _ensure_dev_locale_installed(lang, localedir)
-    gettext.translation('virtaal', localedir=localedir, languages=languages, fallback=fallback).install()
+    gettext.translation(
+        'virtaal', localedir=localedir, languages=languages, fallback=fallback
+    ).install()
     if not platform.is_windows:
         # Gtk.Builder's own translatable strings go through C-level
         # gettext, not Python's - see bind_libintl_posix's docstring.
@@ -535,11 +603,12 @@ def _install_system_ui_language():
     # this stays untranslated for a language --lang=<code> would find.
     _ensure_dev_locale_installed(get_locale_lang(), localedir)
     try:
-        #if the locale is not installed it can cause a traceback
+        # if the locale is not installed it can cause a traceback
         locale.setlocale(locale.LC_ALL, '')
         gettext.install('virtaal', localedir=localedir)
     except locale.Error as e:
         import logging
+
         logging.warning("Couldn't set the locale: %s", e)
         # See bug 3109
         __builtin__.__dict__['_'] = lambda s: s
@@ -577,16 +646,16 @@ install_saved_ui_language()
 
 def get_available_ui_languages():
     """Language codes Virtaal has a real, loadable translation for,
-        mapped to display names, sorted by name. Looks both at
-        C{platform.locale_dir} (a packaged install) and the repo's own
-        C{mo/} tree (a dev checkout - see
-        C{_ensure_dev_locale_installed}'s docstring), since either one
-        alone can be empty depending on how Virtaal is currently run.
+    mapped to display names, sorted by name. Looks both at
+    C{platform.locale_dir} (a packaged install) and the repo's own
+    C{mo/} tree (a dev checkout - see
+    C{_ensure_dev_locale_installed}'s docstring), since either one
+    alone can be empty depending on how Virtaal is currently run.
 
-        Doesn't include a "system default" placeholder itself - this
-        module is in po/POTFILES.skip (its own _('') probe below would
-        otherwise mean gettext isn't set up yet when it runs), so a
-        user-facing label belongs in the caller instead."""
+    Doesn't include a "system default" placeholder itself - this
+    module is in po/POTFILES.skip (its own _('') probe below would
+    otherwise mean gettext isn't set up yet when it runs), so a
+    user-facing label belongs in the caller instead."""
     from virtaal.support.translate_compat import tr_lang
 
     codes = set()
@@ -615,20 +684,24 @@ def get_available_ui_languages():
     result.sort(key=lambda pair: pair[1])
     return result
 
+
 def _english_language_name(code):
     """toolkit's English name for a language code, else pycountry's, or
-        None."""
+    None."""
     from translate.lang.data import languages as toolkit_langs
 
     from virtaal.support import translate_compat
+
     if code in toolkit_langs:
         return toolkit_langs[code][0]
     if translate_compat.pycountry is None:
         return None
     base = code.split('@')[0].split('_')[0]
-    language = (translate_compat.pycountry.languages.get(alpha_2=base)
-                or translate_compat.pycountry.languages.get(alpha_3=base))
+    language = translate_compat.pycountry.languages.get(
+        alpha_2=base
+    ) or translate_compat.pycountry.languages.get(alpha_3=base)
     return language.name if language else None
+
 
 # CLDR names for UI languages iso-codes can't name in themselves: no catalog,
 # or a name spelled as in English (Afrikaans), indistinguishable from untranslated.
@@ -651,10 +724,12 @@ _CLDR_ENDONYMS = {
     'te': 'తెలుగు',
 }
 
+
 def get_language_endonym(code):
     """A UI language's name in that language itself, or None if unknown
-        or untranslated."""
+    or untranslated."""
     from virtaal.support.translate_compat import _fix_language_name, tr_lang
+
     name = _english_language_name(code)
     if name is None:
         return _CLDR_ENDONYMS.get(code)
@@ -662,6 +737,7 @@ def get_language_endonym(code):
     if endonym == _fix_language_name(name) and not code.startswith('en'):
         return _CLDR_ENDONYMS.get(code)
     return endonym
+
 
 def set_ui_language(lang):
     """Override the UI language after startup - used by bin/virtaal's
@@ -708,11 +784,11 @@ if platform.is_windows and platform.is_frozen:  # pragma: no cover
 
 def get_abs_data_filename(path_parts, basedirs=None):
     """Get the absolute path to the given file- or directory name in Virtaal's
-        data directory.
+    data directory.
 
-        @type  path_parts: list
-        @param path_parts: The path parts that can be joined by os.path.join().
-        """
+    @type  path_parts: list
+    @param path_parts: The path parts that can be joined by os.path.join().
+    """
     if basedirs is None:
         basedirs = []
     basedirs += [
@@ -720,15 +796,19 @@ def get_abs_data_filename(path_parts, basedirs=None):
     ]
     return file_discovery.get_abs_data_filename(path_parts, basedirs=basedirs)
 
+
 def _set_enchant_env_vars(enchant_dir):
     """Point pyenchant at the self-contained dylib bundled at
     enchant_dir (virtaal.spec's own layout: lib/, lib/enchant/,
     share/enchant/) instead of letting it fall through to Homebrew's
     own copy - a second glib/gobject stack in the same process crashes
     cairo/the ObjC runtime, see that spec's own comment."""
-    os.environ.setdefault('PYENCHANT_LIBRARY_PATH', os.path.join(enchant_dir, 'lib', 'libenchant.1.dylib'))
+    os.environ.setdefault(
+        'PYENCHANT_LIBRARY_PATH', os.path.join(enchant_dir, 'lib', 'libenchant.1.dylib')
+    )
     os.environ.setdefault('ENCHANT_MODULE_DIR', os.path.join(enchant_dir, 'lib', 'enchant'))
     os.environ.setdefault('ENCHANT_DATA_DIR', os.path.join(enchant_dir, 'share', 'enchant'))
+
 
 # Frozen Intel-only - no arm64 build of the bundled dylib exists yet.
 if platform.is_mac and platform.is_frozen and platform.is_intel:  # pragma: no cover
@@ -737,13 +817,14 @@ if platform.is_mac and platform.is_frozen and platform.is_intel:  # pragma: no c
     except ValueError:
         pass
 
+
 def load_config(filename, section=None):
     """Load the configuration from the given filename (and optional section
-        into a dictionary structure.
+    into a dictionary structure.
 
-        @returns: A 2D-dictionary representing the configuration file if no
-            section was specified. Otherwise a simple dictionary representing
-            the given configuration section."""
+    @returns: A 2D-dictionary representing the configuration file if no
+        section was specified. Otherwise a simple dictionary representing
+        the given configuration section."""
     parser = ConfigParser.RawConfigParser()
     _read_ini_recovering(parser, filename)
 
@@ -757,14 +838,15 @@ def load_config(filename, section=None):
         conf[section] = dict(parser.items(section))
     return conf
 
+
 def save_config(filename, config, section=None):
     """Save the given configuration data to the given filename and under the
-        given section (if specified).
+    given section (if specified).
 
-        @param config: A dictionary containing the configuration section data
-            if C{section} was specified. Otherwise, if C{section} is not
-            specified, it should be a 2D-dictionary representing the entire
-            configuration file."""
+    @param config: A dictionary containing the configuration section data
+        if C{section} was specified. Otherwise, if C{section} is not
+        specified, it should be a 2D-dictionary representing the entire
+        configuration file."""
     parser = ConfigParser.RawConfigParser()
     _read_ini_recovering(parser, filename)
 

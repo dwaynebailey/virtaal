@@ -19,11 +19,13 @@ from virtaal.support.projstore import (
 class _FnameOnly:
     """A file-like stand-in with only a .filename attribute, not .name -
     exercises append_file()/get_file()'s second-choice lookup."""
+
     def __init__(self, filename):
         self.filename = filename
 
 
 # sourcefiles/targetfiles/transfiles properties, __contains__ #
+
 
 def test_sourcefiles_targetfiles_transfiles_properties_reflect_appended_files():
     store = ProjectStore()
@@ -47,6 +49,7 @@ def test_contains_checks_both_names_and_the_stored_file_object():
 
 
 # append_file() #
+
 
 def test_append_file_rejects_an_unknown_ftype():
     store = ProjectStore()
@@ -113,6 +116,7 @@ def test_append_targetfile_and_transfile_delegate_with_the_right_ftype():
 
 # remove_file() #
 
+
 def test_remove_file_raises_for_an_unknown_filename():
     store = ProjectStore()
 
@@ -150,6 +154,7 @@ def test_remove_sourcefile_targetfile_transfile_delegate_with_the_right_ftype():
 
 # cleanup() #
 
+
 def test_cleanup_closes_every_stored_handle():
     store = ProjectStore()
     afile = io.BytesIO(b"data")
@@ -161,6 +166,7 @@ def test_cleanup_closes_every_stored_handle():
 
 
 # get_file() #
+
 
 def test_get_file_raises_for_an_unknown_filename():
     store = ProjectStore()
@@ -240,6 +246,7 @@ def test_get_file_raises_oserror_when_nothing_can_locate_the_file():
 
 # get_filename_type() #
 
+
 def test_get_filename_type_finds_the_owning_list():
     store = ProjectStore()
     _afile, fname = store.append_file(io.BytesIO(b"x"), "note.po", ftype="tgt")
@@ -255,6 +262,7 @@ def test_get_filename_type_raises_for_an_unknown_filename():
 
 
 # get_proj_filename() #
+
 
 def test_get_proj_filename_finds_by_key_or_stored_value(tmp_path):
     src = tmp_path / "in.po"
@@ -275,6 +283,7 @@ def test_get_proj_filename_raises_for_an_unknown_real_filename():
 
 # update_file() #
 
+
 def test_update_file_replaces_the_content_under_the_same_project_name():
     store = ProjectStore()
     _afile, fname = store.append_file(io.BytesIO(b"old"), "note.po", ftype="src")
@@ -288,6 +297,7 @@ def test_update_file_replaces_the_content_under_the_same_project_name():
 
 
 # _generate_settings() #
+
 
 def test_generate_settings_includes_target_files():
     store = ProjectStore()
@@ -334,6 +344,7 @@ def test_generate_settings_includes_options():
 
 
 # _load_settings() #
+
 
 def test_load_settings_round_trips_files_and_conversions_with_a_template():
     store = ProjectStore()

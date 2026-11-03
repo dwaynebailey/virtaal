@@ -29,6 +29,7 @@ def _model():
 # must actually build from languages_url (url_getlanguages doesn't
 # exist - a plain AttributeError on every real launch with a key set).
 
+
 class _FakeHTTPClient:
     def __init__(self):
         self.added = []
@@ -44,7 +45,9 @@ def _fake_controller():
     lang_controller.target_lang = SimpleNamespace(code='af')
     checks_controller = connectable()
     checks_controller.code = 'standard'
-    main_controller = SimpleNamespace(lang_controller=lang_controller, checks_controller=checks_controller)
+    main_controller = SimpleNamespace(
+        lang_controller=lang_controller, checks_controller=checks_controller
+    )
     controller = connectable()
     controller.main_controller = main_controller
     return controller
@@ -52,7 +55,9 @@ def _fake_controller():
 
 def test_init_builds_the_languages_request_from_languages_url(monkeypatch):
     monkeypatch.setattr(google_translate, 'HTTPClient', _FakeHTTPClient)
-    monkeypatch.setattr(TMModel, 'load_config', lambda self: setattr(self, 'config', {'api_key': 'test-key'}))
+    monkeypatch.setattr(
+        TMModel, 'load_config', lambda self: setattr(self, 'config', {'api_key': 'test-key'})
+    )
 
     model = TMModel('google_translate', _fake_controller())
 
@@ -61,6 +66,7 @@ def test_init_builds_the_languages_request_from_languages_url(monkeypatch):
 
 
 # _disable_all()
+
 
 def test_disable_all_clears_the_language_set():
     model = _model()
@@ -72,9 +78,11 @@ def test_disable_all_clears_the_language_set():
 
 # query()
 
+
 def test_query_truncates_a_source_string_that_exceeds_googles_url_limit():
     # Google's Terms of Service caps the whole URL at 2000 characters.
     from urllib.parse import unquote_plus
+
     added = []
     model = _model()
     model.client = SimpleNamespace(add=lambda req: added.append(req))
@@ -111,8 +119,11 @@ def test_query_replaces_underscore_with_hyphen_in_region_codes():
 def test_query_does_nothing_for_an_unsupported_language_pair():
     model = _model()
     model._languages = {'fr', 'de'}
-    model.client = SimpleNamespace(add=lambda req: (_ for _ in ()).throw(
-        AssertionError('should not query an unsupported pair')))
+    model.client = SimpleNamespace(
+        add=lambda req: (_ for _ in ()).throw(
+            AssertionError('should not query an unsupported pair')
+        )
+    )
 
     model.query(None, SimpleNamespace(source='hello'))  # must not raise
 
@@ -120,8 +131,9 @@ def test_query_does_nothing_for_an_unsupported_language_pair():
 def test_query_emits_a_cached_match():
     model = _model()
     model.cache = {'hello': [{'target': 'Hallo'}]}
-    model.client = SimpleNamespace(add=lambda req: (_ for _ in ()).throw(
-        AssertionError('should use the cache')))
+    model.client = SimpleNamespace(
+        add=lambda req: (_ for _ in ()).throw(AssertionError('should use the cache'))
+    )
     emitted = []
     model.connect('match-found', lambda m, q, r: emitted.append((q, r)))
 
@@ -145,9 +157,12 @@ def test_query_sends_a_translate_request_for_an_uncached_pair():
 
 # A query made before the language list arrives waits for it (#4677).
 
+
 def _model_fetching_languages(monkeypatch):
     monkeypatch.setattr(google_translate, 'HTTPClient', _FakeHTTPClient)
-    monkeypatch.setattr(TMModel, 'load_config', lambda self: setattr(self, 'config', {'api_key': 'test-key'}))
+    monkeypatch.setattr(
+        TMModel, 'load_config', lambda self: setattr(self, 'config', {'api_key': 'test-key'})
+    )
     return TMModel('google_translate', _fake_controller())
 
 
@@ -179,7 +194,9 @@ def test_a_failed_languages_request_stops_holding_queries(monkeypatch):
 
 
 def test_disable_all_without_an_api_key_leaves_nothing_held(monkeypatch):
-    monkeypatch.setattr(TMModel, 'load_config', lambda self: setattr(self, 'config', {'api_key': ''}))
+    monkeypatch.setattr(
+        TMModel, 'load_config', lambda self: setattr(self, 'config', {'api_key': ''})
+    )
 
     model = TMModel('google_translate', _fake_controller())
 
@@ -187,6 +204,7 @@ def test_disable_all_without_an_api_key_leaves_nothing_held(monkeypatch):
 
 
 # got_translation()
+
 
 def test_got_translation_emits_a_match_on_success():
     model = _model()
@@ -228,6 +246,7 @@ def test_got_translation_disables_all_queries_on_an_unexpected_shape():
 
 # got_languages()
 
+
 def test_got_languages_populates_the_language_set():
     model = _model()
     model._languages = set()
@@ -247,6 +266,7 @@ def test_got_languages_disables_all_on_a_malformed_response():
 
 
 # got_error()
+
 
 def test_got_error_disables_all_queries():
     model = _model()

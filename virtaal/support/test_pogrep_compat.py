@@ -22,8 +22,13 @@ def test_getmatches_does_not_raise():
     # Real crash (Python 3.14+): upstream GrepFilter.getmatches() ORs
     # in re.LOCALE, which is invalid with a str pattern.
     units = [_unit("Don't know", "Don't know")]
-    f = GrepFilter(searchstring="Don't know", searchparts=('source', 'target'),
-                    ignorecase=True, useregexp=False, max_matches=200000)
+    f = GrepFilter(
+        searchstring="Don't know",
+        searchparts=('source', 'target'),
+        ignorecase=True,
+        useregexp=False,
+        max_matches=200000,
+    )
 
     matches, indexes = f.getmatches(units)
 
@@ -38,33 +43,44 @@ def test_getmatches_maps_offsets_through_nfd_decomposed_accents():
     # real_index() machinery matches against the NFC-composed form.
     nfd_e_acute = unicodedata.normalize('NFD', "é")
     units = [_unit("x", nfd_e_acute + " Don't know and also Don't know " + nfd_e_acute)]
-    f = GrepFilter(searchstring="Don't know", searchparts=('target',),
-                    ignorecase=True, useregexp=False, max_matches=200000)
+    f = GrepFilter(
+        searchstring="Don't know",
+        searchparts=('target',),
+        ignorecase=True,
+        useregexp=False,
+        max_matches=200000,
+    )
 
     matches, _ = f.getmatches(units)
 
     raw = units[0].target
-    assert [raw[m.start:m.end] for m in matches] == ["Don't know", "Don't know"]
+    assert [raw[m.start : m.end] for m in matches] == ["Don't know", "Don't know"]
 
 
 def test_getmatches_accepts_a_leading_inline_flag():
     # Upstream wraps the pattern in a group: "((?i)f)" is an error since
     # Python 3.11.
     units = [_unit("Open the file", "Maak oop")]
-    f = GrepFilter(searchstring="(?i)F", searchparts=('source', 'target'),
-                    ignorecase=False, useregexp=True, max_matches=200000)
+    f = GrepFilter(
+        searchstring="(?i)F",
+        searchparts=('source', 'target'),
+        ignorecase=False,
+        useregexp=True,
+        max_matches=200000,
+    )
 
     matches, indexes = f.getmatches(units)
 
     assert indexes == [0]
-    assert [units[0].source[m.start:m.end] for m in matches] == ["f"]
+    assert [units[0].source[m.start : m.end] for m in matches] == ["f"]
 
 
 def test_getmatches_stops_at_max_matches_instead_of_raising():
     # #4395: upstream raised ValueError("Too many matches found").
     units = [_unit("x", "aa"), _unit("x", "aa"), _unit("x", "aa")]
-    f = GrepFilter(searchstring="a", searchparts=('target',),
-                    ignorecase=False, useregexp=False, max_matches=3)
+    f = GrepFilter(
+        searchstring="a", searchparts=('target',), ignorecase=False, useregexp=False, max_matches=3
+    )
 
     matches, indexes = f.getmatches(units)
 

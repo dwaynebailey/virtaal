@@ -21,11 +21,10 @@ class UndoController(BaseController):
 
     __gtype_name__ = 'UndoController'
 
-
     # INITIALIZERS #
     def __init__(self, main_controller):
         """Constructor.
-            @type main_controller: virtaal.controllers.MainController"""
+        @type main_controller: virtaal.controllers.MainController"""
         GObjectWrapper.__init__(self)
 
         self.main_controller = main_controller
@@ -33,6 +32,7 @@ class UndoController(BaseController):
         self.unit_controller = self.main_controller.store_controller.unit_controller
 
         from virtaal.models.undomodel import UndoModel
+
         self.model = UndoModel(self)
         # The refresh() scheduled by _schedule_cursor_restore() that
         # hasn't fired yet, if any - see _flush_pending_refresh().
@@ -61,9 +61,9 @@ class UndoController(BaseController):
 
     def _setup_key_bindings(self):
         """Setup Gtk+ key bindings (accelerators).
-            This method *may* need to be moved into a view object, but if it is,
-            it will be the only functionality in such a class. Therefore, it
-            is done here. At least for now."""
+        This method *may* need to be moved into a view object, but if it is,
+        it will be the only functionality in such a class. Therefore, it
+        is done here. At least for now."""
         Gtk.AccelMap.add_entry("<Virtaal>/Edit/Undo", Gdk.KEY_z, Gdk.ModifierType.CONTROL_MASK)
         if platform.is_mac:
             # GtkosxApplication's Ctrl->Cmd translation (every other
@@ -71,7 +71,11 @@ class UndoController(BaseController):
             # Ctrl+Shift accelerator - it's left showing/firing on the
             # literal Ctrl+Shift+Z instead. Cmd+Shift+Z arrives as
             # META_MASK|MOD2_MASK|SHIFT_MASK; register that directly.
-            redo_mods = Gdk.ModifierType.META_MASK | Gdk.ModifierType.MOD2_MASK | Gdk.ModifierType.SHIFT_MASK
+            redo_mods = (
+                Gdk.ModifierType.META_MASK
+                | Gdk.ModifierType.MOD2_MASK
+                | Gdk.ModifierType.SHIFT_MASK
+            )
         else:
             redo_mods = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK
         Gtk.AccelMap.add_entry("<Virtaal>/Edit/Redo", Gdk.KEY_z, redo_mods)
@@ -81,11 +85,10 @@ class UndoController(BaseController):
         # its 'activate' signal (connected below) once a matching accel
         # group reaches the window; adding this too calls the handler a
         # second time per keypress (caused a double undo).
-        #self.accel_group.connect_by_path("<Virtaal>/Edit/Undo", self._on_undo_activated)
+        # self.accel_group.connect_by_path("<Virtaal>/Edit/Undo", self._on_undo_activated)
 
-        mainview = self.main_controller.view # FIXME: Is this acceptable?
+        mainview = self.main_controller.view  # FIXME: Is this acceptable?
         mainview.add_accel_group(self.accel_group)
-
 
     # METHODS #
     def push_current_text(self, textbox):
@@ -95,6 +98,7 @@ class UndoController(BaseController):
 
         curpos = textbox.get_cursor_position()
         targetn = unitview.targets.index(textbox)
+
         def undo_set_text(unit):
             textbox.elem.sub = current_text.sub
 
@@ -102,29 +106,31 @@ class UndoController(BaseController):
             'action': undo_set_text,
             'cursorpos': curpos,
             'targetn': targetn,
-            'unit': unitview.unit
+            'unit': unitview.unit,
         }
         if pan_app.DEBUG:
-            data['desc'] = 'Set target %d text to %s' % (targetn, repr(current_text)),
+            data['desc'] = ('Set target %d text to %s' % (targetn, repr(current_text)),)
         self.model.push(data)
         self._update_sensitivity()
 
     def push_state_change(self, unit, from_state, from_sticky, to_state):
         """Record a deliberate workflow-state pick as its own undo-able
-            act - see UnitController.set_current_state()'s own
-            from_user branch, the only caller. Pushing straight to
-            self.model here (as this used to) skips this same
-            sensitivity refresh every other push site already does -
-            the menu item (and its Cmd+Z accelerator, which GTK won't
-            activate on an insensitive item) stayed disabled until some
-            unrelated later push happened to refresh it."""
-        self.model.push({
-            'kind': 'state',
-            'unit': unit,
-            'from_state': from_state,
-            'from_sticky': from_sticky,
-            'to_state': to_state,
-        })
+        act - see UnitController.set_current_state()'s own
+        from_user branch, the only caller. Pushing straight to
+        self.model here (as this used to) skips this same
+        sensitivity refresh every other push site already does -
+        the menu item (and its Cmd+Z accelerator, which GTK won't
+        activate on an insensitive item) stayed disabled until some
+        unrelated later push happened to refresh it."""
+        self.model.push(
+            {
+                'kind': 'state',
+                'unit': unit,
+                'from_state': from_state,
+                'from_sticky': from_sticky,
+                'to_state': to_state,
+            }
+        )
         self._update_sensitivity()
 
     def _update_sensitivity(self):
@@ -140,24 +146,24 @@ class UndoController(BaseController):
 
     def _disable_unit_signals(self):
         """Disable all signals emitted by the unit view.
-            This should always be followed, as soon as possible, by
-            C{self._enable_unit_signals()}."""
+        This should always be followed, as soon as possible, by
+        C{self._enable_unit_signals()}."""
         self.unit_controller.view.disable_signals()
 
     def _enable_unit_signals(self):
         """Enable all signals emitted by the unit view.
-            This should always follow, as soon as possible, after a call to
-            C{self._disable_unit_signals()}."""
+        This should always follow, as soon as possible, after a call to
+        C{self._disable_unit_signals()}."""
         self.unit_controller.view.enable_signals()
 
     def _snapshot_for_redo(self, undo_info):
         """Capture a target textbox's current state, wrapped the same way
-            push_current_text() wraps one, so it can be replayed later by
-            _perform_undo() - reused as-is for redo, since "apply this
-            stored state" is the same operation in either direction. Must
-            be called only once undo_info['unit'] is loaded into the view
-            - targets[] is a reused widget, so calling it earlier
-            captures the wrong unit's state."""
+        push_current_text() wraps one, so it can be replayed later by
+        _perform_undo() - reused as-is for redo, since "apply this
+        stored state" is the same operation in either direction. Must
+        be called only once undo_info['unit'] is loaded into the view
+        - targets[] is a reused widget, so calling it earlier
+        captures the wrong unit's state."""
         textbox = self.unit_controller.view.targets[undo_info['targetn']]
         current_text = textbox.elem.copy()
         # Prefer the position the original edit itself recorded over a
@@ -170,8 +176,10 @@ class UndoController(BaseController):
         curpos = undo_info.get('redo_cursorpos')
         if curpos is None:
             curpos = textbox.get_cursor_position()
+
         def redo_action(unit):
             textbox.elem.sub = current_text.sub
+
         redo_info = {
             'action': redo_action,
             'cursorpos': curpos,
@@ -199,7 +207,9 @@ class UndoController(BaseController):
         if undo_info.get('kind') == 'state':
             self._select_unit(undo_info['unit'])
             if capture_redo:
-                self.unit_controller.restore_state(undo_info['from_state'], undo_info['from_sticky'])
+                self.unit_controller.restore_state(
+                    undo_info['from_state'], undo_info['from_sticky']
+                )
                 return dict(undo_info)
             # Redoing re-applies the deliberate pick - sticky again.
             self.unit_controller.restore_state(undo_info['to_state'], True)
@@ -207,7 +217,7 @@ class UndoController(BaseController):
 
         self._select_unit(undo_info['unit'])
 
-        #if 'desc' in undo_info:
+        # if 'desc' in undo_info:
         #    logging.debug('Description: %s' % (undo_info['desc']))
 
         self._disable_unit_signals()
@@ -224,42 +234,44 @@ class UndoController(BaseController):
             self.unit_controller.set_current_state(restore_to)
 
         # TODO: try to avoid full refresh
-        self._schedule_cursor_restore(undo_info['unit'], undo_info['targetn'], undo_info['cursorpos'])
+        self._schedule_cursor_restore(
+            undo_info['unit'], undo_info['targetn'], undo_info['cursorpos']
+        )
         return redo_snapshot
 
     def _select_unit(self, unit):
         """Select the given unit in the store view.
-            This is to select the unit where the undo-action took place.
-            @type  unit: translate.storage.base.TranslationUnit
-            @param unit: The unit to select in the store view."""
+        This is to select the unit where the undo-action took place.
+        @type  unit: translate.storage.base.TranslationUnit
+        @param unit: The unit to select in the store view."""
         self._flush_pending_refresh()
         self.main_controller.select_unit(unit, force=True)
 
     def _flush_pending_refresh(self):
         """Run a refresh scheduled by _schedule_cursor_restore() right
-            now, if it hasn't fired yet, before switching away from the
-            unit it belongs to. GLib runs idle callbacks behind whatever
-            input events are already queued - a fast enough next
-            undo/redo can otherwise switch units before an earlier
-            step's deferred refresh() ever runs, silently dropping
-            whatever it was meant to commit (in the real app, that's
-            where the edited text is actually written back to the
-            underlying translation unit - see TextBox.refresh()'s own
-            set_text()/'changed' chain). Safe to call unconditionally:
-            a no-op once nothing is pending, and idempotent if GLib
-            later runs the same callback anyway - its own scheduled-unit
-            guard makes the second call a no-op."""
+        now, if it hasn't fired yet, before switching away from the
+        unit it belongs to. GLib runs idle callbacks behind whatever
+        input events are already queued - a fast enough next
+        undo/redo can otherwise switch units before an earlier
+        step's deferred refresh() ever runs, silently dropping
+        whatever it was meant to commit (in the real app, that's
+        where the edited text is actually written back to the
+        underlying translation unit - see TextBox.refresh()'s own
+        set_text()/'changed' chain). Safe to call unconditionally:
+        a no-op once nothing is pending, and idempotent if GLib
+        later runs the same callback anyway - its own scheduled-unit
+        guard makes the second call a no-op."""
         pending = self._pending_refresh
         if pending is not None:
             pending()
 
     def _restore_navigation_cursor(self, undo_info):
         """Put the cursor back where undoing a navigate act's own
-            from_unit/from_targetn/from_cursorpos says it was, instead
-            of wherever _select_unit() just defaulted it to - a no-op
-            if the navigate entry has none (an older redo entry from
-            before this existed, or its own last-completed-entry
-            lookup found nothing to record)."""
+        from_unit/from_targetn/from_cursorpos says it was, instead
+        of wherever _select_unit() just defaulted it to - a no-op
+        if the navigate entry has none (an older redo entry from
+        before this existed, or its own last-completed-entry
+        lookup found nothing to record)."""
         cursorpos = undo_info.get('from_cursorpos')
         targetn = undo_info.get('from_targetn')
         if cursorpos is None or targetn is None:
@@ -268,29 +280,33 @@ class UndoController(BaseController):
 
     def _cursor_for_entry(self, entry, use_redo_cursorpos):
         """(targetn, cursorpos) for the position an undo/redo entry (or
-            a recording group's list - its last item is the one whose
-            resting position matters) itself records, or None if it's a
-            kind with no such position (state/navigate) or an older
-            entry that predates one of these fields existing."""
+        a recording group's list - its last item is the one whose
+        resting position matters) itself records, or None if it's a
+        kind with no such position (state/navigate) or an older
+        entry that predates one of these fields existing."""
         tail = entry[-1] if isinstance(entry, list) and entry else entry
         if not isinstance(tail, dict) or tail.get('kind'):
             return None
         targetn = tail.get('targetn')
-        cursorpos = tail.get('redo_cursorpos', tail.get('cursorpos')) if use_redo_cursorpos else tail.get('cursorpos')
+        cursorpos = (
+            tail.get('redo_cursorpos', tail.get('cursorpos'))
+            if use_redo_cursorpos
+            else tail.get('cursorpos')
+        )
         if targetn is None or cursorpos is None:
             return None
         return targetn, cursorpos
 
     def _restore_drifted_cursor(self, entry, unit, is_redo):
         """After _needs_navigation_first() has just moved the display to
-            an entry's own unit to resolve drift - without consuming the
-            entry itself - put the cursor where that unit is actually
-            currently sitting, instead of wherever _select_unit() just
-            defaulted it to. Undoing arrives at a unit as it now stands
-            (that entry's own post-edit resting position); redoing
-            arrives at a unit as it was left by the last undo (its
-            pre-edit position) - the entry itself hasn't been applied
-            yet either way, only navigated towards."""
+        an entry's own unit to resolve drift - without consuming the
+        entry itself - put the cursor where that unit is actually
+        currently sitting, instead of wherever _select_unit() just
+        defaulted it to. Undoing arrives at a unit as it now stands
+        (that entry's own post-edit resting position); redoing
+        arrives at a unit as it was left by the last undo (its
+        pre-edit position) - the entry itself hasn't been applied
+        yet either way, only navigated towards."""
         cursor = self._cursor_for_entry(entry, use_redo_cursorpos=not is_redo)
         if cursor is None:
             return
@@ -299,12 +315,13 @@ class UndoController(BaseController):
 
     def _schedule_cursor_restore(self, unit, targetn, cursorpos):
         """Defer landing the cursor at (targetn, cursorpos) until unit is
-            actually the one on screen - the caller may have just
-            triggered an async unit switch. Tracked via
-            self._pending_refresh so _select_unit() can flush it early
-            if it's still outstanding when the display moves on again -
-            see _flush_pending_refresh()."""
+        actually the one on screen - the caller may have just
+        triggered an async unit switch. Tracked via
+        self._pending_refresh so _select_unit() can flush it early
+        if it's still outstanding when the display moves on again -
+        see _flush_pending_refresh()."""
         textbox = self.unit_controller.view.targets[targetn]
+
         def refresh():
             if self._pending_refresh is refresh:
                 self._pending_refresh = None
@@ -314,19 +331,18 @@ class UndoController(BaseController):
             self._disable_unit_signals()
             textbox.refresh(update=True)
             self._enable_unit_signals()
+
         self._pending_refresh = refresh
         GLib.idle_add(refresh)
 
-
     def _take_elem_before_edit(self, target_num):
         """The copy of the target's tree its text box kept from just before
-            the edit being recorded. Undoing restores it: replaying the edit
-            backwards by offset can't tell inside a placeable from beside it."""
+        the edit being recorded. Undoing restores it: replaying the edit
+        backwards by offset can't tell inside a placeable from beside it."""
         textbox = self.unit_controller.view.targets[target_num]
         before = getattr(textbox, 'elem_before_edit', None)
         textbox.elem_before_edit = None
         return before
-
 
     # EVENT HANDLERS #
     def _on_store_loaded_closed(self, storecontroller):
@@ -335,18 +351,18 @@ class UndoController(BaseController):
 
     def _needs_navigation_first(self, entry, is_redo):
         """Whether the display must be moved to this (about-to-be-
-            applied) entry's own unit before it's safe to pop and apply
-            it - i.e. the display has already drifted away from the
-            stack's own position via plain navigation, which (by
-            design) isn't itself tracked as its own act. Reports this
-            once regardless of how many untracked hops happened - there
-            was only ever the one entry on top to land on, so resolving
-            it always takes exactly one keypress, never a chain of them.
+        applied) entry's own unit before it's safe to pop and apply
+        it - i.e. the display has already drifted away from the
+        stack's own position via plain navigation, which (by
+        design) isn't itself tracked as its own act. Reports this
+        once regardless of how many untracked hops happened - there
+        was only ever the one entry on top to land on, so resolving
+        it always takes exactly one keypress, never a chain of them.
 
-            Not true for a navigate-kind entry being redone: applying
-            that one always just moves forward to wherever it goes,
-            unconditionally - see the 'navigate' branch in
-            _perform_undo()."""
+        Not true for a navigate-kind entry being redone: applying
+        that one always just moves forward to wherever it goes,
+        unconditionally - see the 'navigate' branch in
+        _perform_undo()."""
         head = entry[0] if isinstance(entry, list) and entry else entry
         if is_redo and isinstance(head, dict) and head.get('kind') == 'navigate':
             return False
@@ -394,7 +410,7 @@ class UndoController(BaseController):
 
         redo_info = self.model.pop_redo()
 
-        for ri in (redo_info if isinstance(redo_info, list) else [redo_info]):
+        for ri in redo_info if isinstance(redo_info, list) else [redo_info]:
             self._perform_undo(ri)
 
         self._correct_state_after_undo_redo(self.model.entry_unit(redo_info))
@@ -415,7 +431,11 @@ class UndoController(BaseController):
         # check directly - never overrides a deliberate user pick
         # (_state_sticky).
         current_unit = self.unit_controller.current_unit
-        if current_unit is not None and current_unit.STATE and not getattr(current_unit, '_state_sticky', False):
+        if (
+            current_unit is not None
+            and current_unit.STATE
+            and not getattr(current_unit, '_state_sticky', False)
+        ):
             # The action just applied still has its own text commit
             # pending via GLib.idle_add() (see _schedule_cursor_restore())
             # - flush it now, or this reads a stale, not-yet-restored
@@ -439,10 +459,13 @@ class UndoController(BaseController):
 
         self._update_sensitivity()
 
-    def _on_unit_delete_text(self, unit_controller, unit, deleted, parent, offset, cursor_pos, elem, target_num):
+    def _on_unit_delete_text(
+        self, unit_controller, unit, deleted, parent, offset, cursor_pos, elem, target_num
+    ):
         before = self._take_elem_before_edit(target_num)
+
         def undo_action(unit):
-            #logging.debug('(undo) %s.insert(%d, "%s")' % (repr(elem), offset, deleted))
+            # logging.debug('(undo) %s.insert(%d, "%s")' % (repr(elem), offset, deleted))
             if parent is None:
                 elem.sub = deleted.sub
                 return
@@ -471,28 +494,41 @@ class UndoController(BaseController):
             # UnitController._correct_empty_state().
             data['state_before'] = unit._current_state
         if pan_app.DEBUG:
-            data['desc'] = 'offset=%d, deleted="%s", parent=%s, cursor_pos=%d, elem=%s' % (offset, repr(deleted), repr(parent), cursor_pos, repr(elem))
+            data['desc'] = 'offset=%d, deleted="%s", parent=%s, cursor_pos=%d, elem=%s' % (
+                offset,
+                repr(deleted),
+                repr(parent),
+                cursor_pos,
+                repr(elem),
+            )
         self.model.push(data)
         self._update_sensitivity()
 
     def _on_unit_insert_text(self, unit_controller, unit, ins_text, offset, elem, target_num):
-        #logging.debug('_on_unit_insert_text(ins_text="%r", offset=%d, elem=%s, target_n=%d)' % (ins_text, offset, repr(elem), target_num))
-        len_ins_text = len(ins_text) # remember, since ins_text might change
-        gui_len = ins_text.gui_info.length() if getattr(ins_text, 'gui_info', None) else len_ins_text
+        # logging.debug('_on_unit_insert_text(ins_text="%r", offset=%d, elem=%s, target_n=%d)' % (ins_text, offset, repr(elem), target_num))
+        len_ins_text = len(ins_text)  # remember, since ins_text might change
+        gui_len = (
+            ins_text.gui_info.length() if getattr(ins_text, 'gui_info', None) else len_ins_text
+        )
 
         before = self._take_elem_before_edit(target_num)
+
         def undo_action(unit):
             if before is not None:
                 elem.sub = before.copy().sub
                 return
-            if isinstance(ins_text, StringElem) and hasattr(ins_text, 'gui_info') and ins_text.gui_info.widgets:
+            if (
+                isinstance(ins_text, StringElem)
+                and hasattr(ins_text, 'gui_info')
+                and ins_text.gui_info.widgets
+            ):
                 # Only for elements with representation widgets
                 elem.delete_elem(ins_text)
             else:
                 tree_offset = elem.gui_info.gui_to_tree_index(offset)
-                #logging.debug('(undo) %s.delete_range(%d, %d)' % (repr(elem), tree_offset, tree_offset+len_ins_text))
-                unlock_partly_covered_leaves(elem, tree_offset, tree_offset+len_ins_text)
-                elem.delete_range(tree_offset, tree_offset+len_ins_text)
+                # logging.debug('(undo) %s.delete_range(%d, %d)' % (repr(elem), tree_offset, tree_offset+len_ins_text))
+                unlock_partly_covered_leaves(elem, tree_offset, tree_offset + len_ins_text)
+                elem.delete_range(tree_offset, tree_offset + len_ins_text)
             elem.prune()
 
         data = {

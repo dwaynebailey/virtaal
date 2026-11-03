@@ -34,7 +34,9 @@ def _fake_controller():
     lang_controller.target_lang = SimpleNamespace(code='af')
     checks_controller = connectable()
     checks_controller.code = 'standard'
-    main_controller = SimpleNamespace(lang_controller=lang_controller, checks_controller=checks_controller)
+    main_controller = SimpleNamespace(
+        lang_controller=lang_controller, checks_controller=checks_controller
+    )
     controller = connectable()
     controller.main_controller = main_controller
     return controller
@@ -50,6 +52,7 @@ class _FakeHTTPClient:
 
 # __init__(): requests the server's language pairs up front and wires
 # got_language_pairs() as the callback.
+
 
 def test_init_requests_language_pairs_from_the_apy_endpoint(monkeypatch):
     monkeypatch.setattr(apertium, 'HTTPClient', _FakeHTTPClient)
@@ -67,7 +70,9 @@ def test_init_wires_the_response_to_got_language_pairs(monkeypatch):
     monkeypatch.setattr(apertium, 'HTTPClient', _FakeHTTPClient)
     monkeypatch.setattr(TMModel, 'load_config', lambda self: setattr(self, 'config', {}))
     received = []
-    monkeypatch.setattr(TMModel, 'got_language_pairs', lambda self, response: received.append(response))
+    monkeypatch.setattr(
+        TMModel, 'got_language_pairs', lambda self, response: received.append(response)
+    )
 
     model = TMModel('apertium', _fake_controller())
     model.client.added[0].emit('http-success', 'the response body')
@@ -77,16 +82,19 @@ def test_init_wires_the_response_to_got_language_pairs(monkeypatch):
 
 # got_language_pairs()
 
+
 def test_got_language_pairs_stores_the_pairs_on_success():
     model = _model()
     model.language_pairs = []
-    response = json.dumps({
-        'responseStatus': 200,
-        'responseData': [
-            {'sourceLanguage': 'en', 'targetLanguage': 'af'},
-            {'sourceLanguage': 'af', 'targetLanguage': 'en'},
-        ],
-    })
+    response = json.dumps(
+        {
+            'responseStatus': 200,
+            'responseData': [
+                {'sourceLanguage': 'en', 'targetLanguage': 'af'},
+                {'sourceLanguage': 'af', 'targetLanguage': 'en'},
+            ],
+        }
+    )
 
     model.got_language_pairs(response)
 
@@ -105,11 +113,15 @@ def test_got_language_pairs_ignores_a_non_200_response():
 
 # query()
 
+
 def test_query_does_nothing_for_an_unsupported_language_pair():
     model = _model()
     model.language_pairs = [('fr', 'de')]
-    model.client = SimpleNamespace(add=lambda req: (_ for _ in ()).throw(
-        AssertionError('should not query an unsupported pair')))
+    model.client = SimpleNamespace(
+        add=lambda req: (_ for _ in ()).throw(
+            AssertionError('should not query an unsupported pair')
+        )
+    )
 
     model.query(None, SimpleNamespace(source='hello'))  # must not raise
 
@@ -117,8 +129,9 @@ def test_query_does_nothing_for_an_unsupported_language_pair():
 def test_query_emits_a_cached_match():
     model = _model()
     model.cache = {'hello': [{'target': 'Hallo'}]}
-    model.client = SimpleNamespace(add=lambda req: (_ for _ in ()).throw(
-        AssertionError('should use the cache')))
+    model.client = SimpleNamespace(
+        add=lambda req: (_ for _ in ()).throw(AssertionError('should use the cache'))
+    )
     emitted = []
     model.connect('match-found', lambda m, q, r: emitted.append((q, r)))
 
@@ -154,6 +167,7 @@ def test_query_sends_a_translate_request_for_an_uncached_pair():
 
 # A query made before the pair list arrives waits for it (#4677).
 
+
 def _model_fetching_pairs(monkeypatch):
     monkeypatch.setattr(apertium, 'HTTPClient', _FakeHTTPClient)
     monkeypatch.setattr(TMModel, 'load_config', lambda self: setattr(self, 'config', {}))
@@ -161,10 +175,12 @@ def _model_fetching_pairs(monkeypatch):
 
 
 def _pairs_reply(*pairs):
-    return json.dumps({
-        'responseStatus': 200,
-        'responseData': [{'sourceLanguage': s, 'targetLanguage': t} for s, t in pairs],
-    })
+    return json.dumps(
+        {
+            'responseStatus': 200,
+            'responseData': [{'sourceLanguage': s, 'targetLanguage': t} for s, t in pairs],
+        }
+    )
 
 
 def test_query_before_the_pairs_arrive_runs_once_they_do(monkeypatch):
@@ -188,7 +204,8 @@ def test_only_the_last_query_before_the_pairs_arrive_runs(monkeypatch):
     model.client.added[0].emit('http-success', _pairs_reply(('en', 'af')))
 
     assert [r.url for r in model.client.added[1:]] == [
-        model.url_translate + '?q=second&langpair=en%7Caf&markUnknown=no&format=html']
+        model.url_translate + '?q=second&langpair=en%7Caf&markUnknown=no&format=html'
+    ]
 
 
 def test_query_held_for_an_unlisted_pair_sends_nothing(monkeypatch):
@@ -227,6 +244,7 @@ def test_a_failed_pair_list_request_stops_holding_queries(monkeypatch):
 
 # got_translation()
 
+
 def test_got_translation_emits_a_match_on_success():
     model = _model()
     emitted = []
@@ -259,7 +277,9 @@ def test_got_translation_keeps_a_trailing_newline_the_query_also_had():
 
 def test_got_translation_unescapes_html_entities():
     model = _model()
-    response = json.dumps({'responseStatus': 200, 'responseData': {'translatedText': 'Tom &amp; Jerry'}})
+    response = json.dumps(
+        {'responseStatus': 200, 'responseData': {'translatedText': 'Tom &amp; Jerry'}}
+    )
 
     model.got_translation(response, 'Tom & Jerry')
 
@@ -280,8 +300,15 @@ def test_got_translation_ignores_a_non_200_response(caplog):
     assert "Failed to translate 'hello':\nboom" in caplog.text
 
 
-_BAD_REPLIES = ['<html>502</html>', '', '{"responseStatus": 200, "responseData": {"transl', 'null', '[]',
-                '{"responseData": {}}', '{"responseStatus": 200, "responseData": {"translatedText": null}}']
+_BAD_REPLIES = [
+    '<html>502</html>',
+    '',
+    '{"responseStatus": 200, "responseData": {"transl',
+    'null',
+    '[]',
+    '{"responseData": {}}',
+    '{"responseStatus": 200, "responseData": {"translatedText": null}}',
+]
 
 
 @pytest.mark.parametrize('reply', _BAD_REPLIES)
@@ -297,7 +324,9 @@ def test_got_translation_ignores_a_reply_it_cannot_read(reply):
     assert 'hello' not in model.cache
 
 
-@pytest.mark.parametrize('reply', _BAD_REPLIES + ['{"responseStatus": 200, "responseData": [{"x": 1}]}'])
+@pytest.mark.parametrize(
+    'reply', _BAD_REPLIES + ['{"responseStatus": 200, "responseData": [{"x": 1}]}']
+)
 def test_got_language_pairs_ignores_a_reply_it_cannot_read(reply):
     model = _model()
     model.language_pairs = []
@@ -310,25 +339,32 @@ def test_got_language_pairs_ignores_a_reply_it_cannot_read(reply):
 # apy_codes() / _apy_pair(): APY lists ISO 639-3 codes, Virtaal uses
 # two-letter codes where they exist (#4664).
 
-@pytest.mark.parametrize('code, expected', [
-    ('ca', ['ca', 'cat']),
-    ('ca@valencia', ['ca@valencia', 'cat_valencia', 'cat']),
-    ('pt_BR', ['pt_BR', 'por_BR', 'por']),
-    ('en_GB', ['en_GB', 'eng_GB', 'eng']),
-    ('sr', ['sr', 'hbs_SR', 'hbs']),
-    ('ms', ['ms', 'zlm']),
-    ('sc', ['sc', 'srd']),
-    ('crh', ['crh']),
-])
+
+@pytest.mark.parametrize(
+    'code, expected',
+    [
+        ('ca', ['ca', 'cat']),
+        ('ca@valencia', ['ca@valencia', 'cat_valencia', 'cat']),
+        ('pt_BR', ['pt_BR', 'por_BR', 'por']),
+        ('en_GB', ['en_GB', 'eng_GB', 'eng']),
+        ('sr', ['sr', 'hbs_SR', 'hbs']),
+        ('ms', ['ms', 'zlm']),
+        ('sc', ['sc', 'srd']),
+        ('crh', ['crh']),
+    ],
+)
 def test_apy_codes_most_specific_first(code, expected):
     assert apertium.apy_codes(code) == expected
 
 
-@pytest.mark.parametrize('source, target, pairs, langpair', [
-    ('en', 'ca@valencia', [('eng', 'cat'), ('eng', 'cat_valencia')], 'eng|cat_valencia'),
-    ('en_GB', 'ca@valencia', [('eng', 'cat')], 'eng|cat'),
-    ('es', 'pt_BR', [('spa', 'por'), ('spa', 'por_BR')], 'spa|por_BR'),
-])
+@pytest.mark.parametrize(
+    'source, target, pairs, langpair',
+    [
+        ('en', 'ca@valencia', [('eng', 'cat'), ('eng', 'cat_valencia')], 'eng|cat_valencia'),
+        ('en_GB', 'ca@valencia', [('eng', 'cat')], 'eng|cat'),
+        ('es', 'pt_BR', [('spa', 'por'), ('spa', 'por_BR')], 'spa|por_BR'),
+    ],
+)
 def test_query_sends_the_most_specific_listed_apy_pair(source, target, pairs, langpair):
     model = _model()
     model.source_lang, model.target_lang = source, target

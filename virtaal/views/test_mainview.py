@@ -77,15 +77,13 @@ def _make_view_with_chooser(attr, chooser):
 
 
 def test_show_open_dialog_returns_filename_on_accept():
-    view = _make_view_with_chooser(
-        'open_chooser', _FakeChooser(Gtk.ResponseType.ACCEPT))
+    view = _make_view_with_chooser('open_chooser', _FakeChooser(Gtk.ResponseType.ACCEPT))
     filename, uri = view.show_open_dialog()
     assert filename == '/tmp/test.po'
 
 
 def test_show_open_dialog_returns_nothing_on_cancel():
-    view = _make_view_with_chooser(
-        'open_chooser', _FakeChooser(Gtk.ResponseType.CANCEL))
+    view = _make_view_with_chooser('open_chooser', _FakeChooser(Gtk.ResponseType.CANCEL))
     assert view.show_open_dialog() == ()
 
 
@@ -100,8 +98,7 @@ def test_template_chooser_only_offers_pot_files():
 
 
 def test_show_save_dialog_returns_filename_on_accept():
-    view = _make_view_with_chooser(
-        'save_chooser', _FakeChooser(Gtk.ResponseType.ACCEPT))
+    view = _make_view_with_chooser('save_chooser', _FakeChooser(Gtk.ResponseType.ACCEPT))
     assert view.show_save_dialog('Save', current_filename='/tmp/test.po') == '/tmp/test.po'
 
 
@@ -115,8 +112,7 @@ def test_report_bug_opens_the_prefilled_template(monkeypatch):
     view._on_report_bug()
 
     assert len(opened) == 1
-    assert opened[0].startswith(
-        'https://github.com/translate/virtaal/issues/new?')
+    assert opened[0].startswith('https://github.com/translate/virtaal/issues/new?')
     assert 'template=bug_report.yml' in opened[0]
 
 
@@ -130,8 +126,12 @@ def test_show_logs_displays_existing_log_content(monkeypatch, tmp_path):
     shown = {}
     real_set_text = Gtk.TextBuffer.set_text
     monkeypatch.setattr(
-        Gtk.TextBuffer, 'set_text',
-        lambda self, text, *args: (shown.setdefault('text', text), real_set_text(self, text, -1))[-1])
+        Gtk.TextBuffer,
+        'set_text',
+        lambda self, text, *args: (shown.setdefault('text', text), real_set_text(self, text, -1))[
+            -1
+        ],
+    )
     view = MainView.__new__(MainView)
     view.main_window = Gtk.Window()
 
@@ -162,12 +162,12 @@ def test_show_logs_restores_main_window_focus_on_close(monkeypatch, tmp_path):
 
 
 def test_show_save_dialog_returns_none_on_cancel():
-    view = _make_view_with_chooser(
-        'save_chooser', _FakeChooser(Gtk.ResponseType.CANCEL))
+    view = _make_view_with_chooser('save_chooser', _FakeChooser(Gtk.ResponseType.CANCEL))
     assert view.show_save_dialog('Save', current_filename='/tmp/test.po') is None
 
 
 # _decode_dropped_uri(): drag-and-drop file paths (#3331)
+
 
 def _dropped(path, encoding='utf-8'):
     return ('file://' + quote(path, encoding=encoding)).encode('utf-8')
@@ -203,6 +203,7 @@ def test_decode_dropped_uri_returns_none_for_undecodable_bytes():
 
 
 # show_save_confirm_dialog(): dialog focus on macOS (#3525)
+
 
 class _FakeSaveButton:
     def grab_focus(self):
@@ -243,6 +244,7 @@ def test_show_save_confirm_dialog_shows_before_presenting_and_restores_parent_fo
     # the very first run() the dialog isn't yet, so show() has to
     # come first or the dialog opens without real OS focus.
     from gi.repository import GLib
+
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     view = MainView.__new__(MainView)
     dialog = _FakeConfirmDialog()
@@ -259,6 +261,7 @@ def test_show_save_confirm_dialog_shows_before_presenting_and_restores_parent_fo
 
 # show_prompt_dialog()/show_error_dialog()/show_info_dialog(): same
 # missing-focus bug as show_save_confirm_dialog() (#3865)
+
 
 class _FakeMessageDialog:
     def __init__(self, response=Gtk.ResponseType.YES):
@@ -289,6 +292,7 @@ class _FakeMessageDialog:
 
 def test_show_prompt_dialog_shows_before_presenting_and_restores_parent_focus(monkeypatch):
     from gi.repository import GLib
+
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     view = MainView.__new__(MainView)
     dialog = _FakeMessageDialog(response=Gtk.ResponseType.YES)
@@ -306,6 +310,7 @@ def test_show_prompt_dialog_shows_before_presenting_and_restores_parent_focus(mo
 
 def test_show_error_dialog_shows_before_presenting_and_restores_parent_focus(monkeypatch):
     from gi.repository import GLib
+
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     view = MainView.__new__(MainView)
     dialog = _FakeMessageDialog(response=Gtk.ResponseType.OK)
@@ -322,6 +327,7 @@ def test_show_error_dialog_shows_before_presenting_and_restores_parent_focus(mon
 
 def test_show_info_dialog_shows_before_presenting_and_restores_parent_focus(monkeypatch):
     from gi.repository import GLib
+
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     view = MainView.__new__(MainView)
     dialog = _FakeMessageDialog(response=Gtk.ResponseType.OK)
@@ -353,6 +359,7 @@ class _FakeInputDialog:
 
 def test_show_input_dialog_restores_parent_focus(monkeypatch):
     from gi.repository import GLib
+
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     view = MainView.__new__(MainView)
     view.input_dialog = _FakeInputDialog()
@@ -382,6 +389,7 @@ def test_entry_dialog_run_presents_before_grabbing_focus(monkeypatch):
     # to come after show_all(), matching every other dialog fixed for
     # the same macOS AX-focus bug (#3865).
     from virtaal.views.mainview import EntryDialog
+
     dialog = EntryDialog.__new__(EntryDialog)
     dialog.ent_input = _FakeEntryDialogEntry()
     calls = []
@@ -395,6 +403,7 @@ def test_entry_dialog_run_presents_before_grabbing_focus(monkeypatch):
 
 
 # quit(): window geometry persisted before Gtk.main_quit()
+
 
 class _FakeMainWindow:
     def __init__(self, size=(800, 600), position=(10, 20), gdk_window=None):
@@ -484,6 +493,7 @@ def test_quit_calls_gtk_main_quit(monkeypatch):
 # fullscreen (macOS green button, Fn+F) restoring the pre-fullscreen
 # window size on exit.
 
+
 class _FakeMenuItem:
     def __init__(self):
         self.active = None
@@ -507,8 +517,9 @@ def test_on_window_state_event_activates_the_fullscreen_menu_item():
     menuitem = _FakeMenuItem()
     view = _view_for_window_state(menuitem)
 
-    view._on_window_state_event(view.main_window, _state_event(
-        Gdk.WindowState.FULLSCREEN, Gdk.WindowState.FULLSCREEN))
+    view._on_window_state_event(
+        view.main_window, _state_event(Gdk.WindowState.FULLSCREEN, Gdk.WindowState.FULLSCREEN)
+    )
 
     assert menuitem.active
 
@@ -517,12 +528,15 @@ def test_on_window_state_event_schedules_a_restore_when_leaving_fullscreen(monke
     from gi.repository import GLib
 
     scheduled = []
-    monkeypatch.setattr(GLib, 'timeout_add', lambda delay, func, *args: scheduled.append((delay, func, args)))
+    monkeypatch.setattr(
+        GLib, 'timeout_add', lambda delay, func, *args: scheduled.append((delay, func, args))
+    )
     view = _view_for_window_state(_FakeMenuItem())
     view._pre_fullscreen_size = (640, 480)
 
-    view._on_window_state_event(view.main_window, _state_event(
-        Gdk.WindowState(0), Gdk.WindowState.FULLSCREEN))
+    view._on_window_state_event(
+        view.main_window, _state_event(Gdk.WindowState(0), Gdk.WindowState.FULLSCREEN)
+    )
 
     assert scheduled == [(250, view._restore_pre_fullscreen_size, ((640, 480),))]
     assert view._pre_fullscreen_size is None
@@ -532,12 +546,15 @@ def test_on_window_state_event_does_not_schedule_a_restore_when_entering_fullscr
     from gi.repository import GLib
 
     scheduled = []
-    monkeypatch.setattr(GLib, 'timeout_add', lambda delay, func, *args: scheduled.append((delay, func, args)))
+    monkeypatch.setattr(
+        GLib, 'timeout_add', lambda delay, func, *args: scheduled.append((delay, func, args))
+    )
     view = _view_for_window_state(_FakeMenuItem())
     view._pre_fullscreen_size = (640, 480)
 
-    view._on_window_state_event(view.main_window, _state_event(
-        Gdk.WindowState.FULLSCREEN, Gdk.WindowState.FULLSCREEN))
+    view._on_window_state_event(
+        view.main_window, _state_event(Gdk.WindowState.FULLSCREEN, Gdk.WindowState.FULLSCREEN)
+    )
 
     assert scheduled == []
 
@@ -546,11 +563,14 @@ def test_on_window_state_event_skips_restore_without_a_captured_size(monkeypatch
     from gi.repository import GLib
 
     scheduled = []
-    monkeypatch.setattr(GLib, 'timeout_add', lambda delay, func, *args: scheduled.append((delay, func, args)))
+    monkeypatch.setattr(
+        GLib, 'timeout_add', lambda delay, func, *args: scheduled.append((delay, func, args))
+    )
     view = _view_for_window_state(_FakeMenuItem())
 
-    view._on_window_state_event(view.main_window, _state_event(
-        Gdk.WindowState(0), Gdk.WindowState.FULLSCREEN))
+    view._on_window_state_event(
+        view.main_window, _state_event(Gdk.WindowState(0), Gdk.WindowState.FULLSCREEN)
+    )
 
     assert scheduled == []
 
@@ -569,6 +589,7 @@ def test_restore_pre_fullscreen_size_resizes():
 
 # _on_store_closed() / _on_store_loaded(): menu sensitivity and the
 # recent-files list.
+
 
 class _FakeSensitiveWidget:
     def __init__(self):
@@ -597,15 +618,22 @@ def test_on_store_closed_disables_menu_items_and_resets_the_title():
 
 def test_on_store_loaded_enables_binary_export_only_for_a_po_file(monkeypatch):
     from virtaal.views import recent
+
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: None))
     monkeypatch.setattr(mainview, '_note_recent_document', lambda path: None)
     binary_export = _FakeSensitiveWidget()
     view = MainView.__new__(MainView)
-    view.gui = SimpleNamespace(get_object=lambda name: binary_export if name == 'mnu_binary_export' else _FakeSensitiveWidget())
+    view.gui = SimpleNamespace(
+        get_object=lambda name: (
+            binary_export if name == 'mnu_binary_export' else _FakeSensitiveWidget()
+        )
+    )
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'document.odt', project=None,
-        store=SimpleNamespace(filename='/tmp/document.odt'))
+        get_store_filename=lambda: 'document.odt',
+        project=None,
+        store=SimpleNamespace(filename='/tmp/document.odt'),
+    )
 
     view._on_store_loaded(store_controller)
 
@@ -614,15 +642,22 @@ def test_on_store_loaded_enables_binary_export_only_for_a_po_file(monkeypatch):
 
 def test_on_store_loaded_enables_binary_export_for_a_compressed_po_file(monkeypatch):
     from virtaal.views import recent
+
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: None))
     monkeypatch.setattr(mainview, '_note_recent_document', lambda path: None)
     binary_export = _FakeSensitiveWidget()
     view = MainView.__new__(MainView)
-    view.gui = SimpleNamespace(get_object=lambda name: binary_export if name == 'mnu_binary_export' else _FakeSensitiveWidget())
+    view.gui = SimpleNamespace(
+        get_object=lambda name: (
+            binary_export if name == 'mnu_binary_export' else _FakeSensitiveWidget()
+        )
+    )
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'translations/af.po.gz', project=None,
-        store=SimpleNamespace(filename='/tmp/translations/af.po.gz'))
+        get_store_filename=lambda: 'translations/af.po.gz',
+        project=None,
+        store=SimpleNamespace(filename='/tmp/translations/af.po.gz'),
+    )
 
     view._on_store_loaded(store_controller)
 
@@ -631,6 +666,7 @@ def test_on_store_loaded_enables_binary_export_for_a_compressed_po_file(monkeypa
 
 def test_on_store_loaded_adds_the_bundle_filename_for_a_project(monkeypatch):
     from virtaal.views import recent
+
     added = []
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: added.append(uri)))
     monkeypatch.setattr(mainview, '_note_recent_document', lambda path: None)
@@ -638,8 +674,10 @@ def test_on_store_loaded_adds_the_bundle_filename_for_a_project(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'bundle.zip', project=True,
-        get_bundle_filename=lambda: '/tmp/bundle.zip')
+        get_store_filename=lambda: 'bundle.zip',
+        project=True,
+        get_bundle_filename=lambda: '/tmp/bundle.zip',
+    )
 
     view._on_store_loaded(store_controller)
 
@@ -655,6 +693,7 @@ def test_on_store_loaded_adds_the_store_filename_even_with_a_stale_uri_set(monke
     import os
 
     from virtaal.views import recent
+
     added = []
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: added.append(uri)))
     monkeypatch.setattr(mainview, '_note_recent_document', lambda path: None)
@@ -664,8 +703,10 @@ def test_on_store_loaded_adds_the_store_filename_even_with_a_stale_uri_set(monke
     view.status_bar = _FakeSensitiveWidget()
     view._uri = 'file:///tmp/stale-from-an-earlier-open.po'
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'dropped.po', project=None,
-        store=SimpleNamespace(filename='/tmp/dropped.po'))
+        get_store_filename=lambda: 'dropped.po',
+        project=None,
+        store=SimpleNamespace(filename='/tmp/dropped.po'),
+    )
 
     view._on_store_loaded(store_controller)
 
@@ -676,6 +717,7 @@ def test_on_store_loaded_adds_an_extra_leading_slash_on_windows(monkeypatch):
     import os
 
     from virtaal.views import recent
+
     added = []
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: added.append(uri)))
     monkeypatch.setattr(mainview, '_note_recent_document', lambda path: None)
@@ -684,8 +726,10 @@ def test_on_store_loaded_adds_an_extra_leading_slash_on_windows(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'opened.po', project=None,
-        store=SimpleNamespace(filename='/tmp/opened.po'))
+        get_store_filename=lambda: 'opened.po',
+        project=None,
+        store=SimpleNamespace(filename='/tmp/opened.po'),
+    )
 
     view._on_store_loaded(store_controller)
 
@@ -698,14 +742,15 @@ def test_on_store_loaded_adds_an_extra_leading_slash_on_windows(monkeypatch):
 # dialog (including one forced by a .pot template's first save, or by
 # #517's read-only-file redirect) never showed up in Recent Files.
 
+
 def test_on_store_saved_adds_the_bundle_filename_for_a_project(monkeypatch):
     from virtaal.views import recent
+
     added = []
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: added.append(uri)))
     monkeypatch.setattr(mainview, '_note_recent_document', lambda path: None)
     view = MainView.__new__(MainView)
-    store_controller = SimpleNamespace(
-        project=True, get_bundle_filename=lambda: '/tmp/bundle.zip')
+    store_controller = SimpleNamespace(project=True, get_bundle_filename=lambda: '/tmp/bundle.zip')
 
     view._on_store_saved(store_controller)
 
@@ -716,13 +761,15 @@ def test_on_store_saved_adds_the_current_store_filename(monkeypatch):
     import os
 
     from virtaal.views import recent
+
     added = []
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: added.append(uri)))
     monkeypatch.setattr(mainview, '_note_recent_document', lambda path: None)
     monkeypatch.setattr(platform, 'is_windows', False)
     view = MainView.__new__(MainView)
     store_controller = SimpleNamespace(
-        project=None, store=SimpleNamespace(filename='/tmp/save-as-target.po'))
+        project=None, store=SimpleNamespace(filename='/tmp/save-as-target.po')
+    )
 
     view._on_store_saved(store_controller)
 
@@ -733,13 +780,15 @@ def test_on_store_saved_adds_an_extra_leading_slash_on_windows(monkeypatch):
     import os
 
     from virtaal.views import recent
+
     added = []
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: added.append(uri)))
     monkeypatch.setattr(mainview, '_note_recent_document', lambda path: None)
     monkeypatch.setattr(platform, 'is_windows', True)
     view = MainView.__new__(MainView)
     store_controller = SimpleNamespace(
-        project=None, store=SimpleNamespace(filename='/tmp/save-as-target.po'))
+        project=None, store=SimpleNamespace(filename='/tmp/save-as-target.po')
+    )
 
     view._on_store_saved(store_controller)
 
@@ -750,13 +799,15 @@ def test_on_store_saved_notes_the_store_filename_on_mac(monkeypatch):
     import os
 
     from virtaal.views import recent
+
     noted = []
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: None))
     monkeypatch.setattr(platform, 'is_mac', True)
     monkeypatch.setattr(mainview, '_note_recent_document', lambda path: noted.append(path))
     view = MainView.__new__(MainView)
     store_controller = SimpleNamespace(
-        project=None, store=SimpleNamespace(filename='/tmp/save-as-target.po'))
+        project=None, store=SimpleNamespace(filename='/tmp/save-as-target.po')
+    )
 
     view._on_store_saved(store_controller)
 
@@ -768,6 +819,7 @@ def test_on_store_saved_notes_the_store_filename_on_mac(monkeypatch):
 # re-registration disconnects the previous store-loaded handler
 # rather than leaking it.
 
+
 def test_on_controller_registered_ignores_a_different_controller():
     view = MainView.__new__(MainView)
     main_controller = SimpleNamespace(store_controller=object())
@@ -777,7 +829,9 @@ def test_on_controller_registered_ignores_a_different_controller():
 
 def test_on_controller_registered_connects_store_signals():
     connected = []
-    store_controller = SimpleNamespace(connect=lambda signal, handler: connected.append(signal) or signal)
+    store_controller = SimpleNamespace(
+        connect=lambda signal, handler: connected.append(signal) or signal
+    )
     main_controller = SimpleNamespace(store_controller=store_controller)
     view = MainView.__new__(MainView)
 
@@ -792,7 +846,8 @@ def test_on_controller_registered_disconnects_the_previous_store_loaded_handler(
     disconnected = []
     store_controller = SimpleNamespace(
         connect=lambda signal, handler: signal,
-        disconnect=lambda handler_id: disconnected.append(handler_id))
+        disconnect=lambda handler_id: disconnected.append(handler_id),
+    )
     main_controller = SimpleNamespace(store_controller=store_controller)
     view = MainView.__new__(MainView)
     view._store_loaded_handler_id = 'old-handler-id'
@@ -806,6 +861,7 @@ def test_on_controller_registered_disconnects_the_previous_store_loaded_handler(
 # label's leading "_" before get_text() ever sees it, so a caller
 # searching by its own "_"-prefixed label relies on the fallback that
 # strips the underscore from the search term instead.
+
 
 def _menu_structure(*labels):
     menubar = Gtk.MenuBar()
@@ -878,6 +934,7 @@ def test_find_menu_item_returns_none_for_no_match():
 
 # set_saveable(): the modified-marker/title guard.
 
+
 def test_set_saveable_skips_redundant_updates_while_already_modified():
     # Repeating this work while already marked modified would flash
     # the window title unnecessarily.
@@ -898,7 +955,8 @@ def test_set_saveable_marks_the_title_modified(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
     view.controller = SimpleNamespace(get_store_filename=lambda: '/tmp/document.po')
     view.main_window = SimpleNamespace(
-        set_title=lambda title: setattr(view, '_title', title), get_window=lambda: None)
+        set_title=lambda title: setattr(view, '_title', title), get_window=lambda: None
+    )
 
     view.set_saveable(True)
 
@@ -916,7 +974,8 @@ def test_set_saveable_clears_the_modified_marker(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
     view.controller = SimpleNamespace(get_store_filename=lambda: '/tmp/document.po')
     view.main_window = SimpleNamespace(
-        set_title=lambda title: setattr(view, '_title', title), get_window=lambda: None)
+        set_title=lambda title: setattr(view, '_title', title), get_window=lambda: None
+    )
 
     view.set_saveable(False)
 
@@ -933,7 +992,8 @@ def test_set_saveable_omits_the_app_name_when_the_platform_says_so(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
     view.controller = SimpleNamespace(get_store_filename=lambda: '/tmp/document.po')
     view.main_window = SimpleNamespace(
-        set_title=lambda title: setattr(view, '_title', title), get_window=lambda: None)
+        set_title=lambda title: setattr(view, '_title', title), get_window=lambda: None
+    )
 
     view.set_saveable(True)
 
@@ -947,7 +1007,8 @@ def test_set_saveable_skips_the_title_without_a_filename():
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
     view.controller = SimpleNamespace(get_store_filename=lambda: None)
     view.main_window = SimpleNamespace(
-        set_title=lambda title: pytest.fail('no filename to show'), get_window=lambda: None)
+        set_title=lambda title: pytest.fail('no filename to show'), get_window=lambda: None
+    )
 
     view.set_saveable(True)  # must not raise
 
@@ -961,7 +1022,8 @@ def test_set_saveable_skips_the_title_star_when_the_native_marker_works(monkeypa
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
     view.controller = SimpleNamespace(get_store_filename=lambda: '/tmp/document.po')
     view.main_window = SimpleNamespace(
-        set_title=lambda title: setattr(view, '_title', title), get_window=lambda: object())
+        set_title=lambda title: setattr(view, '_title', title), get_window=lambda: object()
+    )
 
     view.set_saveable(True)
 
@@ -973,6 +1035,7 @@ def test_set_saveable_falls_back_to_the_title_star_when_the_native_marker_fails(
 
     def _raise(gdk_window, edited):
         raise OSError('no such symbol')
+
     monkeypatch.setattr(mainview, '_set_document_edited', _raise)
     widgets = {'mnu_save': _FakeSensitiveWidget(), 'mnu_revert': _FakeSensitiveWidget()}
     view = MainView.__new__(MainView)
@@ -980,7 +1043,8 @@ def test_set_saveable_falls_back_to_the_title_star_when_the_native_marker_fails(
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
     view.controller = SimpleNamespace(get_store_filename=lambda: '/tmp/document.po')
     view.main_window = SimpleNamespace(
-        set_title=lambda title: setattr(view, '_title', title), get_window=lambda: object())
+        set_title=lambda title: setattr(view, '_title', title), get_window=lambda: object()
+    )
 
     view.set_saveable(True)
 
@@ -989,21 +1053,27 @@ def test_set_saveable_falls_back_to_the_title_star_when_the_native_marker_fails(
 
 # _update_document_edited(): the native macOS unsaved-changes marker #
 
+
 def test_update_document_edited_noop_off_mac(monkeypatch):
     monkeypatch.setattr(platform, 'is_mac', False)
-    monkeypatch.setattr(mainview, '_set_document_edited',
-        lambda gdk_window, edited: pytest.fail('should not touch the native window off mac'))
+    monkeypatch.setattr(
+        mainview,
+        '_set_document_edited',
+        lambda gdk_window, edited: pytest.fail('should not touch the native window off mac'),
+    )
     view = MainView.__new__(MainView)
-    view.main_window = SimpleNamespace(
-        get_window=lambda: pytest.fail('should not be read off mac'))
+    view.main_window = SimpleNamespace(get_window=lambda: pytest.fail('should not be read off mac'))
 
     view._update_document_edited(True)  # must not raise
 
 
 def test_update_document_edited_noop_without_a_realized_window(monkeypatch):
     monkeypatch.setattr(platform, 'is_mac', True)
-    monkeypatch.setattr(mainview, '_set_document_edited',
-        lambda gdk_window, edited: pytest.fail('should not touch a nonexistent window'))
+    monkeypatch.setattr(
+        mainview,
+        '_set_document_edited',
+        lambda gdk_window, edited: pytest.fail('should not touch a nonexistent window'),
+    )
     view = MainView.__new__(MainView)
     view.main_window = SimpleNamespace(get_window=lambda: None)
 
@@ -1014,8 +1084,9 @@ def test_update_document_edited_calls_the_native_setter(monkeypatch):
     monkeypatch.setattr(platform, 'is_mac', True)
     gdk_window = object()
     calls = []
-    monkeypatch.setattr(mainview, '_set_document_edited',
-        lambda window, edited: calls.append((window, edited)))
+    monkeypatch.setattr(
+        mainview, '_set_document_edited', lambda window, edited: calls.append((window, edited))
+    )
     view = MainView.__new__(MainView)
     view.main_window = SimpleNamespace(get_window=lambda: gdk_window)
 
@@ -1031,6 +1102,7 @@ def test_update_document_edited_swallows_native_setter_errors(monkeypatch):
 
     def _raise(gdk_window, edited):
         raise OSError('no such symbol')
+
     monkeypatch.setattr(mainview, '_set_document_edited', _raise)
     view = MainView.__new__(MainView)
     view.main_window = SimpleNamespace(get_window=lambda: object())
@@ -1041,6 +1113,7 @@ def test_update_document_edited_swallows_native_setter_errors(monkeypatch):
 # _apply_appearance() / _poll_appearance() / _start_appearance_polling():
 # shared live dark/light tracking, polled rather than pushed, driven by
 # a per-platform detect_is_dark callable.
+
 
 class _FakeGtkSettings:
     def __init__(self, prefer_dark=False):
@@ -1104,12 +1177,17 @@ def test_poll_appearance_keeps_polling():
 
 def test_start_appearance_polling_applies_immediately_and_schedules_polling(monkeypatch):
     from gi.repository import GLib
+
     applied = []
     dummy = SimpleNamespace(
-        _apply_appearance=lambda detect: applied.append(detect),
-        _poll_appearance=object())
+        _apply_appearance=lambda detect: applied.append(detect), _poll_appearance=object()
+    )
     scheduled = []
-    monkeypatch.setattr(GLib, 'timeout_add_seconds', lambda seconds, func, *args: scheduled.append((seconds, func, args)))
+    monkeypatch.setattr(
+        GLib,
+        'timeout_add_seconds',
+        lambda seconds, func, *args: scheduled.append((seconds, func, args)),
+    )
     detect_is_dark = lambda: True
 
     MainView._start_appearance_polling(dummy, detect_is_dark)
@@ -1120,9 +1198,11 @@ def test_start_appearance_polling_applies_immediately_and_schedules_polling(monk
 
 # _detect_macos_is_dark() #
 
+
 def test_detect_macos_is_dark_true(monkeypatch):
-    monkeypatch.setattr(mainview.subprocess, 'run',
-        lambda *a, **k: SimpleNamespace(stdout=b"Dark\n"))
+    monkeypatch.setattr(
+        mainview.subprocess, 'run', lambda *a, **k: SimpleNamespace(stdout=b"Dark\n")
+    )
 
     assert MainView._detect_macos_is_dark(None) is True
 
@@ -1131,8 +1211,7 @@ def test_detect_macos_is_dark_false_when_key_absent(monkeypatch):
     # macOS only sets AppleInterfaceStyle at all when Dark is active -
     # `defaults read` prints nothing to stdout (its error goes to
     # stderr) when the key doesn't exist, i.e. Light/Auto.
-    monkeypatch.setattr(mainview.subprocess, 'run',
-        lambda *a, **k: SimpleNamespace(stdout=b""))
+    monkeypatch.setattr(mainview.subprocess, 'run', lambda *a, **k: SimpleNamespace(stdout=b""))
 
     assert MainView._detect_macos_is_dark(None) is False
 
@@ -1140,12 +1219,14 @@ def test_detect_macos_is_dark_false_when_key_absent(monkeypatch):
 def test_detect_macos_is_dark_returns_none_on_subprocess_error(monkeypatch):
     def _raise(*a, **k):
         raise OSError('no such command')
+
     monkeypatch.setattr(mainview.subprocess, 'run', _raise)
 
     assert MainView._detect_macos_is_dark(None) is None
 
 
 # _detect_windows_is_dark() #
+
 
 def _fake_winreg(monkeypatch, apps_use_light_theme):
     fake_key = object()
@@ -1174,6 +1255,7 @@ def test_detect_windows_is_dark_false(monkeypatch):
 def test_detect_windows_is_dark_returns_none_on_missing_registry_key(monkeypatch):
     def _raise(hive, path):
         raise OSError('registry key not found')
+
     fake_module = SimpleNamespace(HKEY_CURRENT_USER=object(), OpenKey=_raise)
     monkeypatch.setitem(sys.modules, 'winreg', fake_module)
 
@@ -1182,13 +1264,16 @@ def test_detect_windows_is_dark_returns_none_on_missing_registry_key(monkeypatch
 
 # _setup_key_bindings() #
 
+
 def _real_view_for_key_bindings():
     """A minimal but real-widget-backed self for _setup_key_bindings() -
     real Gtk.Builder objects support get_children()/remove()/insert()/
     set_accel_group()/set_accel_path() out of the box, unlike a fake."""
     builder = Gtk.Builder()
     builder.add_from_file('share/virtaal/virtaal.ui')
-    return SimpleNamespace(gui=builder, main_window=builder.get_object('MainWindow'), sync_menubar=lambda: None)
+    return SimpleNamespace(
+        gui=builder, main_window=builder.get_object('MainWindow'), sync_menubar=lambda: None
+    )
 
 
 def test_setup_key_bindings_registers_preferences_with_ctrl_p_off_mac(monkeypatch):
@@ -1199,7 +1284,9 @@ def test_setup_key_bindings_registers_preferences_with_ctrl_p_off_mac(monkeypatc
     # each other regardless of run order.
     monkeypatch.setattr(platform, 'is_mac', False)
     calls = []
-    monkeypatch.setattr(Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods)))
+    monkeypatch.setattr(
+        Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods))
+    )
     view = _real_view_for_key_bindings()
 
     MainView._setup_key_bindings(view)
@@ -1213,7 +1300,9 @@ def test_setup_key_bindings_leaves_preferences_alone_on_mac(monkeypatch):
     # also register Preferences itself when is_mac.
     monkeypatch.setattr(platform, 'is_mac', True)
     calls = []
-    monkeypatch.setattr(Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods)))
+    monkeypatch.setattr(
+        Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods))
+    )
     view = _real_view_for_key_bindings()
 
     MainView._setup_key_bindings(view)
@@ -1227,7 +1316,9 @@ def test_setup_key_bindings_registers_close(monkeypatch, is_mac):
     # instead of File > Close.
     monkeypatch.setattr(platform, 'is_mac', is_mac)
     calls = []
-    monkeypatch.setattr(Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods)))
+    monkeypatch.setattr(
+        Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods))
+    )
     view = _real_view_for_key_bindings()
 
     MainView._setup_key_bindings(view)
@@ -1235,14 +1326,22 @@ def test_setup_key_bindings_registers_close(monkeypatch, is_mac):
     assert ("<Virtaal>/File/Close", Gdk.KEY_w, Gdk.ModifierType.CONTROL_MASK) in calls
 
 
-@pytest.mark.parametrize('is_mac, mods', [
-    (True, Gdk.ModifierType.META_MASK | Gdk.ModifierType.MOD2_MASK | Gdk.ModifierType.SHIFT_MASK),
-    (False, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK),
-])
+@pytest.mark.parametrize(
+    'is_mac, mods',
+    [
+        (
+            True,
+            Gdk.ModifierType.META_MASK | Gdk.ModifierType.MOD2_MASK | Gdk.ModifierType.SHIFT_MASK,
+        ),
+        (False, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK),
+    ],
+)
 def test_setup_key_bindings_registers_save_as(monkeypatch, is_mac, mods):
     monkeypatch.setattr(platform, 'is_mac', is_mac)
     calls = []
-    monkeypatch.setattr(Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods)))
+    monkeypatch.setattr(
+        Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods))
+    )
     view = _real_view_for_key_bindings()
 
     MainView._setup_key_bindings(view)
@@ -1250,14 +1349,19 @@ def test_setup_key_bindings_registers_save_as(monkeypatch, is_mac, mods):
     assert ("<Virtaal>/File/Save As", Gdk.KEY_s, mods) in calls
 
 
-@pytest.mark.parametrize('is_mac, key, mods', [
-    (True, Gdk.KEY_slash, Gdk.ModifierType.META_MASK | Gdk.ModifierType.MOD2_MASK),
-    (False, Gdk.KEY_question, Gdk.ModifierType.CONTROL_MASK),
-])
+@pytest.mark.parametrize(
+    'is_mac, key, mods',
+    [
+        (True, Gdk.KEY_slash, Gdk.ModifierType.META_MASK | Gdk.ModifierType.MOD2_MASK),
+        (False, Gdk.KEY_question, Gdk.ModifierType.CONTROL_MASK),
+    ],
+)
 def test_setup_key_bindings_registers_keyboard_shortcuts(monkeypatch, is_mac, key, mods):
     monkeypatch.setattr(platform, 'is_mac', is_mac)
     calls = []
-    monkeypatch.setattr(Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods)))
+    monkeypatch.setattr(
+        Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods))
+    )
     view = _real_view_for_key_bindings()
 
     MainView._setup_key_bindings(view)
@@ -1308,12 +1412,16 @@ def test_set_native_help_menu_designates_the_help_items_submenu(monkeypatch):
     assert ('nsapp', 'setHelpMenu:', 'help menu') in calls
 
 
-@pytest.mark.parametrize('missing', [
-    ('nsapp', 'mainMenu'),
-    ('menubar', 'respondsToSelector:'),
-    ('menubar', 'helpMenu'),
-    ('help item', 'submenu'),
-], ids=['no menubar', 'not gtk-mac-integration', 'no help item', 'no submenu'])
+@pytest.mark.parametrize(
+    'missing',
+    [
+        ('nsapp', 'mainMenu'),
+        ('menubar', 'respondsToSelector:'),
+        ('menubar', 'helpMenu'),
+        ('help item', 'submenu'),
+    ],
+    ids=['no menubar', 'not gtk-mac-integration', 'no help item', 'no submenu'],
+)
 def test_set_native_help_menu_leaves_appkit_alone_without_a_help_menu(monkeypatch, missing):
     calls = _fake_objc(monkeypatch, {k: v for k, v in _GTKOSX_MENUBAR.items() if k != missing})
 
@@ -1323,11 +1431,14 @@ def test_set_native_help_menu_leaves_appkit_alone_without_a_help_menu(monkeypatc
 
 
 def test_note_recent_document_hands_appkit_a_file_url(monkeypatch):
-    calls = _fake_objc(monkeypatch, {
-        ('NSString', 'stringWithUTF8String:'): 'nsstring',
-        ('NSURL', 'fileURLWithPath:'): 'url',
-        ('NSDocumentController', 'sharedDocumentController'): 'controller',
-    })
+    calls = _fake_objc(
+        monkeypatch,
+        {
+            ('NSString', 'stringWithUTF8String:'): 'nsstring',
+            ('NSURL', 'fileURLWithPath:'): 'url',
+            ('NSDocumentController', 'sharedDocumentController'): 'controller',
+        },
+    )
 
     mainview._note_recent_document('/tmp/af.po')
 
@@ -1337,8 +1448,12 @@ def test_note_recent_document_hands_appkit_a_file_url(monkeypatch):
 
 @pytest.mark.skipif(not platform.is_mac, reason="the Objective-C runtime is macOS-only")
 def test_objc_send_round_trips_through_the_real_runtime():
-    nsstring = mainview._objc_send(mainview._objc_class("NSString"), "stringWithUTF8String:",
-                                   b"Hulp", argtypes=[ctypes.c_char_p])
+    nsstring = mainview._objc_send(
+        mainview._objc_class("NSString"),
+        "stringWithUTF8String:",
+        b"Hulp",
+        argtypes=[ctypes.c_char_p],
+    )
 
     assert ctypes.string_at(mainview._objc_send(nsstring, "UTF8String")) == b"Hulp"
 
@@ -1380,11 +1495,18 @@ def test_set_native_help_menu_reaches_appkit_whatever_the_menus_title():
     except ValueError:
         pytest.skip('gtk-mac-integration not installed')
     import subprocess
+
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     env = dict(os.environ, PYTHONPATH=repo_root)
 
-    result = subprocess.run([sys.executable, '-c', _FRESH_PROCESS_HELP_MENU],
-                            env=env, capture_output=True, text=True, check=True, timeout=60)
+    result = subprocess.run(
+        [sys.executable, '-c', _FRESH_PROCESS_HELP_MENU],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
 
     # gtk-mac-integration alone never designates it.
     assert result.stdout.split() == ['None', 'Aide']
@@ -1392,6 +1514,7 @@ def test_set_native_help_menu_reaches_appkit_whatever_the_menus_title():
 
 # show_template_update_notice(): dismissable "Update from Template" stats
 # notice, replacing a blocking modal dialog (#3808).
+
 
 class _FakeVboxMain:
     def __init__(self):
@@ -1471,6 +1594,7 @@ def test_show_template_update_notice_dismiss_clears_the_tracked_infobar():
 # show_same_lang_notice() / hide_same_lang_notice() - warn that source and
 # target language are the same (#1346), replacing the old red button text.
 
+
 def _view_for_same_lang_notice():
     vbox = _FakeVboxMain()
     view = MainView.__new__(MainView)
@@ -1543,6 +1667,7 @@ def test_hide_same_lang_notice_does_nothing_when_none_shown():
 # show_read_only_notice() / hide_read_only_notice() - warn that the opened
 # file can't be saved in place (#517).
 
+
 def _view_for_read_only_notice():
     vbox = _FakeVboxMain()
     view = MainView.__new__(MainView)
@@ -1614,6 +1739,7 @@ def test_hide_read_only_notice_does_nothing_when_none_shown():
 
 # show_update_notice() - #3616's platform-specific download button
 
+
 def _real_view_for_update_notice():
     builder = Gtk.Builder()
     builder.add_from_file('share/virtaal/virtaal.ui')
@@ -1629,11 +1755,14 @@ def _emit_response(view, response_id):
 
 def test_show_update_notice_without_asset_url_downloads_the_release_page(monkeypatch):
     from virtaal.support import openmailto
+
     opened = []
     monkeypatch.setattr(openmailto, 'open', lambda url: opened.append(url))
     view = _real_view_for_update_notice()
 
-    MainView.show_update_notice(view, 'v1.0.0', 'https://github.com/translate/virtaal/releases/tag/v1.0.0')
+    MainView.show_update_notice(
+        view, 'v1.0.0', 'https://github.com/translate/virtaal/releases/tag/v1.0.0'
+    )
 
     _emit_response(view, Gtk.ResponseType.OK)
     assert opened == ['https://github.com/translate/virtaal/releases/tag/v1.0.0']
@@ -1641,27 +1770,37 @@ def test_show_update_notice_without_asset_url_downloads_the_release_page(monkeyp
 
 def test_show_update_notice_with_asset_url_download_button_opens_the_asset(monkeypatch):
     from virtaal.support import openmailto
+
     opened = []
     monkeypatch.setattr(openmailto, 'open', lambda url: opened.append(url))
     view = _real_view_for_update_notice()
 
     MainView.show_update_notice(
-        view, 'v1.0.0', 'https://github.com/translate/virtaal/releases/tag/v1.0.0',
-        asset_url='https://github.com/translate/virtaal/releases/download/v1.0.0/virtaal-1.0.0-setup.exe')
+        view,
+        'v1.0.0',
+        'https://github.com/translate/virtaal/releases/tag/v1.0.0',
+        asset_url='https://github.com/translate/virtaal/releases/download/v1.0.0/virtaal-1.0.0-setup.exe',
+    )
 
     _emit_response(view, Gtk.ResponseType.OK)
-    assert opened == ['https://github.com/translate/virtaal/releases/download/v1.0.0/virtaal-1.0.0-setup.exe']
+    assert opened == [
+        'https://github.com/translate/virtaal/releases/download/v1.0.0/virtaal-1.0.0-setup.exe'
+    ]
 
 
 def test_show_update_notice_with_asset_url_release_notes_button_opens_the_release_page(monkeypatch):
     from virtaal.support import openmailto
+
     opened = []
     monkeypatch.setattr(openmailto, 'open', lambda url: opened.append(url))
     view = _real_view_for_update_notice()
 
     MainView.show_update_notice(
-        view, 'v1.0.0', 'https://github.com/translate/virtaal/releases/tag/v1.0.0',
-        asset_url='https://github.com/translate/virtaal/releases/download/v1.0.0/virtaal-1.0.0-setup.exe')
+        view,
+        'v1.0.0',
+        'https://github.com/translate/virtaal/releases/tag/v1.0.0',
+        asset_url='https://github.com/translate/virtaal/releases/download/v1.0.0/virtaal-1.0.0-setup.exe',
+    )
 
     _emit_response(view, Gtk.ResponseType.HELP)
     assert opened == ['https://github.com/translate/virtaal/releases/tag/v1.0.0']
@@ -1669,13 +1808,18 @@ def test_show_update_notice_with_asset_url_release_notes_button_opens_the_releas
 
 def test_show_update_notice_names_both_versions_without_a_v(monkeypatch):
     from virtaal import __version__
+
     monkeypatch.setattr(__version__, 'ver', '1.0.0-rc1')
     view = _real_view_for_update_notice()
 
-    MainView.show_update_notice(view, 'v1.0.0-rc2', 'https://github.com/translate/virtaal/releases/tag/v1.0.0-rc2')
+    MainView.show_update_notice(
+        view, 'v1.0.0-rc2', 'https://github.com/translate/virtaal/releases/tag/v1.0.0-rc2'
+    )
 
     (infobar,) = _update_bars(view)
-    labels = [w.get_text() for w in infobar.get_content_area().get_children() if isinstance(w, Gtk.Label)]
+    labels = [
+        w.get_text() for w in infobar.get_content_area().get_children() if isinstance(w, Gtk.Label)
+    ]
     infobar.destroy()
     assert labels == ['Virtaal 1.0.0-rc2 is available (you have 1.0.0-rc1)']
 
@@ -1685,18 +1829,26 @@ def _update_bars(view):
     return [c for c in vbox_main.get_children() if isinstance(c, Gtk.InfoBar)]
 
 
-@pytest.mark.parametrize('response_id, stays', [
-    (Gtk.ResponseType.HELP, True),
-    (Gtk.ResponseType.OK, False),
-    (Gtk.ResponseType.CLOSE, False),
-], ids=['release-notes', 'download', 'close'])
+@pytest.mark.parametrize(
+    'response_id, stays',
+    [
+        (Gtk.ResponseType.HELP, True),
+        (Gtk.ResponseType.OK, False),
+        (Gtk.ResponseType.CLOSE, False),
+    ],
+    ids=['release-notes', 'download', 'close'],
+)
 def test_show_update_notice_closes_only_on_download_or_close(monkeypatch, response_id, stays):
     from virtaal.support import openmailto
+
     monkeypatch.setattr(openmailto, 'open', lambda url: None)
     view = _real_view_for_update_notice()
     MainView.show_update_notice(
-        view, 'v1.0.0', 'https://github.com/translate/virtaal/releases/tag/v1.0.0',
-        asset_url='https://github.com/translate/virtaal/releases/download/v1.0.0/virtaal-1.0.0-setup.exe')
+        view,
+        'v1.0.0',
+        'https://github.com/translate/virtaal/releases/tag/v1.0.0',
+        asset_url='https://github.com/translate/virtaal/releases/download/v1.0.0/virtaal-1.0.0-setup.exe',
+    )
     (infobar,) = _update_bars(view)
 
     infobar.emit('response', response_id)
@@ -1707,6 +1859,7 @@ def test_show_update_notice_closes_only_on_download_or_close(monkeypatch, respon
 
 
 # _open_recent_item() / _on_recent_file_activated() #
+
 
 class _FakeRecentInfo:
     def __init__(self, uri, exists=True):
@@ -1725,7 +1878,9 @@ class _FakeRecentInfo:
 
 def test_open_recent_item_opens_an_existing_file():
     opened = []
-    view = SimpleNamespace(controller=SimpleNamespace(open_file=lambda display, uri: opened.append((display, uri))))
+    view = SimpleNamespace(
+        controller=SimpleNamespace(open_file=lambda display, uri: opened.append((display, uri)))
+    )
 
     MainView._open_recent_item(view, _FakeRecentInfo('file:///tmp/document.po'))
 
@@ -1734,10 +1889,17 @@ def test_open_recent_item_opens_an_existing_file():
 
 
 def test_open_recent_item_skips_a_missing_file():
-    view = SimpleNamespace(controller=SimpleNamespace(
-        open_file=lambda display, uri: pytest.fail('should not open a file that no longer exists')))
+    view = SimpleNamespace(
+        controller=SimpleNamespace(
+            open_file=lambda display, uri: pytest.fail(
+                'should not open a file that no longer exists'
+            )
+        )
+    )
 
-    MainView._open_recent_item(view, _FakeRecentInfo('file:///tmp/gone.po', exists=False))  # must not raise
+    MainView._open_recent_item(
+        view, _FakeRecentInfo('file:///tmp/gone.po', exists=False)
+    )  # must not raise
 
 
 def test_on_recent_file_activated_delegates_to_open_recent_item():
@@ -1752,8 +1914,10 @@ def test_on_recent_file_activated_delegates_to_open_recent_item():
 
 # _on_store_loaded()'s macOS hook: _note_recent_document() #
 
+
 def test_on_store_loaded_notes_the_bundle_filename_on_mac(monkeypatch):
     from virtaal.views import recent
+
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: None))
     monkeypatch.setattr(platform, 'is_mac', True)
     noted = []
@@ -1762,8 +1926,10 @@ def test_on_store_loaded_notes_the_bundle_filename_on_mac(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'bundle.zip', project=True,
-        get_bundle_filename=lambda: '/tmp/bundle.zip')
+        get_store_filename=lambda: 'bundle.zip',
+        project=True,
+        get_bundle_filename=lambda: '/tmp/bundle.zip',
+    )
 
     view._on_store_loaded(store_controller)
 
@@ -1779,6 +1945,7 @@ def test_on_store_loaded_notes_the_store_filename_even_with_a_dropped_uri_set(mo
     import os
 
     from virtaal.views import recent
+
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: None))
     monkeypatch.setattr(platform, 'is_mac', True)
     noted = []
@@ -1788,8 +1955,10 @@ def test_on_store_loaded_notes_the_store_filename_even_with_a_dropped_uri_set(mo
     view.status_bar = _FakeSensitiveWidget()
     view._uri = 'file:///tmp/stale-from-an-earlier-open.po'
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'dropped.po', project=None,
-        store=SimpleNamespace(filename='/tmp/dropped.po'))
+        get_store_filename=lambda: 'dropped.po',
+        project=None,
+        store=SimpleNamespace(filename='/tmp/dropped.po'),
+    )
 
     view._on_store_loaded(store_controller)
 
@@ -1800,6 +1969,7 @@ def test_on_store_loaded_notes_the_plain_filename_on_mac(monkeypatch):
     import os
 
     from virtaal.views import recent
+
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: None))
     monkeypatch.setattr(platform, 'is_mac', True)
     noted = []
@@ -1808,8 +1978,10 @@ def test_on_store_loaded_notes_the_plain_filename_on_mac(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'opened.po', project=None,
-        store=SimpleNamespace(filename='/tmp/opened.po'))
+        get_store_filename=lambda: 'opened.po',
+        project=None,
+        store=SimpleNamespace(filename='/tmp/opened.po'),
+    )
 
     view._on_store_loaded(store_controller)
 
@@ -1818,20 +1990,26 @@ def test_on_store_loaded_notes_the_plain_filename_on_mac(monkeypatch):
 
 def test_on_store_loaded_skips_noting_a_document_off_mac(monkeypatch):
     from virtaal.views import recent
+
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: None))
     monkeypatch.setattr(platform, 'is_mac', False)
-    monkeypatch.setattr(mainview, '_note_recent_document', lambda path: pytest.fail('mac-only call'))
+    monkeypatch.setattr(
+        mainview, '_note_recent_document', lambda path: pytest.fail('mac-only call')
+    )
     view = MainView.__new__(MainView)
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'opened.po', project=None,
-        store=SimpleNamespace(filename='/tmp/opened.po'))
+        get_store_filename=lambda: 'opened.po',
+        project=None,
+        store=SimpleNamespace(filename='/tmp/opened.po'),
+    )
 
     view._on_store_loaded(store_controller)  # must not raise
 
 
 # fill_dialog() #
+
 
 class _FakeDialogForFill:
     def __init__(self):
@@ -1871,6 +2049,7 @@ def test_fill_dialog_escapes_a_plain_messages_angle_brackets():
 
 # open_chooser / save_chooser - real native file-chooser construction #
 
+
 def test_open_chooser_builds_a_real_native_file_chooser():
     view = MainView.__new__(MainView)
     view.main_window = Gtk.Window()
@@ -1892,6 +2071,7 @@ def test_save_chooser_builds_a_real_native_file_chooser():
 
 # show_open_dialog()/show_save_dialog()'s remaining branches #
 
+
 def test_show_open_dialog_sets_a_custom_title_when_given():
     chooser = _FakeChooser(Gtk.ResponseType.CANCEL)
     view = _make_view_with_chooser('open_chooser', chooser)
@@ -1903,13 +2083,16 @@ def test_show_open_dialog_sets_a_custom_title_when_given():
 
 def test_show_save_dialog_falls_back_to_the_open_stores_filename():
     view = _make_view_with_chooser('save_chooser', _FakeChooser(Gtk.ResponseType.CANCEL))
-    view.controller = SimpleNamespace(get_store=lambda: SimpleNamespace(get_filename=lambda: '/tmp/fallback.po'))
+    view.controller = SimpleNamespace(
+        get_store=lambda: SimpleNamespace(get_filename=lambda: '/tmp/fallback.po')
+    )
 
     assert view.show_save_dialog('Save') is None
 
 
 # show_save_confirm_dialog()'s discard/cancel branches (the 'save'
 # branch is already covered above, #3525) #
+
 
 class _FakeConfirmDialogWithResponse(_FakeConfirmDialog):
     def __init__(self, response):
@@ -1922,6 +2105,7 @@ class _FakeConfirmDialogWithResponse(_FakeConfirmDialog):
 
 def test_show_save_confirm_dialog_returns_discard_on_the_discard_response(monkeypatch):
     from gi.repository import GLib
+
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     view = MainView.__new__(MainView)
     view.confirm_dialog = _FakeConfirmDialogWithResponse(Gtk.ResponseType.NO)
@@ -1932,6 +2116,7 @@ def test_show_save_confirm_dialog_returns_discard_on_the_discard_response(monkey
 
 def test_show_save_confirm_dialog_returns_cancel_on_any_other_response(monkeypatch):
     from gi.repository import GLib
+
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     view = MainView.__new__(MainView)
     view.confirm_dialog = _FakeConfirmDialogWithResponse(Gtk.ResponseType.CANCEL)
@@ -1942,12 +2127,16 @@ def test_show_save_confirm_dialog_returns_cancel_on_any_other_response(monkeypat
 
 # ask_plural_info() #
 
+
 def test_ask_plural_info_returns_the_languages_own_plural_info_when_defined(monkeypatch):
     from translate.lang import factory as langfactory
+
     lang = SimpleNamespace(nplurals=2, pluralequation='(n != 1)')
     monkeypatch.setattr(langfactory, 'getlanguage', lambda code: lang)
     view = MainView.__new__(MainView)
-    view.controller = SimpleNamespace(lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='af')))
+    view.controller = SimpleNamespace(
+        lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='af'))
+    )
 
     assert view.ask_plural_info() == (2, '(n != 1)')
 
@@ -1956,10 +2145,13 @@ def test_ask_plural_info_prompts_for_an_equation_when_the_default_is_a_placehold
     # nplurals > 1 with the "0" placeholder equation means the language
     # database doesn't actually know this language's real rule.
     from translate.lang import factory as langfactory
+
     lang = SimpleNamespace(nplurals=3, pluralequation='0')
     monkeypatch.setattr(langfactory, 'getlanguage', lambda code: lang)
     view = MainView.__new__(MainView)
-    view.controller = SimpleNamespace(lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='ar')))
+    view.controller = SimpleNamespace(
+        lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='ar'))
+    )
     view.show_input_dialog = lambda message: 'n % 100 == 1 ? 0 : 1'
 
     assert view.ask_plural_info() == (3, 'n % 100 == 1 ? 0 : 1')
@@ -1967,10 +2159,13 @@ def test_ask_plural_info_prompts_for_an_equation_when_the_default_is_a_placehold
 
 def test_ask_plural_info_prompts_for_a_plural_count_when_the_language_has_none(monkeypatch):
     from translate.lang import factory as langfactory
+
     lang = SimpleNamespace(nplurals=0, pluralequation='0')
     monkeypatch.setattr(langfactory, 'getlanguage', lambda code: lang)
     view = MainView.__new__(MainView)
-    view.controller = SimpleNamespace(lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='xx')))
+    view.controller = SimpleNamespace(
+        lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='xx'))
+    )
     prompts = iter(['not a number', '1'])
     view.show_input_dialog = lambda message: next(prompts)
 
@@ -1978,6 +2173,7 @@ def test_ask_plural_info_prompts_for_a_plural_count_when_the_language_has_none(m
 
 
 # append_menu_item() #
+
 
 def _menu_with_item(label):
     menu = Gtk.Menu()
@@ -2039,10 +2235,14 @@ def test_append_menu_item_resolves_a_string_after_label():
 # _setup_windows_integration() / _setup_recent_files() - both only
 # ever run for real via a GLib scheduling call this suite never pumps #
 
+
 def test_setup_windows_integration_polls_the_windows_dark_mode_detector(monkeypatch):
     from gi.repository import GLib
+
     scheduled = []
-    monkeypatch.setattr(GLib, 'timeout_add_seconds', lambda seconds, cb, *a: scheduled.append((seconds, cb, a)))
+    monkeypatch.setattr(
+        GLib, 'timeout_add_seconds', lambda seconds, cb, *a: scheduled.append((seconds, cb, a))
+    )
     view = MainView.__new__(MainView)
     applied = []
     view._apply_appearance = applied.append
@@ -2055,6 +2255,7 @@ def test_setup_windows_integration_polls_the_windows_dark_mode_detector(monkeypa
 
 def test_setup_recent_files_wires_the_recent_chooser_into_its_menu(monkeypatch):
     from virtaal.views import recent
+
     fake_rc = SimpleNamespace(connect=lambda signal, handler: None)
     monkeypatch.setattr(recent, 'rc', fake_rc)
     view = MainView.__new__(MainView)
@@ -2071,8 +2272,10 @@ def test_setup_recent_files_wires_the_recent_chooser_into_its_menu(monkeypatch):
 # signal; deferred via idle_add since GTK's own run-loop can't be
 # touched from inside this handler (gdk/quartz/gdkeventloop-quartz.c) #
 
+
 def test_on_osx_openfile_event_defers_opening_via_idle_add(monkeypatch):
     from gi.repository import GLib
+
     scheduled = []
     monkeypatch.setattr(GLib, 'idle_add', scheduled.append)
     opened = []
@@ -2089,6 +2292,7 @@ def test_on_osx_openfile_event_defers_opening_via_idle_add(monkeypatch):
 
 # _on_drag_data_received() - dropping a file onto the main window #
 
+
 def test_on_drag_data_received_opens_a_decoded_file_uri(monkeypatch):
     monkeypatch.setattr(platform, 'is_mac', False)
     monkeypatch.setattr(Gtk, 'targets_include_uri', lambda targets: True)
@@ -2096,7 +2300,8 @@ def test_on_drag_data_received_opens_a_decoded_file_uri(monkeypatch):
     opened = []
     view.controller = SimpleNamespace(
         open_file=lambda filename: opened.append(filename),
-        show_error=lambda msg: pytest.fail('must not show an error for a valid drop'))
+        show_error=lambda msg: pytest.fail('must not show an error for a valid drop'),
+    )
     context = SimpleNamespace(list_targets=lambda: ['text/uri-list'])
     data = SimpleNamespace(get_data=lambda: b'file:///tmp/dropped.po\r\n')
 
@@ -2113,7 +2318,8 @@ def test_on_drag_data_received_shows_an_error_for_undecodable_bytes(monkeypatch)
     errors = []
     view.controller = SimpleNamespace(
         show_error=lambda msg: errors.append(msg),
-        open_file=lambda *a: pytest.fail('must not open an undecodable drop'))
+        open_file=lambda *a: pytest.fail('must not open an undecodable drop'),
+    )
     context = SimpleNamespace(list_targets=lambda: ['text/uri-list'])
     data = SimpleNamespace(get_data=lambda: b'\xff\xfe not utf-8\r\n')
 
@@ -2128,7 +2334,8 @@ def test_on_drag_data_received_ignores_a_non_file_drop(monkeypatch):
     view = MainView.__new__(MainView)
     view.controller = SimpleNamespace(
         open_file=lambda *a: pytest.fail('must not open a non-file:// drop'),
-        show_error=lambda *a: pytest.fail('must not show an error for a non-URI drop'))
+        show_error=lambda *a: pytest.fail('must not show an error for a non-URI drop'),
+    )
     context = SimpleNamespace(list_targets=lambda: ['text/uri-list'])
     data = SimpleNamespace(get_data=lambda: b'not-a-uri\r\n')
 
@@ -2139,7 +2346,9 @@ def test_on_drag_data_received_ignores_unsupported_targets(monkeypatch):
     monkeypatch.setattr(platform, 'is_mac', False)
     monkeypatch.setattr(Gtk, 'targets_include_uri', lambda targets: False)
     view = MainView.__new__(MainView)
-    view.controller = SimpleNamespace(open_file=lambda *a: pytest.fail('must not open with unsupported targets'))
+    view.controller = SimpleNamespace(
+        open_file=lambda *a: pytest.fail('must not open with unsupported targets')
+    )
     context = SimpleNamespace(list_targets=lambda: [])
     data = SimpleNamespace(get_data=lambda: b'file:///tmp/dropped.po\r\n')
 
@@ -2147,6 +2356,7 @@ def test_on_drag_data_received_ignores_unsupported_targets(monkeypatch):
 
 
 # _on_style_set()'s Windows-only tooltip-contrast provider (bug 1923) #
+
 
 def test_on_style_set_adds_a_tooltip_colour_provider_on_windows(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', True)
@@ -2190,11 +2400,14 @@ def test_on_style_set_leaves_no_tooltip_provider_off_windows(monkeypatch):
 
 # open_file() / hide() / show() #
 
+
 def test_open_file_opens_the_chosen_file_and_records_its_uri():
     opened = []
     view = MainView.__new__(MainView)
     view.show_open_dialog = lambda: ('chosen.po', 'file:///chosen.po')
-    view.controller = SimpleNamespace(open_file=lambda filename, uri=None: opened.append((filename, uri)))
+    view.controller = SimpleNamespace(
+        open_file=lambda filename, uri=None: opened.append((filename, uri))
+    )
 
     view.open_file()
 
@@ -2205,7 +2418,9 @@ def test_open_file_opens_the_chosen_file_and_records_its_uri():
 def test_open_file_returns_false_when_the_chooser_is_cancelled():
     view = MainView.__new__(MainView)
     view.show_open_dialog = lambda: ()
-    view.controller = SimpleNamespace(open_file=lambda *a, **k: pytest.fail('must not open anything'))
+    view.controller = SimpleNamespace(
+        open_file=lambda *a, **k: pytest.fail('must not open anything')
+    )
 
     assert view.open_file() is False
 
@@ -2233,11 +2448,14 @@ def test_hide_captures_geometry_then_hides_and_pumps_pending_events(monkeypatch)
 
 def test_show_maximizes_when_previously_maximized(monkeypatch):
     from virtaal.common import pan_app
+
     monkeypatch.setattr(pan_app.settings, 'general', {'maximized': 1})
     monkeypatch.setattr(Gtk, 'main', lambda: None)
     view = MainView.__new__(MainView)
     calls = []
-    view.main_window = SimpleNamespace(maximize=lambda: calls.append('maximize'), show=lambda: calls.append('show'))
+    view.main_window = SimpleNamespace(
+        maximize=lambda: calls.append('maximize'), show=lambda: calls.append('show')
+    )
 
     view.show()
 
@@ -2246,11 +2464,14 @@ def test_show_maximizes_when_previously_maximized(monkeypatch):
 
 def test_show_does_not_maximize_when_not_previously_maximized(monkeypatch):
     from virtaal.common import pan_app
+
     monkeypatch.setattr(pan_app.settings, 'general', {'maximized': ''})
     monkeypatch.setattr(Gtk, 'main', lambda: None)
     view = MainView.__new__(MainView)
     calls = []
-    view.main_window = SimpleNamespace(maximize=lambda: calls.append('maximize'), show=lambda: calls.append('show'))
+    view.main_window = SimpleNamespace(
+        maximize=lambda: calls.append('maximize'), show=lambda: calls.append('show')
+    )
 
     view.show()
 
@@ -2259,6 +2480,7 @@ def test_show_does_not_maximize_when_not_previously_maximized(monkeypatch):
 
 # show_config_recovery_notice() / show_language_change_notice() -
 # same dismissable-InfoBar pattern as show_template_update_notice() #
+
 
 def test_show_config_recovery_notice_packs_a_warning_infobar():
     vbox = _FakeVboxMain()
@@ -2287,6 +2509,7 @@ def test_show_config_recovery_notice_dismisses_on_response():
 
 # show_loading_notice() / hide_loading_notice() - a lightweight status
 # label shown while main.py's deferred startup-file open is in progress #
+
 
 def test_show_loading_notice_packs_a_centered_label():
     vbox = _FakeVboxMain()
@@ -2334,6 +2557,7 @@ def test_hide_loading_notice_does_nothing_when_none_shown():
 
 
 # busy() - wait cursor and status bar message around a blocking load #
+
 
 def _view_for_busy():
     view = MainView.__new__(MainView)
@@ -2394,7 +2618,9 @@ def test_busy_draws_the_message_before_the_body_runs(monkeypatch):
     # This is the window's first draw, which can take seconds on a CI
     # runner - longer than busy()'s 300ms cap.
     wait_for_draw = mainview._wait_for_draw
-    monkeypatch.setattr(mainview, '_wait_for_draw', lambda widget: wait_for_draw(widget, timeout=30000))
+    monkeypatch.setattr(
+        mainview, '_wait_for_draw', lambda widget: wait_for_draw(widget, timeout=30000)
+    )
     view = _view_for_busy()
     view.main_window.add(view.status_bar)
     view.main_window.show_all()
@@ -2473,6 +2699,7 @@ def test_wait_for_draw_returns_once_the_widget_draws():
 # show_startup_open_failure_notice() - same dismissable-InfoBar pattern
 # as show_config_recovery_notice(), shown alongside the modal error
 # dialog after a failed startup-file open #
+
 
 def test_show_startup_open_failure_notice_includes_the_reason_when_given():
     vbox = _FakeVboxMain()
@@ -2596,14 +2823,21 @@ def test_set_statusbar_message_pushes_a_non_empty_message():
 # both use Gtk.Widget.reparent(), a real deprecated GTK call with no
 # replacement short of rebuilding the menu bar, out of scope here #
 
+
 def test_on_fullscreen_enters_fullscreen_and_shows_the_app_icon(monkeypatch):
     monkeypatch.setattr(platform, 'is_mac', False)
     calls = []
     view = MainView.__new__(MainView)
     view.main_window = SimpleNamespace(
-        fullscreen=lambda: calls.append('fullscreen'), unfullscreen=lambda: calls.append('unfullscreen'))
-    view.status_bar = SimpleNamespace(hide=lambda: calls.append('status-hide'), show=lambda: calls.append('status-show'))
-    view.menubar = SimpleNamespace(hide=lambda: calls.append('menubar-hide'), show=lambda: calls.append('menubar-show'))
+        fullscreen=lambda: calls.append('fullscreen'),
+        unfullscreen=lambda: calls.append('unfullscreen'),
+    )
+    view.status_bar = SimpleNamespace(
+        hide=lambda: calls.append('status-hide'), show=lambda: calls.append('status-show')
+    )
+    view.menubar = SimpleNamespace(
+        hide=lambda: calls.append('menubar-hide'), show=lambda: calls.append('menubar-show')
+    )
     view.show_app_icon = lambda: calls.append('show-app-icon')
     view.hide_app_icon = lambda: calls.append('hide-app-icon')
 
@@ -2617,9 +2851,15 @@ def test_on_fullscreen_leaves_fullscreen_and_hides_the_app_icon(monkeypatch):
     calls = []
     view = MainView.__new__(MainView)
     view.main_window = SimpleNamespace(
-        fullscreen=lambda: calls.append('fullscreen'), unfullscreen=lambda: calls.append('unfullscreen'))
-    view.status_bar = SimpleNamespace(hide=lambda: calls.append('status-hide'), show=lambda: calls.append('status-show'))
-    view.menubar = SimpleNamespace(hide=lambda: calls.append('menubar-hide'), show=lambda: calls.append('menubar-show'))
+        fullscreen=lambda: calls.append('fullscreen'),
+        unfullscreen=lambda: calls.append('unfullscreen'),
+    )
+    view.status_bar = SimpleNamespace(
+        hide=lambda: calls.append('status-hide'), show=lambda: calls.append('status-show')
+    )
+    view.menubar = SimpleNamespace(
+        hide=lambda: calls.append('menubar-hide'), show=lambda: calls.append('menubar-show')
+    )
     view.show_app_icon = lambda: calls.append('show-app-icon')
     view.hide_app_icon = lambda: calls.append('hide-app-icon')
 
@@ -2628,16 +2868,21 @@ def test_on_fullscreen_leaves_fullscreen_and_hides_the_app_icon(monkeypatch):
     assert calls == ['unfullscreen', 'status-show', 'hide-app-icon', 'menubar-show']
 
 
-
 @pytest.mark.parametrize('active, expected', [(True, ['fullscreen']), (False, ['unfullscreen'])])
 def test_on_fullscreen_on_macos_leaves_the_menu_bar_alone(monkeypatch, active, expected):
     monkeypatch.setattr(platform, 'is_mac', True)
     calls = []
     view = MainView.__new__(MainView)
     view.main_window = SimpleNamespace(
-        fullscreen=lambda: calls.append('fullscreen'), unfullscreen=lambda: calls.append('unfullscreen'))
-    view.status_bar = SimpleNamespace(hide=lambda: calls.append('status-hide'), show=lambda: calls.append('status-show'))
-    view.menubar = SimpleNamespace(hide=lambda: calls.append('menubar-hide'), show=lambda: calls.append('menubar-show'))
+        fullscreen=lambda: calls.append('fullscreen'),
+        unfullscreen=lambda: calls.append('unfullscreen'),
+    )
+    view.status_bar = SimpleNamespace(
+        hide=lambda: calls.append('status-hide'), show=lambda: calls.append('status-show')
+    )
+    view.menubar = SimpleNamespace(
+        hide=lambda: calls.append('menubar-hide'), show=lambda: calls.append('menubar-show')
+    )
     view.show_app_icon = lambda: calls.append('show-app-icon')
     view.hide_app_icon = lambda: calls.append('hide-app-icon')
 
@@ -2645,7 +2890,9 @@ def test_on_fullscreen_on_macos_leaves_the_menu_bar_alone(monkeypatch, active, e
 
     assert calls == expected
 
+
 # trivial menu/signal delegators #
+
 
 def test_on_file_open_delegates_to_open_file():
     view = MainView.__new__(MainView)
@@ -2702,7 +2949,9 @@ def test_on_file_update_opens_a_template_and_updates_the_current_file():
     view.template_chooser = object()
     view.show_open_dialog = lambda chooser: ('template.pot', 'file:///template.pot')
     calls = []
-    view.controller = SimpleNamespace(update_file=lambda filename, uri=None: calls.append((filename, uri)))
+    view.controller = SimpleNamespace(
+        update_file=lambda filename, uri=None: calls.append((filename, uri))
+    )
 
     view._on_file_update(None)
 
@@ -2714,7 +2963,9 @@ def test_on_file_update_does_nothing_when_the_chooser_is_cancelled():
     view = MainView.__new__(MainView)
     view.template_chooser = object()
     view.show_open_dialog = lambda chooser: ()
-    view.controller = SimpleNamespace(update_file=lambda *a, **k: pytest.fail('must not update anything'))
+    view.controller = SimpleNamespace(
+        update_file=lambda *a, **k: pytest.fail('must not update anything')
+    )
 
     view._on_file_update(None)  # must not raise
 
@@ -2751,8 +3002,11 @@ def test_on_quit_delegates_to_the_controller_and_swallows_the_event():
 def test_on_next_unit_advances_the_unit_view():
     view = MainView.__new__(MainView)
     calls = []
-    view.controller = SimpleNamespace(unit_controller=SimpleNamespace(
-        view=SimpleNamespace(finish_editing_and_advance=lambda: calls.append('advanced'))))
+    view.controller = SimpleNamespace(
+        unit_controller=SimpleNamespace(
+            view=SimpleNamespace(finish_editing_and_advance=lambda: calls.append('advanced'))
+        )
+    )
 
     view._on_next_unit()
 
@@ -2789,17 +3043,21 @@ def test_on_state_reverse_advances_the_workflow_state_backward():
 
 def test_on_documentation_opens_the_docs_url(monkeypatch):
     from virtaal.support import openmailto
+
     opened = []
     monkeypatch.setattr(openmailto, 'open', lambda url: opened.append(url))
     view = MainView.__new__(MainView)
 
     view._on_documentation()
 
-    assert opened == ['https://docs.translatehouse.org/projects/virtaal/en/latest/using_virtaal.html']
+    assert opened == [
+        'https://docs.translatehouse.org/projects/virtaal/en/latest/using_virtaal.html'
+    ]
 
 
 def test_on_localization_guide_opens_the_guide_url(monkeypatch):
     from virtaal.support import openmailto
+
     opened = []
     monkeypatch.setattr(openmailto, 'open', lambda url: opened.append(url))
     view = MainView.__new__(MainView)
@@ -2846,9 +3104,12 @@ def test_macos_integration_rebinds_its_catalog_before_building_the_app_menu(monk
             return lambda *args: None
 
     monkeypatch.setattr(gi, 'require_version', lambda *args: None)
-    monkeypatch.setattr(gi.repository, 'GtkosxApplication',
-                        mock.Mock(Application=FakeApplication), raising=False)
-    monkeypatch.setattr(mainview, 'rebind_library_domain', lambda domain: calls.append(('rebind', domain)))
+    monkeypatch.setattr(
+        gi.repository, 'GtkosxApplication', mock.Mock(Application=FakeApplication), raising=False
+    )
+    monkeypatch.setattr(
+        mainview, 'rebind_library_domain', lambda domain: calls.append(('rebind', domain))
+    )
     monkeypatch.setattr(Gtk.AccelMap, 'load', lambda path: None)
     view = mock.Mock()
 
@@ -2858,15 +3119,21 @@ def test_macos_integration_rebinds_its_catalog_before_building_the_app_menu(monk
 
 
 def _menubar_view(monkeypatch, calls):
-    monkeypatch.setattr(mainview, '_set_native_return_key',
-                        lambda title, modifiers: calls.append((title, modifiers)))
+    monkeypatch.setattr(
+        mainview,
+        '_set_native_return_key',
+        lambda title, modifiers: calls.append((title, modifiers)),
+    )
     view = MainView.__new__(MainView)
     view._osxapp = SimpleNamespace(
         sync_menubar=lambda: calls.append('sync_menubar'),
-        insert_app_menu_item=lambda item, index: calls.append((item, index)))
+        insert_app_menu_item=lambda item, index: calls.append((item, index)),
+    )
     objects = {'mnu_prefs': object()}
-    for item_id, label in (('mnu_state_advance', 'Next Unit and _Advance State'),
-                           ('mnu_state_reverse', 'Next Unit and Reverse State')):
+    for item_id, label in (
+        ('mnu_state_advance', 'Next Unit and _Advance State'),
+        ('mnu_state_reverse', 'Next Unit and Reverse State'),
+    ):
         objects[item_id] = Gtk.MenuItem.new_with_mnemonic(label)
     view.gui = SimpleNamespace(get_object=objects.get)
     return view, objects
@@ -2893,8 +3160,10 @@ def test_sync_menubar_sets_return_key_equivalents_for_the_state_items_only(monke
     view.sync_menubar()
 
     control, shift = mainview.NS_CONTROL_KEY_MASK, mainview.NS_SHIFT_KEY_MASK
-    assert calls[1:3] == [('Next Unit and Advance State', control),
-                          ('Next Unit and Reverse State', control | shift)]
+    assert calls[1:3] == [
+        ('Next Unit and Advance State', control),
+        ('Next Unit and Reverse State', control | shift),
+    ]
 
 
 def test_sync_menubar_skips_state_items_without_a_label(monkeypatch):
@@ -2908,11 +3177,14 @@ def test_sync_menubar_skips_state_items_without_a_label(monkeypatch):
     assert calls == ['sync_menubar', (objects['mnu_prefs'], 2)]
 
 
-@pytest.mark.parametrize('accel_file', ['share/virtaal/virtaal.accel', 'devsupport/mac-bundle/virtaal.accel'])
+@pytest.mark.parametrize(
+    'accel_file', ['share/virtaal/virtaal.accel', 'devsupport/mac-bundle/virtaal.accel']
+)
 def test_accel_file_shortcuts_all_parse(accel_file):
     # Gtk.AccelMap.load() silently maps an unparsable shortcut, such as
     # "<Meta>," instead of "<Meta>comma", to no key at all (#3751).
     import re
+
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     with open(os.path.join(repo_root, accel_file), encoding='utf-8') as f:
         entries = re.findall(r'^\(gtk_accel_path "([^"]+)" "([^"]+)"\)', f.read(), re.MULTILINE)
@@ -2967,11 +3239,18 @@ def test_preferences_shows_its_key_equivalent_in_the_native_app_menu():
     except ValueError:
         pytest.skip('gtk-mac-integration not installed')
     import subprocess
+
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     env = dict(os.environ, PYTHONPATH=repo_root)
 
-    result = subprocess.run([sys.executable, '-c', _FRESH_PROCESS_PREFS_KEY_EQUIVALENT],
-                            env=env, capture_output=True, text=True, check=True, timeout=60)
+    result = subprocess.run(
+        [sys.executable, '-c', _FRESH_PROCESS_PREFS_KEY_EQUIVALENT],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
 
     # NSEventModifierFlagCommand; virtaal.accel maps Preferences to <Meta>comma
     assert result.stdout.split('\n')[:3] == ["'Settings…'", "','", str(1 << 20)]
@@ -2994,8 +3273,9 @@ def test_macos_integration_titles_preferences_settings_in_the_app_menu(monkeypat
             return lambda *args: None
 
     monkeypatch.setattr(gi, 'require_version', lambda *args: None)
-    monkeypatch.setattr(gi.repository, 'GtkosxApplication',
-                        mock.Mock(Application=FakeApplication), raising=False)
+    monkeypatch.setattr(
+        gi.repository, 'GtkosxApplication', mock.Mock(Application=FakeApplication), raising=False
+    )
     monkeypatch.setattr(mainview, 'rebind_library_domain', lambda domain: None)
     monkeypatch.setattr(Gtk.AccelMap, 'load', lambda path: None)
     view = mock.Mock()
@@ -3009,14 +3289,19 @@ def test_macos_integration_titles_preferences_settings_in_the_app_menu(monkeypat
 
 # show_translator_dialog() #
 
+
 def _run_translator_dialog(monkeypatch, response, typed=None, **details):
     from gi.repository import GLib
+
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: None)
     seen = {}
 
     def run(dialog):
-        entries = [w for w in dialog.get_content_area().get_children()[0].get_children()
-                   if isinstance(w, Gtk.Entry)][::-1]
+        entries = [
+            w
+            for w in dialog.get_content_area().get_children()[0].get_children()
+            if isinstance(w, Gtk.Entry)
+        ][::-1]
         seen['texts'] = [e.get_text() for e in entries]
         seen['focus'] = next(i for i, e in enumerate(entries) if e.is_focus())
         seen['shown'] = dialog.get_visible()
@@ -3024,6 +3309,7 @@ def _run_translator_dialog(monkeypatch, response, typed=None, **details):
             if text is not None:
                 entry.set_text(text)
         return response
+
     monkeypatch.setattr(Gtk.Dialog, 'run', run)
     view = MainView.__new__(MainView)
     top_window = Gtk.Window()
@@ -3035,7 +3321,13 @@ def _run_translator_dialog(monkeypatch, response, typed=None, **details):
 
 def test_translator_dialog_asks_for_all_three_details_at_once(monkeypatch):
     result, seen = _run_translator_dialog(
-        monkeypatch, Gtk.ResponseType.OK, typed=[None, 'd@example.com', 'af'], name='Dwayne', email='', team='')
+        monkeypatch,
+        Gtk.ResponseType.OK,
+        typed=[None, 'd@example.com', 'af'],
+        name='Dwayne',
+        email='',
+        team='',
+    )
 
     assert seen['texts'] == ['Dwayne', '', '']
     assert seen['focus'] == 1  # the first empty field
@@ -3044,25 +3336,38 @@ def test_translator_dialog_asks_for_all_three_details_at_once(monkeypatch):
 
 
 def test_translator_dialog_returns_nothing_when_cancelled(monkeypatch):
-    result, _seen = _run_translator_dialog(monkeypatch, Gtk.ResponseType.CANCEL, typed=['X', 'Y', 'Z'])
+    result, _seen = _run_translator_dialog(
+        monkeypatch, Gtk.ResponseType.CANCEL, typed=['X', 'Y', 'Z']
+    )
 
     assert result is None
 
 
-@pytest.mark.parametrize('width, height, x, y', [
-    ('abc', '1.5', 'x', '10'),
-    ('', '99999999999', '', ''),
-    ('0', '-5', '10', '-99999999'),
-])
+@pytest.mark.parametrize(
+    'width, height, x, y',
+    [
+        ('abc', '1.5', 'x', '10'),
+        ('', '99999999999', '', ''),
+        ('0', '-5', '10', '-99999999'),
+    ],
+)
 def test_restore_window_geometry_ignores_bad_values(monkeypatch, width, height, x, y):
     # #4340: Virtaal didn't start (ValueError/OverflowError).
-    monkeypatch.setattr(pan_app.settings, 'general', dict(
-        pan_app.settings.general, windowwidth=width, windowheight=height, windowx=x, windowy=y))
+    monkeypatch.setattr(
+        pan_app.settings,
+        'general',
+        dict(
+            pan_app.settings.general, windowwidth=width, windowheight=height, windowx=x, windowy=y
+        ),
+    )
     calls = []
-    view = SimpleNamespace(main_window=SimpleNamespace(
-        set_icon_from_file=lambda path: None,
-        resize=lambda w, h: calls.append(('resize', w, h)),
-        move=lambda wx, wy: calls.append(('move', wx, wy))))
+    view = SimpleNamespace(
+        main_window=SimpleNamespace(
+            set_icon_from_file=lambda path: None,
+            resize=lambda w, h: calls.append(('resize', w, h)),
+            move=lambda wx, wy: calls.append(('move', wx, wy)),
+        )
+    )
 
     MainView._restore_window_geometry(view)
 

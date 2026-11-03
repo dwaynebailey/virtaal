@@ -25,7 +25,9 @@ from virtaal.plugins.terminology.models.pontoon import (
 class _FakeRequest:
     status = 200
 
-    def __init__(self, headers=b'ETag: "abc123"\r\n', effective_url='https://example.com/terms.tbx'):
+    def __init__(
+        self, headers=b'ETag: "abc123"\r\n', effective_url='https://example.com/terms.tbx'
+    ):
         self.result_headers = io.BytesIO(headers)
         self._effective_url = effective_url
 
@@ -77,6 +79,7 @@ def test_process_header_config_key_is_a_bare_filename(tmp_path):
 # only, and its static files are named with case/separator rules that
 # don't match Virtaal's own language-code normalization.
 
+
 @pytest.mark.parametrize('code', ['en', 'en_US', 'en-GB', 'EN', 'en_ZA'])
 def test_is_english_accepts_any_english_variant(code):
     assert _is_english(code) is True
@@ -114,14 +117,17 @@ _XML_NS = 'http://www.w3.org/XML/1998/namespace'
 
 def _tbx(*entries):
     body = '\n'.join(entries)
-    return ('<tbx xmlns="%s" style="dca" type="TBX-Basic">'
-            '<text><body>%s</body></text></tbx>' % (_TBX_NS, body)).encode('utf-8')
+    return (
+        '<tbx xmlns="%s" style="dca" type="TBX-Basic">'
+        '<text><body>%s</body></text></tbx>' % (_TBX_NS, body)
+    ).encode('utf-8')
 
 
 def _concept_entry(pairs):
     langsecs = ''.join(
         '<langSec xml:lang="%s"><termSec><term>%s</term></termSec></langSec>' % (lang, term)
-        for lang, term in pairs)
+        for lang, term in pairs
+    )
     return '<conceptEntry>%s</conceptEntry>' % langsecs
 
 
@@ -152,8 +158,10 @@ def test_parse_tbx_basic_skips_an_entry_missing_the_english_source():
 
 
 def test_parse_tbx_basic_skips_a_langsec_with_no_term_text():
-    content = _tbx('<conceptEntry><langSec xml:lang="en"><termSec></termSec></langSec>'
-                    '<langSec xml:lang="af"><termSec><term>Hallo</term></termSec></langSec></conceptEntry>')
+    content = _tbx(
+        '<conceptEntry><langSec xml:lang="en"><termSec></termSec></langSec>'
+        '<langSec xml:lang="af"><termSec><term>Hallo</term></termSec></langSec></conceptEntry>'
+    )
 
     store = _parse_tbx_basic(content)
 
@@ -182,11 +190,15 @@ def test_parse_tbx_basic_handles_multiple_concept_entries():
 
     store = _parse_tbx_basic(content)
 
-    assert [(u.source, u.target) for u in store.units] == [('Hello', 'Hallo'), ('Goodbye', 'Totsiens')]
+    assert [(u.source, u.target) for u in store.units] == [
+        ('Hello', 'Hallo'),
+        ('Goodbye', 'Totsiens'),
+    ]
 
 
 # _get_curr_term_filename(): find an already-downloaded file for a
 # language pair regardless of its extension, or name a new one.
+
 
 def test_curr_term_filename_finds_an_existing_file_regardless_of_extension(tmp_path):
     (tmp_path / 'en__af.po').write_text('')
@@ -203,6 +215,7 @@ def test_curr_term_filename_defaults_to_tbx_for_a_new_pair(tmp_path):
 
 # is_update_needed(): a missing file always needs fetching; an
 # existing one only after it's more than three days old.
+
 
 def test_is_update_needed_true_when_no_local_file_exists(tmp_path):
     model = _model(tmp_path, source_lang='en', target_lang='af')
@@ -229,6 +242,7 @@ def test_is_update_needed_true_for_a_stale_file(tmp_path):
 
 # update_terms(): the top-level dispatch - English-source gate,
 # staleness check, and delegating an actual fetch.
+
 
 def test_update_terms_does_nothing_when_both_languages_are_unset(tmp_path):
     model = _model(tmp_path, source_lang=None, target_lang=None)
@@ -279,6 +293,7 @@ def test_update_terms_fetches_when_the_local_file_is_stale_or_missing(tmp_path):
 
 # _get_ext_from_url()
 
+
 def test_get_ext_from_url_reads_the_path_extension(tmp_path):
     model = _model(tmp_path)
     assert model._get_ext_from_url('https://pontoon.mozilla.org/terminology/af.tbx') == 'tbx'
@@ -302,6 +317,7 @@ def test_get_ext_from_url_returns_none_for_an_empty_path(tmp_path):
 # _process_header(): saving a fetched file, deriving its extension
 # when the caller doesn't already know it, and the ETag bookkeeping
 # that drives future conditional requests.
+
 
 def test_process_header_skips_saving_on_a_304_not_modified(tmp_path):
     model = _model(tmp_path)
@@ -371,6 +387,7 @@ def test_process_header_clears_the_matcher_on_an_unhandled_status(tmp_path):
 
 # _on_lang_changed(): re-fetches terminology for whichever side of the
 # language pair just changed.
+
 
 def test_on_lang_changed_updates_the_relevant_language_and_refetches(tmp_path):
     model = _model(tmp_path, source_lang='en', target_lang='af')

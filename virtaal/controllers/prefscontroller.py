@@ -23,9 +23,9 @@ class PreferencesController(BaseController):
         self.placeables_controller = main_controller.placeables_controller
         self.plugin_controller = main_controller.plugin_controller
         from virtaal.views.prefsview import PreferencesView
+
         self.view = PreferencesView(self)
         self.view.connect('prefs-done', self._on_prefs_done)
-
 
     # METHODS #
     def set_placeable_enabled(self, parser, enabled):
@@ -46,13 +46,13 @@ class PreferencesController(BaseController):
 
     def update_config_placeables_state(self, parser, disabled):
         """Make sure that the placeable with the given name is enabled/disabled
-            in the main configuration file."""
+        in the main configuration file."""
         classname = parser.__self__.__name__
         pan_app.settings.placeable_state[classname.lower()] = disabled and 'disabled' or 'enabled'
 
     def update_config_plugin_state(self, plugin_name, disabled):
         """Make sure that the plug-in with the given name is enabled/disabled
-            in the main configuration file."""
+        in the main configuration file."""
         # A plug-in is considered "enabled" as long as
         # pan_app.settings.plugin_state[plugin_name].lower() != 'disabled',
         # even if not pan_app.settings.plugin_state.has_key(plugin_name).
@@ -84,12 +84,14 @@ class PreferencesController(BaseController):
         allparsers = list(self.placeables_controller.parser_info.items())
         allparsers.sort(key=lambda x: x[1][0])
         for parser, (name, desc) in allparsers:
-            items.append({
-                'name': name,
-                'desc': desc,
-                'enabled': parser in self.placeables_controller.parsers,
-                'data': parser
-            })
+            items.append(
+                {
+                    'name': name,
+                    'desc': desc,
+                    'enabled': parser in self.placeables_controller.parsers,
+                    'data': parser,
+                }
+            )
         self.view.placeables_data = items
 
     def _update_plugin_gui_data(self):
@@ -97,28 +99,33 @@ class PreferencesController(BaseController):
         for found_plugin in self.plugin_controller._find_plugin_names():
             if found_plugin in self.plugin_controller.plugins:
                 plugin = self.plugin_controller.plugins[found_plugin]
-                plugin_items.append({
-                    'name': plugin.display_name,
-                    'desc': plugin.description,
-                    'enabled': True,
-                    'data': {'internal_name': found_plugin},
-                    'config': plugin.configure_func
-                })
+                plugin_items.append(
+                    {
+                        'name': plugin.display_name,
+                        'desc': plugin.description,
+                        'enabled': True,
+                        'data': {'internal_name': found_plugin},
+                        'config': plugin.configure_func,
+                    }
+                )
             else:
                 try:
                     info = self.plugin_controller.get_plugin_info(found_plugin)
                 except Exception as e:
                     import logging
+
                     logging.debug('Problem getting information for plugin %s' % found_plugin)
                     continue
 
-                plugin_items.append({
-                    'name': info['display_name'],
-                    'desc': info['description'],
-                    'enabled': False,
-                    'data': {'internal_name': found_plugin},
-                    'config': None
-                })
+                plugin_items.append(
+                    {
+                        'name': info['display_name'],
+                        'desc': info['description'],
+                        'enabled': False,
+                        'data': {'internal_name': found_plugin},
+                        'config': None,
+                    }
+                )
         # XXX: Note that we ignore plugin_controller.get_disabled_plugins(),
         # because we need to know which plug-ins are currently enabled/disabled
         # (not dependent on config).
@@ -127,11 +134,10 @@ class PreferencesController(BaseController):
 
     def _update_user_gui_data(self):
         self.view.user_data = {
-            'name':  pan_app.settings.translator['name'],
+            'name': pan_app.settings.translator['name'],
             'email': pan_app.settings.translator['email'],
-            'team':  pan_app.settings.translator['team'],
+            'team': pan_app.settings.translator['team'],
         }
-
 
     # EVENT HANDLERS #
     def _on_prefs_done(self, view):

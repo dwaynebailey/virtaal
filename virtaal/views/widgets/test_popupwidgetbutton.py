@@ -411,12 +411,15 @@ def test_update_popup_before_the_button_has_a_window():
 def test_a_content_size_change_places_the_popup_again_once(monkeypatch):
     # A tree view's new rows only count towards its size once measured.
     from virtaal.views.widgets import popupwidgetbutton
+
     _, btn = _make_button()
     btn.set_active(True)
     _run_pending_show(btn)
     btn._place_popup()
     scheduled = []
-    monkeypatch.setattr(popupwidgetbutton.GLib, 'idle_add', lambda func: scheduled.append(func) or 1)
+    monkeypatch.setattr(
+        popupwidgetbutton.GLib, 'idle_add', lambda func: scheduled.append(func) or 1
+    )
 
     btn.popup.emit('check-resize')
     btn.popup.emit('check-resize')
@@ -426,9 +429,12 @@ def test_a_content_size_change_places_the_popup_again_once(monkeypatch):
 
 def test_a_content_size_change_while_hidden_does_nothing(monkeypatch):
     from virtaal.views.widgets import popupwidgetbutton
+
     _, btn = _make_button()
     scheduled = []
-    monkeypatch.setattr(popupwidgetbutton.GLib, 'idle_add', lambda func: scheduled.append(func) or 1)
+    monkeypatch.setattr(
+        popupwidgetbutton.GLib, 'idle_add', lambda func: scheduled.append(func) or 1
+    )
 
     btn.popup.emit('check-resize')
 
@@ -490,6 +496,7 @@ def test_placing_resizes_the_window_itself_when_its_content_grew():
 
 # Wayland (#4219) #
 
+
 def test_init_leaves_the_popup_unmapped():
     # A popup mapped before it has a parent opens as a window of its own on
     # Wayland.
@@ -521,6 +528,7 @@ def test_popup_has_no_parent_elsewhere(monkeypatch):
 
 
 # hide_open_popup() #
+
 
 @pytest.fixture
 def own_buttons(monkeypatch):

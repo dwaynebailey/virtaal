@@ -21,13 +21,14 @@ class PropertiesController(BaseController):
 
         self.main_controller = main_controller
         from virtaal.views.propertiesview import PropertiesView
-        self.view = PropertiesView(self)
 
+        self.view = PropertiesView(self)
 
     # METHODS #
 
     def update_gui_data(self):
         import os.path
+
         filename = os.path.abspath(self.main_controller.store_controller.get_store().get_filename())
         if os.path.exists(filename):
             self.view.data['file_location'] = filename
@@ -36,7 +37,9 @@ class PropertiesController(BaseController):
         store = store_controller.get_store()
         self.view.data['file_type'] = store.get_store_type()
         self.view.stats = store.get_stats_totals()
-        self.view.live_stats = store.get_live_stats_totals() if store_controller.is_modified() else None
+        self.view.live_stats = (
+            store.get_live_stats_totals() if store_controller.is_modified() else None
+        )
 
     def save_file(self):
         return self.main_controller.save_file()

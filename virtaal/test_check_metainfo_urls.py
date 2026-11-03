@@ -10,8 +10,12 @@ import os
 
 import pytest
 
-SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      "devsupport", "packaging", "check_metainfo_urls.py")
+SCRIPT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "devsupport",
+    "packaging",
+    "check_metainfo_urls.py",
+)
 
 
 @pytest.fixture(scope="module")
@@ -29,6 +33,7 @@ def _fetch(*statuses):
     def fetch(url):
         calls.append(url)
         return statuses[len(calls) - 1]
+
     fetch.calls = calls
     return fetch
 
@@ -73,14 +78,16 @@ def test_gone_fails_without_retry(check, status):
 
 
 def test_gone_newest_release_warns(check):
-    level, message = check.check_url("https://example.org", "newest release",
-                                     fetch=_fetch(404), sleep=_no_fetch)
+    level, message = check.check_url(
+        "https://example.org", "newest release", fetch=_fetch(404), sleep=_no_fetch
+    )
     assert level == "warning"
 
 
 def test_gone_older_release_fails(check):
-    level, message = check.check_url("https://example.org", "release",
-                                     fetch=_fetch(404), sleep=_no_fetch)
+    level, message = check.check_url(
+        "https://example.org", "release", fetch=_fetch(404), sleep=_no_fetch
+    )
     assert level == "error"
 
 
@@ -94,7 +101,9 @@ def test_outage_retried_then_ok(check):
 @pytest.mark.parametrize("status", [504, 429, "timed out"])
 def test_outage_warns(check, status):
     fetch = _fetch(*[status] * (len(check.RETRY_DELAYS) + 1))
-    level, message = check.check_url("https://example.org", "url", fetch=fetch, sleep=lambda delay: None)
+    level, message = check.check_url(
+        "https://example.org", "url", fetch=fetch, sleep=lambda delay: None
+    )
     assert level == "warning"
     assert len(fetch.calls) == len(check.RETRY_DELAYS) + 1
 
@@ -103,7 +112,8 @@ def test_main_exit_status(check, tmp_path, monkeypatch, capsys):
     metainfo = tmp_path / "test.metainfo.xml"
     metainfo.write_text(
         '<component><url type="homepage">https://example.org/gone</url>'
-        '<url type="bugtracker">https://example.org/down</url></component>')
+        '<url type="bugtracker">https://example.org/down</url></component>'
+    )
     statuses = {"https://example.org/gone": 404, "https://example.org/down": 503}
     monkeypatch.setattr(check, "fetch_status", statuses.get)
     monkeypatch.setattr(check.time, "sleep", lambda delay: None)

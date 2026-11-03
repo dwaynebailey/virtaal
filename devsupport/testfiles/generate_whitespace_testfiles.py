@@ -39,7 +39,11 @@ CASES = [
     ("double-space", "two U+0020 SPACE in a row, mid-sentence", "\u00abDouble  space\u00bb"),
     ("nbsp-leading", "U+00A0 NO-BREAK SPACE, leading", "\u00a0NBSP leading\u00bb"),
     ("nbsp-trailing", "U+00A0 NO-BREAK SPACE, trailing", "\u00abNBSP trailing\u00a0"),
-    ("nbsp-inline", "U+00A0 NO-BREAK SPACE, mid-string (the classic number+unit case)", "\u00ab10\u00a0km\u00bb"),
+    (
+        "nbsp-inline",
+        "U+00A0 NO-BREAK SPACE, mid-string (the classic number+unit case)",
+        "\u00ab10\u00a0km\u00bb",
+    ),
     ("en-space", "U+2002 EN SPACE", "\u00abEn\u2002space\u00bb"),
     ("em-space", "U+2003 EM SPACE", "\u00abEm\u2003space\u00bb"),
     ("thin-space", "U+2009 THIN SPACE", "\u00abThin\u2009space\u00bb"),
@@ -49,11 +53,23 @@ CASES = [
     ("punctuation-space", "U+2008 PUNCTUATION SPACE", "\u00abPunctuation\u2008space\u00bb"),
     ("ideographic-space", "U+3000 IDEOGRAPHIC SPACE", "\u00abIdeographic\u3000space\u00bb"),
     ("mathematical-space", "U+205F MEDIUM MATHEMATICAL SPACE", "\u00abMath\u205fspace\u00bb"),
-    ("ogham-space-mark", "U+1680 OGHAM SPACE MARK (has a visible glyph in some fonts, unlike the others here)", "\u00abOgham\u1680mark\u00bb"),
-    ("zwsp-inline", "U+200B ZERO WIDTH SPACE, mid-word - invisible by design. "
-                     "Can't be verified by eye; check with a hex dump/codepoint "
-                     "inspector after saving, not by looking at it.", "\u00abZero\u200bwidth\u00bb"),
-    ("tab-leading", "U+0009 TAB, leading (bonus - not one of the originally requested cases, but a common real one)", "\tTab leading\u00bb"),
+    (
+        "ogham-space-mark",
+        "U+1680 OGHAM SPACE MARK (has a visible glyph in some fonts, unlike the others here)",
+        "\u00abOgham\u1680mark\u00bb",
+    ),
+    (
+        "zwsp-inline",
+        "U+200B ZERO WIDTH SPACE, mid-word - invisible by design. "
+        "Can't be verified by eye; check with a hex dump/codepoint "
+        "inspector after saving, not by looking at it.",
+        "\u00abZero\u200bwidth\u00bb",
+    ),
+    (
+        "tab-leading",
+        "U+0009 TAB, leading (bonus - not one of the originally requested cases, but a common real one)",
+        "\tTab leading\u00bb",
+    ),
     ("tab-trailing", "U+0009 TAB, trailing (bonus, ditto)", "\u00abTab trailing\t"),
 ]
 

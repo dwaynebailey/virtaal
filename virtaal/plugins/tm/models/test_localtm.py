@@ -104,6 +104,7 @@ def test_destroy_uses_terminateprocess_on_windows(monkeypatch):
 
 # _pick_port() #
 
+
 def _model_with_config(bind='localhost', port=55555, tmdb='/tmp/tm.db'):
     model = TMModel.__new__(TMModel)
     model.config = {'tmserver_bind': bind, 'tmserver_port': port, 'tmdb': tmdb}
@@ -120,7 +121,9 @@ def test_pick_port_uses_the_configured_port_when_free(monkeypatch):
 def test_pick_port_falls_back_to_a_free_port_when_the_configured_one_is_taken(monkeypatch):
     monkeypatch.setattr(localtm, 'test_port', lambda host, port: False)
     calls = []
-    monkeypatch.setattr(localtm, 'find_free_port', lambda host, lo, hi: calls.append((host, lo, hi)) or 12345)
+    monkeypatch.setattr(
+        localtm, 'find_free_port', lambda host, lo, hi: calls.append((host, lo, hi)) or 12345
+    )
     model = _model_with_config(bind='localhost', port=55555)
 
     assert model._pick_port() == 12345
@@ -128,6 +131,7 @@ def test_pick_port_falls_back_to_a_free_port_when_the_configured_one_is_taken(mo
 
 
 # _build_tmserver_command() #
+
 
 def _fake_controller(min_quality=75, max_matches=3):
     return SimpleNamespace(min_quality=min_quality, max_matches=max_matches)
@@ -186,6 +190,7 @@ def test_build_tmserver_command_omits_debug_flag_by_default(monkeypatch):
 
 # _launch_tmserver() #
 
+
 def test_launch_tmserver_starts_the_process_and_builds_a_tmclient(monkeypatch):
     monkeypatch.setattr(helperprocess, 'platform', Platform(frozen=False))
     model = _model_with_config(bind='localhost', port=55555)
@@ -198,7 +203,9 @@ def test_launch_tmserver_starts_the_process_and_builds_a_tmclient(monkeypatch):
 
     monkeypatch.setattr('subprocess.Popen', _FakePopen)
     tmclient_urls = []
-    monkeypatch.setattr('virtaal.support.tmclient.TMClient', lambda url: tmclient_urls.append(url) or 'the-client')
+    monkeypatch.setattr(
+        'virtaal.support.tmclient.TMClient', lambda url: tmclient_urls.append(url) or 'the-client'
+    )
 
     model._launch_tmserver(['the', 'command'], 55555)
 
@@ -213,6 +220,7 @@ def test_launch_tmserver_logs_and_reraises_on_oserror(monkeypatch):
 
     def raise_oserror(command, env):
         raise OSError('boom')
+
     monkeypatch.setattr('subprocess.Popen', raise_oserror)
 
     with pytest.raises(OSError):
@@ -225,7 +233,9 @@ def _unchecked_model(**config):
     return model
 
 
-@pytest.mark.parametrize('host', ['', '  ', 'no-such-host.invalid', 'h\x00st', 'hôst.\u202e', '1.5', '8.8.8.8'])
+@pytest.mark.parametrize(
+    'host', ['', '  ', 'no-such-host.invalid', 'h\x00st', 'hôst.\u202e', '1.5', '8.8.8.8']
+)
 def test_check_config_replaces_a_host_that_cant_be_used(host, caplog):
     # #4340: each port tried looked the host up again, blocking start-up.
     model = _unchecked_model(tmserver_bind=host)

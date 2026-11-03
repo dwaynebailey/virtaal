@@ -53,9 +53,13 @@ def release_problems(tag, release):
     """Problems with the release itself and its asset list."""
     problems = []
     if release.get('prerelease') != is_prerelease_tag(tag):
-        problems.append('marked %s, but the tag says %s' % (
-            'pre-release' if release.get('prerelease') else 'release',
-            'pre-release' if is_prerelease_tag(tag) else 'release'))
+        problems.append(
+            'marked %s, but the tag says %s'
+            % (
+                'pre-release' if release.get('prerelease') else 'release',
+                'pre-release' if is_prerelease_tag(tag) else 'release',
+            )
+        )
     if release.get('draft'):
         problems.append('still a draft')
     assets = {asset['name']: asset for asset in release.get('assets', [])}
@@ -103,7 +107,11 @@ def kind_problem(name, path):
         ok = head.startswith(b'PK\x03\x04')
     else:
         return None
-    return None if ok else "isn't a .%s file%s" % (name.rsplit('.', 1)[1], ' for ' + arch if arch else '')
+    return (
+        None
+        if ok
+        else "isn't a .%s file%s" % (name.rsplit('.', 1)[1], ' for ' + arch if arch else '')
+    )
 
 
 def gh(*args):
@@ -150,7 +158,9 @@ def check_files(tag, repo, release, downloader=download):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument('tag', help='e.g. v1.0.0-rc2')
     parser.add_argument('--repo', default=REPO)
     parser.add_argument('--no-download', action='store_true', help='Check the asset list only.')
@@ -158,7 +168,10 @@ def main(argv=None):
 
     release = fetch_release(args.tag, args.repo)
     problems = release_problems(args.tag, release)
-    print('%s: %d assets, %s' % (args.tag, len(release.get('assets', [])), release.get('html_url', '')))
+    print(
+        '%s: %d assets, %s'
+        % (args.tag, len(release.get('assets', [])), release.get('html_url', ''))
+    )
     if not args.no_download:
         problems += check_files(args.tag, args.repo, release)
     for problem in problems:

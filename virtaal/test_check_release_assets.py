@@ -11,8 +11,12 @@ import os
 
 import pytest
 
-SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      "devsupport", "packaging", "check_release_assets.py")
+SCRIPT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "devsupport",
+    "packaging",
+    "check_release_assets.py",
+)
 
 # Enough of each format's header (and a dmg's trailer) for kind_problem().
 CONTENT = {
@@ -23,7 +27,9 @@ CONTENT = {
 
 
 def _flatpak(arch):
-    return b'flatpak\0\x01\0\0\0ref\0\0\0\0\0app/io.github.translate.Virtaal/%s/stable' % arch.encode()
+    return (
+        b'flatpak\0\x01\0\0\0ref\0\0\0\0\0app/io.github.translate.Virtaal/%s/stable' % arch.encode()
+    )
 
 
 def _appimage(arch):
@@ -51,7 +57,11 @@ def _release(check, tag, prerelease=True, content=_content, **overrides):
     assets = []
     for name in check.expected_assets(tag):
         data = content(name)
-        asset = {'name': name, 'size': len(data), 'digest': 'sha256:' + hashlib.sha256(data).hexdigest()}
+        asset = {
+            'name': name,
+            'size': len(data),
+            'digest': 'sha256:' + hashlib.sha256(data).hexdigest(),
+        }
         asset.update(overrides.get(name, {}))
         assets.append(asset)
     return {'prerelease': prerelease, 'draft': False, 'assets': assets}
@@ -60,9 +70,12 @@ def _release(check, tag, prerelease=True, content=_content, **overrides):
 def test_expected_assets_for_a_release_candidate(check):
     assert check.expected_assets('v1.0.0-rc2') == [
         'virtaal-1.0.0-rc2-setup.exe',
-        'Virtaal-macos-arm64.dmg', 'Virtaal-macos-x86_64.dmg',
-        'Virtaal-linux-x86_64.flatpak', 'Virtaal-linux-aarch64.flatpak',
-        'Virtaal-linux-x86_64.AppImage', 'Virtaal-linux-aarch64.AppImage',
+        'Virtaal-macos-arm64.dmg',
+        'Virtaal-macos-x86_64.dmg',
+        'Virtaal-linux-x86_64.flatpak',
+        'Virtaal-linux-aarch64.flatpak',
+        'Virtaal-linux-x86_64.AppImage',
+        'Virtaal-linux-aarch64.AppImage',
         'virtaal-translation-packs-v1.0.0-rc2.zip',
     ]
 
@@ -78,11 +91,17 @@ def test_a_complete_release_has_no_problems(check):
 
 
 def test_release_problems_lists_missing_empty_and_undigested_assets(check):
-    release = _release(check, 'v1.0.0-rc2', **{
-        'Virtaal-macos-arm64.dmg': {'size': 0},
-        'Virtaal-macos-x86_64.dmg': {'digest': None},
-    })
-    release['assets'] = [a for a in release['assets'] if a['name'] != 'Virtaal-linux-aarch64.AppImage']
+    release = _release(
+        check,
+        'v1.0.0-rc2',
+        **{
+            'Virtaal-macos-arm64.dmg': {'size': 0},
+            'Virtaal-macos-x86_64.dmg': {'digest': None},
+        },
+    )
+    release['assets'] = [
+        a for a in release['assets'] if a['name'] != 'Virtaal-linux-aarch64.AppImage'
+    ]
     release['assets'].append({'name': 'stray.txt', 'size': 3, 'digest': 'sha256:x'})
 
     assert check.release_problems('v1.0.0-rc2', release) == [
@@ -106,12 +125,15 @@ def test_kind_problem_accepts_each_format(check, tmp_path):
         assert check.kind_problem(name, str(path)) is None, name
 
 
-@pytest.mark.parametrize('name, data', [
-    ('Virtaal-macos-arm64.dmg', b'<html>error</html>'),
-    ('Virtaal-linux-aarch64.AppImage', _appimage('x86_64')),
-    ('Virtaal-linux-x86_64.flatpak', _flatpak('aarch64')),
-    ('virtaal-1.0.0-setup.exe', b'PK\x03\x04'),
-])
+@pytest.mark.parametrize(
+    'name, data',
+    [
+        ('Virtaal-macos-arm64.dmg', b'<html>error</html>'),
+        ('Virtaal-linux-aarch64.AppImage', _appimage('x86_64')),
+        ('Virtaal-linux-x86_64.flatpak', _flatpak('aarch64')),
+        ('virtaal-1.0.0-setup.exe', b'PK\x03\x04'),
+    ],
+)
 def test_kind_problem_rejects_the_wrong_file(check, tmp_path, name, data):
     path = tmp_path / name
     path.write_bytes(data)
@@ -127,13 +149,16 @@ def _fake_download(content=_content):
             f.write(content(name))
         seen.append(path)
         return path
+
     return download, seen
 
 
 def test_check_files_verifies_and_deletes_every_download(check):
     download, seen = _fake_download()
 
-    problems = check.check_files('v1.0.0-rc2', 'repo', _release(check, 'v1.0.0-rc2'), downloader=download)
+    problems = check.check_files(
+        'v1.0.0-rc2', 'repo', _release(check, 'v1.0.0-rc2'), downloader=download
+    )
 
     assert problems == []
     assert len(seen) == 8
@@ -143,7 +168,9 @@ def test_check_files_verifies_and_deletes_every_download(check):
 
 def test_check_files_reports_a_digest_that_doesnt_match(check):
     release = _release(check, 'v1.0.0-rc2')
-    download, _ = _fake_download(lambda name: _content(name) + (b'x' if name.endswith('.zip') else b''))
+    download, _ = _fake_download(
+        lambda name: _content(name) + (b'x' if name.endswith('.zip') else b'')
+    )
 
     problems = check.check_files('v1.0.0-rc2', 'repo', release, downloader=download)
 

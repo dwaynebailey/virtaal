@@ -38,9 +38,9 @@ def parse_thesaurus(dat_bytes):
     newline = dat_bytes.index(b'\n')
     charset = dat_bytes[:newline].decode('ascii', errors='replace').strip()
     try:
-        text = dat_bytes[newline + 1:].decode(charset)
+        text = dat_bytes[newline + 1 :].decode(charset)
     except LookupError:
-        text = dat_bytes[newline + 1:].decode('utf-8')
+        text = dat_bytes[newline + 1 :].decode('utf-8')
 
     lines = text.split('\n')
     result = {}
@@ -57,7 +57,7 @@ def parse_thesaurus(dat_bytes):
             i += 1
             continue
         meanings = []
-        for meaning_line in lines[i + 1:i + 1 + count]:
+        for meaning_line in lines[i + 1 : i + 1 + count]:
             pos, *synonyms = meaning_line.split('|')
             meanings.append((pos, synonyms))
         result[word] = meanings

@@ -60,9 +60,7 @@ class LanguageError(Exception):
 class TMDB:
     _tm_dbs = {}
 
-    def __init__(
-        self, db_file, max_candidates=3, min_similarity=75, max_length=1000
-    ) -> None:
+    def __init__(self, db_file, max_candidates=3, min_similarity=75, max_length=1000) -> None:
         self.max_candidates = max_candidates
         self.min_similarity = min_similarity
         self.max_length = max_length
@@ -145,9 +143,7 @@ DROP TABLE test_for_fts3;
             logger.debug("fts3 supported")
             # for some reason CREATE VIRTUAL TABLE doesn't support IF NOT
             # EXISTS syntax check if fulltext index table exists manually
-            self.cursor.execute(
-                "SELECT name FROM sqlite_master WHERE name = 'fulltext'"
-            )
+            self.cursor.execute("SELECT name FROM sqlite_master WHERE name = 'fulltext'")
             if not self.cursor.fetchone():
                 # create fulltext index table, and index all strings in sources
                 script = """
@@ -308,12 +304,12 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         target_langs = [data.normalize_code(lang) for lang in target_langs]
         # One placeholder per language: "IN (?)" with "en,fr" matches neither.
         langs_in = "s.lang IN (%s) AND t.lang IN (%s)" % (
-            ",".join("?" * len(source_langs)), ",".join("?" * len(target_langs)))
+            ",".join("?" * len(source_langs)),
+            ",".join("?" * len(target_langs)),
+        )
 
         minlen = min_levenshtein_length(len(unit_source), self.min_similarity)
-        maxlen = max_levenshtein_length(
-            len(unit_source), self.min_similarity, self.max_length
-        )
+        maxlen = max_levenshtein_length(len(unit_source), self.min_similarity, self.max_length)
 
         # split source into words, remove punctuation and special
         # chars, keep words that are at least 3 chars long
@@ -322,20 +318,24 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
 
         if self.fulltext and len(unit_words) > 3:
             logger.debug("fulltext matching")
-            query = """SELECT s.text, t.text, s.context, s.lang, t.lang FROM sources s JOIN targets t ON s.sid = t.sid JOIN fulltext f ON s.sid = f.docid
+            query = (
+                """SELECT s.text, t.text, s.context, s.lang, t.lang FROM sources s JOIN targets t ON s.sid = t.sid JOIN fulltext f ON s.sid = f.docid
                        WHERE %s AND s.length BETWEEN ? AND ?
-                       AND fulltext MATCH ?""" % langs_in
+                       AND fulltext MATCH ?"""
+                % langs_in
+            )
             # Quoted, so a word such as AND, NOT or NEAR isn't read as an
             # FTS operator (#4332). STRIP_REGEXP has removed any quote.
             search_str = " OR ".join('"%s"' % word for word in unit_words)
-            self.cursor.execute(
-                query, (*source_langs, *target_langs, minlen, maxlen, search_str)
-            )
+            self.cursor.execute(query, (*source_langs, *target_langs, minlen, maxlen, search_str))
         else:
             logger.debug("nonfulltext matching")
-            query = """SELECT s.text, t.text, s.context, s.lang, t.lang FROM sources s JOIN targets t ON s.sid = t.sid
+            query = (
+                """SELECT s.text, t.text, s.context, s.lang, t.lang FROM sources s JOIN targets t ON s.sid = t.sid
             WHERE %s
-            AND s.length >= ? AND s.length <= ?""" % langs_in
+            AND s.length >= ? AND s.length <= ?"""
+                % langs_in
+            )
             self.cursor.execute(query, (*source_langs, *target_langs, minlen, maxlen))
 
         results = []

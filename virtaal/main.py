@@ -24,8 +24,8 @@ def _resolve_startup_path(startupfile):
     which still runs for real once the open is attempted."""
     if startupfile.startswith('file://'):
         if platform.is_windows:
-            return startupfile[len('file:///'):]
-        return startupfile[len('file://'):]
+            return startupfile[len('file:///') :]
+        return startupfile[len('file://') :]
     return startupfile
 
 
@@ -58,6 +58,7 @@ class Virtaal:
 
     def __init__(self, startupfile):
         from virtaal.support.crash_dialog import install as install_crash_dialog
+
         install_crash_dialog()
 
         # PyGObject-wrapped GTK widgets routinely end up in Python
@@ -75,11 +76,13 @@ class Virtaal:
         # CPython's refcounting for the deterministic case and simply
         # never run the cyclic collector for the rest.
         import gc
+
         gc.disable()
 
         # Before the window exists, so the desktop matches it to the entry.
         if platform.is_appimage:
             from virtaal.support import appimage
+
             appimage.integrate()
 
         # We try to get the welcomescreen loaded as early as possible
@@ -105,13 +108,13 @@ class Virtaal:
             # runs regardless, since it does controller construction
             # later deferred code depends on either way.
             import os
+
             if os.path.exists(_resolve_startup_path(startupfile)):
                 main_controller.view.show_loading_notice(startupfile)
             self.defer(self._open_startup_file, startupfile)
         else:
             wc.activate()
             self.defer(self._open_with_welcome)
-
 
     def _install_signal_handlers(self):
         """An external SIGTERM/SIGINT (a test harness's `kill`, Ctrl+C,
@@ -125,9 +128,11 @@ class Virtaal:
         if platform.is_windows:
             return
         import signal
+
         def handle_signal(signum):
             self.main_controller.quit(force=True)
             return GLib.SOURCE_REMOVE
+
         for sig in (signal.SIGTERM, signal.SIGINT):
             GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, sig, handle_signal, sig)
 
@@ -154,15 +159,18 @@ class Virtaal:
         if opened:
             # Plugins load next, and process the open file.
             import os
+
             main_controller.view.show_progress(_("Loading '%s'…") % os.path.basename(startupfile))
         else:
             main_controller.welcomescreen_controller.activate()
             main_controller.view.show_startup_open_failure_notice(
-                startupfile, main_controller.last_open_error)
+                startupfile, main_controller.last_open_error
+            )
             # Otherwise it just sits there as a stale reminder about a
             # file the user has since moved past.
             main_controller.store_controller.connect(
-                'store-loaded', lambda *a: main_controller.view.hide_startup_open_failure_notice())
+                'store-loaded', lambda *a: main_controller.view.hide_startup_open_failure_notice()
+            )
         self.defer(self._load_extras)
 
     def _open_with_welcome(self):
@@ -222,7 +230,6 @@ class Virtaal:
         from virtaal.support.update_check import UpdateChecker
 
         UpdateChecker(ver, self.main_controller.view.show_update_notice).check()
-
 
     # METHODS #
     def run(self):
