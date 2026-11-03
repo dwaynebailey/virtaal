@@ -613,16 +613,9 @@ class SearchMode(BaseMode):
                 if match.unit is current_unit and match.part == 'target'
             ]
             if len(unit_matches) > 0:
-                i = self.matches.index(unit_matches[0])
                 self.controller.main_controller.undo_controller.record_start()
                 self.replace_match(unit_matches[0], self.ent_replace.get_text())
                 self.controller.main_controller.undo_controller.record_stop()
-                # FIXME: The following is necessary to avoid an IndexError in
-                # del in certain circumstances. I'm not sure why it happens,
-                # but I suspect it has something to do with self.matches not
-                # being updated as expected after an undo.
-                if 0 <= i < len(self.matches):
-                    del self.matches[i]
             elif self.filter.re_search:
                 # If there is no current search, we don't want to advance and
                 # give the impression that we replaced something (bug 1636)

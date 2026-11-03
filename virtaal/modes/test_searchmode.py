@@ -554,7 +554,7 @@ def test_on_replace_clicked_delegates_to_replace_all_when_checked():
     assert calls == [True]
 
 
-def test_on_replace_clicked_replaces_the_current_unit_match_and_drops_it():
+def test_on_replace_clicked_replaces_the_current_unit_match_then_researches():
     current_unit = object()
     other_match = SimpleNamespace(unit=object(), part='target')
     current_match = SimpleNamespace(unit=current_unit, part='target')
@@ -567,13 +567,34 @@ def test_on_replace_clicked_replaces_the_current_unit_match_and_drops_it():
             undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None)
         )
     )
-    replaced = []
-    mode.replace_match = lambda match, repl: replaced.append((match, repl))
+    calls = []
+    mode.replace_match = lambda match, repl: calls.append((match, repl))
+    mode.update_search = lambda: calls.append('update')
 
     mode._on_replace_clicked(None)
 
-    assert replaced == [(current_match, 'replacement')]
-    assert mode.matches == [other_match]
+    assert calls == ['update', (current_match, 'replacement'), 'update']
+
+
+def test_on_replace_clicked_keeps_the_matches_its_edit_left_alone():
+    # The edit's own 'unit-modified' re-sync drops the replaced match.
+    current_unit = object()
+    current_match = SimpleNamespace(unit=current_unit, part='target')
+    next_match = SimpleNamespace(unit=current_unit, part='target')
+    mode = _replace_clicked_mode(
+        storecursor=SimpleNamespace(deref=lambda: current_unit),
+        matches=[current_match, next_match],
+    )
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None)
+        )
+    )
+    mode.replace_match = lambda match, repl: mode.matches.remove(match)
+
+    mode._on_replace_clicked(None)
+
+    assert mode.matches == [next_match]
 
 
 def test_on_replace_clicked_advances_the_cursor_when_the_current_unit_has_no_match():
