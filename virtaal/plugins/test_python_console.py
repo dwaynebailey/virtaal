@@ -55,6 +55,17 @@ def test_ctrl_d_destroys_the_console():
     assert result is None
 
 
+def test_exit_destroys_the_console():
+    console = PythonConsole(namespace={})
+    destroyed = []
+    console.destroy_cb = lambda: destroyed.append(True)
+    console.view.get_buffer().insert(console.view.get_buffer().get_end_iter(), "exit()")
+
+    _send(console, Gdk.KEY_Return)
+
+    assert destroyed == [True]
+
+
 def test_return_evaluates_the_command_and_prints_its_result():
     console = PythonConsole(namespace={})
     console.view.get_buffer().insert(console.view.get_buffer().get_end_iter(), "1 + 1")

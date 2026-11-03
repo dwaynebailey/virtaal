@@ -265,11 +265,10 @@ class PythonConsole(Gtk.ScrolledWindow):
                     print(repr(r))
             except SyntaxError:
                 exec(command, self.namespace)
-        except:
-            if hasattr(sys, 'last_type') and sys.last_type == SystemExit:
-                self.destroy()
-            else:
-                traceback.print_exc()
+        except SystemExit:
+            self.destroy()
+        except BaseException:
+            traceback.print_exc()
 
         sys.stdout, self.stdout = self.stdout, sys.stdout
         sys.stderr, self.stderr = self.stderr, sys.stderr
