@@ -172,7 +172,6 @@ class TMController(BaseController):
         (This method is used as View-Controller communications)"""
         unit_controller = self.main_controller.unit_controller
         target_n = unit_controller.view.focused_target_n
-        old_text = unit_controller.view.get_target_n(target_n)
         textbox = unit_controller.view.targets[target_n]
         self.main_controller.undo_controller.push_current_text(textbox)
         unit_controller.set_unit_target(target_n, forceunicode(match_data['target']))

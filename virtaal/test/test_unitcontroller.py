@@ -22,7 +22,7 @@ class TestUnitController(TestScaffolding):
         # ignores PO headers (and other untranslatable units), whereas the Toolkit's stores do not.
 
         test_unit = self.trans_store.getunits()[1]
-        view = self.unit_controller.load_unit(test_unit)
+        self.unit_controller.load_unit(test_unit)
 
         assert (
             str(self.unit_controller.view.targets[0].elem) == self.trans_store.getunits()[1].target
@@ -30,7 +30,7 @@ class TestUnitController(TestScaffolding):
 
     def test_set_target(self):
         test_unit = self.trans_store.getunits()[1]
-        view = self.unit_controller.load_unit(test_unit)
+        self.unit_controller.load_unit(test_unit)
 
         self.unit_controller.set_unit_target(
             0,

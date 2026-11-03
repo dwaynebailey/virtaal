@@ -438,7 +438,6 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
     def focus_text_view(self, textbox):
         textbox.grab_focus()
 
-        text = textbox.get_text()
         translation_start = self._get_editing_start_pos(textbox)
         textbox.buffer.place_cursor(textbox.buffer.get_iter_at_offset(translation_start))
 
@@ -839,10 +838,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
                 self.targets[i].get_parent().hide_all()
             return
 
-        num_unit_targets = 1
         nplurals = 1
         if self.unit.hasplural():
-            num_unit_targets = len(self.unit.target.strings)
             nplurals = self.controller.main_controller.lang_controller.get_target_nplurals()
 
         visible_sources = [src for src in self.sources if src.props.visible]

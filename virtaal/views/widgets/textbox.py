@@ -886,18 +886,12 @@ class TextBox(Gtk.TextView):
         start_elem_len = start_elem.gui_info.length()
         start_elem_offset = self.elem.gui_info.index(start_elem)
 
+        # end_elem can be None if end_offset == self.elem.gui_info.length()
         end_elem = self.elem.gui_info.elem_at_offset(end_offset)
-        if end_elem is not None:
-            # end_elem can be None if end_offset == self.elem.gui_info.length()
-            end_elem_len = end_elem.gui_info.length()
-            end_elem_offset = self.elem.gui_info.index(end_elem)
-        else:
-            end_elem_len = 0
-            end_elem_offset = self.elem.gui_info.length()
 
         # logging.debug('pre-checks: %s[%d:%d]' % (repr(self.elem), start_offset, end_offset))
-        # logging.debug('start_elem_offset= %d\tend_elem_offset= %d' % (start_elem_offset, end_elem_offset))
-        # logging.debug('start_elem_len   = %d\tend_elem_len   = %d' % (start_elem_len, end_elem_len))
+        # logging.debug('start_elem_offset= %d' % (start_elem_offset))
+        # logging.debug('start_elem_len   = %d' % (start_elem_len))
         # logging.debug('start_offset     = %d\tend_offset     = %d' % (start_offset, end_offset))
 
         # Per definition of a selection, cursor_pos must be at either

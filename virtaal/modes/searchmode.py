@@ -209,7 +209,6 @@ class SearchMode(BaseMode):
         def select_match_text():
             textbox.grab_focus()
             buff = textbox.buffer
-            buffstr = textbox.get_text()
 
             start, end = match.start, match.end
             if hasattr(textbox.elem, 'gui_info'):
@@ -406,7 +405,7 @@ class SearchMode(BaseMode):
             tag = tagtable.lookup('search_highlight')
             if tag:
                 tagtable.remove(tag)
-        except ValueError as ve:
+        except ValueError:
             logging.exception("Removing search highlighting tag exception:")
 
     def _get_textbox_part(self, textbox):
@@ -473,7 +472,6 @@ class SearchMode(BaseMode):
 
     def _highlight_textbox_matches(self, textbox, select_match=True):
         buff = textbox.buffer
-        buffstr = textbox.get_text()
 
         # Make sure the 'search_highlight' tag in the textbox's tag table
         # is "fresh".
@@ -483,7 +481,7 @@ class SearchMode(BaseMode):
             if tag:
                 tagtable.remove(tag)
             tagtable.add(self._make_highlight_tag())
-        except ValueError as ve:
+        except ValueError:
             logging.exception("(Re-)adding search highlighting tag exception:")
 
         # Merge touching or overlapping matches, and drop empty ones that

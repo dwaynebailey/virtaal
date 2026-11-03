@@ -111,7 +111,7 @@ class PreferencesController(BaseController):
             else:
                 try:
                     info = self.plugin_controller.get_plugin_info(found_plugin)
-                except Exception as e:
+                except Exception:
                     import logging
 
                     logging.debug('Problem getting information for plugin %s' % found_plugin)

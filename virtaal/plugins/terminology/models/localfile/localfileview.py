@@ -312,7 +312,7 @@ class FileSelectDialog:
 
                 if not os.path.isfile(filename):
                     raise OSError('"%s" is not a usable file.' % filename)
-                store = store_factory.getobject(filename)
+                store_factory.getobject(filename)
                 currfiles.append(filename)
                 self.lst_files.append([filename, False])
             except Exception as exc:

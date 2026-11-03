@@ -268,7 +268,6 @@ def test_get_queues_a_request_and_wires_only_the_given_callbacks():
     added = []
     client.add = lambda request: added.append(request)
     success_calls = []
-    error_calls = []
 
     client.get('http://example.com', callback=lambda r, v: success_calls.append(v))
 

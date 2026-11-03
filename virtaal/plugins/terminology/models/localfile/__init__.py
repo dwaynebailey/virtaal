@@ -55,7 +55,6 @@ class TerminologyModel(BaseTerminologyModel):
     def get_duplicates(self, src_text, tgt_text):
         base_src_text = src_text.strip()
         base_tgt_text = tgt_text.strip()
-        units = []
         for store in self.stores:
             for unit in store.units:
                 if unit.source.strip() == base_src_text and unit.target.strip() == base_tgt_text:

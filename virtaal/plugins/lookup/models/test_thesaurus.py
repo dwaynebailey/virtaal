@@ -389,7 +389,7 @@ def test_init_auto_downloads_for_the_current_source_and_target_languages(monkeyp
     monkeypatch.setattr(thesaurus_module, 'thesaurus_cache_dir', lambda: str(tmp_path))
     threads = _patch_threads(monkeypatch)
 
-    model = _make_model(source_lang='pl_PL', target_lang='en')
+    _make_model(source_lang='pl_PL', target_lang='en')
 
     assert len(threads) == 2
     assert {t.args[0] for t in threads} == {'pl_PL', 'en'}

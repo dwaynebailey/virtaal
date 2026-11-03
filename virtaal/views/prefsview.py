@@ -5,7 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from gi.repository import GLib, GObject, Gtk, Pango
+from gi.repository import GLib, GObject, Gtk
 from translate.lang.data import languages as toolkit_langs
 
 from virtaal.common import GObjectWrapper, pan_app
@@ -182,8 +182,6 @@ class PreferencesView(BaseView, GObjectWrapper):
     def _set_font_data(self, value):
         if not isinstance(value, dict) or 'source' not in value or 'target' not in value:
             raise ValueError('Value must be a dictionary')
-        sourcefont = Pango.FontDescription(value['source'])
-        targetfont = Pango.FontDescription(value['target'])
         self._widgets['fbtn_source'].set_font(value['source'])
         self._widgets['fbtn_target'].set_font(value['target'])
 

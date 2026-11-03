@@ -91,7 +91,7 @@ class Virtaal:
         from virtaal.controllers.welcomescreencontroller import WelcomeScreenController
 
         main_controller = MainController()
-        store_controller = StoreController(main_controller)
+        StoreController(main_controller)
 
         self.defer = _Deferer()
         self.main_controller = main_controller

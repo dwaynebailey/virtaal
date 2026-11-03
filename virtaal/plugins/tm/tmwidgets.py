@@ -316,7 +316,8 @@ class TMMatchRenderer(Gtk.CellRenderer):
         x_offset = 0
         y_offset = self.BOX_MARGIN
         width = cell_area.width
-        height = self._compute_cell_height(widget, width)
+        # Builds self.source_layout and self.target_layout for this width.
+        self._compute_cell_height(widget, width)
         style_context = widget.get_style_context()
 
         x = cell_area.x + x_offset

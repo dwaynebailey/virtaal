@@ -114,8 +114,7 @@ class TMModel(remotetm.TMModel):
             url = "http://%s:%d/tmserver" % (self.config["tmserver_bind"], port)
 
             self.tmclient = tmclient.TMClient(url)
-        except OSError as e:
-            message = "Failed to start TM server: %s" % str(e)
+        except OSError:
             logging.exception('Failed to start TM server')
             raise
 

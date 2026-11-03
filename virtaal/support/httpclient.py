@@ -307,7 +307,7 @@ class HTTPClient:
                         distro_version = line.split('=')[-1]
                         distro_version = distro_version.replace('"', '')
                 platform = '%s; %s %s' % (platform, distro, distro_version)
-            except Exception as e:
+            except Exception:
                 pass
 
         # Debian, Ubuntu, Mandriva:
@@ -320,7 +320,7 @@ class HTTPClient:
                         distro = line.split('=')[-1]
                         distro = distro.replace('"', '')
                         platform = '%s; %s' % (platform, distro)
-            except Exception as e:
+            except Exception:
                 pass
         # Fedora, RHEL:
         elif os.path.isfile('/etc/system-release'):
@@ -330,7 +330,7 @@ class HTTPClient:
                 for line in lines:
                     distro, dummy, distro_version, codename = line.split()
                     platform = '%s; %s %s' % (platform, distro, distro_version)
-            except Exception as e:
+            except Exception:
                 pass
         return platform
 

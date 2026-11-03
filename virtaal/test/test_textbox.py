@@ -808,7 +808,7 @@ class TestTextBox(TestScaffolding):
         textbox = self._target_for('%s files copied')
         moved = []
         monkeypatch.setattr(textbox, 'move_elem_selection', moved.append)
-        popup = self._open_candidates(monkeypatch, textbox)
+        self._open_candidates(monkeypatch, textbox)
 
         textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Escape))
 
@@ -819,7 +819,7 @@ class TestTextBox(TestScaffolding):
         textbox = self._target_for('%s files copied')
         textbox.set_text('%s files copied')
         textbox.buffer.place_cursor(textbox.buffer.get_end_iter())
-        popup = self._open_candidates(monkeypatch, textbox)
+        self._open_candidates(monkeypatch, textbox)
         emitted = []
         monkeypatch.setattr(textbox, 'emit', lambda signal, *args: emitted.append(signal))
 

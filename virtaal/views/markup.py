@@ -138,7 +138,7 @@ _diff_pango_templates = {
     "strikethrough_color='#777'"
     "background='%(diff_delete_bg)s'"
     "foreground='%(diff_delete_fg)s'",
-    # replace_attr_remove = delete_attr
+    # The removed part of a replacement uses delete_attr.
     'replace_attr_add': "underline='single'"
     "underline_color='#777777'"
     "weight='bold'"
@@ -168,7 +168,6 @@ def pango_diff(a, b):
         colours[key + '_fg'] = readable_fg(current_theme[key + '_bg'])
     insert_attr = _diff_pango_templates['insert_attr'] % colours
     delete_attr = _diff_pango_templates['delete_attr'] % colours
-    replace_attr_remove = delete_attr
     replace_attr_add = _diff_pango_templates['replace_attr_add'] % colours
     replace_attr_add_case = _diff_pango_templates['replace_attr_add_case'] % colours
 

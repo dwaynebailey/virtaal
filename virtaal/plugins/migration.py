@@ -138,7 +138,7 @@ class Plugin(BasePlugin):
             # name was _winreg.
             try:
                 import winreg
-            except Exception as e:
+            except Exception:
                 return
 
             def get_thing(item):

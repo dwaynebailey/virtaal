@@ -72,7 +72,6 @@ class WelcomeScreenView(BaseView):
             if not self.widget.get_mapped():
                 return
             txt = self.widget.widgets['txt_features']
-            expander = txt.get_parent().get_parent()
 
             screenwidth = self.widget.get_allocation().width
             col1 = self.widget.widgets['buttons']['open'].get_parent()

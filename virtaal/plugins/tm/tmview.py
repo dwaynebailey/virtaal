@@ -101,7 +101,6 @@ class TMView(BaseView, GObjectWrapper):
 
     def _setup_menu_items(self):
         mainview = self.controller.main_controller.view
-        menubar = mainview.menubar
         self.mnui_view = mainview.gui.get_object('menuitem_view')
         self.menu = self.mnui_view.get_submenu()
 

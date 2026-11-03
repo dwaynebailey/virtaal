@@ -1130,7 +1130,7 @@ class MainView(BaseView):
         self._top_window = self.error_dialog
         self.error_dialog.show()
         self.error_dialog.present()
-        response = self.error_dialog.run()
+        self.error_dialog.run()
         self.error_dialog.hide()
         from gi.repository import GLib
 
@@ -1163,7 +1163,7 @@ class MainView(BaseView):
         self._top_window = self.info_dialog
         self.info_dialog.show()
         self.info_dialog.present()
-        response = self.info_dialog.run()
+        self.info_dialog.run()
         self.info_dialog.hide()
         from gi.repository import GLib
 
