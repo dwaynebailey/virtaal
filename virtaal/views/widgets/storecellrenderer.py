@@ -430,7 +430,7 @@ class StoreCellRenderer(Gtk.CellRenderer):
         layout.set_font_description(font_description)
         layout.set_wrap(Pango.WrapMode.WORD_CHAR)
         layout.set_width(width * Pango.SCALE)
-        # XXX - plurals?
+        # A plural unit shows its first form only.
         text = text or ""
         layout.set_markup(markup.markuptext(text))
         return layout

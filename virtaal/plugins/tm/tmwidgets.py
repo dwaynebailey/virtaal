@@ -392,7 +392,7 @@ class TMMatchRenderer(Gtk.CellRenderer):
         layout.set_font_description(font_description)
         layout.set_wrap(Pango.WrapMode.WORD_CHAR)
         layout.set_width(width * Pango.SCALE)
-        # XXX - plurals?
+        # Matches hold one plural form only (#1392).
         layout.set_markup(markup.markuptext(text, diff_text=diff_text))
         # This makes no sense, but has the desired effect to align things correctly for
         # both LTR and RTL languages:

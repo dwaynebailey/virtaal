@@ -245,8 +245,7 @@ class FileSelectDialog:
         supported_file_names.sort(key=locale.strxfrm)
         for name in supported_file_names:
             extensions, mimetypes = supported_files_dict[name]
-            # XXX: we can't open generic .csv formats, so listing it is probably
-            # more harmful than good.
+            # Only CSV with source and target headers loads correctly.
             if "csv" in extensions:
                 continue
             new_filter = Gtk.FileFilter()

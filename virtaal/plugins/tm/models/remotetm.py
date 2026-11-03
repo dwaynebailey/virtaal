@@ -40,7 +40,6 @@ class TMModel(BaseTMModel):
         if self.source_lang == self.target_lang:
             return
 
-        # TODO: Figure out languages
         query_str = unit.source
         if query_str in self.cache:
             _cached = self.cache[query_str]
@@ -73,8 +72,6 @@ class TMModel(BaseTMModel):
         for unit in store_controller.store.get_units():
             if unit.istranslated():
                 units.append(unit2dict(unit))
-        # FIXME: do we get source and target langs from
-        # store_controller or from tm state?
         self.tmclient.add_store(
             store_controller.store.get_filename(), units, self.source_lang, self.target_lang
         )
