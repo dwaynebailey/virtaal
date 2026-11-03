@@ -7,6 +7,7 @@
 
 import weakref
 
+from translate.misc.multistring import multistring
 from translate.search import match
 
 from virtaal.common import pan_app
@@ -167,7 +168,11 @@ class TMModel(BaseTMModel):
             # We don't want to cache alt trans or the 100% filter, since these
             # are different for units with the same source text.
 
-        matches = self._filter_for(unit, found) + self._check_alttrans(unit)
+        matches = (
+            self._filter_for(unit, found)
+            + self._check_alttrans(unit)
+            + self._check_plural_forms(unit, getattr(tmcontroller, 'target_n', 0))
+        )
         if matches:
             self.emit('match-found', query_str, matches)
 
@@ -246,6 +251,44 @@ class TMModel(BaseTMModel):
                     'target': alt.target,
                     'quality': quality,
                     'tmsource': tmsource,
+                }
+            )
+        return results
+
+    def _check_plural_forms(self, unit, target_n):
+        """The unit's other filled plural forms, as suggestions for form
+        target_n: they are often nearly the same (#874)."""
+        hasplural = getattr(unit, 'hasplural', None)
+        if hasplural is None or not hasplural():
+            return []
+        targets = [str(t) for t in unit.target.strings]
+        if isinstance(unit.source, multistring):
+            sources = [str(s) for s in unit.source.strings]
+        else:
+            # .qm: one source for every form.
+            sources = [str(unit.source)]
+
+        def source_for(n):
+            return sources[min(n, len(sources) - 1)]
+
+        from translate.search.lshtein import LevenshteinComparer
+
+        lcomparer = LevenshteinComparer(max_len=1000)
+        own = targets[target_n] if target_n < len(targets) else ''
+        seen = {own, ''}
+        results = []
+        for n, target in enumerate(targets):
+            if n == target_n or target in seen:
+                continue
+            seen.add(target)
+            # Never 100: it translates another form, not this one.
+            quality = lcomparer.similarity(source_for(target_n), source_for(n), 0)
+            results.append(
+                {
+                    'source': source_for(n),
+                    'target': target,
+                    'quality': min(int(quality), 99),
+                    'tmsource': _('This file'),
                 }
             )
         return results

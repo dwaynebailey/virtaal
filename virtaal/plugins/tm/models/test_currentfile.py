@@ -473,3 +473,71 @@ def test_reopening_keeps_translations_from_a_previous_file():
     _reopen(model, reopened)
 
     assert _offered(model, emitted, reopened.units[0]) == [('Stoor', 100)]
+
+
+# Other plural forms (#874) #
+
+
+def _plural_unit(targets, sources=('%d file', '%d files')):
+    from translate.storage import po
+
+    body = 'msgid ""\nmsgstr "Plural-Forms: nplurals=%d; plural=n;\\n"\n\n' % len(targets)
+    body += 'msgid "%s"\nmsgid_plural "%s"\n' % sources
+    body += ''.join('msgstr[%d] "%s"\n' % (i, t) for i, t in enumerate(targets))
+    return po.pofile(body.encode('utf-8')).units[1]
+
+
+def _forms(model, unit, target_n):
+    return [
+        (m['source'], m['target'], m['quality'], m['tmsource'])
+        for m in model._check_plural_forms(unit, target_n)
+    ]
+
+
+def test_check_plural_forms_offers_an_earlier_form_for_a_later_one():
+    unit = _plural_unit(['%d lêer', ''])
+
+    assert _forms(_make_model(), unit, 1) == [('%d file', '%d lêer', 87, 'This file')]
+
+
+def test_check_plural_forms_offers_a_later_form_for_an_earlier_one():
+    unit = _plural_unit(['', '%d lêers'])
+
+    assert _forms(_make_model(), unit, 0) == [('%d files', '%d lêers', 87, 'This file')]
+
+
+def test_check_plural_forms_scores_forms_with_the_same_source_below_100():
+    # Forms 1 and 2 both translate msgid_plural.
+    unit = _plural_unit(['%d soubor', '%d soubory', ''])
+
+    assert [(t, q) for _s, t, q, _src in _forms(_make_model(), unit, 2)] == [
+        ('%d soubor', 87),
+        ('%d soubory', 99),
+    ]
+
+
+def test_check_plural_forms_skips_empty_forms_and_the_forms_own_text():
+    unit = _plural_unit(['%d soubor', '', '%d soubor'])
+
+    assert _forms(_make_model(), unit, 2) == []
+    assert _forms(_make_model(), unit, 1) == [('%d file', '%d soubor', 87, 'This file')]
+
+
+def test_check_plural_forms_offers_nothing_for_a_singular_unit():
+    unit = _po_store([(None, 'Open', 'Maak oop')]).units[0]
+
+    assert _forms(_make_model(), unit, 0) == []
+
+
+def test_check_plural_forms_offers_nothing_when_no_other_form_is_filled():
+    assert _forms(_make_model(), _plural_unit(['', '']), 1) == []
+
+
+def test_query_offers_the_other_forms_of_the_form_being_edited():
+    model, emitted = _model_for(_po_store([(None, 'Open', 'Maak oop')]))
+    unit = _plural_unit(['%d lêer', ''])
+
+    emitted.clear()
+    model.query(SimpleNamespace(target_n=1), unit)
+
+    assert emitted == [[('%d lêer', 87)]]

@@ -443,6 +443,28 @@ def test_send_tm_query_reuses_the_existing_unit_when_none_given():
     assert controller.current_query == 'bye'
 
 
+@pytest.mark.parametrize(
+    'unit_view, expected',
+    [
+        (None, 0),
+        (SimpleNamespace(focused_target_n=None), 0),
+        (SimpleNamespace(focused_target_n=2), 2),
+    ],
+)
+def test_send_tm_query_records_the_form_being_edited(unit_view, expected):
+    # Models offer a plural unit's other forms for this one (#874).
+    controller = _bare_controller(unit=SimpleNamespace(source='bye'))
+    if unit_view is not None:
+        controller.unit_view = unit_view
+    controller.view = SimpleNamespace(clear=lambda: None)
+    controller.emit = lambda *a: None
+
+    controller.send_tm_query()
+
+    assert controller.target_n == expected
+    assert controller._queried_unit is controller.unit
+
+
 # start_query() #
 
 
@@ -764,6 +786,61 @@ def test_on_target_focused_updates_the_view_geometry():
     controller._on_target_focused(None, 0)
 
     assert calls == [True]
+
+
+def _focus_controller(plural=True, target_n=0, queried=True, **view):
+    unit = SimpleNamespace(hasplural=lambda: plural, istranslated=lambda: True)
+    controller, events = _suggestions_controller(unit, **view)
+    controller.target_n = target_n
+    if queried:
+        controller._queried_unit = unit
+    controller.storecursor = SimpleNamespace(deref=lambda: unit)
+    controller.view.update_geometry = lambda: None
+    return controller, events
+
+
+@pytest.mark.parametrize(
+    'kwargs',
+    [
+        # Partly typed: the unit says it's translated, but it was queried.
+        {},
+        {'active': False, 'summoned': True},
+        {'queried': False, 'summoned': True},
+    ],
+)
+def test_on_target_focused_requeries_for_another_plural_form(kwargs):
+    # The other forms are suggestions for this one (#874).
+    controller, events = _focus_controller(**kwargs)
+
+    controller._on_target_focused(None, 1)
+
+    assert events == ['query']
+
+
+@pytest.mark.parametrize(
+    'kwargs',
+    [
+        {'plural': False},
+        {'target_n': 1},  # the form already queried
+        {'active': False},  # suggestions off and not summoned
+        {'queried': False},  # translated when selected: only on request
+    ],
+)
+def test_on_target_focused_does_not_requery(kwargs):
+    controller, events = _focus_controller(**kwargs)
+
+    controller._on_target_focused(None, 1)
+
+    assert events == []
+
+
+def test_on_target_focused_does_not_requery_without_a_file():
+    controller, events = _focus_controller()
+    controller.storecursor = None
+
+    controller._on_target_focused(None, 1)
+
+    assert events == []
 
 
 # _on_store_closed() #

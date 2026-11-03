@@ -183,6 +183,10 @@ class TMController(BaseController):
             self.unit = unit
 
         self.current_query = self.unit.source
+        # The unit and plural form the suggestions are for.
+        self._queried_unit = self.unit
+        unit_view = getattr(self, 'unit_view', None)
+        self.target_n = getattr(unit_view, 'focused_target_n', None) or 0
         self.matches = []
         self.view.clear()
         self.emit('start-query', self.unit)
@@ -308,6 +312,14 @@ class TMController(BaseController):
             self.view.resume()
 
     def _on_target_focused(self, unitcontroller, target_n):
-        # import logging
-        # logging.debug('target_n: %d' % (target_n))
         self.view.update_geometry()
+        # A plural unit's other forms are suggestions for this one (#874).
+        storecursor = getattr(self, 'storecursor', None)
+        unit = storecursor.deref() if storecursor else None
+        if unit is None or not unit.hasplural() or target_n == getattr(self, 'target_n', 0):
+            return
+        # Not istranslated(): typing in one form already makes it true.
+        if self.view.summoned or (
+            self.view.active and getattr(self, '_queried_unit', None) is unit
+        ):
+            self.start_query()
