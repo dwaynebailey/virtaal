@@ -145,6 +145,29 @@ def test_get_store_filename_for_a_bundle():
     assert controller.get_store_filename() == "bundle.zip:doc.po"
 
 
+# can_binary_export() #
+
+
+@pytest.mark.parametrize("filename", ["/path/af.po", "/path/af.po.gz", "/path/af.po.bz2"])
+def test_can_binary_export_a_po_file(filename):
+    controller = _controller()
+    controller.store = SimpleNamespace(get_filename=lambda: filename)
+
+    assert controller.can_binary_export() is True
+
+
+@pytest.mark.parametrize("filename", ["/path/af.xlf", "/path/af.pot", "/path/po"])
+def test_can_binary_export_no_other_file(filename):
+    controller = _controller()
+    controller.store = SimpleNamespace(get_filename=lambda: filename)
+
+    assert controller.can_binary_export() is False
+
+
+def test_can_binary_export_nothing_without_a_store():
+    assert _controller().can_binary_export() is False
+
+
 # get_store_checker()/get_store_stats()/get_store_checks() #
 
 

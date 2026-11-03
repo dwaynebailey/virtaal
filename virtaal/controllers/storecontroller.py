@@ -102,6 +102,11 @@ class StoreController(BaseController):
             filename += store.get_filename()
         return filename
 
+    def can_binary_export(self):
+        """Whether the open file is a Gettext PO file, the only kind
+        L{binary_export()} compiles."""
+        return self.get_store_filename().endswith(('.po', '.po.bz2', '.po.gz'))
+
     def get_store_checker(self):
         store = self.get_store()
         if not store:

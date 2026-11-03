@@ -616,7 +616,7 @@ def test_on_store_closed_disables_menu_items_and_resets_the_title():
     assert view._title == 'Virtaal'
 
 
-def test_on_store_loaded_enables_binary_export_only_for_a_po_file(monkeypatch):
+def test_on_store_loaded_disables_binary_export_for_a_non_po_file(monkeypatch):
     from virtaal.views import recent
 
     monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: None))
@@ -630,14 +630,14 @@ def test_on_store_loaded_enables_binary_export_only_for_a_po_file(monkeypatch):
     )
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'document.odt',
+        can_binary_export=lambda: False,
         project=None,
         store=SimpleNamespace(filename='/tmp/document.odt'),
     )
 
     view._on_store_loaded(store_controller)
 
-    assert binary_export.sensitive == []
+    assert binary_export.sensitive == [False]
 
 
 def test_on_store_loaded_enables_binary_export_for_a_compressed_po_file(monkeypatch):
@@ -654,7 +654,7 @@ def test_on_store_loaded_enables_binary_export_for_a_compressed_po_file(monkeypa
     )
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'translations/af.po.gz',
+        can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/translations/af.po.gz'),
     )
@@ -662,6 +662,32 @@ def test_on_store_loaded_enables_binary_export_for_a_compressed_po_file(monkeypa
     view._on_store_loaded(store_controller)
 
     assert binary_export.sensitive == [True]
+
+
+def test_on_store_loaded_disables_binary_export_for_a_file_opened_after_a_po_file(monkeypatch):
+    from virtaal.views import recent
+
+    monkeypatch.setattr(recent, 'rm', SimpleNamespace(add_item=lambda uri: None))
+    monkeypatch.setattr(mainview, '_note_recent_document', lambda path: None)
+    binary_export = _FakeSensitiveWidget()
+    view = MainView.__new__(MainView)
+    view.gui = SimpleNamespace(
+        get_object=lambda name: (
+            binary_export if name == 'mnu_binary_export' else _FakeSensitiveWidget()
+        )
+    )
+    view.status_bar = _FakeSensitiveWidget()
+
+    for filename, is_po in (('af.po', True), ('af.xlf', False)):
+        view._on_store_loaded(
+            SimpleNamespace(
+                can_binary_export=lambda is_po=is_po: is_po,
+                project=None,
+                store=SimpleNamespace(filename='/tmp/' + filename),
+            )
+        )
+
+    assert binary_export.sensitive == [True, False]
 
 
 def test_on_store_loaded_adds_the_bundle_filename_for_a_project(monkeypatch):
@@ -674,7 +700,7 @@ def test_on_store_loaded_adds_the_bundle_filename_for_a_project(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'bundle.zip',
+        can_binary_export=lambda: False,
         project=True,
         get_bundle_filename=lambda: '/tmp/bundle.zip',
     )
@@ -703,7 +729,7 @@ def test_on_store_loaded_adds_the_store_filename_even_with_a_stale_uri_set(monke
     view.status_bar = _FakeSensitiveWidget()
     view._uri = 'file:///tmp/stale-from-an-earlier-open.po'
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'dropped.po',
+        can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/dropped.po'),
     )
@@ -726,7 +752,7 @@ def test_on_store_loaded_adds_an_extra_leading_slash_on_windows(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'opened.po',
+        can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/opened.po'),
     )
@@ -1930,7 +1956,7 @@ def test_on_store_loaded_notes_the_bundle_filename_on_mac(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'bundle.zip',
+        can_binary_export=lambda: False,
         project=True,
         get_bundle_filename=lambda: '/tmp/bundle.zip',
     )
@@ -1959,7 +1985,7 @@ def test_on_store_loaded_notes_the_store_filename_even_with_a_dropped_uri_set(mo
     view.status_bar = _FakeSensitiveWidget()
     view._uri = 'file:///tmp/stale-from-an-earlier-open.po'
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'dropped.po',
+        can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/dropped.po'),
     )
@@ -1982,7 +2008,7 @@ def test_on_store_loaded_notes_the_plain_filename_on_mac(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'opened.po',
+        can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/opened.po'),
     )
@@ -2004,7 +2030,7 @@ def test_on_store_loaded_skips_noting_a_document_off_mac(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
-        get_store_filename=lambda: 'opened.po',
+        can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/opened.po'),
     )

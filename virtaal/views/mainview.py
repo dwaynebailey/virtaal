@@ -1730,10 +1730,7 @@ class MainView(BaseView):
         self.gui.get_object('mnu_next_unit').set_sensitive(True)
         self.gui.get_object('mnu_state_advance').set_sensitive(True)
         self.gui.get_object('mnu_state_reverse').set_sensitive(True)
-        filename = store_controller.get_store_filename()
-        # TODO: move logic to storecontroller
-        if filename.endswith('.po') or filename.endswith('.po.bz2') or filename.endswith('.po.gz'):
-            self.gui.get_object('mnu_binary_export').set_sensitive(True)
+        self.gui.get_object('mnu_binary_export').set_sensitive(store_controller.can_binary_export())
 
         self.status_bar.set_sensitive(True)
         self._add_recent_file(store_controller)
