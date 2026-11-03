@@ -32,12 +32,14 @@ pytest-xdist worker-crash risk, not this file's own concern), so don't
 expect them to show up in _seen_messages.
 """
 
+import atexit
 import builtins
 import faulthandler
 import gc
 import gettext
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -50,8 +52,23 @@ from pathlib import Path
 import pytest
 from _pytest import runner
 
-from virtaal.models import langmodel
-from virtaal.support import statsdb
+
+def _use_a_scratch_home():
+    """Point the home and config dirs at a scratch directory for the
+    whole session, so the suite never reads or writes the developer's
+    own Virtaal config, spelling dictionaries or recent files (#4082).
+    It has to happen before pan_app is imported: pan_app loads its
+    settings from get_config_dir() at import."""
+    home = tempfile.mkdtemp(prefix="virtaal-test-home-")
+    atexit.register(shutil.rmtree, home, ignore_errors=True)
+    os.environ.update(dict.fromkeys(("HOME", "APPDATA", "XDG_CONFIG_HOME"), home))
+
+
+_use_a_scratch_home()
+
+# After the redirect: langmodel imports pan_app.
+from virtaal.models import langmodel  # noqa: E402
+from virtaal.support import statsdb  # noqa: E402
 
 _ALLOWLIST_PATH = (
     Path(__file__).resolve().parent.parent

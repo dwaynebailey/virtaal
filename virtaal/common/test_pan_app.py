@@ -105,6 +105,15 @@ def test_trim_log_to_last_launches_tolerates_a_missing_file(tmp_path):
     _trim_log_to_last_launches(str(tmp_path / "missing.log"), keep=2)  # doesn't raise
 
 
+@pytest.mark.skipif(os.name != 'posix', reason='real home from the pwd module')
+def test_the_suite_never_uses_the_real_config_dir():
+    # conftest points HOME at a scratch dir before pan_app is imported (#4082).
+    import pwd
+    real_home = pwd.getpwuid(os.getuid()).pw_dir + os.sep
+    assert not pan_app.settings.filename.startswith(real_home)
+    assert not get_config_dir().startswith(real_home)
+
+
 def test_get_config_dir_tolerates_a_plain_file_at_that_path(tmp_path, monkeypatch):
     # Real crash (#1427): os.makedirs() raised unhandled if the config
     # path already existed as a plain file, not a directory.
