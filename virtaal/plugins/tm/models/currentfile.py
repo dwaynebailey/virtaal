@@ -18,13 +18,33 @@ from .basetmmodel import BaseTMModel
 class _UnitMatcher(_matcher):
     """Matcher whose candidates and matches carry a weak reference to the
     unit they came from, so a match can be told apart from the unit being
-    translated without an index or keeping closed files' units alive."""
+    translated without an index or keeping closed files' units alive.
+
+    Units with the same source and target share one candidate, which
+    lists them all in unit_refs; unit_ref is the first of them."""
+
+    def inittm(self, stores, reverse=False):
+        self._shared = {}
+        super().inittm(stores, reverse=reverse)
 
     def usable(self, unit):
-        if super().usable(unit):
-            self._usable.append(unit)
-            return True
-        return False
+        # Upstream's existingunits keeps only the last target per source,
+        # so deduplicate on (source, target) here instead.
+        source, target = unit.source, unit.target
+        if not (source and target and (self.usefuzzy or not unit.isfuzzy())):
+            return False
+        if len(source) < 2:
+            return False
+        candidate = self._shared.get((source, target))
+        if candidate is not None:
+            refs = [ref for ref in candidate.unit_refs if ref() is not None]
+            if not any(ref() is unit for ref in refs):
+                refs.append(weakref.ref(unit))
+            candidate.unit_refs = refs
+            candidate.unit_ref = refs[0]
+            return False
+        self._usable.append(unit)
+        return True
 
     def extendtm(self, units, store=None, sort=True):
         # Upstream appends one candidate per usable unit, in order.
@@ -32,10 +52,36 @@ class _UnitMatcher(_matcher):
         start = len(self.candidates.units)
         super().extendtm(units, store=store, sort=False)
         for candidate, unit in zip(self.candidates.units[start:], self._usable):
-            candidate.unit_ref = weakref.ref(unit)
+            candidate.unit_key = (unit.source, unit.target)
+            candidate.unit_refs = [weakref.ref(unit)]
+            candidate.unit_ref = candidate.unit_refs[0]
+            self._shared[candidate.unit_key] = candidate
         self._usable = []
         if sort:
             self.candidates.units.sort(key=match.sourcelen, reverse=self.sort_reverse)
+
+    def forget(self, unit):
+        """Drop unit's candidate, or just unit's share of it if other
+        units still have it. Owners that are gone are dropped too."""
+        for candidate in self.candidates.units:
+            refs = candidate.unit_refs
+            if not any(ref() is unit for ref in refs):
+                continue
+            candidate.unit_refs = [ref for ref in refs if ref() is not None and ref() is not unit]
+            if candidate.unit_refs:
+                candidate.unit_ref = candidate.unit_refs[0]
+            else:
+                self.candidates.units.remove(candidate)
+                del self._shared[candidate.unit_key]
+            # A unit is in at most one candidate.
+            return
+
+    def release(self):
+        """Stop tying candidates to units, e.g. those of a closed file;
+        they stay as memory until a unit sharing one is edited."""
+        for candidate in self.candidates.units:
+            candidate.unit_refs = []
+            candidate.unit_ref = None
 
     def buildunits(self, candidates):
         units = super().buildunits(candidates)
@@ -102,6 +148,9 @@ class TMModel(BaseTMModel):
             }
             self.matcher = _UnitMatcher(store, **options)
         else:
+            # Earlier files' translations stay as memory, no longer tied to
+            # a unit.
+            self.matcher.release()
             self.matcher.extendtm(store.units)
         self.cache = {}
 
@@ -203,18 +252,21 @@ class TMModel(BaseTMModel):
 
     # EVENT HANDLERS #
     def _on_unit_modified(self, widget, new_unit, modified):
-        """Add the new translation unit to the TM."""
-        if modified and new_unit.istranslated():
+        """Replace the unit's previous translation in the TM with the new one."""
+        if not modified:
+            return
+        self.matcher.forget(new_unit)
+        if new_unit.istranslated():
             self.matcher.extendtm(new_unit)
-            # This new target text might be relevant for other units that are
-            # already cached, so let's remove ones with source text of similar
-            # length
-            min_quality = self.controller.min_quality
-            start = self.matcher.getstartlength(min_quality, new_unit.source)
-            stop = self.matcher.getstoplength(min_quality, new_unit.source)
+        # The old and new target text might be relevant for other units that
+        # are already cached, so let's remove ones with source text of similar
+        # length
+        min_quality = self.controller.min_quality
+        start = self.matcher.getstartlength(min_quality, new_unit.source)
+        stop = self.matcher.getstoplength(min_quality, new_unit.source)
 
-            def unaffected(key):
-                length = len(key)
-                return length < start or length > stop
+        def unaffected(key):
+            length = len(key)
+            return length < start or length > stop
 
-            self.cache = dict((k, v) for (k, v) in self.cache.items() if unaffected(k))
+        self.cache = dict((k, v) for (k, v) in self.cache.items() if unaffected(k))

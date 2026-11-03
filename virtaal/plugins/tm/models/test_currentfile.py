@@ -169,6 +169,9 @@ class _FakeExtendableMatcher:
     def extendtm(self, unit):
         self.extended_with.append(unit)
 
+    def forget(self, unit):
+        pass
+
     def getstartlength(self, min_similarity, text):
         return self._start
 
@@ -378,3 +381,95 @@ def test_query_keeps_excluding_own_translation_after_the_controller_coerces_qual
     )
 
     assert _offered(model, emitted, own) == []
+
+
+def _edit(model, unit, target):
+    unit.target = target
+    model._on_unit_modified(None, unit, modified=True)
+
+
+def _reopen(model, store):
+    model.recreate_matcher(SimpleNamespace(get_store=lambda: SimpleNamespace(_trans_store=store)))
+
+
+def test_query_offers_only_the_latest_version_of_an_edited_unit():
+    # #1266: each interim edit stayed in the matcher.
+    store = _po_store([(None, 'Open', ''), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+    edited, other = store.units
+
+    _edit(model, edited, 'Maak oop')
+    _edit(model, edited, 'Open maak')
+
+    assert _offered(model, emitted, other) == [('Open maak', 100)]
+
+
+def test_query_does_not_offer_a_unit_its_old_versions():
+    store = _po_store([(None, 'Open the file', 'Maak die lêer oop')])
+    model, emitted = _model_for(store)
+    unit = store.units[0]
+
+    _edit(model, unit, 'Open die lêer')
+
+    assert _offered(model, emitted, _po_store([(None, 'Open the files', '')]).units[0]) == [
+        ('Open die lêer', 93)
+    ]
+    assert _offered(model, emitted, unit) == []
+
+
+def test_query_offers_a_reverted_version_once():
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+    edited, other = store.units
+
+    _edit(model, edited, 'Open maak')
+    _edit(model, edited, 'Maak oop')
+
+    assert _offered(model, emitted, other) == [('Maak oop', 100)]
+
+
+def test_query_drops_the_version_of_a_unit_whose_translation_is_removed():
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+    edited, other = store.units
+
+    _edit(model, edited, '')
+
+    assert _offered(model, emitted, other) == []
+
+
+def test_editing_one_of_two_units_with_the_same_translation_keeps_the_other():
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', 'Maak oop'), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+    edited, kept, empty = store.units
+
+    _edit(model, edited, 'Open maak')
+
+    assert sorted(_offered(model, emitted, empty)) == [('Maak oop', 100), ('Open maak', 100)]
+    # What's left of the shared candidate is now kept's own translation.
+    assert _offered(model, emitted, kept) == [('Open maak', 100)]
+    assert _offered(model, emitted, edited) == [('Maak oop', 100)]
+
+
+def test_reopening_a_file_after_edits_offers_only_the_saved_version():
+    store = _po_store([(None, 'Open', ''), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+    _edit(model, store.units[0], 'Maak oop')
+    _edit(model, store.units[0], 'Open maak')
+    del store
+
+    reopened = _po_store([(None, 'Open', 'Open maak'), (None, 'Open', '')])
+    _reopen(model, reopened)
+    _edit(model, reopened.units[0], 'Maak oop')
+
+    assert _offered(model, emitted, reopened.units[1]) == [('Maak oop', 100)]
+
+
+def test_reopening_keeps_translations_from_a_previous_file():
+    # Deliberate since 04056a02: the matcher remembers earlier files.
+    model, emitted = _model_for(_po_store([(None, 'Save', 'Stoor')]))
+
+    reopened = _po_store([(None, 'Save', '')])
+    _reopen(model, reopened)
+
+    assert _offered(model, emitted, reopened.units[0]) == [('Stoor', 100)]
