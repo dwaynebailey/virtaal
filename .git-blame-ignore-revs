@@ -1,0 +1,4 @@
+# Commits git blame skips: see docs/development.rst ("Formatting").
+
+# Reformat with ruff format
+5cb309a028db8704ffaedc1f27cbdede8c05ba96
