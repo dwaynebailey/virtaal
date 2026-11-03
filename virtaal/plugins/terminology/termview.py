@@ -10,7 +10,7 @@ import locale
 from virtaal.common import SignalTracker
 from virtaal.views.baseview import BaseView
 from virtaal.views.placeablesguiinfo import StringElemGUI
-from virtaal.views.theme import is_inverse
+from virtaal.views.theme import base_color, is_inverse
 
 _default_fg = '#006600'
 _default_bg = '#eeffee'
@@ -45,9 +45,7 @@ class TerminologyGUIInfo(StringElemGUI):
 
         _style = widget.get_style_context()
         fg = _style.get_color(Gtk.StateType.NORMAL)
-        found, bg = _style.lookup_color('theme_base_color')
-        if not found:
-            bg = _style.get_background_color(Gtk.StateType.NORMAL)
+        bg = base_color(_style)
         if is_inverse(fg, bg):
             self.fg = _inverse_fg
             self.bg = _inverse_bg

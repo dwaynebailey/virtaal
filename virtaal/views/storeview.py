@@ -275,10 +275,7 @@ class StoreView(BaseView):
         # The following color change is to reduce the flickering seen when
         # changing units. It's not the perfect cure, but helps a lot.
         # https://github.com/translate/virtaal/issues/1412
-        style = widget.get_style_context()
-        found, background = style.lookup_color('theme_base_color')
-        if not found:
-            background = style.get_background_color(Gtk.StateType.NORMAL)
+        background = theme.base_color(widget.get_style_context())
 
         treeview_style = self._treeview.get_style_context()
         if self._treeview_bg_provider is not None:

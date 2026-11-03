@@ -12,7 +12,7 @@ from difflib import SequenceMatcher
 from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.controllers.cursor import Cursor
-from virtaal.views.theme import current_theme, rgba_to_str
+from virtaal.views.theme import base_color, current_theme, rgba_to_str
 
 from .basemode import BaseMode
 
@@ -683,10 +683,7 @@ class SearchMode(BaseMode):
         self._search_bg_provider = provider
 
     def _on_style_set(self, widget, prev_style=None):
-        style = widget.get_style_context()
-        found, background = style.lookup_color('theme_base_color')
-        if not found:
-            background = style.get_background_color(Gtk.StateType.NORMAL)
+        background = base_color(widget.get_style_context())
         self.default_base = rgba_to_str(background)
         self._set_search_bg(self.default_base)
 

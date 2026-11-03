@@ -155,13 +155,19 @@ def is_inverse(fg, bg):
         return False
 
 
+def base_color(style):
+    """style's text-area background colour: the theme's base colour,
+    else its own background."""
+    found, bg = style.lookup_color('theme_base_color')
+    if not found:
+        bg = style.get_background_color(Gtk.StateType.NORMAL)
+    return bg
+
+
 def update_style(widget):
     _style = widget.get_style_context()
-    _state = Gtk.StateType.NORMAL
-    fg = _style.get_color(_state)
-    found, bg = _style.lookup_color('theme_base_color')
-    if not found:
-        bg = _style.get_background_color(_state)
+    fg = _style.get_color(Gtk.StateType.NORMAL)
+    bg = base_color(_style)
     if is_inverse(fg, bg):
         set_inverse()
     else:

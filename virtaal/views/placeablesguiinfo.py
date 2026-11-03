@@ -411,9 +411,7 @@ class UnknownXMLGUI(StringElemGUI):
 def update_style(widget):
     _style = widget.get_style_context()
     fg = _style.get_color(Gtk.StateType.NORMAL)
-    found, bg = _style.lookup_color('theme_base_color')
-    if not found:
-        bg = _style.get_background_color(Gtk.StateType.NORMAL)
+    bg = theme.base_color(_style)
     StringElemGUI.fg = theme.rgba_to_str(fg)
     StringElemGUI.bg = theme.rgba_to_str(bg)
     PhGUI.fg = theme.current_theme['markup_warning_fg']
