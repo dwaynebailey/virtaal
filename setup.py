@@ -42,7 +42,9 @@ TARGET_DATA_DIR = 'share'
 from translate.tools.pocompile import convertmo
 
 mo_files = []
-for lang in open(path.join('po', 'LINGUAS'), encoding='utf-8'):
+with open(path.join('po', 'LINGUAS'), encoding='utf-8') as linguas:
+    langs = linguas.readlines()
+for lang in langs:
     lang = lang.rstrip()
     po_filename = path.join('po', lang + '.po')
     mo_filename = path.join('mo', lang, 'virtaal.mo')
@@ -50,7 +52,8 @@ for lang in open(path.join('po', 'LINGUAS'), encoding='utf-8'):
     if not path.exists(path.join('mo', lang)):
         os.makedirs(path.join('mo', lang))
 
-    convertmo(open(po_filename, 'rb'), open(mo_filename, 'w'), None)
+    with open(po_filename, 'rb') as po_file, open(mo_filename, 'w') as mo_file:
+        convertmo(po_file, mo_file, None)
 
     mo_files.append((path.join(TARGET_DATA_DIR, 'locale', lang, 'LC_MESSAGES'), [mo_filename]))
 
@@ -66,7 +69,9 @@ if os.name == 'nt' or sys.platform == 'darwin':
     )
     lite = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(lite)
-    for lang in open(path.join('po', 'LINGUAS-lite'), encoding='utf-8'):
+    with open(path.join('po', 'LINGUAS-lite'), encoding='utf-8') as linguas:
+        langs = linguas.readlines()
+    for lang in langs:
         app, lang = lang.rstrip().split('/')
         po_filename = path.join('po', 'lite', app, lang + '.po')
         mo_filename = path.join('mo', lang, app + '.mo')

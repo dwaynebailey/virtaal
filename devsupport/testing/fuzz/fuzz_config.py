@@ -482,22 +482,22 @@ def run(cases, outdir, jobs):
         with open(case_path, 'w', encoding='utf-8') as f:
             json.dump(case, f)
         child_env = fuzz_ui.child_env(home)
-        stderr = open(os.path.join(home, 'stderr'), 'w')
         # A relative path in a value lands in the working directory.
-        proc = subprocess.Popen(
-            [
-                sys.executable,
-                os.path.abspath(__file__),
-                '--child',
-                case_path,
-                '--results',
-                os.path.join(home, 'results.jsonl'),
-            ],
-            env=child_env,
-            cwd=os.path.dirname(home),
-            stdout=stderr,
-            stderr=stderr,
-        )
+        with open(os.path.join(home, 'stderr'), 'w') as stderr:
+            proc = subprocess.Popen(
+                [
+                    sys.executable,
+                    os.path.abspath(__file__),
+                    '--child',
+                    case_path,
+                    '--results',
+                    os.path.join(home, 'results.jsonl'),
+                ],
+                env=child_env,
+                cwd=os.path.dirname(home),
+                stdout=stderr,
+                stderr=stderr,
+            )
         running.append((proc, case, home, time.monotonic()))
     for item in running:
         collect(*item)

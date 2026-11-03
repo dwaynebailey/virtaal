@@ -398,7 +398,7 @@ class Fuzzer:
         ]
         if not self.testfiles:
             raise RuntimeError('No test fixtures found under %s' % TESTFILES_DIR)
-        self._log_file = open(
+        self._log_file = open(  # noqa: SIM115
             log_path, 'a', buffering=1, encoding='utf-8', errors='backslashreplace'
         )
         self._tempdir = tempfile.mkdtemp(prefix='virtaal-fuzz-')

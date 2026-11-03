@@ -7,6 +7,7 @@
 
 import importlib.util
 import os
+from pathlib import Path
 
 import pytest
 
@@ -204,7 +205,7 @@ def test_write_template_replaces_where_a_message_was_seen(templates, tmp_path, m
     for _ in range(2):
         path = templates.write_template("gtk30", {"_About": {"menus"}})
 
-    text = open(path, encoding="utf-8").read()
+    text = Path(path).read_text(encoding="utf-8")
     assert "#. Help->About\n#. Seen in: menus\nmsgid" in text
 
 
@@ -213,7 +214,7 @@ def test_write_template_starts_a_new_domain(templates, tmp_path, monkeypatch):
 
     path = templates.write_template("gtk-mac-integration", {"Quit %s": set()})
 
-    text = open(path, encoding="utf-8").read()
+    text = Path(path).read_text(encoding="utf-8")
     assert '"Project-Id-Version: gtk-mac-integration lite\\n"' in text
     assert 'msgid "Quit %s"' in text
 

@@ -68,7 +68,7 @@ def exception_signature(exc_type, tb):
 
 class Recorder:
     def __init__(self, path, case_timeout, slow_seconds=SLOW_SECONDS):
-        self._file = open(path, 'a', encoding='utf-8')
+        self._file = open(path, 'a', encoding='utf-8')  # noqa: SIM115
         self.case_timeout = case_timeout
         self.slow_seconds = slow_seconds
         self.sweep = None

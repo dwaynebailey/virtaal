@@ -93,14 +93,13 @@ def profile_func(filename=None, mode='w+'):
             logging.info('Profiling function %s' % (f.__name__))
 
             try:
-                profile_file = open(
+                with open(
                     filename or '%s_func.profile' % (f.__name__), mode, encoding='utf-8'
-                )
-                profiler = cProfile.Profile()
-                retval = profiler.runcall(f, *args, **kwargs)
-                k_cache_grind = KCacheGrind(profiler)
-                k_cache_grind.output(profile_file)
-                profile_file.close()
+                ) as profile_file:
+                    profiler = cProfile.Profile()
+                    retval = profiler.runcall(f, *args, **kwargs)
+                    k_cache_grind = KCacheGrind(profiler)
+                    k_cache_grind.output(profile_file)
             except OSError:
                 logging.exception(
                     _("Could not open profile file '%(filename)s'") % {"filename": filename}

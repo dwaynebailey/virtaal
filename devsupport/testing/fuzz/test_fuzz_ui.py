@@ -8,6 +8,7 @@
 import json
 import sys
 import types
+from pathlib import Path
 
 import fuzz_ui
 import record
@@ -125,7 +126,7 @@ def test_offline_environment(tmp_path):
 def test_prepared_config_turns_off_network_plugins(tmp_path, monkeypatch):
     monkeypatch.setattr(fuzz_ui, 'sys', types.SimpleNamespace(platform='linux'))
     home = fuzz_ui.prepare_home(str(tmp_path))
-    plugins = open(fuzz_ui.config_dir(home) + '/plugins.ini', encoding='utf-8').read()
+    plugins = Path(fuzz_ui.config_dir(home) + '/plugins.ini').read_text(encoding='utf-8')
     assert 'amagama' in plugins and 'thesaurus' in plugins and 'pontoon' in plugins
 
 

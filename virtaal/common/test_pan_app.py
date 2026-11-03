@@ -7,6 +7,7 @@
 
 import logging
 import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -168,7 +169,7 @@ def test_read_ini_recovering_backs_up_a_corrupt_file(tmp_path):
 
     assert backup_path == str(path) + ".broken"
     assert not path.exists()
-    assert open(backup_path, 'rb').read() == b"\x00" * 200
+    assert Path(backup_path).read_bytes() == b"\x00" * 200
     assert parser.sections() == []
 
 
@@ -362,7 +363,7 @@ def test_ensure_dev_library_catalogs_leaves_nothing_behind_on_a_failed_merge(tmp
     localedir = tmp_path / 'localedir'
 
     def broken_merge(upstream_mo, lite_po, out_mo):
-        open(out_mo, 'w').write('partial')
+        Path(out_mo).write_text('partial', encoding='utf-8')
         raise ValueError('broken')
 
     monkeypatch.setattr(lite, 'merge', broken_merge)

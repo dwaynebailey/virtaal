@@ -9,6 +9,7 @@ import io
 import logging
 import os
 import time
+from pathlib import Path
 
 import pytest
 from translate.storage.placeables.terminology import TerminologyPlaceable
@@ -94,7 +95,7 @@ def test_process_header_saves_a_parseable_response(tmp_path):
     TerminologyModel._process_header(fake_self, _FakeRequest(), GOOD_PO, localfile=localfile)
 
     assert os.path.isfile(localfile)
-    assert open(localfile, 'rb').read() == GOOD_PO
+    assert Path(localfile).read_bytes() == GOOD_PO
 
 
 def test_process_header_discards_an_unparseable_response(tmp_path):
@@ -112,23 +113,23 @@ def test_process_header_discards_an_unparseable_response(tmp_path):
 def test_process_header_keeps_a_previously_cached_file_on_bad_response(tmp_path):
     fake_self = _fake_self()
     localfile = os.path.join(str(tmp_path), 'en__fr.po')
-    open(localfile, 'wb').write(GOOD_PO)
+    Path(localfile).write_bytes(GOOD_PO)
 
     TerminologyModel._process_header(fake_self, _FakeRequest(), SIGNON_PAGE, localfile=localfile)
 
-    assert open(localfile, 'rb').read() == GOOD_PO
+    assert Path(localfile).read_bytes() == GOOD_PO
 
 
 def test_process_header_a_304_leaves_an_existing_file_untouched(tmp_path):
     fake_self = _fake_self()
     localfile = os.path.join(str(tmp_path), 'en__fr.po')
-    open(localfile, 'wb').write(GOOD_PO)
+    Path(localfile).write_bytes(GOOD_PO)
     request = _FakeRequest()
     request.status = 304
 
     TerminologyModel._process_header(fake_self, request, b'', localfile=localfile)
 
-    assert open(localfile, 'rb').read() == GOOD_PO
+    assert Path(localfile).read_bytes() == GOOD_PO
 
 
 def test_process_header_with_no_localfile_derives_the_name_from_the_url(tmp_path):
@@ -140,7 +141,7 @@ def test_process_header_with_no_localfile_derives_the_name_from_the_url(tmp_path
         fake_self, _FakeRequest(effective_url='http://x/terms.po'), GOOD_PO, localfile=None
     )
 
-    assert open(os.path.join(str(tmp_path), 'en__fr.po'), 'rb').read() == GOOD_PO
+    assert Path(tmp_path, 'en__fr.po').read_bytes() == GOOD_PO
 
 
 def test_process_header_with_no_extension_in_the_url_guesses_from_content(tmp_path):
@@ -152,7 +153,7 @@ def test_process_header_with_no_extension_in_the_url_guesses_from_content(tmp_pa
         fake_self, _FakeRequest(effective_url='http://x/download'), GOOD_PO, localfile=None
     )
 
-    assert open(os.path.join(str(tmp_path), 'en__fr.po'), 'rb').read() == GOOD_PO
+    assert Path(tmp_path, 'en__fr.po').read_bytes() == GOOD_PO
 
 
 def test_process_header_defaults_to_po_when_nothing_can_be_guessed(tmp_path):
@@ -185,7 +186,7 @@ def test_process_header_saves_the_etag_from_the_response_headers(tmp_path):
 def test_process_header_an_unhandled_status_resets_the_matcher(tmp_path):
     fake_self = _fake_self()
     localfile = os.path.join(str(tmp_path), 'en__fr.po')
-    open(localfile, 'wb').write(GOOD_PO)
+    Path(localfile).write_bytes(GOOD_PO)
     request = _FakeRequest()
     request.status = 404
 
@@ -193,7 +194,7 @@ def test_process_header_an_unhandled_status_resets_the_matcher(tmp_path):
 
     # The file on disk is untouched, but the matcher was rebuilt from
     # an empty store (localfile treated as '' for this response).
-    assert open(localfile, 'rb').read() == GOOD_PO
+    assert Path(localfile).read_bytes() == GOOD_PO
     assert fake_self.store.getunits() == []
 
 
@@ -212,7 +213,7 @@ def test_init_matcher_with_no_file_builds_an_empty_store():
 def test_init_matcher_with_a_real_file_loads_it(tmp_path):
     fake_self = _fake_self()
     localfile = os.path.join(str(tmp_path), 'en__fr.po')
-    open(localfile, 'wb').write(GOOD_PO)
+    Path(localfile).write_bytes(GOOD_PO)
 
     TerminologyModel.init_matcher(fake_self, localfile)
 
@@ -360,7 +361,7 @@ def test_check_for_update_passes_none_as_localfile_when_nothing_cached(tmp_path)
     assert call['etag'] is None
     request = _FakeRequest()
     call['callback'](request, GOOD_PO)  # must not raise - localfile=None path
-    assert open(os.path.join(str(tmp_path), 'en__fr.po'), 'rb').read() == GOOD_PO
+    assert Path(tmp_path, 'en__fr.po').read_bytes() == GOOD_PO
 
 
 def test_check_for_update_adds_an_error_callback_at_debug_level(monkeypatch):

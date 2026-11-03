@@ -83,7 +83,8 @@ def test_a_pseudo_locale_keeps_urls_working(generator, tmp_path, code):
     # A tagged or rewritten URL is no longer a link.
     url = "https://docs.translatehouse.org/projects/localization-guide/en/"
     mo = generator.generate_locale(code, str(tmp_path))
-    translation = gettext.GNUTranslations(open(mo, "rb"))
+    with open(mo, "rb") as f:
+        translation = gettext.GNUTranslations(f)
 
     assert translation.gettext(url) == url
     assert translation.gettext("Translation memory") != "Translation memory"

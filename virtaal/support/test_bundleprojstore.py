@@ -63,9 +63,8 @@ class TestBundleProjectStore:
         bundle = bundleprojstore.BundleProjectStore(self.bundle_file)
         try:
             # Add a simple file
-            test_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False)
-            test_file.write(b"test content")
-            test_file.close()
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as test_file:
+                test_file.write(b"test content")
 
             # Open the file and append it
             with open(test_file.name, "rb") as f:
@@ -93,9 +92,8 @@ class TestBundleProjectStore:
         bundle = bundleprojstore.BundleProjectStore(self.bundle_file)
         try:
             # Create a temporary file
-            test_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False)
-            test_file.write(b"test content for cross-device test")
-            test_file.close()
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as test_file:
+                test_file.write(b"test content for cross-device test")
 
             # Add file to bundle
             with open(test_file.name, "rb") as f:
@@ -129,9 +127,8 @@ class TestBundleProjectStore:
 
         try:
             # Add initial content
-            test_file1 = tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False)
-            test_file1.write(b"initial content")
-            test_file1.close()
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as test_file1:
+                test_file1.write(b"initial content")
             with open(test_file1.name, "rb") as f:
                 bundle.append_sourcefile(f, "initial.txt")
             bundle.save()
@@ -168,9 +165,8 @@ class TestBundleProjectStore:
         """Test loading an existing bundle."""
         # Create a bundle with some content
         initial_bundle = bundleprojstore.BundleProjectStore(self.bundle_file)
-        test_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False)
-        test_file.write(b"test load content")
-        test_file.close()
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as test_file:
+            test_file.write(b"test load content")
         with open(test_file.name, "rb") as f:
             initial_bundle.append_sourcefile(f, "load_test.txt")
         initial_bundle.save()
@@ -201,9 +197,10 @@ class TestBundleProjectStore:
         try:
             # Add files
             for i in range(3):
-                test_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False)
-                test_file.write(f"content {i}".encode())
-                test_file.close()
+                with tempfile.NamedTemporaryFile(
+                    mode="wb", suffix=".txt", delete=False
+                ) as test_file:
+                    test_file.write(f"content {i}".encode())
                 with open(test_file.name, "rb") as f:
                     bundle.append_sourcefile(f, f"file{i}.txt")
                 os.unlink(test_file.name)
