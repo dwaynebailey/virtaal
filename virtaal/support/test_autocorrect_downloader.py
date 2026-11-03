@@ -6,11 +6,12 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """Tests for AutocorrectDownloader's callback-chain orchestration - a
-_FakeClient records each .get() call instead of doing real network
+FakeClient records each .get() call instead of doing real network
 I/O, so the test drives the chain step by step, synchronously."""
 
 import json
 
+from virtaal.support._testhelpers import FakeClient
 from virtaal.support.autocorrect_downloader import AutocorrectDownloader
 from virtaal.support.test_autocorrect_source import (
     AF_ZA_DOCUMENT_LIST,
@@ -20,19 +21,8 @@ from virtaal.support.test_autocorrect_source import (
 LISTING_RESULT = json.dumps(CONTENTS_LISTING).encode('utf-8')
 
 
-class _FakeClient:
-    def __init__(self):
-        self.calls = []
-
-    def get(self, url, callback, error_callback=None, download=False):
-        self.calls.append((url, callback, error_callback))
-
-    def last_url(self):
-        return self.calls[-1][0]
-
-
 def test_full_chain_writes_the_file(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = AutocorrectDownloader(
         'af_ZA', on_done=done.append, client=client, target_dir=str(tmp_path)
@@ -56,7 +46,7 @@ def test_full_chain_writes_the_file(tmp_path):
 
 
 def test_no_folder_guess_gives_up(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = AutocorrectDownloader(
         'xx_YY', on_done=done.append, client=client, target_dir=str(tmp_path)
@@ -71,7 +61,7 @@ def test_no_folder_guess_gives_up(tmp_path):
 
 
 def test_listing_request_error_gives_up(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = AutocorrectDownloader(
         'af_ZA', on_done=done.append, client=client, target_dir=str(tmp_path)
@@ -85,7 +75,7 @@ def test_listing_request_error_gives_up(tmp_path):
 
 
 def test_document_list_request_error_gives_up(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = AutocorrectDownloader(
         'af_ZA', on_done=done.append, client=client, target_dir=str(tmp_path)
@@ -102,7 +92,7 @@ def test_document_list_request_error_gives_up(tmp_path):
 
 
 def test_bad_listing_response_gives_up(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = AutocorrectDownloader(
         'af_ZA', on_done=done.append, client=client, target_dir=str(tmp_path)
@@ -116,7 +106,7 @@ def test_bad_listing_response_gives_up(tmp_path):
 
 
 def test_default_on_done_is_a_noop(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     downloader = AutocorrectDownloader('xx_YY', client=client, target_dir=str(tmp_path))
     downloader.start()
     _, listing_cb, _ = client.calls[-1]
@@ -124,7 +114,7 @@ def test_default_on_done_is_a_noop(tmp_path):
 
 
 def test_start_with_known_files_skips_discovery(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = AutocorrectDownloader(
         'af_ZA', on_done=done.append, client=client, target_dir=str(tmp_path)

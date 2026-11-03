@@ -6,7 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """Tests for DictionaryDownloader's callback-chain orchestration - a
-_FakeClient records each .get() call instead of doing real network
+FakeClient records each .get() call instead of doing real network
 I/O, so the test drives the chain step by step, synchronously.
 on_done(success) - done lists below record the bool passed, not just
 that it fired."""
@@ -16,6 +16,7 @@ import os
 
 import pytest
 
+from virtaal.support._testhelpers import FakeClient
 from virtaal.support.dictionary_downloader import DictionaryDownloader
 from virtaal.support.test_dictionary_source import AR_XCU, CA_XCU, DE_XCU
 
@@ -29,19 +30,8 @@ TREE_RESULT = json.dumps(
 ).encode('utf-8')
 
 
-class _FakeClient:
-    def __init__(self):
-        self.calls = []
-
-    def get(self, url, callback, error_callback=None, download=False):
-        self.calls.append((url, callback, error_callback))
-
-    def last_url(self):
-        return self.calls[-1][0]
-
-
 def test_full_chain_writes_both_files(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'de_DE',
@@ -77,7 +67,7 @@ def test_full_chain_writes_both_files(tmp_path):
 
 
 def test_xcu_error_tries_the_next_folder(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'ar_EG',
@@ -101,7 +91,7 @@ def test_xcu_error_tries_the_next_folder(tmp_path):
 
 
 def test_no_matching_locale_gives_up(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'xx_YY',
@@ -123,7 +113,7 @@ def test_no_matching_locale_gives_up(tmp_path):
 
 
 def test_file_error_cleans_up_and_gives_up(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'de_DE',
@@ -150,7 +140,7 @@ def test_file_error_cleans_up_and_gives_up(tmp_path):
 
 
 def test_bad_tree_response_gives_up(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'de_DE',
@@ -167,7 +157,7 @@ def test_bad_tree_response_gives_up(tmp_path):
 
 
 def test_tree_request_error_gives_up(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'de_DE',
@@ -185,7 +175,7 @@ def test_tree_request_error_gives_up(tmp_path):
 
 def test_default_on_done_is_a_noop(tmp_path):
     """on_done is optional - a missing callback must not raise."""
-    client = _FakeClient()
+    client = FakeClient()
     downloader = DictionaryDownloader('xx_YY', client=client, target_dir=str(tmp_path))
     downloader.start()
     _, tree_cb, _ = client.calls[-1]
@@ -198,7 +188,7 @@ def test_default_on_done_is_a_noop(tmp_path):
 
 def test_bare_language_matches_a_regional_only_dictionary(tmp_path):
     # "ca"'s own dictionary never lists bare "ca", only ca_ES/ca_AD/...
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'ca', on_done=lambda success: done.append(success), client=client, target_dir=str(tmp_path)
@@ -224,7 +214,7 @@ def test_write_failure_cleans_up_and_gives_up_instead_of_crashing(tmp_path, monk
 
     monkeypatch.setattr(dictionary_downloader, 'dictionary_write_dir', raises)
 
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'de_DE', on_done=lambda success: done.append(success), client=client
@@ -243,7 +233,7 @@ def test_write_failure_cleans_up_and_gives_up_instead_of_crashing(tmp_path, monk
 
 
 def test_start_with_known_files_skips_discovery(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'de_DE',
@@ -269,7 +259,7 @@ def test_default_target_dir_is_dictionary_write_dir(monkeypatch):
     import virtaal.support.dictionary_downloader as dictionary_downloader
 
     monkeypatch.setattr(dictionary_downloader, 'dictionary_write_dir', lambda: '/fake/dir')
-    client = _FakeClient()
+    client = FakeClient()
     downloader = DictionaryDownloader('de_DE', client=client)
     downloader.start()
     _, tree_cb, _ = client.calls[-1]
@@ -295,7 +285,7 @@ def test_default_target_dir_is_dictionary_write_dir(monkeypatch):
 def test_a_404_tries_the_dictionaries_subfolder(tmp_path):
     # ca, ckb, fr_FR and sv_SE keep their files in <folder>/dictionaries/
     # while the manifest lists only the file name (#4656).
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'ca_ES',
@@ -324,7 +314,7 @@ def test_a_404_tries_the_dictionaries_subfolder(tmp_path):
 
 
 def test_a_404_in_both_places_gives_up(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         'ca_ES',
@@ -356,7 +346,7 @@ def test_a_404_in_both_places_gives_up(tmp_path):
 def test_saves_the_dictionary_under_the_locales_tag(tmp_path, locale, files, saved):
     # LibreOffice names files for another locale or with "-"/"@", which
     # enchant never finds for this locale (#4665).
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = DictionaryDownloader(
         locale, on_done=done.append, client=client, target_dir=str(tmp_path)

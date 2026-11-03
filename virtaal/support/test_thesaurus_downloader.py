@@ -5,28 +5,18 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""Tests for ThesaurusDownloader's file-fetch chain - a _FakeClient
+"""Tests for ThesaurusDownloader's file-fetch chain - a FakeClient
 records each .get() call instead of doing real network I/O, so the
 test drives the chain step by step, synchronously.
 on_done(success) - done lists below record the bool passed, not just
 that it fired."""
 
+from virtaal.support._testhelpers import FakeClient
 from virtaal.support.thesaurus_downloader import ThesaurusDownloader
 
 
-class _FakeClient:
-    def __init__(self):
-        self.calls = []
-
-    def get(self, url, callback, error_callback=None, download=False):
-        self.calls.append((url, callback, error_callback))
-
-    def last_url(self):
-        return self.calls[-1][0]
-
-
 def test_writes_a_single_dat_file(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = ThesaurusDownloader(
         'pl_PL', on_done=done.append, client=client, target_dir=str(tmp_path)
@@ -48,7 +38,7 @@ def test_ignores_a_non_dat_file_without_fetching_it(tmp_path):
     # A real folder (fr_FR, for one) has no .idx alongside it at all -
     # only the .dat matters, so an .idx entry is dropped up front
     # rather than fetched for nothing.
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = ThesaurusDownloader(
         'fr_FR', on_done=done.append, client=client, target_dir=str(tmp_path)
@@ -65,7 +55,7 @@ def test_ignores_a_non_dat_file_without_fetching_it(tmp_path):
 
 
 def test_no_dat_files_gives_up_without_any_request(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = ThesaurusDownloader(
         'fr_FR', on_done=done.append, client=client, target_dir=str(tmp_path)
@@ -78,7 +68,7 @@ def test_no_dat_files_gives_up_without_any_request(tmp_path):
 
 
 def test_file_error_cleans_up_and_gives_up(tmp_path):
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = ThesaurusDownloader(
         'pl_PL', on_done=done.append, client=client, target_dir=str(tmp_path)
@@ -98,7 +88,7 @@ def test_file_error_cleans_up_and_gives_up(tmp_path):
 
 def test_default_on_done_is_a_noop(tmp_path):
     """on_done is optional - a missing callback must not raise."""
-    client = _FakeClient()
+    client = FakeClient()
     downloader = ThesaurusDownloader('pl_PL', client=client, target_dir=str(tmp_path))
     downloader.start_with_known_files('pl', ['th_pl_PL_v2.dat'])
     _, dat_cb, _ = client.calls[-1]
@@ -113,7 +103,7 @@ def test_write_failure_cleans_up_and_gives_up_instead_of_crashing(tmp_path, monk
 
     monkeypatch.setattr(thesaurus_downloader.pan_app, 'get_config_dir', raises)
 
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = ThesaurusDownloader(
         'pl_PL', on_done=done.append, client=client
@@ -131,7 +121,7 @@ def test_default_target_dir_uses_the_shared_thesaurus_cache_layout(tmp_path, mon
 
     monkeypatch.setattr(thesaurus_downloader.pan_app, 'get_config_dir', lambda: str(tmp_path))
 
-    client = _FakeClient()
+    client = FakeClient()
     downloader = ThesaurusDownloader('pl_PL', client=client)  # no target_dir override
 
     downloader.start_with_known_files('pl', ['th_pl_PL_v2.dat'])
@@ -144,7 +134,7 @@ def test_default_target_dir_uses_the_shared_thesaurus_cache_layout(tmp_path, mon
 def test_a_404_tries_the_dictionaries_subfolder(tmp_path):
     # Some packages keep their files in <folder>/dictionaries/ while the
     # manifest lists only the file name (#4656).
-    client = _FakeClient()
+    client = FakeClient()
     done = []
     downloader = ThesaurusDownloader(
         'ca_ES', on_done=done.append, client=client, target_dir=str(tmp_path)
