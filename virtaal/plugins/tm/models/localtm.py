@@ -11,6 +11,7 @@ import socket
 
 from virtaal.common import pan_app
 from virtaal.common.platform import platform
+from virtaal.controllers.baseplugin import PluginUnsupported
 
 from . import remotetm
 from .basetmmodel import BaseTMModel
@@ -79,7 +80,12 @@ class TMModel(remotetm.TMModel):
         # test if port specified in config is free
         if test_port(self.config["tmserver_bind"], self.config["tmserver_port"]):
             return self.config["tmserver_port"]
-        return find_free_port(self.config["tmserver_bind"], 49152, 65535)
+        port = find_free_port(self.config["tmserver_bind"], 49152, 65535)
+        if port is None:
+            message = "No free port for the local TM server on %s" % self.config["tmserver_bind"]
+            logging.warning(message)
+            raise PluginUnsupported(message)
+        return port
 
     def _build_tmserver_command(self, port, controller):
         # translate-toolkit's own "tmserver" console script was removed
@@ -149,5 +155,4 @@ def find_free_port(host, min_port, max_port):
     for port in port_range:
         if test_port(host, port):
             return port
-    # FIXME: shall we throw an exception if no free port is found?
     return None

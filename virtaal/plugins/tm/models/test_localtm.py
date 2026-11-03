@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import logging
 import os
 import signal
 import socket
@@ -15,6 +16,7 @@ import pytest
 
 from virtaal.common import SignalTracker, pan_app
 from virtaal.common.platform import Platform
+from virtaal.controllers.baseplugin import PluginUnsupported
 from virtaal.plugins.tm.models import localtm
 from virtaal.plugins.tm.models.localtm import TMModel, find_free_port
 from virtaal.support import helperprocess
@@ -128,6 +130,23 @@ def test_pick_port_falls_back_to_a_free_port_when_the_configured_one_is_taken(mo
 
     assert model._pick_port() == 12345
     assert calls == [('localhost', 49152, 65535)]
+
+
+def test_no_free_port_leaves_the_local_tm_off_without_starting_a_server(monkeypatch, caplog):
+    monkeypatch.setattr(
+        TMModel, 'load_config', lambda self: setattr(self, 'config', dict(TMModel.default_config))
+    )
+    monkeypatch.setattr(TMModel, '_check_config', lambda self: None)
+    monkeypatch.setattr(localtm, 'test_port', lambda host, port: False)
+    monkeypatch.setattr(localtm, 'find_free_port', lambda host, lo, hi: None)
+    started = []
+    monkeypatch.setattr('subprocess.Popen', lambda command, env: started.append(command))
+
+    with caplog.at_level(logging.WARNING), pytest.raises(PluginUnsupported):
+        TMModel('localtm', SimpleNamespace(min_quality=75, max_matches=3))
+
+    assert started == []
+    assert 'No free port' in caplog.text
 
 
 # _build_tmserver_command() #
