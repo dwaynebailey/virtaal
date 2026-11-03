@@ -9,7 +9,7 @@ from virtaal.views.rendering import set_widget_font
 
 
 class PythonConsole(Gtk.ScrolledWindow):
-    def __init__(self, namespace={}, destroy_cb=None):
+    def __init__(self, namespace=None, destroy_cb=None):
         super().__init__()
 
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -29,7 +29,7 @@ class PythonConsole(Gtk.ScrolledWindow):
         self.command.set_property("foreground", "blue")
 
         self.__spaces_pattern = re.compile(r'^\s+')
-        self.namespace = namespace
+        self.namespace = {} if namespace is None else namespace
 
         self.destroy_cb = destroy_cb
 

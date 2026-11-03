@@ -459,7 +459,7 @@ class Settings:
         else:
             self.filename = filename
             if not os.path.isfile(self.filename):
-                raise Exception
+                raise FileNotFoundError(self.filename)
 
         # The class dicts are defaults; each instance reads into its own copy.
         for section in self.sections:

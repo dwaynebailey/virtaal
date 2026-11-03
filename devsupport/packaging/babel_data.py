@@ -32,7 +32,8 @@ def ui_locale_names(po_dir):
     try:
         for path in glob.glob(os.path.join(po_dir, "*.po")):
             locale = ui_locale(os.path.basename(path)[: -len(".po")])
-            locale.decimal_formats, locale.percent_formats, locale.default_numbering_system
+            # Reading these loads the locale data they need.
+            locale.decimal_formats, locale.percent_formats, locale.default_numbering_system  # noqa: B018
     finally:
         localedata.load = load
         localedata._cache.clear()

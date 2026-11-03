@@ -190,7 +190,7 @@ def _fix_addersses(**kwargs):
             raise TypeError(
                 'string or sequence expected for "%s", '
                 '%s found' % (headername, type(headervalue).__name__)
-            )
+            ) from None
         else:
             translation_map = {'%': '%25', '&': '%26', '?': '%3F'}
             for char, replacement in translation_map.items():

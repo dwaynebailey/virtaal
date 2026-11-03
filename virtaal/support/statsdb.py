@@ -515,10 +515,10 @@ class StatsCache:
             return configrow[0]
 
     @transaction
-    def _cacheunitstats(
-        self, units, fileid, unitindex=None, file_totals_record=FileTotals.new_record()
-    ):
+    def _cacheunitstats(self, units, fileid, unitindex=None, file_totals_record=None):
         """Cache the statistics for the supplied unit(s)."""
+        if file_totals_record is None:
+            file_totals_record = FileTotals.new_record()
         unitvalues = []
         for index, unit in enumerate(units):
             if unit.istranslatable():

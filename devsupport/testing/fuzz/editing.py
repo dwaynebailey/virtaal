@@ -301,7 +301,7 @@ def _ui(sweep, section):
             ),
         ),
     ] + [
-        (name, (lambda item: lambda: mc.view.gui.get_object(item).activate())(item))
+        (name, lambda item=item: mc.view.gui.get_object(item).activate())
         for name, item in (
             ('preferences', 'mnu_prefs'),
             ('properties', 'mnu_properties'),

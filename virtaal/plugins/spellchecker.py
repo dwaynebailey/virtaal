@@ -76,7 +76,9 @@ class Plugin(BasePlugin):
             try:
                 DICTDIR.encode('ascii')
             except UnicodeEncodeError:
-                raise PluginUnsupported("Spell checking is not supported with non-ascii username")
+                raise PluginUnsupported(
+                    "Spell checking is not supported with non-ascii username"
+                ) from None
 
         # If these imports fail, the plugin is automatically disabled -
         # gi.require_version() raises ValueError (not ImportError) when
@@ -89,7 +91,7 @@ class Plugin(BasePlugin):
             gi.require_version('GtkSpell', '3.0')
             from gi.repository import GtkSpell as gtkspell
         except (ImportError, ValueError) as e:
-            raise PluginUnsupported(str(e))
+            raise PluginUnsupported(str(e)) from e
         enchant = import_enchant()
         if enchant is None:
             raise PluginUnsupported("pyenchant isn't installed")
