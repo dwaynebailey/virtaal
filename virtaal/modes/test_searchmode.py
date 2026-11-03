@@ -794,6 +794,7 @@ def test_selected_schedules_a_grab_focus_that_restores_the_cursor_position(monke
 
 def _unselected_mode():
     mode = SearchMode.__new__(SearchMode)
+    mode.unitview = SimpleNamespace(sources=[], targets=[])
     mode.matches = [object()]
     mode._match_text_cache = {'k': 'v'}
     mode._unit_modified_id = 0
@@ -835,6 +836,20 @@ def test_unselected_disconnects_the_cursor_textbox_and_unit_signals():
     assert mode._unit_modified_id == 0
     assert mode.matches == []
     assert mode._match_text_cache == {}
+
+
+def test_unselected_clears_the_search_highlighting():
+    mode = _unselected_mode()
+    source, target = _FakeTextbox('source', 'a cat'), _FakeTextbox('target', 'a cat')
+    target.props.visible = False
+    mode.unitview = SimpleNamespace(sources=[source], targets=[target])
+    for textbox in (source, target):
+        textbox.buffer.get_tag_table().add(mode._make_highlight_tag())
+
+    mode.unselected()
+
+    for textbox in (source, target):
+        assert textbox.buffer.get_tag_table().lookup('search_highlight') is None
 
 
 # select_match() #

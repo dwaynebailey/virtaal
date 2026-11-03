@@ -319,7 +319,8 @@ class SearchMode(BaseMode):
         GLib.idle_add(grabfocus)
 
     def unselected(self):
-        # TODO: Unhightlight the previously selected unit
+        for textbox in self.unitview.sources + self.unitview.targets:
+            self._clear_textbox_highlight(textbox)
         if hasattr(self, '_signalid_cursor_changed'):
             self.storecursor.disconnect(self._signalid_cursor_changed)
 
