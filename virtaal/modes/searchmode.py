@@ -157,8 +157,8 @@ class SearchMode(BaseMode):
 
     # METHODS #
     def selected(self):
-        # XXX: Assumption: This method is called when a new file is loaded and that is
-        #      why we keep a reference to the store's cursor.
+        # Each new store has a new cursor; refresh_mode() reselects the
+        # mode after every open, revert and update.
         self.storecursor = self.controller.main_controller.store_controller.cursor
         if not self.storecursor or not self.storecursor.model:
             return
@@ -184,7 +184,8 @@ class SearchMode(BaseMode):
             self.ent_search.set_position(curpos)
             return False
 
-        # FIXME: The following line is a VERY UGLY HACK, but at least it works.
+        # FIXME: The delay outlasts StoreTreeView._start_editing_cycle()'s
+        # idle set_cursor(), which takes focus; nothing orders the two.
         GLib.timeout_add(100, grab_focus)
 
     def select_match(self, match):
@@ -197,6 +198,7 @@ class SearchMode(BaseMode):
         main_controller.select_unit(match.unit)
         view = main_controller.unit_controller.view
 
+        # TODO: 'notes' and 'locations' parts, once update_search() searches them.
         if match.part == 'target':
             textbox = view.targets[match.part_n]
         elif match.part == 'source':
@@ -223,7 +225,6 @@ class SearchMode(BaseMode):
             buff.select_range(end_iter, start_iter)
             return False
 
-        # TODO: Implement for 'notes' and 'locations' parts
         GLib.idle_add(select_match_text)
 
     def replace_match(self, match, replace_str):
