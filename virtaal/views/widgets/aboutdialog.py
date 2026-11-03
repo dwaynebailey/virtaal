@@ -91,8 +91,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.""")
                 "Heather Bailey",
             ]
         )
-        # FIXME entries that we may want to add
-        # self.set_documenters()
+        # No set_documenters(): AUTHORS.md has no documenters list to read.
         self.connect("response", lambda d, r: d.destroy())
         self.show()
 

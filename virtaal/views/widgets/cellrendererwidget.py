@@ -96,7 +96,7 @@ class CellRendererWidget(Gtk.CellRenderer):
             editable = CellWidget(widget)
             editable.show_all()
             editable.grab_focus()
-            # TODO: focus the button
+            # Focus stays in the tree view so Up/Down keep moving rows (#3516).
             return editable
 
     # METHODS #

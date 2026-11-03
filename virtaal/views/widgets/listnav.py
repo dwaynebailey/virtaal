@@ -98,8 +98,6 @@ class ListNavigator(Gtk.HBox):
 
     # METHODS #
     def move_state(self, offset):
-        # XXX: Adapted from ActivityEntry._on_key_press_event
-        #      (from the hamster-applet project)
         model, itr = self.tvw_items.get_selection().get_selected()
         path = model.get_path(itr)
         i = path[0] + offset

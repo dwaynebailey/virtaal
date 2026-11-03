@@ -16,9 +16,9 @@ from gi.repository import Gdk, GLib, GObject, Gtk
 
 from .wayland import set_popup_parent
 
-# XXX: Kudo's to Toms Bauģis <toms.baugis at gmail.com> who wrote the
-#      ActivityEntry widget for the hamster-applet project. A lot of this
-#      class's signal handling is based on his example.
+# Kudos to Toms Bauģis <toms.baugis at gmail.com> who wrote the
+# ActivityEntry widget for the hamster-applet project. A lot of this
+# class's signal handling is based on his example.
 
 # Positioning constants below:
 # POS_CENTER_BELOW: Centers the pop-up window below the button (default).
@@ -35,8 +35,6 @@ from .wayland import set_popup_parent
 #            corner is on the North West corner of the button. RTL of POS_SE_NE
 
 POS_CENTER_BELOW, POS_CENTER_ABOVE, POS_NW_SW, POS_NE_SE, POS_NW_NE, POS_SW_NW, POS_SE_NE = range(7)
-# XXX: Add position symbols above as needed and implementation in
-#      _update_popup_geometry()
 
 _rtl_pos_map = {
     POS_CENTER_BELOW: POS_CENTER_BELOW,

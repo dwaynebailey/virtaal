@@ -117,7 +117,7 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
             vbox.lbl_desc = lbl
         hbox.pack_start(vbox, True, True, 0)
 
-        # TODO: ideally we need an accesskey, but it is not currently working
+        # No mnemonic yet: the button only exists in edit mode (#3549); Enter runs config.
         if 'config' in item and callable(item['config']):
             btnconf = Gtk.Button(label=_('Configure…'))
 
