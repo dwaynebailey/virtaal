@@ -45,6 +45,8 @@ from sqlite3 import dbapi2
 from translate.lang import data
 from translate.search.lshtein import LevenshteinComparer
 
+from virtaal.support import shareddb
+
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
 
@@ -86,7 +88,8 @@ class TMDB:
     def _get_connection(self, index):
         current_thread = threading.current_thread()
         if current_thread not in self._tm_db:
-            connection = dbapi2.connect(self.db_file)
+            # Other Virtaal processes' TM servers use the same file (#1340).
+            connection = shareddb.connect(self.db_file)
             cursor = connection.cursor()
             self._tm_db[current_thread] = (connection, cursor)
         return self._tm_db[current_thread][index]
@@ -133,12 +136,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS targets_uniq_idx ON targets (sid, text, lang);
     def init_fulltext(self) -> None:
         """Detects if fts3 fulltext indexing module exists, initializes fulltext table if it does."""
         # HACKISH: no better way to detect fts3 support except trying to
-        # construct a dummy table?!
+        # construct a dummy table?! A temporary one, which other processes
+        # opening the same file can't drop halfway through (#1340).
         try:
             script = """
-DROP TABLE IF EXISTS test_for_fts3;
-CREATE VIRTUAL TABLE test_for_fts3 USING fts3;
-DROP TABLE test_for_fts3;
+CREATE VIRTUAL TABLE temp.test_for_fts3 USING fts3;
+DROP TABLE temp.test_for_fts3;
 """
             self.cursor.executescript(script)
             logger.debug("fts3 supported")
@@ -177,9 +180,12 @@ END;
             logger.debug("created fulltext triggers")
             self.fulltext = True
 
-        except dbapi2.OperationalError:
+        except dbapi2.OperationalError as e:
             self.fulltext = False
             logger.exception("failed to initialize fts3 support")
+            if shareddb.is_locked(e):
+                # FTS3 works: other processes keep their triggers (#1340).
+                return
             script = """
 DROP TRIGGER IF EXISTS sources_insert_trig;
 DROP TRIGGER IF EXISTS sources_update_trig;

@@ -45,6 +45,8 @@ from translate.misc.multistring import multistring
 from translate.storage import factory
 from translate.storage.workflow import StateEnum
 
+from virtaal.support import shareddb
+
 logger = logging.getLogger(__name__)
 
 brtagre = re.compile(r"<br\s*?/?>")
@@ -304,8 +306,9 @@ class StatsCache:
         def make_database(statsfile):
 
             def connect(cache, name=statsfile):
-                # sqlite needs to get the name in utf-8 on all platforms
-                cache.con = dbapi2.connect(name)
+                # sqlite needs to get the name in utf-8 on all platforms.
+                # Other Virtaal processes use the same file (#1340).
+                cache.con = shareddb.connect(name)
                 cache.cur = cache.con.cursor()
 
             def clear_old_data(cache):
@@ -317,7 +320,7 @@ class StatsCache:
                     if val and val[0] is not None and val[0] < toolkitversion.build:
                         cache.con.close()
                         del cache
-                        os.unlink(statsfile)
+                        shareddb.remove(statsfile)
                         return True
                     return False
                 except dbapi2.OperationalError:
@@ -350,8 +353,11 @@ class StatsCache:
                     cache = open_database()
                 except dbapi2.DatabaseError as e:
                     # It only holds statistics, so a corrupt one is replaced
-                    # rather than stopping every file from opening (#4430).
-                    if os.path.exists(statsfile) and not os.path.isfile(statsfile):
+                    # rather than stopping every file from opening (#4430),
+                    # but never one another process has locked (#1340).
+                    if shareddb.is_locked(e) or (
+                        os.path.exists(statsfile) and not os.path.isfile(statsfile)
+                    ):
                         cache = in_memory(e)
                     else:
                         logging.warning(
@@ -361,7 +367,7 @@ class StatsCache:
                         )
                         try:
                             if os.path.isfile(statsfile):
-                                os.unlink(statsfile)
+                                shareddb.remove(statsfile)
                             cache = open_database()
                         except (OSError, dbapi2.DatabaseError) as e:
                             cache = in_memory(e)

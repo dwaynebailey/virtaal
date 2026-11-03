@@ -15,6 +15,7 @@ import pytest
 from translate.storage import base, xliff
 
 from virtaal.support import tmdb
+from virtaal.support._testhelpers import OtherProcess, scale_lock_waits
 
 LONG = 'Open the selected translation file'  # Over 3 words: full-text search.
 SHORT = 'Open it'
@@ -134,7 +135,9 @@ def test_without_fts3_the_database_falls_back_to_plain_search(db_path, monkeypat
         connection.close()
     connect = sqlite3.dbapi2.connect
     monkeypatch.setattr(
-        tmdb.dbapi2, 'connect', lambda path: connect(path, factory=_ConnectionWithoutFts3)
+        tmdb.dbapi2,
+        'connect',
+        lambda path, **kwargs: connect(path, factory=_ConnectionWithoutFts3, **kwargs),
     )
 
     with caplog.at_level(logging.ERROR, logger=tmdb.logger.name):
@@ -149,6 +152,109 @@ def test_without_fts3_the_database_falls_back_to_plain_search(db_path, monkeypat
     db.add_dict({'source': LONG, 'target': 'Maak die gekose lêer oop', 'context': ''}, 'en', 'af')
     assert db.translate_unit(LONG, 'en', 'af')[0]['target'] == 'Maak die gekose lêer oop'
     assert db.preload_db() == 1
+
+
+# Several Virtaal processes, each with its own TM server, share tm.db (#1340).
+
+
+def test_a_database_another_process_is_writing_to_is_opened(db_path, monkeypatch):
+    scale_lock_waits(monkeypatch)
+    with OtherProcess(db_path, seconds=0.15):
+        db = tmdb.TMDB(db_path)
+
+        db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
+
+    assert _count(db, 'targets') == 1
+
+
+def test_a_unit_is_added_while_another_process_writes(db_path, monkeypatch):
+    scale_lock_waits(monkeypatch)
+    db = tmdb.TMDB(db_path)
+    with OtherProcess(db_path, seconds=0.15):
+        db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
+
+    assert _count(db, 'targets') == 1
+
+
+def test_a_unit_is_added_while_another_process_reads(db_path, monkeypatch):
+    scale_lock_waits(monkeypatch)
+    db = tmdb.TMDB(db_path)
+    with OtherProcess(db_path, write=False):
+        db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
+
+    assert _count(db, 'targets') == 1
+
+
+def test_the_fts3_check_leaves_the_shared_file_alone(db_path, monkeypatch):
+    # Another process dropping its dummy table made it drop the triggers.
+    tables = []
+
+    def record(action, table, _module, db_name, _trigger):
+        if action == sqlite3.SQLITE_CREATE_VTABLE:
+            tables.append((db_name, table))
+        return sqlite3.SQLITE_OK
+
+    connect = sqlite3.dbapi2.connect
+
+    def connect_recording(*args, **kwargs):
+        connection = connect(*args, **kwargs)
+        connection.set_authorizer(record)
+        return connection
+
+    monkeypatch.setattr(tmdb.dbapi2, 'connect', connect_recording)
+
+    tmdb.TMDB(db_path)
+
+    assert [db for db, table in tables if table == 'test_for_fts3'] == ['temp']
+
+
+def test_a_database_locked_too_long_keeps_its_fulltext_triggers(db_path, monkeypatch):
+    tmdb.TMDB(db_path)
+    for connection, _cursor in tmdb.TMDB._tm_dbs.pop(db_path).values():
+        connection.close()
+    scale_lock_waits(monkeypatch)
+    with OtherProcess(db_path):
+        db = tmdb.TMDB(db_path)
+
+    assert not db.fulltext
+    triggers = "SELECT count(*) FROM sqlite_master WHERE type = 'trigger'"
+    assert db.cursor.execute(triggers).fetchone() == (3,)
+
+
+def test_the_database_uses_a_write_ahead_log(db_path):
+    db = tmdb.TMDB(db_path)
+
+    assert db.cursor.execute('PRAGMA journal_mode').fetchone() == ('wal',)
+
+
+class _ConnectionWithoutWal(sqlite3.Connection):
+    """Where SQLite can't use WAL it keeps the journal it has."""
+
+    def execute(self, sql, *args):
+        if sql.replace(' ', '').upper() == 'PRAGMAJOURNAL_MODE=WAL':
+            return super().execute('PRAGMA journal_mode')
+        return super().execute(sql, *args)
+
+
+class _ConnectionFailingWal(sqlite3.Connection):
+    def execute(self, sql, *args):
+        if sql.replace(' ', '').upper() == 'PRAGMAJOURNAL_MODE=WAL':
+            raise sqlite3.OperationalError('disk I/O error')
+        return super().execute(sql, *args)
+
+
+@pytest.mark.parametrize('factory', [_ConnectionWithoutWal, _ConnectionFailingWal])
+def test_without_wal_the_database_keeps_its_journal(db_path, monkeypatch, factory):
+    connect = sqlite3.dbapi2.connect
+    monkeypatch.setattr(
+        tmdb.dbapi2, 'connect', lambda path, **kwargs: connect(path, factory=factory, **kwargs)
+    )
+    db = tmdb.TMDB(db_path)
+
+    db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
+
+    assert db.cursor.execute('PRAGMA journal_mode').fetchone() == ('delete',)
+    assert _count(db, 'targets') == 1
 
 
 def test_add_unit_takes_the_languages_from_the_units_file(db_path):

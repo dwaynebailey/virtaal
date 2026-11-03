@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import os
+import sqlite3
 from types import SimpleNamespace
 
 import pytest
@@ -15,6 +16,7 @@ from translate.storage import factory
 
 from virtaal.models.storemodel import StoreModel
 from virtaal.support import statsdb
+from virtaal.support._testhelpers import OtherProcess, scale_lock_waits
 
 
 def test_load_file_with_an_empty_source_string(tmp_path):
@@ -329,11 +331,11 @@ def test_a_failed_open_is_not_kept_for_the_next_call(tmp_path, fresh_caches, mon
     real_connect = statsdb.dbapi2.connect
     calls = []
 
-    def connect(name):
+    def connect(name, **kwargs):
         calls.append(name)
         if len(calls) == 1:
-            raise statsdb.dbapi2.OperationalError('locked')
-        return real_connect(name)
+            raise statsdb.dbapi2.OperationalError('disk I/O error')
+        return real_connect(name, **kwargs)
 
     monkeypatch.setattr(statsdb.dbapi2, 'connect', connect)
 
@@ -341,6 +343,84 @@ def test_a_failed_open_is_not_kept_for_the_next_call(tmp_path, fresh_caches, mon
 
     assert first.con is not None
     assert statsdb.StatsCache(str(path)) is first
+
+
+# Several Virtaal processes, and their stats workers, share stats.db (#1340).
+
+
+def _po_file(tmp_path):
+    po_file = tmp_path / "af.po"
+    po_file.write_text('msgid "Hello"\nmsgstr "Hallo"\n')
+    return str(po_file)
+
+
+def _database_of_another_process(tmp_path):
+    path = str(tmp_path / "stats.db")
+    connection = sqlite3.connect(path)
+    connection.execute("CREATE TABLE mine (x)")
+    connection.commit()
+    connection.close()
+    return path
+
+
+def _tables(path):
+    connection = sqlite3.connect(path)
+    try:
+        return {row[0] for row in connection.execute("SELECT name FROM sqlite_master")}
+    finally:
+        connection.close()
+
+
+def test_a_database_another_process_is_writing_to_is_opened(tmp_path, fresh_caches, monkeypatch):
+    scale_lock_waits(monkeypatch)
+    path = _database_of_another_process(tmp_path)
+    with OtherProcess(path, seconds=0.15):
+        stats = statsdb.StatsCache(path).filestatestats(_po_file(tmp_path))
+
+    assert stats['translated'] == [0]
+    assert {'mine', 'files'} <= _tables(path)
+    assert path not in statsdb.StatsCache.unusable_files
+
+
+def test_a_file_is_cached_while_another_process_writes(tmp_path, fresh_caches, monkeypatch):
+    scale_lock_waits(monkeypatch)
+    path = str(tmp_path / "stats.db")
+    cache = statsdb.StatsCache(path)
+    with OtherProcess(path, seconds=0.15):
+        stats = cache.filestatestats(_po_file(tmp_path))
+
+    assert stats['translated'] == [0]
+
+
+def test_a_file_is_cached_while_another_process_reads(tmp_path, fresh_caches, monkeypatch):
+    scale_lock_waits(monkeypatch)
+    path = str(tmp_path / "stats.db")
+    cache = statsdb.StatsCache(path)
+    with OtherProcess(path, write=False):
+        stats = cache.filestatestats(_po_file(tmp_path))
+
+    assert stats['translated'] == [0]
+
+
+def test_a_database_locked_too_long_is_kept_and_stats_go_to_memory(
+    tmp_path, fresh_caches, monkeypatch, caplog
+):
+    scale_lock_waits(monkeypatch)
+    path = _database_of_another_process(tmp_path)
+    with OtherProcess(path):
+        stats = statsdb.StatsCache(path).filestatestats(_po_file(tmp_path))
+
+    assert stats['translated'] == [0]
+    assert _tables(path) == {'mine'}
+    assert [r.getMessage().split(',')[0] for r in caplog.records] == [
+        'Keeping statistics in memory'
+    ]
+
+
+def test_the_database_uses_a_write_ahead_log(tmp_path, fresh_caches):
+    cache = statsdb.StatsCache(str(tmp_path / "stats.db"))
+
+    assert cache.cur.execute("PRAGMA journal_mode").fetchone() == ('wal',)
 
 
 def test_the_default_database_is_in_the_home_directory(tmp_path, monkeypatch, fresh_caches):
