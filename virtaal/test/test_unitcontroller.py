@@ -160,6 +160,51 @@ class TestUnitController(TestScaffolding):
         view = self.unit_controller.load_unit(test_unit)
         view.advance_workflow_state(1)  # must not raise
 
+    def test_load_unit_builds_the_state_names_once(self, monkeypatch):
+        from translate.storage import pypo
+
+        calls = []
+        real = self.unit_controller.get_unit_state_names
+
+        def counting(unit=None):
+            calls.append(unit)
+            return real(unit)
+
+        monkeypatch.setattr(self.unit_controller, 'get_unit_state_names', counting)
+        # UnitView.load_unit() asks for the names itself - count only the
+        # controller's own calls, made before it.
+        view = self.unit_controller.view
+        before_view = []
+        real_view_load = view.load_unit
+
+        def recording_view_load(unit):
+            before_view.append(len(calls))
+            return real_view_load(unit)
+
+        monkeypatch.setattr(view, 'load_unit', recording_view_load)
+        unit = pypo.pofile().addsourceunit("State names test string")
+        self.unit_controller.load_unit(unit)
+
+        assert before_view == [1]
+        names = self.unit_controller._unit_state_names
+        assert [s.name for s in unit._workflow.states] == [
+            names[state_id] for state_id in sorted(unit.STATE) if unit.STATE[state_id][0] >= 0
+        ]
+
+    def test_load_unit_leaves_the_unit_state_alone(self, monkeypatch):
+        from translate.storage import pypo
+
+        unit = pypo.pofile().addsourceunit("Reset test string")
+        unit.target = "Reset test string, translated"
+        unit.markfuzzy(True)
+        calls = []
+        monkeypatch.setattr(unit, 'set_state_n', lambda value: calls.append(value))
+
+        self.unit_controller.load_unit(unit)
+
+        assert calls == []
+        assert unit.isfuzzy()
+
     def test_advance_workflow_state_alone_does_not_persist(self):
         """advance_workflow_state() only moves the state-nav widget's
         own selection - the real underlying unit state is only written

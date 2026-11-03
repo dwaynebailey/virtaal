@@ -150,19 +150,12 @@ class UnitController(BaseController):
         unit._current_state = state_n
         if self._recreate_workflow or True:
             # This will only happen when a document is loaded.
-            self._unit_state_names = {}
-            # FIXME: The call below is run for the second time, but is necessary
-            #        because the names could have changed in the new document :/
-            state_names = self.get_unit_state_names()
             if state_names:
                 unit._workflow = create_unit_workflow(unit, state_names)
             self._recreate_workflow = False
 
         if state_names:
             unit._workflow.reset(unit, init_state=state_names[state_id])
-            # XXX: we should make 100% sure that .reset() doesn't actually call
-            # a set method in the unit, since it might cause a diff or loss of
-            # meta-data.
         self.view.load_unit(unit)
         return self.view
 
