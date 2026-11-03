@@ -335,9 +335,7 @@ class StoreController(BaseController):
 
     def update_file(self, filename, uri=''):
         if not self.store:
-            # FIXME: we should never allow updates if no file is already open
-            self.open_file(filename, uri=uri)
-            return
+            raise ValueError('No file is open to update.')
 
         from translate.storage import factory
 

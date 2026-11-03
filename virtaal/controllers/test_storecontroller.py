@@ -612,15 +612,13 @@ def test_binary_export_writes_the_compiled_store(monkeypatch, tmp_path):
 # update_file() #
 
 
-def test_update_file_opens_a_new_file_when_none_is_open():
+def test_update_file_refuses_when_no_file_is_open():
     controller = _controller()
     controller.store = None
-    opened = []
-    controller.open_file = lambda filename, uri='': opened.append((filename, uri))
+    controller.open_file = lambda *a, **k: pytest.fail('opened the template as a file')
 
-    controller.update_file("new.po", uri="file:///new.po")
-
-    assert opened == [("new.po", "file:///new.po")]
+    with pytest.raises(ValueError):
+        controller.update_file("new.pot", uri="file:///new.pot")
 
 
 def test_update_file_replaces_the_cursor_on_an_already_open_store(tmp_path):
