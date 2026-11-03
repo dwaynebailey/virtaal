@@ -190,7 +190,7 @@ class StringElemGUI:
                 index = child.gui_info.index(elem)
                 if index >= 0:
                     return index + i
-                i -= index  # XXX: Add length. See comment below.
+                i -= index  # minus the child's length, see below
             else:
                 i += len(child)
         # We basically calculated the length thus far, so pass it back as a

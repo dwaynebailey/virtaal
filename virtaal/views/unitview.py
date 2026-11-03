@@ -362,7 +362,6 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         return self.targets[n].get_text()
 
     def set_target_n(self, n, newtext, cursor_pos=-1):
-        # TODO: Save cursor position and set after assignment
         self.targets[n].set_text(newtext)
         if cursor_pos > -1:
             self.targets[n].buffer.place_cursor(
@@ -480,7 +479,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         self.enable_signals(['modified', 'insert-text', 'delete-text'])
 
         for i in range(len(self.targets)):
-            self.targets[i]._source_text = unit.source  # FIXME: Find a better way to do this!
+            # For storecellrenderer's height estimate of an empty target.
+            self.targets[i]._source_text = unit.source
             self.targets[i]._opened_height = None
         self.select_first_placeables()
 
@@ -979,8 +979,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         else:
             newtext = self.get_target_n(index)
             if self.unit.hasplural():
-                # FIXME: The following two lines are necessary because self.unit.target always
-                # returns a new multistring, so you can't assign to an index directly.
+                # unit.target is a new multistring on every read: change a copy, assign it back.
                 target = self.unit.target.strings
                 if len(target) < nplurals:
                     # pad the target with empty strings

@@ -254,6 +254,12 @@ class TestRealPlaceableRendering(TestScaffolding):
 
         assert textbox.elem.gui_info.index(placeable) == 0
 
+    def test_index_counts_the_children_before_a_later_placeable(self):
+        textbox = self._target_for(self.po_store, 'Click <a>here</a> to continue.')
+        tags = [e for e in textbox.elem.depth_first() if str(e) in ('<a>', '</a>')]
+
+        assert [textbox.elem.gui_info.index(tag) for tag in tags] == [6, 13]
+
     def test_elem_at_offset_finds_the_placeable_at_its_own_position(self):
         textbox = self._target_for(self.po_store, '%s files copied')
         placeable = next(

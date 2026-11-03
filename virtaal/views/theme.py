@@ -147,7 +147,6 @@ def is_inverse(fg, bg):
     represents and inverse theme (light text on a dark background)."""
     # Let's sum the three colour components to work out a rough idea of how
     # "light" the colour is:
-    # TODO: consider using luminance calculation instead (probably overkill)
     bg_sum = sum((bg.red, bg.green, bg.blue))
     fg_sum = sum((fg.red, fg.green, fg.blue))
     if bg_sum < fg_sum:
@@ -189,10 +188,11 @@ def update_style(widget):
         current_theme["url_fg"] = url_fg
 
 
-# these are based on an (old?) Web Content Accessibility Guidelines of the w3c
-# See  http://juicystudio.com/article/luminositycontrastratioalgorithm.php
-# TODO: Might be a bit newer/better, so we should consider updating the code:
-#      http://www.w3.org/TR/WCAG20/Overview.html
+# Relative luminance with a plain 2.2 gamma, from
+# http://juicystudio.com/article/luminositycontrastratioalgorithm.php
+# TODO: WCAG 2 uses the sRGB curve instead, which lowers dark colours'
+# luminance and so changes dark-theme fallbacks; the 1.2 threshold below
+# was tuned for this curve.
 
 
 def _luminance(c):
