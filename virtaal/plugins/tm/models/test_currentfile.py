@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import weakref
 from types import SimpleNamespace
 
 from virtaal.plugins.tm.models.currentfile import TMModel
@@ -137,14 +138,15 @@ def test_check_alttrans_expands_lmc_origin_metadata():
     assert results[0]['tmsource'] == 'Jane Translator\nlegal\n/path/to/source\nlmc'
 
 
-def test_check_other_units_excludes_exact_100_percent_matches():
-    """A 100% match against the current file is the unit's own already-
-    translated self (or an exact duplicate) - showing it back as a
-    TM suggestion would be redundant noise."""
+def test_check_other_units_excludes_a_100_percent_match_from_the_unit_itself():
+    # Showing a unit its own translation back would be redundant noise.
     model = _make_model()
-    model.matcher = _FakeMatcher([_FakeCandidate('hello world', 'hallo wêreld', 100)])
+    unit = _FakeUnit('hello world')
+    candidate = _FakeCandidate('hello world', 'hallo wêreld', 100)
+    candidate.unit_ref = weakref.ref(unit)
+    model.matcher = _FakeMatcher([candidate])
 
-    assert model._check_other_units(_FakeUnit('hello world')) == []
+    assert model._check_other_units(unit) == []
 
 
 def test_check_other_units_includes_non_100_percent_matches():
@@ -249,4 +251,130 @@ def test_query_does_not_leak_alttrans_between_units_with_the_same_source():
         ['Maak lêer oop', 'B'],
         ['Maak lêer oop', 'A'],
     ]
-    assert [m['target'] for m in model.cache['Open']] == ['Maak lêer oop']
+    assert [m['target'] for m, _ref in model.cache['Open']] == ['Maak lêer oop']
+
+
+def _po_store(entries):
+    from translate.storage import po
+
+    body = ''.join(
+        ('msgctxt "%s"\n' % ctx if ctx is not None else '')
+        + 'msgid "%s"\nmsgstr "%s"\n\n' % (source, target)
+        for ctx, source, target in entries
+    )
+    return po.pofile(body.encode('utf-8'))
+
+
+def _model_for(store):
+    model = _make_model(min_quality=75)
+    model.controller.max_matches = 10
+    model.config = {'max_length': 1000}
+    model.matcher = None
+    emitted = []
+    model.emit = lambda signal, query_str, matches: emitted.append(
+        [(m['target'], int(m['quality'])) for m in matches]
+    )
+    storecontroller = SimpleNamespace(get_store=lambda: SimpleNamespace(_trans_store=store))
+    model.recreate_matcher(storecontroller)
+    return model, emitted
+
+
+def _offered(model, emitted, unit):
+    emitted.clear()
+    model.query(None, unit)
+    return emitted[0] if emitted else []
+
+
+def test_query_offers_a_100_percent_match_from_another_unit_with_the_same_source():
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+
+    assert _offered(model, emitted, store.units[1]) == [('Maak oop', 100)]
+
+
+def test_query_does_not_offer_a_unit_its_own_translation():
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+
+    assert _offered(model, emitted, store.units[0]) == []
+
+
+def test_query_filters_a_shared_cache_entry_per_unit():
+    # Same-source units share a cache entry; the filter is per unit.
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+    own, other = store.units
+
+    assert _offered(model, emitted, own) == []
+    assert _offered(model, emitted, other) == [('Maak oop', 100)]
+    assert _offered(model, emitted, own) == []
+
+
+def test_query_does_not_offer_a_100_percent_match_with_a_different_msgctxt():
+    store = _po_store([('verb', 'Open', 'Maak oop'), ('adjective', 'Open', '')])
+    model, emitted = _model_for(store)
+
+    assert _offered(model, emitted, store.units[1]) == []
+
+
+def test_query_offers_a_100_percent_match_with_the_same_msgctxt():
+    store = _po_store([('verb', 'Open', 'Maak oop'), ('verb', 'Open', '')])
+    model, emitted = _model_for(store)
+
+    assert _offered(model, emitted, store.units[1]) == [('Maak oop', 100)]
+
+
+def test_query_offers_a_100_percent_match_when_only_one_unit_has_a_msgctxt():
+    store = _po_store(
+        [
+            ('verb', 'Open', 'Maak oop'),
+            (None, 'Open', ''),
+            (None, 'Save', 'Stoor'),
+            ('menu', 'Save', ''),
+        ]
+    )
+    model, emitted = _model_for(store)
+
+    assert _offered(model, emitted, store.units[1]) == [('Maak oop', 100)]
+    assert _offered(model, emitted, store.units[3]) == [('Stoor', 100)]
+
+
+def test_query_still_offers_below_100_percent_matches():
+    store = _po_store(
+        [('verb', 'Open the file', 'Maak die lêer oop'), ('noun', 'Open the files', '')]
+    )
+    model, emitted = _model_for(store)
+
+    assert _offered(model, emitted, store.units[1]) == [('Maak die lêer oop', 93)]
+
+
+def test_query_offers_a_translation_entered_in_another_unit_after_loading():
+    store = _po_store([(None, 'Open', ''), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+    first, second = store.units
+    assert _offered(model, emitted, second) == []
+
+    first.target = 'Maak oop'
+    model._on_unit_modified(None, first, modified=True)
+
+    assert _offered(model, emitted, second) == [('Maak oop', 100)]
+    assert _offered(model, emitted, first) == []
+
+
+def test_query_keeps_excluding_own_translation_after_the_controller_coerces_quality():
+    # accept_response() turns the cached matches' quality into an int in place.
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+    own, other = store.units
+
+    def accept(signal, query_str, matches):
+        for m in matches:
+            m['quality'] = int(m['quality'])
+
+    model.emit = accept
+    model.query(None, other)
+    model.emit = lambda signal, query_str, matches: emitted.append(
+        [(m['target'], int(m['quality'])) for m in matches]
+    )
+
+    assert _offered(model, emitted, own) == []

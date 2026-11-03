@@ -5,12 +5,55 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import weakref
+
 from translate.search import match
 
 from virtaal.common import pan_app
 from virtaal.support.match_compat import matcher as _matcher
 
 from .basetmmodel import BaseTMModel
+
+
+class _UnitMatcher(_matcher):
+    """Matcher whose candidates and matches carry a weak reference to the
+    unit they came from, so a match can be told apart from the unit being
+    translated without an index or keeping closed files' units alive."""
+
+    def usable(self, unit):
+        if super().usable(unit):
+            self._usable.append(unit)
+            return True
+        return False
+
+    def extendtm(self, units, store=None, sort=True):
+        # Upstream appends one candidate per usable unit, in order.
+        self._usable = []
+        start = len(self.candidates.units)
+        super().extendtm(units, store=store, sort=False)
+        for candidate, unit in zip(self.candidates.units[start:], self._usable):
+            candidate.unit_ref = weakref.ref(unit)
+        self._usable = []
+        if sort:
+            self.candidates.units.sort(key=match.sourcelen, reverse=self.sort_reverse)
+
+    def buildunits(self, candidates):
+        units = super().buildunits(candidates)
+        for unit, (_score, candidate) in zip(units, candidates):
+            unit.unit_ref = getattr(candidate, 'unit_ref', None)
+        return units
+
+
+def _offered_to(unit, ref):
+    """Whether a 100% match from the unit behind ref helps unit: not its
+    own translation, and not one for a different context."""
+    other = ref() if ref is not None else None
+    if other is None:
+        return True
+    if other is unit:
+        return False
+    context, other_context = unit.getcontext(), other.getcontext()
+    return not (context and other_context and context != other_context)
 
 
 class TMModel(BaseTMModel):
@@ -57,30 +100,34 @@ class TMModel(BaseTMModel):
                 'max_candidates': self.controller.max_matches,
                 'min_similarity': self.controller.min_quality,
             }
-            self.matcher = _matcher(store, **options)
+            self.matcher = _UnitMatcher(store, **options)
         else:
             self.matcher.extendtm(store.units)
         self.cache = {}
 
     def query(self, tmcontroller, unit):
         query_str = unit.source
-        matches = []
+        found = []
         # The cache is cleared when translated units change, so this is safe
         if query_str in self.cache:
-            matches = self.cache[query_str]
+            found = self.cache[query_str]
         else:
-            matches = self._check_other_units(unit)
+            found = self._find_matches(unit)
             # Cache even empty results, so we don't need to query again
-            self.cache[query_str] = matches
-            # We don't want to cache alt trans, since this is different for
-            # units with the same source text.
+            self.cache[query_str] = found
+            # We don't want to cache alt trans or the 100% filter, since these
+            # are different for units with the same source text.
 
-        matches = matches + self._check_alttrans(unit)
+        matches = self._filter_for(unit, found) + self._check_alttrans(unit)
         if matches:
             self.emit('match-found', query_str, matches)
 
     def _check_other_units(self, unit):
-        matches = []
+        return self._filter_for(unit, self._find_matches(unit))
+
+    def _find_matches(self, unit):
+        """Return (match, unit ref) pairs for unit's source text."""
+        found = []
 
         query_str = unit.source
         if not isinstance(query_str, str):
@@ -90,8 +137,13 @@ class TMModel(BaseTMModel):
             m = match.unit2dict(candidate)
             # l10n: Try to keep this as short as possible.
             m['tmsource'] = _('This file')
-            matches.append(m)
-        return [m for m in matches if m['quality'] != '100']
+            found.append((m, getattr(candidate, 'unit_ref', None)))
+        return found
+
+    @staticmethod
+    def _filter_for(unit, found):
+        # The controller makes a cached quality an int in place
+        return [m for (m, ref) in found if int(m['quality'] or 0) < 100 or _offered_to(unit, ref)]
 
     def _check_alttrans(self, unit):
         if not hasattr(unit, 'getalttrans'):
