@@ -74,7 +74,6 @@ class BaseTMModel(BaseModel, Configurable):
         self._signal_tracker.connect(self.controller, 'start-query', self.query)
 
         # static suggestion cache for slow TM queries
-        # TODO: cache invalidation, maybe decorate query to automate cache handling?
         self.cache = {}
 
         self.source_lang = None
@@ -150,6 +149,6 @@ class BaseTMModel(BaseModel, Configurable):
         """private method for handling of project style change events"""
         if checker != self.checker:
             self.checker = checker
-            # TODO: consider:
-            # self.cache = {}
+            # Matches can depend on the style sent with the query.
+            self.cache = {}
             self.set_checker(checker)
