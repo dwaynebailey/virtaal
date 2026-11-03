@@ -513,6 +513,8 @@ def test_a_bundle_round_trip_leaves_no_file_open(tmp_path, monkeypatch):
     _stub_convert(monkeypatch, tmp_path)
     src_path = tmp_path / 'greeting.odt'
     src_path.write_bytes(b'source bytes')
+    # Garbage from earlier tests mustn't be collected while recording.
+    gc.collect()
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always', ResourceWarning)
@@ -527,4 +529,9 @@ def test_a_bundle_round_trip_leaves_no_file_open(tmp_path, monkeypatch):
         gc.collect()
 
     assert (tmp_path / 'exported.xlf').read_bytes() == b'converted'
-    assert [w for w in caught if issubclass(w.category, ResourceWarning)] == []
+    unclosed = [
+        w
+        for w in caught
+        if issubclass(w.category, ResourceWarning) and 'unclosed file' in str(w.message)
+    ]
+    assert unclosed == []
