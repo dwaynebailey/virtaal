@@ -5,7 +5,6 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from virtaal.common import pan_app
 from virtaal.common.platform import platform
 from virtaal.controllers.baseplugin import BasePlugin
 
@@ -38,20 +37,8 @@ class Plugin(BasePlugin):
             )
         self.load_config()
         self.config['disabled_models'] = self.config['disabled_models'].split(',')
-        self.config['max_matches'] = pan_app.config_int(
-            self.config['max_matches'],
-            int(self.default_config['max_matches']),
-            0,
-            1000,
-            'max_matches',
-        )
+        self._config_int('max_matches', 0, 1000)
         # A quality of 0 divides by zero when matching.
-        self.config['min_quality'] = pan_app.config_int(
-            self.config['min_quality'],
-            int(self.default_config['min_quality']),
-            1,
-            100,
-            'min_quality',
-        )
+        self._config_int('min_quality', 1, 100)
 
         self.controller = TMController(self.main_controller, self.config)

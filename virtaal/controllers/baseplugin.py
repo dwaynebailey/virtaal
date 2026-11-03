@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+from virtaal.common import pan_app
 from virtaal.common.configurable import Configurable
 
 
@@ -43,6 +44,13 @@ class BasePlugin(Configurable):
         raise NotImplementedError('This interface cannot be instantiated.')
 
     # METHODS #
+    def _config_int(self, name, minimum, maximum):
+        """Replaces config[name] with it as a whole number from minimum
+        to maximum, or with its default_config value."""
+        self.config[name] = pan_app.config_int(
+            self.config[name], int(self.default_config[name]), minimum, maximum, name
+        )
+
     def configure(self, parent):
         """Shows C{self.controller}'s backend-selection dialog and persists
         the resulting config. Used by plug-ins that set
