@@ -131,8 +131,7 @@ class ChecksController(BaseController):
             from virtaal.support.qtchecks import QtChecker
 
             self._checker_info = {
-                # XXX: Add other checkers below with a localisable string as key
-                #      (used on the GUI) and a checker class as the value.
+                # A new checker code also needs a name in _checker_code_to_name.
                 None: checks.StandardChecker,
                 'openoffice': checks.OpenOfficeChecker,
                 'mozilla': checks.MozillaChecker,

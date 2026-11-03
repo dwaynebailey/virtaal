@@ -87,7 +87,6 @@ class UnitController(BaseController):
     # METHODS #
     def get_unit_state_names(self, unit=None):
         self._unit_state_names = {
-            # FIXME: choose friendly names
             workflow.StateEnum.EMPTY: _('Untranslated'),
             workflow.StateEnum.NEEDS_WORK: _('Needs work'),
             workflow.StateEnum.REJECTED: _('Rejected'),

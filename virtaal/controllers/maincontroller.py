@@ -332,7 +332,8 @@ class MainController(BaseController):
             return False
 
         if filename.endswith('.po'):
-            # TODO: do something better, especially for files like fr.po and gnome-shell.po.master.fr.po
+            # TODO: suggest <domain>.mo - this gives fr.mo for fr.po and
+            # gnome-shell.po.master.fr.mo for gnome-shell.po.master.fr.po.
             filename = filename[:-3] + '.mo'
         else:
             filename = 'messages.mo'

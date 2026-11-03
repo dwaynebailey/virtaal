@@ -41,7 +41,7 @@ class ModeView(GObjectWrapper, BaseView):
         # We need the *same* GtkBuilder instance as used by the MainView, because we need
         # the Gtk.Grid as already added to the main window. Loading the GtkBuilder file again
         # would create a new main window with a different Gtk.Grid.
-        gui = self.controller.main_controller.view.gui  # FIXME: Is this acceptable?
+        gui = self.controller.main_controller.view.gui
         self.mode_box = gui.get_object('mode_box')
 
         self.cmb_modes = Gtk.ComboBoxText()

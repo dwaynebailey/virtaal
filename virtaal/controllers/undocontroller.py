@@ -87,7 +87,7 @@ class UndoController(BaseController):
         # second time per keypress (caused a double undo).
         # self.accel_group.connect_by_path("<Virtaal>/Edit/Undo", self._on_undo_activated)
 
-        mainview = self.main_controller.view  # FIXME: Is this acceptable?
+        mainview = self.main_controller.view
         mainview.add_accel_group(self.accel_group)
 
     # METHODS #
@@ -233,7 +233,8 @@ class UndoController(BaseController):
             restore_to = undo_info['state_before'] if capture_redo else undo_info['state_after']
             self.unit_controller.set_current_state(restore_to)
 
-        # TODO: try to avoid full refresh
+        # TODO: avoid re-rendering the whole target; the refresh also writes
+        # the text back to the unit.
         self._schedule_cursor_restore(
             undo_info['unit'], undo_info['targetn'], undo_info['cursorpos']
         )
