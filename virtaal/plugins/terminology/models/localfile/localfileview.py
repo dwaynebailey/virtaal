@@ -36,21 +36,9 @@ class LocalFileView:
     # METHODS #
     def _connect_context_menu(self):
         unitview = self.controller.main_controller.unit_controller.view
-        if unitview.sources:
-            self._connect_to_textboxes(unitview, unitview.sources)
-        else:
-            self._signal_tracker.connect(unitview, 'sources-created', self._connect_to_textboxes)
-        if unitview.targets:
-            self._connect_to_textboxes(unitview, unitview.targets)
-        else:
-            self._signal_tracker.connect(unitview, 'targets-created', self._connect_to_textboxes)
-
-    def _connect_to_textboxes(self, unitview, textboxes):
-        for textbox in textboxes:
-            self._signal_tracker.connect(
-                textbox, 'button-press-event', self._word_selector.on_button_press
-            )
-            self._signal_tracker.connect(textbox, 'populate-popup', self._on_populate_popup)
+        self._word_selector.connect_unit_textboxes(
+            self._signal_tracker, unitview, self._on_populate_popup
+        )
 
     def _setup_menus(self):
         mnu_transfer = self.mainview.gui.get_object('mnu_placnext')
@@ -120,13 +108,7 @@ class LocalFileView:
         self.fileselect.run(parent=self.mainview.main_window)
 
     def _on_populate_popup(self, textbox, menu):
-        buf = textbox.buffer
-        if not buf.get_has_selection():
-            self._word_selector.select_word_at_cursor(buf)
-        if not buf.get_has_selection():
-            return
-
-        selection = buf.get_text(*buf.get_selection_bounds(), include_hidden_chars=False).strip()
+        selection = self._word_selector.selected_text(textbox.buffer)
         if not selection:
             return
 

@@ -84,3 +84,74 @@ def test_select_word_at_cursor_consumes_the_captured_click_once():
     selector.select_word_at_cursor(buf)
 
     assert selector._pending_click_iter is None
+
+
+def test_selected_text_returns_the_stripped_selection():
+    selector = WordAtCursorSelector()
+    buf = Gtk.TextBuffer()
+    buf.set_text(' quick ')
+    buf.select_range(buf.get_start_iter(), buf.get_end_iter())
+
+    assert selector.selected_text(buf) == 'quick'
+
+
+def test_selected_text_falls_back_to_the_word_at_the_cursor():
+    selector = WordAtCursorSelector()
+    buf = Gtk.TextBuffer()
+    buf.set_text('The quick brown fox')
+    buf.place_cursor(buf.get_iter_at_offset(6))
+
+    assert selector.selected_text(buf) == 'quick'
+
+
+def test_selected_text_is_none_without_a_selection_or_word():
+    selector = WordAtCursorSelector()
+    buf = Gtk.TextBuffer()
+    buf.set_text('The quick brown fox')
+    buf.place_cursor(buf.get_iter_at_offset(3))
+
+    assert selector.selected_text(buf) is None
+
+
+class _FakeSignalTracker:
+    def __init__(self):
+        self.connected = []
+
+    def connect(self, obj, signal, handler):
+        self.connected.append((obj, signal, handler))
+
+
+def test_connect_unit_textboxes_connects_existing_textboxes():
+    selector = WordAtCursorSelector()
+    tracker = _FakeSignalTracker()
+    on_popup = object()
+    unitview = SimpleNamespace(sources=['src'], targets=['tgt'])
+
+    selector.connect_unit_textboxes(tracker, unitview, on_popup)
+
+    assert tracker.connected == [
+        ('src', 'button-press-event', selector.on_button_press),
+        ('src', 'populate-popup', on_popup),
+        ('tgt', 'button-press-event', selector.on_button_press),
+        ('tgt', 'populate-popup', on_popup),
+    ]
+
+
+def test_connect_unit_textboxes_waits_for_textboxes_not_yet_created():
+    selector = WordAtCursorSelector()
+    tracker = _FakeSignalTracker()
+    on_popup = object()
+    unitview = SimpleNamespace(sources=[], targets=[])
+
+    selector.connect_unit_textboxes(tracker, unitview, on_popup)
+
+    assert [(obj, signal) for obj, signal, _handler in tracker.connected] == [
+        (unitview, 'sources-created'),
+        (unitview, 'targets-created'),
+    ]
+    _obj, _signal, on_created = tracker.connected[1]
+    on_created(unitview, ['tgt'])
+    assert tracker.connected[2:] == [
+        ('tgt', 'button-press-event', selector.on_button_press),
+        ('tgt', 'populate-popup', on_popup),
+    ]

@@ -21,6 +21,24 @@ class WordAtCursorSelector:
     def __init__(self):
         self._pending_click_iter = None
 
+    def connect_unit_textboxes(self, signal_tracker, unitview, on_populate_popup):
+        """Connects on_button_press() and on_populate_popup to each of
+        unitview's source and target textboxes, now or once created."""
+
+        def connect(_unitview, textboxes):
+            for textbox in textboxes:
+                signal_tracker.connect(textbox, 'button-press-event', self.on_button_press)
+                signal_tracker.connect(textbox, 'populate-popup', on_populate_popup)
+
+        if unitview.sources:
+            connect(unitview, unitview.sources)
+        else:
+            signal_tracker.connect(unitview, 'sources-created', connect)
+        if unitview.targets:
+            connect(unitview, unitview.targets)
+        else:
+            signal_tracker.connect(unitview, 'targets-created', connect)
+
     def on_button_press(self, textbox, event):
         # Only the right-click that's about to open the context menu -
         # capturing every click would leave a stale position behind
@@ -51,6 +69,15 @@ class WordAtCursorSelector:
         if not end.ends_word():
             end.forward_word_end()
         buf.select_range(start, end)
+
+    def selected_text(self, buf):
+        """buf's selection, or else the word select_word_at_cursor()
+        selects, stripped; None if neither."""
+        if not buf.get_has_selection():
+            self.select_word_at_cursor(buf)
+        if not buf.get_has_selection():
+            return None
+        return buf.get_text(*buf.get_selection_bounds(), include_hidden_chars=False).strip()
 
     def _iter_at_event(self, textbox, event):
         bx, by = textbox.window_to_buffer_coords(

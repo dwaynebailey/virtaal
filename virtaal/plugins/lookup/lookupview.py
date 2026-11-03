@@ -26,21 +26,9 @@ class LookupView(BaseView):
         self._signal_tracker = SignalTracker()
         self._word_selector = WordAtCursorSelector()
         unitview = controller.main_controller.unit_controller.view
-        if unitview.sources:
-            self._connect_to_textboxes(unitview, unitview.sources)
-        else:
-            self._signal_tracker.connect(unitview, 'sources-created', self._connect_to_textboxes)
-        if unitview.targets:
-            self._connect_to_textboxes(unitview, unitview.targets)
-        else:
-            self._signal_tracker.connect(unitview, 'targets-created', self._connect_to_textboxes)
-
-    def _connect_to_textboxes(self, unitview, textboxes):
-        for textbox in textboxes:
-            self._signal_tracker.connect(
-                textbox, 'button-press-event', self._word_selector.on_button_press
-            )
-            self._signal_tracker.connect(textbox, 'populate-popup', self._on_populate_popup)
+        self._word_selector.connect_unit_textboxes(
+            self._signal_tracker, unitview, self._on_populate_popup
+        )
 
     # METHODS #
     def destroy(self):
@@ -65,13 +53,9 @@ class LookupView(BaseView):
     # SIGNAL HANDLERS #
 
     def _on_populate_popup(self, textbox, menu):
-        buf = textbox.buffer
-        if not buf.get_has_selection():
-            self._word_selector.select_word_at_cursor(buf)
-        if not buf.get_has_selection():
+        selection = self._word_selector.selected_text(textbox.buffer)
+        if selection is None:
             return
-
-        selection = buf.get_text(*buf.get_selection_bounds(), include_hidden_chars=False).strip()
         role = textbox.role
         srclang = self.lang_controller.source_lang.code
         tgtlang = self.lang_controller.target_lang.code
