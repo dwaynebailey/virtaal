@@ -152,7 +152,7 @@ class Plugin(BasePlugin):
         """Disable checking on the given text_view."""
         # Drop any activation still waiting to run (#4441).
         text_view.spell_pending = None
-        if getattr(text_view, 'spell_lang', 'xxxx') is None:
+        if self.gtkspell is None or getattr(text_view, 'spell_lang', 'xxxx') is None:
             # No change necessary - already disabled
             return
         spell = None
@@ -249,8 +249,8 @@ class Plugin(BasePlugin):
             text_view.spell_lang = language
         except Exception as e:
             logging.exception("Could not initialize spell checking: %s", e)
+            self.destroy()
             self.gtkspell = None
-            # TODO: unload plugin
 
     def _on_apply_tag(self, buffer, tag, start, end, textbox):
         """Don't mark words in placeables (variables, tags) as misspelled."""
