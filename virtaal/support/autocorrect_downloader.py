@@ -27,26 +27,16 @@ from virtaal.support.autocorrect_source import (
     find_document_list_folder,
     list_autocorrect_folders,
 )
+from virtaal.support.background_downloader import BackgroundDownloader
 
 
-class AutocorrectDownloader:
+class AutocorrectDownloader(BackgroundDownloader):
     """Downloads locale_code's autocorrect data in the background,
     calling on_done(success) once it's either written or given up.
     Silent on failure, same as UpdateChecker: network problems must
     never surface as an application error to the user - success is
     passed only so a caller can decide whether to record this as
     installed, not to raise anything on failure."""
-
-    def __init__(self, locale_code, on_done=None, client=None, target_dir=None):
-        self.locale_code = locale_code.replace('-', '_')
-        self.on_done = on_done or (lambda success: None)
-        self.target_dir = target_dir
-        if client is None:
-            from virtaal.support.httpclient import HTTPClient
-
-            client = HTTPClient()
-            client.set_virtaal_useragent()
-        self._client = client
 
     def start(self):
         """Live discovery - a listing call, then a guessed folder's

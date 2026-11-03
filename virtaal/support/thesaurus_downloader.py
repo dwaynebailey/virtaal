@@ -25,10 +25,10 @@ import logging
 import os
 
 from virtaal.common import pan_app
-from virtaal.support.dictionary_source import dictionary_file_url_candidates
+from virtaal.support.background_downloader import FilesDownloader
 
 
-class ThesaurusDownloader:
+class ThesaurusDownloader(FilesDownloader):
     """Downloads locale_code's thesaurus .dat file(s) in the
     background, calling on_done(success) once they're either written
     or given up. Silent on failure, same as UpdateChecker: network
@@ -36,17 +36,7 @@ class ThesaurusDownloader:
     success is passed only so a caller can decide whether to start
     parsing, not to raise anything on failure."""
 
-    def __init__(self, locale_code, on_done=None, client=None, target_dir=None):
-        self.locale_code = locale_code.replace('-', '_')
-        self.on_done = on_done or (lambda success: None)
-        self.target_dir = target_dir
-        if client is None:
-            from virtaal.support.httpclient import HTTPClient
-
-            client = HTTPClient()
-            client.set_virtaal_useragent()
-        self._client = client
-        self._written = []
+    _log_name = 'thesaurus'
 
     def start_with_known_files(self, folder, files):
         """folder/files already known (from asset_manifest.py's
@@ -65,48 +55,6 @@ class ThesaurusDownloader:
             # once the loop below has actually run), which is success.
             return self._give_up()
         self._fetch_next_file()
-
-    def _fetch_next_file(self):
-        if not self._files:
-            return self._on_success()
-        filename = self._files.pop(0)
-        self._fetch_file(filename, dictionary_file_url_candidates(self._folder, filename))
-
-    def _fetch_file(self, filename, urls):
-        self._client.get(
-            urls[0],
-            lambda request, result, fn=filename: self._on_file(fn, result),
-            error_callback=lambda request, status, fn=filename, rest=urls[1:]: (
-                self._on_file_missing(fn, status, rest)
-            ),
-            download=True,
-        )
-
-    def _on_file_missing(self, filename, status, rest):
-        if status == 404 and rest:
-            return self._fetch_file(filename, rest)
-        self._on_file_error(filename, status)
-
-    def _on_file(self, filename, result):
-        try:
-            target_dir = self.target_dir or self._default_target_dir()
-            os.makedirs(target_dir, exist_ok=True)
-            dest = os.path.join(target_dir, filename)
-            with open(dest, 'wb') as f:
-                f.write(result)
-            self._written.append(dest)
-        except Exception as e:
-            logging.debug('thesaurus download: could not write %s: %s', filename, e)
-            return self._on_file_error(filename, None)
-        self._fetch_next_file()
-
-    def _on_file_error(self, filename, status):
-        logging.debug(
-            'thesaurus download: could not get %s/%s: status=%r', self._folder, filename, status
-        )
-        for path in self._written:
-            os.remove(path)
-        self._give_up()
 
     def _default_target_dir(self):
         # Same path thesaurus.py's own thesaurus_cache_dir() computes -

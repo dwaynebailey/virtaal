@@ -26,11 +26,11 @@ import json
 import logging
 import os
 
+from virtaal.support.background_downloader import FilesDownloader
 from virtaal.support.dictionary_source import (
     RAW_BASE,
     TREE_URL,
     candidate_folders,
-    dictionary_file_url_candidates,
     dictionary_write_dir,
     list_dictionary_folders,
     locale_covers,
@@ -39,7 +39,7 @@ from virtaal.support.dictionary_source import (
 from virtaal.support.enchant_compat import enchant_tag
 
 
-class DictionaryDownloader:
+class DictionaryDownloader(FilesDownloader):
     """Downloads locale_code's hunspell dictionary in the background,
     calling on_done(success) once it's either written or given up.
     Silent on failure, same as UpdateChecker: network problems must
@@ -47,17 +47,7 @@ class DictionaryDownloader:
     passed only so a caller can decide whether to record this as
     installed, not to raise anything on failure."""
 
-    def __init__(self, locale_code, on_done=None, client=None, target_dir=None):
-        self.locale_code = locale_code.replace('-', '_')
-        self.on_done = on_done or (lambda success: None)
-        self.target_dir = target_dir
-        if client is None:
-            from virtaal.support.httpclient import HTTPClient
-
-            client = HTTPClient()
-            client.set_virtaal_useragent()
-        self._client = client
-        self._written = []
+    _log_name = 'dictionary'
 
     def start(self):
         """Live discovery - a tree call, then per-candidate-folder xcu
@@ -101,39 +91,8 @@ class DictionaryDownloader:
                 return self._fetch_next_file()
         self._try_next_folder()
 
-    def _fetch_next_file(self):
-        if not self._files:
-            return self._on_success()
-        filename = self._files.pop(0)
-        self._fetch_file(filename, dictionary_file_url_candidates(self._folder, filename))
-
-    def _fetch_file(self, filename, urls):
-        self._client.get(
-            urls[0],
-            lambda request, result, fn=filename: self._on_file(fn, result),
-            error_callback=lambda request, status, fn=filename, rest=urls[1:]: (
-                self._on_file_missing(fn, status, rest)
-            ),
-            download=True,
-        )
-
-    def _on_file_missing(self, filename, status, rest):
-        if status == 404 and rest:
-            return self._fetch_file(filename, rest)
-        self._on_file_error(filename, status)
-
-    def _on_file(self, filename, result):
-        try:
-            target_dir = self.target_dir or dictionary_write_dir()
-            os.makedirs(target_dir, exist_ok=True)
-            dest = os.path.join(target_dir, self._local_name(filename))
-            with open(dest, 'wb') as f:
-                f.write(result)
-            self._written.append(dest)
-        except Exception as e:
-            logging.debug('dictionary download: could not write %s: %s', filename, e)
-            return self._on_file_error(filename, None)
-        self._fetch_next_file()
+    def _default_target_dir(self):
+        return dictionary_write_dir()
 
     def _local_name(self, filename):
         """LibreOffice's names (af_ZA for af_NA, fa-IR, ca-valencia)
@@ -143,14 +102,6 @@ class DictionaryDownloader:
         if ext in ('.aff', '.dic'):
             return enchant_tag(self.locale_code) + ext
         return filename
-
-    def _on_file_error(self, filename, status):
-        logging.debug(
-            'dictionary download: could not get %s/%s: status=%r', self._folder, filename, status
-        )
-        for path in self._written:
-            os.remove(path)
-        self._give_up()
 
     def _on_success(self):
         logging.debug('Downloaded dictionary for %s', self.locale_code)
