@@ -840,7 +840,7 @@ def test_settings_reads_every_section_of_virtaal_ini(tmp_path):
 
 
 def test_settings_raises_for_a_missing_explicit_filename(tmp_path):
-    with pytest.raises(Exception):
+    with pytest.raises(FileNotFoundError):
         pan_app.Settings(str(tmp_path / 'does-not-exist.ini'))
 
 

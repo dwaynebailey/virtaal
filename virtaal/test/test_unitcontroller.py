@@ -487,7 +487,7 @@ class TestUnitController(TestScaffolding):
 
             view.targets[0].set_text('translated %d' % i)
             done_calls = []
-            view.connect('editing-done', lambda *a: done_calls.append(a))
+            view.connect('editing-done', lambda *a, calls=done_calls: calls.append(a))
             view.targets[0].emit('key-pressed', self._FakeReturnEvent(), 'enter')
 
             assert done_calls, (

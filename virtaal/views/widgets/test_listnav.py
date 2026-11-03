@@ -31,7 +31,10 @@ def _selected_name(navigator):
     return model.get_value(itr, ListNavigator.COL_DISPLAY)
 
 
-def _key_event(keyval, state=Gdk.ModifierType(0)):
+_NO_MODIFIERS = Gdk.ModifierType(0)
+
+
+def _key_event(keyval, state=_NO_MODIFIERS):
     event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
     event.key.keyval = keyval
     event.key.state = state

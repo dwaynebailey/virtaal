@@ -318,20 +318,14 @@ def test_do_lokalize_tm_import_closes_the_connection_even_if_the_query_fails(tmp
     plugin.tmdb = _FakeTMDB()
     plugin.migrated = []
 
-    try:
+    with pytest.raises(sqlite3.OperationalError):
         plugin.do_lokalize_tm_import(str(db_path))
-        assert False, 'expected the missing-table query to raise'
-    except sqlite3.OperationalError:
-        pass
 
     # A closed connection raises ProgrammingError on any further use.
-    try:
-        connection2 = sqlite3.connect(str(db_path))
-        connection2.close()
+    connection2 = sqlite3.connect(str(db_path))
+    connection2.close()
+    with pytest.raises(sqlite3.ProgrammingError):
         connection2.execute('SELECT 1')
-        assert False, 'expected use-after-close to raise'
-    except sqlite3.ProgrammingError:
-        pass
 
 
 # _init_plugin(): the overall migrate-or-stay-silent orchestration.

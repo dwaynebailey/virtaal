@@ -202,11 +202,8 @@ def test_add_widget_rejects_an_unsupported_widget_type(tmp_path):
     corrector = AutoCorrector(main_controller=None, acorpath=str(tmp_path))
     corrector.load_dictionary('af_ZA')
 
-    try:
+    with pytest.raises(ValueError):
         corrector.add_widget(object())
-        assert False, 'expected ValueError'
-    except ValueError:
-        pass
 
 
 def test_remove_widget_does_nothing_without_a_dictionary(tmp_path):

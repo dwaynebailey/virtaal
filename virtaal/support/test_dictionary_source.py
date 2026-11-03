@@ -16,6 +16,8 @@ real repo-shape change would actually be caught.
 
 from urllib.error import HTTPError, URLError
 
+import pytest
+
 from virtaal.support import dictionary_source
 from virtaal.support.dictionary_source import (
     candidate_folders,
@@ -341,11 +343,9 @@ def test_fetch_dictionary_file_raises_a_non_404_error_immediately(monkeypatch):
 
     monkeypatch.setattr(dictionary_source, '_get', fake_get)
 
-    try:
+    with pytest.raises(HTTPError) as excinfo:
         dictionary_source.fetch_dictionary_file('de', 'de_DE_frami.aff')
-        assert False, 'expected HTTPError'
-    except HTTPError as e:
-        assert e.code == 500
+    assert excinfo.value.code == 500
 
 
 def test_download_dictionary_cleans_up_partial_write_on_failure(monkeypatch, tmp_path):

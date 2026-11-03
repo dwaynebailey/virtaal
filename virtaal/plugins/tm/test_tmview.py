@@ -270,7 +270,10 @@ def test_clear_empties_the_matches_and_hides_the_window():
 # what actually hides/re-shows the popup around it.
 
 
-def _view_for_grab_notify(should_show=False, isvisible=False, storecursor=object()):
+_STORECURSOR = object()
+
+
+def _view_for_grab_notify(should_show=False, isvisible=False, storecursor=_STORECURSOR):
     view = _tmview(isvisible=isvisible)
     view._should_show_tmwindow = should_show
     view.controller = SimpleNamespace(storecursor=storecursor)
