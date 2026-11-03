@@ -1,4 +1,4 @@
-# -*- mode: python ; coding: utf-8 -*-
+# -*- mode: python -*-
 # PyInstaller spec for the Linux AppImage. Run via build_appimage.sh.
 import os
 import shutil

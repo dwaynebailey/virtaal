@@ -21,6 +21,16 @@ That installs a git hook so the checks run automatically before each
 commit. ``pre-commit`` itself also still works unmodified against the
 same config file, if you'd rather use that.
 
+Formatting
+==========
+
+Python code is formatted with ``ruff format`` (settings in
+``pyproject.toml``); the pre-commit hook runs it. The commit that
+reformatted the whole tree is listed in ``.git-blame-ignore-revs``.
+GitHub's blame view skips it; for ``git blame`` locally, run once::
+
+  git config blame.ignoreRevsFile .git-blame-ignore-revs
+
 Copyright headers
 ===================
 
