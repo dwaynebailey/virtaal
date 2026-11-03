@@ -793,9 +793,9 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         for i in range(self.MAX_SOURCES):
             parent = self.sources[i].get_parent()
             if i < num_unit_sources:
-                sourcestr = self.unit.rich_source[i]
+                # A copy: parsing placeables and rendering both change the tree.
+                sourcestr = self.unit.rich_source[i].copy()
                 rendering.set_widget_font(self.sources[i], rendering.get_source_font_description())
-                # FIXME: This modifies the unit's copy - we should not do this
                 self.sources[i].set_text(sourcestr)
                 parent.show_all()
                 # logging.debug('Showing source #%d: %s' % (i, self.sources[i]))

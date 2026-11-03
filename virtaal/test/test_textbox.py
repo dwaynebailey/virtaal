@@ -202,6 +202,20 @@ class TestTextBox(TestScaffolding):
         textbox = self._target_for('%s files copied')
         assert textbox.get_text() == '%s files copied'
 
+    def test_showing_a_unit_leaves_its_rich_source_alone(self):
+        unit = next(
+            u for u in factory.getobject(PLACEABLES_PO).getunits() if u.source == '%s files copied'
+        )
+        source = unit.rich_source[0]
+        before = [(type(e), str(e)) for e in source.depth_first()]
+
+        view = self.unit_controller.load_unit(unit)
+
+        assert view.sources[0].get_text() == '%s files copied'
+        assert unit.rich_source[0] is source
+        assert [(type(e), str(e)) for e in source.depth_first()] == before
+        assert not any(hasattr(e, 'gui_info') for e in source.depth_first())
+
     def test_get_stringelem_reparses_the_current_text(self):
         textbox = self._target_for('%s files copied')
         reparsed = textbox.get_stringelem()
