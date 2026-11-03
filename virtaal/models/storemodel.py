@@ -173,7 +173,6 @@ class StoreModel(BaseModel):
         return self._trans_store.units[self._valid_units[index]]
 
     def get_units(self):
-        # TODO: Add caching
         """Return the current store's (filtered) units."""
         return [self._trans_store.units[i] for i in self._valid_units]
 
@@ -411,8 +410,7 @@ class StoreModel(BaseModel):
         return None
 
     def _compute_nplurals(self, store):
-        # Copied as-is from Document._compute_nplurals()
-        # FIXME this needs to be pushed back into the stores, we don't want to import each format
+        # translate-toolkit has no format-neutral way to ask a store for this.
         from translate.storage.poheader import poheader
 
         if isinstance(store, poheader):

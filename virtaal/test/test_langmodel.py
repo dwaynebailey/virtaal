@@ -25,3 +25,10 @@ def test_underscored_langcode():
 def test_unknown_langcode_falls_back():
     model = LanguageModel("not-a-real-language")
     assert model.nplurals == 0
+
+
+def test_langcode_in_any_capitalisation():
+    assert LanguageModel("AF").code == "af"
+    assert LanguageModel("PT_br").code == "pt_BR"
+    assert LanguageModel("En-gB").code == "en_GB"
+    assert LanguageModel("FR-xx").code == "fr"

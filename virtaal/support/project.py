@@ -33,6 +33,8 @@
 # convert_forward(), export_file() and get_real_filename() close the files
 # they get from the store, and convert_forward() takes a template's project
 # file name as documented instead of unpacking the file it gets for it.
+# split_extensions() lost its notes on translate.convert.factory, whose
+# converters dict is empty (translate/virtaal#3806).
 
 import os
 from typing import cast
@@ -52,10 +54,6 @@ def split_extensions(filename):
     If the file name consists entirely out of extensions, the first part is
     assumed to be the file name and the rest extensions.
     """
-    # FIXME: Isn't there a better place for this function?
-    # XXX: Make sure that all extensions supported in translate.convert.factory
-    #      that are not 3 letters long are added to the first "if" statement in
-    #      split_extensions() below.
     filename_parts = filename.split(os.extsep)
     extensions = []
     for part in reversed(filename_parts):

@@ -60,7 +60,6 @@ class LanguageModel(BaseModel):
 
     # METHODS #
     def load(self, langcode):
-        # FIXME: what if we get language code with different capitalization?
         if langcode not in self.languages:
             try:
                 langcode = self._match_normalized_langcode(langcode)

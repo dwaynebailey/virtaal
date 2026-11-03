@@ -107,7 +107,7 @@ def _isofromlangid(langid):
         1061: 'et',  # Estonian
         1080: 'fo',  # Faroese
         1065: 'fa',  # Persian
-        1124: 'fil',  # Filipino #XXX: GTK uses Tagalog (tl)
+        1124: 'fil',  # Filipino; GLib's catalog is Tagalog (tl)
         1035: 'fi',  # Finnish
         1036: 'fr',  # French - France
         2060: 'fr',  # French - Belgium

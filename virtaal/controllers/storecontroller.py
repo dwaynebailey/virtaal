@@ -189,7 +189,6 @@ class StoreController(BaseController):
         self.project = Project(bundleprojstore.BundleProjectStore(filename))
 
         if not len(self.project.store.transfiles):
-            # FIXME: Ask the user to select a source file to convert?
             if not len(self.project.store.sourcefiles):
                 raise bundleprojstore.InvalidBundleError(
                     'No source or translatable files in bundle'
@@ -197,7 +196,7 @@ class StoreController(BaseController):
             transfile, _fname = self.project.convert_forward(self.project.store.sourcefiles[0])
             transfile.close()
 
-        # FIXME: Ask the user which translatable file to open?
+        # Opens the first translatable file; with several, the user should pick.
         with self.project.get_file(self.project.store.transfiles[0]) as transfile:
             self.real_filename = transfile.name
             logging.info(
@@ -305,8 +304,6 @@ class StoreController(BaseController):
         self.emit('store-saved')
 
     def binary_export(self, filename):
-        # TODO: confirm file extension is correct
-        # TODO: confirm that there is something translated in the store
         from translate.tools.pocompile import POCompile
 
         compiler = POCompile()
