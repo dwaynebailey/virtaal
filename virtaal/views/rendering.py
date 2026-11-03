@@ -77,7 +77,7 @@ def set_widget_font(widget, font_desc):
 def get_font_description(code):
     """Provide a Pango.FontDescription and keep it for reuse."""
     global _font_descriptions
-    if not code in _font_descriptions:
+    if code not in _font_descriptions:
         _font_descriptions[code] = Pango.FontDescription(with_font_fallbacks(code))
     return _font_descriptions[code]
 
@@ -111,6 +111,6 @@ _languages = {}
 def get_language(code):
     """Provide a Pango.Language and keep it for reuse."""
     global _languages
-    if not code in _languages:
+    if code not in _languages:
         _languages[code] = Pango.Language.from_string(code)
     return _languages[code]

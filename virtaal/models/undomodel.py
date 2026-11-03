@@ -101,7 +101,7 @@ class UndoModel(BaseModel):
         checks above - see UndoController._perform_undo()."""
         if 'kind' not in undo_dict:
             for key in ('action', 'unit', 'targetn', 'cursorpos'):
-                if not key in undo_dict:
+                if key not in undo_dict:
                     raise ValueError('Invalid undo dictionary!')
 
         unit = undo_dict['unit']

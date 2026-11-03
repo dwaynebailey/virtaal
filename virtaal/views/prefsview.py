@@ -180,7 +180,7 @@ class PreferencesView(BaseView, GObjectWrapper):
         }
 
     def _set_font_data(self, value):
-        if not isinstance(value, dict) or not 'source' in value or not 'target' in value:
+        if not isinstance(value, dict) or 'source' not in value or 'target' not in value:
             raise ValueError('Value must be a dictionary')
         sourcefont = Pango.FontDescription(value['source'])
         targetfont = Pango.FontDescription(value['target'])

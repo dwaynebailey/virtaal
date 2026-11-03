@@ -98,7 +98,7 @@ class TerminologyModel(BaseTerminologyModel):
         if not os.path.exists(self.config['extendfile']):
             self.config['extendfile'] = self.default_config['extendfile']
 
-        if not self.config['extendfile'] in self.config['files']:
+        if self.config['extendfile'] not in self.config['files']:
             self.config['files'].append(self.config['extendfile'])
 
     def load_files(self):

@@ -43,7 +43,7 @@ def _statistics(stats, states=None):
     # We want to build them up from untranslated -> reviewed
     for state in sorted(state_dict.keys()):
         key = state_dict[state]
-        if not key in states:
+        if key not in states:
             continue
         values = stats.get(key, {})
         statistics.append((descriptions[key], values.get('units', 0), values.get('sourcewords', 0)))

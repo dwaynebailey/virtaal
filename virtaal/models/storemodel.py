@@ -126,7 +126,7 @@ class StoreModel(BaseModel):
         # If we couldn't get the language from the first unit, try the store
         if candidate is None:
             candidate = self._trans_store.getsourcelanguage()
-        if candidate and not candidate in ['und', 'en', 'en_US']:
+        if candidate and candidate not in ['und', 'en', 'en_US']:
             return candidate
 
     def set_source_language(self, langcode):

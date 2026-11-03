@@ -163,7 +163,7 @@ class Plugin(BasePlugin):
             # a SystemError without a description. Things seem to work fine
             # anyway, so let's ignore it and hope for the best.
             logging.debug("gtkspell.Checker.get_from_text_view() raised: %s", e)
-        if not spell is None:
+        if spell is not None:
             spell.detach()
         text_view.spell_lang = None
 
@@ -188,7 +188,7 @@ class Plugin(BasePlugin):
         ):
             self._seen_languages[language] = regions[0]
 
-        if not language in self._seen_languages and not self.enchant.dict_exists(language):
+        if language not in self._seen_languages and not self.enchant.dict_exists(language):
             # Sometimes enchants *wants* a country code, other times it does not.
             # For the cases where it requires one, we look for the first language
             # code that enchant supports and use that one.

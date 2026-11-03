@@ -41,9 +41,9 @@ class TerminologyController(BaseController):
         self._on_style_set(main_controller.view.main_window, None)
 
         if (
-            not (terminology.TerminologyPlaceable, TerminologyGUIInfo)
-            in placeablesguiinfo.element_gui_map
-        ):
+            terminology.TerminologyPlaceable,
+            TerminologyGUIInfo,
+        ) not in placeablesguiinfo.element_gui_map:
             placeablesguiinfo.element_gui_map.insert(
                 0, (terminology.TerminologyPlaceable, TerminologyGUIInfo)
             )
