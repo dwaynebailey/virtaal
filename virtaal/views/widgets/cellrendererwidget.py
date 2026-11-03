@@ -74,7 +74,7 @@ class CellRendererWidget(Gtk.CellRenderer):
 
     def do_render(self, window, widget, bg_area, cell_area, flags):
         if flags & Gtk.CellRendererState.SELECTED:
-            if self.props.editing == True:
+            if self.props.editing:
                 # the widget will render itself
                 return
 

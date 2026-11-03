@@ -124,7 +124,7 @@ class IterableIPShell:
             if self.IP.autoindent:
                 self.IP.indent_current_nsp = 0
             self.iter_more = 0
-        except:
+        except BaseException:
             self.IP.showtraceback()
         else:
             self.iter_more = self.IP.push(line)

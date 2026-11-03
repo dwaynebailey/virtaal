@@ -357,7 +357,7 @@ def main(argv):
 
     _set_ui_direction(options)
 
-    if options and getattr(options, "profile", None) != None:
+    if options and getattr(options, "profile", None) is not None:
         _profile_runner(options, parser, startup_file)
     else:
         _default_runner(startup_file)
