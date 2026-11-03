@@ -314,6 +314,25 @@ def test_get_ext_from_url_returns_none_for_an_empty_path(tmp_path):
     assert model._get_ext_from_url('https://pontoon.mozilla.org') is None
 
 
+# _check_for_update(): the request for a language pair.
+
+
+def test_check_for_update_requests_the_pontoon_locale_with_the_cached_etag(tmp_path):
+    (tmp_path / 'en_US__pt_BR.tbx').write_text('')
+    requests = []
+    model = _model(
+        tmp_path,
+        config={'en_US__pt_BR.tbx': 'abc123'},
+        client=SimpleNamespace(
+            get=lambda url, callback, etag, **kwargs: requests.append((url, etag))
+        ),
+    )
+
+    model._check_for_update('en_US', 'pt_BR')
+
+    assert requests == [('https://pontoon.mozilla.org/terminology/pt-BR.tbx', 'abc123')]
+
+
 # _process_header(): saving a fetched file, deriving its extension
 # when the caller doesn't already know it, and the ETag bookkeeping
 # that drives future conditional requests.

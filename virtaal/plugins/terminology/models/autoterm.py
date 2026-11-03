@@ -5,24 +5,16 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-import logging
 import os
-import time
 
-from translate.search.match import terminologymatcher
 from translate.storage import factory
-from translate.storage.base import TranslationStore
-from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.common import pan_app
-from virtaal.support.httpclient import HTTPClient
 
-from .basetermmodel import BaseTerminologyModel
-
-THREE_DAYS = 60 * 60 * 24 * 3
+from ..cachedtermmodel import CachedRemoteTerminologyModel
 
 
-class TerminologyModel(BaseTerminologyModel):
+class TerminologyModel(CachedRemoteTerminologyModel):
     """A terminology back-end to access the Translate.org.za-managed terminology."""
 
     __gtype_name__ = 'AutoTermTerminology'
@@ -33,154 +25,12 @@ class TerminologyModel(BaseTerminologyModel):
 
     TERMDIR = os.path.join(pan_app.get_config_dir(), 'autoterm')
 
-    # INITIALIZERS #
-    def __init__(self, internal_name, controller):
-        super().__init__(controller)
-        self.internal_name = internal_name
-        self.client = HTTPClient()
-        self.client.set_virtaal_useragent()
-
-        self.load_config()
-
-        if not os.path.isdir(self.TERMDIR):
-            os.mkdir(self.TERMDIR)
-
-        self.main_controller = controller.main_controller
-        self.term_controller = controller
-        self.matcher = None
-        self.init_matcher()
-
-        lang_controller = self.main_controller.lang_controller
-        self.source_lang = lang_controller.source_lang.code
-        self.target_lang = lang_controller.target_lang.code
-        self._signal_tracker.connect(
-            lang_controller, 'source-lang-changed', self._on_lang_changed, 'source'
-        )
-        self._signal_tracker.connect(
-            lang_controller, 'target-lang-changed', self._on_lang_changed, 'target'
-        )
-
-        self.update_terms()
-
-    def init_matcher(self, filename=''):
-        """
-        Initialize the matcher to be used by the C{TerminologyPlaceable} parser.
-        """
-        if self.matcher in TerminologyPlaceable.matchers:
-            TerminologyPlaceable.matchers.remove(self.matcher)
-
-        if os.path.isfile(filename):
-            logging.debug('Loading terminology from %s' % (filename))
-            self.store = factory.getobject(filename)
-        else:
-            logging.debug('Creating empty terminology store')
-            self.store = TranslationStore()
-        self.store.makeindex()
-        self.matcher = terminologymatcher(self.store)
-        TerminologyPlaceable.matchers.append(self.matcher)
-
-    # ACCESSORS #
-    def _get_curr_term_filename(self, srclang=None, tgtlang=None, ext=None):
-        if srclang is None:
-            srclang = self.source_lang
-        if tgtlang is None:
-            tgtlang = self.target_lang
-        if not ext:
-            ext = 'po'
-
-        base = '%s__%s' % (srclang, tgtlang)
-        for filename in os.listdir(self.TERMDIR):
-            if filename.startswith(base):
-                return filename
-        return base + os.extsep + ext
-
-    curr_term_filename = property(_get_curr_term_filename)
-
     # METHODS #
-    def update_terms(self, srclang=None, tgtlang=None):
-        """Update the terminology file for the given language or all if none specified."""
-        if srclang is None:
-            srclang = self.source_lang
-        if tgtlang is None:
-            tgtlang = self.target_lang
+    def _etag_key(self, localfile):
+        return os.path.abspath(localfile)
 
-        if srclang is None and tgtlang is None:
-            # Update all files
-            return
-
-        if srclang is None or tgtlang is None:
-            raise ValueError('Both srclang and tgtlang must be specified')
-
-        if not self.is_update_needed(srclang, tgtlang):
-            logging.debug('Skipping update for (%s, %s) language pair' % (srclang, tgtlang))
-            localfile = self._get_curr_term_filename(srclang, tgtlang)
-            localfile = os.path.join(self.TERMDIR, localfile)
-            self.init_matcher(localfile)
-            return
-
-        self._update_term_file(srclang, tgtlang)
-
-    def is_update_needed(self, srclang, tgtlang):
-        localfile = self._get_curr_term_filename(srclang, tgtlang)
-        localfile = os.path.join(self.TERMDIR, localfile)
-        if not os.path.isfile(localfile):
-            return True
-        stats = os.stat(localfile)
-        from datetime import datetime
-
-        return (time.mktime(datetime.now().timetuple()) - stats.st_mtime) > THREE_DAYS
-
-    def _check_for_update(self, srclang, tgtlang):
-        localfile = self._get_curr_term_filename(srclang, tgtlang)
-        localfile = os.path.join(self.TERMDIR, localfile)
-        etag = None
-        if os.path.isfile(localfile) and localfile in self.config:
-            etag = self.config[os.path.abspath(localfile)]
-
-        url = self._l10n_URL % {'srclang': srclang, 'tgtlang': tgtlang}
-
-        if not os.path.isfile(localfile):
-            localfile = None
-
-        def callback(*args):
-            return self._process_header(*args, localfile=localfile)
-
-        if logging.root.level != logging.DEBUG:
-            self.client.get(url, callback, etag, download=True)
-        else:
-
-            def error_log(request, result):
-                logging.debug('Could not get %s: status %d' % (url, request.status))
-
-            self.client.get(url, callback, etag, error_callback=error_log, download=True)
-
-    def _get_ext_from_url(self, url):
-        from urllib.parse import urlparse
-
-        parsed = urlparse(url)
-        # dir, filename = os.path.split(parsed.path)
-        # rewritten for compatibility with Python 2.4:
-        dir, filename = os.path.split(parsed[2])
-        if not filename or '.' not in filename:
-            return None
-        ext = filename.split('.')[-1]
-        if not ext:
-            ext = None
-        return ext
-
-    def _get_ext_from_store_guess(self, content):
-        # content is real bytes, not str - BytesIO, not StringIO.
-        # _guessextention was also renamed upstream to _guess_extension.
-        from io import BytesIO
-
-        from translate.storage.factory import _guess_extension
-
-        s = BytesIO(content)
-        try:
-            return _guess_extension(s)
-        except ValueError:
-            pass
-        return None
+    def _accepts_response(self, content, ext):
+        return self._parses_as(content, ext)
 
     def _parses_as(self, content, ext):
         """A captive-portal/signon network responds with its own login
@@ -196,58 +46,3 @@ class TerminologyModel(BaseTerminologyModel):
         except Exception:
             return False
         return True
-
-    def _process_header(self, request, result, localfile=None):
-        if request.status == 304:
-            logging.debug('ETag matches for file %s :)' % (localfile))
-        elif request.status == 200:
-            if not localfile:
-                ext = self._get_ext_from_url(request.get_effective_url())
-                if ext is None:
-                    ext = self._get_ext_from_store_guess(result)
-                if ext is None:
-                    logging.debug('Unable to determine extension for store. Defaulting to "po".')
-                    ext = 'po'
-                localfile = self._get_curr_term_filename(ext=ext)
-                localfile = os.path.join(self.TERMDIR, localfile)
-            else:
-                ext = os.path.splitext(localfile)[1].lstrip(os.extsep)
-
-            if not self._parses_as(result, ext):
-                logging.debug(
-                    'Response for %s does not parse as %s - discarding' % (localfile, ext)
-                )
-                self.init_matcher(localfile if os.path.isfile(localfile) else '')
-                return
-
-            logging.debug('Saving to %s' % (localfile))
-            # result is real bytes - 'wb' preserves it exactly.
-            with open(localfile, 'wb') as f:
-                f.write(result)
-
-            # Headers are bytes too; only the stored etag value itself
-            # is decoded to str (used later as a str header value).
-            headers = request.result_headers.getvalue().splitlines()
-            etag = ''
-            etagline = [line for line in headers if line.lower().startswith(b'etag:')]
-            if etagline:
-                etag = etagline[0][7:-1].decode('ascii', errors='replace')
-            self.config[os.path.abspath(localfile)] = etag
-        else:
-            logging.debug('Unhandled status code: %d' % (request.status))
-            localfile = ''
-
-        if os.path.isfile(localfile):
-            # Update mtime
-            os.utime(localfile, None)
-        self.init_matcher(localfile)
-
-    def _update_term_file(self, srclang, tgtlang):
-        """Update the terminology file for the given languages."""
-        self.init_matcher()  # Make sure that the matcher is empty until we have an update
-        self._check_for_update(srclang, tgtlang)
-
-    # SIGNAL HANDLERS #
-    def _on_lang_changed(self, lang_controller, lang, which):
-        setattr(self, '%s_lang' % (which), lang)
-        self.update_terms(self.source_lang, self.target_lang)
