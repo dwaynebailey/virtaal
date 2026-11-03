@@ -324,7 +324,7 @@ class FileSelectDialog:
 
         self.term_model.config['files'] = currfiles
         self.term_model.save_config()
-        self.term_model.load_files()  # FIXME: This could be optimized to only load and add the new selected files.
+        self.term_model.load_files()
 
     def _on_remove_file_clicked(self, button):
         model, selected = self.tvw_termfiles.get_selection().get_selected()
@@ -344,7 +344,7 @@ class FileSelectDialog:
                 self.term_model.config['extendfile'] = model.get_value(itr, self.COL_FILE)
 
         self.term_model.save_config()
-        self.term_model.load_files()  # FIXME: This could be optimized to only remove the selected file from the terminology matcher.
+        self.term_model.load_files()
 
     def _on_open_termfile_clicked(self, button):
         selection = self.tvw_termfiles.get_selection()

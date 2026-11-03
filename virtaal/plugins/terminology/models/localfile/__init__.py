@@ -39,6 +39,7 @@ class TerminologyModel(BaseTerminologyModel):
         self.matcher = None
         self.internal_name = internal_name
         self.stores = []
+        self._loaded = {}
 
         self.load_config()
         self.load_files()
@@ -101,15 +102,20 @@ class TerminologyModel(BaseTerminologyModel):
             self.config['files'].append(self.config['extendfile'])
 
     def load_files(self):
+        """Load the configured files, reading only those not loaded yet."""
         if self.matcher in TerminologyPlaceable.matchers:
             TerminologyPlaceable.matchers.remove(self.matcher)
 
-        self.stores = []
+        loaded = {}
         for filename in self.config['files']:
             if not filename:
                 continue
-            if not os.path.isfile(filename):
-                logging.debug('Not a file: "%s"' % (filename))
-            self.stores.append(factory.getobject(filename))
+            if filename not in self._loaded:
+                if not os.path.isfile(filename):
+                    logging.debug('Not a file: "%s"' % (filename))
+                self._loaded[filename] = factory.getobject(filename)
+            loaded[filename] = self._loaded[filename]
+        self._loaded = loaded
+        self.stores = list(loaded.values())
         self.matcher = terminologymatcher(self.stores)
         TerminologyPlaceable.matchers.append(self.matcher)

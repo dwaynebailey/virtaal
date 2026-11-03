@@ -127,6 +127,27 @@ class TestTerminologyModelsStartup(TestScaffolding):
         assert old_matcher not in TerminologyPlaceable.matchers
         assert model.matcher in TerminologyPlaceable.matchers
 
+    def test_reloading_reads_only_the_files_not_loaded_yet(self, tmp_path, monkeypatch):
+        model, paths = self._local_model(tmp_path, monkeypatch, files=2)
+        kept = model.stores[0]
+        added = tmp_path / 'added.po'
+        added.write_text(TERMS_PO)
+        read = []
+        getobject = localfile.factory.getobject
+        monkeypatch.setattr(
+            localfile.factory,
+            'getobject',
+            lambda filename: read.append(filename) or getobject(filename),
+        )
+        model.config['files'] = [paths[0], str(added)]
+
+        model.load_files()
+
+        assert read == [str(added)]
+        assert model.stores[0] is kept
+        assert len(model.stores) == 2
+        assert model.matcher in TerminologyPlaceable.matchers
+
     def test_a_configured_file_that_has_gone_is_an_empty_store(self, tmp_path, monkeypatch):
         model, paths = self._local_model(tmp_path, monkeypatch)
         model.config['files'] = paths + [str(tmp_path / 'gone.po')]
