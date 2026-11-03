@@ -148,8 +148,9 @@ quote-style = "preserve"
 # F (pyflakes), I (isort), UP (pyupgrade), W (pycodestyle warnings,
 # e.g. invalid escape sequences), PGH (blanket noqa, mistyped mock
 # assertions), INT (formatting inside _(), which defeats the catalog
-# lookup) and PLE (pylint errors). Layout is left to ruff format.
-select = ["F", "I", "UP", "W", "PGH", "INT", "PLE"]
+# lookup), PLE (pylint errors) and SIM115 (open() outside a with
+# block). Layout is left to ruff format.
+select = ["F", "I", "UP", "W", "PGH", "INT", "PLE", "SIM115"]
 ignore = [
     # %-format -> f-string: each call needs checking (escaping,
     # argument shape), not a mechanical rename.
