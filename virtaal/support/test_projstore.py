@@ -268,7 +268,8 @@ def test_get_proj_filename_finds_by_key_or_stored_value(tmp_path):
     src = tmp_path / "in.po"
     src.write_bytes(b"data")
     store = ProjectStore()
-    _afile, fname = store.append_file(str(src), None, ftype="src")
+    afile, fname = store.append_file(str(src), None, ftype="src")
+    afile.close()
 
     assert store.get_proj_filename(str(src)) == fname
     assert store.get_proj_filename(fname) == fname

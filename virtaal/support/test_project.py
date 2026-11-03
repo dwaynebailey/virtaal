@@ -5,14 +5,17 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import gc
 import os
 import tempfile
+import warnings
 from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
 
 from virtaal.support import project as project_module
+from virtaal.support.bundleprojstore import BundleProjectStore
 from virtaal.support.project import Project, split_extensions
 from virtaal.support.projstore import ProjectStore
 
@@ -221,11 +224,19 @@ def test_add_source_convert_adds_then_converts_the_added_source():
 # the external translate.convert.factory.convert() call stubbed out #
 
 
+def _append(append, path):
+    """Append a real file by path, closing the handle the store opens for it."""
+    afile, fname = append(str(path))
+    afile.close()
+    return fname
+
+
 def _stub_convert(
     monkeypatch, tmp_path, ext='xlf', content=b'converted', capture=None, created=None
 ):
     def fake_convert(inputfile, template, options, convert_options):
         if capture is not None:
+            capture['input'] = inputfile
             capture['template'] = template
         out_fd, out_path = tempfile.mkstemp(dir=str(tmp_path), suffix='.tmp')
         os.write(out_fd, content)
@@ -243,12 +254,13 @@ def test_convert_forward_converts_a_source_file_and_records_the_conversion(tmp_p
     src_path.write_bytes(b'source bytes')
     store = ProjectStore()
     project = Project(store)
-    project.add_source(str(src_path))
+    _append(project.add_source, src_path)
 
     outputfile, output_fname = project.convert_forward('sources/greeting.odt')
 
     assert output_fname == 'trans/greeting.odt.xlf'
-    assert outputfile.read() == b'converted'
+    with outputfile:
+        assert outputfile.read() == b'converted'
     assert store.convert_map['sources/greeting.odt'] == ('trans/greeting.odt.xlf', None)
     assert 'trans/greeting.odt.xlf' in store
 
@@ -258,7 +270,7 @@ def test_convert_forward_refuses_to_convert_a_target_document_further(tmp_path, 
     tgt_path = tmp_path / 'out.odt'
     tgt_path.write_bytes(b'data')
     store = ProjectStore()
-    store.append_targetfile(str(tgt_path))
+    _append(store.append_targetfile, tgt_path)
     project = Project(store)
 
     with pytest.raises(ValueError, match='Cannot convert a target document further'):
@@ -274,10 +286,11 @@ def test_convert_forward_derives_the_template_name_from_a_file_objects_name(tmp_
     templ_path.write_bytes(b'template bytes')
     store = ProjectStore()
     project = Project(store)
-    project.add_source(str(src_path))
+    _append(project.add_source, src_path)
 
     with open(str(templ_path), 'rb') as template_file:
-        project.convert_forward('sources/greeting.odt', template=template_file)
+        outputfile, _fname = project.convert_forward('sources/greeting.odt', template=template_file)
+        outputfile.close()
 
     assert store.convert_map['sources/greeting.odt'][1] == str(templ_path)
     assert capture['template'] is template_file
@@ -292,11 +305,12 @@ def test_convert_forward_reuses_a_previously_recorded_template(tmp_path, monkeyp
     templ_path.write_bytes(b'template bytes')
     store = ProjectStore()
     project = Project(store)
-    project.add_source(str(src_path))
-    store.append_sourcefile(str(templ_path))
+    _append(project.add_source, src_path)
+    _append(store.append_sourcefile, templ_path)
     store.convert_map['sources/greeting.odt'] = ('trans/old-output.xlf', 'sources/template.ott')
 
-    project.convert_forward('sources/greeting.odt')
+    outputfile, _fname = project.convert_forward('sources/greeting.odt')
+    outputfile.close()
 
     assert getattr(capture['template'], 'name', None) == str(templ_path)
 
@@ -312,11 +326,12 @@ def test_convert_forward_finds_the_original_source_as_a_template_via_reverse_loo
     trans_path.write_bytes(b'xliff bytes')
     store = ProjectStore()
     project = Project(store)
-    store.append_sourcefile(str(src_path))
-    store.append_transfile(str(trans_path))
+    _append(store.append_sourcefile, src_path)
+    _append(store.append_transfile, trans_path)
     store.convert_map['sources/greeting.odt'] = ('trans/greeting.odt.xlf', None)
 
-    project.convert_forward('trans/greeting.odt.xlf')
+    outputfile, _fname = project.convert_forward('trans/greeting.odt.xlf')
+    outputfile.close()
 
     assert getattr(capture['template'], 'name', None) == str(src_path)
 
@@ -332,11 +347,12 @@ def test_convert_forward_removes_the_previous_output_before_reconverting(tmp_pat
     old_output_path.write_bytes(b'stale')
     store = ProjectStore()
     project = Project(store)
-    project.add_source(str(src_path))
-    store.append_transfile(str(old_output_path))
+    _append(project.add_source, src_path)
+    _append(store.append_transfile, old_output_path)
     store.convert_map['sources/greeting.odt'] = ('trans/old-output.xlf', None)
 
-    project.convert_forward('sources/greeting.odt')
+    outputfile, _fname = project.convert_forward('sources/greeting.odt')
+    outputfile.close()
 
     assert 'trans/old-output.xlf' not in store
 
@@ -351,11 +367,12 @@ def test_convert_forward_keeps_the_previous_output_when_overwrite_is_disabled(
     old_output_path.write_bytes(b'stale')
     store = ProjectStore()
     project = Project(store)
-    project.add_source(str(src_path))
-    store.append_transfile(str(old_output_path))
+    _append(project.add_source, src_path)
+    _append(store.append_transfile, old_output_path)
     store.convert_map['sources/greeting.odt'] = ('trans/old-output.xlf', None)
 
-    project.convert_forward('sources/greeting.odt', overwrite_output=False)
+    outputfile, _fname = project.convert_forward('sources/greeting.odt', overwrite_output=False)
+    outputfile.close()
 
     assert 'trans/old-output.xlf' in store
 
@@ -366,11 +383,12 @@ def test_convert_forward_applies_an_output_suffix(tmp_path, monkeypatch):
     src_path.write_bytes(b'source bytes')
     store = ProjectStore()
     project = Project(store)
-    project.add_source(str(src_path))
+    _append(project.add_source, src_path)
 
-    _outputfile, output_fname = project.convert_forward(
+    outputfile, output_fname = project.convert_forward(
         'sources/greeting.odt', output_suffix='-translated'
     )
+    outputfile.close()
 
     assert output_fname == 'trans/greeting-translated.odt.xlf'
 
@@ -381,9 +399,10 @@ def test_convert_forward_collapses_a_redundant_double_extension(tmp_path, monkey
     trans_path.write_bytes(b'xliff bytes')
     store = ProjectStore()
     project = Project(store)
-    store.append_transfile(str(trans_path))
+    _append(store.append_transfile, trans_path)
 
-    _outputfile, output_fname = project.convert_forward('trans/doc.odt.xlf')
+    outputfile, output_fname = project.convert_forward('trans/doc.odt.xlf')
+    outputfile.close()
 
     assert output_fname == 'targets/doc.odt'
 
@@ -397,7 +416,8 @@ def test_convert_forward_falls_back_to_the_current_directory_without_a_real_inpu
     project = Project(store)
     store.append_sourcefile(BytesIO(b'source bytes'), fname='greeting.odt')
 
-    _outputfile, output_fname = project.convert_forward('sources/greeting.odt')
+    outputfile, output_fname = project.convert_forward('sources/greeting.odt')
+    outputfile.close()
 
     assert output_fname == 'trans/greeting.odt.xlf'
 
@@ -411,10 +431,100 @@ def test_convert_forward_raises_and_cleans_up_when_the_output_already_exists(tmp
     existing_output.write_bytes(b'already here')
     store = ProjectStore()
     project = Project(store)
-    project.add_source(str(src_path))
+    _append(project.add_source, src_path)
 
     with pytest.raises(OSError, match='Output file already exists'):
         project.convert_forward('sources/greeting.odt')
 
     assert not os.path.exists(created[0])
     assert existing_output.read_bytes() == b'already here'
+
+
+# Files got from the store are closed once used #
+
+
+def test_convert_forward_closes_the_input_and_template_it_gets_from_the_store(
+    tmp_path, monkeypatch
+):
+    capture = {}
+    _stub_convert(monkeypatch, tmp_path, capture=capture)
+    src_path = tmp_path / 'greeting.odt'
+    src_path.write_bytes(b'source bytes')
+    templ_path = tmp_path / 'template.ott'
+    templ_path.write_bytes(b'template bytes')
+    store = ProjectStore()
+    project = Project(store)
+    _append(project.add_source, src_path)
+    _append(store.append_sourcefile, templ_path)
+
+    outputfile, _fname = project.convert_forward(
+        'sources/greeting.odt', template='sources/template.ott'
+    )
+    outputfile.close()
+
+    assert capture['input'].closed
+    assert capture['template'].name == str(templ_path)
+    assert capture['template'].closed
+    assert store.convert_map['sources/greeting.odt'] == (
+        'trans/greeting.odt.xlf',
+        'sources/template.ott',
+    )
+
+
+def test_convert_forward_leaves_open_a_file_object_the_store_keeps(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    capture = {}
+    _stub_convert(monkeypatch, tmp_path, capture=capture)
+    source = BytesIO(b'source bytes')
+    store = ProjectStore()
+    project = Project(store)
+    store.append_sourcefile(source, fname='greeting.odt')
+
+    outputfile, _fname = project.convert_forward('sources/greeting.odt')
+    outputfile.close()
+
+    assert capture['input'] is source
+    assert not source.closed
+
+
+def test_export_file_closes_the_file_it_gets_from_the_store(tmp_path):
+    handle = BytesIO(b'hello world')
+    project = Project(SimpleNamespace(get_file=lambda fname: handle))
+
+    project.export_file('some/file.txt', str(tmp_path / 'out.txt'))
+
+    assert handle.closed
+
+
+def test_get_real_filename_closes_the_file_it_gets_from_the_store(tmp_path):
+    real = tmp_path / 'real.po'
+    real.write_bytes(b'data')
+    store = ProjectStore()
+    fname = _append(store.append_sourcefile, real)
+    opened = []
+    real_get_file = store.get_file
+    store.get_file = lambda name: opened.append(real_get_file(name)) or opened[-1]
+
+    assert Project(store).get_real_filename(fname) == str(real)
+    assert opened[0].closed
+
+
+def test_a_bundle_round_trip_leaves_no_file_open(tmp_path, monkeypatch):
+    _stub_convert(monkeypatch, tmp_path)
+    src_path = tmp_path / 'greeting.odt'
+    src_path.write_bytes(b'source bytes')
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', ResourceWarning)
+        project = Project(BundleProjectStore(str(tmp_path / 'project.zip')))
+        _append(project.add_source, src_path)
+        outputfile, trans_fname = project.convert_forward('sources/greeting.odt')
+        outputfile.close()
+        project.save()
+        project.export_file(trans_fname, str(tmp_path / 'exported.xlf'))
+        project.close()
+        del project, outputfile
+        gc.collect()
+
+    assert (tmp_path / 'exported.xlf').read_bytes() == b'converted'
+    assert [w for w in caught if issubclass(w.category, ResourceWarning)] == []

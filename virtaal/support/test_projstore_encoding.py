@@ -28,8 +28,9 @@ def test_append_file_opens_a_string_path_in_binary_mode(tmp_path):
     store = ProjectStore()
     afile, _fname = store.append_file(str(src), None, ftype="src")
 
-    assert afile.mode == "rb"
-    assert afile.read() == NON_ASCII_PO
+    with afile:
+        assert afile.mode == "rb"
+        assert afile.read() == NON_ASCII_PO
 
 
 def test_update_from_tempfiles_opens_tempfiles_in_binary_mode(tmp_path, monkeypatch):

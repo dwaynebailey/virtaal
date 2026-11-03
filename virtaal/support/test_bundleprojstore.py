@@ -68,7 +68,8 @@ class TestBundleProjectStore:
 
             # Open the file and append it
             with open(test_file.name, "rb") as f:
-                bundle.append_sourcefile(f, "test.txt")
+                appended, _fname = bundle.append_sourcefile(f, "test.txt")
+                appended.close()
             bundle.save()
 
             # Verify the file is in the bundle
@@ -97,7 +98,8 @@ class TestBundleProjectStore:
 
             # Add file to bundle
             with open(test_file.name, "rb") as f:
-                bundle.append_sourcefile(f, "crossdevice.txt")
+                appended, _fname = bundle.append_sourcefile(f, "crossdevice.txt")
+                appended.close()
 
             # The save operation creates a temporary zip file and then moves it
             # to replace the current zip file. This should work even if temp
@@ -130,7 +132,8 @@ class TestBundleProjectStore:
             with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as test_file1:
                 test_file1.write(b"initial content")
             with open(test_file1.name, "rb") as f:
-                bundle.append_sourcefile(f, "initial.txt")
+                appended, _fname = bundle.append_sourcefile(f, "initial.txt")
+                appended.close()
             bundle.save()
 
             # Close and cleanup temp files to avoid issues
@@ -168,7 +171,8 @@ class TestBundleProjectStore:
         with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as test_file:
             test_file.write(b"test load content")
         with open(test_file.name, "rb") as f:
-            initial_bundle.append_sourcefile(f, "load_test.txt")
+            appended, _fname = initial_bundle.append_sourcefile(f, "load_test.txt")
+            appended.close()
         initial_bundle.save()
         initial_bundle.close()
 
@@ -177,8 +181,8 @@ class TestBundleProjectStore:
         try:
             assert "sources/load_test.txt" in loaded_bundle.zip.namelist()
             # Verify we can read the file
-            file_obj = loaded_bundle.get_file("sources/load_test.txt")
-            content = file_obj.read()
+            with loaded_bundle.get_file("sources/load_test.txt") as file_obj:
+                content = file_obj.read()
             assert b"test load content" in content
         finally:
             loaded_bundle.close()
@@ -202,7 +206,8 @@ class TestBundleProjectStore:
                 ) as test_file:
                     test_file.write(f"content {i}".encode())
                 with open(test_file.name, "rb") as f:
-                    bundle.append_sourcefile(f, f"file{i}.txt")
+                    appended, _fname = bundle.append_sourcefile(f, f"file{i}.txt")
+                    appended.close()
                 os.unlink(test_file.name)
 
             bundle.save()
