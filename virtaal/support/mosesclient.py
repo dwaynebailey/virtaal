@@ -103,7 +103,9 @@ class MosesClient(GObject.GObject, HTTPClient):
                 self.set_multilang(False)
                 # Not retried without 'system': on a server shared by several
                 # language pairs that could answer for the wrong pair.
-                return None
+            else:
+                logging.debug('XML-RPC fault: %s' % (exc.faultString))
+            return None
         except Exception as exc:
             logging.debug('XML-RPC exception: %s' % (exc))
             return None
