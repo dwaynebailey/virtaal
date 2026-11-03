@@ -149,9 +149,9 @@ quote-style = "preserve"
 # (pycodestyle errors and warnings, e.g. invalid escape sequences),
 # PGH (blanket noqa, mistyped mock assertions), INT (formatting
 # inside _(), which defeats the catalog lookup), PLE (pylint
-# errors), B (bugbear) and SIM115 (open() outside a with block).
-# Layout is left to ruff format.
-select = ["F", "I", "UP", "E4", "E7", "E9", "W", "PGH", "INT", "PLE", "B", "SIM115"]
+# errors), B (bugbear), T10 (debugger calls) and SIM115 (open()
+# outside a with block). Layout is left to ruff format.
+select = ["F", "I", "UP", "E4", "E7", "E9", "W", "PGH", "INT", "PLE", "B", "T10", "SIM115"]
 ignore = [
     # %-format -> f-string: each call needs checking (escaping,
     # argument shape), not a mechanical rename.
@@ -162,6 +162,10 @@ ignore = [
     # Imports after gi.require_version(), which has to run first.
     "E402",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# The deliberate pdb hook.
+"devsupport/debugging.py" = ["T10"]
 
 [tool.coverage.run]
 # Dev tooling that only ever runs by a developer invoking it directly
