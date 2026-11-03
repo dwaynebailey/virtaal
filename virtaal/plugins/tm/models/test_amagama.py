@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 from gi.repository import GObject
 
+from virtaal.plugins.tm._testhelpers import fake_controller
 from virtaal.plugins.tm.models.amagama import TMModel
 
 
@@ -16,23 +17,6 @@ def _model():
     model = TMModel.__new__(TMModel)
     GObject.GObject.__init__(model)
     return model
-
-
-def _fake_controller():
-    def connectable():
-        return SimpleNamespace(connect=lambda signal, handler, *a: 1)
-
-    lang_controller = connectable()
-    lang_controller.source_lang = SimpleNamespace(code='en')
-    lang_controller.target_lang = SimpleNamespace(code='af')
-    checks_controller = connectable()
-    checks_controller.code = 'standard'
-    main_controller = SimpleNamespace(
-        lang_controller=lang_controller, checks_controller=checks_controller
-    )
-    controller = connectable()
-    controller.main_controller = main_controller
-    return controller
 
 
 # __init__(): only overrides push_store/upload_store/__init__ itself -
@@ -48,7 +32,7 @@ def test_init_loads_config_and_builds_a_tmclient(monkeypatch):
         lambda self: setattr(self, 'config', {'url': 'https://example.com/api/v1/'}),
     )
 
-    model = TMModel('amagama', _fake_controller())
+    model = TMModel('amagama', fake_controller())
 
     assert model.internal_name == 'amagama'
     assert model.tmclient.base_url == 'https://example.com/api/v1/'

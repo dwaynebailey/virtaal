@@ -17,7 +17,7 @@ import pycountry
 import pytest
 from gi.repository import GLib
 
-from virtaal.plugins.tm.models.test_amagama import _fake_controller
+from virtaal.plugins.tm._testhelpers import fake_controller
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('VIRTAAL_LIVE_SERVICES') != '1',
@@ -47,7 +47,7 @@ def model(tmp_path_factory):
     with mock.patch('virtaal.common.pan_app.get_config_dir', lambda: config_dir):
         from virtaal.plugins.tm.models.apertium import TMModel
 
-        model = TMModel('apertium', _fake_controller())
+        model = TMModel('apertium', fake_controller())
         _run_until(lambda: model.language_pairs, 30)
     assert model.language_pairs, 'no language pairs from %s within 30 s' % model.url_getpairs
     return model

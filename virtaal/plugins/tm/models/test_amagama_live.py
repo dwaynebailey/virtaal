@@ -18,8 +18,8 @@ from types import SimpleNamespace
 import pytest
 from gi.repository import GLib
 
+from virtaal.plugins.tm._testhelpers import fake_controller
 from virtaal.plugins.tm.models.amagama import TMModel
-from virtaal.plugins.tm.models.test_amagama import _fake_controller
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('VIRTAAL_LIVE_SERVICES') != '1',
@@ -29,7 +29,7 @@ pytestmark = pytest.mark.skipif(
 
 def test_lookup_on_the_live_server(monkeypatch, tmp_path):
     monkeypatch.setattr('virtaal.common.pan_app.get_config_dir', lambda: str(tmp_path))
-    model = TMModel('amagama', _fake_controller())
+    model = TMModel('amagama', fake_controller())
     assert model.tmclient.base_url == TMModel.default_config['url']
     model.source_lang = 'en'
     model.target_lang = 'af'

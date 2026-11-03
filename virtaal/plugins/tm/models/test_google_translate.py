@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 from gi.repository import GObject
 
+from virtaal.plugins.tm._testhelpers import FakeHTTPClient, fake_controller
 from virtaal.plugins.tm.models import google_translate
 from virtaal.plugins.tm.models.google_translate import TMModel
 
@@ -30,38 +31,13 @@ def _model():
 # exist - a plain AttributeError on every real launch with a key set).
 
 
-class _FakeHTTPClient:
-    def __init__(self):
-        self.added = []
-
-    def add(self, request):
-        self.added.append(request)
-
-
-def _fake_controller():
-    def connectable():
-        return SimpleNamespace(connect=lambda signal, handler, *a: 1)
-
-    lang_controller = connectable()
-    lang_controller.source_lang = SimpleNamespace(code='en')
-    lang_controller.target_lang = SimpleNamespace(code='af')
-    checks_controller = connectable()
-    checks_controller.code = 'standard'
-    main_controller = SimpleNamespace(
-        lang_controller=lang_controller, checks_controller=checks_controller
-    )
-    controller = connectable()
-    controller.main_controller = main_controller
-    return controller
-
-
 def test_init_builds_the_languages_request_from_languages_url(monkeypatch):
-    monkeypatch.setattr(google_translate, 'HTTPClient', _FakeHTTPClient)
+    monkeypatch.setattr(google_translate, 'HTTPClient', FakeHTTPClient)
     monkeypatch.setattr(
         TMModel, 'load_config', lambda self: setattr(self, 'config', {'api_key': 'test-key'})
     )
 
-    model = TMModel('google_translate', _fake_controller())
+    model = TMModel('google_translate', fake_controller())
 
     assert len(model.client.added) == 1
     assert model.client.added[0].url == model.languages_url % {'key': 'test-key'}
@@ -161,11 +137,11 @@ def test_query_sends_a_translate_request_for_an_uncached_pair():
 
 
 def _model_fetching_languages(monkeypatch):
-    monkeypatch.setattr(google_translate, 'HTTPClient', _FakeHTTPClient)
+    monkeypatch.setattr(google_translate, 'HTTPClient', FakeHTTPClient)
     monkeypatch.setattr(
         TMModel, 'load_config', lambda self: setattr(self, 'config', {'api_key': 'test-key'})
     )
-    return TMModel('google_translate', _fake_controller())
+    return TMModel('google_translate', fake_controller())
 
 
 def _languages_reply(*codes):
@@ -200,7 +176,7 @@ def test_disable_all_without_an_api_key_leaves_nothing_held(monkeypatch):
         TMModel, 'load_config', lambda self: setattr(self, 'config', {'api_key': ''})
     )
 
-    model = TMModel('google_translate', _fake_controller())
+    model = TMModel('google_translate', fake_controller())
 
     assert model.languages_known
 

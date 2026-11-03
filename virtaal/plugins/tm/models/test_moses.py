@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 from gi.repository import GObject
 
+from virtaal.plugins.tm._testhelpers import fake_controller
 from virtaal.plugins.tm.models.moses import TMModel
 
 
@@ -20,23 +21,6 @@ def _model():
     model.cache = {}
     model.clients = {}
     return model
-
-
-def _fake_controller():
-    def connectable():
-        return SimpleNamespace(connect=lambda signal, handler, *a: 1)
-
-    lang_controller = connectable()
-    lang_controller.source_lang = SimpleNamespace(code='fr')
-    lang_controller.target_lang = SimpleNamespace(code='en')
-    checks_controller = connectable()
-    checks_controller.code = 'standard'
-    main_controller = SimpleNamespace(
-        lang_controller=lang_controller, checks_controller=checks_controller
-    )
-    controller = connectable()
-    controller.main_controller = main_controller
-    return controller
 
 
 class _FakeMosesClient:
@@ -74,7 +58,7 @@ def test_init_loads_config_and_builds_clients(monkeypatch):
         TMModel, 'load_config', lambda self: setattr(self, 'config', {'fr->en': 'http://a'})
     )
 
-    model = TMModel('moses', _fake_controller())
+    model = TMModel('moses', fake_controller('fr', 'en'))
 
     assert model.internal_name == 'moses'
     assert model.clients['fr']['en'].server == 'http://a'

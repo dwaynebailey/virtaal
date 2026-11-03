@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import pytest
 from gi.repository import GObject
 
+from virtaal.plugins.tm._testhelpers import FakeHTTPClient, fake_controller
 from virtaal.plugins.tm.models import apertium
 from virtaal.plugins.tm.models.apertium import TMModel
 
@@ -27,40 +28,15 @@ def _model():
     return model
 
 
-def _fake_controller():
-    def connectable():
-        return SimpleNamespace(connect=lambda signal, handler, *a: 1)
-
-    lang_controller = connectable()
-    lang_controller.source_lang = SimpleNamespace(code='en')
-    lang_controller.target_lang = SimpleNamespace(code='af')
-    checks_controller = connectable()
-    checks_controller.code = 'standard'
-    main_controller = SimpleNamespace(
-        lang_controller=lang_controller, checks_controller=checks_controller
-    )
-    controller = connectable()
-    controller.main_controller = main_controller
-    return controller
-
-
-class _FakeHTTPClient:
-    def __init__(self):
-        self.added = []
-
-    def add(self, request):
-        self.added.append(request)
-
-
 # __init__(): requests the server's language pairs up front and wires
 # got_language_pairs() as the callback.
 
 
 def test_init_requests_language_pairs_from_the_apy_endpoint(monkeypatch):
-    monkeypatch.setattr(apertium, 'HTTPClient', _FakeHTTPClient)
+    monkeypatch.setattr(apertium, 'HTTPClient', FakeHTTPClient)
     monkeypatch.setattr(TMModel, 'load_config', lambda self: setattr(self, 'config', {}))
 
-    model = TMModel('apertium', _fake_controller())
+    model = TMModel('apertium', fake_controller())
 
     assert model.url_getpairs == 'https://www.apertium.org/apy/listPairs'
     assert model.url_translate == 'https://www.apertium.org/apy/translate'
@@ -69,14 +45,14 @@ def test_init_requests_language_pairs_from_the_apy_endpoint(monkeypatch):
 
 
 def test_init_wires_the_response_to_got_language_pairs(monkeypatch):
-    monkeypatch.setattr(apertium, 'HTTPClient', _FakeHTTPClient)
+    monkeypatch.setattr(apertium, 'HTTPClient', FakeHTTPClient)
     monkeypatch.setattr(TMModel, 'load_config', lambda self: setattr(self, 'config', {}))
     received = []
     monkeypatch.setattr(
         TMModel, 'got_language_pairs', lambda self, response: received.append(response)
     )
 
-    model = TMModel('apertium', _fake_controller())
+    model = TMModel('apertium', fake_controller())
     model.client.added[0].emit('http-success', 'the response body')
 
     assert received == ['the response body']
@@ -171,9 +147,9 @@ def test_query_sends_a_translate_request_for_an_uncached_pair():
 
 
 def _model_fetching_pairs(monkeypatch):
-    monkeypatch.setattr(apertium, 'HTTPClient', _FakeHTTPClient)
+    monkeypatch.setattr(apertium, 'HTTPClient', FakeHTTPClient)
     monkeypatch.setattr(TMModel, 'load_config', lambda self: setattr(self, 'config', {}))
-    return TMModel('apertium', _fake_controller())
+    return TMModel('apertium', fake_controller())
 
 
 def _pairs_reply(*pairs):
@@ -371,7 +347,7 @@ def test_query_sends_the_most_specific_listed_apy_pair(source, target, pairs, la
     model = _model()
     model.source_lang, model.target_lang = source, target
     model.language_pairs = pairs
-    model.client = _FakeHTTPClient()
+    model.client = FakeHTTPClient()
 
     model.query(None, SimpleNamespace(source='The house is big.'))
 
@@ -383,7 +359,7 @@ def test_query_sends_nothing_when_no_apy_pair_matches():
     model = _model()
     model.source_lang, model.target_lang = 'en', 'zu'
     model.language_pairs = [('eng', 'cat')]
-    model.client = _FakeHTTPClient()
+    model.client = FakeHTTPClient()
 
     model.query(None, SimpleNamespace(source='The house is big.'))
 
