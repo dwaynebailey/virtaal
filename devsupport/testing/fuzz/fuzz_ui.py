@@ -537,7 +537,7 @@ class Fuzzer:
         total = sum(weight for weight, _, _ in self.actions)
         pick = self.rng.uniform(0, total)
         upto = 0
-        for weight, name, action in self.actions:
+        for weight, name, action in self.actions:  # noqa: B007 - used after the loop
             upto += weight
             if pick <= upto:
                 break

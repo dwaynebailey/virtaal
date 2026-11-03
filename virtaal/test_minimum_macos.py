@@ -56,7 +56,7 @@ def test_a_universal_binary_needs_its_highest_slice(minimum_macos):
 
 def test_versions_compare_numerically_not_as_text(minimum_macos, tmp_path, monkeypatch):
     files = []
-    for name, version in (("a", "9.0"), ("b", "26.0"), ("c", "14.4")):
+    for name, _version in (("a", "9.0"), ("b", "26.0"), ("c", "14.4")):
         path = tmp_path / name
         path.write_bytes(b"\xcf\xfa\xed\xfe" + b"\0" * 8)
         files.append(path)

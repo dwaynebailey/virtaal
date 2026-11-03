@@ -176,7 +176,7 @@ def _keys(sweep):
         (Gdk.KEY_End, shift),
         (Gdk.KEY_BackSpace, 0),
     ]
-    for i, (case, value) in enumerate(sweep.cases('keys'), start=1):
+    for i, (_case, value) in enumerate(sweep.cases('keys'), start=1):
         try:
             sc.cursor.force_index(i % len(sources))
             yield from sweep.settle(5)
@@ -231,7 +231,7 @@ def _spelling(sweep):
         _file(sweep, 'spelling.po', ['Maak die lêer %d oop' % i for i in range(4)])
     )
     sc = sweep.mc.store_controller
-    for i, (case, value) in enumerate(sweep.cases('spelling')):
+    for i, (_case, value) in enumerate(sweep.cases('spelling')):
         try:
             sc.cursor.force_index(i % 3)
             yield from sweep.settle(5)
@@ -259,7 +259,7 @@ def _glossary(sweep):
     sources = ['Use %s and file%d here' % (v, i) for i, v in enumerate(values)]
     yield from sweep.open_file(_file(sweep, 'glossary.po', sources))
     sc = sweep.mc.store_controller
-    for i, (case, value) in enumerate(sweep.cases('glossary')):
+    for i, (_case, _value) in enumerate(sweep.cases('glossary')):
         try:
             sc.cursor.force_index(i)
             yield from sweep.settle(15)  # terminology matching

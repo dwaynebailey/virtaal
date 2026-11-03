@@ -43,7 +43,7 @@ class TestModeController(TestScaffolding):
 
     def test_select_mode(self):
         self.store_controller.open_file(self.testfile[1])
-        for name, mode in self.mode_controller.modes.items():
+        for _name, mode in self.mode_controller.modes.items():
             self.mode_controller.select_mode(mode)
             assert self.mode_controller.current_mode is mode
 

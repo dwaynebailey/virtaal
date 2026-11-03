@@ -141,7 +141,7 @@ class QualityCheckMode(BaseMode):
         return menu
 
     def _create_menu_entries(self, menu):
-        for mi, (name, signal_id) in self._menuitem_checks.items():
+        for mi, (_name, signal_id) in self._menuitem_checks.items():
             mi.disconnect(signal_id)
             # destroy(), not menu.remove(): unparenting alone leaves
             # the menuitem for Python's cyclic GC to eventually

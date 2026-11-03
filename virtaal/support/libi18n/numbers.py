@@ -71,7 +71,7 @@ def format_size(size):
     if size < 1000:
         text = format_unit(size, "digital-byte", "short", locale=locale, numbering_system="default")
     else:
-        for unit in ("kilobyte", "megabyte", "gigabyte", "terabyte"):
+        for unit in ("kilobyte", "megabyte", "gigabyte", "terabyte"):  # noqa: B007 - used after the loop
             size /= 1000
             if size < 1000:
                 break

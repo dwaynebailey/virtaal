@@ -240,7 +240,7 @@ class Sweep:
             if not self.runs(sweep):
                 continue
             yield from self.open_file(self.write_file(name, text))
-            for case, value in self.cases(sweep):
+            for _case, value in self.cases(sweep):
                 try:
                     yield from self._target_case(value, expect(value))
                 except Exception:
@@ -313,7 +313,9 @@ class Sweep:
                     '%s: %d units for %d values' % (sweep, len(units), len(names)),
                 )
                 continue
-            for case, index in self.cases(sweep, [(None, name, i) for i, name in enumerate(names)]):
+            for _case, index in self.cases(
+                sweep, [(None, name, i) for i, name in enumerate(names)]
+            ):
                 try:
                     sc.cursor.force_index(index)
                     # Time for the TM query, terminology and quality checks.
@@ -341,7 +343,7 @@ class Sweep:
         # Queries only reach the full-text search once the TM has entries.
         path, _ = corpus_file(self.args.workdir, 'tm-seed', 'po', 'source', translated=True)
         db.add_store(factory.getobject(path), 'en', 'af')
-        for case, value in self.cases('tm-query', CORPUS + API_ONLY):
+        for _case, value in self.cases('tm-query', CORPUS + API_ONLY):
             try:
                 db.translate_unit(value, 'en', 'af')
             except Exception:
@@ -354,7 +356,7 @@ class Sweep:
         yield from self.settle(10)
         mode = self.mc.mode_controller.modes['Search']
         for sweep, regex in (('search', False), ('search-regex', True)):
-            for case, value in self.cases(sweep):
+            for _case, value in self.cases(sweep):
                 try:
                     mode.chk_regex.set_active(regex)
                     mode.ent_search.set_text('')
@@ -377,7 +379,7 @@ class Sweep:
         yield from self.settle(10)
         mode = self.mc.mode_controller.modes['Search']
         for sweep, replace_all in (('replace', False), ('replace-all', True)):
-            for case, value in self.cases(sweep):
+            for _case, value in self.cases(sweep):
                 try:
                     yield from self._replace_case(mode, value, replace_all)
                 except Exception:
@@ -420,7 +422,7 @@ class Sweep:
         glossary = localfile.config['extendfile']
 
         for field in ('source', 'target', 'comment'):
-            for i, (case, value) in enumerate(self.cases('addterm-' + field)):
+            for i, (_case, value) in enumerate(self.cases('addterm-' + field)):
                 try:
                     dialog.reset()
                     dialog.cmb_termfile.set_active(0)
@@ -468,7 +470,7 @@ class Sweep:
 
         # Existing translations are listed when the source is typed again.
         store = localfile.stores[0]
-        for i, (case, value) in enumerate(self.cases('addterm-existing')):
+        for i, (_case, value) in enumerate(self.cases('addterm-existing')):
             try:
                 unit = store.addsourceunit('existing%d' % i)
                 unit.target = value
@@ -505,7 +507,7 @@ class Sweep:
         original_pair = (lc.source_lang, lc.target_lang)
 
         for field in ('name', 'code', 'plural'):
-            for i, (case, value) in enumerate(self.cases('addlang-' + field)):
+            for i, (_case, value) in enumerate(self.cases('addlang-' + field)):
                 try:
                     if field == 'plural':
                         # The equation is only written into a file that has none.
@@ -583,7 +585,7 @@ class Sweep:
         dialog = WebLookupAddDialog(self.mc.view.main_window)
 
         for field in ('name', 'url', 'query'):
-            for i, (case, value) in enumerate(self.cases('lookup-' + field)):
+            for i, (_case, value) in enumerate(self.cases('lookup-' + field)):
                 try:
                     if field == 'query':
                         # The right-click "Look up" menu for selected text.
@@ -649,7 +651,7 @@ class Sweep:
             'X-Generator',
         }
         for field in ('name', 'email', 'team'):
-            for i, (case, value) in enumerate(self.cases('translator-' + field)):
+            for i, (_case, value) in enumerate(self.cases('translator-' + field)):
                 try:
                     # A header changed by an earlier case would be blamed on this one.
                     yield from self.open_file(
@@ -718,7 +720,7 @@ class Sweep:
                 for s, name, ext, content, must_open in cases
                 if s == sweep
             ]
-            for i, (case, (ext, content, must_open)) in enumerate(self.cases(sweep, own)):
+            for i, (_case, (ext, content, must_open)) in enumerate(self.cases(sweep, own)):
                 path = os.path.join(folder, '%s-%d%s' % (sweep, i, '.' + ext if ext else ''))
                 try:
                     if content is None:
@@ -833,7 +835,7 @@ class Sweep:
                     False,
                 ),
             ]
-        for case, (make, must_open, save_may_fail) in self.cases(
+        for _case, (make, must_open, save_may_fail) in self.cases(
             'paths', [(None, c, (m, o, f)) for c, m, o, f in cases]
         ):
             try:
@@ -847,7 +849,7 @@ class Sweep:
             except Exception:
                 self.failed()
 
-        for case, value in self.cases(
+        for case, _value in self.cases(
             'saving', [(None, 'over an existing file', None), (None, 'into a missing folder', None)]
         ):
             try:

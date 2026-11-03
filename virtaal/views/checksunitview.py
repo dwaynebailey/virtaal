@@ -130,7 +130,7 @@ class ChecksUnitView(BaseView):
             self.btn_checks.update_popup()
             return
 
-        for name_label, desc_label in self.check_rows:
+        for name_label, _desc_label in self.check_rows:
             name_label.get_parent().destroy()
         self.check_rows = []
         nice_name = self.controller.get_check_name

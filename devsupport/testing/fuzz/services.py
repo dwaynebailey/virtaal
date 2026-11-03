@@ -267,7 +267,7 @@ def run(sweep, service):
     sc = sweep.mc.store_controller
     path = query_file(sweep.args.workdir, len(cases()) + 2)
     yield from sweep.open_file(path)
-    for i, (case, (what, value)) in enumerate(sweep.cases(name, cases()), start=1):
+    for i, (_case, (what, value)) in enumerate(sweep.cases(name, cases()), start=1):
         try:
             Mock.reply = None
             Mock.value = 'Stoor die lêer'
@@ -342,7 +342,7 @@ def _run_localtm(sweep, name):
         factory.getobject(seeded), 'en', 'af'
     )
     yield from sweep.open_file(path)
-    for i, (case, value) in enumerate(
+    for i, (_case, _value) in enumerate(
         sweep.cases(name, [(None, 'corpus: ' + n, v) for _, n, v in CORPUS])
     ):
         try:

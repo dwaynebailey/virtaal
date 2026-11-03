@@ -601,7 +601,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
     # GUI BUILDING CODE #
     def _create_sources(self):
-        for i in range(len(self.sources), self.MAX_SOURCES):
+        for _i in range(len(self.sources), self.MAX_SOURCES):
             source = self._create_textbox('', editable=False, role='source')
             textbox = source.get_child()
             rendering.set_widget_font(textbox, rendering.get_source_font_description())

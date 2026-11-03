@@ -9,7 +9,7 @@ from gi.repository import Gtk
 from translate.storage import factory
 
 rf = Gtk.RecentFilter()
-for name, extensions, mimetypes in factory.supported_files():
+for _name, extensions, mimetypes in factory.supported_files():
     if extensions:
         for extension in extensions:
             if extension in ("txt"):
