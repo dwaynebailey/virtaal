@@ -141,7 +141,9 @@ class TerminologyModel(BaseTerminologyModel):
 
         if not os.path.isfile(localfile):
             localfile = None
-        callback = lambda *args: self._process_header(*args, localfile=localfile)
+
+        def callback(*args):
+            return self._process_header(*args, localfile=localfile)
 
         if logging.root.level != logging.DEBUG:
             self.client.get(url, callback, etag, download=True)

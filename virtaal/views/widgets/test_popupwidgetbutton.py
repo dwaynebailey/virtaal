@@ -159,7 +159,9 @@ def test_toggled_false_hides_the_popup():
 
 def test_set_update_popup_geometry_func_stores_the_function():
     _, btn = _make_button()
-    func = lambda *a: None
+
+    def func(*a):
+        return None
 
     btn.set_update_popup_geometry_func(func)
 

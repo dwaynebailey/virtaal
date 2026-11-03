@@ -28,7 +28,9 @@ def _model():
 
 
 def _fake_controller():
-    connectable = lambda: SimpleNamespace(connect=lambda signal, handler, *a: 1)
+    def connectable():
+        return SimpleNamespace(connect=lambda signal, handler, *a: 1)
+
     lang_controller = connectable()
     lang_controller.source_lang = SimpleNamespace(code='en')
     lang_controller.target_lang = SimpleNamespace(code='af')

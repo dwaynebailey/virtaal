@@ -1169,7 +1169,9 @@ def test_apply_appearance_skips_when_detection_fails(monkeypatch):
 def test_poll_appearance_keeps_polling():
     calls = []
     dummy = SimpleNamespace(_apply_appearance=lambda detect: calls.append(detect))
-    detect_is_dark = lambda: True
+
+    def detect_is_dark():
+        return True
 
     assert MainView._poll_appearance(dummy, detect_is_dark) is True
     assert calls == [detect_is_dark]
@@ -1188,7 +1190,9 @@ def test_start_appearance_polling_applies_immediately_and_schedules_polling(monk
         'timeout_add_seconds',
         lambda seconds, func, *args: scheduled.append((seconds, func, args)),
     )
-    detect_is_dark = lambda: True
+
+    def detect_is_dark():
+        return True
 
     MainView._start_appearance_polling(dummy, detect_is_dark)
 

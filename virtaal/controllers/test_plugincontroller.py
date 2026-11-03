@@ -132,7 +132,9 @@ def test_user_plugins_found_only_in_the_config_folder(tmp_path, monkeypatch):
 
 def test_for_backend_builds_a_specialized_controller():
     owner = object()
-    get_disabled = lambda: []
+
+    def get_disabled():
+        return []
 
     pc = PluginController.for_backend(
         owner, 'TMModel', 'tm', object, get_disabled, class_info_attribs=('display_name',)

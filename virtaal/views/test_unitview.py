@@ -816,7 +816,10 @@ def test_insert_placeable_keeps_the_selection_while_a_candidate_is_chosen():
 def test_select_first_placeables_skips_hidden_targets():
     view = UnitView.__new__(UnitView)
     visible_source, hidden_source = _FakeSource(['a']), _FakeSource(['b'])
-    parent = lambda visible: SimpleNamespace(props=SimpleNamespace(visible=visible))
+
+    def parent(visible):
+        return SimpleNamespace(props=SimpleNamespace(visible=visible))
+
     view._widgets = {
         'targets': [
             SimpleNamespace(selector_textbox=visible_source, get_parent=lambda: parent(True)),

@@ -111,9 +111,9 @@ class Harvest:
         if isinstance(widget, Gtk.Window) and not window:
             window = "%s %r" % (type(widget).__name__, widget.get_title())
         shown = shown and (widget.get_visible() or isinstance(widget, Gtk.Menu))
-        add = lambda text, tooltip=False: self.add(
-            text, screen, widget, within, window, shown, tooltip
-        )  # noqa: E731
+
+        def add(text, tooltip=False):
+            return self.add(text, screen, widget, within, window, shown, tooltip)  # noqa: E731
 
         if isinstance(widget, Gtk.Window):
             add(widget.get_title())

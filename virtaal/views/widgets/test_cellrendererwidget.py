@@ -39,7 +39,9 @@ def test_init_sets_defaults():
 
 
 def test_init_keeps_a_custom_default_width_and_widget_func():
-    widget_func = lambda item: item
+    def widget_func(item):
+        return item
+
     renderer = CellRendererWidget(strfunc=lambda w: '', default_width=123, widget_func=widget_func)
 
     assert renderer.default_width == 123

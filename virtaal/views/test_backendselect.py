@@ -96,7 +96,9 @@ def test_base_model_name_is_excluded_from_the_item_list(monkeypatch):
 
 
 def test_item_config_is_the_configure_func_not_the_whole_plugin(monkeypatch):
-    real_configure = lambda parent: None
+    def real_configure(parent):
+        return None
+
     pc = _FakePluginController(
         ['backend1'],
         {'backend1': {'display_name': 'Backend 1', 'description': 'desc'}},
