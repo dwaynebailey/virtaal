@@ -73,7 +73,8 @@ class TMDB:
             self._tm_dbs[db_file] = {}
         self._tm_db = self._tm_dbs[db_file]
 
-        # FIXME: do we want to do any checks before we initialize the DB?
+        # A corrupt or unreadable db_file raises here, so the TM server
+        # exits and Local TM gives no suggestions.
         self.init_database()
         self.fulltext = False
         self.init_fulltext()
@@ -202,9 +203,8 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
 
     def add_unit(self, unit, source_lang=None, target_lang=None, commit=True) -> None:
         """Inserts unit in the database."""
-        # TODO: is that really the best way to handle unspecified
-        # source and target languages? what about conflicts between
-        # unit attributes and passed arguments
+        # A unit's own languages win over the passed ones, which are the
+        # fallback for a unit that has none.
         #
         # A bare TranslationUnit (as add_unit/tmserver.py builds one from a
         # single {"source", "target"} dict, with no store behind it) has no
@@ -256,8 +256,6 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                 (sid,) = sid
             # target string already exists in db, do nothing
             with contextlib.suppress(dbapi2.IntegrityError):
-                # FIXME: get time info from translation store
-                # FIXME: do we need so store target length?
                 self.cursor.execute(
                     "INSERT INTO targets (sid, text, lang, time) VALUES (?, ?, ?, ?)",
                     (sid, unit["target"], target_lang, int(time.time())),

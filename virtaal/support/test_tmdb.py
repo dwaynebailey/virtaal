@@ -159,6 +159,15 @@ def test_add_unit_takes_the_languages_from_the_units_file(db_path):
     assert db.translate_unit(SHORT, 'en', 'af')[0]['target'] == 'Maak dit oop'
 
 
+def test_add_unit_prefers_the_units_languages_to_the_passed_ones(db_path):
+    db = tmdb.TMDB(db_path)
+
+    db.add_unit(_xliff_unit(SHORT, 'Maak dit oop', 'en', 'af'), 'de', 'fr')
+
+    assert db.translate_unit(SHORT, 'en', 'af')[0]['target'] == 'Maak dit oop'
+    assert db.translate_unit(SHORT, 'de', 'fr') == []
+
+
 @pytest.mark.parametrize(
     ('source_lang', 'target_lang', 'message'),
     [

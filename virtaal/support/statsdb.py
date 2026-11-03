@@ -48,7 +48,6 @@ from translate.storage.workflow import StateEnum
 
 logger = logging.getLogger(__name__)
 
-# kdepluralre = re.compile("^_n: ") #Restore this if you really need support for old kdeplurals
 brtagre = re.compile(r"<br\s*?/?>")
 # xmltagre is a direct copy of the from placeables/general.py
 xmltagre = re.compile(
@@ -85,13 +84,9 @@ state_strings = {
 
 
 def wordcount(string):
-    # TODO: po class should understand KDE style plurals ##
-    # string = kdepluralre.sub("", string) #Restore this if you really need support for old kdeplurals
     string = brtagre.sub("\n", string)
     string = xmltagre.sub("", string)
     string = numberre.sub(" ", string)
-    # TODO: This should still use the correct language to count in the target
-    # language
     return len(Common.words(string))
 
 
@@ -273,14 +268,6 @@ def emptyfilestats():
 
 def emptyunitstats():
     return {"sourcewordcount": [], "targetwordcount": []}
-
-
-# We allow the caller to specify which value to return when errors_return_empty
-# is True. We do this, since Poolte wants None to be returned when it calls
-# get_mod_info directly, whereas we want an integer to be returned for
-# uses of get_mod_info within this module.
-# TODO: Get rid of empty_return when Pootle code is improved to not require
-#       this.
 
 
 def get_mod_info(file_path):
@@ -543,7 +530,6 @@ class StatsCache:
                 file_totals_record = file_totals_record + FileTotals.new_record(
                     unit_state_for_db, sourcewords, targetwords
                 )
-        # XXX: executemany is non-standard
         self.cur.executemany(
             """INSERT INTO units
             (unitid, fileid, unitindex, source, target, sourcewords, targetwords, state, e_state)
@@ -634,7 +620,6 @@ class StatsCache:
             unitvalues.remove(dummy)
             errornames.append("total")
 
-        # XXX: executemany is non-standard
         self.cur.executemany(
             "INSERT INTO uniterrors "
             "(unitindex, fileid, configid, name, message) "

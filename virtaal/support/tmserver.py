@@ -125,7 +125,7 @@ class TMServer:
         return ""
 
     def forget_unit(self, uid):
-        # FIXME: implement me
+        # Not implemented: tmdb has no way to remove a unit.
         response.content_type = "text/plain"
         return "FIXME"
 
@@ -133,7 +133,7 @@ class TMServer:
         return self.forget_unit(uid)
 
     def get_store_stats(self, sid):
-        # FIXME: implement me
+        # Not implemented: tmdb doesn't record which store a unit came from (#3662).
         response.content_type = "text/plain"
         return "FIXME"
 
@@ -157,7 +157,7 @@ class TMServer:
         return f"added {count} units from {sid}"
 
     def forget_store(self, sid):
-        # FIXME: implement me
+        # Not implemented: tmdb doesn't record which store a unit came from (#3661).
         response.content_type = "text/plain"
         return "FIXME"
 

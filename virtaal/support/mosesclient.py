@@ -101,7 +101,8 @@ class MosesClient(GObject.GObject, HTTPClient):
         except xmlrpclib.Fault as exc:
             if "Unknown translation system id" in exc.faultString:
                 self.set_multilang(False)
-                # TODO: consider redoing the request now that multilang is False
+                # Not retried without 'system': on a server shared by several
+                # language pairs that could answer for the wrong pair.
                 return None
         except Exception as exc:
             logging.debug('XML-RPC exception: %s' % (exc))
