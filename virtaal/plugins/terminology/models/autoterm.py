@@ -229,7 +229,7 @@ class TerminologyModel(BaseTerminologyModel):
             # is decoded to str (used later as a str header value).
             headers = request.result_headers.getvalue().splitlines()
             etag = ''
-            etagline = [l for l in headers if l.lower().startswith(b'etag:')]
+            etagline = [line for line in headers if line.lower().startswith(b'etag:')]
             if etagline:
                 etag = etagline[0][7:-1].decode('ascii', errors='replace')
             self.config[os.path.abspath(localfile)] = etag

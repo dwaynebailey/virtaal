@@ -137,7 +137,7 @@ class TMModel(BaseTMModel):
         except Exception as e:
             self._disable_all("Error with json response: %s" % e)
             return
-        self._languages = set([l['language'] for l in languages])
+        self._languages = set([lang['language'] for lang in languages])
         self.set_languages_known()
 
     def got_error(self, val, query_str):

@@ -132,8 +132,8 @@ def test_every_spelling_dictionary(manifest, tmp_path):
     jobs = [
         (
             locale,
-            lambda done, l=locale, e=entry: DictionaryDownloader(
-                l, on_done=done, target_dir=str(target)
+            lambda done, loc=locale, e=entry: DictionaryDownloader(
+                loc, on_done=done, target_dir=str(target)
             ).start_with_known_files(e['folder'], [f['name'] for f in e['files']]),
         )
         for locale, entry in sorted(entries.items())
@@ -173,8 +173,8 @@ def test_every_thesaurus(manifest, tmp_path):
     jobs = [
         (
             key,
-            lambda done, l=locales[0], key=key: ThesaurusDownloader(
-                l, on_done=done, target_dir=str(targets[key])
+            lambda done, loc=locales[0], key=key: ThesaurusDownloader(
+                loc, on_done=done, target_dir=str(targets[key])
             ).start_with_known_files(key[0], list(key[1])),
         )
         for key, locales in groups.items()
@@ -211,8 +211,8 @@ def test_every_autocorrect_list(manifest, tmp_path):
     jobs = [
         (
             locale,
-            lambda done, l=locale, e=entry: AutocorrectDownloader(
-                l, on_done=done, target_dir=str(tmp_path / l)
+            lambda done, loc=locale, e=entry: AutocorrectDownloader(
+                loc, on_done=done, target_dir=str(tmp_path / loc)
             ).start_with_known_files(e['folder'], [f['name'] for f in e['files']]),
         )
         for locale, entry in sorted(entries.items())

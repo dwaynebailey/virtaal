@@ -162,7 +162,7 @@ class TMModel(BaseTMModel):
             stop = self.matcher.getstoplength(min_quality, new_unit.source)
 
             def unaffected(key):
-                l = len(key)
-                return l < start or l > stop
+                length = len(key)
+                return length < start or length > stop
 
             self.cache = dict((k, v) for (k, v) in self.cache.items() if unaffected(k))

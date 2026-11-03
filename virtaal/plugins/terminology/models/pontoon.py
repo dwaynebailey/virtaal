@@ -256,7 +256,7 @@ class TerminologyModel(BaseTerminologyModel):
             # ('If-None-Match: "%s"' % etag) in _check_for_update().
             headers = request.result_headers.getvalue().splitlines()
             etag = ''
-            etagline = [l for l in headers if l.lower().startswith(b'etag:')]
+            etagline = [line for line in headers if line.lower().startswith(b'etag:')]
             if etagline:
                 etag = etagline[0][7:-1].decode('ascii', errors='replace')
             self.config[os.path.basename(localfile)] = etag

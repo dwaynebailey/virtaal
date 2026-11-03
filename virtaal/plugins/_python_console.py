@@ -311,8 +311,8 @@ class gtkoutfile:
     def write(self, s):
         self.console.write(s, self.tag)
 
-    def writelines(self, l):
-        self.console.write(l, self.tag)
+    def writelines(self, lines):
+        self.console.write(lines, self.tag)
 
     def seek(self, a):
         raise OSError(29, 'Illegal seek')
