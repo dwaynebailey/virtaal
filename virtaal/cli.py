@@ -306,11 +306,13 @@ def _run_profiled(profile_file, startup_file):
 
 def _profile_runner(options, parser, startup_file):
     try:
-        _run_profiled(open(options.profile, 'w+', encoding='utf-8'), startup_file)
+        profile_file = open(options.profile, 'w+', encoding='utf-8')  # noqa: SIM115
     except OSError:
         parser.error(
             _("Could not open profile file '%(filename)s'") % {"filename": options.profile}
         )
+    with profile_file:
+        _run_profiled(profile_file, startup_file)
 
 
 def _default_runner(startup_file):

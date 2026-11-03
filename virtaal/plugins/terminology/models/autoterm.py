@@ -220,7 +220,8 @@ class TerminologyModel(BaseTerminologyModel):
 
             logging.debug('Saving to %s' % (localfile))
             # result is real bytes - 'wb' preserves it exactly.
-            open(localfile, 'wb').write(result)
+            with open(localfile, 'wb') as f:
+                f.write(result)
 
             # Headers are bytes too; only the stored etag value itself
             # is decoded to str (used later as a str header value).

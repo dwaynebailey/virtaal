@@ -310,9 +310,8 @@ class StoreController(BaseController):
         from translate.tools.pocompile import POCompile
 
         compiler = POCompile()
-        binary_output = open(filename, 'wb')
-        binary_output.write(compiler.convertstore(self.store._trans_store))
-        binary_output.close()
+        with open(filename, 'wb') as binary_output:
+            binary_output.write(compiler.convertstore(self.store._trans_store))
 
     def close_file(self):
         del self.project

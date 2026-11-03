@@ -178,7 +178,7 @@ def pytest_configure(config):
     if not path and os.environ.get(_STACKS_DIR_ENV):
         path = os.path.join(os.environ[_STACKS_DIR_ENV], f"{os.getpid()}.txt")
     if path:
-        _stacks_file = open(path, "w", encoding="utf-8")
+        _stacks_file = open(path, "w", encoding="utf-8")  # noqa: SIM115
         faulthandler.register(signal.SIGUSR1, file=_stacks_file, all_threads=True)
     if os.environ.get(_STACKS_DIR_ENV):
         # faulthandler dumps at most 100 threads, which can leave out

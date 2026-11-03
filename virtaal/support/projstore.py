@@ -152,7 +152,7 @@ class ProjectStore:
 
         if isinstance(afile, str) and os.path.isfile(afile) and not fname:
             # Try and use afile as the file name
-            fname, afile = afile, open(afile, 'rb')
+            fname, afile = afile, open(afile, 'rb')  # noqa: SIM115
 
         # Check if we can get an real file name
         realfname = fname
@@ -247,7 +247,7 @@ class ProjectStore:
 
         rfile = self._files[fname]
         if isinstance(rfile, str):
-            rfile = open(rfile, "rb")
+            rfile = open(rfile, "rb")  # noqa: SIM115
         # Check that the file is actually open
         if getattr(rfile, "closed", False):
             rfname = fname
@@ -257,7 +257,7 @@ class ProjectStore:
                 rfname = getattr(rfile, "filename", None)
             if not rfname or not os.path.isfile(rfname):
                 raise OSError(f"Could not locate file: {rfile} ({fname})")
-            rfile = open(rfname, mode)  # ty:ignore[no-matching-overload]
+            rfile = open(rfname, mode)  # noqa: SIM115  # ty:ignore[no-matching-overload]
             self._files[fname] = rfile
 
         return rfile

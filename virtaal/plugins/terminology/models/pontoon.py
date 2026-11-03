@@ -242,10 +242,9 @@ class TerminologyModel(BaseTerminologyModel):
                 localfile = self._get_curr_term_filename(ext=ext)
                 localfile = os.path.join(self.TERMDIR, localfile)
             logging.debug('Saving to %s' % (localfile))
-            # result is real bytes (httpclient.py's BytesIO().getvalue()),
-            # not str - 'wb' preserves it exactly regardless of the
-            # server's actual charset.
-            open(localfile, 'wb').write(result)
+            # result is real bytes - 'wb' preserves it exactly.
+            with open(localfile, 'wb') as f:
+                f.write(result)
 
             # request.result_headers is httpclient.py's own BytesIO too -
             # .getvalue().splitlines() is a list of bytes lines, so the

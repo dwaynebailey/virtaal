@@ -137,7 +137,7 @@ class BundleProjectStore(ProjectStore):
                     os.close(tempfd)
                     with open(tempfname, "wb") as handle:
                         copyfileobj(zfile, handle)
-            retfile = open(tempfname, "rb")
+            retfile = open(tempfname, "rb")  # noqa: SIM115
             self._tempfiles[tempfname] = fname
 
         if not retfile:
