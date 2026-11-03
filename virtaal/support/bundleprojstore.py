@@ -33,6 +33,7 @@
 # _update_from_tempfiles()'s open() was changed to binary mode - see
 # translate/virtaal#3609. update_file() adds a project file missing from
 # the archive instead of failing - see translate/virtaal#4533.
+# append_file(), save() and _load_settings() close the handles they open.
 
 import contextlib
 import os
@@ -83,8 +84,13 @@ class BundleProjectStore(ProjectStore):
         if not fname and isinstance(afile, str) and afile in self.zip.namelist():
             raise ValueError(f"File already in bundle archive: {afile}")
 
+        given = afile
         afile, fname = super().append_file(afile, fname, ftype)
         self._zip_add(fname, afile)
+        if afile is not given:
+            # Opened from a path by the base class: done with it, and it
+            # mustn't be held open while it's deleted below.
+            afile.close()
 
         if delete_orig and hasattr(afile, "name") and afile.name not in self._tempfiles:
             with contextlib.suppress(Exception):
@@ -183,7 +189,8 @@ class BundleProjectStore(ProjectStore):
         # Copy project files from project to the new zip file
         project_files = self._sourcefiles + self._transfiles + self._targetfiles
         for fname in project_files:
-            newzip.writestr(fname, self.get_file(fname).read())
+            with self.get_file(fname) as handle:
+                newzip.writestr(fname, handle.read())
         # Copy any extra (non-project) files from the current zip
         for fname in self.zip.namelist():
             if fname in project_files or fname == "project.xtp":
@@ -210,7 +217,8 @@ class BundleProjectStore(ProjectStore):
         """Grab the project.xtp file from the zip file and load it."""
         if "project.xtp" not in self.zip.namelist():
             raise InvalidBundleError("Not a translate project bundle")
-        super()._load_settings(self.zip.open("project.xtp").read())
+        with self.zip.open("project.xtp") as settings:
+            super()._load_settings(settings.read())
 
     @staticmethod
     def _create_temp_zipfile():

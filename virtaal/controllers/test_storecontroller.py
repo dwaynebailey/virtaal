@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import io
 import os
 import sys
 from types import SimpleNamespace
@@ -444,12 +445,20 @@ class _FakeProject:
 
     def __init__(self, projstore):
         self.store = projstore
+        self.handles = []
+
+    def _handle(self, name):
+        handle = io.BytesIO()
+        handle.name = '/tmp/' + name
+        self.handles.append(handle)
+        return handle
 
     def convert_forward(self, sourcefile):
         self.store.transfiles.append('converted.po')
+        return self._handle('converted.po'), 'converted.po'
 
     def get_file(self, name):
-        return SimpleNamespace(name='/tmp/' + name)
+        return self._handle(name)
 
 
 def _patch_project(monkeypatch, store):
@@ -469,6 +478,7 @@ def test_open_file_via_bundle_loads_the_projects_first_transfile(monkeypatch):
 
     assert controller.real_filename == '/tmp/doc.po'
     assert controller.force_saveas_calls == [False]
+    assert all(handle.closed for handle in controller.project.handles)
 
 
 def test_open_file_via_bundle_converts_the_first_source_file_when_none_exists(monkeypatch):
@@ -480,6 +490,8 @@ def test_open_file_via_bundle_converts_the_first_source_file_when_none_exists(mo
 
     assert store.transfiles == ['converted.po']
     assert controller.real_filename == '/tmp/converted.po'
+    assert len(controller.project.handles) == 2
+    assert all(handle.closed for handle in controller.project.handles)
 
 
 def test_open_file_via_bundle_raises_when_nothing_to_convert(monkeypatch):
@@ -552,10 +564,11 @@ def test_save_file_project_opens_the_real_file_in_binary_mode(tmp_path):
         update_file=lambda proj_fname, infile: updated.update(
             proj_fname=proj_fname, mode=infile.mode, content=infile.read()
         ),
-        convert_forward=lambda *a, **k: None,
+        convert_forward=lambda *a, **k: (converted, 'targets/source.po'),
         save=lambda: None,
     )
     updated = {}
+    converted = io.BytesIO()
     controller.real_filename = str(real_file)
     controller._unit_controller = SimpleNamespace(prepare_for_save=lambda: None)
     controller.store = SimpleNamespace(save_file=lambda: None)
@@ -570,6 +583,7 @@ def test_save_file_project_opens_the_real_file_in_binary_mode(tmp_path):
     assert updated['proj_fname'] == 'trans/source.po'
     assert updated['mode'] == 'rb'
     assert updated['content'] == real_file.read_bytes()
+    assert converted.closed
 
 
 # binary_export() #

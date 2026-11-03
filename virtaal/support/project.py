@@ -30,6 +30,9 @@
 # Virtaal's own project/bundle file support (open_file()'s .zip branch,
 # save_file()'s project branch) still needs it, so it's vendored rather
 # than dropped - see translate/virtaal#3632.
+# convert_forward(), export_file() and get_real_filename() close the files
+# they get from the store, and convert_forward() takes a template's project
+# file name as documented instead of unpacking the file it gets for it.
 
 import os
 from typing import cast
@@ -119,48 +122,56 @@ class Project:
         :returns 2-tuple: the converted file object and its project name.
         """
         inputfile = self.get_file(input_fname)
-        input_type = self.store.get_filename_type(input_fname)
-
-        if input_type == "tgt":
-            raise ValueError(f"Cannot convert a target document further: {input_fname}")
-
+        # A template handle got from the store here, not one passed in.
+        store_template = None
         templ_fname = None
-        if isinstance(template, str):
-            template, templ_fname = self.get_file(template)
+        try:
+            input_type = self.store.get_filename_type(input_fname)
 
-        if template and not templ_fname:
-            templ_fname = template.name
+            if input_type == "tgt":
+                raise ValueError(f"Cannot convert a target document further: {input_fname}")
 
-        # Check if we can determine a template from the conversion map
-        if template is None:
-            convert_map = self.store.convert_map
-            if input_fname in convert_map:
-                templ_fname = convert_map[input_fname][1]
-                if templ_fname:
-                    template = self.get_file(templ_fname)
-            elif input_type == "trans":
-                # inputfile is a translatable file, so it needed to be converted
-                # from some input document. Let's try and use that document as a
-                # template for this conversion.
-                for in_name, (out_name, _tmpl_name) in self.store.convert_map.items():
-                    if input_fname == out_name:
-                        template, templ_fname = self.get_file(in_name), in_name
-                        break
+            if isinstance(template, str):
+                templ_fname = template
+                template = store_template = self.get_file(templ_fname)
 
-        # Populate the conv_options dict with the options we can detect
-        conv_options = {"in_fname": input_fname}
+            if template and not templ_fname:
+                templ_fname = template.name
 
-        if input_fname in self.store.convert_map:
-            out_name, _tmpl_name = self.store.convert_map[input_fname]
-            if out_name in self.store._files and options.get("overwrite_output", True):
-                self.remove_file(out_name)
+            # Check if we can determine a template from the conversion map
+            if template is None:
+                convert_map = self.store.convert_map
+                if input_fname in convert_map:
+                    templ_fname = convert_map[input_fname][1]
+                    if templ_fname:
+                        template = store_template = self.get_file(templ_fname)
+                elif input_type == "trans":
+                    # inputfile is a translatable file, so it needed to be converted
+                    # from some input document. Let's try and use that document as a
+                    # template for this conversion.
+                    for in_name, (out_name, _tmpl_name) in self.store.convert_map.items():
+                        if input_fname == out_name:
+                            template = store_template = self.get_file(in_name)
+                            templ_fname = in_name
+                            break
 
-        converted_file, converted_ext = convert_factory.convert(
-            inputfile,
-            template=template,
-            options=conv_options,
-            convert_options=options.get("convert_options"),
-        )
+            # Populate the conv_options dict with the options we can detect
+            conv_options = {"in_fname": input_fname}
+
+            if input_fname in self.store.convert_map:
+                out_name, _tmpl_name = self.store.convert_map[input_fname]
+                if out_name in self.store._files and options.get("overwrite_output", True):
+                    self.remove_file(out_name)
+
+            converted_file, converted_ext = convert_factory.convert(
+                inputfile,
+                template=template,
+                options=conv_options,
+                convert_options=options.get("convert_options"),
+            )
+        finally:
+            self._release(input_fname, inputfile)
+            self._release(templ_fname, store_template)
         # Only .name is used from here on - close the handle now so the
         # unlink()/rename() below don't hit an open-file lock on Windows.
         converted_file.close()
@@ -220,7 +231,11 @@ class Project:
         *fname* is not found in the project.
         """
         with open(destfname, "wb") as fp:
-            fp.write(self.store.get_file(fname).read())
+            handle = self.store.get_file(fname)
+            try:
+                fp.write(handle.read())
+            finally:
+                self._release(fname, handle)
 
     def get_file(self, fname):
         """
@@ -242,9 +257,21 @@ class Project:
         """Try and find a real file name for the given project file name."""
         projfile = self.get_file(projfname)
         rfname = getattr(projfile, "name", getattr(projfile, "filename", None))
+        self._release(projfname, projfile)
         if rfname is None:
             raise ValueError(f"Project file has no real file: {projfname}")
         return rfname
+
+    def _release(self, fname, handle) -> None:
+        """
+        Close a file got from the store's ``get_file()``, unless it's the
+        object the store itself keeps for ``fname`` and closes later.
+        """
+        if handle is None or handle is getattr(self.store, "_files", {}).get(fname):
+            return
+        close = getattr(handle, "close", None)
+        if close is not None:
+            close()
 
     def remove_file(self, projfname, ftype=None) -> None:
         """

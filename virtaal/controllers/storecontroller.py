@@ -194,15 +194,16 @@ class StoreController(BaseController):
                 raise bundleprojstore.InvalidBundleError(
                     'No source or translatable files in bundle'
                 )
-            self.project.convert_forward(self.project.store.sourcefiles[0])
+            transfile, _fname = self.project.convert_forward(self.project.store.sourcefiles[0])
+            transfile.close()
 
         # FIXME: Ask the user which translatable file to open?
-        transfile = self.project.get_file(self.project.store.transfiles[0])
-        self.real_filename = transfile.name
-        logging.info(
-            'Editing translation file %s:%s' % (filename, self.project.store.transfiles[0])
-        )
-        self.store = StoreModel(transfile, self)
+        with self.project.get_file(self.project.store.transfiles[0]) as transfile:
+            self.real_filename = transfile.name
+            logging.info(
+                'Editing translation file %s:%s' % (filename, self.project.store.transfiles[0])
+            )
+            self.store = StoreModel(transfile, self)
 
     def _open_plain(self, filename):
         from virtaal.models.storemodel import StoreModel
@@ -293,7 +294,8 @@ class StoreController(BaseController):
             proj_fname = self.project.get_proj_filename(self.real_filename)
             with open(self.real_filename, 'rb') as infile:
                 self.project.update_file(proj_fname, infile)
-            self.project.convert_forward(proj_fname, overwrite_output=True)
+            outputfile, _fname = self.project.convert_forward(proj_fname, overwrite_output=True)
+            outputfile.close()
             self.project.save()
         self.set_modified(False)
         # reaching here means the write succeeded, so any stale notice goes
