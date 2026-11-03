@@ -236,13 +236,9 @@ class StoreTreeView(Gtk.TreeView):
 
     def _start_editing_cycle(self, model, path):
         # logging.debug('_start_editing_cycle()->self.set_cursor(path="%s")' % (path))
-        # XXX: Both of the "self.set_cursor()" calls below are necessary in
-        #      order to have both bug 869 fixed and keep search highlighting
-        #      in working order. After exhaustive inspection of the
-        #      interaction between emitted signals involved, Friedel and I
-        #      still have no idea why exactly it is needed. This just seems
-        #      to be the correct GTK black magic incantation to make it
-        #      "work".
+        # Both set_cursor() calls are needed, for Bugzilla bug 869 and for
+        # search highlighting. Why is unknown: hand-test both before
+        # changing either.
         #
         # No Gtk.main_iteration() flush here - it re-entered
         # UnitView.load_unit()'s signal-blocking window and

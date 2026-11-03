@@ -513,10 +513,6 @@ class MainView(BaseView):
         supported_file_names.sort(key=locale.strxfrm)
         for name in supported_file_names:
             extensions, mimetypes = supported_files_dict[name]
-            # XXX: we can't open generic .csv formats, so listing it is probably
-            # more harmful than good.
-            if "csv" in extensions:
-                continue
             new_filter = Gtk.FileFilter()
             new_filter.set_name(name)
             # Extensions only - mimetypes prevent native file dialogues.
@@ -722,7 +718,6 @@ class MainView(BaseView):
                     _("Could not open the dropped file - its file name could not be decoded.")
                 )
             elif filename.startswith("file://"):
-                # TODO: only bother if the extension is supported?
                 self.controller.open_file(filename)
 
         return True
@@ -1192,7 +1187,6 @@ class MainView(BaseView):
 
         if response == Gtk.ResponseType.ACCEPT:
             filename = self.save_chooser.get_filename()
-            # FIXME: do we need uri here?
             return filename
 
     def show_save_confirm_dialog(self):

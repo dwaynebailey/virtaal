@@ -14,7 +14,6 @@ from virtaal.common import GObjectWrapper
 from .basecontroller import BaseController
 
 
-# TODO: Create an event that is emitted when a cursor is created
 class StoreController(BaseController):
     """The controller for all store-level activities."""
 

@@ -13,10 +13,6 @@ from . import theme
 from .baseview import BaseView
 from .widgets.storetreeview import StoreTreeView
 
-# XXX: ASSUMPTION: The model to display is self.controller.store
-# TODO: Add event handler for store controller's cursor-creation event, so that
-#       the store view can connect to the new cursor's "cursor-changed" event
-#       (which is currently done in load_store())
 CONTEXT_SETTING = 'navigation_context'
 CONTEXT_ALL = None
 
@@ -49,7 +45,6 @@ class StoreView(BaseView):
     # INITIALIZERS #
     def __init__(self, controller):
         self.controller = controller
-        # XXX: While I can't think of a better way to do this, the following line would have to do :/
         self.parent_widget = self.controller.main_controller.view.gui.get_object('scrwnd_storeview')
 
         self.cursor = None
