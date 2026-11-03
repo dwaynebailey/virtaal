@@ -36,7 +36,6 @@ import logging
 import os.path
 import re
 import stat
-import sys
 from collections import UserDict
 from sqlite3 import dbapi2
 
@@ -455,8 +454,6 @@ class StatsCache:
 
         store can be a TranslationFile object or a callback that returns one.
         """
-        if isinstance(filename, bytes):
-            filename = str(filename, sys.getfilesystemencoding())
         realpath = os.path.realpath(filename)
         self.cur.execute(
             """SELECT fileid, st_mtime, st_size FROM files

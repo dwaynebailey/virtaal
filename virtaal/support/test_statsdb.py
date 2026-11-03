@@ -174,19 +174,6 @@ def test_file_fails_test_finds_the_dummy_noerror_entry(tmp_path):
 # _getfileid()'s remaining branches #
 
 
-def test_getfileid_accepts_a_bytes_filename(tmp_path):
-    po_file = tmp_path / "test.po"
-    po_file.write_text(
-        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
-        'msgid "Hello"\nmsgstr "Bonjour"\n'
-    )
-    cache = statsdb.StatsCache(str(tmp_path / "stats.db"))
-
-    fileid = cache._getfileid(str(po_file).encode())
-
-    assert fileid is not None
-
-
 def test_getfileid_calls_a_callable_store(tmp_path):
     po_file = tmp_path / "test.po"
     po_file.write_text(
