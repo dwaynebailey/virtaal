@@ -33,6 +33,10 @@ class MainController(BaseController):
         'controller-registered': (GObject.SignalFlags.RUN_FIRST, None, (object,)),
         'quit': (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
+    # restart() asked for a quit that may still be cancelled.
+    _restart_pending = False
+    # Read by main.py once the main loop has ended.
+    relaunch_on_exit = False
 
     # INITIALIZERS #
     def __init__(self):
@@ -464,16 +468,27 @@ class MainController(BaseController):
             response = self.view.show_save_confirm_dialog()
             if response == 'save':
                 if not self.save_file():
+                    self._restart_pending = False
                     return False
             elif response != 'discard':
+                self._restart_pending = False
                 return True
 
+        # A forced quit (SIGTERM) never relaunches.
+        self.relaunch_on_exit = self._restart_pending and not force
+        self._restart_pending = False
         self.view.hide()
         if self.plugin_controller:
             self.plugin_controller.shutdown()
         self.emit('quit')
         self.view.quit()
         return False
+
+    def restart(self):
+        """Quit as usual, and start Virtaal again only if it really
+        quits (#3605)."""
+        self._restart_pending = True
+        self.quit()
 
     def run(self):
         self.view.show()

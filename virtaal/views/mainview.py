@@ -141,6 +141,9 @@ def _find_native_menu_item(menu, title):
     return None
 
 
+# The language-change notice's Restart; any positive id is the app's own.
+RESTART_RESPONSE = 1
+
 NS_SHIFT_KEY_MASK = 1 << 17
 NS_CONTROL_KEY_MASK = 1 << 18
 
@@ -1406,8 +1409,13 @@ class MainView(BaseView):
         infobar.set_show_close_button(True)
         label = Gtk.Label(label=_('Restart Virtaal for the new language to take effect.'))
         infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.add_button(_('_Restart'), RESTART_RESPONSE)
 
         def on_response(infobar, response_id):
+            if response_id == RESTART_RESPONSE:
+                # Through the usual quit, which may be cancelled: keep the notice.
+                self.controller.restart()
+                return
             self._language_change_infobar = None
             infobar.destroy()
 

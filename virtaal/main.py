@@ -29,6 +29,18 @@ def _resolve_startup_path(startupfile):
     return startupfile
 
 
+def _open_filename(main_controller):
+    """The file to reopen after a restart: the open one, or its bundle."""
+    store = main_controller.get_store()
+    if not store:
+        return None
+    project = getattr(main_controller.store_controller, 'project', None)
+    zipfile = getattr(getattr(project, 'store', None), 'zip', None)
+    if zipfile is not None:
+        return zipfile.filename
+    return store.get_filename()
+
+
 class _Deferer:
     _todo = []
 
@@ -234,8 +246,16 @@ class Virtaal:
     # METHODS #
     def run(self):
         self.main_controller.run()
+        # The main loop has ended and the plugins, the TM server with
+        # them, are shut down: only now start the new instance.
+        relaunch = getattr(self.main_controller, 'relaunch_on_exit', False)
+        filename = relaunch and _open_filename(self.main_controller)
         self.main_controller.destroy()
         del self.main_controller
+        if relaunch:
+            from virtaal.support import relaunch as relauncher
+
+            relauncher.relaunch(filename)
 
 
 if __name__ == '__main__':

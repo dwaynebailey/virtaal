@@ -413,6 +413,57 @@ def test_run_runs_and_destroys_the_main_controller():
     assert not hasattr(v, 'main_controller')
 
 
+def _virtaal_for_relaunch(monkeypatch, relaunch_on_exit, filename='/files/x.po'):
+    from virtaal.support import relaunch
+
+    v = Virtaal.__new__(Virtaal)
+    calls = []
+    v.main_controller = SimpleNamespace(
+        run=lambda: calls.append('run'),
+        destroy=lambda: calls.append('destroy'),
+        relaunch_on_exit=relaunch_on_exit,
+        get_store=lambda: SimpleNamespace(get_filename=lambda: filename),
+        store_controller=SimpleNamespace(project=None),
+    )
+    monkeypatch.setattr(relaunch, 'relaunch', lambda f: calls.append(('relaunch', f)))
+    return v, calls
+
+
+def test_run_relaunches_once_after_the_main_loop_and_teardown(monkeypatch):
+    v, calls = _virtaal_for_relaunch(monkeypatch, True)
+
+    v.run()
+
+    assert calls == ['run', 'destroy', ('relaunch', '/files/x.po')]
+
+
+def test_run_does_not_relaunch_after_a_plain_quit(monkeypatch):
+    v, calls = _virtaal_for_relaunch(monkeypatch, False)
+
+    v.run()
+
+    assert calls == ['run', 'destroy']
+
+
+def test_open_filename_reopens_a_bundle_by_its_zip():
+    from virtaal.main import _open_filename
+
+    controller = SimpleNamespace(
+        get_store=lambda: SimpleNamespace(get_filename=lambda: '/tmp/extracted/a.xlf'),
+        store_controller=SimpleNamespace(
+            project=SimpleNamespace(store=SimpleNamespace(zip=SimpleNamespace(filename='/b.zip')))
+        ),
+    )
+
+    assert _open_filename(controller) == '/b.zip'
+
+
+def test_open_filename_is_none_without_an_open_file():
+    from virtaal.main import _open_filename
+
+    assert _open_filename(SimpleNamespace(get_store=lambda: None)) is None
+
+
 # Virtaal.__init__() #
 
 

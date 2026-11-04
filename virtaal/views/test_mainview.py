@@ -2821,6 +2821,33 @@ def test_show_language_change_notice_dismiss_clears_the_tracked_infobar():
     assert view._language_change_infobar is None
 
 
+def test_show_language_change_notice_restart_quits_through_the_controller():
+    vbox = _FakeVboxMain()
+    calls = []
+    view = MainView.__new__(MainView)
+    view.gui = SimpleNamespace(get_object=lambda name: vbox)
+    view.controller = SimpleNamespace(restart=lambda: calls.append('restart'))
+    view.show_language_change_notice()
+    infobar = view._language_change_infobar
+
+    infobar.emit('response', mainview.RESTART_RESPONSE)
+
+    assert calls == ['restart']
+    # Still there if the quit is cancelled.
+    assert view._language_change_infobar is infobar
+
+
+def test_show_language_change_notice_has_a_restart_button():
+    vbox = _FakeVboxMain()
+    view = MainView.__new__(MainView)
+    view.gui = SimpleNamespace(get_object=lambda name: vbox)
+    view.show_language_change_notice()
+
+    buttons = view._language_change_infobar.get_action_area().get_children()
+
+    assert [b.get_label() for b in buttons if isinstance(b, Gtk.Button)] == ['_Restart']
+
+
 def test_set_statusbar_message_clears_with_an_empty_message():
     calls = []
     view = MainView.__new__(MainView)

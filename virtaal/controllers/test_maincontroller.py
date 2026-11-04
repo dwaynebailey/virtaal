@@ -959,6 +959,84 @@ def test_quit_discards_changes_and_shuts_down(monkeypatch):
     assert calls == ['hide', 'quit-signal', 'view-quit']
 
 
+def _controller_for_restart(monkeypatch, response='discard', saved=True, modified=True):
+    monkeypatch.setattr(Gtk.Window, 'list_toplevels', lambda: [])
+    calls = []
+    controller = MainController.__new__(MainController)
+    GObjectWrapper.__init__(controller)
+    controller._store_controller = SimpleNamespace(is_modified=lambda: modified)
+    controller.view = SimpleNamespace(
+        show_save_confirm_dialog=lambda: calls.append('prompt') or response,
+        hide=lambda: calls.append('hide'),
+        quit=lambda: calls.append('view-quit'),
+    )
+    controller.save_file = lambda: saved
+    controller._plugin_controller = SimpleNamespace(shutdown=lambda: calls.append('plugins-off'))
+    controller.connect('quit', lambda *_: calls.append('quit-signal'))
+    return controller, calls
+
+
+def test_restart_quits_through_the_save_prompt_and_marks_the_relaunch(monkeypatch):
+    controller, calls = _controller_for_restart(monkeypatch)
+
+    controller.restart()
+
+    # The plugins (the TM server with them) are shut down as on a normal quit.
+    assert calls == ['prompt', 'hide', 'plugins-off', 'quit-signal', 'view-quit']
+    assert controller.relaunch_on_exit is True
+
+
+@pytest.mark.parametrize(('response', 'saved'), [('cancel', True), ('save', False)])
+def test_a_cancelled_restart_neither_quits_nor_relaunches_later(monkeypatch, response, saved):
+    controller, calls = _controller_for_restart(monkeypatch, response, saved)
+
+    controller.restart()
+
+    assert calls == ['prompt']
+    assert controller.relaunch_on_exit is False
+    # A later plain quit is just a quit.
+    controller.view.show_save_confirm_dialog = lambda: 'discard'
+    controller.quit()
+    assert controller.relaunch_on_exit is False
+
+
+def test_a_plain_quit_does_not_relaunch(monkeypatch):
+    controller, _calls = _controller_for_restart(monkeypatch, modified=False)
+
+    controller.quit()
+
+    assert controller.relaunch_on_exit is False
+
+
+def test_a_forced_quit_does_not_relaunch_a_pending_restart(monkeypatch):
+    # SIGTERM while a restart waits on a closing dialog.
+    controller, _calls = _controller_for_restart(monkeypatch, modified=False)
+    controller._restart_pending = True
+
+    controller.quit(force=True)
+
+    assert controller.relaunch_on_exit is False
+
+
+def test_restart_survives_the_retry_after_closing_an_open_dialog(monkeypatch):
+    controller, calls = _controller_for_restart(monkeypatch, modified=False)
+    dialog = Gtk.Dialog()
+    dialog.show()
+    controller.view.main_window = Gtk.Window()
+    monkeypatch.setattr(Gtk.Window, 'list_toplevels', lambda: [dialog])
+    monkeypatch.setattr(dialog, 'response', lambda r: None)
+    retries = []
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: retries.append((func, args)))
+
+    controller.restart()
+    assert calls == []
+    monkeypatch.setattr(Gtk.Window, 'list_toplevels', lambda: [])
+    ((func, args),) = retries
+    func(*args)
+
+    assert controller.relaunch_on_exit is True
+
+
 def test_quit_shuts_down_the_plugin_controller_when_one_is_registered(monkeypatch):
     monkeypatch.setattr(Gtk.Window, 'list_toplevels', lambda: [])
     calls = []
