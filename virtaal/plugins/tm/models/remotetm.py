@@ -10,6 +10,8 @@ import logging
 import time
 from datetime import timezone
 
+from virtaal.views.widgets.settingsdialog import PORT, Field
+
 from .basetmmodel import BaseTMModel
 
 
@@ -28,6 +30,11 @@ class TMModel(BaseTMModel):
         "port": "55555",
         "prefetch": 2,
     }
+    settings = (
+        # l10n: The name or IP address of the translation memory server
+        Field('host', _('_Host:'), required=True),
+        Field('port', _('_Port:'), PORT),
+    )
 
     RETRY_AFTER = 60
     """Seconds to send nothing after "too many requests" without a Retry-After."""
@@ -45,6 +52,9 @@ class TMModel(BaseTMModel):
         super().__init__(controller)
         self.internal_name = internal_name
         self.load_config()
+        self._connect()
+
+    def _connect(self):
         url = "http://%s:%s/tmserver" % (self.config["host"], self.config["port"])
 
         from virtaal.support import tmclient
@@ -53,6 +63,14 @@ class TMModel(BaseTMModel):
         self.tmclient.set_virtaal_useragent()
 
     # METHODS #
+    def apply_settings(self):
+        # Answers still due from the previous server are dropped.
+        self.cache = {}
+        self._pending = {}
+        self._retry_at = 0.0
+        self._generation += 1
+        self._connect()
+
     def query(self, tmcontroller, unit):
         # We don't want to do lookups in case of misconfigurations like en->en
         if self.source_lang == self.target_lang:

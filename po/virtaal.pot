@@ -1623,6 +1623,15 @@ msgstr ""
 msgid "Remote TM"
 msgstr ""
 
+#. l10n: The name or IP address of the translation memory server
+#: virtaal/plugins/tm/models/remotetm.py
+msgid "_Host:"
+msgstr ""
+
+#: virtaal/plugins/tm/models/remotetm.py
+msgid "_Port:"
+msgstr ""
+
 #: virtaal/plugins/tm/tmview.py
 msgid "Translation _Suggestions"
 msgstr ""

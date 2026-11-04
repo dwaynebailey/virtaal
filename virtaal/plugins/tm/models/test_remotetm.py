@@ -424,3 +424,65 @@ def test_a_reply_asked_for_before_a_save_is_dropped():
     assert emitted == [] and model.cache == {}
     model.query(None, _unit('hello'))
     assert len(model.tmclient.sent) == 2
+
+
+# Setting the server from Configure… (#1647).
+
+
+def _configured_model(monkeypatch, tmp_path):
+    from virtaal.plugins.tm._testhelpers import fake_controller
+    from virtaal.support import tmclient
+
+    monkeypatch.setattr('virtaal.common.pan_app.get_config_dir', lambda: str(tmp_path))
+    monkeypatch.setattr(tmclient.TMClient, 'set_virtaal_useragent', lambda self: None)
+    return TMModel('remotetm', fake_controller())
+
+
+def test_the_server_can_be_configured(monkeypatch, tmp_path):
+    model = _configured_model(monkeypatch, tmp_path)
+
+    assert model.configure_func == model.configure
+    assert [field.key for field in model.settings] == ['host', 'port']
+    assert model.tmclient.base_url == 'http://localhost:55555/tmserver'
+
+
+def test_a_new_server_is_used_at_once(monkeypatch, tmp_path):
+    model = _configured_model(monkeypatch, tmp_path)
+    model.cache = {'hello': [dict(_MATCH)]}
+
+    model.update_settings({'host': 'tm.example.org', 'port': '8080'})
+
+    assert model.tmclient.base_url == 'http://tm.example.org:8080/tmserver'
+    assert model.cache == {}
+    ini = (tmp_path / 'tm.ini').read_text()
+    assert 'host = tm.example.org' in ini and 'port = 8080' in ini
+
+
+def test_a_reply_from_the_previous_server_is_dropped(monkeypatch, tmp_path):
+    model = _configured_model(monkeypatch, tmp_path)
+    old_client = model.tmclient = _Client()
+    emitted = []
+    model.connect('match-found', lambda m, q, r: emitted.append((q, r)))
+    model.prefetch(_unit('hello'))
+
+    model.update_settings({'host': 'tm.example.org', 'port': '8080'})
+    old_client.sent[0].reply([dict(_MATCH)])
+
+    assert emitted == [] and model.cache == {}
+    assert model._pending == {}
+
+
+def test_the_same_server_again_changes_nothing(monkeypatch, tmp_path):
+    model = _configured_model(monkeypatch, tmp_path)
+    client = model.tmclient
+
+    model.update_settings({'host': 'localhost', 'port': '55555'})
+
+    assert model.tmclient is client
+    assert not (tmp_path / 'tm.ini').exists()
+
+
+def test_the_local_tm_server_is_not_configurable():
+    from virtaal.plugins.tm.models import localtm
+
+    assert localtm.TMModel.settings == ()

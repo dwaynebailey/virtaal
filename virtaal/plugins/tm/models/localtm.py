@@ -33,6 +33,8 @@ class TMModel(remotetm.TMModel):
         "tmserver_port": "55555",
         "tmdb": os.path.join(pan_app.get_config_dir(), "tm.db"),
     }
+    # Its own server picks a free port: nothing to set (#1647).
+    settings = ()
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
