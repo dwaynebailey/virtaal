@@ -38,7 +38,9 @@ class TMModel(BaseTMModel):
     # l10n: The name of Google Translate in your language (translated in most languages). See http://translate.google.com/
     display_name = _('Google Translate')
     description = _("Unreviewed machine translations from Google's translation service")
-    default_config = {'api_key': ''}
+    # Billed per character: off unless turned on.
+    PREFETCH_MAX = 2
+    default_config = {'api_key': '', 'prefetch': 0}
 
     translate_url = "https://www.googleapis.com/language/translate/v2?key=%(key)s&q=%(message)s&source=%(from)s&target=%(to)s"
     languages_url = "https://www.googleapis.com/language/translate/v2/languages?key=%(key)s"
@@ -98,6 +100,10 @@ class TMModel(BaseTMModel):
             req.connect(
                 'http-server-error', lambda req, response: self.got_error(response, query_str)
             )
+
+    def requests_in_flight(self):
+        client = getattr(self, 'client', None)
+        return len(client.requests) if client is not None else 0
 
     def got_translation(self, val, query_str):
         """Handle the response from the web service now that it came in."""

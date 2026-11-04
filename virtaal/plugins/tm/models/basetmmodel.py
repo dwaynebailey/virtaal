@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import logging
 import re
 from html import entities as htmlentitydefs
 
@@ -61,6 +62,10 @@ class BaseTMModel(BaseModel, Configurable):
     languages_known = True
     """False while a model is still fetching the languages it supports."""
 
+    # Each backend declares its own PREFETCH_MAX, the most units ahead it
+    # may be queried for (0-2; 0 for none), and a "prefetch" default in
+    # default_config: the user's choice, up to that.
+
     # INITIALIZERS #
     def __init__(self, controller):
         """Initialise the model and connects it to the appropriate events.
@@ -68,7 +73,9 @@ class BaseTMModel(BaseModel, Configurable):
         Only call this from child classes once the object was successfully
         created and want to be connected to signals."""
         super().__init__()
-        self.config = {}
+        # Some backends load their config before this.
+        if not hasattr(self, 'config'):
+            self.config = {}
         self.controller = controller
         self._signal_tracker = SignalTracker()
         self._signal_tracker.connect(self.controller, 'start-query', self.query)
@@ -99,6 +106,34 @@ class BaseTMModel(BaseModel, Configurable):
         All TM backends must implement this method, check for
         suggested translations for unit, emit "match-found" on success."""
         pass
+
+    def prefetch_depth(self):
+        """How many units ahead to look up: the "prefetch" setting, within
+        0 and PREFETCH_MAX."""
+        ceiling = getattr(self, 'PREFETCH_MAX', 0)
+        default = self.default_config.get('prefetch', 0)
+        value = self.config.get('prefetch', default)
+        try:
+            depth = int(value)
+        except (TypeError, ValueError):
+            logging.debug('%s: prefetch %r is not a number; using %s', self, value, default)
+            depth = int(default)
+        if not 0 <= depth <= ceiling:
+            logging.debug('%s: prefetch %r is outside 0-%d', self, value, ceiling)
+        return max(0, min(depth, ceiling))
+
+    def prefetch(self, unit):
+        """Look unit up ahead of its arrival, so its answer is cached."""
+        if self.languages_known and not self.has_cached(unit.source):
+            self.query(self.controller, unit)
+
+    def has_cached(self, query_str):
+        """Whether a query for query_str needs no wait."""
+        return query_str in self.cache
+
+    def requests_in_flight(self):
+        """How many of this model's requests are still unanswered."""
+        return 0
 
     def hold_until_languages_known(self, tmcontroller, unit):
         """True if the model knows its languages. Otherwise keep this query

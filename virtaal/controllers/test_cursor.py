@@ -264,3 +264,58 @@ def test_move_from_a_visited_unit(visiting, offset, circular, expected):
     cursor.visit(visiting)
     cursor.move(offset)
     assert cursor.index == expected
+
+
+# upcoming() #
+
+
+@pytest.mark.parametrize(
+    'pos, moves, n, expected',
+    [
+        (1, [], 2, [8, 11]),
+        (0, [], 5, [5, 8, 11]),
+        (3, [], 2, []),  # no wrap at the end
+        (2, [-1], 2, [2]),  # after moving back: the units before
+        (3, [-1], 2, [5, 2]),
+        (2, [-1, 1], 2, [11]),  # forward again
+        (1, [], 0, []),
+    ],
+)
+def test_upcoming_lists_the_units_next_moves_land_on(pos, moves, n, expected):
+    cursor = Cursor(None, [2, 5, 8, 11], circular=True)
+    cursor.pos = pos
+    for offset in moves:
+        cursor.move(offset)
+
+    assert cursor.upcoming(n) == expected
+
+
+@pytest.mark.parametrize(
+    'visiting, moves, expected',
+    [
+        (6, [], [8, 11]),
+        (12, [], []),
+    ],
+)
+def test_upcoming_from_a_visited_unit(visiting, moves, expected):
+    cursor = Cursor(None, [2, 5, 8, 11])
+    for offset in moves:
+        cursor.move(offset)
+    cursor.visit(visiting)
+
+    assert cursor.upcoming(2) == expected
+
+
+def test_upcoming_back_from_a_visited_unit():
+    cursor = Cursor(None, [2, 5, 8, 11])
+    cursor.pos = 1
+    cursor.move(-1)
+    cursor.visit(6)
+
+    assert cursor.upcoming(2) == [5, 2]
+
+
+def test_upcoming_on_an_empty_cursor_is_empty():
+    cursor = Cursor(None, [])
+
+    assert cursor.upcoming(2) == []

@@ -44,7 +44,8 @@ class TMClient(HTTPClient):
         self.base_url = base_url
 
     def translate_unit(self, unit_source, source_lang, target_lang, callback=None, params=None):
-        """suggest translations from TM"""
+        """suggest translations from TM
+        @returns: The request, or None if the queue was too full to send it."""
         request = RESTRequest(
             self.base_url + "/%s/%s/unit" % (source_lang, target_lang),
             unit_source,
@@ -55,9 +56,11 @@ class TMClient(HTTPClient):
         # TM requests have to finish quickly to be useful. This also helps to
         # avoid buildup in case of network failure
         request.curl.setopt(pycurl.TIMEOUT, 30)
-        self.add(request)
+        if not self.add(request):
+            return None
         if callback:
             request.connect("http-success", _json_callback(callback))
+        return request
 
     def add_unit(self, unit, source_lang, target_lang, callback=None):
         request = RESTRequest(

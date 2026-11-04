@@ -5,6 +5,8 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import time
+
 from gi.repository import GLib, GObject
 from translate.lang.data import normalize
 
@@ -21,6 +23,10 @@ class TMController(BaseController):
     QUERY_DELAY = 300
     """The delay after a unit is selected (C{Cursor}'s "cursor-changed" event)
         before the TM is queried."""
+
+    PREFETCH_BUSY = 4
+    """Preload nothing for a backend with more requests than this
+        unanswered, so a preload never crowds out a real query."""
 
     # INITIALIZERS #
     def __init__(self, main_controller, config=None):
@@ -190,6 +196,38 @@ class TMController(BaseController):
         self.matches = []
         self.view.clear()
         self.emit('start-query', self.unit)
+        self._prefetch_upcoming()
+
+    def _prefetching_models(self):
+        plugins = getattr(getattr(self, 'plugin_controller', None), 'plugins', {})
+        return [(model, model.prefetch_depth()) for model in plugins.values()]
+
+    def _prefetch_upcoming(self):
+        """Look up the units the next moves land on, as far ahead as each
+        backend may."""
+        cursor = getattr(self, 'storecursor', None)
+        models = [(m, depth) for (m, depth) in self._prefetching_models() if depth > 0]
+        if not cursor or not models:
+            return
+        upcoming = cursor.upcoming(max(depth for _m, depth in models))
+        for distance, index in enumerate(upcoming, 1):
+            unit = cursor.model[index]
+            # Translated units get no suggestions unless asked.
+            if unit is None or unit.istranslated():
+                continue
+            for model, depth in models:
+                if depth >= distance and model.requests_in_flight() <= self.PREFETCH_BUSY:
+                    model.prefetch(unit)
+
+    def _answers_ready(self, unit):
+        """Whether every backend that answers over the network has unit's
+        answer, or has it on its way."""
+        plugins = getattr(getattr(self, 'plugin_controller', None), 'plugins', {})
+        return all(
+            model.has_cached(unit.source)
+            for model in plugins.values()
+            if getattr(model, 'PREFETCH_MAX', 0) > 0
+        )
 
     def update_suggestions(self):
         """Query suggestions for the current unit if they are on and it
@@ -242,7 +280,19 @@ class TMController(BaseController):
 
         if self._delay_id:
             GLib.source_remove(self._delay_id)
-        self._delay_id = GLib.timeout_add(self.QUERY_DELAY, start_query)
+        self._start_query = start_query
+        if getattr(self, '_rested', False) and self._answers_ready(self.unit):
+            self._arm(0)
+        else:
+            self._arm(self.QUERY_DELAY)
+
+    def _arm(self, wait):
+        if wait:
+            self._delay_id = GLib.timeout_add(wait, self._start_query)
+        else:
+            # Idle, not now: the unit just left must reach the "This file"
+            # TM first.
+            self._delay_id = GLib.idle_add(self._start_query)
 
     # EVENT HANDLERS #
     def _on_cursor_changed(self, cursor):
@@ -256,6 +306,11 @@ class TMController(BaseController):
         if self.unit is None:
             return
 
+        # Arriving after a rest, not while moving fast.
+        now = time.monotonic()
+        gap = now - getattr(self, '_arrived_at', float('-inf'))
+        self._rested = gap >= self.QUERY_DELAY / 1000
+        self._arrived_at = now
         self.view.summoned = False
         return self.update_suggestions()
 

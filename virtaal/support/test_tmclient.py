@@ -55,7 +55,7 @@ def _make_client(monkeypatch):
     client = TMClient('http://example.com')
     client.user_agent = 'Virtaal/test'
     requests = []
-    monkeypatch.setattr(client, 'add', lambda request: requests.append(request))
+    monkeypatch.setattr(client, 'add', lambda request: requests.append(request) or True)
     return client, requests
 
 
@@ -77,6 +77,19 @@ def test_translate_unit_builds_a_get_request(monkeypatch):
     assert request.user_agent == 'Virtaal/test'
     assert request.params == {'max': '3'}
     assert request.curl.opts[pycurl.TIMEOUT] == 30
+
+
+def test_translate_unit_returns_the_request_it_sent(monkeypatch):
+    client, requests = _make_client(monkeypatch)
+
+    assert client.translate_unit('hello', 'en', 'af') is requests[0]
+
+
+def test_translate_unit_returns_none_for_a_request_it_could_not_queue(monkeypatch):
+    client, _requests = _make_client(monkeypatch)
+    monkeypatch.setattr(client, 'add', lambda request: False)
+
+    assert client.translate_unit('hello', 'en', 'af', lambda *a: None) is None
 
 
 def test_translate_unit_wires_the_callback_with_decoded_json(monkeypatch):

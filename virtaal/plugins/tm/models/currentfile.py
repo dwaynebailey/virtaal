@@ -110,7 +110,9 @@ class TMModel(BaseTMModel):
     display_name = _('Current File')
     description = _('Translated units from the currently open file')
 
-    default_config = {'max_length': 1000}
+    # In-process: nothing to hide, and the unit just left can be a match.
+    PREFETCH_MAX = 0
+    default_config = {'max_length': 1000, 'prefetch': 0}
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):

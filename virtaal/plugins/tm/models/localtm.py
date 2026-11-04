@@ -26,7 +26,9 @@ class TMModel(remotetm.TMModel):
     # l10n: Try to keep this as short as possible.
     shortname = _('Local TM')
 
+    PREFETCH_MAX = 2
     default_config = {
+        "prefetch": 2,
         "tmserver_bind": "localhost",
         "tmserver_port": "55555",
         "tmdb": os.path.join(pan_app.get_config_dir(), "tm.db"),

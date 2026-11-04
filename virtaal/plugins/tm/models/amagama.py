@@ -18,8 +18,10 @@ class TMModel(remotetm.TMModel):
     # l10n: Try to keep this as short as possible.
     shortname = _('Amagama')
 
+    PREFETCH_MAX = 2
     default_config = {
         "url": "https://amagama-live.translatehouse.org/api/v1/",
+        "prefetch": 2,
     }
 
     # INITIALIZERS #

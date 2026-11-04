@@ -919,3 +919,184 @@ def test_update_suggestions_before_a_file_is_open_does_nothing():
     controller = _bare_controller(storecursor=None)
 
     controller.update_suggestions()  # must not raise
+
+
+# Preloading the units ahead #
+
+
+class _PrefetchModel(_FakePlugin):
+    def __init__(self, depth, ceiling=2, in_flight=0, cached=()):
+        super().__init__(PREFETCH_MAX=ceiling)
+        self.depth = depth
+        self.in_flight = in_flight
+        self.cached = set(cached)
+        self.prefetched = []
+
+    def prefetch_depth(self):
+        return self.depth
+
+    def requests_in_flight(self):
+        return self.in_flight
+
+    def prefetch(self, unit):
+        self.prefetched.append(unit.source)
+
+    def has_cached(self, query_str):
+        return query_str in self.cached
+
+
+def _store_unit(source, translated=False):
+    return SimpleNamespace(source=source, istranslated=lambda: translated)
+
+
+def _prefetch_controller(*models, units=None, upcoming=(1, 2)):
+    units = units or [_store_unit(s) for s in ('now', 'next', 'after', 'later')]
+    asked = []
+
+    def upcoming_units(n):
+        asked.append(n)
+        return list(upcoming)[:n]
+
+    controller = _bare_controller(
+        storecursor=SimpleNamespace(model=units, upcoming=upcoming_units),
+        plugin_controller=SimpleNamespace(
+            plugins={'m%d' % i: model for i, model in enumerate(models)}
+        ),
+    )
+    return controller, asked
+
+
+def test_a_query_preloads_each_backends_units_ahead():
+    deep, shallow, off = _PrefetchModel(2), _PrefetchModel(1), _PrefetchModel(0)
+    controller, asked = _prefetch_controller(deep, shallow, off)
+
+    controller._prefetch_upcoming()
+
+    assert asked == [2]  # as far as the deepest backend
+    assert deep.prefetched == ['next', 'after']
+    assert shallow.prefetched == ['next']
+    assert off.prefetched == []
+
+
+def test_preloading_skips_translated_units():
+    model = _PrefetchModel(2)
+    units = [_store_unit('now'), _store_unit('done', translated=True), _store_unit('after')]
+    controller, _asked = _prefetch_controller(model, units=units)
+
+    controller._prefetch_upcoming()
+
+    assert model.prefetched == ['after']
+
+
+def test_preloading_leaves_room_for_real_queries():
+    busy = _PrefetchModel(2, in_flight=TMController.PREFETCH_BUSY + 1)
+    idle = _PrefetchModel(2, in_flight=TMController.PREFETCH_BUSY)
+    controller, _asked = _prefetch_controller(busy, idle)
+
+    controller._prefetch_upcoming()
+
+    assert busy.prefetched == []
+    assert idle.prefetched == ['next', 'after']
+
+
+def test_nothing_is_preloaded_without_a_backend_that_preloads():
+    controller, asked = _prefetch_controller(_PrefetchModel(0))
+
+    controller._prefetch_upcoming()
+
+    assert asked == []
+
+
+def test_nothing_is_preloaded_without_a_file():
+    controller = _bare_controller(storecursor=None)
+
+    controller._prefetch_upcoming()  # must not raise
+
+
+def test_send_tm_query_preloads_after_querying():
+    controller = _bare_controller(unit=SimpleNamespace(source='bye'))
+    controller.view = SimpleNamespace(clear=lambda: None)
+    calls = []
+    controller.emit = lambda *a: calls.append('query')
+    controller._prefetch_upcoming = lambda: calls.append('prefetch')
+
+    controller.send_tm_query()
+
+    assert calls == ['query', 'prefetch']
+
+
+@pytest.mark.parametrize(
+    'cached, expected',
+    [
+        ({'a': ['hello'], 'b': ['hello']}, True),
+        ({'a': ['hello'], 'b': []}, False),
+    ],
+)
+def test_answers_ready_when_every_network_backend_has_them(cached, expected):
+    models = [_PrefetchModel(2, cached=cached['a']), _PrefetchModel(0, cached=cached['b'])]
+    # Backends with nothing to preload answer at once.
+    models.append(_PrefetchModel(0, ceiling=0))
+    controller, _asked = _prefetch_controller(*models)
+
+    assert controller._answers_ready(SimpleNamespace(source='hello')) is expected
+
+
+def _fast_controller(monkeypatch, ready, rested):
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.tm.tmcontroller.GLib.timeout_add',
+        lambda delay, cb: scheduled.append(delay) or 'timeout-id',
+    )
+    monkeypatch.setattr(
+        'virtaal.plugins.tm.tmcontroller.GLib.idle_add',
+        lambda cb: scheduled.append('idle') or 'idle-id',
+    )
+    controller = _controller_for_start_query(unit=SimpleNamespace(source='x'), _rested=rested)
+    controller.main_controller = SimpleNamespace(
+        unit_controller=SimpleNamespace(view=SimpleNamespace(connect=lambda *a: 'sig'))
+    )
+    controller._answers_ready = lambda unit: ready
+    return controller, scheduled
+
+
+@pytest.mark.parametrize(
+    'ready, rested, expected',
+    [
+        (True, True, 'idle'),
+        # After unit-done, so the "This file" TM knows the unit just left.
+        (False, True, TMController.QUERY_DELAY),
+        (True, False, TMController.QUERY_DELAY),  # moving fast: keep quiet
+    ],
+)
+def test_start_query_without_a_wait_when_the_answers_are_ready(
+    monkeypatch, ready, rested, expected
+):
+    controller, scheduled = _fast_controller(monkeypatch, ready, rested)
+
+    controller.start_query()
+
+    assert scheduled == [expected]
+
+
+@pytest.mark.parametrize(
+    'gap, rested',
+    [
+        (TMController.QUERY_DELAY / 1000, True),
+        (TMController.QUERY_DELAY / 1000 - 0.01, False),
+    ],
+)
+def test_on_cursor_changed_tells_a_rest_from_moving_on(monkeypatch, gap, rested):
+    now = [10.0]
+    monkeypatch.setattr('virtaal.plugins.tm.tmcontroller.time.monotonic', lambda: now[0])
+    unit = _store_unit('x')
+    controller = _bare_controller()
+    controller.view = SimpleNamespace(summoned=False)
+    controller.update_suggestions = lambda: None
+    cursor = SimpleNamespace(deref=lambda: unit)
+
+    controller._on_cursor_changed(cursor)
+    assert controller._rested  # the first unit
+    now[0] += gap
+    controller._on_cursor_changed(cursor)
+
+    assert controller._rested is rested

@@ -29,6 +29,8 @@ class HTTPRequest(GObjectWrapper):
         "http-redirect": (GObject.SignalFlags.RUN_LAST, None, (object,)),
         "http-client-error": (GObject.SignalFlags.RUN_LAST, None, (object,)),
         "http-server-error": (GObject.SignalFlags.RUN_LAST, None, (object,)),
+        # No reply at all: a timeout, a refused connection, ...
+        "http-failed": (GObject.SignalFlags.RUN_LAST, None, (object,)),
     }
 
     def __init__(
@@ -203,13 +205,15 @@ class HTTPClient:
         self.user_agent = None
 
     def add(self, request):
-        """add a request to the queue"""
+        """add a request to the queue
+        @returns: False if it was dropped instead."""
         # First ensure that we're not piling up on unanswered requests:
         if len(self.requests) > 15:
-            return
+            return False
         self.curl.add_handle(request.curl)
         self.requests.add(request)
         self.run()
+        return True
 
     def run(self):
         """client should not be running when request queue is empty"""
@@ -230,6 +234,7 @@ class HTTPClient:
         self.curl.remove_handle(fail_tuple[0])
         self.requests.remove(fail_tuple[0].request)
         logging.debug('%s: %s', fail_tuple[0].request.url, fail_tuple[2])
+        fail_tuple[0].request.emit('http-failed', fail_tuple[2])
 
     def perform(self):
         """main event loop function, non blocking execution of all queued requests"""

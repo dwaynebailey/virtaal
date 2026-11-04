@@ -60,6 +60,10 @@ class TMModel(BaseTMModel):
 
     url = "https://www.apertium.org/apy"
 
+    # A volunteer-run server: at most one ahead, and only if turned on.
+    PREFETCH_MAX = 1
+    default_config = {'prefetch': 0}
+
     # INITIALISERS #
     def __init__(self, internal_name, controller):
         self.internal_name = internal_name
@@ -104,6 +108,9 @@ class TMModel(BaseTMModel):
             req.connect(
                 'http-success', lambda req, response: self.got_translation(response, query_str)
             )
+
+    def requests_in_flight(self):
+        return len(self.client.requests)
 
     def _apy_pair(self):
         """The most specific listed APY pair for the current languages, or

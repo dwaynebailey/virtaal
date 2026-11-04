@@ -148,8 +148,12 @@ class _FakeRequest:
     def __init__(self, curl=None, handle_result=None, url='http://example.com'):
         self.curl = curl
         self.url = url
+        self.emitted = []
         if handle_result is not None:
             self.handle_result = handle_result
+
+    def emit(self, signal, *args):
+        self.emitted.append((signal, *args))
 
 
 def test_add_declines_once_the_queue_is_full(monkeypatch):
@@ -158,7 +162,7 @@ def test_add_declines_once_the_queue_is_full(monkeypatch):
     client.requests = {object() for _ in range(16)}
     request = _FakeRequest(curl='handle')
 
-    client.add(request)
+    assert client.add(request) is False
 
     assert request not in client.requests
     assert client.curl.added == []
@@ -172,7 +176,7 @@ def test_add_queues_the_request_and_starts_the_pump(monkeypatch):
     client = _client()
     request = _FakeRequest(curl='handle')
 
-    client.add(request)
+    assert client.add(request) is True
 
     assert request in client.requests
     assert client.curl.added == ['handle']
@@ -245,6 +249,7 @@ def test_perform_closes_a_failed_request_without_calling_handle_result():
 
     assert request not in client.requests
     assert handle in client.curl.removed
+    assert request.emitted == [('http-failed', 'timed out')]
 
 
 def test_close_failed_request_logs_the_url_alongside_the_error(caplog):

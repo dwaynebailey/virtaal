@@ -48,6 +48,8 @@ class Cursor(GObjectWrapper):
         self._last_index = 0
         # A unit the cursor is on without it being in indices - see visit().
         self._visiting = None
+        # The way the last move() went: 1 forward, -1 back.
+        self.direction = 1
 
     # ACCESSORS #
     def _get_pos(self):
@@ -152,6 +154,20 @@ class Cursor(GObjectWrapper):
             logging.debug('Unable to dereference cursor:\n%s' % (exc))
             return None
 
+    def upcoming(self, n):
+        """The indices of the next C{n} units a move in the last move's
+        direction lands on, nearest first, without wrapping."""
+        if n <= 0 or not self._indices:
+            return []
+        if self._visiting is not None:
+            after = bisect_left(self._indices, self._visiting)
+            before = after
+        else:
+            after, before = self._pos + 1, self._pos
+        if self.direction > 0:
+            return list(self._indices[after : after + n])
+        return list(self._indices[max(0, before - n) : before][::-1])
+
     def visit(self, index):
         """Move the cursor to C{index} even if it isn't in C{self.indices},
         without adding it: the next move goes to the nearest unit in
@@ -175,6 +191,8 @@ class Cursor(GObjectWrapper):
         position."""
         if not self._indices:
             return
+        if offset:
+            self.direction = 1 if offset > 0 else -1
         if self._visiting is not None:
             # Offset 1 is the first unit in indices after the visited one.
             after = bisect_left(self._indices, self._visiting)

@@ -19,8 +19,10 @@ class TMModel(BaseTMModel):
     display_name = _('Moses')
     description = _('Unreviewed machine translations from a Moses server')
 
+    PREFETCH_MAX = 2
     default_config = {
         "fr->en": "http://localhost:8080",
+        "prefetch": 2,
     }
 
     # INITIALIZERS #
@@ -39,6 +41,8 @@ class TMModel(BaseTMModel):
         client_map = {}
         for lang_pair, server in self.config.items():
             pair = lang_pair.split("->")
+            if len(pair) != 2:
+                continue
             if self.clients.get(pair[0]) is None:
                 self.clients[pair[0]] = {}
             if server in client_map:
@@ -60,6 +64,10 @@ class TMModel(BaseTMModel):
             client = self.clients[self.source_lang][self.target_lang]
             client.translate_unit(query_str, self._handle_response, self.target_lang)
             return
+
+    def requests_in_flight(self):
+        clients = {id(c): c for targets in self.clients.values() for c in targets.values()}
+        return sum(len(c.requests) for c in clients.values())
 
     def _handle_response(self, id, response):
         if not response:

@@ -15,6 +15,9 @@ class TMModel(BaseTMModel):
     display_name = _('Dummy TM provider for testing')
     description = _('A translation memory suggestion providers that is only useful for testing')
 
+    PREFETCH_MAX = 0
+    default_config = {'prefetch': 0}
+
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
         self.internal_name = internal_name

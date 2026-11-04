@@ -140,6 +140,32 @@ class TestTMStartup(TestScaffolding):
         assert server.wait(timeout=10) != 0
         assert queried == []
 
+    def test_a_query_preloads_the_next_units_needing_work(self):
+        controller = self._controller('amagama')
+        model = controller.plugin_controller.plugins['amagama']
+        sent = []
+        model.tmclient.translate_unit = lambda query_str, *args: sent.append(query_str)
+        cursor = self.store_controller.cursor
+        controller.storecursor = cursor
+        cursor.pos = 0
+        units = self.store_controller.get_store().get_units()
+        ahead = [units[i] for i in cursor.upcoming(2)]
+
+        controller.send_tm_query(cursor.deref())
+
+        assert sent == [cursor.deref().source] + [u.source for u in ahead if not u.istranslated()]
+        assert len(sent) > 1
+
+    def test_the_preload_depth_comes_from_tm_ini(self):
+        (self.config_dir / 'tm.ini').write_text(
+            '[amagama]\nprefetch = 1\n[localtm]\nprefetch = 0\n'
+        )
+
+        plugins = self._controller('amagama', 'localtm').plugin_controller.plugins
+
+        assert plugins['amagama'].prefetch_depth() == 1
+        assert plugins['localtm'].prefetch_depth() == 0
+
     def test_closing_saves_each_models_config(self):
         controller = self._controller('currentfile')
 
@@ -158,6 +184,7 @@ class TestTMStartup(TestScaffolding):
         controller.view.mnu_suggestions.set_active(False)
         controller.unit = self._unit('PROFILE')
         controller.unit.target = 'PROFIEL'
+        controller._rested = False  # a wait, not a query at once
         controller.start_query()
         pending = controller._delay_id
 
