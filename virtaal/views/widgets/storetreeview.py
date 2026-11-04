@@ -63,6 +63,8 @@ class StoreTreeView(Gtk.TreeView):
         self._estimated_unit_ids = set()
         self._visible_range_cache = None  # see get_cached_visible_range()
         self._revalidate_scheduled = False
+        # GTK's own cursor moves while this is set aren't the store's.
+        self._updating_rows = False
         self.connect('notify::vadjustment', self._on_vadjustment_notify)
 
     def _install_callbacks(self):
@@ -280,7 +282,15 @@ class StoreTreeView(Gtk.TreeView):
             model = StoreTreeModel(storemodel, rows)
         else:
             model = None
-        super().set_model(model)
+        # GTK resets its own cursor inside set_model(), and the store's
+        # cursor may still be the previous file's. Moving that one starts
+        # an edit mid-set_model(), which crashed GTK 3.24.33's
+        # accessibility code.
+        updating_rows, self._updating_rows = self._updating_rows, True
+        try:
+            super().set_model(model)
+        finally:
+            self._updating_rows = updating_rows
 
     # Beyond this many rows changing, rebuilding the model is cheaper than
     # a row-inserted/row-deleted signal per row.
