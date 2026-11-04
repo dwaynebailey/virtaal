@@ -27,6 +27,12 @@ SOURCES = [
         'Google',
         'https://cloud.google.com/terms',
     ),
+    (
+        'virtaal.plugins.tm.models.microsoft_translator',
+        'TMModel',
+        'Microsoft',
+        'https://learn.microsoft.com/legal/cognitive-services/translator/data-privacy-security',
+    ),
     # A server the user runs or picks themselves.
     ('virtaal.plugins.tm.models.moses', 'TMModel', None, None),
     ('virtaal.plugins.tm.models.remotetm', 'TMModel', None, None),

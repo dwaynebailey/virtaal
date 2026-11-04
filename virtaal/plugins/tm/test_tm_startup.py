@@ -26,6 +26,7 @@ MODELS = [
     'deepl',
     'google_translate',
     'localtm',
+    'microsoft_translator',
     'moses',
     'remotetm',
 ]
@@ -182,6 +183,14 @@ class TestTMStartup(TestScaffolding):
 
     def test_deepl_without_an_api_key_never_queries(self):
         model = self._controller('deepl').plugin_controller.plugins['deepl']
+
+        assert model.client is None
+        assert self._matches(model, 'hello') == []
+
+    def test_microsoft_translator_without_an_api_key_never_queries(self):
+        model = self._controller('microsoft_translator').plugin_controller.plugins[
+            'microsoft_translator'
+        ]
 
         assert model.client is None
         assert self._matches(model, 'hello') == []

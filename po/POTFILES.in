@@ -39,6 +39,7 @@ virtaal/plugins/tm/models/currentfile.py
 virtaal/plugins/tm/models/deepl.py
 virtaal/plugins/tm/models/google_translate.py
 virtaal/plugins/tm/models/localtm.py
+virtaal/plugins/tm/models/microsoft_translator.py
 virtaal/plugins/tm/models/moses.py
 virtaal/plugins/tm/models/remotetm.py
 virtaal/plugins/tm/tmview.py

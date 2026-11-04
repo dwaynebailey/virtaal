@@ -110,7 +110,8 @@ def prepare_home(root):
     with open(os.path.join(conf, 'plugins.ini'), 'w', encoding='utf-8') as f:
         f.write(
             '[terminology]\ndisabled_models = autoterm,pontoon\n'
-            '[tm]\ndisabled_models = _dummytm,remotetm,apertium,google_translate,moses,amagama,deepl\n'
+            '[tm]\ndisabled_models = _dummytm,remotetm,apertium,google_translate,moses,amagama,deepl,'
+            'microsoft_translator\n'
             '[lookup]\ndisabled_models = thesaurus\n'
         )
     glossary = os.path.join(conf, 'terminology.po')

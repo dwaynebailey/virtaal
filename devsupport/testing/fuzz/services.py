@@ -168,7 +168,16 @@ def configure(service, url, conf):
     def set_option(name, section, key, value):
         _set_option(conf, name, section, key, value)
 
-    tm_off = {'_dummytm', 'remotetm', 'apertium', 'google_translate', 'moses', 'amagama', 'deepl'}
+    tm_off = {
+        '_dummytm',
+        'remotetm',
+        'apertium',
+        'google_translate',
+        'moses',
+        'amagama',
+        'deepl',
+        'microsoft_translator',
+    }
     model = {
         'amagama': 'amagama',
         'remotetm': 'remotetm',
