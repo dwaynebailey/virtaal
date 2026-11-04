@@ -16,6 +16,12 @@ SOURCES = [
     ('virtaal.plugins.tm.models.amagama', 'TMModel', 'amaGama', None),
     ('virtaal.plugins.tm.models.apertium', 'TMModel', 'Apertium', None),
     (
+        'virtaal.plugins.tm.models.deepl',
+        'TMModel',
+        'DeepL',
+        'https://www.deepl.com/pro-license',
+    ),
+    (
         'virtaal.plugins.tm.models.google_translate',
         'TMModel',
         'Google',

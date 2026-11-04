@@ -23,6 +23,7 @@ MODELS = [
     'amagama',
     'apertium',
     'currentfile',
+    'deepl',
     'google_translate',
     'localtm',
     'moses',
@@ -177,6 +178,12 @@ class TestTMStartup(TestScaffolding):
         model = self._controller('google_translate').plugin_controller.plugins['google_translate']
 
         assert not hasattr(model, 'client')
+        assert self._matches(model, 'hello') == []
+
+    def test_deepl_without_an_api_key_never_queries(self):
+        model = self._controller('deepl').plugin_controller.plugins['deepl']
+
+        assert model.client is None
         assert self._matches(model, 'hello') == []
 
     def test_turning_suggestions_off_cancels_a_pending_query(self):

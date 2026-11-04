@@ -36,6 +36,7 @@ virtaal/plugins/tm/__init__.py
 virtaal/plugins/tm/models/amagama.py
 virtaal/plugins/tm/models/apertium.py
 virtaal/plugins/tm/models/currentfile.py
+virtaal/plugins/tm/models/deepl.py
 virtaal/plugins/tm/models/google_translate.py
 virtaal/plugins/tm/models/localtm.py
 virtaal/plugins/tm/models/moses.py

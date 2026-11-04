@@ -54,7 +54,7 @@ def test_every_backend_decides_whether_it_may_preload():
     # Inheriting a decision isn't making one.
     assert 'PREFETCH_MAX' not in BaseTMModel.__dict__
     backends = dict(_backends())
-    assert len(backends) == 8
+    assert len(backends) == 9
     for name, cls in backends.items():
         assert 'PREFETCH_MAX' in cls.__dict__, name
         assert 0 <= cls.PREFETCH_MAX <= 2, name
@@ -72,6 +72,7 @@ def test_preload_policy_per_backend():
         'amagama': (2, 2),
         'apertium': (1, 0),
         'currentfile': (0, 0),
+        'deepl': (2, 0),
         'google_translate': (2, 0),
         'localtm': (2, 2),
         'moses': (2, 2),

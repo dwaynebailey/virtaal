@@ -52,7 +52,7 @@ SKIP_ITEMS = ("mnu_quit",)
 # and local terminology stay.
 OFFLINE_PLUGINS = """\
 [tm]
-disabled_models = _dummytm,remotetm,apertium,google_translate,moses,amagama
+disabled_models = _dummytm,remotetm,apertium,google_translate,moses,amagama,deepl
 [terminology]
 disabled_models = autoterm,pontoon
 """

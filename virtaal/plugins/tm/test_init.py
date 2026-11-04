@@ -52,6 +52,7 @@ def test_init_plugin_parses_the_default_config(monkeypatch):
         'apertium',
         'google_translate',
         'moses',
+        'deepl',
     ]
     assert captured['config']['max_matches'] == 5
     assert captured['config']['min_quality'] == 70
@@ -68,6 +69,7 @@ def test_init_plugin_disables_amagama_under_ci(monkeypatch):
         'apertium',
         'google_translate',
         'moses',
+        'deepl',
         'amagama',
     ]
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-04 00:57+0000\n"
+"POT-Creation-Date: 2026-11-04 01:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1577,6 +1577,15 @@ msgstr ""
 #. l10n: Try to keep this as short as possible.
 #: virtaal/plugins/tm/models/currentfile.py
 msgid "This file"
+msgstr ""
+
+#. l10n: Try to keep this as short as possible. Feel free to transliterate.
+#: virtaal/plugins/tm/models/deepl.py
+msgid "DeepL"
+msgstr ""
+
+#: virtaal/plugins/tm/models/deepl.py
+msgid "Unreviewed machine translations from DeepL"
 msgstr ""
 
 #. l10n: The name of Google Translate in your language (translated in most languages). See http://translate.google.com/
