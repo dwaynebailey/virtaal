@@ -1074,3 +1074,26 @@ def test_unit_done_with_no_file_open_does_nothing():
     controller = _controller()
 
     controller._unit_done(None, object(), True)  # must not raise
+
+
+def test_arriving_marks_the_moves_made_inside():
+    controller = StoreController.__new__(StoreController)
+    seen = []
+
+    with controller.arriving('step'):
+        seen.append(controller.arrival)
+        with controller.arriving('jump'):
+            seen.append(controller.arrival)
+        seen.append(controller.arrival)
+
+    assert seen == ['step', 'jump', 'step']
+    assert controller.arrival is None
+
+
+def test_arriving_ends_when_the_move_raises():
+    controller = StoreController.__new__(StoreController)
+
+    with pytest.raises(ValueError), controller.arriving('click'):
+        raise ValueError
+
+    assert controller.arrival is None

@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import os
+from contextlib import contextmanager
 
 from gi.repository import GObject
 
@@ -27,6 +28,12 @@ class StoreController(BaseController):
         # The quality check failures (store.checks) changed.
         'checks-changed': (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
+
+    arrival = None
+    """How the cursor is being moved, while it is: 'commit' (Enter and the
+        like), 'step' (a navigation key), 'click', 'jump' (to a search
+        match, the first or last unit, or a new mode) or 'typing' (a search
+        being typed). See arriving()."""
 
     # INITIALIZERS #
     def __init__(self, main_controller):
@@ -51,6 +58,15 @@ class StoreController(BaseController):
     def destroy(self):
         if self.project:
             del self.project
+
+    @contextmanager
+    def arriving(self, kind):
+        """Mark the cursor moves made inside as arrivals of kind."""
+        previous, self.arrival = self.arrival, kind
+        try:
+            yield
+        finally:
+            self.arrival = previous
 
     # ACCESSORS #
 

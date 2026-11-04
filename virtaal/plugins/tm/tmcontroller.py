@@ -5,11 +5,14 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import logging
+import os
 import time
 
 from gi.repository import GLib, GObject
 from translate.lang.data import normalize
 
+from virtaal.common import pan_app
 from virtaal.controllers.basecontroller import BaseController
 from virtaal.support.translate_compat import forceunicode
 
@@ -23,6 +26,15 @@ class TMController(BaseController):
     QUERY_DELAY = 300
     """The delay after a unit is selected (C{Cursor}'s "cursor-changed" event)
         before the TM is queried."""
+
+    TAP_GRACE = 150
+    """After a navigation key is let go, how long another tap may follow
+        before the TM is queried."""
+
+    # A key move this soon after the last, with no key let go between,
+    # is a held key's repeat. From the desktop's key repeat timing.
+    burst_threshold = QUERY_DELAY
+    tap_grace = TAP_GRACE
 
     PREFETCH_BUSY = 4
     """Preload nothing for a backend with more requests than this
@@ -48,6 +60,7 @@ class TMController(BaseController):
 
         self.storecursor = None
         self.view = TMView(self, self.max_matches)
+        self._load_timing()
         self._load_models()
 
         self._connect_plugin()
@@ -71,12 +84,42 @@ class TMController(BaseController):
                 'context-selected', self._on_context_selected
             )
 
+        # How a unit was reached decides when its suggestions show.
+        window = getattr(getattr(self.main_controller, 'view', None), 'main_window', None)
+        if window is not None:
+            self._release_ids = [
+                window.connect(signal, self._on_release)
+                for signal in ('key-release-event', 'button-release-event')
+            ]
+
         lang_controller = getattr(self.main_controller, 'lang_controller', None)
         if lang_controller is not None:
             self._lang_changed_ids = [
                 lang_controller.connect(signal, self._on_lang_changed)
                 for signal in ('source-lang-changed', 'target-lang-changed')
             ]
+
+    def _load_timing(self):
+        """Read the burst threshold (from the desktop's key repeat timing)
+        and tap grace, either set in tm.ini's [suggestions]."""
+        from virtaal.support import keyrepeat
+
+        config_file = os.path.join(pan_app.get_config_dir(), 'tm.ini')
+        config = pan_app.load_config(config_file, 'suggestions')
+        timing = keyrepeat.repeat_timing()
+        burst = sum(timing) if timing else self.QUERY_DELAY
+        self.burst_threshold = pan_app.config_int(
+            config.get('burst_threshold', burst), burst, 0, 5000, 'burst_threshold'
+        )
+        self.tap_grace = pan_app.config_int(
+            config.get('tap_grace', self.TAP_GRACE), self.TAP_GRACE, 0, 5000, 'tap_grace'
+        )
+        logging.debug(
+            'TM: key repeat %s; bursts within %d ms, tap grace %d ms',
+            timing,
+            self.burst_threshold,
+            self.tap_grace,
+        )
 
     def _load_models(self):
         from virtaal.controllers.plugincontroller import PluginController
@@ -168,6 +211,8 @@ class TMController(BaseController):
             self.main_controller.unit_controller.view.disconnect(self._target_focused_id)
         for signal_id in getattr(self, '_lang_changed_ids', []):
             self.main_controller.lang_controller.disconnect(signal_id)
+        for signal_id in getattr(self, '_release_ids', []):
+            self.main_controller.view.main_window.disconnect(signal_id)
         if getattr(self, '_popup_toggled_id', None):
             self.main_controller.unit_controller.view.disconnect(self._popup_toggled_id)
 
@@ -195,6 +240,13 @@ class TMController(BaseController):
         self.target_n = getattr(unit_view, 'focused_target_n', None) or 0
         self.matches = []
         self.view.clear()
+        if getattr(self, '_arrival_pending', False):
+            self._arrival_pending = False
+            logging.debug(
+                'TM: query %d ms after a %s arrival',
+                (time.monotonic() - self._arrived_at) * 1000,
+                self._arrival,
+            )
         self.emit('start-query', self.unit)
         self._prefetch_upcoming()
 
@@ -281,10 +333,24 @@ class TMController(BaseController):
         if self._delay_id:
             GLib.source_remove(self._delay_id)
         self._start_query = start_query
-        if getattr(self, '_rested', False) and self._answers_ready(self.unit):
-            self._arm(0)
+        kind = self._arrival if getattr(self, '_arrival_pending', False) else None
+        # The wait now, and the wait from when a key or button is let go.
+        self._release_wait = None
+        if kind == 'commit':
+            wait = 0
+        elif kind == 'step':
+            # A tap can't be told from the start of a held key until it is
+            # let go, or would have repeated.
+            wait, self._release_wait = self.burst_threshold, self.tap_grace
+        elif kind == 'burst':
+            wait, self._release_wait = self.QUERY_DELAY, self.QUERY_DELAY
+        elif kind in ('click', 'jump'):
+            wait, self._release_wait = self.QUERY_DELAY, 0
+        elif kind is None and getattr(self, '_rested', False) and self._answers_ready(self.unit):
+            wait = 0
         else:
-            self._arm(self.QUERY_DELAY)
+            wait = self.QUERY_DELAY
+        self._arm(wait)
 
     def _arm(self, wait):
         if wait:
@@ -311,6 +377,22 @@ class TMController(BaseController):
         gap = now - getattr(self, '_arrived_at', float('-inf'))
         self._rested = gap >= self.QUERY_DELAY / 1000
         self._arrived_at = now
+        main_controller = getattr(self, 'main_controller', None)
+        kind = getattr(getattr(main_controller, 'store_controller', None), 'arrival', None)
+        if kind in ('step', 'commit'):
+            last = getattr(self, '_key_moved_at', None)
+            if (
+                last is not None
+                and not getattr(self, '_released', True)
+                and (now - last) * 1000 < self.burst_threshold
+            ):
+                kind = 'burst'
+            self._key_moved_at = now
+            self._released = False
+        else:
+            self._key_moved_at = None
+        self._arrival, self._arrival_pending = kind, True
+        logging.debug('TM: %s arrival, %.0f ms after the last', kind, gap * 1000)
         self.view.summoned = False
         return self.update_suggestions()
 
@@ -343,6 +425,7 @@ class TMController(BaseController):
             self.storecursor.disconnect(self._cursor_changed_id)
         self.storecursor = None
         self._cursor_changed_id = 0
+        self._arrival_pending, self._release_wait = False, None
         self.view.hide()
 
     def _on_store_loaded(self, storecontroller):
@@ -359,6 +442,18 @@ class TMController(BaseController):
             return False
 
         GLib.idle_add(handle_first_unit)
+
+    def _on_release(self, _widget, event):
+        self._released = True
+        wait = getattr(self, '_release_wait', None)
+        if wait is not None and getattr(self, '_delay_id', None):
+            logging.debug(
+                'TM: let go (keyval %s); query in %d ms', getattr(event, 'keyval', '-'), wait
+            )
+            self._release_wait = None
+            GLib.source_remove(self._delay_id)
+            self._arm(wait)
+        return False
 
     def _on_editor_popup_toggled(self, unit_view, showing):
         if showing:

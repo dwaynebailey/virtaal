@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+from contextlib import contextmanager
 from types import SimpleNamespace
 
 import gi
@@ -17,6 +18,19 @@ from virtaal.views.widgets.storetreemodel import StoreTreeModel
 from virtaal.views.widgets.storetreeview import StoreTreeView
 
 
+class _Arrivals:
+    """A store controller's arriving(), noting each move's kind."""
+
+    def __init__(self):
+        self.arrival = None
+
+    @contextmanager
+    def arriving(self, kind):
+        self.arrival = kind
+        yield
+        self.arrival = None
+
+
 def _real_storetreeview():
     """A real StoreTreeView, built the same way the app does - the menu
     accelerator wiring in _install_callbacks() needs a real Gtk.Builder
@@ -24,9 +38,9 @@ def _real_storetreeview():
     builder = Gtk.Builder()
     builder.add_from_file('share/virtaal/virtaal.ui')
     mainview = SimpleNamespace(gui=builder)
-    fake_view = SimpleNamespace(
-        controller=SimpleNamespace(main_controller=SimpleNamespace(view=mainview))
-    )
+    controller = _Arrivals()
+    controller.main_controller = SimpleNamespace(view=mainview)
+    fake_view = SimpleNamespace(controller=controller)
     return StoreTreeView(fake_view)
 
 
@@ -402,11 +416,10 @@ def _make_move_view(cursor_move, monkeypatch, timeout_calls=None):
         cursor.index += offset
 
     cursor.move = move
+    controller = _Arrivals()
+    controller.get_store = lambda: object()
     view = SimpleNamespace(
-        view=SimpleNamespace(
-            controller=SimpleNamespace(get_store=lambda: object()),
-            cursor=cursor,
-        ),
+        view=SimpleNamespace(controller=controller, cursor=cursor),
         _waiting_for_row_change=0,
         _pending_move_offset=0,
         _pending_move_advances=False,
@@ -519,6 +532,19 @@ def test_on_move_throttle_stops_once_caught_up():
     assert view._move_throttle_id is None
 
 
+def test_keyboard_moves_say_how_the_unit_was_reached(monkeypatch):
+    kinds = []
+    view = _make_move_view(lambda offset: kinds.append(controller.arrival), monkeypatch, [])
+    controller = view.view.controller
+
+    StoreTreeView._keyboard_move(view, 1)
+    view._move_throttle_id = None
+    StoreTreeView._keyboard_move(view, 1, advance=True)
+
+    assert kinds == ['step', 'commit']
+    assert controller.arrival is None
+
+
 def test_move_methods_delegate_to_keyboard_move_with_the_right_offset():
     calls = []
     view = SimpleNamespace(_keyboard_move=calls.append)
@@ -540,18 +566,13 @@ def _make_jump_view(indices, index):
     cursor = Cursor(None, indices, circular=False)
     cursor.index = index
     finished = []
+    controller = _Arrivals()
+    controller.get_store = lambda: object()
+    controller.main_controller = SimpleNamespace(
+        unit_controller=SimpleNamespace(finish_current_unit=lambda: finished.append('finish'))
+    )
     view = SimpleNamespace(
-        view=SimpleNamespace(
-            controller=SimpleNamespace(
-                get_store=lambda: object(),
-                main_controller=SimpleNamespace(
-                    unit_controller=SimpleNamespace(
-                        finish_current_unit=lambda: finished.append('finish')
-                    )
-                ),
-            ),
-            cursor=cursor,
-        ),
+        view=SimpleNamespace(controller=controller, cursor=cursor),
         _waiting_for_row_change=0,
         _pending_move_offset=0,
         _pending_move_advances=False,
@@ -570,6 +591,16 @@ def test_keyboard_jump_moves_to_the_ends_of_the_navigation_list():
     StoreTreeView._keyboard_jump(view, last=False)
     assert cursor.index == 2
     assert finished == []
+
+
+def test_keyboard_jump_is_a_jump():
+    view, cursor, _finished = _make_jump_view([2, 5, 8], 5)
+    kinds = []
+    cursor.connect('cursor-changed', lambda c: kinds.append(view.view.controller.arrival))
+
+    StoreTreeView._keyboard_jump(view, last=True)
+
+    assert kinds == ['jump']
 
 
 def test_keyboard_jump_to_the_unit_already_there_does_nothing():
@@ -653,7 +684,9 @@ def test_on_button_press_visits_the_clicked_row_staying_in_the_mode():
     view.get_model().store_index_to_path = lambda i: (i,)
     view.get_model().path_to_store_index = lambda p: p[0]
     visited = []
-    view.view.cursor = SimpleNamespace(visit=visited.append)
+    view.view.cursor = SimpleNamespace(
+        visit=lambda i: visited.append((i, view.view.controller.arrival))
+    )
     event = SimpleNamespace(window=view.get_bin_window(), x=5.0, y=5.0)
     monkeypatch_get_path_at_pos = (Gtk.TreePath((1,)), view.get_columns()[0], 0, 0)
     view.get_path_at_pos = lambda x, y: monkeypatch_get_path_at_pos
@@ -661,7 +694,7 @@ def test_on_button_press_visits_the_clicked_row_staying_in_the_mode():
 
     StoreTreeView._on_button_press(view, view, event)
 
-    assert visited == [1]
+    assert visited == [(1, 'click')]
 
 
 def test_on_button_press_does_nothing_extra_when_the_row_is_unchanged():

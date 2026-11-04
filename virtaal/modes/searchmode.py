@@ -554,8 +554,12 @@ class SearchMode(BaseMode):
             self.update_search()
             return
 
-        self.matchcursor.move(offset)
-        self.select_match(self.matches[self.matchcursor.index])
+        with self._arriving('jump'):
+            self.matchcursor.move(offset)
+            self.select_match(self.matches[self.matchcursor.index])
+
+    def _arriving(self, kind):
+        return self.controller.main_controller.store_controller.arriving(kind)
 
     def _replace_all(self):
         self.controller.main_controller.undo_controller.record_start()
@@ -620,10 +624,13 @@ class SearchMode(BaseMode):
             elif self.filter.re_search:
                 # If there is no current search, we don't want to advance and
                 # give the impression that we replaced something (bug 1636)
-                self.storecursor.move(1)
+                with self._arriving('commit'):
+                    self.storecursor.move(1)
 
         self._cancel_search_timeout()
-        self.update_search()
+        # Moves on if the unit no longer matches.
+        with self._arriving('commit'):
+            self.update_search()
 
     def _on_search_clicked(self, btn):
         self._move_match(1)
@@ -644,7 +651,11 @@ class SearchMode(BaseMode):
 
     def _on_search_text_changed(self, entry):
         self._cancel_search_timeout()
-        self._search_timeout = GLib.timeout_add(self.SEARCH_DELAY, self.update_search)
+        self._search_timeout = GLib.timeout_add(self.SEARCH_DELAY, self._update_search_as_typed)
+
+    def _update_search_as_typed(self):
+        with self._arriving('typing'):
+            return self.update_search()
 
     def _on_start_search(self, _accel_group, _acceleratable, _keyval, _modifier):
         """F3: unlike a menu item's shortcut, this fires with no file open too."""

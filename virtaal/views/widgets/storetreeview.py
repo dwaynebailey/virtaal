@@ -344,7 +344,8 @@ class StoreTreeView(Gtk.TreeView):
         offset, self._pending_move_offset = self._pending_move_offset, 0
         advance, self._pending_move_advances = self._pending_move_advances, False
         old_index = self.view.cursor.index
-        self.view.cursor.move(offset)
+        with self.view.controller.arriving('commit' if advance else 'step'):
+            self.view.cursor.move(offset)
         if advance and offset and old_index >= 0 and self.view.cursor.index == old_index:
             # Enter at the first or last unit, or in a navigation list of
             # one: finish the unit anyway, so its workflow state is
@@ -383,7 +384,8 @@ class StoreTreeView(Gtk.TreeView):
         # Replaces any repeats still waiting for the next throttle tick.
         self._pending_move_offset = 0
         self._pending_move_advances = False
-        cursor.index = cursor.indices[-1] if last else cursor.indices[0]
+        with self.view.controller.arriving('jump'):
+            cursor.index = cursor.indices[-1] if last else cursor.indices[0]
         return True
 
     def _move_first(self, _accel_group, _acceleratable, _keyval, _modifier):
@@ -412,7 +414,8 @@ class StoreTreeView(Gtk.TreeView):
         if old_path != path:
             index = self.get_model().path_to_store_index(path)
             # A unit outside the mode's list is visited, staying in the mode.
-            self.view.cursor.visit(index)
+            with self.view.controller.arriving('click'):
+                self.view.cursor.visit(index)
 
         return True
 

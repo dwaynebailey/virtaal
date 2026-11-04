@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import re
+from contextlib import contextmanager, nullcontext
 from types import SimpleNamespace
 
 import pytest
@@ -227,6 +228,7 @@ def test_move_match_researches_with_no_matchcursor_yet_then_selects():
     mode._cancel_search_timeout = lambda: calls.append('cancel')
     mode.update_search = fake_update_search
     mode.select_match = lambda m: calls.append(('select', m))
+    mode._arriving = lambda kind: nullcontext()
 
     mode._move_match(1)
 
@@ -256,10 +258,19 @@ def test_move_match_moves_and_selects_when_matches_are_fresh():
     mode.matchcursor = SimpleNamespace(index=0, move=lambda offset: moved.append(offset))
     selected = []
     mode.select_match = lambda m: selected.append(m)
+    kinds = []
+
+    @contextmanager
+    def arriving(kind):
+        kinds.append(kind)
+        yield
+
+    mode._arriving = arriving
 
     mode._move_match(1)
 
     assert moved == [1]
+    assert kinds == ['jump']
     assert selected == [match_obj]
 
 
@@ -503,6 +514,7 @@ def _replace_clicked_mode(**overrides):
     mode.filter = SimpleNamespace(re_search=None)
     mode._cancel_search_timeout = lambda: None
     mode.update_search = lambda: None
+    mode._arriving = lambda kind: nullcontext()
     for name, value in overrides.items():
         setattr(mode, name, value)
     return mode
@@ -1281,6 +1293,22 @@ def test_on_search_focus_in_does_nothing_without_a_recorded_position(monkeypatch
     assert idle_calls == []
 
 
+def test_a_search_as_typed_is_marked_as_typing():
+    mode = SearchMode.__new__(SearchMode)
+    kinds = []
+
+    @contextmanager
+    def arriving(kind):
+        kinds.append(kind)
+        yield
+
+    mode._arriving = arriving
+    mode.update_search = lambda: kinds.append('search')
+
+    assert mode._update_search_as_typed() is None
+    assert kinds == ['typing', 'search']
+
+
 def test_on_search_text_changed_cancels_the_previous_timeout_and_schedules_a_new_one(monkeypatch):
     mode = SearchMode.__new__(SearchMode)
     mode._search_timeout = 111
@@ -1295,7 +1323,7 @@ def test_on_search_text_changed_cancels_the_previous_timeout_and_schedules_a_new
     mode._on_search_text_changed(SimpleNamespace())
 
     assert removed == [111]
-    assert scheduled == [(SearchMode.SEARCH_DELAY, mode.update_search)]
+    assert scheduled == [(SearchMode.SEARCH_DELAY, mode._update_search_as_typed)]
     assert mode._search_timeout == 222
 
 
