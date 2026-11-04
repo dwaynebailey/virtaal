@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-10-31 14:30+0000\n"
+"POT-Creation-Date: 2026-11-04 00:41+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2063,11 +2063,11 @@ msgstr ""
 msgid "_New Language Pair…"
 msgstr ""
 
-#: virtaal/views/mainview.py
+#: virtaal/views/mainview.py virtaal/views/widgets/settingsdialog.py
 msgid "_Cancel"
 msgstr ""
 
-#: virtaal/views/mainview.py
+#: virtaal/views/mainview.py virtaal/views/widgets/settingsdialog.py
 msgid "_OK"
 msgstr ""
 
@@ -2378,6 +2378,16 @@ msgstr ""
 
 #: virtaal/views/widgets/selectview.py
 msgid "Configure…"
+msgstr ""
+
+#. l10n: The key a machine translation service gives each user
+#: virtaal/views/widgets/settingsdialog.py
+msgid "API _key:"
+msgstr ""
+
+#. l10n: Shows the API key's characters instead of dots
+#: virtaal/views/widgets/settingsdialog.py
+msgid "_Show key"
 msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py

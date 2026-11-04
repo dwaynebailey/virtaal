@@ -12,6 +12,7 @@ from urllib.parse import quote_plus
 import pycurl
 
 from virtaal.support.httpclient import HTTPClient, RESTRequest
+from virtaal.views.widgets.settingsdialog import api_key_field
 
 from .basetmmodel import BaseTMModel, unescape_html_entities
 
@@ -41,6 +42,7 @@ class TMModel(BaseTMModel):
     # Billed per character: off unless turned on.
     PREFETCH_MAX = 2
     default_config = {'api_key': '', 'prefetch': 0}
+    settings = (api_key_field(),)
 
     translate_url = "https://www.googleapis.com/language/translate/v2?key=%(key)s&q=%(message)s&source=%(from)s&target=%(to)s"
     languages_url = "https://www.googleapis.com/language/translate/v2/languages?key=%(key)s"
@@ -50,19 +52,38 @@ class TMModel(BaseTMModel):
         self.internal_name = internal_name
         super().__init__(controller)
         self.load_config()
+        self._start()
+
+    def _start(self):
+        """Fetch the languages the configured key may use, if any."""
         if not self.config['api_key']:
             self._disable_all("An API key is needed to use the Google Translate plugin")
             return
-        self.client = HTTPClient()
+        if getattr(self, 'client', None) is None:
+            self.client = HTTPClient()
         self._languages = set()
         self.languages_known = False
-        langreq = RESTRequest(self.languages_url % {'key': self.config['api_key']}, '')
+        key = self.config['api_key']
+        langreq = RESTRequest(self.languages_url % {'key': key}, '')
         self.client.add(langreq)
-        langreq.connect('http-success', lambda langreq, response: self.got_languages(response))
+        langreq.connect('http-success', self._for_key(key, self.got_languages))
         for signal in ('http-client-error', 'http-server-error'):
-            langreq.connect(signal, lambda langreq, status: self.got_error(status, None))
+            langreq.connect(signal, self._for_key(key, lambda status: self.got_error(status, None)))
+
+    def _for_key(self, key, handler):
+        """A signal handler calling handler(value), unless the key changed since."""
+
+        def on_reply(request, value):
+            if key == self.config['api_key']:
+                handler(value)
+
+        return on_reply
 
     # METHODS #
+    def apply_settings(self):
+        self.cache = {}
+        self._start()
+
     def query(self, tmcontroller, unit):
         if not self.hold_until_languages_known(tmcontroller, unit):
             return
@@ -91,15 +112,15 @@ class TMModel(BaseTMModel):
             self.client.add(req)
             # Google's Terms of Service says we need a proper HTTP referrer
             req.curl.setopt(pycurl.REFERER, virtaal_referrer)
+            key = self.config['api_key']
             req.connect(
-                'http-success', lambda req, response: self.got_translation(response, query_str)
+                'http-success',
+                self._for_key(key, lambda response: self.got_translation(response, query_str)),
             )
-            req.connect(
-                'http-client-error', lambda req, response: self.got_error(response, query_str)
-            )
-            req.connect(
-                'http-server-error', lambda req, response: self.got_error(response, query_str)
-            )
+            for signal in ('http-client-error', 'http-server-error'):
+                req.connect(
+                    signal, self._for_key(key, lambda response: self.got_error(response, query_str))
+                )
 
     def requests_in_flight(self):
         client = getattr(self, 'client', None)

@@ -58,5 +58,6 @@ virtaal/views/widgets/langadddialog.py
 virtaal/views/widgets/langselectdialog.py
 virtaal/views/widgets/selectdialog.py
 virtaal/views/widgets/selectview.py
+virtaal/views/widgets/settingsdialog.py
 virtaal/views/widgets/shortcutswindow.py
 virtaal/views/widgets/welcomescreen.py

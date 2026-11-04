@@ -162,3 +162,24 @@ def test_init_keeps_a_config_loaded_before_it(monkeypatch):
     BaseTMModel.__init__(model, fake_controller())
 
     assert model.config == {'prefetch': '1'}
+
+
+# configure() (#1519)
+
+
+@pytest.mark.parametrize('values', [None, {'api_key': 'new'}])
+def test_configure_saves_only_what_the_dialog_returns(monkeypatch, values):
+    from virtaal.views.widgets import settingsdialog
+
+    monkeypatch.setattr(settingsdialog.SettingsDialog, 'run', lambda self: values)
+    updated = []
+    model = SimpleNamespace(
+        display_name='Some MT',
+        settings=(settingsdialog.api_key_field(),),
+        config={'api_key': ''},
+        update_settings=updated.append,
+    )
+
+    BaseTMModel.configure(model, None)
+
+    assert updated == ([values] if values else [])

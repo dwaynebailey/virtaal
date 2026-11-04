@@ -252,3 +252,78 @@ def test_got_error_disables_all_queries():
     model.got_error('500 server error', 'hello')
 
     assert model._languages == set()
+
+
+# Setting the API key from Configure… (#1519).
+
+
+def _model_with_key(monkeypatch, tmp_path, key):
+    monkeypatch.setattr(google_translate, 'HTTPClient', FakeHTTPClient)
+    monkeypatch.setattr('virtaal.common.pan_app.get_config_dir', lambda: str(tmp_path))
+    if key:
+        (tmp_path / 'tm.ini').write_text('[google_translate]\napi_key = %s\n' % key)
+    return TMModel('google_translate', fake_controller())
+
+
+def test_the_api_key_can_be_configured(monkeypatch, tmp_path):
+    model = _model_with_key(monkeypatch, tmp_path, '')
+
+    assert model.configure_func == model.configure
+    assert [field.key for field in model.settings] == ['api_key']
+
+
+def test_a_key_set_from_the_dialog_turns_the_service_on(monkeypatch, tmp_path):
+    model = _model_with_key(monkeypatch, tmp_path, '')
+
+    model.update_settings({'api_key': 'new-key'})
+
+    assert 'api_key = new-key' in (tmp_path / 'tm.ini').read_text()
+    assert not model.languages_known
+    assert [r.url for r in model.client.added] == [model.languages_url % {'key': 'new-key'}]
+    model.client.added[0].emit('http-success', _languages_reply('en', 'af'))
+    model.query(None, SimpleNamespace(source='hello'))
+    assert 'key=new-key' in model.client.added[1].url
+
+
+def test_clearing_the_key_turns_the_service_off(monkeypatch, tmp_path):
+    model = _model_with_key(monkeypatch, tmp_path, 'old-key')
+    model.client.added[0].emit('http-success', _languages_reply('en', 'af'))
+    sent = len(model.client.added)
+
+    model.update_settings({'api_key': ''})
+    model.query(None, SimpleNamespace(source='hello'))
+
+    assert model.languages_known
+    assert len(model.client.added) == sent
+    assert 'api_key = \n' in (tmp_path / 'tm.ini').read_text()
+
+
+def test_a_new_key_forgets_the_old_keys_answers(monkeypatch, tmp_path):
+    model = _model_with_key(monkeypatch, tmp_path, 'old-key')
+    old_langreq = model.client.added[0]
+    model.cache = {'hello': [{'target': 'Hallo'}]}
+
+    model.update_settings({'api_key': 'new-key'})
+    old_langreq.emit('http-client-error', 400)
+    model.client.added[1].emit('http-success', _languages_reply('en', 'af'))
+
+    assert model.cache == {}
+    assert model._languages == {'en', 'af'}
+
+
+def test_the_same_key_again_sends_nothing(monkeypatch, tmp_path):
+    model = _model_with_key(monkeypatch, tmp_path, 'old-key')
+
+    model.update_settings({'api_key': 'old-key'})
+
+    assert len(model.client.added) == 1
+
+
+def test_the_key_is_not_logged(monkeypatch, tmp_path, caplog):
+    caplog.set_level('DEBUG')
+    model = _model_with_key(monkeypatch, tmp_path, '')
+
+    model.update_settings({'api_key': 'secret-key'})
+    model.client.added[0].emit('http-client-error', 403)
+
+    assert 'secret-key' not in caplog.text

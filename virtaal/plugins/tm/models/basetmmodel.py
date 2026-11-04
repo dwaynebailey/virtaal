@@ -59,6 +59,9 @@ class BaseTMModel(BaseModel, Configurable):
     configure_func = None
     """A function that starts the configuration, if available."""
 
+    settings = ()
+    """The settingsdialog.Field()s Configure… edits, if any (#1519)."""
+
     languages_known = True
     """False while a model is still fetching the languages it supports."""
 
@@ -94,11 +97,32 @@ class BaseTMModel(BaseModel, Configurable):
         self._signal_tracker.connect(lang_controller, 'source-lang-changed', self._set_source_lang)
         self._signal_tracker.connect(lang_controller, 'target-lang-changed', self._set_target_lang)
         self._signal_tracker.connect(checks_controller, 'checker-set', self._set_checker)
+        if self.settings:
+            self.configure_func = self.configure
 
     # METHODS #
     def destroy(self):
         self.save_config()
         self._signal_tracker.disconnect_all()
+
+    def configure(self, parent):
+        from virtaal.views.widgets.settingsdialog import SettingsDialog
+
+        values = SettingsDialog(parent, self.display_name, self.settings, self.config).run()
+        if values is not None:
+            self.update_settings(values)
+
+    def update_settings(self, values):
+        """Save values, from the settings dialog, and use them now."""
+        if all(str(self.config.get(key, '')) == value for key, value in values.items()):
+            return
+        self.config.update(values)
+        self.save_config()
+        self.apply_settings()
+
+    def apply_settings(self):
+        """Models with settings override this to use changed config."""
+        pass
 
     def query(self, tmcontroller, unit):
         """Attempt to give suggestions applicable to query_str.
