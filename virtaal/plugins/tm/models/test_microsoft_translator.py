@@ -10,8 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from virtaal.plugins.tm import keyedmt
 from virtaal.plugins.tm._testhelpers import FakeHTTPClient, fake_controller
-from virtaal.plugins.tm.models import microsoft_translator
 from virtaal.plugins.tm.models.microsoft_translator import TMModel, microsoft_code
 
 KEY = '3f1c9a7e5b2d4e8f9a0b1c2d3e4f5a6b'
@@ -51,12 +51,12 @@ def _translation_reply(text, to='de'):
 @pytest.fixture
 def clock(monkeypatch):
     now = [1000.0]
-    monkeypatch.setattr(microsoft_translator.time, 'monotonic', lambda: now[0])
+    monkeypatch.setattr(keyedmt.time, 'monotonic', lambda: now[0])
     return now
 
 
 def _model(monkeypatch, tmp_path, key=KEY, region='', source='en', target='de'):
-    monkeypatch.setattr(microsoft_translator, 'HTTPClient', FakeHTTPClient)
+    monkeypatch.setattr(keyedmt, 'HTTPClient', FakeHTTPClient)
     monkeypatch.setattr('virtaal.common.pan_app.get_config_dir', lambda: str(tmp_path))
     if key or region:
         (tmp_path / 'tm.ini').write_text(

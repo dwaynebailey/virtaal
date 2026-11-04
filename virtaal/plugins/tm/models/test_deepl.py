@@ -10,8 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from virtaal.plugins.tm import keyedmt
 from virtaal.plugins.tm._testhelpers import FakeHTTPClient, fake_controller
-from virtaal.plugins.tm.models import deepl
 from virtaal.plugins.tm.models.deepl import TMModel, deepl_code
 
 FREE_KEY = '279a2e9d-83b3-c416-7e2d-f721593e42a0:fx'
@@ -50,12 +50,12 @@ def _translation_reply(text):
 @pytest.fixture
 def clock(monkeypatch):
     now = [1000.0]
-    monkeypatch.setattr(deepl.time, 'monotonic', lambda: now[0])
+    monkeypatch.setattr(keyedmt.time, 'monotonic', lambda: now[0])
     return now
 
 
 def _model(monkeypatch, tmp_path, key=FREE_KEY, source='en', target='de'):
-    monkeypatch.setattr(deepl, 'HTTPClient', FakeHTTPClient)
+    monkeypatch.setattr(keyedmt, 'HTTPClient', FakeHTTPClient)
     monkeypatch.setattr('virtaal.common.pan_app.get_config_dir', lambda: str(tmp_path))
     if key:
         (tmp_path / 'tm.ini').write_text('[deepl]\napi_key = %s\n' % key)
