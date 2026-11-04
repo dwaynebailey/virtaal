@@ -98,7 +98,9 @@ def test_add_term_keeps_a_po_glossary_valid_for_a_second_translation(monkeypatch
     assert len(ids) == len(set(ids)) == 2
     if shutil.which('msgfmt'):
         result = subprocess.run(
-            ['msgfmt', '-c', '-o', '/dev/null', filename], capture_output=True, text=True
+            ['msgfmt', '-c', '-o', str(tmp_path / 'terms.mo'), filename],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, result.stderr
 
