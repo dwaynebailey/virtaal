@@ -225,7 +225,11 @@ class TestUnitController(TestScaffolding):
         )
 
     def test_advance_workflow_state_records_an_undoable_state_change(self):
-        test_unit = self.trans_store.getunits()[1]
+        # Not one of the shared units: leaving it commits the picked state.
+        from translate.storage import pypo
+
+        test_unit = pypo.pofile().addsourceunit("Advanced state test string")
+        test_unit.target = "Advanced state test string, translated"
         view = self.unit_controller.load_unit(test_unit)
         self.undo_controller.model.clear()
         before_state = test_unit._current_state
@@ -243,7 +247,11 @@ class TestUnitController(TestScaffolding):
         }
 
     def test_restore_state_reapplies_state_and_stickiness_without_recording_again(self):
-        test_unit = self.trans_store.getunits()[1]
+        # Not one of the shared units: leaving it commits the restored state.
+        from translate.storage import pypo
+
+        test_unit = pypo.pofile().addsourceunit("Restored state test string")
+        test_unit.target = "Restored state test string, translated"
         self.unit_controller.load_unit(test_unit)
         self.undo_controller.model.clear()
 
