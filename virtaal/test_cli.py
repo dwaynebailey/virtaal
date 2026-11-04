@@ -450,3 +450,58 @@ def test_importing_cli_sets_the_program_name():
     ).stdout
 
     assert out.split() == [cli.APP_ID, 'Virtaal']
+
+
+@pytest.mark.parametrize(
+    'value, direction',
+    [('he:en', 'RTL'), ('xx:he', 'RTL'), ('fr:he', 'LTR'), ('en:he', 'LTR')],
+)
+def test_a_language_list_takes_the_direction_of_the_language_it_uses(
+    monkeypatch, tmp_path, value, direction
+):
+    # #3781: GTK's direction comes from the first language in LANGUAGE.
+    import builtins
+
+    from gi.repository import Gtk
+
+    repo_root = tmp_path / 'repo'
+    for lang in ('he', 'fr'):
+        po = repo_root / 'po' / f'{lang}.po'
+        po.parent.mkdir(parents=True, exist_ok=True)
+        po.write_text(
+            'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+            f'msgid "Hello"\nmsgstr "{lang}"\n',
+            encoding='utf-8',
+        )
+    monkeypatch.setattr(pan_app, '_repo_root', lambda: str(repo_root))
+    monkeypatch.setattr(pan_app.platform, 'is_frozen', False)
+    monkeypatch.setattr(pan_app.platform, 'is_flatpak', False)
+    monkeypatch.setattr(pan_app.platform, 'locale_dir', str(tmp_path / 'localedir'))
+    monkeypatch.setattr(pan_app, '_ensure_dev_library_catalogs', lambda lang, localedir: None)
+    monkeypatch.setattr(pan_app, 'fix_locale', lambda lang=None: None)
+    monkeypatch.setattr(pan_app, 'bind_libintl_posix', lambda localedir: None)
+    monkeypatch.setattr(pan_app.locale, 'setlocale', lambda *a: None)
+    monkeypatch.setattr(builtins, '_', builtins._, raising=False)
+    monkeypatch.setattr(pan_app, 'ui_language', pan_app.ui_language)
+    monkeypatch.setattr(pan_app, 'has_ui_translation', pan_app.has_ui_translation)
+    monkeypatch.setenv('LANGUAGE', 'C')
+    monkeypatch.setitem(pan_app.settings.language, 'uilang', '')
+    monkeypatch.setattr(
+        Gtk,
+        'get_locale_direction',
+        lambda: (
+            Gtk.TextDirection.RTL
+            if os.environ['LANGUAGE'].split(':')[0] == 'he'
+            else Gtk.TextDirection.LTR
+        ),
+    )
+    directions = []
+    monkeypatch.setattr(
+        Gtk.Widget, 'set_default_direction', staticmethod(lambda d: directions.append(d))
+    )
+
+    _run_cli(monkeypatch, ['virtaal', '--lang=' + value])
+
+    assert directions == [getattr(Gtk.TextDirection, direction)]
+    # Only for this run: the saved Preferences setting is left alone.
+    assert pan_app.settings.language['uilang'] == ''

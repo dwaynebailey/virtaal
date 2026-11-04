@@ -215,7 +215,12 @@ from translate.lang import data
 from translate.misc import file_discovery
 
 from virtaal.__version__ import ver
-from virtaal.support.libi18n.locale import bind_libintl_posix, fix_libintl, fix_locale
+from virtaal.support.libi18n.locale import (
+    bind_libintl_posix,
+    fix_libintl,
+    fix_locale,
+    set_language_env,
+)
 
 # fix_locale(lang) sets these unconditionally (LANG/LC_ALL too on
 # Windows) whenever an explicit language is requested below - captured
@@ -229,6 +234,10 @@ DEBUG = True  # Enable debugging by default, while bin/virtaal still disables it
 
 x_generator = 'Virtaal ' + ver
 default_config_name = "virtaal.ini"
+
+
+# A language code: "af", "zh_CN", "pt-BR", "sr@latin".
+_LANGUAGE_CODE_RE = re.compile(r'[a-z]{2,3}(?:[_-][A-Za-z0-9]+)*(?:@[A-Za-z0-9]+)?')
 
 
 def osx_lang():
@@ -495,9 +504,7 @@ class Settings:
         # A code that isn't one broke every TM request (#4340): "af",
         # "zh_CN", "pt-BR", "sr@latin".
         for lang in ('sourcelang', 'targetlang'):
-            if self.language[lang] and not re.fullmatch(
-                r'[a-z]{2,3}(?:[_-][A-Za-z0-9]+)*(?:@[A-Za-z0-9]+)?', self.language[lang]
-            ):
+            if self.language[lang] and not _LANGUAGE_CODE_RE.fullmatch(self.language[lang]):
                 import logging
 
                 logging.warning(
@@ -548,16 +555,31 @@ class Settings:
         self.language['targetfont'] = fonts[1]
 
 
+def _ensure_dev_locales_installed(languages, localedir):
+    """_ensure_dev_locale_installed for each of languages: gettext walks
+    the whole list, so a dev checkout needs every catalog in it (#3781)."""
+    for lang in dict.fromkeys(languages):
+        _ensure_dev_locale_installed(lang, localedir)
+
+
 def _install_explicit_ui_language(lang, languages, fallback):
     """Shared plumbing for installing one specific language's gettext
-    catalog: set the process locale, self-heal a dev checkout's
-    catalog (see _ensure_dev_locale_installed), install it, and bind
-    libintl for Gtk.Builder's C-level gettext calls. `lang` is the
-    process locale to request; `languages` is gettext's own lookup
+    catalog: self-heal a dev checkout's catalogs (see
+    _ensure_dev_locale_installed), then _install_ui_catalog. `lang` is
+    the process locale to request; `languages` is gettext's own lookup
     order, which can fall further back than `lang` alone (e.g. to the
     OS locale, for a saved uilang preference). Used by both startup's
     "uilang saved" branch and set_ui_language()'s explicit-language
-    case.
+    case."""
+    _ensure_dev_locales_installed(languages, platform.locale_dir)
+    _install_ui_catalog(lang, languages, fallback)
+
+
+def _install_ui_catalog(lang, languages, fallback, language_env=None):
+    """Set the process locale, install the catalog, and bind libintl
+    for Gtk.Builder's C-level gettext calls. language_env, a
+    colon-separated list, replaces LANGUAGE's `lang` so GTK and GLib
+    fall back through the same languages as Virtaal.
 
     localedir is passed explicitly - gettext's default search path is
     keyed off sys.base_prefix rather than sys.prefix, so it misses
@@ -566,12 +588,13 @@ def _install_explicit_ui_language(lang, languages, fallback):
     platform.locale_dir additionally corrects for sys.prefix being
     wrong in a frozen build."""
     fix_locale(lang)
+    if language_env:
+        set_language_env(language_env)
     try:
         locale.setlocale(locale.LC_ALL, lang)
     except locale.Error:
         pass
     localedir = platform.locale_dir
-    _ensure_dev_locale_installed(lang, localedir)
     gettext.translation(
         'virtaal', localedir=localedir, languages=languages, fallback=fallback
     ).install()
@@ -601,7 +624,7 @@ def _install_system_ui_language():
     # Best-guess at what gettext is about to resolve, so a dev checkout
     # self-heals here too (see _ensure_dev_locale_installed) - otherwise
     # this stays untranslated for a language --lang=<code> would find.
-    _ensure_dev_locale_installed(get_locale_lang(), localedir)
+    _ensure_dev_locales_installed(_system_language_chain(), localedir)
     try:
         # if the locale is not installed it can cause a traceback
         locale.setlocale(locale.LC_ALL, '')
@@ -614,6 +637,33 @@ def _install_system_ui_language():
         __builtin__.__dict__['_'] = lambda s: s
     if not platform.is_windows:
         bind_libintl_posix(localedir)
+
+
+def _system_language_chain():
+    """The languages gettext walks for the OS's own locale environment,
+    most preferred first: get_locale_lang(), then the rest of a list
+    such as LANGUAGE=ja:fr, as given and simplified ("fr_FR", "fr").
+    gettext itself stops at C."""
+    for name in ('LANGUAGE', 'LC_ALL', 'LC_MESSAGES', 'LANG'):
+        value = os.environ.get(name)
+        if value:
+            rest = value.split(':')[1:]
+            break
+    else:
+        rest = []
+    chain = [get_locale_lang()]
+    for item in rest:
+        item = item.strip()
+        if item.split('.')[0] in ('C', 'POSIX'):
+            break
+        if item:
+            chain += [item, data.simplify_to_common(item)]
+    return list(dict.fromkeys(chain))
+
+
+def _first_with_catalog(languages, localedir):
+    """The first of languages with a Virtaal catalog in localedir, or None."""
+    return next((lang for lang in languages if gettext.find('virtaal', localedir, [lang])), None)
 
 
 def _has_real_translation():
@@ -630,12 +680,15 @@ def install_saved_ui_language():
     global ui_language, has_ui_translation
     saved = settings.language["uilang"]
     if saved:
-        _install_explicit_ui_language(saved, [saved, get_locale_lang()], fallback=True)
+        languages = [saved, get_locale_lang()]
+        _install_explicit_ui_language(saved, languages, fallback=True)
     else:
         _install_system_ui_language()
+        languages = _system_language_chain()
     has_ui_translation = _has_real_translation()
     if has_ui_translation:
-        ui_language = saved or get_locale_lang()
+        # The language gettext found, not one it fell back past.
+        ui_language = _first_with_catalog(languages, platform.locale_dir) or languages[0]
     else:
         ui_language = 'en'
 
@@ -751,6 +804,9 @@ def set_ui_language(lang):
     as a likely typo. The explicit-language case shares
     _install_explicit_ui_language with startup's own "uilang saved"
     branch.
+
+    A colon-separated list, gettext's own LANGUAGE syntax ("zu:af"),
+    uses the first of them with a catalog - see _set_ui_language_chain.
     """
     global ui_language, has_ui_translation
     if lang == 'system':
@@ -760,7 +816,14 @@ def set_ui_language(lang):
         # 'en', not the untranslated locale code (aboutdialog.py keys
         # RTL layout off ui_language).
         has_ui_translation = _has_real_translation()
-        ui_language = get_locale_lang() if has_ui_translation else 'en'
+        if has_ui_translation:
+            chain = _system_language_chain()
+            ui_language = _first_with_catalog(chain, platform.locale_dir) or chain[0]
+        else:
+            ui_language = 'en'
+        return
+    if ':' in lang:
+        _set_ui_language_chain(lang)
         return
 
     if lang == 'en':
@@ -772,6 +835,72 @@ def set_ui_language(lang):
     # collapse en_US back to it too, so a future `== 'en'` check (like
     # aboutdialog.py's `== 'ar'`) doesn't miss this case.
     ui_language = 'en' if lang == 'en_US' else lang
+
+
+def _is_untranslated(code):
+    """Whether code names Virtaal's own untranslated English strings."""
+    return code.split('.')[0].split('@')[0] in ('en', 'en_US', 'C', 'POSIX')
+
+
+def parse_ui_language_chain(value):
+    """--lang's colon-separated list of language codes ("zu:af"), most
+    preferred first. English needs no catalog, so it ends the list, as
+    'en_US'. Empty items and repeats are dropped; 'system' and anything
+    that isn't a language code are logged and skipped."""
+    import logging
+
+    chain = []
+    for item in value.split(':'):
+        item = item.strip()
+        if not item or item in chain:
+            continue
+        if _is_untranslated(item):
+            chain.append('en_US')
+            break
+        if item == 'system':
+            logging.warning(
+                "Skipping %r in the UI language list %r: use it on its own", item, value
+            )
+        elif not _LANGUAGE_CODE_RE.fullmatch(item):
+            logging.warning(
+                "Skipping %r in the UI language list %r: not a language code", item, value
+            )
+        else:
+            chain.append(item)
+    return chain
+
+
+def _set_ui_language_chain(value):
+    """set_ui_language() for a list ("zu:af"): self-heal every catalog in
+    it (#3781), then install from the first language that has one.
+    Languages before it are dropped, so GTK's strings, and its
+    right-to-left direction, follow the language Virtaal is shown in.
+    Raises FileNotFoundError, as a single code does, if none has a
+    catalog and the list doesn't end in English."""
+    import errno
+    import logging
+
+    global ui_language, has_ui_translation
+    chain = parse_ui_language_chain(value)
+    if len(chain) == 1:
+        set_ui_language(chain[0])
+        return
+    candidates = [lang for lang in chain if lang != 'en_US']
+    localedir = platform.locale_dir
+    _ensure_dev_locales_installed(candidates, localedir)
+    effective = _first_with_catalog(candidates, localedir)
+    start = candidates.index(effective) if effective else len(candidates)
+    for skipped in candidates[:start]:
+        logging.warning("No translation found for UI language %r, trying the next one", skipped)
+    if effective is None:
+        if chain and chain[-1] == 'en_US':
+            set_ui_language('en_US')
+            return
+        raise FileNotFoundError(errno.ENOENT, 'No translation file found for domain', 'virtaal')
+    languages = candidates[start:]
+    _install_ui_catalog(effective, languages, fallback=False, language_env=':'.join(languages))
+    has_ui_translation = _has_real_translation()
+    ui_language = effective
 
 
 # Determine the directory the main executable is running from

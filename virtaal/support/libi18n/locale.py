@@ -447,6 +447,14 @@ def fix_locale(lang=None):
         os.environ['LANGUAGE'] = lang
 
 
+def set_language_env(languages):
+    """Set LANGUAGE, gettext's colon-separated fallback list ("zu:af"),
+    for libintl too: on Windows the C runtime keeps its own copy."""
+    if platform.is_windows:
+        _putenv('LANGUAGE', languages)
+    os.environ['LANGUAGE'] = languages
+
+
 def fix_libintl(main_dir):
     """Bind gettext in the libintl since the gettext package doesn't."""
     # See https://bugzilla.gnome.org/show_bug.cgi?id=574520

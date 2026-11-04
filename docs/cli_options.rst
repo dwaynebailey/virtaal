@@ -47,6 +47,10 @@ from the command line::
    - ``en`` - Virtaal's own untranslated source strings.
    - ``system`` - the OS's own default locale, ignoring the saved
      Preferences setting.
+   - a colon-separated list, as in the ``LANGUAGE`` environment variable
+     (e.g. ``zu:af``) - Virtaal uses the first language it has a translation
+     for, and takes strings missing from it from the ones after it. ``en``
+     ends the list.
 
 Developer options
 =================

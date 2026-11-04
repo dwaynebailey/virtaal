@@ -1456,3 +1456,217 @@ def test_redirect_output_to_logs_writes_stdout_and_stderr_to_the_config_dir(tmp_
         log = (tmp_path / f'{name}_virtaal.log').read_text(encoding='utf-8')
         assert pan_app._LAUNCH_MARKER_RE.match(log)
         assert log.endswith(line)
+
+
+# Language chains: --lang=zu:af, LANGUAGE=ja:fr (#3781) #
+
+
+def _installed_translation(msgid):
+    import builtins
+
+    return builtins._(msgid)
+
+
+def _write_po(path, msgstr):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+        f'msgid "Hello"\nmsgstr "{msgstr}"\n',
+        encoding='utf-8',
+    )
+
+
+@pytest.fixture
+def chain_checkout(tmp_path, monkeypatch, ui_language_globals):
+    """A dev checkout in tmp_path: po/<lang>.po for each language given
+    to add(), compiled into localedir by the self-heal. Records the
+    languages the library-catalog self-heal was asked for."""
+    import builtins
+
+    repo_root = tmp_path / 'repo'
+    localedir = tmp_path / 'localedir'
+    (repo_root / 'po').mkdir(parents=True)
+    monkeypatch.setattr(pan_app, '_repo_root', lambda: str(repo_root))
+    monkeypatch.setattr(pan_app.platform, 'is_frozen', False)
+    monkeypatch.setattr(pan_app.platform, 'is_flatpak', False)
+    monkeypatch.setattr(pan_app.platform, 'is_windows', False)
+    monkeypatch.setattr(pan_app.platform, 'locale_dir', str(localedir))
+    monkeypatch.setattr(pan_app, 'fix_locale', lambda lang=None: None)
+    monkeypatch.setattr(pan_app, 'bind_libintl_posix', lambda localedir: None)
+    monkeypatch.setattr(pan_app.locale, 'setlocale', lambda *a: None)
+    library_langs = []
+    monkeypatch.setattr(
+        pan_app, '_ensure_dev_library_catalogs', lambda lang, localedir: library_langs.append(lang)
+    )
+    monkeypatch.setattr(builtins, '_', builtins._, raising=False)
+    # setenv, not delenv: restores an unset LANGUAGE too.
+    monkeypatch.setenv('LANGUAGE', 'C')
+    return SimpleNamespace(
+        add=lambda lang, msgstr=None: _write_po(repo_root / 'po' / f'{lang}.po', msgstr or lang),
+        localedir=localedir,
+        library_langs=library_langs,
+        installed=lambda lang: (localedir / lang / 'LC_MESSAGES' / 'virtaal.mo').is_file(),
+    )
+
+
+@pytest.mark.parametrize(
+    'value, expected',
+    [
+        ('zu:af', ['zu', 'af']),
+        ('zu::af:', ['zu', 'af']),
+        ('zu:af:zu', ['zu', 'af']),
+        (' zu : af ', ['zu', 'af']),
+        ('sr@latin:sr', ['sr@latin', 'sr']),
+        ('he:en:fr', ['he', 'en_US']),
+        ('he:en_US:fr', ['he', 'en_US']),
+        ('he:C:fr', ['he', 'en_US']),
+        ('zu:system:af', ['zu', 'af']),
+        ('zu:not a code:af', ['zu', 'af']),
+        (':', []),
+    ],
+)
+def test_parse_ui_language_chain(value, expected):
+    assert pan_app.parse_ui_language_chain(value) == expected
+
+
+def test_parse_ui_language_chain_warns_about_what_it_skips(caplog):
+    pan_app.parse_ui_language_chain('zu:system:x!:af')
+
+    assert "'system'" in caplog.text
+    assert "'x!'" in caplog.text
+
+
+def test_set_ui_language_chain_self_heals_every_candidate(chain_checkout):
+    chain_checkout.add('fr')
+    chain_checkout.add('af')
+
+    pan_app.set_ui_language('ja:fr:af')
+
+    assert chain_checkout.installed('fr')
+    assert chain_checkout.installed('af')
+    assert chain_checkout.library_langs == ['ja', 'fr', 'af']
+
+
+def test_set_ui_language_chain_uses_the_first_language_with_a_catalog(chain_checkout):
+    chain_checkout.add('fr', 'Bonjour')
+    chain_checkout.add('af', 'Hallo')
+
+    pan_app.set_ui_language('ja:fr:af')
+
+    assert _installed_translation('Hello') == 'Bonjour'
+    assert pan_app.ui_language == 'fr'
+    assert pan_app.has_ui_translation is True
+    # GTK's own libintl lookups, and its direction, start there too.
+    assert os.environ['LANGUAGE'] == 'fr:af'
+
+
+def test_set_ui_language_chain_sets_language_to_the_whole_chain(chain_checkout):
+    chain_checkout.add('zu')
+    chain_checkout.add('af')
+
+    pan_app.set_ui_language('zu:af')
+
+    assert os.environ['LANGUAGE'] == 'zu:af'
+    assert pan_app.ui_language == 'zu'
+
+
+def test_set_ui_language_chain_stops_at_english(chain_checkout):
+    chain_checkout.add('fr')
+
+    pan_app.set_ui_language('ja:en:fr')
+
+    assert not chain_checkout.installed('fr')
+    assert pan_app.ui_language == 'en'
+    assert pan_app.has_ui_translation is False
+
+
+def test_set_ui_language_chain_keeps_english_after_a_translation_out_of_language(chain_checkout):
+    chain_checkout.add('he')
+
+    pan_app.set_ui_language('he:en')
+
+    assert pan_app.ui_language == 'he'
+    assert os.environ['LANGUAGE'] == 'he'
+
+
+def test_set_ui_language_chain_with_no_catalog_at_all_raises(chain_checkout):
+    with pytest.raises(FileNotFoundError):
+        pan_app.set_ui_language('xx:yy')
+
+
+def test_set_ui_language_chain_of_one_is_a_single_language(monkeypatch):
+    switched = []
+    monkeypatch.setattr(
+        pan_app,
+        '_install_explicit_ui_language',
+        lambda lang, languages, fallback: switched.append((lang, languages, fallback)),
+    )
+    monkeypatch.setattr(pan_app, 'ui_language', pan_app.ui_language)
+    monkeypatch.setattr(pan_app, 'has_ui_translation', pan_app.has_ui_translation)
+
+    pan_app.set_ui_language('af::af')
+
+    assert switched == [('af', ['af'], False)]
+
+
+def test_set_ui_language_chain_is_not_saved_as_the_ui_language(chain_checkout, monkeypatch):
+    chain_checkout.add('zu')
+    chain_checkout.add('af')
+    monkeypatch.setitem(pan_app.settings.language, 'uilang', 'de')
+
+    pan_app.set_ui_language('zu:af')
+
+    assert pan_app.settings.language['uilang'] == 'de'
+
+
+def test_set_ui_language_system_self_heals_the_whole_language_chain(chain_checkout, monkeypatch):
+    chain_checkout.add('fr', 'Bonjour')
+    monkeypatch.setattr(
+        pan_app, '_ORIGINAL_LOCALE_ENV', {'LANGUAGE': 'ja:fr', 'LANG': None, 'LC_ALL': None}
+    )
+    monkeypatch.setattr(pan_app, 'get_locale_lang', lambda: 'ja')
+
+    pan_app.set_ui_language('system')
+
+    assert chain_checkout.installed('fr')
+    assert _installed_translation('Hello') == 'Bonjour'
+    assert pan_app.ui_language == 'fr'
+
+
+def test_install_explicit_ui_language_self_heals_every_fallback(monkeypatch):
+    seen = []
+    monkeypatch.setattr(
+        pan_app, '_ensure_dev_locale_installed', lambda lang, localedir: seen.append(lang)
+    )
+    monkeypatch.setattr(pan_app, 'fix_locale', lambda lang=None: None)
+    monkeypatch.setattr(pan_app.locale, 'setlocale', lambda *a: None)
+    monkeypatch.setattr(pan_app.platform, 'is_windows', True)
+    monkeypatch.setattr(
+        pan_app.gettext, 'translation', lambda *a, **kw: SimpleNamespace(install=lambda: None)
+    )
+
+    pan_app._install_explicit_ui_language('af', ['af', 'fr', 'af'], fallback=True)
+
+    assert seen == ['af', 'fr']
+
+
+def test_install_saved_ui_language_self_heals_and_reports_the_os_fallback(
+    chain_checkout, monkeypatch
+):
+    chain_checkout.add('fr', 'Bonjour')
+    monkeypatch.setitem(pan_app.settings.language, 'uilang', 'xx')
+    monkeypatch.setattr(pan_app, 'get_locale_lang', lambda: 'fr')
+
+    pan_app.install_saved_ui_language()
+
+    assert chain_checkout.installed('fr')
+    assert _installed_translation('Hello') == 'Bonjour'
+    assert pan_app.ui_language == 'fr'
+
+
+def test_set_ui_language_chain_warns_about_languages_without_a_catalog(chain_checkout, caplog):
+    chain_checkout.add('af')
+
+    pan_app.set_ui_language('xx:af')
+
+    assert "No translation found for UI language 'xx'" in caplog.text
