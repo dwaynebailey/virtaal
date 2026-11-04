@@ -215,6 +215,7 @@ domains:
     - None
     - P_age Up
     - P_revious Placeable
+    - Priority
     - Quality Checks
     - Re_vert to Saved
     - Report a _Bug
@@ -273,6 +274,7 @@ domains:
     - Fuzzy
     - GConf values
     - Highlighting and insertion of placeables
+    - Load Priority File…
     - Local TM
     - Long
     - Look-up "%(selection)s"
@@ -281,6 +283,7 @@ domains:
     - Matches
     - Must translate words
     - Newlines
+    - No Priority File
     - Number of plurals
     - Number of sentences
     - Old KDE comment
