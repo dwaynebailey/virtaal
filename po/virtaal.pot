@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-04 01:58+0000\n"
+"POT-Creation-Date: 2026-11-04 04:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1173,6 +1173,45 @@ msgstr ""
 msgid "All"
 msgstr ""
 
+#. l10n: A navigation mode: moves between the untranslated and fuzzy messages of the translation priority levels chosen
+#: virtaal/modes/prioritymode.py
+msgid "Priority"
+msgstr ""
+
+#. l10n: A priority level in the Priority navigation mode, and its progress in this file: e.g. "Level 1 (40/52)"
+#: virtaal/modes/prioritymode.py
+#, python-format
+msgid "%(name)s (%(translated)d/%(total)d)"
+msgstr ""
+
+#. l10n: No file of translation priority levels was found for this file
+#: virtaal/modes/prioritymode.py
+msgid "No Priority File"
+msgstr ""
+
+#: virtaal/modes/prioritymode.py
+msgid "Load Priority File…"
+msgstr ""
+
+#. l10n: This is the button where the user can select units by translation priority
+#: virtaal/modes/prioritymode.py
+msgid "Select Priorities"
+msgstr ""
+
+#: virtaal/modes/prioritymode.py
+msgid "Choose a Priority File"
+msgstr ""
+
+#: virtaal/modes/prioritymode.py
+msgid "Priority Files"
+msgstr ""
+
+#: virtaal/modes/prioritymode.py
+#: virtaal/plugins/terminology/models/localfile/localfileview.py
+#: virtaal/views/mainview.py
+msgid "All Files"
+msgstr ""
+
 #: virtaal/modes/qualitycheckmode.py
 msgid "Quality Checks"
 msgstr ""
@@ -1480,11 +1519,6 @@ msgstr ""
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
 #: virtaal/views/mainview.py
 msgid "All Supported Files"
-msgstr ""
-
-#: virtaal/plugins/terminology/models/localfile/localfileview.py
-#: virtaal/views/mainview.py
-msgid "All Files"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py

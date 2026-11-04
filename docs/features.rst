@@ -50,6 +50,8 @@ Virtaal will make you more productive
 - Highlighting and copying :doc:`placeables <placeables>` from the source text
 - Easily find your work by moving between the units that are untranslated or
   fuzzy
+- Translate the most important messages first, with a project's
+  :doc:`priority file <priority_files>`
 - Automatically update the PO header when saving
 - Terminology help. Suggestions can come from:
 

@@ -14,6 +14,7 @@ virtaal/controllers/welcomescreencontroller.py
 virtaal/main.py
 virtaal/models/storemodel.py
 virtaal/modes/defaultmode.py
+virtaal/modes/prioritymode.py
 virtaal/modes/qualitycheckmode.py
 virtaal/modes/quicktransmode.py
 virtaal/modes/searchmode.py

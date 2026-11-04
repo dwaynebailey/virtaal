@@ -34,6 +34,7 @@ Help menu.
    screenshots
    tips
    cli_options
+   priority_files
    releases/index
 
 .. _index#installation:

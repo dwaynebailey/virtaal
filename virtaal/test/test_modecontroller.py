@@ -17,7 +17,7 @@ class TestModeController(TestScaffolding):
         assert default_mode == self.mode_controller.modes[self.mode_controller.default_mode_name]
 
     def test_reselecting_menu_modes_destroys_previous_popup(self):
-        """WorkflowMode and QualityCheckMode each build a fresh
+        """WorkflowMode, QualityCheckMode and PriorityMode each build a fresh
         Gtk.Menu (with real Gtk.CheckMenuItem children) every time
         they're selected - the previous one must be destroy()ed
         deterministically, not just dropped for Python's GC to collect
@@ -26,7 +26,7 @@ class TestModeController(TestScaffolding):
         self.store_controller.open_file(self.testfile[1])
         default_mode = self.mode_controller.modes[self.mode_controller.default_mode_name]
 
-        for name in ('Workflow', 'QualityCheck'):
+        for name in ('Workflow', 'QualityCheck', 'Priority'):
             mode = self.mode_controller.modes[name]
 
             self.mode_controller.select_mode(mode)

@@ -192,6 +192,24 @@ In the “Quality checks” navigation mode, you can select certain quality chec
 from the list of possible issues seen by Virtaal. For more information, visit
 the :doc:`quality checks <checks>` page.
 
+.. _using_virtaal#priority_mode:
+
+Priority Mode
+-------------
+Some projects rank their messages by how much they matter to users, in a
+:doc:`priority file <priority_files>`, so that the most important ones can
+be translated first. In the "Priority" navigation mode, choose one or more
+priority levels from the list next to the mode selector: Virtaal then moves
+between those levels' untranslated and fuzzy units. Each level shows how
+many of its units are translated, e.g. "Level 1 (40/52)"; a level with
+nothing left to do is greyed out. Messages the priority file doesn't list
+aren't in any level.
+
+Virtaal finds the priority file beside the translation file (see
+:ref:`where Virtaal looks <priority_files#finding>`); Virtaal's own
+translations in its ``po`` folder have one. Otherwise the list shows "No
+Priority File", and you can choose one with "Load Priority File…".
+
 .. _using_virtaal#context:
 
 Context
