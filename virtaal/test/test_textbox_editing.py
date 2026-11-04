@@ -20,6 +20,7 @@ from translate.storage.placeables import base, general
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.modes.searchmode import SearchMode
+from virtaal.plugins.tm.tmcontroller import TMController
 from virtaal.support.pogrep_compat import GrepFilter
 from virtaal.views.widgets import textbox as textbox_module
 
@@ -294,6 +295,63 @@ class TestTextBoxEditing(TestScaffolding):
         editor.type('Z')
 
         assert editor.text == 'A x  y b'
+
+    # #2014: inserting a TM suggestion keeps the rest of the target.
+
+    def _tm_controller(self, monkeypatch):
+        monkeypatch.setattr(self.unit_controller.view, '_focused_target_n', 0)
+        controller = TMController.__new__(TMController)
+        controller.main_controller = self.main_controller
+        return controller
+
+    def _insert(self, monkeypatch, editor, text):
+        self._tm_controller(monkeypatch).insert_match({'target': text})
+        editor.run_idle()
+        editor.check()
+
+    def test_insert_match_goes_in_at_the_cursor_and_keeps_the_g(self, monkeypatch):
+        editor = self._editor(PLACEABLES_XLIFF, 0)
+        editor.place(12)
+
+        self._insert(monkeypatch, editor, ' daar')
+
+        assert editor.text == 'Click here daar to continue.'
+        assert str(self._g(editor)[0]) == 'here'
+        assert editor.cursor == 17
+
+    def test_insert_match_replaces_only_the_selection(self, monkeypatch):
+        editor = self._editor(PLACEABLES_XLIFF, 0)
+        editor.select(0, 6)
+
+        self._insert(monkeypatch, editor, 'Klik ')
+
+        assert editor.text == 'Klik here to continue.'
+        assert str(self._g(editor)[0]) == 'here'
+
+    def test_insert_match_marks_the_unit_modified_and_undoes_in_one_step(self, monkeypatch):
+        editor = self._editor(PLACEABLES_XLIFF, 0)
+        unit = self.unit_controller.current_unit
+        editor.select(0, 6)
+
+        self._insert(monkeypatch, editor, 'Klik ')
+
+        assert self.unit_controller.view._modified
+        assert unit._modified
+        assert str(unit.rich_target[0]) == 'Klik here to continue.'
+
+        editor.undo()
+
+        assert editor.text == 'Click here to continue.'
+        assert str(self._g(editor)[0]) == 'here'
+
+    def test_select_match_still_replaces_the_whole_target(self, monkeypatch):
+        editor = self._editor(PLACEABLES_XLIFF, 0)
+
+        self._tm_controller(monkeypatch).select_match({'target': 'Klik hier vir meer.'})
+        editor.run_idle()
+
+        assert editor.text == 'Klik hier vir meer.'
+        assert self._g(editor) == []
 
     def test_deleting_an_x_can_be_undone(self):
         # "A line break<x/>after it.": X has a widget and no text.

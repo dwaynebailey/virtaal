@@ -227,6 +227,17 @@ class TMController(BaseController):
         self.main_controller.undo_controller.push_current_text(textbox)
         unit_controller.set_unit_target(target_n, forceunicode(match_data['target']))
 
+    def insert_match(self, match_data):
+        """Insert the match's text at the cursor in the focused target,
+        keeping the rest of the target and its placeables."""
+        unit_view = self.main_controller.unit_controller.view
+        target_n = unit_view.focused_target_n
+        if target_n is None:
+            return
+        textbox = unit_view.targets[target_n]
+        textbox.insert_text(forceunicode(match_data['target']))
+        textbox.grab_focus()
+
     def send_tm_query(self, unit=None):
         """Send a new query to the TM engine.
         (This method is used as Controller-Model communications)"""

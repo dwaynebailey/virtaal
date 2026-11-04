@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-04 01:24+0000\n"
+"POT-Creation-Date: 2026-11-04 01:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1666,6 +1666,11 @@ msgstr ""
 
 #: virtaal/plugins/tm/tmview.py
 msgid "Suggestions for This _Unit"
+msgstr ""
+
+#. l10n: Inserts the suggestion at the cursor in the translation, or over the selected text, keeping the rest of the translation.
+#: virtaal/plugins/tm/tmview.py
+msgid "_Insert at Cursor"
 msgstr ""
 
 #: virtaal/plugins/tm/tmview.py

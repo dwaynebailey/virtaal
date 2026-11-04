@@ -8,7 +8,7 @@
 from types import SimpleNamespace
 
 import pytest
-from gi.repository import Gdk, GObject, Gtk
+from gi.repository import Gdk, GLib, GObject, Gtk
 
 from virtaal.common import GObjectWrapper
 from virtaal.plugins.tm.tmview import TMView
@@ -33,6 +33,7 @@ def _tmview(liststore=None, isvisible=False, active=True, may_show=True, target=
     view._should_show_tmwindow = False
     view._mainwindow_geometry = None
     view._move_settle_id = None
+    view._match_menu = Gtk.Menu()
     view._editor = None
     view._editor_allocation = None
     if liststore is None:
@@ -364,6 +365,19 @@ def test_active_notify_mainwindow_hides_a_visible_window_when_deactivated():
     assert view._should_show_tmwindow is True
 
 
+def test_active_notify_mainwindow_keeps_the_window_under_a_matchs_menu():
+    # #2014: the menu's grab deactivates the main window.
+    view = _view_for_grab_notify(isvisible=True)
+    hidden = []
+    view.hide = lambda: hidden.append('hidden')
+    view._match_menu = SimpleNamespace(get_visible=lambda: True)
+
+    view._on_active_notify_mainwindow(SimpleNamespace(props=SimpleNamespace(is_active=False)), None)
+
+    assert hidden == []
+    assert view._may_show_tmwindow is True
+
+
 def test_active_notify_mainwindow_reshows_a_pending_window_when_activated():
     view = _view_for_grab_notify(should_show=True, isvisible=False)
     shown = []
@@ -649,11 +663,14 @@ def test_destroy_disconnects_signals_and_removes_the_suggestions_menu_item():
     view.menu = SimpleNamespace(remove=removed.append)
     view.mnu_suggestions = object()
     view.mnu_summon = object()
+    destroyed = []
+    view._match_menu = SimpleNamespace(destroy=lambda: destroyed.append(True))
 
     view.destroy()
 
     assert disconnected == [True]
     assert removed == [view.mnu_suggestions, view.mnu_summon]
+    assert destroyed == [True]
 
 
 def test_select_backends_delegates_to_the_backend_selector(monkeypatch):
@@ -870,7 +887,8 @@ class _FakeSignalSource(GObjectWrapper):
     }
 
 
-def test_init_wires_key_bindings_menu_and_store_signals():
+def _real_tmview(**controller_attrs):
+    controller_attrs.setdefault('update_suggestions', lambda: None)
     main_window = Gtk.Window()
     store_controller = _FakeSignalSource()
     store_controller.view = SimpleNamespace(parent_widget=Gtk.ScrolledWindow())
@@ -884,17 +902,21 @@ def test_init_wires_key_bindings_menu_and_store_signals():
                 add_accel_group=added_accel_groups.append,
             ),
             store_controller=store_controller,
-        )
+        ),
+        **controller_attrs,
     )
+    return TMView(controller, max_matches=5), main_window, added_accel_groups
 
-    view = TMView(controller, max_matches=5)
+
+def test_init_wires_key_bindings_menu_and_store_signals():
+    view, main_window, added_accel_groups = _real_tmview()
 
     assert view.max_matches == 5
     assert view.isvisible is False
     assert view._may_show_tmwindow == main_window.props.is_active
     assert added_accel_groups == [view.accel_group]
     assert view.mnu_suggestions.get_active() is True
-    assert len(view._signal_tracker._ids) == 7
+    assert len(view._signal_tracker._ids) == 8
 
 
 # suspend() / resume(): kept hidden while the target's completion list is open
@@ -989,3 +1011,90 @@ def test_show_follows_the_unit_editor_once():
     view._follow_editor()
 
     assert view._signal_tracker.connected == [(editor, 'size-allocate')]
+
+
+# #2014: a suggestion row's context menu - Copy, Insert at Cursor
+
+
+def _button_press(button):
+    window = Gtk.Window()
+    window.realize()
+    event = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+    event.button.window = window.get_window()
+    event.button.button = button
+    event.button.x = event.button.y = 5.0
+    return event
+
+
+def _menu_view(monkeypatch, inserted=None):
+    view, _main_window, _groups = _real_tmview(
+        insert_match=(inserted if inserted is not None else []).append
+    )
+    for target in ('first', 'second'):
+        view.tmwindow.liststore.append([{'source': 's', 'target': target}, ''])
+    treeview = view.tmwindow.treeview
+    # Rows have no area until the window is shown: hit the second one.
+    second = Gtk.TreePath.new_from_indices([1])
+    monkeypatch.setattr(treeview, 'get_path_at_pos', lambda x, y: (second, None, 0, 0))
+    popups = []
+    monkeypatch.setattr(view._match_menu, 'popup_at_pointer', popups.append)
+    return view, popups
+
+
+def _menu_items(view):
+    return {item.get_label(): item for item in view._match_menu.get_children()}
+
+
+def test_the_match_menu_has_copy_and_insert_with_mnemonics():
+    view = _real_tmview()[0]
+    items = view._match_menu.get_children()
+
+    assert [item.get_label() for item in items] == [
+        GLib.dgettext('gtk30', '_Copy'),
+        '_Insert at Cursor',
+    ]
+    assert all(item.get_use_underline() for item in items)
+
+
+def test_right_clicking_a_row_opens_the_menu_for_that_match(monkeypatch):
+    view, popups = _menu_view(monkeypatch)
+    event = _button_press(3)
+
+    handled = view.tmwindow.treeview.emit('button-press-event', event)
+
+    assert handled is True
+    assert len(popups) == 1
+    assert view._menu_match['target'] == 'second'
+    model, itr = view.tmwindow.treeview.get_selection().get_selected()
+    assert model.get_value(itr, 0)['target'] == 'second'
+
+
+def test_left_clicking_a_row_leaves_it_to_the_treeview(monkeypatch):
+    view, popups = _menu_view(monkeypatch)
+
+    view._on_treeview_button_press(view.tmwindow.treeview, _button_press(1))
+
+    assert popups == []
+    assert view._menu_match is None
+
+
+def test_copy_puts_the_matchs_text_on_the_clipboard(monkeypatch):
+    view, _popups = _menu_view(monkeypatch)
+    copied = []
+    clipboard = SimpleNamespace(set_text=lambda text, length: copied.append(text))
+    monkeypatch.setattr(Gtk.Clipboard, 'get', lambda selection: clipboard)
+    view._on_treeview_button_press(view.tmwindow.treeview, _button_press(3))
+
+    _menu_items(view)[GLib.dgettext('gtk30', '_Copy')].activate()
+
+    assert copied == ['second']
+
+
+def test_insert_at_cursor_inserts_the_match(monkeypatch):
+    inserted = []
+    view, _popups = _menu_view(monkeypatch, inserted)
+    view._on_treeview_button_press(view.tmwindow.treeview, _button_press(3))
+
+    _menu_items(view)['_Insert at Cursor'].activate()
+
+    assert [match['target'] for match in inserted] == ['second']

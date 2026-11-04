@@ -403,6 +403,16 @@ class TextBox(Gtk.TextView):
         self.refresh(update=True)
         return True
 
+    def insert_text(self, text):
+        """Insert plain C{text} at the cursor, over the selection if any, as
+        one typed edit: one undo entry, and the unit is marked modified."""
+        if self.suggestion_is_visible():
+            self.suggestion = None
+        self.buffer.begin_user_action()
+        self.buffer.delete_selection(True, True)
+        self.buffer.insert_interactive_at_cursor(text, -1, True)
+        self.buffer.end_user_action()
+
     def _show_insert_candidates(self, candidates):
         # Deferred so the text layout is valid when positioning the popup.
         def show():

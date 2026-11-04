@@ -413,6 +413,46 @@ def test_select_match_pushes_undo_and_sets_the_focused_target():
     assert calls == [('push', 'textbox1'), ('set', 1, 'hallo')]
 
 
+# insert_match() #
+
+
+class _FakeTarget:
+    def __init__(self):
+        self.calls = []
+
+    def insert_text(self, text):
+        self.calls.append(('insert', text))
+
+    def grab_focus(self):
+        self.calls.append('focus')
+
+
+def _insert_controller(focused_target_n):
+    controller = _bare_controller()
+    targets = [_FakeTarget(), _FakeTarget()]
+    view = SimpleNamespace(focused_target_n=focused_target_n, targets=targets)
+    controller.main_controller = SimpleNamespace(unit_controller=SimpleNamespace(view=view))
+    return controller, targets
+
+
+def test_insert_match_inserts_into_the_focused_target_and_focuses_it():
+    # #2014
+    controller, targets = _insert_controller(1)
+
+    controller.insert_match({'target': 'hallo'})
+
+    assert targets[0].calls == []
+    assert targets[1].calls == [('insert', 'hallo'), 'focus']
+
+
+def test_insert_match_does_nothing_without_a_focused_target():
+    controller, targets = _insert_controller(None)
+
+    controller.insert_match({'target': 'hallo'})
+
+    assert targets[0].calls == targets[1].calls == []
+
+
 # send_tm_query() #
 
 

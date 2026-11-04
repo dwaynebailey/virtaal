@@ -10,11 +10,17 @@ import logging
 from gi.repository import Gdk, GLib, GObject, Gtk
 
 from virtaal.common import GObjectWrapper, SignalTracker
+from virtaal.support.translate_compat import forceunicode
 from virtaal.views.baseview import BaseView
 from virtaal.views.widgets.popupwidgetbutton import PopupWidgetButton
 from virtaal.views.widgets.wayland import set_popup_parent
 
 from .tmwidgets import TMWindow
+
+
+def _gtk_text(msgid):
+    """GTK's own translation of msgid, kept out of virtaal.pot."""
+    return GLib.dgettext('gtk30', msgid)
 
 
 class TMView(BaseView, GObjectWrapper):
@@ -56,6 +62,11 @@ class TMView(BaseView, GObjectWrapper):
 
         self._signal_tracker.connect(
             self.tmwindow.treeview, 'row-activated', self._on_row_activated
+        )
+        self._match_menu = self._create_match_menu()
+        self._menu_match = None
+        self._signal_tracker.connect(
+            self.tmwindow.treeview, 'button-press-event', self._on_treeview_button_press
         )
         self._signal_tracker.connect(
             controller.main_controller.store_controller.view.parent_widget.get_vscrollbar(),
@@ -130,6 +141,22 @@ class TMView(BaseView, GObjectWrapper):
         self.mnu_suggestions.set_active(True)
         self.mnu_summon.connect('activate', lambda *_args: self.controller.summon())
 
+    def _create_match_menu(self):
+        menu = Gtk.Menu()
+        # GTK's own label, as in the target's context menu.
+        mnu_copy = Gtk.MenuItem.new_with_mnemonic(label=_gtk_text('_Copy'))
+        mnu_copy.connect('activate', lambda *_args: self.copy_match(self._menu_match))
+        # l10n: Inserts the suggestion at the cursor in the translation, or over the selected text, keeping the rest of the translation.
+        mnu_insert = Gtk.MenuItem.new_with_mnemonic(label=_('_Insert at Cursor'))
+        mnu_insert.connect(
+            'activate', lambda *_args: self.controller.insert_match(self._menu_match)
+        )
+        menu.append(mnu_copy)
+        menu.append(mnu_insert)
+        menu.show_all()
+        menu.attach_to_widget(self.tmwindow.treeview, None)
+        return menu
+
     # ACCESSORS #
     def _get_active(self):
         return self.mnu_suggestions.get_active()
@@ -151,6 +178,7 @@ class TMView(BaseView, GObjectWrapper):
 
         self.menu.remove(self.mnu_suggestions)
         self.menu.remove(self.mnu_summon)
+        self._match_menu.destroy()
 
     def display_matches(self, matches):
         """Add the list of TM matches to those available and show the TM window."""
@@ -201,6 +229,18 @@ class TMView(BaseView, GObjectWrapper):
             size=(550, 580),
             parent=parent,
         )
+
+    def copy_match(self, match_data):
+        """Put the match's text on the clipboard."""
+        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        clipboard.set_text(forceunicode(match_data['target']), -1)
+
+    def popup_match_menu(self, path, event):
+        """Show the Copy / Insert menu for the match in row C{path}."""
+        liststore = self.tmwindow.liststore
+        self._menu_match = liststore.get_value(liststore.get_iter(path), 0)
+        self.tmwindow.treeview.get_selection().select_path(path)
+        self._match_menu.popup_at_pointer(event)
 
     def select_match(self, match_data):
         """Select the match data as accepted by the user."""
@@ -317,6 +357,9 @@ class TMView(BaseView, GObjectWrapper):
     def _on_active_notify_mainwindow(self, widget, pspec):
         if widget.props.is_active:
             self._on_mainwindow_focus_gained()
+        elif self._match_menu.get_visible():
+            # A match's own menu takes the focus: keep the matches under it.
+            return
         else:
             self._on_mainwindow_focus_lost()
 
@@ -390,6 +433,15 @@ class TMView(BaseView, GObjectWrapper):
         match_data = liststore.get_value(itr, 0)
 
         self.select_match(match_data)
+
+    def _on_treeview_button_press(self, treeview, event):
+        if event.type != Gdk.EventType.BUTTON_PRESS or not event.triggers_context_menu():
+            return False
+        hit = treeview.get_path_at_pos(int(event.x), int(event.y))
+        if hit is None:
+            return False
+        self.popup_match_menu(hit[0], event)
+        return True
 
     def _on_select_match(self, accel_group, acceleratable, keyval, modifier):
         self.select_match_index(int(keyval - Gdk.KEY_0))
