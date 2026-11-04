@@ -216,3 +216,51 @@ def test_item_disabled_adds_the_backend_to_disabled_models(monkeypatch):
 
     assert 'backend1' in pc.disabled
     assert 'backend1' in config['disabled_models']
+
+
+def _items_for(monkeypatch, infos):
+    pc = _FakePluginController(list(infos), infos)
+    captured = {}
+
+    def fake_select_dialog(**kwargs):
+        captured['dlg'] = _FakeSelectDialog(**kwargs)
+        return captured['dlg']
+
+    monkeypatch.setattr('virtaal.views.widgets.selectdialog.SelectDialog', fake_select_dialog)
+    select_backends(
+        _FakeMainController(),
+        pc,
+        {'disabled_models': []},
+        'basemodel',
+        title='Title',
+        message='Message',
+        size=(1, 2),
+    )
+    return {item['data']['internal_name']: item for item in captured['dlg'].items}
+
+
+def test_an_online_source_says_where_its_text_goes(monkeypatch):
+    items = _items_for(
+        monkeypatch,
+        {
+            'mt': {
+                'display_name': 'MT',
+                'description': 'd',
+                'online_service': 'Example MT',
+                'terms_url': 'https://example.org/terms',
+            },
+            'tm': {'display_name': 'TM', 'description': 'd', 'online_service': 'Example TM'},
+        },
+    )
+
+    assert items['mt']['notice'] == 'Sends the text you translate to Example MT.'
+    assert items['mt']['link'] == ('Terms of service', 'https://example.org/terms')
+    assert items['tm']['notice'] == 'Sends the text you translate to Example TM.'
+    assert 'link' not in items['tm']
+
+
+def test_an_offline_source_has_no_notice(monkeypatch):
+    items = _items_for(monkeypatch, {'local': {'display_name': 'Local', 'description': 'd'}})
+
+    assert 'notice' not in items['local']
+    assert 'link' not in items['local']

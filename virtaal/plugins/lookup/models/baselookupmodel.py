@@ -13,6 +13,11 @@ class BaseLookupModel:
     """A description of the backend. This will be displayed to users."""
     display_name = None
     """The backend's name, suitable for display."""
+    online_service = None
+    """The outside service, by name, this backend sends the text being
+    translated to; None if it sends none (#1301)."""
+    terms_url = None
+    """That service's terms of service, if it has any."""
     configure_func = None
     """A callable(parent_window) opening this model's own settings
     dialog, offered in the Select Look-up Services list - None (the

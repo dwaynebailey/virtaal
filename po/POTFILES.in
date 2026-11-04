@@ -44,6 +44,7 @@ virtaal/plugins/tm/tmview.py
 virtaal/plugins/tm/tmwidgets.py
 virtaal/support/crash_dialog.py
 virtaal/support/tutorial.py
+virtaal/views/backendselect.py
 virtaal/views/checksprojview.py
 virtaal/views/checksunitview.py
 virtaal/views/langview.py

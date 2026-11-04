@@ -57,6 +57,7 @@ class TMModel(BaseTMModel):
     __gtype_name__ = 'ApertiumTMModel'
     display_name = _('Apertium')
     description = _('Unreviewed machine translations from Apertium')
+    online_service = 'Apertium'
 
     url = "https://www.apertium.org/apy"
 

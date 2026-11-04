@@ -39,6 +39,8 @@ class TMModel(BaseTMModel):
     # l10n: The name of Google Translate in your language (translated in most languages). See http://translate.google.com/
     display_name = _('Google Translate')
     description = _("Unreviewed machine translations from Google's translation service")
+    online_service = 'Google'
+    terms_url = 'https://cloud.google.com/terms'
     # Billed per character: off unless turned on.
     PREFETCH_MAX = 2
     default_config = {'api_key': '', 'prefetch': 0}

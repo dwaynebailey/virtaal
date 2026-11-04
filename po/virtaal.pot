@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-04 00:41+0000\n"
+"POT-Creation-Date: 2026-11-04 00:57+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2044,6 +2044,16 @@ msgid ""
 "\"help page\" and that your translation corresponding to the second sentence "
 "is contained in the <span> tags. Note how the full stop is still inside the "
 "</span> tag."
+msgstr ""
+
+#. l10n: %(service)s is the name of an online service, such as Google or Apertium
+#: virtaal/views/backendselect.py
+#, python-format
+msgid "Sends the text you translate to %(service)s."
+msgstr ""
+
+#: virtaal/views/backendselect.py
+msgid "Terms of service"
 msgstr ""
 
 #: virtaal/views/checksprojview.py

@@ -234,6 +234,13 @@ def test_enable_plugin_returns_none_and_logs_on_unexpected_error(caplog):
     assert any('Failed to load plugin' in r.message for r in caplog.records)
 
 
+def test_for_backend_collects_whether_a_model_sends_text_online():
+    pc = PluginController.for_backend(object(), 'TMModel', 'tm', object, list)
+
+    assert 'online_service' in pc.PLUGIN_CLASS_INFO_ATTRIBS
+    assert 'terms_url' in pc.PLUGIN_CLASS_INFO_ATTRIBS
+
+
 # get_plugin_info() #
 
 

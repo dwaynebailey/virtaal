@@ -178,6 +178,19 @@ def test_do_start_editing_wraps_the_widget_in_a_shown_cell_widget():
     assert made.get_visible()
 
 
+def test_do_start_editing_makes_a_link_clickable_without_a_config_entry():
+    # The drawn row is just text: only the live widget's link opens.
+    made = Gtk.Label()
+    renderer = CellRendererWidget(strfunc=lambda w: '', widget_func=lambda item: made)
+    sview = _select_view_with(
+        {'name': 'A', 'data': 'a', 'notice': 'n', 'link': ('Terms', 'https://example.org/')}
+    )
+
+    result = renderer.do_start_editing(None, sview, '0', None, None, Gtk.CellRendererState(0))
+
+    assert isinstance(result, CellWidget)
+
+
 # create_pango_layout() #
 
 

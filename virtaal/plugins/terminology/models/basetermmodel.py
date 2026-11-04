@@ -33,6 +33,11 @@ class BaseTerminologyModel(BaseModel, Configurable):
     """A function that starts the configuration, if available."""
     display_name = None
     """The backend's name, suitable for display."""
+    online_service = None
+    """The outside service, by name, this backend sends the text being
+    translated to; None if it sends none (#1301)."""
+    terms_url = None
+    """That service's terms of service, if it has any."""
 
     # INITIALIZERS #
     def __init__(self, controller):

@@ -244,3 +244,61 @@ def test_keys_are_left_to_the_default_handling_without_a_cursor_row():
 
     assert sview._on_key_press(sview, SimpleNamespace(keyval=Gdk.KEY_space)) is False
     assert all(item['enabled'] for item in sview.get_all_items())
+
+
+def _online_item(**extra):
+    item = {
+        'name': 'MT',
+        'desc': 'Machine translations',
+        'data': 'mt',
+        'notice': 'Sends the text you translate to Example & Co.',
+        'link': ('Terms of service', 'https://example.org/terms?a=1&b=2'),
+    }
+    item.update(extra)
+    return item
+
+
+def test_an_online_row_shows_its_notice_and_link():
+    sview = SelectView(items=[_online_item()])
+
+    assert _row_text(sview) == (
+        'MT\nMachine translations\nSends the text you translate to Example & Co. Terms of service'
+    )
+
+
+def test_a_row_without_a_notice_shows_no_extra_line():
+    sview = SelectView(items=[{'name': 'A', 'desc': 'Local', 'data': 'a'}])
+
+    assert _row_text(sview) == 'A\nLocal'
+    assert sview.get_model()[0][4].get_children()[0].lbl_notice is None
+
+
+def test_a_notice_without_a_link_has_no_link():
+    sview = SelectView(items=[_online_item(link=None)])
+    label = sview.get_model()[0][4].get_children()[0].lbl_notice
+
+    assert _row_text(sview).endswith('\nSends the text you translate to Example & Co.')
+    assert label.get_current_uri() is None
+    assert '<a ' not in label.get_label()
+
+
+def test_activating_the_link_opens_it(monkeypatch):
+    opened = []
+    monkeypatch.setattr('virtaal.support.openmailto.open', opened.append)
+    sview = SelectView(items=[_online_item()])
+    label = sview.get_model()[0][4].get_children()[0].lbl_notice
+
+    handled = label.emit('activate-link', 'https://example.org/terms?a=1&b=2')
+
+    assert handled is True
+    assert opened == ['https://example.org/terms?a=1&b=2']
+
+
+def test_get_item_keeps_the_notice_and_link():
+    # The live row is rebuilt from get_item() while editing.
+    sview = SelectView(items=[_online_item()])
+
+    item = sview.get_item(sview.get_model().get_iter_first())
+
+    assert item['notice'] == _online_item()['notice']
+    assert item['link'] == _online_item()['link']

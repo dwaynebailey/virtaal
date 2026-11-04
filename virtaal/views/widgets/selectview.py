@@ -115,6 +115,27 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
                 lbl.set_size_request(DEFAULT_WIDTH, -1)
             vbox.pack_start(lbl, True, True, 0)
             vbox.lbl_desc = lbl
+
+        # An optional 'notice' line, with an optional 'link' (text, url) after it.
+        hbox.extras = {key: item[key] for key in ('notice', 'link') if item.get(key)}
+        vbox.lbl_notice = None
+        if 'notice' in hbox.extras:
+            lbl = Gtk.Label()
+            lbl.set_xalign(0)
+            lbl.set_yalign(0)
+            lbl.set_line_wrap(True)
+            lbl.set_markup(self._notice_markup(hbox.extras, link=True))
+            lbl.connect('activate-link', self._on_activate_link)
+            # Live only on the selected row: link blue is unreadable on its blue.
+            css = Gtk.CssProvider()
+            css.load_from_data(b'link { color: inherit; }')
+            lbl.get_style_context().add_provider(css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            lbl.set_property('xpad', 2)
+            lbl.set_margin_bottom(2)
+            if self.get_direction() == Gtk.TextDirection.LTR:
+                lbl.set_size_request(DEFAULT_WIDTH, -1)
+            vbox.pack_start(lbl, True, True, 0)
+            vbox.lbl_notice = lbl
         hbox.pack_start(vbox, True, True, 0)
 
         # No mnemonic yet: the button only exists in edit mode (#3549); Enter runs config.
@@ -130,8 +151,27 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
 
         return hbox
 
+    @staticmethod
+    def _notice_markup(extras, link):
+        """The notice: a real link in the live label, underlined in the drawn row."""
+        markup = GLib.markup_escape_text(extras['notice'])
+        if 'link' in extras:
+            text, url = (GLib.markup_escape_text(s) for s in extras['link'])
+            if link:
+                markup += f' <a href="{url}">{text}</a>'
+            else:
+                markup += f' <u>{text}</u>'
+        return markup
+
+    def _on_activate_link(self, label, uri):
+        from virtaal.support import openmailto
+
+        openmailto.open(uri)
+        return True
+
     def _get_widget_string(self, widget):
         s = ''
+        extras = getattr(widget, 'extras', {})
         widget = widget.get_children()[0]
         if widget.lbl_name:
             if widget.lbl_name.get_use_markup():
@@ -140,6 +180,8 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
                 s = GLib.markup_escape_text(widget.lbl_name.get_text())
         if widget.lbl_desc:
             s += '\n' + GLib.markup_escape_text(widget.lbl_desc.get_text())
+        if getattr(widget, 'lbl_notice', None):
+            s += '\n' + self._notice_markup(extras, link=False)
         return s
 
     def get_all_items(self):
@@ -159,6 +201,7 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
 
         config = None
         widget = self._model.get_value(iter, COL_WIDGET)
+        extras = getattr(widget, 'extras', {})
         try:
             if widget:
                 widget = widget.get_children()[1]
@@ -173,6 +216,7 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
             'desc': self._model.get_value(iter, COL_DESC),
             'data': self._model.get_value(iter, COL_DATA),
         }
+        item.update(extras)
         if config:
             item['config'] = config
 

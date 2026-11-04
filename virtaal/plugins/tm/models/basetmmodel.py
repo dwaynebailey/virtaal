@@ -58,6 +58,11 @@ class BaseTMModel(BaseModel, Configurable):
 
     configure_func = None
     """A function that starts the configuration, if available."""
+    online_service = None
+    """The outside service, by name, this backend sends the text being
+    translated to; None if it sends none (#1301)."""
+    terms_url = None
+    """That service's terms of service, if it has any."""
 
     settings = ()
     """The settingsdialog.Field()s Configure… edits, if any (#1519)."""

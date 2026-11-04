@@ -32,15 +32,22 @@ def select_backends(
             continue
         enabled = plugin_name in plugin_controller.plugins
         backend_config = enabled and plugin_controller.plugins[plugin_name].configure_func or None
-        items.append(
-            {
-                'name': info['display_name'],
-                'desc': info['description'],
-                'data': {'internal_name': plugin_name},
-                'enabled': enabled,
-                'config': backend_config,
+        item = {
+            'name': info['display_name'],
+            'desc': info['description'],
+            'data': {'internal_name': plugin_name},
+            'enabled': enabled,
+            'config': backend_config,
+        }
+        # Not every source suits confidential text (#1301).
+        if info.get('online_service'):
+            # l10n: %(service)s is the name of an online service, such as Google or Apertium
+            item['notice'] = _('Sends the text you translate to %(service)s.') % {
+                'service': info['online_service']
             }
-        )
+            if info.get('terms_url'):
+                item['link'] = (_('Terms of service'), info['terms_url'])
+        items.append(item)
 
     def item_enabled(dlg, item):
         internal_name = item['data']['internal_name']

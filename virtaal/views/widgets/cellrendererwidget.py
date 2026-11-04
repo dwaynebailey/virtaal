@@ -92,7 +92,8 @@ class CellRendererWidget(Gtk.CellRenderer):
         itr = model.get_iter(path)
         item = treeview.get_item(itr)
         widget = self.widget_func(item)
-        if widget and "config" in item:
+        # Live, so its Configure… button or link can be clicked.
+        if widget and ("config" in item or "link" in item):
             editable = CellWidget(widget)
             editable.show_all()
             editable.grab_focus()

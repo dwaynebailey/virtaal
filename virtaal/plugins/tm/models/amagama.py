@@ -17,6 +17,7 @@ class TMModel(remotetm.TMModel):
     description = _('Previous translations for Free and Open Source Software')
     # l10n: Try to keep this as short as possible.
     shortname = _('Amagama')
+    online_service = 'amaGama'
 
     PREFETCH_MAX = 2
     default_config = {
