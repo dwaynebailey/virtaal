@@ -406,17 +406,10 @@ class TermAddDialog:
 
             logging.debug('No terminology store to extend :(')
             return
-        unit = store.addsourceunit(source)
-        unit.target = target
-
         buff = self.txt_comment.get_buffer()
         comments = buff.get_text(buff.get_start_iter(), buff.get_end_iter(), True)
-        if comments:
-            unit.addnote(comments)
-
-        store.save()
-        self.term_model.matcher.extendtm(unit)
-        self.term_model.controller.rescan_current_unit()
+        if self.term_model.add_term(store, source, target, comments) is not None:
+            self.term_model.controller.rescan_current_unit()
         # logging.debug('Added new term: [%s] => [%s], file=%s' % (source, target, store.filename))
 
     def reset(self):

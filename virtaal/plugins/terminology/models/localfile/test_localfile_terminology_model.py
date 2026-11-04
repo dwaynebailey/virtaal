@@ -5,7 +5,12 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import shutil
+import subprocess
 from types import SimpleNamespace
+
+from translate.search.match import terminologymatcher
+from translate.storage import factory
 
 from virtaal.common.configurable import Configurable
 from virtaal.plugins.terminology.models.localfile import TerminologyModel
@@ -63,6 +68,99 @@ def test_get_duplicates_searches_across_multiple_stores(monkeypatch):
     ]
 
     assert model.get_duplicates('hello', 'hallo') is True
+
+
+# add_term() #
+
+
+def _po_glossary_model(monkeypatch, tmp_path, terms=()):
+    filename = str(tmp_path / 'terms.po')
+    store = factory.getobject(filename)
+    for source, target in terms:
+        store.addsourceunit(source).target = target
+    store.save()
+    model = _make_model({}, monkeypatch)
+    model.stores = [store]
+    model.matcher = terminologymatcher(model.stores)
+    return model, store, filename
+
+
+def _term_ids(filename):
+    return [u.getid() for u in factory.getobject(filename).units if not u.isheader()]
+
+
+def test_add_term_keeps_a_po_glossary_valid_for_a_second_translation(monkeypatch, tmp_path):
+    model, store, filename = _po_glossary_model(monkeypatch, tmp_path, [('cat', 'kat')])
+
+    model.add_term(store, 'cat', 'katjie')
+
+    ids = _term_ids(filename)
+    assert len(ids) == len(set(ids)) == 2
+    if shutil.which('msgfmt'):
+        result = subprocess.run(
+            ['msgfmt', '-c', '-o', '/dev/null', filename], capture_output=True, text=True
+        )
+        assert result.returncode == 0, result.stderr
+
+
+def test_add_term_leaves_the_first_po_unit_without_a_context(monkeypatch, tmp_path):
+    model, store, filename = _po_glossary_model(monkeypatch, tmp_path)
+
+    model.add_term(store, 'cat', 'kat')
+    model.add_term(store, 'cat', 'katjie')
+
+    assert _term_ids(filename) == ['cat', 'katjie\x04cat']
+
+
+def test_add_term_finds_a_free_context_when_the_target_is_taken(monkeypatch, tmp_path):
+    model, store, filename = _po_glossary_model(monkeypatch, tmp_path, [('cat', 'poes')])
+    unit = store.addsourceunit('cat')
+    unit.target = 'mies'
+    unit.setcontext('kat')
+    store.save()
+
+    model.add_term(store, 'cat', 'kat')
+
+    ids = _term_ids(filename)
+    assert len(ids) == len(set(ids)) == 3
+
+
+def test_add_term_does_not_add_an_exact_duplicate(monkeypatch, tmp_path):
+    model, store, filename = _po_glossary_model(monkeypatch, tmp_path, [('cat', 'kat')])
+
+    assert model.add_term(store, ' cat ', 'kat') is None
+    assert _term_ids(filename) == ['cat']
+
+
+def test_add_term_adds_the_comment_as_a_note(monkeypatch, tmp_path):
+    model, store, filename = _po_glossary_model(monkeypatch, tmp_path)
+
+    model.add_term(store, 'cat', 'kat', 'feline')
+
+    assert 'feline' in factory.getobject(filename).units[-1].getnotes()
+
+
+def test_add_term_makes_every_translation_matchable(monkeypatch, tmp_path):
+    model, store, _filename = _po_glossary_model(monkeypatch, tmp_path, [('cat', 'kat')])
+
+    model.add_term(store, 'cat', 'katjie')
+    model.add_term(store, 'Dog', 'Hond')
+
+    matches = {(u.source, u.target) for u in model.matcher.matches('The cat and the dog')}
+    assert matches == {('cat', 'kat'), ('cat', 'katjie'), ('dog', 'Hond')}
+
+
+def test_add_term_adds_no_context_outside_po(monkeypatch, tmp_path):
+    filename = str(tmp_path / 'terms.csv')
+    store = factory.getobject(filename)
+    model = _make_model({}, monkeypatch)
+    model.stores = [store]
+    model.matcher = terminologymatcher(model.stores)
+
+    model.add_term(store, 'cat', 'kat')
+    model.add_term(store, 'cat', 'katjie')
+
+    assert [u.getcontext() for u in factory.getobject(filename).units] == ['', '']
 
 
 # get_units_with_source() #

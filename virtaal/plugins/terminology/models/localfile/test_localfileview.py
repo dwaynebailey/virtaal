@@ -670,78 +670,50 @@ def test_on_toggle_marks_only_the_toggled_row_as_the_extend_file():
 # TermAddDialog.add_term_unit() #
 
 
-class _FakeTermUnit:
-    def __init__(self, source):
-        self.source = source
-        self.target = None
-        self.notes = []
-
-    def addnote(self, note):
-        self.notes.append(note)
-
-
-class _FakeTermStore:
-    def __init__(self):
-        self.units = []
-        self.saved = False
-
-    def addsourceunit(self, source):
-        unit = _FakeTermUnit(source)
-        self.units.append(unit)
-        return unit
-
-    def save(self):
-        self.saved = True
-
-
-def _add_term_dialog(comment_text=''):
+def _add_term_dialog(comment_text='', adds=True):
     dialog = TermAddDialog.__new__(TermAddDialog)
     dialog.cmb_termfile = SimpleNamespace(get_active_text=lambda: 'terms.po')
     buff = Gtk.TextBuffer()
     buff.set_text(comment_text)
     dialog.txt_comment = SimpleNamespace(get_buffer=lambda: buff)
-    return dialog
+    store = object()
+    added = []
+    rescanned = []
+
+    def add_term(*args):
+        added.append(args)
+        return object() if adds else None
+
+    dialog.term_model = SimpleNamespace(
+        get_store_for_filename=lambda f: store,
+        add_term=add_term,
+        controller=SimpleNamespace(rescan_current_unit=lambda: rescanned.append(True)),
+    )
+    return dialog, store, added, rescanned
 
 
 def test_add_term_unit_does_nothing_without_a_target_store():
-    dialog = _add_term_dialog()
+    dialog = _add_term_dialog()[0]
     dialog.term_model = SimpleNamespace(get_store_for_filename=lambda f: None)
 
     dialog.add_term_unit('cat', 'kat')  # must not raise
 
 
-def test_add_term_unit_adds_a_unit_with_a_comment_and_saves():
-    dialog = _add_term_dialog('a helpful comment')
-    store = _FakeTermStore()
-    extended = []
-    rescanned = []
-    dialog.term_model = SimpleNamespace(
-        get_store_for_filename=lambda f: store,
-        matcher=SimpleNamespace(extendtm=extended.append),
-        controller=SimpleNamespace(rescan_current_unit=lambda: rescanned.append(True)),
-    )
+def test_add_term_unit_adds_the_term_with_its_comment_and_rescans():
+    dialog, store, added, rescanned = _add_term_dialog('a helpful comment')
 
     dialog.add_term_unit('cat', 'kat')
 
-    unit = store.units[0]
-    assert (unit.source, unit.target, unit.notes) == ('cat', 'kat', ['a helpful comment'])
-    assert store.saved is True
-    assert extended == [unit]
+    assert added == [(store, 'cat', 'kat', 'a helpful comment')]
     assert rescanned == [True]
 
 
-def test_add_term_unit_skips_the_note_when_the_comment_is_empty():
-    dialog = _add_term_dialog('')
-    store = _FakeTermStore()
-    dialog.term_model = SimpleNamespace(
-        get_store_for_filename=lambda f: store,
-        matcher=SimpleNamespace(extendtm=lambda u: None),
-        controller=SimpleNamespace(rescan_current_unit=lambda: None),
-    )
+def test_add_term_unit_does_not_rescan_when_nothing_was_added():
+    dialog, _store, _added, rescanned = _add_term_dialog(adds=False)
 
     dialog.add_term_unit('cat', 'kat')
 
-    assert store.units[0].notes == []
+    assert rescanned == []
 
 
 # TermAddDialog._on_entry_changed() #

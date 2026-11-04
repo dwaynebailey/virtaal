@@ -9,7 +9,7 @@ import logging
 import os
 
 from translate.search.match import terminologymatcher
-from translate.storage import factory
+from translate.storage import factory, po
 from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.common import pan_app
@@ -52,6 +52,30 @@ class TerminologyModel(BaseTerminologyModel):
         super().destroy()
         if self.matcher in TerminologyPlaceable.matchers:
             TerminologyPlaceable.matchers.remove(self.matcher)
+
+    def add_term(self, store, source, target, comment=''):
+        """Add a term to store, save it and make it matchable.
+
+        Returns the new unit, or None if store already has it."""
+        for unit in store.units:
+            if unit.source.strip() == source.strip() and unit.target.strip() == target.strip():
+                return None
+        ids = {unit.getid() for unit in store.units}
+        unit = store.addsourceunit(source)
+        unit.target = target
+        if isinstance(store, po.pofile):
+            # A repeated msgid is invalid PO, so tell it apart by its target (#1238).
+            context, n = target, 1
+            while unit.getid() in ids:
+                unit.setcontext(context)
+                n += 1
+                context = '%s %d' % (target, n)
+        if comment:
+            unit.addnote(comment)
+        store.save()
+        # Not extendtm(): only inittm() lowercases the sources it matches on.
+        self.matcher.inittm(self.stores)
+        return unit
 
     def get_duplicates(self, src_text, tgt_text):
         base_src_text = src_text.strip()
