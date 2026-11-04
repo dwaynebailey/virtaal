@@ -226,6 +226,14 @@ class AssetManifest:
         returning None because there's no manifest to consult yet."""
         return self._data is not None
 
+    def section(self, name):
+        """One top-level section of the cached manifest as published -
+        such as 'apertium', Apertium's language pairs (#4678) - or None.
+        The caller checks its shape."""
+        if not isinstance(self._data, dict):
+            return None
+        return self._data.get(name)
+
     def get(self, resource_type, locale_code):
         """{folder, files: [{name, sha}, ...]} covering locale_code
         for resource_type, or None if the manifest was never

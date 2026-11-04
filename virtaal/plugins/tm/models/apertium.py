@@ -13,14 +13,21 @@ https://wiki.apertium.org/wiki/Apertium_web_service
 Note: the old api.apertium.org/json service (with its appId query parameter)
 has been retired; this now targets the APY instance Apertium itself hosts,
 which needs no appId.
+
+The language pairs at start come from the cached asset manifest, else
+the saved copy of the last live list, else a live request (#4678). With
+a list from either copy, queries run at once and the live list is
+fetched with the first query, replacing it.
 """
 
 import json
 import logging
+import os
 from urllib.parse import urlencode
 
 import pycountry
 
+from virtaal.common import pan_app
 from virtaal.support.httpclient import HTTPClient, RESTRequest
 
 from .basetmmodel import BaseTMModel, unescape_html_entities
@@ -32,6 +39,56 @@ APY_LANGUAGES = {
     'ms': 'zlm',
     'sr': 'hbs_SR',
 }
+
+
+# The last pair list Apertium returned, in the config dir.
+PAIRS_FILENAME = 'apertium-pairs.json'
+
+
+def _config_dir():
+    return pan_app.get_config_dir()
+
+
+def read_pairs(section):
+    """[(source, target), ...] from a {'pairs': [[source, target], ...]}
+    section, as the asset manifest and the saved copy hold them, or
+    None if it is of any other shape or has no pairs."""
+    pairs = section.get('pairs') if isinstance(section, dict) else None
+    if not isinstance(pairs, list) or not pairs:
+        return None
+    if not all(
+        isinstance(pair, list) and len(pair) == 2 and all(isinstance(c, str) and c for c in pair)
+        for pair in pairs
+    ):
+        return None
+    return [tuple(pair) for pair in pairs]
+
+
+def _manifest_pairs(config_dir):
+    from virtaal.support.asset_manifest import AssetManifest
+
+    return read_pairs(AssetManifest(config_dir=config_dir).section('apertium'))
+
+
+def _saved_pairs(config_dir):
+    try:
+        with open(os.path.join(config_dir, PAIRS_FILENAME), encoding='utf-8') as f:
+            return read_pairs(json.load(f))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        logging.debug("Apertium: no usable saved language list (%s)", exc)
+        return None
+
+
+def _save_pairs(config_dir, pairs):
+    path = os.path.join(config_dir, PAIRS_FILENAME)
+    try:
+        with open(path + '.tmp', 'w', encoding='utf-8') as f:
+            json.dump({'pairs': sorted(map(list, set(pairs)))}, f)
+        os.replace(path + '.tmp', path)
+    except OSError as exc:
+        logging.debug("Apertium: could not save the language list (%s)", exc)
 
 
 def apy_codes(code):
@@ -65,6 +122,11 @@ class TMModel(BaseTMModel):
     PREFETCH_MAX = 1
     default_config = {'prefetch': 0}
 
+    # A start list from a copy waits for the first query to fetch the
+    # live one; then the live one is in flight until it answers.
+    _refresh_due = False
+    _refreshing = False
+
     # INITIALISERS #
     def __init__(self, internal_name, controller):
         self.internal_name = internal_name
@@ -75,13 +137,29 @@ class TMModel(BaseTMModel):
         self.client = HTTPClient()
         self.url_getpairs = "%(url)s/listPairs" % {"url": self.url}
         self.url_translate = "%(url)s/translate" % {"url": self.url}
+        config_dir = _config_dir()
+        pairs = _manifest_pairs(config_dir) or _saved_pairs(config_dir)
+        if pairs:
+            self.language_pairs = pairs
+            self.languages_known = True
+            self._refresh_due = True
+        else:
+            self._request_language_pairs()
+
+        super().__init__(controller)
+
+    def _request_language_pairs(self):
+        self._refresh_due = False
+        self._refreshing = True
         langreq = RESTRequest(self.url_getpairs, '')
         self.client.add(langreq)
         langreq.connect('http-success', lambda langreq, response: self.got_language_pairs(response))
         for signal in ('http-client-error', 'http-server-error'):
-            langreq.connect(signal, lambda langreq, status: self.set_languages_known())
+            langreq.connect(signal, lambda langreq, status: self._language_pairs_failed())
 
-        super().__init__(controller)
+    def _language_pairs_failed(self):
+        self._refreshing = False
+        self.set_languages_known()
 
     # METHODS #
     def query(self, tmcontroller, unit):
@@ -92,6 +170,13 @@ class TMModel(BaseTMModel):
 
         pair = self._apy_pair()
         if pair is None:
+            if self._refresh_due or self._refreshing:
+                # Apertium may have added the pair since the copy the
+                # start list came from: wait for the live list.
+                self.languages_known = False
+                self.hold_until_languages_known(tmcontroller, unit)
+                if self._refresh_due:
+                    self._request_language_pairs()
             return
 
         query_str = unit.source
@@ -109,6 +194,8 @@ class TMModel(BaseTMModel):
             req.connect(
                 'http-success', lambda req, response: self.got_translation(response, query_str)
             )
+        if self._refresh_due:
+            self._request_language_pairs()
 
     def requests_in_flight(self):
         return len(self.client.requests)
@@ -129,13 +216,22 @@ class TMModel(BaseTMModel):
             if data['responseStatus'] != 200:
                 logging.debug("Failed to get languages:\n%s", (data['responseDetails']))
                 return
-            self.language_pairs = [
+            pairs = [
                 (pair['sourceLanguage'], pair['targetLanguage']) for pair in data['responseData']
             ]
+            if not all(isinstance(c, str) for pair in pairs for c in pair):
+                raise TypeError('a language code is not a string')
         except (ValueError, KeyError, TypeError) as exc:
             # Not JSON, or of another shape (#4438).
             logging.warning("Ignoring an Apertium language list it can't read: %s", exc)
+        else:
+            # An empty list is more likely a server fault than Apertium
+            # dropping every pair: keep the one from the start.
+            if pairs:
+                self.language_pairs = pairs
+                _save_pairs(_config_dir(), pairs)
         finally:
+            self._refreshing = False
             self.set_languages_known()
 
     def got_translation(self, val, query_str):

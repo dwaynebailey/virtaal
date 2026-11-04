@@ -340,3 +340,46 @@ def test_entry_shas_and_installed_asset_key():
     entry = {'folder': 'de', 'files': [{'name': 'a', 'sha': 'a1'}, {'name': 'b', 'sha': 'a2'}]}
     assert am.entry_shas(entry) == 'a1,a2'
     assert am.installed_asset_key('dictionary', 'de_DE') == 'dictionary.de_de'
+
+
+# The apertium section (#4678): readers that predate it look up only
+# their own sections, so the extra top-level key changes nothing.
+
+
+def _cached(tmp_path, text):
+    (tmp_path / am._CACHE_FILENAME).write_text(text, encoding='utf-8')
+    return _make_manifest(tmp_path)
+
+
+def test_a_manifest_with_apertium_pairs_still_gives_its_dictionaries(tmp_path):
+    data = dict(YAML_DATA, apertium={'pairs': [['eng', 'spa'], ['spa', 'eng']]})
+    manifest = _cached(tmp_path, yaml.safe_dump(data))
+
+    assert manifest.get('dictionary', 'de_DE')['folder'] == 'de'
+    assert manifest.get('thesaurus', 'de_DE') is None
+    assert manifest.section('apertium') == {'pairs': [['eng', 'spa'], ['spa', 'eng']]}
+
+
+@pytest.mark.parametrize('text', ['', '- a list', 'just text', 'dictionary: {}'])
+def test_section_is_none_without_a_usable_section(tmp_path, text):
+    assert _cached(tmp_path, text).section('apertium') is None
+
+
+def test_section_is_none_when_never_fetched(tmp_path):
+    assert _make_manifest(tmp_path).section('apertium') is None
+
+
+def test_the_generator_keeps_pairs_from_the_manifest_virtaal_reads():
+    import importlib.util
+
+    script = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        'devsupport',
+        'testing',
+        'generate_asset_manifest.py',
+    )
+    spec = importlib.util.spec_from_file_location('generate_asset_manifest', script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert module.PUBLISHED_MANIFEST_URL == am.MANIFEST_URL

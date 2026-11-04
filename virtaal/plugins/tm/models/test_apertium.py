@@ -10,11 +10,20 @@ import logging
 from types import SimpleNamespace
 
 import pytest
+import yaml
 from gi.repository import GObject
 
 from virtaal.plugins.tm._testhelpers import FakeHTTPClient, fake_controller
 from virtaal.plugins.tm.models import apertium
 from virtaal.plugins.tm.models.apertium import TMModel
+
+
+@pytest.fixture(autouse=True)
+def config_dir(tmp_path, monkeypatch):
+    """A config dir of the test's own: no manifest or saved pair list
+    unless the test writes one (#4678)."""
+    monkeypatch.setattr(apertium, '_config_dir', lambda: str(tmp_path))
+    return tmp_path
 
 
 def _model():
@@ -364,3 +373,176 @@ def test_query_sends_nothing_when_no_apy_pair_matches():
     model.query(None, SimpleNamespace(source='The house is big.'))
 
     assert model.client.added == []
+
+
+# The pair list at start: the cached asset manifest's, else the saved
+# copy of the last live reply, else a live request (#4678).
+
+
+def _write_manifest(config_dir, pairs):
+    manifest = {'dictionary': {}, 'apertium': {'pairs': [list(p) for p in pairs]}}
+    (config_dir / 'asset-manifest.yaml').write_text(yaml.safe_dump(manifest), encoding='utf-8')
+
+
+def _write_saved(config_dir, pairs):
+    (config_dir / apertium.PAIRS_FILENAME).write_text(
+        json.dumps({'pairs': [list(p) for p in pairs]}), encoding='utf-8'
+    )
+
+
+def _saved(config_dir):
+    return json.loads((config_dir / apertium.PAIRS_FILENAME).read_text(encoding='utf-8'))
+
+
+def test_start_uses_the_manifest_pairs_without_a_request(monkeypatch, config_dir):
+    _write_manifest(config_dir, [('eng', 'afr')])
+    _write_saved(config_dir, [('eng', 'spa')])
+
+    model = _model_fetching_pairs(monkeypatch)
+
+    assert model.client.added == []
+    assert model.languages_known
+    assert model.language_pairs == [('eng', 'afr')]
+
+
+def test_start_uses_the_saved_pairs_without_a_manifest(monkeypatch, config_dir):
+    _write_saved(config_dir, [('eng', 'afr')])
+
+    model = _model_fetching_pairs(monkeypatch)
+
+    assert model.client.added == []
+    assert model.languages_known
+    assert model.language_pairs == [('eng', 'afr')]
+
+
+def test_start_uses_the_saved_pairs_when_the_manifest_has_none(monkeypatch, config_dir):
+    (config_dir / 'asset-manifest.yaml').write_text(
+        yaml.safe_dump({'dictionary': {}}), encoding='utf-8'
+    )
+    _write_saved(config_dir, [('eng', 'afr')])
+
+    model = _model_fetching_pairs(monkeypatch)
+
+    assert model.language_pairs == [('eng', 'afr')]
+
+
+def test_start_asks_apertium_with_neither(monkeypatch):
+    model = _model_fetching_pairs(monkeypatch)
+
+    assert [r.url for r in model.client.added] == [model.url_getpairs]
+    assert not model.languages_known
+
+
+_BAD_MANIFESTS = [
+    'not: [valid',
+    '- a list, not a mapping',
+    'apertium: [[eng, afr]]',
+    'apertium: {pairs: eng-afr}',
+    'apertium: {pairs: [[eng]]}',
+    'apertium: {pairs: [[eng, 3]]}',
+    'apertium: {pairs: []}',
+]
+
+
+@pytest.mark.parametrize('text', _BAD_MANIFESTS)
+def test_an_unreadable_manifest_falls_back_to_the_saved_pairs(monkeypatch, config_dir, text):
+    (config_dir / 'asset-manifest.yaml').write_text(text, encoding='utf-8')
+    _write_saved(config_dir, [('eng', 'afr')])
+
+    model = _model_fetching_pairs(monkeypatch)
+
+    assert model.language_pairs == [('eng', 'afr')]
+
+
+@pytest.mark.parametrize(
+    'text',
+    ['', '{"pairs": [["eng"', '[]', '{"pairs": "eng-afr"}', '{"pairs": [[1, 2]]}', b'\xff\xfe'],
+)
+def test_an_unreadable_saved_list_falls_back_to_asking_apertium(monkeypatch, config_dir, text):
+    path = config_dir / apertium.PAIRS_FILENAME
+    path.write_bytes(text if isinstance(text, bytes) else text.encode('utf-8'))
+
+    model = _model_fetching_pairs(monkeypatch)
+
+    assert [r.url for r in model.client.added] == [model.url_getpairs]
+
+
+def test_a_live_reply_updates_the_saved_pairs(monkeypatch, config_dir):
+    model = _model_fetching_pairs(monkeypatch)
+
+    model.client.added[0].emit('http-success', _pairs_reply(('eng', 'spa'), ('afr', 'nld')))
+
+    assert _saved(config_dir) == {'pairs': [['afr', 'nld'], ['eng', 'spa']]}
+
+
+@pytest.mark.parametrize('reply', ['not json', json.dumps({'responseStatus': 500})])
+def test_a_failed_live_reply_keeps_the_saved_pairs(monkeypatch, config_dir, reply):
+    _write_saved(config_dir, [('eng', 'afr')])
+    model = _model_fetching_pairs(monkeypatch)
+    model.query(None, SimpleNamespace(source='hello'))
+
+    model.client.added[-1].emit('http-success', reply)
+
+    assert model.language_pairs == [('eng', 'afr')]
+    assert _saved(config_dir) == {'pairs': [['eng', 'afr']]}
+
+
+def test_an_unwritable_config_dir_still_uses_the_live_pairs(monkeypatch, config_dir):
+    monkeypatch.setattr(apertium, '_config_dir', lambda: str(config_dir / 'missing' / 'dir'))
+    model = _model_fetching_pairs(monkeypatch)
+    (config_dir / 'missing').write_text('a file, not a dir', encoding='utf-8')
+
+    model.client.added[0].emit('http-success', _pairs_reply(('en', 'af')))
+
+    assert model.language_pairs == [('en', 'af')]
+
+
+def test_the_first_query_on_a_start_list_translates_then_refreshes(monkeypatch, config_dir):
+    _write_saved(config_dir, [('en', 'af')])
+    model = _model_fetching_pairs(monkeypatch)
+
+    model.query(None, SimpleNamespace(source='hello'))
+    model.query(None, SimpleNamespace(source='again'))
+
+    urls = [r.url for r in model.client.added]
+    assert 'q=hello' in urls[0]
+    assert urls[1] == model.url_getpairs
+    assert 'q=again' in urls[2]
+    assert len(urls) == 3
+
+
+def test_the_refresh_replaces_the_start_list_and_saves_it(monkeypatch, config_dir):
+    _write_manifest(config_dir, [('en', 'af')])
+    model = _model_fetching_pairs(monkeypatch)
+    model.query(None, SimpleNamespace(source='hello'))
+
+    model.client.added[1].emit('http-success', _pairs_reply(('en', 'af'), ('en', 'nl')))
+
+    assert model.language_pairs == [('en', 'af'), ('en', 'nl')]
+    assert _saved(config_dir) == {'pairs': [['en', 'af'], ['en', 'nl']]}
+
+
+def test_a_pair_missing_from_the_start_list_waits_for_the_live_list(monkeypatch, config_dir):
+    _write_saved(config_dir, [('en', 'nl')])
+    model = _model_fetching_pairs(monkeypatch)
+
+    model.query(None, SimpleNamespace(source='hello'))
+    assert [r.url for r in model.client.added] == [model.url_getpairs]
+    assert not model.languages_known  # prefetch holds off meanwhile
+
+    model.client.added[0].emit('http-success', _pairs_reply(('en', 'nl'), ('en', 'af')))
+
+    assert len(model.client.added) == 2
+    assert 'q=hello' in model.client.added[1].url
+
+
+def test_a_pair_missing_from_the_live_list_too_sends_nothing(monkeypatch, config_dir):
+    _write_saved(config_dir, [('en', 'nl')])
+    model = _model_fetching_pairs(monkeypatch)
+    model.query(None, SimpleNamespace(source='hello'))
+
+    model.client.added[0].emit('http-server-error', 503)
+    model.query(None, SimpleNamespace(source='again'))
+
+    assert [r.url for r in model.client.added] == [model.url_getpairs]
+    assert model.languages_known

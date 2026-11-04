@@ -23,12 +23,20 @@ tree/contents listing already being walked to find it - no extra
 request per file just to fingerprint it. A locale is only added to the
 manifest once every one of its files resolves to a real blob; a
 missing file is a validation failure, not a partial manifest entry.
+
+It also lists Apertium's language pairs, so Virtaal knows them at start
+and the asset-manifest branch history shows pairs Apertium adds or
+drops (#4678). Apertium's server is volunteer-run: when it is down or
+answers oddly the published manifest's pairs are kept, or the section is
+left out if there are none, and the run is still clean - a brief outage
+must not hold back a week's dictionary changes.
 """
 
 import argparse
 import json
 import sys
 import urllib.request
+from http.client import HTTPException
 from urllib.error import HTTPError, URLError
 
 import yaml
@@ -44,6 +52,12 @@ AUTOCORRECT_PARENT_CONTENTS_URL = (
     'https://api.github.com/repos/LibreOffice/core/contents/extras/source/autocorr'
 )
 AUTOCORRECT_TREE_URL = 'https://api.github.com/repos/LibreOffice/core/git/trees/%s?recursive=1'
+APERTIUM_PAIRS_URL = 'https://www.apertium.org/apy/listPairs'
+# virtaal.support.asset_manifest.MANIFEST_URL; that module needs GTK,
+# which this script's workflow doesn't install.
+PUBLISHED_MANIFEST_URL = (
+    'https://raw.githubusercontent.com/translate/virtaal/asset-manifest/asset-manifest.yaml'
+)
 
 # Folders with no HunSpellDic_* entry at all, permanently - not an
 # upstream restructuring to catch. zu_ZA only ships a hyphenation
@@ -153,6 +167,71 @@ def build_autocorrect_manifest():
     return problems, autocorrect
 
 
+def fetch_apertium_pairs(url):
+    """Apertium's listPairs reply, decoded. A plain GET: no key, no
+    identifying headers."""
+    with urllib.request.urlopen(urllib.request.Request(url), timeout=30) as response:
+        return json.loads(response.read().decode('utf-8'))
+
+
+def fetch_published_manifest(url):
+    with urllib.request.urlopen(urllib.request.Request(url), timeout=30) as response:
+        return yaml.safe_load(response.read().decode('utf-8'))
+
+
+def _sorted_pairs(pairs):
+    """Sorted, de-duplicated [source, target] lists, or None unless
+    pairs is a non-empty list of two non-empty strings each."""
+    if not isinstance(pairs, list) or not pairs:
+        return None
+    if not all(
+        isinstance(pair, (list, tuple))
+        and len(pair) == 2
+        and all(isinstance(code, str) and code for code in pair)
+        for pair in pairs
+    ):
+        return None
+    return [list(pair) for pair in sorted(set(map(tuple, pairs)))]
+
+
+def apertium_pairs_from_reply(reply):
+    """Sorted [source, target] lists from a listPairs reply, or None if
+    it isn't a successful one."""
+    if not isinstance(reply, dict) or reply.get('responseStatus') != 200:
+        return None
+    data = reply.get('responseData')
+    if not isinstance(data, list) or not all(isinstance(pair, dict) for pair in data):
+        return None
+    return _sorted_pairs(
+        [[pair.get('sourceLanguage'), pair.get('targetLanguage')] for pair in data]
+    )
+
+
+def build_apertium_section(fetch_pairs, fetch_published):
+    """(note, {'pairs': [[source, target], ...]} or None). Never a
+    problem: a failed Apertium keeps the published pairs, if any, and
+    the note is a GitHub Actions warning, so the run shows it."""
+    try:
+        pairs = apertium_pairs_from_reply(fetch_pairs(APERTIUM_PAIRS_URL))
+        error = None if pairs else 'not a usable listPairs reply'
+    except (OSError, ValueError, HTTPException) as e:
+        pairs, error = None, str(e)
+    if pairs:
+        return ('%d Apertium pair(s).' % len(pairs), {'pairs': pairs})
+    try:
+        published = fetch_published(PUBLISHED_MANIFEST_URL)
+        section = published.get('apertium') if isinstance(published, dict) else None
+        kept = _sorted_pairs(section.get('pairs')) if isinstance(section, dict) else None
+    except (OSError, ValueError, HTTPException, yaml.YAMLError) as e:
+        kept, error = None, '%s; published manifest: %s' % (error, e)
+    if kept:
+        return (
+            '::warning::Apertium: %s; kept the %d published pair(s).' % (error, len(kept)),
+            {'pairs': kept},
+        )
+    return ('::warning::Apertium: %s; pairs left out.' % error, None)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -177,9 +256,13 @@ def main():
         '%d dictionary, %d thesaurus, %d autocorrect locale(s) resolve cleanly.'
         % (len(dictionary), len(thesaurus), len(autocorrect))
     )
+    apertium_note, apertium = build_apertium_section(fetch_apertium_pairs, fetch_published_manifest)
+    print(apertium_note)
 
     if args.manifest_out:
         manifest = {'dictionary': dictionary, 'thesaurus': thesaurus, 'autocorrect': autocorrect}
+        if apertium is not None:
+            manifest['apertium'] = apertium
         with open(args.manifest_out, 'w', encoding='utf-8') as f:
             yaml.safe_dump(manifest, f)
         print('Wrote manifest to %s' % args.manifest_out)
