@@ -5,15 +5,18 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import os
 import shutil
 import subprocess
 from types import SimpleNamespace
 
 from translate.search.match import terminologymatcher
 from translate.storage import factory
+from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.common.configurable import Configurable
 from virtaal.plugins.terminology.models.localfile import TerminologyModel
+from virtaal.support.multiterm import MissingReaderError
 
 
 def _make_model(config, monkeypatch, internal_name='localfile'):
@@ -270,3 +273,66 @@ def test_load_config_always_includes_extendfile_in_files(monkeypatch, tmp_path):
     model.load_config()
 
     assert str(real_file) in model.config['files']
+
+
+# MultiTerm termbases #
+
+MILI = os.path.join('devsupport', 'testfiles', 'trados', 'kaur2k-termconv', 'mili_1.xml')
+
+
+def _lang_model(monkeypatch, files, source='en', target='et'):
+    model = _make_model({'files': files}, monkeypatch)
+    lang_controller = SimpleNamespace(
+        source_lang=SimpleNamespace(code=source), target_lang=SimpleNamespace(code=target)
+    )
+    rescans = []
+    model.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(lang_controller=lang_controller),
+        rescan_current_unit=lambda: rescans.append(True),
+    )
+    model.matcher = None
+    model._loaded = {}
+    return model, lang_controller, rescans
+
+
+def test_load_files_takes_a_multiterm_export_in_the_current_pair(monkeypatch):
+    model, _langs, _rescans = _lang_model(monkeypatch, [MILI])
+    monkeypatch.setattr(TerminologyPlaceable, 'matchers', [])
+
+    model.load_files()
+
+    store = model.stores[0]
+    assert store.gettargetlanguage() == 'ET'
+    assert [(m.source, m.target) for m in model.matcher.matches('Abort it.')] == [
+        ('abort', 'katkestus'),
+    ]
+
+
+def test_a_language_change_gives_a_termbase_the_new_pair_and_rescans(monkeypatch):
+    model, langs, rescans = _lang_model(monkeypatch, [MILI])
+    monkeypatch.setattr(TerminologyPlaceable, 'matchers', [])
+    model.load_files()
+
+    langs.target_lang = SimpleNamespace(code='fr')
+    model._on_lang_changed(None, 'fr')
+
+    assert [(m.source, m.target) for m in model.matcher.matches('Abort it.')] == [
+        ('abort', 'avorter'),
+    ]
+    assert rescans == [True]
+    model._on_lang_changed(None, 'fr')
+    assert rescans == [True]
+
+
+def test_load_files_leaves_out_a_termbase_it_has_no_reader_for(monkeypatch, tmp_path, caplog):
+    def no_reader(filename):
+        raise MissingReaderError('access-parser')
+
+    model, _langs, _rescans = _lang_model(monkeypatch, [str(tmp_path / 'terms.sdltb')])
+    monkeypatch.setattr(TerminologyPlaceable, 'matchers', [])
+    monkeypatch.setattr(factory, 'getobject', no_reader)
+
+    model.load_files()
+
+    assert model.stores == []
+    assert 'terms.sdltb' in caplog.text

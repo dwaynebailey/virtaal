@@ -31,6 +31,7 @@ _("XLIFF Translation File")
 
 # Virtaal's own Trados readers (virtaal/support/sdltm.py and
 # multiterm.py), named in the TM import and terminology file choosers.
+_("MultiTerm Termbase")
 _("MultiTerm XML Termbase")
 _("Trados Studio Translation Memory")
 

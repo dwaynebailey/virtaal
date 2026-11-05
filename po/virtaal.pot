@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-05 16:52+0000\n"
+"POT-Creation-Date: 2026-11-05 16:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -527,6 +527,10 @@ msgstr ""
 
 #: devsupport/tmp_strings.py
 msgid "XLIFF Translation File"
+msgstr ""
+
+#: devsupport/tmp_strings.py
+msgid "MultiTerm Termbase"
 msgstr ""
 
 #: devsupport/tmp_strings.py
@@ -1537,6 +1541,15 @@ msgstr ""
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
 #: virtaal/views/mainview.py
 msgid "All Supported Files"
+msgstr ""
+
+#. l10n: Shown when a Trados MultiTerm termbase (.sdltb) can't be
+#. read. MultiTerm XML is the name of MultiTerm's export format.
+#: virtaal/plugins/terminology/models/localfile/localfileview.py
+msgid ""
+"Virtaal can only read this termbase with the access-parser Python module, "
+"which is not installed. In MultiTerm, export the termbase as MultiTerm XML "
+"and add that file instead."
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py

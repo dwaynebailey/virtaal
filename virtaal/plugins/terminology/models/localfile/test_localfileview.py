@@ -16,6 +16,7 @@ from virtaal.plugins.terminology.models.localfile.localfileview import (
     LocalFileView,
     TermAddDialog,
 )
+from virtaal.support.multiterm import MissingReaderError
 from virtaal.views.widgets.wordatcursor import WordAtCursorSelector
 
 
@@ -800,3 +801,48 @@ def test_on_entry_changed_clears_errors_and_enables_add_when_clean():
 
     assert dialog.btn_add_term.get_sensitive() is True
     assert dialog.eb_add_term_errors.get_visible() is False
+
+
+def test_add_file_clicked_suggests_a_multiterm_xml_export_without_access_parser(
+    monkeypatch, tmp_path
+):
+    def no_reader(filename):
+        raise MissingReaderError('access-parser')
+
+    monkeypatch.setattr(FileSelectDialog, '_init_add_chooser', lambda self: None)
+    monkeypatch.setattr(localfileview.store_factory, 'getobject', no_reader)
+    picked = tmp_path / 'terms.sdltb'
+    picked.write_bytes(b'')
+    config = {'files': []}
+    errors = []
+    fake_controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            view=SimpleNamespace(
+                show_error_dialog=lambda title, message: errors.append((title, message))
+            )
+        )
+    )
+    model = SimpleNamespace(
+        controller=fake_controller, config=config, save_config=lambda: None, load_files=lambda: None
+    )
+    dialog = FileSelectDialog(model=model)
+    dialog.add_chooser = _FakeAddChooser(Gtk.ResponseType.ACCEPT, filenames=[str(picked)])
+
+    dialog._on_add_file_clicked(None)
+
+    assert config['files'] == []
+    assert 'export the termbase as MultiTerm XML' in errors[0][1]
+
+
+def test_the_add_chooser_offers_multiterm_termbases():
+    model = SimpleNamespace(controller=SimpleNamespace(main_controller=SimpleNamespace(view=None)))
+    model.controller.main_controller.view = SimpleNamespace(main_window=None)
+    dialog = FileSelectDialog.__new__(FileSelectDialog)
+    dialog.controller = model.controller
+
+    dialog._init_add_chooser()
+
+    names = [f.get_name() for f in dialog.add_chooser.list_filters()]
+    assert 'MultiTerm XML Termbase' in names
+    assert 'MultiTerm Termbase' in names
+    dialog.add_chooser.destroy()

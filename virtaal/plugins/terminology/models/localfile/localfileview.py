@@ -11,6 +11,8 @@ from gi.repository import Gdk, GLib, Gtk, Pango
 from translate.storage import factory as store_factory
 
 from virtaal.common import SignalTracker
+from virtaal.support.multiterm import MissingReaderError
+from virtaal.support.trados_compat import TERMINOLOGY_FORMATS
 from virtaal.views.baseview import BaseView
 from virtaal.views.theme import current_theme, set_widget_bg_color
 from virtaal.views.widgets.wordatcursor import WordAtCursorSelector
@@ -217,11 +219,10 @@ class FileSelectDialog:
         all_supported_filter = Gtk.FileFilter()
         all_supported_filter.set_name(_("All Supported Files"))
         dlg.add_filter(all_supported_filter)
+        formats = list(store_factory.supported_files())
+        formats += [(name, extensions, []) for name, extensions in TERMINOLOGY_FORMATS]
         supported_files_dict = dict(
-            [
-                (_(name), (extension, mimetype))
-                for name, extension, mimetype in store_factory.supported_files()
-            ]
+            [(_(name), (extension, mimetype)) for name, extension, mimetype in formats]
         )
         supported_file_names = list(supported_files_dict.keys())
         supported_file_names.sort(key=locale.strxfrm)
@@ -294,9 +295,18 @@ class FileSelectDialog:
                 currfiles.append(filename)
                 self.lst_files.append([filename, False])
             except Exception as exc:
+                errormsg = str(exc)
+                if isinstance(exc, MissingReaderError):
+                    errormsg = _(
+                        # l10n: Shown when a Trados MultiTerm termbase (.sdltb) can't be
+                        # read. MultiTerm XML is the name of MultiTerm's export format.
+                        'Virtaal can only read this termbase with the access-parser '
+                        'Python module, which is not installed. In MultiTerm, export '
+                        'the termbase as MultiTerm XML and add that file instead.'
+                    )
                 message = _('Unable to load %(filename)s:\n\n%(errormsg)s') % {
                     'filename': filename,
-                    'errormsg': str(exc),
+                    'errormsg': errormsg,
                 }
                 mainview.show_error_dialog(title=_('Error opening file'), message=message)
 

@@ -14,6 +14,8 @@ from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.common import pan_app
 from virtaal.plugins.terminology.models.basetermmodel import BaseTerminologyModel
+from virtaal.support import trados_compat  # noqa: F401 - applies its patch on import
+from virtaal.support.multiterm import MissingReaderError
 
 from .localfileview import LocalFileView
 
@@ -44,6 +46,9 @@ class TerminologyModel(BaseTerminologyModel):
         self.load_config()
         self.load_files()
         self.view = LocalFileView(self)
+        lang_controller = controller.main_controller.lang_controller
+        for signal in ('source-lang-changed', 'target-lang-changed'):
+            self._signal_tracker.connect(lang_controller, signal, self._on_lang_changed)
 
     # METHODS #
     def destroy(self):
@@ -76,6 +81,22 @@ class TerminologyModel(BaseTerminologyModel):
         # Not extendtm(): only inittm() lowercases the sources it matches on.
         self.matcher.inittm(self.stores)
         return unit
+
+    def _select_languages(self, store):
+        """Have a termbase of many languages give the current pair.
+        @returns: Whether its terms changed."""
+        if not hasattr(store, 'select_languages'):
+            return False
+        lang_controller = self.controller.main_controller.lang_controller
+        source = getattr(lang_controller.source_lang, 'code', None)
+        target = getattr(lang_controller.target_lang, 'code', None)
+        return store.select_languages(source, target)
+
+    def _on_lang_changed(self, _lang_controller, _code):
+        changed = [self._select_languages(store) for store in self.stores]
+        if any(changed):
+            self.matcher.inittm(self.stores)
+            self.controller.rescan_current_unit()
 
     def get_duplicates(self, src_text, tgt_text):
         base_src_text = src_text.strip()
@@ -137,7 +158,13 @@ class TerminologyModel(BaseTerminologyModel):
             if filename not in self._loaded:
                 if not os.path.isfile(filename):
                     logging.debug('Not a file: "%s"' % (filename))
-                self._loaded[filename] = factory.getobject(filename)
+                try:
+                    store = factory.getobject(filename)
+                except MissingReaderError as e:
+                    logging.warning("Can't read %s: %s", filename, e)
+                    continue
+                self._select_languages(store)
+                self._loaded[filename] = store
             loaded[filename] = self._loaded[filename]
         self._loaded = loaded
         self.stores = list(loaded.values())
