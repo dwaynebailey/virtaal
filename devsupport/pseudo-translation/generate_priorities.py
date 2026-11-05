@@ -140,12 +140,14 @@ def seen_levels(harvests, catalogs, rules):
 
 
 def template_messages(path=TEMPLATE):
-    """{key: [source file, ...]} for each message in virtaal.pot."""
+    """{key: [source file, ...]} for each message in virtaal.pot. A
+    plural message's key has its singular msgid only, as _key() gives."""
     from translate.storage import po
 
     store = po.pofile.parsefile(path)
     return {
-        unit.getid(): [
+        # str(): a plural's id is a multistring, which YAML can't write.
+        str(unit.getid()): [
             location.rpartition(":")[0] if location.rpartition(":")[2].isdigit() else location
             for location in unit.getlocations()
         ]

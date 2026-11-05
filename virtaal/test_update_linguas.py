@@ -211,3 +211,20 @@ def test_progress_writes_each_translations_standing(linguas, tmp_path, monkeypat
 )
 def test_names_come_from_cldr_then_iso_639(linguas, lang, names):
     assert linguas._names(lang) == names
+
+
+@needs_gettext
+def test_a_plural_message_counts_under_its_singular(linguas, tmp_path):
+    plural = 'msgid "%%d file"\nmsgid_plural "%%d files"\nmsgstr[0] "%s"\nmsgstr[1] "%s"\n'
+    header = (
+        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
+        '"Plural-Forms: nplurals=2; plural=(n != 1);\\n"\n\n'
+    )
+    (tmp_path / "virtaal.pot").write_text(header + plural % ("", ""), encoding="utf-8")
+    (tmp_path / "virtaal.priorities.yaml").write_text(
+        "domains:\n  virtaal:\n    '1': ['%d file']\n", encoding="utf-8"
+    )
+    (tmp_path / "de.po").write_text(header + plural % ("%d Datei", "%d Dateien"), encoding="utf-8")
+
+    assert linguas.level_one() == ({"%d file"}, set())
+    assert linguas.translated_keys(tmp_path / "de.po") == {"%d file"}

@@ -116,6 +116,38 @@ def test_merge_refuses_a_broken_file(packs, tmp_path):
     assert (tmp_path / "de.po").read_text(encoding="utf-8") == before
 
 
+PLURAL = 'msgid "%d file"\nmsgid_plural "%d files"\nmsgstr[0] "{}"\nmsgstr[1] "{}"\n'
+PLURAL_FORMS = '"Plural-Forms: nplurals=2; plural=(n != 1);\\n"\n'
+
+
+def test_a_plural_message_is_packed_and_merged_by_its_singular(packs, tmp_path):
+    (tmp_path / "virtaal.pot").write_text(TEMPLATE + "\n" + PLURAL.format("", ""), encoding="utf-8")
+    (tmp_path / "virtaal.priorities.yaml").write_text(
+        "domains:\n  virtaal:\n    '1': [_File, '%d file']\n", encoding="utf-8"
+    )
+    (tmp_path / "de.po").write_text(
+        HEADER + PLURAL_FORMS + '\nmsgid "_File"\nmsgstr "_Datei"\n', encoding="utf-8"
+    )
+
+    with zipfile.ZipFile(packs.pack("de", tmp_path / "out")) as zf:
+        level1 = zf.read("de-level1.po").decode("utf-8")
+    assert 'msgid_plural "%d files"' in level1
+
+    returned = tmp_path / "returned.po"
+    returned.write_text(
+        HEADER
+        + PLURAL_FORMS
+        + '"X-Priority-File: virtaal.priorities.yaml\\n"\n\n'
+        + PLURAL.format("%d Datei", "%d Dateien"),
+        encoding="utf-8",
+    )
+    packs.merge("de", returned)
+
+    text = (tmp_path / "de.po").read_text(encoding="utf-8")
+    assert 'msgstr[0] "%d Datei"\nmsgstr[1] "%d Dateien"' in text
+    assert text.count('msgid "%d file"') == 1
+
+
 LITE_TEMPLATE = (
     'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
     'msgid "Home"\nmsgstr ""\n\nmsgctxt "keyboard label"\nmsgid "Shift"\nmsgstr ""\n\n'

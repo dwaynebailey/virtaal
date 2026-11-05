@@ -329,3 +329,24 @@ def test_the_main_window_as_a_file_opens_is_core(gen):
 
     assert gen.sighting_level(rules, "file open", "Window 'vt:quality-checks.po'", "") == "1"
     assert gen.sighting_level(rules, "mode Search", "Window 'vt:quality-checks.po'", "") == "1~"
+
+
+def test_a_plural_message_is_keyed_by_its_singular(gen, tmp_path):
+    pot = tmp_path / "virtaal.pot"
+    pot.write_text(
+        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+        "#: virtaal/plugins/tm/tmview.py:1\n"
+        'msgctxt "tm"\nmsgid "Added %(count)d translation"\n'
+        'msgid_plural "Added %(count)d translations"\nmsgstr[0] ""\nmsgstr[1] ""\n',
+        encoding="utf-8",
+    )
+
+    messages = gen.template_messages(str(pot))
+
+    (key,) = messages
+    assert key == "tm\x04Added %(count)d translation"
+    assert type(key) is str
+    assert key == gen._key("tm\x04Added %(count)d translation\0Added %(count)d translations")
+    path = tmp_path / "priorities.yaml"
+    gen.write_file(str(path), gen.to_file({"virtaal": {key: "1"}}, "2026-11-05", RULES))
+    assert gen.from_file(gen.read_file(str(path))) == {"virtaal": {key: "1"}}
