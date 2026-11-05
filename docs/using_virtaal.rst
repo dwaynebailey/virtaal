@@ -270,6 +270,25 @@ says how many translations were added. Importing a file again updates its
 translations the same way saving does. The menu item is there only while the
 Local Translation Memory is one of the sources of suggestions.
 
+To see what is in the local TM, open :menuselection:`Edit --> Preferences`,
+select Translation Memory under Features and click its :guilabel:`Configure…`
+button, then do the same for Local Translation Memory in the list of sources.
+The
+Local Translation Memory window lists each file, per language pair, with how
+many translations it holds, when it last changed, and whether it was saved or
+imported; hover over a file for its full path. A file that is no longer where
+it was is marked "file not found", and translations added before Virtaal
+recorded their files are listed as "Earlier translations (file not
+recorded)".
+
+- :guilabel:`Remove` takes the selected file's translations for that language
+  pair out of the TM, after asking. A translation another file also added
+  stays.
+- :guilabel:`Export…` saves translations as a TMX file, which other
+  translation tools can import: the selected row's language pair (or the
+  current one, with nothing selected), only the selected file's translations
+  unless you untick :guilabel:`Only the selected file`.
+
 .. _using_virtaal#trados:
 
 Trados translation memories and termbases
