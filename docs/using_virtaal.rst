@@ -289,6 +289,13 @@ recorded)".
   current one, with nothing selected), only the selected file's translations
   unless you untick :guilabel:`Only the selected file`.
 
+The first time this version of Virtaal opens a ``tm.db`` from an older
+version, it saves a copy of it as ``tm-v0.db`` beside it before updating it.
+An older Virtaal can still use the updated file, and the copy can be deleted
+once you no longer need it.
+
+It is safe to delete and/or rename the file.
+
 .. _using_virtaal#trados:
 
 Trados translation memories and termbases
@@ -314,12 +321,6 @@ without Trados:
 Reading a .sdltb termbase needs the access-parser Python module. Without it,
 export the termbase from MultiTerm as MultiTerm XML and add that file instead.
 
-The first time this version of Virtaal opens a ``tm.db`` from an older
-version, it saves a copy of it as ``tm-v0.db`` beside it before updating it.
-An older Virtaal can still use the updated file, and the copy can be deleted
-once you no longer need it.
-
-It is safe to delete and/or rename the file.
 
 .. _using_virtaal#network_based_translation_memory:
 
