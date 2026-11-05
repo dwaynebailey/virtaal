@@ -36,6 +36,14 @@ class TMView(BaseView, GObjectWrapper):
     # File > Import into Translation Memory…, and the model it imports into.
     mnu_import = None
     _import_model = None
+    # File > Add to Local TM on Save, the model it asks, and a count of
+    # files opened and closed, so a late reply about an earlier one is
+    # dropped.
+    mnu_add_on_save = None
+    _exclude_model = None
+    _add_on_save_id = None
+    _opened = 0
+    _add_on_save_file = None
 
     # INITIALIZERS #
     def __init__(self, controller, max_matches):
@@ -89,6 +97,9 @@ class TMView(BaseView, GObjectWrapper):
         )
         self._signal_tracker.connect(
             controller.main_controller.store_controller, 'store-loaded', self._on_store_loaded
+        )
+        self._signal_tracker.connect(
+            controller.main_controller.store_controller, 'store-saved', self._on_store_saved
         )
 
         self._setup_key_bindings()
@@ -185,6 +196,7 @@ class TMView(BaseView, GObjectWrapper):
         self.menu.remove(self.mnu_suggestions)
         self.menu.remove(self.mnu_summon)
         self.remove_import_menu_item()
+        self.remove_exclude_menu_item()
         self._match_menu.destroy()
 
     def add_import_menu_item(self, model):
@@ -211,6 +223,159 @@ class TMView(BaseView, GObjectWrapper):
         self.mnu_import.get_parent().remove(self.mnu_import)
         self.mnu_import = None
         self.controller.main_controller.view.sync_menubar()
+
+    def add_exclude_menu_item(self, model):
+        """Offer File > Add to Local TM on Save for the open file, asking
+        C{model} (one with C{store_status()} and C{set_exclude()})."""
+        self._exclude_model = model
+        if self.mnu_add_on_save is None:
+            mainview = self.controller.main_controller.view
+            menu = mainview.gui.get_object('menuitem_file').get_submenu()
+            item = Gtk.CheckMenuItem.new_with_mnemonic(
+                _(
+                    # l10n: Ticked, saving the file adds its translations to the
+                    # local translation memory; unticked, it leaves them out
+                    'Add to Local _TM on Save'
+                )
+            )
+            after = self.mnu_import or mainview.gui.get_object('mnu_binary_export')
+            menu.insert(item, menu.get_children().index(after) + 1)
+            item.show()
+            self.mnu_add_on_save = item
+            self._add_on_save_id = item.connect('toggled', self._on_toggle_add_on_save)
+            mainview.sync_menubar()
+        self._show_add_on_save()
+
+    def remove_exclude_menu_item(self):
+        self._exclude_model = None
+        self._opened += 1
+        if self.mnu_add_on_save is None:
+            return
+        self.mnu_add_on_save.get_parent().remove(self.mnu_add_on_save)
+        self.mnu_add_on_save = None
+        self.controller.main_controller.view.sync_menubar()
+
+    def _set_add_on_save(self, active):
+        """Tick or untick the item without acting on it."""
+        item = self.mnu_add_on_save
+        item.handler_block(self._add_on_save_id)
+        try:
+            item.set_active(active)
+        finally:
+            item.handler_unblock(self._add_on_save_id)
+
+    def _show_add_on_save(self):
+        """Show whether the local TM takes the open file's translations."""
+        self._opened += 1
+        if self.mnu_add_on_save is None:
+            return
+        store_controller = self.controller.main_controller.store_controller
+        has_file = store_controller.get_store() is not None
+        self.mnu_add_on_save.set_sensitive(has_file)
+        self._set_add_on_save(True)
+        self._add_on_save_file = store_controller.get_store_filename() if has_file else None
+        if not has_file:
+            return
+        opened = self._opened
+
+        def done(excluded, _units):
+            if opened == self._opened:
+                self._set_add_on_save(not excluded)
+
+        self._exclude_model.store_status(store_controller, done, lambda: None)
+
+    def _on_toggle_add_on_save(self, item):
+        model = self._exclude_model
+        store_controller = self.controller.main_controller.store_controller
+        if model is None or store_controller.get_store() is None:
+            return
+        name = os.path.basename(store_controller.get_store_filename())
+        opened = self._opened
+
+        def later(func, *args):
+            # Not from inside the HTTP client's callback: a dialog runs a
+            # main loop of its own.
+            def run():
+                if opened == self._opened:
+                    func(*args)
+                return False
+
+            GLib.idle_add(run)
+
+        def failed(active, message):
+            self._set_add_on_save(active)
+            self.controller.main_controller.view.show_error_dialog(message=message)
+
+        if item.get_active():
+            model.set_exclude(
+                store_controller,
+                False,
+                lambda: later(self._included, store_controller, model, name),
+                lambda: later(
+                    failed,
+                    False,
+                    _("Couldn't add '%(file)s' to the translation memory.") % {'file': name},
+                ),
+            )
+            return
+
+        remove_failed = (
+            failed,
+            True,
+            _("Couldn't remove '%(file)s' from the translation memory.") % {'file': name},
+        )
+
+        def exclude(units):
+            if units and not self.confirm_exclude(name, units):
+                self._set_add_on_save(True)
+                return
+            model.set_exclude(store_controller, True, lambda: None, lambda: later(*remove_failed))
+
+        model.store_status(
+            store_controller,
+            lambda _excluded, units: later(exclude, units),
+            lambda: later(*remove_failed),
+        )
+
+    def _included(self, store_controller, model, name):
+        if store_controller.is_modified():
+            self.controller.main_controller.view.show_info_notice(
+                _("'%(file)s' will be added to the translation memory when you save it.")
+                % {'file': name}
+            )
+        else:
+            # Saved as it is: add it now, as saving it would.
+            model.push_store(store_controller)
+
+    def confirm_exclude(self, name, units):
+        """Whether the user wants the open file's C{units} translations
+        removed from the TM, and the file kept out of it."""
+        dialog = Gtk.MessageDialog(
+            transient_for=self.controller.main_controller.view.main_window,
+            modal=True,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.NONE,
+            text=ngettext(
+                # l10n: After unticking File > Add to Local TM on Save
+                "Stop adding '%(file)s' to the translation memory and remove the "
+                "%(count)d translation it added?",
+                "Stop adding '%(file)s' to the translation memory and remove the "
+                "%(count)d translations it added?",
+                units,
+            )
+            % {'count': units, 'file': name},
+        )
+        dialog.format_secondary_text(
+            _('Translations another file also added stay in the translation memory.')
+        )
+        dialog.add_button(_gtk_text('_Cancel'), Gtk.ResponseType.CANCEL)
+        remove = dialog.add_button(_('_Remove'), Gtk.ResponseType.ACCEPT)
+        remove.get_style_context().add_class('destructive-action')
+        dialog.set_default_response(Gtk.ResponseType.CANCEL)
+        try:
+            return dialog.run() == Gtk.ResponseType.ACCEPT
+        finally:
+            dialog.destroy()
 
     def _build_import_chooser(self):
         from virtaal.support.trados_compat import TM_IMPORT_FORMATS
@@ -570,10 +735,17 @@ class TMView(BaseView, GObjectWrapper):
         self.hide()
         self.mnu_suggestions.set_sensitive(False)
         self.mnu_summon.set_sensitive(False)
+        self._show_add_on_save()
 
     def _on_store_loaded(self, storecontroller):
         self.mnu_suggestions.set_sensitive(True)
         self.mnu_summon.set_sensitive(True)
+        self._show_add_on_save()
+
+    def _on_store_saved(self, storecontroller):
+        # Saved under another name: a file of its own in the TM.
+        if storecontroller.get_store_filename() != self._add_on_save_file:
+            self._show_add_on_save()
 
     def _on_store_view_scroll(self, *args):
         # The list also scrolls to keep a growing target in view.

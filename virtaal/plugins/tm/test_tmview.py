@@ -884,6 +884,7 @@ class _FakeSignalSource(GObjectWrapper):
     __gsignals__ = {
         'store-closed': (GObject.SignalFlags.RUN_FIRST, None, ()),
         'store-loaded': (GObject.SignalFlags.RUN_FIRST, None, ()),
+        'store-saved': (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
 
@@ -916,7 +917,7 @@ def test_init_wires_key_bindings_menu_and_store_signals():
     assert view._may_show_tmwindow == main_window.props.is_active
     assert added_accel_groups == [view.accel_group]
     assert view.mnu_suggestions.get_active() is True
-    assert len(view._signal_tracker._ids) == 8
+    assert len(view._signal_tracker._ids) == 9
 
 
 # suspend() / resume(): kept hidden while the target's completion list is open

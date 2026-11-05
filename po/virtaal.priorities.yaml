@@ -199,6 +199,7 @@ domains:
     - <u>Report a Bug</u>
     - <u>Tutorial</u>
     - Add _Term…
+    - Add to Local _TM on Save
     - All
     - 'Checks: %(checker_name)s'
     - 'Conte_xt:'

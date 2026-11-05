@@ -136,11 +136,15 @@ class TMController(BaseController):
             self._model_signal_ids[plugin] = plugin.connect('match-found', self.accept_response)
             if hasattr(plugin, 'import_file'):
                 self.view.add_import_menu_item(plugin)
+            if hasattr(plugin, 'set_exclude'):
+                self.view.add_exclude_menu_item(plugin)
 
         def on_plugin_disabled(plugin_ctrlr, plugin):
             plugin.disconnect(self._model_signal_ids[plugin])
             if hasattr(plugin, 'import_file'):
                 self.view.remove_import_menu_item()
+            if hasattr(plugin, 'set_exclude'):
+                self.view.remove_exclude_menu_item()
 
         self._signal_ids['plugin-enabled'] = self.plugin_controller.connect(
             'plugin-enabled', on_plugin_enabled
