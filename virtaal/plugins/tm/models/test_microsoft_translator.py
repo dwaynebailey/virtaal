@@ -161,10 +161,14 @@ def test_the_issues_german_source_is_one_exact_request_body(monkeypatch, tmp_pat
 
     (request,) = _query(model, GERMAN)
 
-    assert request.data == json.dumps([{'Text': GERMAN}]).encode('utf-8')
-    assert b'|deltaE|\\\\ < 6' in request.data
-    assert json.loads(request.data) == [{'Text': GERMAN}]
-    request.emit('http-success', _translation_reply('|deltaE|\\ < 6', to='en'))
+    # The 6 is a placeable, so the text goes as HTML.
+    sent = '<div>%s</div>' % GERMAN.replace('<', '&lt;').replace(
+        ' 6 ', ' <span class="notranslate">6</span> '
+    )
+    assert request.data == json.dumps([{'Text': sent}]).encode('utf-8')
+    assert b'|deltaE|\\\\ &lt; <span' in request.data
+    reply = '<div>|deltaE|\\ &lt; <span class="notranslate">6</span></div>'
+    request.emit('http-success', _translation_reply(reply, to='en'))
     assert found[0][1][0]['target'] == '|deltaE|\\ < 6'
 
 
@@ -190,7 +194,7 @@ def test_a_translation_becomes_a_suggestion(monkeypatch, tmp_path):
 
     match = {'source': 'hello', 'target': 'Hallo', 'tmsource': 'Microsoft'}
     assert found == [('hello', [match])]
-    assert model.cache['hello'] == [match]
+    assert model.cache['hello'] == 'Hallo'
 
 
 def test_a_cached_string_is_not_sent_again(monkeypatch, tmp_path):
@@ -214,9 +218,11 @@ def test_a_string_on_its_way_is_not_sent_twice(monkeypatch, tmp_path):
 def test_text_is_not_unescaped_as_html(monkeypatch, tmp_path):
     model = _ready(monkeypatch, tmp_path)
 
-    _query(model, 'Tom &amp; Jerry')[0].emit('http-success', _translation_reply('Tom &amp; Jerry'))
+    found = _matches(model)
 
-    assert model.cache['Tom &amp; Jerry'][0]['target'] == 'Tom &amp; Jerry'
+    _query(model, 'Tom & Jerry')[0].emit('http-success', _translation_reply('Tom &amp; Jerry'))
+
+    assert found[0][1][0]['target'] == 'Tom &amp; Jerry'
 
 
 @pytest.mark.parametrize(
@@ -583,3 +589,52 @@ def test_requests_in_flight_counts_the_clients_requests(monkeypatch, tmp_path):
     model.client = SimpleNamespace(requests={1, 2})
 
     assert model.requests_in_flight() == 2
+
+
+# Placeables go in notranslate elements, which Translator leaves (#1423).
+
+
+def test_placeables_go_as_html_in_one_element(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+
+    (request,) = _query(model, 'Delete %(count)s files & <b>folders</b>')
+
+    assert request.url == HOST + '/translate?api-version=3.0&from=en&to=de&textType=html'
+    assert json.loads(request.data.decode('utf-8')) == [
+        {
+            'Text': '<div>Delete <span class="notranslate">%(count)s</span> files &amp; '
+            '<span class="notranslate">&lt;b&gt;</span>folders'
+            '<span class="notranslate">&lt;/b&gt;</span></div>'
+        }
+    ]
+
+
+def test_the_elements_become_the_units_placeables(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+    found = _matches(model)
+    (request,) = _query(model, 'Copy %1 to %2')
+
+    # As Translator returns HTML: the notranslate elements as sent, moved.
+    reply = (
+        '<div>Kopiere nach <span class="notranslate">%2</span> von '
+        '<span class="notranslate">%1</span> &amp; mehr</div>'
+    )
+    request.emit('http-success', _translation_reply(reply))
+
+    (match,) = found[0][1]
+    assert match['target'] == 'Kopiere nach %2 von %1 & mehr'
+    assert 'tm_target' not in match
+
+
+def test_a_placeable_translator_lost_is_added_and_the_suggestion_marked(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+    found = _matches(model)
+    (request,) = _query(model, 'Copy %1 to %2')
+
+    request.emit(
+        'http-success', _translation_reply('<div>Kopiere <span class="notranslate">%1</span></div>')
+    )
+
+    (match,) = found[0][1]
+    assert match['target'] == 'Kopiere %1 %2'
+    assert match['tm_target'] == 'Kopiere %1'

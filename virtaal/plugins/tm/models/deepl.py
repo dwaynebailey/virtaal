@@ -11,6 +11,7 @@ from virtaal.support.httpclient import RESTRequest
 from virtaal.views.widgets.settingsdialog import api_key_field
 
 from ..keyedmt import KeyedMTModel
+from ..mtplaceables import XmlIds
 
 # DeepL codes to try, in order, before a Virtaal language code itself and
 # then its plain language (en_ZA, then en). DeepL translates into
@@ -69,6 +70,8 @@ class TMModel(KeyedMTModel):
     # Stop for a refused key (403) or used-up quota (456); wait while busy.
     STOP_STATUSES = (403, 456)
     WAIT_STATUSES = (429, 529)
+    # Kept in place, and not billed.
+    protection = XmlIds()
 
     # Free keys end in ":fx" and only work on the Free host.
     free_host = 'https://api-free.deepl.com'
@@ -115,14 +118,16 @@ class TMModel(KeyedMTModel):
             return None
         return source_lang, target_lang
 
-    def _translate_request(self, query_str, source_lang, target_lang):
+    def _translate_request(self, protected, source_lang, target_lang):
         body = {
-            'text': [query_str],
+            'text': [protected.text],
             'source_lang': source_lang,
             'target_lang': target_lang,
             # Keep the source's capitals and punctuation at the ends.
             'preserve_formatting': True,
         }
+        if protected.markup:
+            body['tag_handling'] = 'xml'
         return RESTRequest(
             self._url('/v2/translate'),
             '',

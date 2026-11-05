@@ -14,6 +14,7 @@ import time
 
 from virtaal.support.httpclient import HTTPClient
 
+from . import mtplaceables
 from .models.basetmmodel import BaseTMModel
 from .models.remotetm import retry_after
 
@@ -36,6 +37,10 @@ class KeyedMTModel(BaseTMModel):
     """Seconds to send nothing after a refusal to answer now, without a
     Retry-After."""
     MAX_RETRY_AFTER = 900
+
+    protection = None
+    """How the source's placeables are marked up for the service, as an
+    mtplaceables style; None to send the text as it is."""
 
     client = None
     _stopped = False
@@ -111,8 +116,9 @@ class KeyedMTModel(BaseTMModel):
         translate."""
         raise NotImplementedError
 
-    def _translate_request(self, query_str, source_lang, target_lang):
-        """The RESTRequest asking for query_str's translation."""
+    def _translate_request(self, protected, source_lang, target_lang):
+        """The RESTRequest asking for the translation of protected, an
+        mtplaceables.Protected."""
         raise NotImplementedError
 
     def _translation(self, reply):
@@ -153,13 +159,15 @@ class KeyedMTModel(BaseTMModel):
             return
 
         query_str = unit.source
-        if query_str in self.cache:
-            self.emit('match-found', query_str, self.cache[query_str])
+        protected = self._protect(query_str)
+        # Strings that differ only in placeables can share a translation.
+        if protected.text in self.cache:
+            self._found(query_str, protected, self.cache[protected.text])
             return
-        sent = (query_str, self.source_lang, self.target_lang)
+        sent = (protected.text, self.source_lang, self.target_lang)
         if sent in self._pending:
             return
-        request = self._translate_request(query_str, *pair)
+        request = self._translate_request(protected, *pair)
         self._pending.add(sent)
 
         def done(request, value, handler):
@@ -175,7 +183,21 @@ class KeyedMTModel(BaseTMModel):
 
     def has_cached(self, query_str):
         # Also true where nothing would be sent.
-        return self._stopped or self._waiting() or query_str in self.cache
+        return self._stopped or self._waiting() or self._protect(query_str).text in self.cache
+
+    def _protect(self, query_str):
+        if self.protection is None:
+            return mtplaceables.Protected(query_str, (), False)
+        return self.protection.protect(query_str)
+
+    def _found(self, query_str, protected, text):
+        restored = mtplaceables.Restored(text, text)
+        if protected.markup:
+            restored = self.protection.restore(text, protected)
+            if restored.returned != restored.text:
+                logging.debug('%s: placeables moved in %r', self.service_name, text)
+        match = mtplaceables.suggestion(query_str, restored, self._tmsource())
+        self.emit('match-found', query_str, [match])
 
     def requests_in_flight(self):
         return len(self.client.requests) if self.client is not None else 0
@@ -188,13 +210,9 @@ class KeyedMTModel(BaseTMModel):
             return
         if not isinstance(text, str) or not text.strip():
             return
-        match = {
-            'source': query_str,
-            'target': text,
-            'tmsource': self._tmsource(),
-        }
-        self.cache[query_str] = [match]
-        self.emit('match-found', query_str, [match])
+        protected = self._protect(query_str)
+        self.cache[protected.text] = text
+        self._found(query_str, protected, text)
 
     def got_languages(self, request, val):
         try:

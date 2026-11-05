@@ -169,7 +169,7 @@ def test_a_translation_becomes_a_suggestion(monkeypatch, tmp_path):
 
     match = {'source': 'hello', 'target': 'Hallo', 'tmsource': 'DeepL'}
     assert found == [('hello', [match])]
-    assert model.cache['hello'] == [match]
+    assert model.cache['hello'] == 'Hallo'
 
 
 def test_a_cached_string_is_not_sent_again(monkeypatch, tmp_path):
@@ -191,9 +191,11 @@ def test_a_string_on_its_way_is_not_sent_twice(monkeypatch, tmp_path):
 def test_text_is_not_unescaped_as_html(monkeypatch, tmp_path):
     model = _ready(monkeypatch, tmp_path)
 
-    _query(model, 'Tom &amp; Jerry')[0].emit('http-success', _translation_reply('Tom &amp; Jerry'))
+    found = _matches(model)
 
-    assert model.cache['Tom &amp; Jerry'][0]['target'] == 'Tom &amp; Jerry'
+    _query(model, 'Tom & Jerry')[0].emit('http-success', _translation_reply('Tom &amp; Jerry'))
+
+    assert found[0][1][0]['target'] == 'Tom &amp; Jerry'
 
 
 @pytest.mark.parametrize(
@@ -504,3 +506,76 @@ def test_requests_in_flight_counts_the_clients_requests(monkeypatch, tmp_path):
     model.client = SimpleNamespace(requests={1, 2})
 
     assert model.requests_in_flight() == 2
+
+
+# Placeables go as XML tags, which DeepL keeps (#1423).
+
+
+def test_placeables_go_as_xml_tags(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+
+    (request,) = _query(model, 'Click <b>here</b> to delete %(count)s files')
+
+    body = json.loads(request.data.decode('utf-8'))
+    assert body['text'] == ['Click <g id="0">here</g> to delete <x id="2"/> files']
+    assert body['tag_handling'] == 'xml'
+
+
+def test_text_without_placeables_goes_without_tag_handling(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+
+    (request,) = _query(model, 'Tom & Jerry')
+
+    assert 'tag_handling' not in json.loads(request.data.decode('utf-8'))
+
+
+def test_the_tags_become_the_units_placeables(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+    found = _matches(model)
+    (request,) = _query(model, 'Click <b>here</b> to delete %(count)s files')
+
+    # As DeepL's XML handling returns it: tags kept, words moved.
+    request.emit(
+        'http-success', _translation_reply('Klik <g id="0">hier</g> en skrap dan <x id="2"/> lêers')
+    )
+
+    (match,) = found[0][1]
+    assert match['target'] == 'Klik <b>hier</b> en skrap dan %(count)s lêers'
+    assert 'tm_target' not in match
+
+
+def test_units_differing_only_in_placeables_share_a_translation(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+    _query(model, 'Delete %(count)s files')[0].emit(
+        'http-success', _translation_reply('Verwyder <x id="0"/> lêers')
+    )
+    found = _matches(model)
+
+    assert _query(model, 'Delete {0} files') == []
+    assert model.has_cached('Delete %d files')
+    assert found[0][1][0]['target'] == 'Verwyder {0} lêers'
+
+
+def test_a_placeable_deepl_lost_is_added_and_the_suggestion_marked(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+    found = _matches(model)
+    (request,) = _query(model, 'Delete %(count)s files')
+
+    request.emit('http-success', _translation_reply('Verwyder lêers'))
+
+    (match,) = found[0][1]
+    assert match['target'] == 'Verwyder lêers %(count)s'
+    assert match['tm_target'] == 'Verwyder lêers'
+    assert len(model.client.added) == 2, 'never sent again'
+
+
+def test_a_tag_deepl_repeated_is_dropped(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+    found = _matches(model)
+    (request,) = _query(model, 'Open %s now')
+
+    request.emit('http-success', _translation_reply('Maak <x id="0"/> nou <x id="0"/> oop'))
+
+    (match,) = found[0][1]
+    assert match['target'] == 'Maak %s nou  oop'
+    assert match['tm_target'] == 'Maak %s nou %s oop'

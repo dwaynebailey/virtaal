@@ -481,7 +481,8 @@ class TMView(BaseView, GObjectWrapper):
                     _(
                         # l10n: Tooltip on a suggestion whose placeables or accelerator
                         # were changed to fit the current unit. %(target)s is the
-                        # suggestion as the translation memory has it.
+                        # suggestion as the translation memory or machine
+                        # translation service gave it.
                         'Adapted to this unit from: %(target)s'
                     )
                     % {'target': match['tm_target']}

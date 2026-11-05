@@ -12,6 +12,7 @@ from virtaal.support.httpclient import RESTRequest
 from virtaal.views.widgets.settingsdialog import Field, api_key_field
 
 from ..keyedmt import KeyedMTModel
+from ..mtplaceables import Spans
 
 # Microsoft codes to try, in order, before a Virtaal language code itself,
 # then before its plain language (en_ZA, then en).
@@ -92,6 +93,8 @@ class TMModel(KeyedMTModel):
     # while busy.
     STOP_STATUSES = (401, 403)
     WAIT_STATUSES = (408, 429)
+    # HTML must be one complete element.
+    protection = Spans('<span class="notranslate">', '</span>', ('<div>', '</div>'))
 
     # Global: any resource's key works here, with its region if it has one.
     endpoint = 'https://api.cognitive.microsofttranslator.com'
@@ -161,13 +164,18 @@ class TMModel(KeyedMTModel):
             return None
         return source_lang, target_lang
 
-    def _translate_request(self, query_str, source_lang, target_lang):
-        params = {'api-version': '3.0', 'from': source_lang, 'to': target_lang, 'textType': 'plain'}
+    def _translate_request(self, protected, source_lang, target_lang):
+        params = {
+            'api-version': '3.0',
+            'from': source_lang,
+            'to': target_lang,
+            'textType': 'html' if protected.markup else 'plain',
+        }
         return RESTRequest(
             self.endpoint + '/translate?' + urlencode(params),
             '',
             method='POST',
-            data=json.dumps([{'Text': query_str}]).encode('utf-8'),
+            data=json.dumps([{'Text': protected.text}]).encode('utf-8'),
             headers=self._headers('Content-Type: application/json; charset=UTF-8'),
         )
 
