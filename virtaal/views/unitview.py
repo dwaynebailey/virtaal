@@ -791,6 +791,39 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
                     "Locked: this translation can't be changed."
                 )
             )
+        seg = sdlxliff_compat.segment_def(self.unit)
+        origin, system, percent = (
+            (None,) * 3 if seg is None else sdlxliff_compat.segment_origin(seg)
+        )
+        if origin and system:
+            origin = f"{origin} ({system})"
+        if origin and percent:
+            notes.append(
+                _(
+                    # l10n: Where Trados Studio's translation came from, e.g.
+                    # "tm (Main TM), 100% match". The origin is Trados's own
+                    # name: tm, mt, interactive, auto-propagated and others.
+                    "Origin: %(origin)s, %(percent)s%% match"
+                )
+                % {'origin': origin, 'percent': percent}
+            )
+        elif origin:
+            notes.append(
+                _(
+                    # l10n: Where Trados Studio's translation came from, e.g.
+                    # "interactive". The origin is Trados's own name: tm, mt,
+                    # interactive, auto-propagated and others.
+                    "Origin: %(origin)s"
+                )
+                % {'origin': origin}
+            )
+        for user, comment in sdlxliff_compat.comments(self.unit):
+            if user:
+                comment = _(
+                    # l10n: A comment in a Trados Studio file, and who wrote it.
+                    "Comment from %(user)s: %(comment)s"
+                ) % {'user': user, 'comment': comment}
+            notes.append(comment)
         return notes
 
     def _layout_update_sources(self):

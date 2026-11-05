@@ -7,7 +7,9 @@
 
 """Trados Studio's segment metadata in SDLXLIFF, which translate-toolkit
 reads as plain XLIFF 1.2: a segment's <sdl:seg> in <sdl:seg-defs> holds
-its confirmation level (conf) and whether it is locked.
+its confirmation level (conf), whether it is locked, and where its
+translation came from (origin, percent); comments are <mrk
+mtype="x-sdl-comment" sdl:cid> pointing into <doc-info><cmt-defs>.
 
 translate-toolkit takes the state from the XLIFF state and approved
 attributes, which Trados doesn't write, so every translation showed as
@@ -49,7 +51,10 @@ STATE = {
 
 
 def segment_defs(unit):
-    """The <sdl:seg> elements of C{unit}'s trans-unit."""
+    """The <sdl:seg> elements of C{unit}'s trans-unit; none for a unit of
+    another format."""
+    if not isinstance(unit, xliff.xliffunit):
+        return []
     seg_defs = unit.xmlelement.find(SDL + "seg-defs")
     return [] if seg_defs is None else seg_defs.findall(SDL + "seg")
 
@@ -83,10 +88,41 @@ def segment_locked(seg):
 
 def is_locked(unit):
     """Whether any of C{unit}'s Trados segments is locked: Virtaal edits a
-    trans-unit's segments together. False for a unit of another format."""
-    return isinstance(unit, xliff.xliffunit) and any(
-        segment_locked(seg) for seg in segment_defs(unit)
-    )
+    trans-unit's segments together."""
+    return any(segment_locked(seg) for seg in segment_defs(unit))
+
+
+def segment_origin(seg):
+    """(origin, origin-system, percent), each None when missing."""
+    return seg.get("origin"), seg.get("origin-system"), seg.get("percent")
+
+
+def comments(unit, elements=None):
+    """(user, text) of each Trados comment in C{unit}, or only inside
+    C{elements}, in document order."""
+    if not isinstance(unit, xliff.xliffunit):
+        return []
+    mrk = unit.namespaced("mrk")
+    ids = []
+    for element in [unit.xmlelement] if elements is None else elements:
+        for marker in element.iter(mrk):
+            cid = marker.get(SDL + "cid")
+            if marker.get("mtype") == "x-sdl-comment" and cid and cid not in ids:
+                ids.append(cid)
+    if not ids:
+        return []
+    root = unit.xmlelement.getroottree().getroot()
+    defs = {
+        cmt_def.get("id"): cmt_def
+        for cmt_def in root.iterfind(f"{SDL}doc-info/{SDL}cmt-defs/{SDL}cmt-def")
+    }
+    found = []
+    for cid in ids:
+        for comment in defs[cid].iter(SDL + "Comment") if cid in defs else ():
+            text = " ".join((comment.text or "").split())
+            if text:
+                found.append((comment.get("user"), text))
+    return found
 
 
 class _State:

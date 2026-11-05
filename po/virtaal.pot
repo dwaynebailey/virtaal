@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-05 20:40+0000\n"
+"POT-Creation-Date: 2026-11-05 20:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2544,6 +2544,28 @@ msgstr ""
 #. l10n: A Trados Studio file can lock a translation.
 #: virtaal/views/unitview.py
 msgid "Locked: this translation can't be changed."
+msgstr ""
+
+#. l10n: Where Trados Studio's translation came from, e.g.
+#. "tm (Main TM), 100% match". The origin is Trados's own
+#. name: tm, mt, interactive, auto-propagated and others.
+#: virtaal/views/unitview.py
+#, python-format
+msgid "Origin: %(origin)s, %(percent)s%% match"
+msgstr ""
+
+#. l10n: Where Trados Studio's translation came from, e.g.
+#. "interactive". The origin is Trados's own name: tm, mt,
+#. interactive, auto-propagated and others.
+#: virtaal/views/unitview.py
+#, python-format
+msgid "Origin: %(origin)s"
+msgstr ""
+
+#. l10n: A comment in a Trados Studio file, and who wrote it.
+#: virtaal/views/unitview.py
+#, python-format
+msgid "Comment from %(user)s: %(comment)s"
 msgstr ""
 
 #: virtaal/views/unitview.py

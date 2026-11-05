@@ -29,6 +29,7 @@ from virtaal.views.widgets import textbox as textbox_module
 TRADOS = os.path.join('devsupport', 'testfiles', 'trados')
 XLIFF = '{urn:oasis:names:tc:xliff:document:1.2}'
 SDL = '{http://sdl.com/FileTypes/SdlXliff/1.0}'
+XML_SPACE = '{http://www.w3.org/XML/1998/namespace}space'
 # Text inside these is content; whitespace elsewhere is indentation,
 # which translate-toolkit rewrites on save.
 CONTENT = {
@@ -42,6 +43,24 @@ WORKBENCH_TMX = sorted(glob.glob(os.path.join(TRADOS, '*', '*English - German.tm
 STATUSES = glob.glob(os.path.join(TRADOS, 'matecat', '*.sdlxliff'))[0]
 # Segments 6 and 7 are locked.
 COMMENTS = os.path.join(TRADOS, 'okapi', 'comments.sdlxliff')
+# One segment with origin, percent and a comment on its translation.
+COMMENTED = b"""<?xml version="1.0" encoding="utf-8"?>
+<xliff xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0"
+ xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2" sdl:version="1.0">
+<doc-info xmlns="http://sdl.com/FileTypes/SdlXliff/1.0"><cmt-defs>
+<cmt-def id="c1"><Comments><Comment severity="Medium" user="Reviewer"
+ date="2026-11-05T10:00:00+02:00" version="1.0">Check the term</Comment></Comments></cmt-def>
+</cmt-defs></doc-info>
+<file original="a.txt" datatype="x-sdlfilterframework2" source-language="en-US"
+ target-language="de-DE"><body>
+<trans-unit id="u1"><source>Open the file</source>
+<seg-source><mrk mtype="seg" mid="1">Open the file</mrk></seg-source>
+<target><mrk mtype="seg" mid="1"><mrk mtype="x-sdl-comment" sdl:cid="c1">Datei</mrk>
+ \xc3\xb6ffnen</mrk></target>
+<sdl:seg-defs><sdl:seg id="1" conf="Draft" origin="tm" origin-system="Main TM"
+ percent="95"/></sdl:seg-defs>
+</trans-unit></body></file></xliff>
+"""
 
 
 def _in_content(element):
@@ -323,3 +342,40 @@ class TestTradosRoundTrip(TestScaffolding):
         assert view.targets[0].get_editable()
         assert view._widgets['state'].get_sensitive()
         assert view.mnu_transfer.get_sensitive()
+
+    def test_origin_and_comments_show_with_the_translators_notes(self, tmp_path):
+        self._open_copy(STATUSES, tmp_path)
+
+        assert self._notes('3') == (
+            'Origin: auto-propagated (Propagated from segment 2), 100% match'
+        )
+        assert self._notes('1') == 'Origin: interactive'
+        self._open_copy(COMMENTS, tmp_path)
+        assert self._notes('8', '9', '10') == (
+            'Comment from Tay, AmandaX: To add into the current promotion page\n'
+            'Comment from System Administrator: To add into the current promotion page'
+        )
+
+    def test_a_state_change_keeps_the_origin_and_comments(self, tmp_path):
+        path = tmp_path / 'commented.sdlxliff'
+        path.write_bytes(COMMENTED)
+        before = etree.parse(str(path)).getroot()
+        self.store_controller.open_file(str(path))
+        assert self._notes('1') == (
+            'Origin: tm (Main TM), 95% match\nComment from Reviewer: Check the term'
+        )
+
+        self.unit_controller.set_current_state(StateEnum.UNREVIEWED, from_user=True)
+        self.store_controller.save_file()
+
+        after = etree.parse(str(path)).getroot()
+        assert _segs(after) == {'1': {**_segs(before)['1'], 'conf': 'Translated'}}
+        # Showing a unit rewrites its target, xml:space="preserve".
+        for root in (before, after):
+            root.find('.//' + SDL + 'seg').attrib.pop('conf')
+            root.find('.//' + XLIFF + 'trans-unit').attrib.pop(XML_SPACE, None)
+        assert _infoset(after, collapse=True) == _infoset(before, collapse=True)
+
+    def _notes(self, *seg_ids):
+        _unit, view = self._load(*seg_ids)
+        return view._widgets['notes']['translator'].get_text()

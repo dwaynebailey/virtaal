@@ -203,3 +203,49 @@ def test_a_locked_segment_drops_a_rich_target_changed_in_place():
 def test_only_a_trados_lock_locks_a_unit():
     assert not sdlxliff_compat.is_locked(_unit(extra=' locked="false"'))
     assert not sdlxliff_compat.is_locked(pypo.pounit('Open'))
+
+
+def test_a_segments_origin():
+    seg = sdlxliff_compat.segment_def(
+        _unit(extra=' origin="tm" origin-system="Main TM" percent="95"')
+    )
+
+    assert sdlxliff_compat.segment_origin(seg) == ('tm', 'Main TM', '95')
+    assert sdlxliff_compat.segment_origin(sdlxliff_compat.segment_def(_unit())) == (None,) * 3
+
+
+def _commented(target):
+    data = (
+        '<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2"'
+        ' xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0" version="1.2">'
+        '<doc-info xmlns="http://sdl.com/FileTypes/SdlXliff/1.0"><cmt-defs>'
+        '<cmt-def id="a"><Comments><Comment user="Ann">One</Comment>'
+        '<Comment>Two\n  lines</Comment></Comments></cmt-def>'
+        '<cmt-def id="b"><Comments><Comment user="Bob">Three</Comment></Comments></cmt-def>'
+        '</cmt-defs></doc-info>'
+        '<file original="a" datatype="x-sdlfilterframework2" source-language="en"'
+        ' target-language="de"><body><trans-unit id="u1">'
+        '<source><mrk mtype="x-sdl-comment" sdl:cid="b">Hello</mrk></source>'
+        f'<target>{target}</target></trans-unit></body></file></xliff>'
+    )
+    return xliff.xlifffile.parsestring(data.encode('utf-8')).units[0]
+
+
+def test_comments_in_document_order_once_each():
+    unit = _commented(
+        '<mrk mtype="x-sdl-comment" sdl:cid="b">Hallo</mrk>'
+        '<mrk mtype="x-sdl-comment" sdl:cid="a">Welt</mrk>'
+        '<mrk mtype="x-sdl-comment" sdl:cid="gone">!</mrk>'
+    )
+
+    assert sdlxliff_compat.comments(unit) == [('Bob', 'Three'), ('Ann', 'One'), (None, 'Two lines')]
+    assert sdlxliff_compat.comments(unit, [unit.get_target_dom()[1]]) == [
+        ('Ann', 'One'),
+        (None, 'Two lines'),
+    ]
+
+
+def test_no_comments():
+    assert sdlxliff_compat.comments(_commented('Hallo'), []) == []
+    assert sdlxliff_compat.comments(_unit()) == []
+    assert sdlxliff_compat.comments(pypo.pounit('Open')) == []
