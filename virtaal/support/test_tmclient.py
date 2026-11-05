@@ -9,7 +9,7 @@ import json
 
 import pycurl
 import pytest
-from translate.storage import pypo
+from translate.storage import pypo, tmx
 
 from virtaal.support import tmclient
 from virtaal.support.tmclient import TMClient
@@ -324,6 +324,70 @@ def test_add_store_wires_the_callback_with_decoded_json(monkeypatch):
     assert calls == [('test.po', {'status': 'ok'})]
 
 
+def test_list_stores_builds_a_get_request(monkeypatch):
+    client, requests = _make_client(monkeypatch)
+
+    assert client.list_stores() is requests[0]
+
+    assert (requests[0].url, requests[0].id, requests[0].method) == (
+        'http://example.com/stores',
+        None,
+        'GET',
+    )
+
+
+@pytest.mark.parametrize(
+    'path, member, url, params',
+    [
+        ('/home/user/af.po', '', 'http://example.com/en/af/store', None),
+        ('/home/user/p.zip', 'doc.po', 'http://example.com/en/af/store', {'member': 'doc.po'}),
+        ('', '', 'http://example.com/en/af/store/', None),
+    ],
+    ids=['file', 'bundle-member', 'legacy'],
+)
+def test_remove_store_builds_a_delete_request(monkeypatch, path, member, url, params):
+    client, requests = _make_client(monkeypatch)
+
+    client.remove_store(path, 'en', 'af', member)
+
+    request = requests[0]
+    assert (request.url, request.id, request.method) == (url, path, 'DELETE')
+    assert request.params == params
+
+
+@pytest.mark.parametrize(
+    'path, member, params',
+    [
+        (None, '', None),
+        ('/home/user/af.po', '', {'store': '/home/user/af.po'}),
+        ('/p.zip', 'doc.po', {'store': '/p.zip', 'member': 'doc.po'}),
+        ('', '', {'store': ''}),
+    ],
+    ids=['whole', 'file', 'bundle-member', 'legacy'],
+)
+def test_export_tmx_builds_a_get_request(monkeypatch, path, member, params):
+    client, requests = _make_client(monkeypatch)
+
+    client.export_tmx('en', 'af', path, member)
+
+    request = requests[0]
+    assert (request.url, request.method, request.params) == (
+        'http://example.com/en/af/export',
+        'GET',
+        params,
+    )
+    assert request.curl.opts[pycurl.TIMEOUT] == 600
+
+
+@pytest.mark.parametrize('call', ['list_stores', 'remove_store', 'export_tmx'])
+def test_store_requests_are_none_when_the_queue_is_full(monkeypatch, call):
+    client, _requests = _make_client(monkeypatch)
+    monkeypatch.setattr(client, 'add', lambda request: False)
+    args = {'list_stores': (), 'remove_store': ('/a.po', 'en', 'af'), 'export_tmx': ('en', 'af')}
+
+    assert getattr(client, call)(*args[call]) is None
+
+
 @pytest.mark.parametrize(
     'reply', [b'<html>502 Bad Gateway</html>', b'', b'[{"source": "x"', b'\xff\xfe']
 )
@@ -423,3 +487,44 @@ def test_import_file_is_none_when_the_queue_is_full(monkeypatch):
     monkeypatch.setattr(client, 'add', lambda request: False)
 
     assert client.import_file('/home/user/fr.po', b'x', 'en', 'fr') is None
+
+
+def _perform(request):
+    replies = []
+    request.connect('http-success', lambda _request, reply: replies.append(reply))
+    request.curl.perform()
+    request.handle_result()
+    return request.status, replies
+
+
+def test_list_remove_and_export_reach_the_servers_routes(tm_server, monkeypatch):
+    app, client = tm_server
+    monkeypatch.setattr(client, 'add', lambda request: True)
+    app.tmdb.add_dict({'source': 'dog', 'target': 'chien', 'context': ''}, 'en', 'fr')
+    app.tmdb.sync_store('/home/user/fr.po', [{'source': 'cat', 'target': 'chat'}], 'en', 'fr')
+    app.tmdb.sync_store(
+        '/home/user/p.zip', [{'source': 'cow', 'target': 'vache'}], 'en', 'fr', member='doc.po'
+    )
+
+    status, replies = _perform(client.list_stores())
+    assert status == 200
+    assert [(s['path'], s['member']) for s in json.loads(replies[0])] == [
+        ('', ''),
+        ('/home/user/fr.po', ''),
+        ('/home/user/p.zip', 'doc.po'),
+    ]
+
+    status, replies = _perform(client.export_tmx('en', 'fr', '/home/user/p.zip', 'doc.po'))
+    assert status == 200
+    assert [u.target for u in tmx.tmxfile(replies[0]).units] == ['vache']
+    status, replies = _perform(client.export_tmx('en', 'fr', ''))
+    assert [u.target for u in tmx.tmxfile(replies[0]).units] == ['chien']
+    status, replies = _perform(client.export_tmx('en', 'fr'))
+    assert len(tmx.tmxfile(replies[0]).units) == 3
+
+    status, replies = _perform(client.remove_store('/home/user/p.zip', 'en', 'fr', 'doc.po'))
+    assert (status, json.loads(replies[0])) == (200, {'removed': 1})
+    status, replies = _perform(client.remove_store('', 'en', 'fr'))
+    assert (status, json.loads(replies[0])) == (200, {'removed': 1})
+    assert app.tmdb.translate_unit('dog', 'en', 'fr') == []
+    assert app.tmdb.translate_unit('cat', 'en', 'fr')[0]['target'] == 'chat'

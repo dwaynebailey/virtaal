@@ -540,3 +540,124 @@ def _closed_port():
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         return sock.getsockname()[1]
+
+
+# list_stores(), remove_store(), export_tmx(): the Local Translation Memory dialog's calls.
+
+
+def _results():
+    results = []
+    return (
+        results,
+        (lambda *args: results.append(('done', *args))),
+        (lambda: results.append(('error',))),
+    )
+
+
+def test_list_stores_gives_each_store_and_its_pairs(importing_model):
+    model, app, send = importing_model
+    app.tmdb.add_dict({'source': 'dog', 'target': 'hond', 'context': ''}, 'en', 'af')
+    app.tmdb.sync_store('/gone/af.po', [{'source': 'cat', 'target': 'kat'}], 'en', 'af')
+    results, done, error = _results()
+
+    model.list_stores(done, error)
+    send()
+
+    ((_done, stores),) = results
+    assert [(s['path'], s['exists'], s['pairs'][0]['units']) for s in stores] == [
+        ('', None, 1),
+        ('/gone/af.po', False, 1),
+    ]
+
+
+def test_remove_store_keeps_what_another_store_holds(importing_model):
+    model, app, send = importing_model
+    app.tmdb.sync_store('/a/af.po', [{'source': 'cat', 'target': 'kat'}], 'en', 'af')
+    app.tmdb.sync_store(
+        '/a/b.po',
+        [{'source': 'cat', 'target': 'kat'}, {'source': 'dog', 'target': 'hond'}],
+        'en',
+        'af',
+    )
+    results, done, error = _results()
+
+    model.remove_store('/a/b.po', '', 'en', 'af', done, error)
+    send()
+
+    assert results == [('done', 2)]
+    assert app.tmdb.translate_unit('dog', 'en', 'af') == []
+    assert app.tmdb.translate_unit('cat', 'en', 'af')[0]['target'] == 'kat'
+    assert model.cache == {}
+    assert model._generation == 1
+
+
+def test_remove_store_reports_an_unknown_store(importing_model):
+    model, _app, send = importing_model
+    results, done, error = _results()
+
+    model.remove_store('/nowhere.po', '', 'en', 'af', done, error)
+    send()
+
+    assert results == [('error',)]
+    assert model.cache == {'stale': 'entry'}
+
+
+def test_export_tmx_gives_the_pair_or_one_stores_entries(importing_model):
+    from translate.storage import tmx
+
+    model, app, send = importing_model
+    app.tmdb.sync_store('/a/af.po', [{'source': 'cat', 'target': 'kat'}], 'en', 'af')
+    app.tmdb.sync_store('/a/b.po', [{'source': 'dog', 'target': 'hond'}], 'en', 'af')
+    results, done, error = _results()
+
+    model.export_tmx('en', 'af', done, error)
+    send()
+    model.export_tmx('en', 'af', done, error, path='/a/b.po')
+    send()
+
+    assert [sorted(u.target for u in tmx.tmxfile(data).units) for _done, data in results] == [
+        ['hond', 'kat'],
+        ['hond'],
+    ]
+
+
+@pytest.mark.parametrize(
+    'call, args',
+    [
+        ('list_stores', ()),
+        ('remove_store', ('/a.po', '', 'en', 'af')),
+        ('export_tmx', ('en', 'af')),
+    ],
+)
+def test_store_calls_report_a_server_that_doesnt_answer(importing_model, call, args):
+    model, _app, _send = importing_model
+    from virtaal.support import tmclient
+
+    model.tmclient = tmclient.TMClient('http://127.0.0.1:%d' % _closed_port())
+    requests = []
+    model.tmclient.add = lambda request: requests.append(request) or True
+    results, done, error = _results()
+
+    getattr(model, call)(*args, done, error)
+    try:
+        requests[0].curl.perform()
+    except Exception as e:
+        requests[0].emit('http-failed', str(e))
+
+    assert results == [('error',)]
+
+
+@pytest.mark.parametrize('call', ['list_stores', 'remove_store', 'export_tmx'])
+def test_store_calls_report_a_full_queue(call):
+    model = _pushing_model()
+    model.tmclient = SimpleNamespace(**{call: lambda *a: None})
+    results, done, error = _results()
+    args = {
+        'list_stores': (),
+        'remove_store': ('/a.po', '', 'en', 'af'),
+        'export_tmx': ('en', 'af'),
+    }
+
+    getattr(model, call)(*args[call], done, error)
+
+    assert results == [('error',)]

@@ -166,3 +166,49 @@ class TMClient(HTTPClient):
         self.add(request)
         if callback:
             request.connect("http-success", _json_callback(callback))
+
+    def list_stores(self):
+        """Ask for every store in the TM, with its counts per language pair.
+        @returns: The request, or None if the queue was too full to send it."""
+        request = RESTRequest(self.base_url + "/stores", None, "GET", user_agent=self.user_agent)
+        if not self.add(request):
+            return None
+        return request
+
+    def _store_request(self, path, member, source_lang, target_lang, method):
+        url = self.base_url + "/%s/%s/store" % (source_lang, target_lang)
+        if not path:
+            # The legacy store: an empty path after the slash.
+            url += "/"
+        params = {'member': member} if member else None
+        return RESTRequest(url, path, method, user_agent=self.user_agent, params=params)
+
+    def remove_store(self, path, source_lang, target_lang, member=''):
+        """Remove what the store at C{path} added for this language pair.
+        @returns: The request, or None if the queue was too full to send it."""
+        request = self._store_request(path, member, source_lang, target_lang, "DELETE")
+        if not self.add(request):
+            return None
+        return request
+
+    def export_tmx(self, source_lang, target_lang, path=None, member=''):
+        """Ask for the TM's entries for this language pair as TMX, only
+        those of the store at C{path} if given.
+        @returns: The request, or None if the queue was too full to send it."""
+        params = None
+        if path is not None:
+            params = {'store': path}
+            if member:
+                params['member'] = member
+        request = RESTRequest(
+            self.base_url + "/%s/%s/export" % (source_lang, target_lang),
+            None,
+            "GET",
+            user_agent=self.user_agent,
+            params=params,
+        )
+        # A big TM takes the server a while to write.
+        request.curl.setopt(pycurl.TIMEOUT, 600)
+        if not self.add(request):
+            return None
+        return request

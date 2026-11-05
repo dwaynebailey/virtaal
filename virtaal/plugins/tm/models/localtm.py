@@ -145,8 +145,7 @@ class TMModel(remotetm.TMModel):
             self.source_lang,
             self.target_lang,
         )
-        self.cache = {}
-        self._generation += 1
+        self._forget_cached()
 
     def import_file(self, path, on_done, on_error):
         """Import the translation file at C{path} into the local TM, as a
@@ -174,7 +173,7 @@ class TMModel(remotetm.TMModel):
             on_error(path)
             return
 
-        def on_success(_request, reply):
+        def on_success(reply):
             try:
                 counts = json.loads(reply)
             except ValueError:
@@ -182,17 +181,66 @@ class TMModel(remotetm.TMModel):
             if not isinstance(counts, dict):
                 on_error(path)
                 return
-            self.cache = {}
-            self._generation += 1
+            self._forget_cached()
             on_done(path, counts.get('added', 0) + counts.get('replaced', 0))
 
-        def on_failure(_request, reason):
-            logging.warning("The local TM didn't import %s: %s", path, reason)
-            on_error(path)
+        _on_reply(request, on_success, lambda: on_error(path), "import %s" % path)
 
-        request.connect('http-success', on_success)
-        for signal in ('http-redirect', 'http-client-error', 'http-server-error', 'http-failed'):
-            request.connect(signal, on_failure)
+    def list_stores(self, on_done, on_error):
+        """C{on_done(stores)} with every store in the local TM, each with
+        its path, kind, whether its file still exists and its unit counts
+        per language pair; C{on_error()} if the server doesn't say."""
+        request = self.tmclient.list_stores()
+        if request is None:
+            on_error()
+            return
+
+        def on_success(reply):
+            try:
+                stores = json.loads(reply)
+            except ValueError:
+                stores = None
+            if not isinstance(stores, list):
+                on_error()
+                return
+            on_done(stores)
+
+        _on_reply(request, on_success, on_error, "list its stores")
+
+    def remove_store(self, path, member, source_lang, target_lang, on_done, on_error):
+        """Remove what the store at C{path} (C{member} of a bundle) added
+        for this language pair, keeping translations another store also
+        holds. C{on_done(removed)} with how many it held, C{on_error()} if
+        it can't be removed."""
+        request = self.tmclient.remove_store(path, source_lang, target_lang, member)
+        if request is None:
+            on_error()
+            return
+
+        def on_success(reply):
+            try:
+                removed = json.loads(reply)['removed']
+            except (ValueError, KeyError, TypeError):
+                on_error()
+                return
+            self._forget_cached()
+            on_done(removed)
+
+        _on_reply(request, on_success, on_error, "remove %s" % path)
+
+    def export_tmx(self, source_lang, target_lang, on_done, on_error, path=None, member=''):
+        """C{on_done(data)} with the TMX bytes of this language pair's
+        entries, only the store at C{path}'s if given; C{on_error()} if
+        the server can't give them."""
+        request = self.tmclient.export_tmx(source_lang, target_lang, path, member)
+        if request is None:
+            on_error()
+            return
+        _on_reply(request, on_done, on_error, "export")
+
+    def _forget_cached(self):
+        self.cache = {}
+        self._generation += 1
 
     def destroy(self):
         self._signal_tracker.disconnect_all()
@@ -206,6 +254,19 @@ class TMModel(remotetm.TMModel):
 
             os.kill(self.tmserver.pid, signal.SIGTERM)
             logging.debug("killing tmserver with pid %d" % self.tmserver.pid)
+
+
+def _on_reply(request, on_success, on_error, action):
+    """Call C{on_success(reply)} when C{request} succeeds, else
+    C{on_error()}."""
+
+    def on_failure(_request, reason):
+        logging.warning("The local TM couldn't %s: %s", action, reason)
+        on_error()
+
+    request.connect('http-success', lambda _request, reply: on_success(reply))
+    for signal in ('http-redirect', 'http-client-error', 'http-server-error', 'http-failed'):
+        request.connect(signal, on_failure)
 
 
 def store_key(store_controller):
