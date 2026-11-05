@@ -270,6 +270,16 @@ says how many translations were added. Importing a file again updates its
 translations the same way saving does. The menu item is there only while the
 Local Translation Memory is one of the sources of suggestions.
 
+To keep a file's translations out of the local TM, for example ones you are
+not yet sure of, untick :menuselection:`File --> Add to Local TM on Save` while
+the file is open. If saving it already added translations, Virtaal asks before
+removing them; a translation another file also added stays. Saving the file
+then adds nothing, and Virtaal remembers this for the file the next time you
+open it. Tick the item again to let the file back in: its translations are
+added straight away, or when you next save it if it has unsaved changes. Like
+the import item, this one is there only while the Local Translation Memory is
+a source of suggestions.
+
 To see what is in the local TM, open :menuselection:`Edit --> Preferences`,
 select Translation Memory under Features and click its :guilabel:`Configure…`
 button, then do the same for Local Translation Memory in the list of sources.
