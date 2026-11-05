@@ -128,6 +128,25 @@ class TMModel(remotetm.TMModel):
             logging.exception('Failed to start TM server')
             raise
 
+    def push_store(self, store_controller):
+        """Sync the saved file into the local TM: a changed unit replaces
+        its earlier target and a unit no longer translated drops out. The
+        server leaves a file excluded from the TM alone."""
+        path, member = store_key(store_controller)
+        units = [
+            {**remotetm.unit2dict(unit), 'key': unit.getid()}
+            for unit in store_controller.store.get_units()
+            if unit.istranslated()
+        ]
+        self.tmclient.add_store(
+            path,
+            {'units': units, 'replace': True, 'member': member},
+            self.source_lang,
+            self.target_lang,
+        )
+        self.cache = {}
+        self._generation += 1
+
     def destroy(self):
         self._signal_tracker.disconnect_all()
         if platform.is_windows:
@@ -140,6 +159,17 @@ class TMModel(remotetm.TMModel):
 
             os.kill(self.tmserver.pid, signal.SIGTERM)
             logging.debug("killing tmserver with pid %d" % self.tmserver.pid)
+
+
+def store_key(store_controller):
+    """The open file's store in the local TM: its real path, and for a
+    bundle the bundle's with the file's name inside it."""
+    bundle = store_controller.get_bundle_filename()
+    if bundle:
+        # get_store_filename() gives "bundle.zip:inner.xlf".
+        member = store_controller.get_store_filename()[len(bundle) + 1 :]
+        return os.path.realpath(bundle), member
+    return os.path.realpath(store_controller.store.get_filename()), ''
 
 
 def test_port(host, port):

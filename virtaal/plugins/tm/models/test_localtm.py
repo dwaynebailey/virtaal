@@ -13,6 +13,8 @@ import sys
 from types import SimpleNamespace
 
 import pytest
+from gi.repository import GObject
+from translate.storage import pypo
 
 from virtaal.common import SignalTracker, pan_app
 from virtaal.common.platform import Platform
@@ -296,3 +298,87 @@ def test_check_config_replaces_an_unusable_port(port):
     model._check_config()
 
     assert model.config['tmserver_port'] == 55555
+
+
+# push_store(): a save syncs the file into the local TM.
+
+
+def _pushing_model():
+    model = TMModel.__new__(TMModel)
+    GObject.GObject.__init__(model)
+    model.source_lang = 'en'
+    model.target_lang = 'af'
+    model.cache = {'stale': 'entry'}
+    model.sent = []
+    model.tmclient = SimpleNamespace(add_store=lambda *a: model.sent.append(a))
+    return model
+
+
+def _store_controller(po, filename, bundle=None, member=None):
+    store = pypo.pofile.parsestring(po)
+    return SimpleNamespace(
+        store=SimpleNamespace(get_units=lambda: store.units, get_filename=lambda: filename),
+        get_bundle_filename=lambda: bundle,
+        get_store_filename=lambda: '%s:%s' % (bundle, member) if bundle else filename,
+    )
+
+
+PO = (
+    b'msgid "Open"\nmsgstr "Maak oop"\n\n'
+    b'#, fuzzy\nmsgid "Close"\nmsgstr "Maak toe"\n\n'
+    b'msgctxt "menu"\nmsgid "Quit"\nmsgstr "Verlaat"\n\n'
+    b'msgid "Save"\nmsgstr ""\n'
+)
+
+
+def test_push_store_syncs_the_files_translated_units_by_key(tmp_path):
+    model = _pushing_model()
+    (tmp_path / 'sub').mkdir()
+
+    model.push_store(_store_controller(PO, os.path.join(str(tmp_path), 'sub', '..', 'af.po')))
+
+    ((path, body, source_lang, target_lang),) = model.sent
+    assert path == os.path.realpath(tmp_path / 'af.po')
+    assert (source_lang, target_lang) == ('en', 'af')
+    assert body['replace'] is True
+    assert body['member'] == ''
+    assert body['units'] == [
+        {'source': 'Open', 'target': 'Maak oop', 'context': '', 'key': 'Open'},
+        {'source': 'Quit', 'target': 'Verlaat', 'context': 'menu', 'key': 'menu\x04Quit'},
+    ]
+    assert model.cache == {}
+
+
+def test_push_store_keys_a_bundles_file_by_the_bundle_and_its_name(tmp_path):
+    model = _pushing_model()
+    bundle = str(tmp_path / 'project.zip')
+
+    model.push_store(_store_controller(PO, '/tmp/extracted/doc.po', bundle=bundle, member='doc.po'))
+
+    ((path, body, _source_lang, _target_lang),) = model.sent
+    assert path == os.path.realpath(bundle)
+    assert body['member'] == 'doc.po'
+
+
+def test_saving_twice_replaces_a_changed_translation_on_the_server(tmp_path, monkeypatch):
+    from virtaal.support import test_tmserver, tmclient
+
+    app, port = test_tmserver._start_server(tmp_path / 'tm.db')
+    try:
+        model = _pushing_model()
+        model.tmclient = tmclient.TMClient('http://127.0.0.1:%d' % port)
+        requests = []
+        monkeypatch.setattr(model.tmclient, 'add', lambda request: requests.append(request) or True)
+        filename = str(tmp_path / 'af.po')
+
+        for po in (PO, PO.replace(b'"Maak oop"', b'"Open dit"').replace(b'"Verlaat"', b'""')):
+            model.push_store(_store_controller(po, filename))
+            requests[-1].curl.perform()
+
+        matches = app.tmdb.translate_unit('Open', 'en', 'af')
+        assert [m['target'] for m in matches] == ['Open dit']
+        assert app.tmdb.translate_unit('Quit', 'en', 'af') == []
+        assert app.tmdb.store_stats(os.path.realpath(filename), 'en', 'af')['units'] == 1
+    finally:
+        while test_tmserver._servers:
+            test_tmserver._servers.pop().stop()
