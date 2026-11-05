@@ -9,12 +9,13 @@
 #   libglib2.0-dev libhunspell-dev librsvg2-common adwaita-icon-theme
 #   ibus-gtk3 fcitx5-frontend-gtk3 desktop-file-utils file curl
 #
+# and uv, for uv.lock's versions of the Python packages.
+#
 # PyInstaller imports virtaal's modules, which start GTK: without a
 # display, run it under xvfb-run.
 set -eu
 cd "$(dirname "$0")/../../.."
 
-PYINSTALLER_VERSION=6.22.3  # keep in step with ci.yml's Windows build
 APPIMAGETOOL_VERSION=1.9.1
 RUNTIME_VERSION=20251108
 ENCHANT_VERSION=2.3.3  # Ubuntu 24.04's
@@ -90,8 +91,9 @@ for mod, dist in ((gi, "PyGObject"), (cairo, "pycairo")):
     for src in [mod.__path__[0], *glob.glob(os.path.join(site, dist + "-*-info"))]:
         os.symlink(src, os.path.join(sys.argv[1], os.path.basename(src)))
 EOF
-"$PYTHON" -m pip install -q setuptools==84.0.0 wheel==0.48.0 \
-    "pyinstaller==$PYINSTALLER_VERSION" translate-toolkit
+export PIP_CONSTRAINT="$OUT/constraints.txt"
+uv export --locked --no-hashes --no-emit-project --extra spellcheck --group build-app -o "$PIP_CONSTRAINT"
+"$PYTHON" -m pip install -q setuptools wheel pyinstaller translate-toolkit
 "$PYTHON" -m pip install -q --no-build-isolation ".[spellcheck]"
 "$PYTHON" devsupport/packaging/macos/check_build_venv.py
 

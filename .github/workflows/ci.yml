@@ -1792,12 +1792,6 @@ jobs:
         with:
           version: "0.13.7"
 
-      - name: Pin the build's Python packages to uv.lock
-        # build_appimage.sh installs with pip, which reads PIP_CONSTRAINT.
-        run: |
-          uv export --locked --no-hashes --no-emit-project --extra spellcheck --group build-app -o "$RUNNER_TEMP/constraints.txt"
-          echo "PIP_CONSTRAINT=$RUNNER_TEMP/constraints.txt" >> "$GITHUB_ENV"
-
       - name: Build the AppImage
         # PyInstaller imports virtaal's modules, which start GTK.
         env:
