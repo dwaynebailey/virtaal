@@ -1,28 +1,6 @@
 TM plugin TODO
 ==============
 
-Import an arbitrary file into local TM
----------------------------------------
-The plumbing already exists but nothing in the UI calls it: remotetm.py
-(which localtm inherits from) has upload_store(store_controller), which
-pushes a whole store into the TM database via tmclient.upload_store() ->
-tmserver.py's PUT /store/{sid} -> factory.getobject() - so it already
-accepts anything translate-toolkit can parse, TMX included. Only
-push_store() (auto-triggered on saving the *current* file) is wired to
-anything; upload_store() is dead from a UI standpoint.
-
-Add a real UI action - a file-chooser dialog, roughly "Import into
-Translation Memory..." - that runs the chosen file through
-factory.getobject() and pushes it into localtm via that same path,
-without needing the file open as the current document.
-
-This is the practical way to help users migrating from other CAT tools,
-Poedit in particular: Poedit's own TM is a Lucene index (see
-src/tm/transmem.cpp upstream) - not worth reading directly from Python,
-but Poedit can export it to TMX (src/tm/tmx_io.cpp upstream), and this
-action would let a user bring that straight in. Not Poedit-specific
-though - works for any TMX/PO/XLIFF a user points it at.
-
 Re-validate migration.py against upstream releases
 ----------------------------------------------------
 virtaal/plugins/migration.py's Lokalize import broke silently over time

@@ -1670,3 +1670,29 @@ def test_set_ui_language_chain_warns_about_languages_without_a_catalog(chain_che
     pan_app.set_ui_language('xx:af')
 
     assert "No translation found for UI language 'xx'" in caplog.text
+
+
+# ngettext(): plural forms from the catalog behind the installed _().
+
+
+def test_ngettext_uses_the_installed_catalogs_plural_forms(monkeypatch):
+    import builtins
+    import gettext
+
+    class Catalog(gettext.NullTranslations):
+        def ngettext(self, singular, plural, n):
+            return ['een %(count)d', 'baie %(count)d'][n != 1]
+
+    monkeypatch.setattr(builtins, '_', Catalog().gettext, raising=False)
+
+    assert pan_app.ngettext('one %(count)d', 'many %(count)d', 1) == 'een %(count)d'
+    assert pan_app.ngettext('one %(count)d', 'many %(count)d', 4) == 'baie %(count)d'
+
+
+@pytest.mark.parametrize('n, expected', [(1, 'one'), (0, 'many'), (2, 'many')])
+def test_ngettext_picks_the_english_form_without_a_catalog(monkeypatch, n, expected):
+    import builtins
+
+    monkeypatch.setattr(builtins, '_', lambda s: s, raising=False)
+
+    assert pan_app.ngettext('one', 'many', n) == expected

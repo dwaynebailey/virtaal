@@ -165,6 +165,48 @@ def _set_native_return_key(title, modifiers):
     )
 
 
+def add_translation_file_filters(chooser):
+    """Give a file chooser the Open dialog's filters: all supported
+    files, each format, and all files."""
+    all_supported_filter = Gtk.FileFilter()
+    all_supported_filter.set_name(_("All Supported Files"))
+    chooser.add_filter(all_supported_filter)
+    from translate.storage import factory as storage_factory
+
+    supported_files_dict = dict(
+        [
+            (_(name), (extensions, mimetypes))
+            for name, extensions, mimetypes in storage_factory.supported_files()
+        ]
+    )
+    supported_file_names = list(supported_files_dict.keys())
+    supported_file_names.sort(key=locale.strxfrm)
+    for name in supported_file_names:
+        extensions, mimetypes = supported_files_dict[name]
+        new_filter = Gtk.FileFilter()
+        new_filter.set_name(name)
+        # Extensions only - mimetypes prevent native file dialogues.
+        if extensions:
+            for extension in extensions:
+                new_filter.add_pattern("*." + extension)
+                all_supported_filter.add_pattern("*." + extension)
+                for compress_extension in storage_factory.decompressclass.keys():
+                    new_filter.add_pattern("*.%s.%s" % (extension, compress_extension))
+                    all_supported_filter.add_pattern("*.%s.%s" % (extension, compress_extension))
+        chooser.add_filter(new_filter)
+
+    # proj_filter = Gtk.FileFilter()
+    # proj_filter.set_name(_('Translate project bundles'))
+    # proj_filter.add_pattern('*.zip')
+    # all_supported_filter.add_pattern('*.zip')
+    # chooser.add_filter(proj_filter)
+
+    all_filter = Gtk.FileFilter()
+    all_filter.set_name(_("All Files"))
+    all_filter.add_pattern("*")
+    chooser.add_filter(all_filter)
+
+
 def fill_dialog(dialog, title='', message='', markup=''):
     if title:
         dialog.set_title(title)
@@ -501,46 +543,7 @@ class MainView(BaseView):
             None,
             None,
         )
-        all_supported_filter = Gtk.FileFilter()
-        all_supported_filter.set_name(_("All Supported Files"))
-        chooser.add_filter(all_supported_filter)
-        from translate.storage import factory as storage_factory
-
-        supported_files_dict = dict(
-            [
-                (_(name), (extensions, mimetypes))
-                for name, extensions, mimetypes in storage_factory.supported_files()
-            ]
-        )
-        supported_file_names = list(supported_files_dict.keys())
-        supported_file_names.sort(key=locale.strxfrm)
-        for name in supported_file_names:
-            extensions, mimetypes = supported_files_dict[name]
-            new_filter = Gtk.FileFilter()
-            new_filter.set_name(name)
-            # Extensions only - mimetypes prevent native file dialogues.
-            if extensions:
-                for extension in extensions:
-                    new_filter.add_pattern("*." + extension)
-                    all_supported_filter.add_pattern("*." + extension)
-                    for compress_extension in storage_factory.decompressclass.keys():
-                        new_filter.add_pattern("*.%s.%s" % (extension, compress_extension))
-                        all_supported_filter.add_pattern(
-                            "*.%s.%s" % (extension, compress_extension)
-                        )
-            chooser.add_filter(new_filter)
-
-        # proj_filter = Gtk.FileFilter()
-        # proj_filter.set_name(_('Translate project bundles'))
-        # proj_filter.add_pattern('*.zip')
-        # all_supported_filter.add_pattern('*.zip')
-        # chooser.add_filter(proj_filter)
-
-        all_filter = Gtk.FileFilter()
-        all_filter.set_name(_("All Files"))
-        all_filter.add_pattern("*")
-        chooser.add_filter(all_filter)
-
+        add_translation_file_filters(chooser)
         return chooser
 
     @cached_property
@@ -1563,6 +1566,34 @@ class MainView(BaseView):
         infobar = getattr(self, '_read_only_infobar', None)
         if infobar is not None:
             self._read_only_infobar = None
+            infobar.destroy()
+
+    def show_info_notice(self, text):
+        """Show a dismissable notice with C{text}, in place of the last one."""
+        self.hide_info_notice()
+
+        infobar = Gtk.InfoBar()
+        infobar.set_message_type(Gtk.MessageType.INFO)
+        infobar.set_show_close_button(True)
+        label = Gtk.Label(label=text)
+        label.set_line_wrap(True)
+        infobar.get_content_area().pack_start(label, True, True, 0)
+
+        def on_response(infobar, response_id):
+            self.hide_info_notice()
+
+        infobar.connect('response', on_response)
+
+        self._info_infobar = infobar
+        infobar.show_all()
+        vbox_main = self.gui.get_object('vbox_main')
+        vbox_main.pack_start(infobar, False, False, 0)
+        vbox_main.reorder_child(infobar, 1)  # directly below the menu bar
+
+    def hide_info_notice(self):
+        infobar = getattr(self, '_info_infobar', None)
+        if infobar is not None:
+            self._info_infobar = None
             infobar.destroy()
 
     def _on_file_open(self, _widget):

@@ -639,6 +639,15 @@ def _install_system_ui_language():
         bind_libintl_posix(localedir)
 
 
+def ngettext(singular, plural, n):
+    """The plural form of a message for C{n}, from the catalog the
+    installed C{_} translates with."""
+    translations = getattr(__builtin__.__dict__.get('_'), '__self__', None)
+    if translations is None:
+        return singular if n == 1 else plural
+    return translations.ngettext(singular, plural, n)
+
+
 def _system_language_chain():
     """The languages gettext walks for the OS's own locale environment,
     most preferred first: get_locale_lang(), then the rest of a list

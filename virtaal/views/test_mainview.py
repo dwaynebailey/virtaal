@@ -1621,6 +1621,41 @@ def test_show_template_update_notice_dismiss_clears_the_tracked_infobar():
     assert view._template_update_infobar is None
 
 
+# show_info_notice() / hide_info_notice()
+
+
+def test_show_info_notice_packs_a_dismissable_infobar_with_the_text():
+    view, vbox = _view_for_same_lang_notice()
+
+    view.show_info_notice('Added 3 translations to the translation memory.')
+
+    (infobar,) = vbox.packed
+    assert infobar.get_message_type() == Gtk.MessageType.INFO
+    assert infobar.get_show_close_button() is True
+    (label,) = infobar.get_content_area().get_children()
+    assert label.get_text() == 'Added 3 translations to the translation memory.'
+
+
+def test_show_info_notice_replaces_the_last_one():
+    view, vbox = _view_for_same_lang_notice()
+    view.show_info_notice('first')
+    first = view._info_infobar
+
+    view.show_info_notice('second')
+
+    assert view._info_infobar is not first
+    assert first.get_parent() is None
+
+
+def test_show_info_notice_dismiss_clears_the_tracked_infobar():
+    view, vbox = _view_for_same_lang_notice()
+    view.show_info_notice('text')
+
+    view._info_infobar.emit('response', Gtk.ResponseType.CLOSE)
+
+    assert view._info_infobar is None
+
+
 # show_same_lang_notice() / hide_same_lang_notice() - warn that source and
 # target language are the same (#1346), replacing the old red button text.
 

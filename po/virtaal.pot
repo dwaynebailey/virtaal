@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-04 04:41+0000\n"
+"POT-Creation-Date: 2026-11-05 14:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
 #: share/applications/io.github.translate.Virtaal.desktop.in
 #: share/virtaal/virtaal.ui virtaal/views/mainview.py
@@ -1705,6 +1706,28 @@ msgstr ""
 #. l10n: Inserts the suggestion at the cursor in the translation, or over the selected text, keeping the rest of the translation.
 #: virtaal/plugins/tm/tmview.py
 msgid "_Insert at Cursor"
+msgstr ""
+
+#. l10n: Adds the translations in files the user picks to the local
+#. translation memory, without opening them
+#: virtaal/plugins/tm/tmview.py
+msgid "_Import into Translation Memory…"
+msgstr ""
+
+#: virtaal/plugins/tm/tmview.py
+msgid "Import into Translation Memory"
+msgstr ""
+
+#: virtaal/plugins/tm/tmview.py
+#, python-format
+msgid "Added %(count)d translation to the translation memory."
+msgid_plural "Added %(count)d translations to the translation memory."
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/plugins/tm/tmview.py
+#, python-format
+msgid "Couldn't import '%(file)s' into the translation memory."
 msgstr ""
 
 #: virtaal/plugins/tm/tmview.py

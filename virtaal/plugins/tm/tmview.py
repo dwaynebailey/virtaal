@@ -6,10 +6,12 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import logging
+import os
 
 from gi.repository import Gdk, GLib, GObject, Gtk
 
-from virtaal.common import GObjectWrapper, SignalTracker
+from virtaal.common import GObjectWrapper, SignalTracker, pan_app
+from virtaal.common.pan_app import ngettext
 from virtaal.support.translate_compat import forceunicode
 from virtaal.views.baseview import BaseView
 from virtaal.views.widgets.popupwidgetbutton import PopupWidgetButton
@@ -30,6 +32,10 @@ class TMView(BaseView, GObjectWrapper):
     __gsignals__ = {
         'tm-match-selected': (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_PYOBJECT,)),
     }
+
+    # File > Import into Translation Memory…, and the model it imports into.
+    mnu_import = None
+    _import_model = None
 
     # INITIALIZERS #
     def __init__(self, controller, max_matches):
@@ -178,7 +184,120 @@ class TMView(BaseView, GObjectWrapper):
 
         self.menu.remove(self.mnu_suggestions)
         self.menu.remove(self.mnu_summon)
+        self.remove_import_menu_item()
         self._match_menu.destroy()
+
+    def add_import_menu_item(self, model):
+        """Offer File > Import into Translation Memory…, importing into
+        C{model} (one with C{import_file()})."""
+        self._import_model = model
+        if self.mnu_import is not None:
+            return
+        mainview = self.controller.main_controller.view
+        self.mnu_import = mainview.append_menu_item(
+            # l10n: Adds the translations in files the user picks to the local
+            # translation memory, without opening them
+            _('_Import into Translation Memory…'),
+            mainview.gui.get_object('menuitem_file'),
+            after=mainview.gui.get_object('mnu_binary_export'),
+        )
+        self.mnu_import.connect('activate', self._on_import)
+        mainview.sync_menubar()
+
+    def remove_import_menu_item(self):
+        self._import_model = None
+        if self.mnu_import is None:
+            return
+        self.mnu_import.get_parent().remove(self.mnu_import)
+        self.mnu_import = None
+        self.controller.main_controller.view.sync_menubar()
+
+    def _build_import_chooser(self):
+        from virtaal.views.mainview import add_translation_file_filters
+
+        mainview = self.controller.main_controller.view
+        chooser = Gtk.FileChooserDialog(
+            title=_('Import into Translation Memory'),
+            transient_for=mainview.main_window,
+            modal=True,
+            action=Gtk.FileChooserAction.OPEN,
+        )
+        chooser.add_buttons(
+            _gtk_text('_Cancel'),
+            Gtk.ResponseType.CANCEL,
+            _gtk_text('_Open'),
+            Gtk.ResponseType.ACCEPT,
+        )
+        chooser.set_default_response(Gtk.ResponseType.ACCEPT)
+        chooser.set_select_multiple(True)
+        add_translation_file_filters(chooser)
+        last_dir = pan_app.settings.general["lastdir"] or ""
+        if os.path.isdir(last_dir):
+            chooser.set_current_folder(last_dir)
+        return chooser
+
+    def choose_import_files(self):
+        """The files the user picks to import, or an empty list."""
+        chooser = self._build_import_chooser()
+        try:
+            if chooser.run() != Gtk.ResponseType.ACCEPT:
+                return []
+            filenames = chooser.get_filenames()
+        finally:
+            chooser.destroy()
+        if filenames:
+            pan_app.settings.general["lastdir"] = os.path.dirname(filenames[0])
+        return filenames
+
+    def _on_import(self, _widget=None):
+        model = self._import_model
+        filenames = self.choose_import_files()
+        if model is None or not filenames:
+            return
+        waiting = [len(filenames)]
+        added = [0]
+        failed = []
+
+        def done(path, count):
+            added[0] += count
+            finish()
+
+        def error(path):
+            failed.append(path)
+            finish()
+
+        def finish():
+            waiting[0] -= 1
+            if not waiting[0]:
+                # Not from inside the HTTP client's callback: the error
+                # dialog runs a main loop of its own.
+                GLib.idle_add(self._show_import_result, len(filenames), added[0], failed)
+
+        for filename in filenames:
+            model.import_file(filename, done, error)
+
+    def _show_import_result(self, total, added, failed):
+        mainview = self.controller.main_controller.view
+        if len(failed) < total:
+            mainview.show_info_notice(
+                # l10n: After File > Import into Translation Memory: how many
+                # translations the translation memory did not have yet
+                ngettext(
+                    'Added %(count)d translation to the translation memory.',
+                    'Added %(count)d translations to the translation memory.',
+                    added,
+                )
+                % {'count': added}
+            )
+        if failed:
+            mainview.show_error_dialog(
+                message='\n'.join(
+                    _("Couldn't import '%(file)s' into the translation memory.")
+                    % {'file': os.path.basename(path)}
+                    for path in failed
+                )
+            )
+        return False
 
     def display_matches(self, matches):
         """Add the list of TM matches to those available and show the TM window."""
