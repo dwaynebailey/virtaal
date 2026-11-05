@@ -9,6 +9,9 @@ import json
 import logging
 import os
 import socket
+import time
+
+from gi.repository import GLib
 
 from virtaal.common import pan_app
 from virtaal.common.platform import platform
@@ -36,6 +39,12 @@ class TMModel(remotetm.TMModel):
     }
     # Its own server picks a free port: nothing to set (#1647).
     settings = ()
+    # How long to wait for the server to accept connections.
+    SERVER_WAIT = 60
+    # Requests wait in _waiting until the server is up; a model made
+    # without __init__ has no server to wait for.
+    _server_ready = True
+    _wait_id = None
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
@@ -46,6 +55,7 @@ class TMModel(remotetm.TMModel):
         port = self._pick_port()
         command = self._build_tmserver_command(port, controller)
         self._launch_tmserver(command, port)
+        self._wait_for_server(port)
 
         # Do not use super() here, as remotetm.TMModel does a bit more than we
         # want in this case.
@@ -133,6 +143,36 @@ class TMModel(remotetm.TMModel):
             logging.exception('Failed to start TM server')
             raise
 
+    def _wait_for_server(self, port):
+        """Hold back requests until the server just launched answers, so
+        one made at start (a file opened with Virtaal) doesn't fail."""
+        self._server_ready = False
+        self._waiting = []
+        deadline = time.monotonic() + self.SERVER_WAIT
+
+        def check():
+            try:
+                with socket.create_connection((self.config["tmserver_bind"], port), timeout=0.1):
+                    pass
+            except OSError:
+                if self.tmserver.poll() is None and time.monotonic() < deadline:
+                    return True
+                logging.warning("The local TM server didn't start on port %s", port)
+            self._wait_id = None
+            self._server_ready = True
+            waiting, self._waiting = self._waiting, []
+            for send in waiting:
+                send()
+            return False
+
+        self._wait_id = GLib.timeout_add(100, check)
+
+    def _when_ready(self, send):
+        if self._server_ready:
+            send()
+        else:
+            self._waiting.append(send)
+
     def configure(self, parent):
         from ..localtmdialog import LocalTMDialog
 
@@ -151,13 +191,20 @@ class TMModel(remotetm.TMModel):
             for unit in store_controller.store.get_units()
             if unit.istranslated()
         ]
-        self.tmclient.add_store(
-            path,
-            {'units': units, 'replace': True, 'member': member},
-            self.source_lang,
-            self.target_lang,
-        )
-        self._forget_cached()
+        source_lang, target_lang = self.source_lang, self.target_lang
+
+        def send():
+            if self._excluded.get(key):
+                return
+            self.tmclient.add_store(
+                path,
+                {'units': units, 'replace': True, 'member': member},
+                source_lang,
+                target_lang,
+            )
+            self._forget_cached()
+
+        self._when_ready(send)
 
     def import_file(self, path, on_done, on_error):
         """Import the translation file at C{path} into the local TM, as a
@@ -244,6 +291,9 @@ class TMModel(remotetm.TMModel):
         """C{on_done(excluded, units)} for the open file: whether the local
         TM leaves it out, and how many of this pair's translations it
         added; C{on_error()} if the server doesn't say."""
+        self._when_ready(lambda: self._store_status(store_controller, on_done, on_error))
+
+    def _store_status(self, store_controller, on_done, on_error):
         key = store_key(store_controller)
         path, member = key
         request = self.tmclient.store_info(path, self.source_lang, self.target_lang, member)
@@ -268,12 +318,24 @@ class TMModel(remotetm.TMModel):
                 on_done(False, 0)
 
         request.connect('http-client-error', on_client_error)
-        _on_reply(request, on_success, on_error, "look up %s" % path, ignore_status=(404,))
+        # Asked on its own, not by the user: a failure only matters to them
+        # when they change the setting, which says so.
+        _on_reply(
+            request,
+            on_success,
+            on_error,
+            "look up %s" % path,
+            ignore_status=(404,),
+            log=logging.debug,
+        )
 
     def set_exclude(self, store_controller, exclude, on_done, on_error):
         """Keep the open file out of the local TM from now on, removing
         what it added, or let its next save add it again. C{on_done()}
         once the TM has it, C{on_error()} if it couldn't be changed."""
+        self._when_ready(lambda: self._set_exclude(store_controller, exclude, on_done, on_error))
+
+    def _set_exclude(self, store_controller, exclude, on_done, on_error):
         key = store_key(store_controller)
         path, member = key
         request = self.tmclient.set_exclude(
@@ -307,6 +369,9 @@ class TMModel(remotetm.TMModel):
 
     def destroy(self):
         self._signal_tracker.disconnect_all()
+        if self._wait_id is not None:
+            GLib.source_remove(self._wait_id)
+            self._wait_id = None
         if platform.is_windows:
             import ctypes
 
@@ -319,14 +384,14 @@ class TMModel(remotetm.TMModel):
             logging.debug("killing tmserver with pid %d" % self.tmserver.pid)
 
 
-def _on_reply(request, on_success, on_error, action, ignore_status=()):
+def _on_reply(request, on_success, on_error, action, ignore_status=(), log=logging.warning):
     """Call C{on_success(reply)} when C{request} succeeds, else
     C{on_error()}, except for an HTTP status in C{ignore_status}."""
 
     def on_failure(_request, reason):
         if reason in ignore_status:
             return
-        logging.warning("The local TM couldn't %s: %s", action, reason)
+        log("The local TM couldn't %s: %s", action, reason)
         on_error()
 
     request.connect('http-success', lambda _request, reply: on_success(reply))

@@ -795,6 +795,111 @@ def test_exclude_calls_report_a_full_queue(tmp_path, call, method):
     assert results == [('error',)]
 
 
+# Waiting for the server: a file opened with Virtaal is looked up at start.
+
+
+@pytest.fixture
+def starting_server(importing_model, monkeypatch):
+    """The importing_model with its server 'starting': returns (model,
+    app, send, server) where server.up lets connections through,
+    server.exited ends the process and server.check() runs the wait's
+    next poll, returning whether it keeps polling."""
+    model, app, send = importing_model
+    port = int(model.tmclient.base_url.rsplit(':', 1)[1])
+    model.config = {'tmserver_bind': '127.0.0.1'}
+    server = SimpleNamespace(up=False, exited=False, checks=[])
+    model.tmserver = SimpleNamespace(poll=lambda: 1 if server.exited else None)
+    real_connect = socket.create_connection
+
+    def connect(address, timeout):
+        if not server.up:
+            raise ConnectionRefusedError
+        return real_connect(address, timeout)
+
+    monkeypatch.setattr(localtm.socket, 'create_connection', connect)
+    monkeypatch.setattr(
+        localtm.GLib, 'timeout_add', lambda ms, func: server.checks.append(func) or 7
+    )
+    model._wait_for_server(port)
+    server.check = lambda: server.checks[0]()
+    return model, app, send, server
+
+
+def test_a_file_looked_up_before_the_server_is_up_waits_for_it(tmp_path, starting_server, caplog):
+    model, _app, send, server = starting_server
+    caplog.set_level(logging.DEBUG)
+    store_controller = _store_controller(PO, str(tmp_path / 'af.po'))
+
+    results = _status(model, store_controller)
+    assert server.check() is True
+    assert results == []
+
+    server.up = True
+    assert server.check() is False
+    send()
+
+    assert results == [('done', False, 0)]
+    assert model._wait_id is None
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+
+
+def test_a_save_before_the_server_is_up_sends_the_file_as_saved(tmp_path, starting_server):
+    model, app, send, server = starting_server
+    filename = str(tmp_path / 'af.po')
+
+    model.push_store(_store_controller(PO, filename))
+    server.up = True
+    server.check()
+    send()
+
+    assert app.tmdb.store_stats(os.path.realpath(filename), 'en', 'af')['units'] == 2
+
+
+@pytest.mark.parametrize('how', ['exited', 'timed out'])
+def test_a_server_that_never_comes_up_warns_once(
+    tmp_path, starting_server, caplog, monkeypatch, how
+):
+    model, _app, _send, server = starting_server
+    caplog.set_level(logging.DEBUG)
+    from virtaal.support import tmclient
+
+    model.tmclient = tmclient.TMClient('http://127.0.0.1:%d' % _closed_port())
+    requests = []
+    model.tmclient.add = lambda request: requests.append(request) or True
+    if how == 'exited':
+        server.exited = True
+    else:
+        later = localtm.time.monotonic() + model.SERVER_WAIT + 1
+        monkeypatch.setattr(localtm, 'time', SimpleNamespace(monotonic=lambda: later))
+    results = _status(model, _store_controller(PO, str(tmp_path / 'af.po')))
+    assert server.check() is False
+    try:
+        requests[0].curl.perform()
+    except Exception as e:
+        requests[0].emit('http-failed', str(e))
+
+    assert results == [('error',)]
+    warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    assert len(warnings) == 1
+    assert "didn't start" in warnings[0]
+
+
+def test_destroy_stops_waiting_for_the_server(monkeypatch):
+    model = _pushing_model()
+    model._signal_tracker = SignalTracker()
+    model._wait_id = 42
+    model.tmserver = SimpleNamespace(pid=12345)
+    removed = []
+    monkeypatch.setattr(localtm.GLib, 'source_remove', removed.append)
+    monkeypatch.setattr(localtm.os, 'kill', lambda pid, sig: None)
+    monkeypatch.setattr(localtm, 'platform', Platform(os_name='posix'))
+
+    model.destroy()
+
+    assert removed == [42]
+    assert model._wait_id is None
+
+
 # Opening it: Configure… on the local TM in the sources dialog.
 
 
