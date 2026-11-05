@@ -9,6 +9,7 @@
 the target TextBox, saved and reopened: the edit lands where Trados reads
 it, and every other element, attribute and text survives."""
 
+import copy
 import glob
 import os
 import shutil
@@ -23,13 +24,12 @@ from translate.storage import factory
 from translate.storage.workflow import StateEnum
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
-from virtaal.support import sdlxliff_compat, xliff_compat
+from virtaal.support import sdlxliff_compat
 from virtaal.views.widgets import textbox as textbox_module
 
 TRADOS = os.path.join('devsupport', 'testfiles', 'trados')
 XLIFF = '{urn:oasis:names:tc:xliff:document:1.2}'
 SDL = '{http://sdl.com/FileTypes/SdlXliff/1.0}'
-XML_SPACE = '{http://www.w3.org/XML/1998/namespace}space'
 # Text inside these is content; whitespace elsewhere is indentation,
 # which translate-toolkit rewrites on save.
 CONTENT = {
@@ -43,6 +43,10 @@ WORKBENCH_TMX = sorted(glob.glob(os.path.join(TRADOS, '*', '*English - German.tm
 STATUSES = glob.glob(os.path.join(TRADOS, 'matecat', '*.sdlxliff'))[0]
 # Segments 6 and 7 are locked.
 COMMENTS = os.path.join(TRADOS, 'okapi', 'comments.sdlxliff')
+# Segments "1 a" and "1 b" in one trans-unit, the marker ids encoded.
+WEIRD_IDS = os.path.join(TRADOS, 'okapi', 'test-weird-ids.docx.sdlxliff')
+# The same, with Trados comments on each segment.
+TEST_COMMENTS = os.path.join(TRADOS, 'okapi', 'test-comments.docx.sdlxliff')
 # One segment with origin, percent and a comment on its translation.
 COMMENTED = b"""<?xml version="1.0" encoding="utf-8"?>
 <xliff xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0"
@@ -67,16 +71,13 @@ def _in_content(element):
     return any(e.tag in CONTENT for e in element.iterancestors()) or element.tag in CONTENT
 
 
-def _infoset(element, collapse=False):
+def _infoset(element):
     """Every element under C{element} as (tag, attributes, text, tail),
-    whitespace-only text kept only inside content. C{collapse}: compare
-    whitespace as xml:space="default" does."""
+    whitespace-only text kept only inside content."""
 
     def text(value, keep):
         if value is None or (not keep and not value.strip()):
             return None
-        if collapse:
-            return " ".join(value.split()) or None
         return value
 
     return [
@@ -101,6 +102,28 @@ def _without(root, edited_index):
     edited = _units(root)[edited_index]
     edited.getparent().replace(edited, etree.Element('edited'))
     return _infoset(root)
+
+
+def _marker(trans_unit, mid, name='target'):
+    return next(
+        m
+        for m in trans_unit.find(XLIFF + name).iter(XLIFF + 'mrk')
+        if m.get('mtype') == 'seg' and m.get('mid') == mid
+    )
+
+
+def _edited(root, index, mid):
+    """Trans-unit C{index}'s infoset without segment C{mid}'s translation
+    and status."""
+    trans_unit = copy.deepcopy(_units(root)[index])
+    marker = _marker(trans_unit, mid)
+    marker.text = None
+    for child in list(marker):
+        marker.remove(child)
+    for seg in trans_unit.iter(SDL + 'seg'):
+        if seg.get('id') == sdlxliff_compat._seg_id(mid):
+            seg.attrib.pop('conf', None)
+    return _infoset(trans_unit)
 
 
 def _segs(root):
@@ -145,23 +168,29 @@ class TestTradosRoundTrip(TestScaffolding):
     def _retype(self, path, pick):
         """Open C{path}, replace the target of the first unit C{pick}
         accepts with "Neu" through the editor, save. Returns the edited
-        unit's index in the file, or None."""
+        unit's index in the file, or None, and the unit."""
         self.store_controller.open_file(str(path))
         units = self.store_controller.store.get_units()
         unit = next((u for u in units if pick(u)), None)
         if unit is None:
             self.store_controller.save_file()
-            return None
+            return None, None
+        self._type(unit, 'Neu')
+        self.store_controller.save_file()
+        return _units(unit.xmlelement.getroottree().getroot()).index(unit.xmlelement), unit
+
+    def _type(self, unit, text):
+        """Replace C{unit}'s target with C{text} through the editor, and
+        return the editor."""
         for textbox in self.unit_controller.view.targets:
             textbox._suggestion = None
         view = self.unit_controller.load_unit(unit)
         view._layout_update_targets()
         editor = _Editor(self, view.targets[0])
         editor.buffer.select_range(editor.buffer.get_end_iter(), editor.buffer.get_start_iter())
-        editor.type('Neu')
+        editor.type(text)
         unit._modified = True
-        self.store_controller.save_file()
-        return _units(unit.xmlelement.getroottree().getroot()).index(unit.xmlelement)
+        return editor
 
     def _round_trip_sdlxliff(self, original, tmp_path):
         tmp_path.mkdir(exist_ok=True)
@@ -169,28 +198,23 @@ class TestTradosRoundTrip(TestScaffolding):
         shutil.copy(original, path)
         before = etree.parse(str(path)).getroot()
 
-        index = self._retype(path, lambda u: xliff_compat.segment_marker(u) is not None)
+        index, unit = self._retype(
+            path,
+            lambda u: (
+                isinstance(u, sdlxliff_compat.SegmentUnit) and not sdlxliff_compat.is_locked(u)
+            ),
+        )
 
         after = etree.parse(str(path)).getroot()
-        assert len(after.findall('.//' + SDL + '*')) == len(before.findall('.//' + SDL + '*'))
         if index is None:
             assert _infoset(after) == _infoset(before)
             return
         assert _without(after, index) == _without(before, index)
-        edited = _units(after)[index]
-        target = edited.find(XLIFF + 'target')
-        markers = [m for m in target.iter(XLIFF + 'mrk') if m.get('mtype') == 'seg']
-        assert len(markers) == 1 and markers[0].text == 'Neu' and len(markers[0]) == 0
-        for name in ('source', 'seg-source', SDL + 'seg-defs'):
-            tag = name if name.startswith('{') else XLIFF + name
-            old = _units(before)[index].find(tag)
-            assert (old is None) == (edited.find(tag) is None)
-            if old is not None:
-                # The edit makes the unit xml:space="preserve"; reading
-                # it had already collapsed its whitespace.
-                assert _infoset(edited.find(tag), collapse=True) == _infoset(old, collapse=True)
+        marker = _marker(_units(after)[index], unit.mid)
+        assert marker.text == 'Neu' and len(marker) == 0
+        assert _edited(after, index, unit.mid) == _edited(before, index, unit.mid)
         reopened = factory.getobject(str(path)).units
-        assert [str(u.rich_target[0]) for u in reopened].count('Neu') == 1
+        assert [u.target for u in reopened].count('Neu') == 1
 
     @pytest.mark.parametrize('original', SDLXLIFF_FILES, ids=os.path.basename)
     def test_an_sdlxliff_sample(self, original, tmp_path):
@@ -214,7 +238,7 @@ class TestTradosRoundTrip(TestScaffolding):
         self.store_controller.open_file(str(path))
         assert len(self.store_controller.store.get_units()) == count
         self.store_controller.close_file()
-        index = self._retype(path, lambda u: True)
+        index, _unit = self._retype(path, lambda u: True)
 
         after = etree.parse(str(path)).getroot()
         assert _without(after, index) == _without(before, index)
@@ -314,7 +338,7 @@ class TestTradosRoundTrip(TestScaffolding):
 
     def test_a_locked_segment_is_read_only(self, tmp_path):
         path, before = self._open_copy(COMMENTS, tmp_path)
-        unit, view = self._load('6', '7')
+        unit, view = self._load('6')
         target = view.targets[0]
 
         assert not target.get_editable()
@@ -333,15 +357,17 @@ class TestTradosRoundTrip(TestScaffolding):
         unit._modified = True
         self.store_controller.save_file()
 
-        # Showing a unit collapses its source's whitespace, as
-        # xml:space="default" allows.
         after = etree.parse(str(path)).getroot()
-        assert _infoset(after, collapse=True) == _infoset(before, collapse=True)
-        _unit, view = self._load('8', '9', '10')
+        assert _infoset(after) == _infoset(before)
+        _unit, view = self._load('8')
         assert str(unit.rich_target[0]) == str(factory.getobject(COMMENTS).units[0].rich_target[0])
         assert view.targets[0].get_editable()
         assert view._widgets['state'].get_sensitive()
         assert view.mnu_transfer.get_sensitive()
+        # Showing an indented segment leaves it as it is.
+        _unit._modified = True
+        self.store_controller.save_file()
+        assert _infoset(etree.parse(str(path)).getroot()) == _infoset(before)
 
     def test_origin_and_comments_show_with_the_translators_notes(self, tmp_path):
         self._open_copy(STATUSES, tmp_path)
@@ -351,7 +377,8 @@ class TestTradosRoundTrip(TestScaffolding):
         )
         assert self._notes('1') == 'Origin: interactive'
         self._open_copy(COMMENTS, tmp_path)
-        assert self._notes('8', '9', '10') == (
+        assert self._notes('8') == (
+            'Origin: source\n'
             'Comment from Tay, AmandaX: To add into the current promotion page\n'
             'Comment from System Administrator: To add into the current promotion page'
         )
@@ -370,12 +397,158 @@ class TestTradosRoundTrip(TestScaffolding):
 
         after = etree.parse(str(path)).getroot()
         assert _segs(after) == {'1': {**_segs(before)['1'], 'conf': 'Translated'}}
-        # Showing a unit rewrites its target, xml:space="preserve".
         for root in (before, after):
             root.find('.//' + SDL + 'seg').attrib.pop('conf')
-            root.find('.//' + XLIFF + 'trans-unit').attrib.pop(XML_SPACE, None)
-        assert _infoset(after, collapse=True) == _infoset(before, collapse=True)
+        assert _infoset(after) == _infoset(before)
 
     def _notes(self, *seg_ids):
         _unit, view = self._load(*seg_ids)
         return view._widgets['notes']['translator'].get_text()
+
+    @pytest.mark.parametrize(
+        'original,segments',
+        [
+            (COMMENTS, ['6', '7', '8', '9', '10', None, '11', '12']),
+            (WEIRD_IDS, ['1 a', '1 b', '2', '3']),
+            (TEST_COMMENTS, ['1 a', '1 b', '2', '3']),
+        ],
+        ids=['comments', 'weird-ids', 'test-comments'],
+    )
+    def test_each_trados_segment_is_a_unit(self, original, segments, tmp_path):
+        _path, root = self._open_copy(original, tmp_path)
+        units = self.store_controller.store.get_units()
+
+        segs = [sdlxliff_compat.segment_def(u) for u in units]
+        assert [None if seg is None else seg.get('id') for seg in segs] == segments
+        markers = [
+            (m, tu)
+            for tu in _units(root)
+            for m in tu.find(XLIFF + 'seg-source').iter(XLIFF + 'mrk')
+            if m.get('mtype') == 'seg'
+        ]
+        assert [(u.xmlelement.get('id'), u.mid) for u in units] == [
+            (tu.get('id'), m.get('mid')) for m, tu in markers
+        ]
+        assert len({u.getid() for u in units}) == len(units)
+
+    def test_a_segments_source_and_target_are_its_markers(self, tmp_path):
+        self._open_copy(WEIRD_IDS, tmp_path)
+        units = self.store_controller.store.get_units()
+
+        assert [(u.source, u.target) for u in units] == [
+            ('This is one sentence, etc.', 'Ceci est une phrase, etc. '),
+            ('and more text goes here.', 'Plus de texte ici.'),
+            ('Test sentence.', ''),
+            ('and more text goes here.', ''),
+        ]
+        assert [u.get_state_n() for u in units] == [
+            StateEnum.NEEDS_REVIEW,
+            StateEnum.UNREVIEWED,
+            StateEnum.EMPTY,
+            StateEnum.EMPTY,
+        ]
+
+    def test_the_stats_count_each_segment(self, tmp_path):
+        self._open_copy(WEIRD_IDS, tmp_path)
+        store = self.store_controller.store
+
+        assert store.stats['extended'] == {
+            StateEnum.NEEDS_REVIEW: [0],
+            StateEnum.UNREVIEWED: [1],
+            StateEnum.EMPTY: [2, 3],
+        }
+        assert {state: totals['units'] for state, totals in store.get_stats_totals().items()} == {
+            'needs-review': 1,
+            'unreviewed': 1,
+            'empty': 2,
+        }
+
+    def test_editing_a_segment_changes_only_its_marker_and_status(self, tmp_path):
+        path, before = self._open_copy(WEIRD_IDS, tmp_path)
+        unit, _view = self._load('1 b')
+
+        self._type(unit, 'Neu.')
+        self.unit_controller.set_current_state(StateEnum.FINAL, from_user=True)
+        self.store_controller.save_file()
+
+        after = etree.parse(str(path)).getroot()
+        assert _without(after, 0) == _without(before, 0)
+        assert _edited(after, 0, '1_x0020_b') == _edited(before, 0, '1_x0020_b')
+        assert _marker(_units(after)[0], '1_x0020_b').text == 'Neu.'
+        assert _segs(after)['1 b']['conf'] == 'ApprovedTranslation'
+        assert _segs(after)['1 a'] == _segs(before)['1 a']
+        reopened = factory.getobject(str(path)).units
+        assert [(u.target, u.get_state_n()) for u in reopened[:2]] == [
+            ('Ceci est une phrase, etc. ', StateEnum.NEEDS_REVIEW),
+            ('Neu.', StateEnum.FINAL),
+        ]
+
+    def test_typing_fills_an_empty_segment_marker(self, tmp_path):
+        path, before = self._open_copy(WEIRD_IDS, tmp_path)
+        unit, _view = self._load('2')
+
+        self._type(unit, 'Ein Satz.')
+        self.store_controller.save_file()
+
+        after = etree.parse(str(path)).getroot()
+        assert _without(after, 1) == _without(before, 1)
+        assert _edited(after, 1, '2') == _edited(before, 1, '2')
+        marker = _marker(_units(after)[1], '2')
+        assert (marker.text, len(marker)) == ('Ein Satz.', 0)
+
+    def test_undo_and_redo_of_a_segment_edit(self, tmp_path):
+        path, before = self._open_copy(WEIRD_IDS, tmp_path)
+        unit, _view = self._load('1 b')
+        self.undo_controller.model.clear()
+        editor = self._type(unit, 'Neu.')
+
+        steps = 0
+        while unit.target != 'Plus de texte ici.' and steps < 5:
+            editor.undo()
+            steps += 1
+        assert unit.target == 'Plus de texte ici.'
+        self.store_controller.save_file()
+        assert _infoset(etree.parse(str(path)).getroot()) == _infoset(before)
+        for _step in range(steps):
+            editor.redo()
+        assert unit.target == 'Neu.'
+        self.store_controller.save_file()
+
+        after = etree.parse(str(path)).getroot()
+        assert _marker(_units(after)[0], '1_x0020_b').text == 'Neu.'
+        assert _edited(after, 0, '1_x0020_b') == _edited(before, 0, '1_x0020_b')
+
+    def test_a_locked_segment_does_not_lock_the_next(self, tmp_path):
+        path = tmp_path / 'comments.sdlxliff'
+        with open(COMMENTS, 'rb') as original:
+            path.write_bytes(original.read().replace(b'id="7" locked="true"', b'id="7"', 1))
+        before = etree.parse(str(path)).getroot()
+        self.store_controller.open_file(str(path))
+        _unit, view = self._load('6')
+        assert not view.targets[0].get_editable()
+        unit, view = self._load('7')
+        assert view.targets[0].get_editable()
+
+        self._type(unit, 'Neu')
+        self.store_controller.save_file()
+
+        after = etree.parse(str(path)).getroot()
+        assert _marker(_units(after)[0], '7').text == 'Neu'
+        assert _edited(after, 0, '7') == _edited(before, 0, '7')
+
+    def test_each_segment_shows_its_own_comments(self, tmp_path):
+        self._open_copy(TEST_COMMENTS, tmp_path)
+
+        assert self._notes('1 a') == (
+            'Origin: interactive\n'
+            'Comment from ysavourel: Comment 2 (warning)\n'
+            'Comment from ysavourel: This is comment 1 (info)\n'
+            'Comment from ysavourel: Second comment entry'
+        )
+        assert self._notes('1 b') == (
+            'Origin: mt\n'
+            'Comment from ysavourel: Comment seg-level\n'
+            'Comment from ysavourel: Yet another comment entry (error)\n'
+            'Comment from ysavourel: Comment 3 (error)'
+        )
+        assert self._notes('2') == ''

@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import pytest
+from lxml import etree
 from translate.storage import pypo, xliff
 from translate.storage.placeables import StringElem
 from translate.storage.workflow import StateEnum
@@ -57,7 +58,9 @@ def test_translate_toolkit_still_ignores_the_trados_status(monkeypatch):
     # Once this fails translate-toolkit reads conf, and the state part of
     # sdlxliff_compat can go.
     monkeypatch.setattr(xliff.xliffunit, 'isapproved', sdlxliff_compat._isapproved)
-    unit = _unit('Translated')
+    segment = _unit('Translated')
+    unit = xliff.xliffunit.createfromxmlElement(segment.xmlelement)
+    unit.namespace = segment.namespace
 
     assert sdlxliff_compat._get_state_n(unit) == StateEnum.NEEDS_WORK
     assert not sdlxliff_compat._isapproved(unit)
@@ -147,8 +150,22 @@ def test_a_trados_segment_has_the_rejected_step():
     assert StateEnum.REJECTED not in xliff.xliffunit.STATE
 
 
-def test_several_segments_keep_translate_toolkits_state():
-    unit = _store(segs=_seg('Translated') + '<sdl:seg id="2" conf="Translated"/>').units[0]
+def _whole(segs):
+    """A trans-unit with two segments and a target Trados didn't split."""
+    data = (
+        '<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2"'
+        ' xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0" version="1.2">'
+        '<file original="a" datatype="x-sdlfilterframework2" source-language="en"'
+        ' target-language="de"><body><trans-unit id="u1"><source>One. Two.</source>'
+        '<seg-source><mrk mtype="seg" mid="1">One.</mrk> <mrk mtype="seg" mid="2">Two.</mrk>'
+        f'</seg-source><target>Eins. Zwei.</target><sdl:seg-defs>{segs}</sdl:seg-defs>'
+        '</trans-unit></body></file></xliff>'
+    )
+    return xliff.xlifffile.parsestring(data.encode('utf-8')).units[0]
+
+
+def test_a_trans_unit_kept_whole_keeps_translate_toolkits_state():
+    unit = _whole(_seg('Translated') + '<sdl:seg id="2" conf="Translated"/>')
 
     assert unit.STATE is xliff.xliffunit.STATE
     assert unit.get_state_n() == StateEnum.NEEDS_WORK
@@ -174,10 +191,14 @@ def test_plain_xliff_keeps_translate_toolkits_state():
 
 
 @pytest.mark.parametrize(
-    'segs', [_seg('Draft', ' locked="true"'), _seg() + _seg(extra=' locked="true"')]
+    'whole,segs',
+    [
+        (False, _seg('Draft', ' locked="true"')),
+        (True, _seg() + '<sdl:seg id="2" locked="true"/>'),
+    ],
 )
-def test_a_locked_segment_keeps_its_target_and_status(segs):
-    unit = _store(segs=segs).units[0]
+def test_a_locked_segment_keeps_its_target_and_status(whole, segs):
+    unit = _whole(segs) if whole else _store(segs=segs).units[0]
     before = bytes(unit._store)
 
     unit.target = 'Neu'
@@ -249,3 +270,222 @@ def test_no_comments():
     assert sdlxliff_compat.comments(_commented('Hallo'), []) == []
     assert sdlxliff_compat.comments(_unit()) == []
     assert sdlxliff_compat.comments(pypo.pounit('Open')) == []
+
+
+def _split(seg_source, target, segs='', xml_ns=True):
+    """A store with one trans-unit and the given <seg-source>, <target>
+    and <sdl:seg> contents; C{target} None leaves the target out."""
+    ns = ' xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0"' if xml_ns else ''
+    target = '' if target is None else f'<target>{target}</target>'
+    seg_defs = f'<sdl:seg-defs>{segs}</sdl:seg-defs>' if segs else ''
+    data = (
+        f'<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2"{ns} version="1.2">'
+        '<file original="f" datatype="x-sdlfilterframework2" source-language="en"'
+        ' target-language="de"><body><trans-unit id="u1"><source>All</source>'
+        f'<seg-source>{seg_source}</seg-source>{target}{seg_defs}'
+        '</trans-unit><trans-unit id="u2"><source>Last</source>'
+        '<seg-source><mrk mtype="seg" mid="9">Last</mrk></seg-source>'
+        '<target><mrk mtype="seg" mid="9"/></target></trans-unit></body></file></xliff>'
+    )
+    return xliff.xlifffile.parsestring(data.encode('utf-8'))
+
+
+def _mrk(mid, text=''):
+    return (
+        f'<mrk mtype="seg" mid="{mid}">{text}</mrk>' if text else f'<mrk mtype="seg" mid="{mid}"/>'
+    )
+
+
+THREE = (
+    _mrk(1, 'One.') + ' <x id="5"/>' + _mrk(2, 'Two <g id="6">bold</g>.') + ' ' + _mrk(3, 'Three.')
+)
+THREE_SEGS = '<sdl:seg id="1" conf="Translated"/><sdl:seg id="2" locked="true"/><sdl:seg id="3"/>'
+
+
+def _target_xml(unit):
+    node = unit.xmlelement.find(unit.namespaced('target'))
+    text = etree.tostring(node, encoding='unicode', with_tail=False)
+    for ns in (' xmlns="urn:oasis:names:tc:xliff:document:1.2"', ' ' + XMLNS_SDL):
+        text = text.replace(ns, '')
+    return text
+
+
+XMLNS_SDL = 'xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0"'
+
+
+def test_each_segment_is_a_unit():
+    store = _split(THREE, _mrk(1, 'Eins.') + ' <x id="5"/>' + _mrk(2) + ' ' + _mrk(3, 'Drei.'))
+
+    units = store.units
+    assert [type(u) for u in units] == [sdlxliff_compat.SegmentUnit] * 4
+    assert [u.getid() for u in units] == ['f\x04u1\x041', 'f\x04u1\x042', 'f\x04u1\x043', 'f\x04u2']
+    assert [u.source for u in units] == ['One.', 'Two bold.', 'Three.', 'Last']
+    assert [u.target for u in units] == ['Eins.', '', 'Drei.', '']
+    assert [type(e).__name__ for e in units[1].rich_source[0].sub] == [
+        'StringElem',
+        'G',
+        'StringElem',
+    ]
+    assert [u._store for u in units] == [store] * 4
+    assert store.findid('f\x04u1\x043') is units[2]
+
+
+def test_each_segment_has_its_own_state_lock_and_origin():
+    segs = THREE_SEGS.replace('id="3"', 'id="3" origin="tm" percent="80"')
+    units = _split(THREE, _mrk(1, 'Eins.') + _mrk(2, 'Zwei.') + _mrk(3), segs).units
+
+    assert [u.get_state_n() for u in units[:3]] == [
+        StateEnum.UNREVIEWED,
+        StateEnum.NEEDS_WORK,
+        StateEnum.EMPTY,
+    ]
+    assert [sdlxliff_compat.is_locked(u) for u in units[:3]] == [False, True, False]
+    assert sdlxliff_compat.segment_origin(sdlxliff_compat.segment_def(units[2])) == (
+        'tm',
+        None,
+        '80',
+    )
+    assert all(u.STATE is sdlxliff_compat.STATE for u in units)
+
+
+def test_a_segment_id_is_its_mid_decoded():
+    seg_source = _mrk('1_x0020_a', 'One.') + ' ' + _mrk('1_x0020_b', 'Two.')
+    segs = '<sdl:seg id="1 a" conf="Draft"/><sdl:seg id="1 b" conf="Translated"/>'
+
+    units = _split(seg_source, None, segs).units
+
+    assert [sdlxliff_compat.segment_def(u).get('id') for u in units[:2]] == ['1 a', '1 b']
+    assert [u.getid()[-10:] for u in units[:2]] == ['\x041_x0020_a', '\x041_x0020_b']
+
+
+def test_editing_a_segment_changes_only_its_marker_and_status():
+    target = _mrk(1, 'Eins.') + ' <x id="5"/>' + _mrk(2) + ' ' + _mrk(3, 'Drei.')
+    unit = _split(THREE, target, THREE_SEGS).units[2]
+
+    unit.rich_target = [StringElem('Neu.')]
+    unit.set_state_n(StateEnum.FINAL)
+
+    assert _target_xml(unit) == '<target>' + target.replace('Drei.', 'Neu.') + '</target>'
+    assert [s.get('conf') for s in unit.xmlelement.iter(SDL + 'seg')] == [
+        'Translated',
+        None,
+        'ApprovedTranslation',
+    ]
+    assert unit.xmlelement.get('{http://www.w3.org/XML/1998/namespace}space') is None
+
+
+def test_a_locked_segment_does_not_lock_the_others():
+    units = _split(THREE, _mrk(1) + _mrk(2, 'Alt.') + _mrk(3), THREE_SEGS).units
+
+    units[1].target = 'Neu.'
+    units[1].set_state_n(StateEnum.FINAL)
+    units[0].target = 'Eins.'
+
+    assert [u.target for u in units[:3]] == ['Eins.', 'Alt.', '']
+    assert sdlxliff_compat.segment_def(units[1]).get('conf') is None
+
+
+def test_a_missing_target_marker_is_added_in_segment_order():
+    units = _split(THREE, ' <x id="5"/>' + _mrk(3, 'Drei.')).units
+
+    units[1].target = 'Zwei.'
+    units[0].rich_target = [StringElem('Eins.')]
+
+    assert _target_xml(units[0]) == (
+        '<target> <x id="5"/>'
+        + _mrk(1, 'Eins.')
+        + _mrk(2, 'Zwei.')
+        + _mrk(3, 'Drei.')
+        + '</target>'
+    )
+
+
+def test_a_missing_target_is_the_sources_layout_with_empty_segments():
+    store = _split(THREE, None, THREE_SEGS)
+    before = bytes(store)
+
+    store.units[2].target = ''
+    assert bytes(store) == before
+    store.units[2].target = 'Drei.'
+
+    assert _target_xml(store.units[0]) == (
+        '<target>' + _mrk(1) + ' <x id="5"/>' + _mrk(2) + ' ' + _mrk(3, 'Drei.') + '</target>'
+    )
+    assert [u.target for u in store.units[:3]] == ['', '', 'Drei.']
+
+
+def test_a_state_change_adds_a_missing_segment_definition():
+    unit = _split(_mrk(1, 'One.') + _mrk(2, 'Two.'), _mrk(1) + _mrk(2, 'Zwei.')).units[1]
+
+    unit.set_state_n(StateEnum.NEEDS_WORK)
+    assert unit.xmlelement.find(SDL + 'seg-defs') is None
+    unit.set_state_n(StateEnum.UNREVIEWED)
+
+    seg_defs = unit.xmlelement.find(SDL + 'seg-defs')
+    assert seg_defs.getprevious().tag == unit.namespaced('target')
+    assert [dict(s.attrib) for s in seg_defs] == [{'id': '2', 'conf': 'Translated'}]
+    assert unit.get_state_n() == StateEnum.UNREVIEWED
+
+
+def test_each_segment_has_its_own_comments():
+    store = _split(
+        _mrk(1, 'Hello') + _mrk(2, '<mrk mtype="x-sdl-comment" sdl:cid="b">World</mrk>'),
+        _mrk(1, '<mrk mtype="x-sdl-comment" sdl:cid="a">Hallo</mrk>') + _mrk(2, 'Welt'),
+    )
+    cmt_defs = etree.fromstring(
+        f'<doc-info xmlns="{SDL[1:-1]}"><cmt-defs>'
+        '<cmt-def id="a"><Comments><Comment user="Ann">One</Comment></Comments></cmt-def>'
+        '<cmt-def id="b"><Comments><Comment user="Bob">Two</Comment></Comments></cmt-def>'
+        '</cmt-defs></doc-info>'
+    )
+    store.document.getroot().insert(0, cmt_defs)
+
+    assert sdlxliff_compat.comments(store.units[0]) == [('Ann', 'One')]
+    assert sdlxliff_compat.comments(store.units[1]) == [('Bob', 'Two')]
+
+
+def test_a_segment_is_its_markers_text_without_indentation():
+    indented = '\n      <g id="1">%s</g>\n    '
+    seg_source = '\n    ' + _mrk(1, indented % 'Hello') + '\n    ' + _mrk(2, 'a  b\n      c ')
+    target = '\n    ' + _mrk(1, indented % 'Hallo') + '\n    ' + _mrk(2, 'x\ny ') + '\n  '
+    store = _split(seg_source, target)
+    before = bytes(store)
+
+    units = store.units
+    # A wrapped line is a space; a line break alone is text.
+    assert [u.source for u in units[:2]] == ['Hello', 'a  b c ']
+    assert [str(u.rich_target[0]) for u in units[:2]] == ['Hallo', 'x\ny ']
+    assert [u.target for u in units[:2]] == ['Hallo', 'x\ny ']
+    # What showing a unit does.
+    units[0].rich_target = units[0].rich_target
+    units[0].target = 'Hallo'
+    assert bytes(store) == before
+
+
+def test_segments_of_one_trans_unit_are_different_units():
+    units = _split(_mrk(1, 'Same.') + _mrk(2, 'Same.'), None).units
+
+    assert units[0] != units[1]
+    assert units.index(units[1]) == 1
+    assert units[0] == units[0].copy()
+    assert units[1].copy().getid() == 'u1\x042'
+
+
+@pytest.mark.parametrize(
+    'seg_source,target,xml_ns',
+    [
+        # Not SDLXLIFF.
+        (_mrk(1, 'One.') + _mrk(2, 'Two.'), None, False),
+        # A target Trados didn't split.
+        (_mrk(1, 'One.') + _mrk(2, 'Two.'), 'Eins. Zwei.', True),
+        # Segments that can't be told apart.
+        (_mrk(1, 'One.') + _mrk(1, 'Two.'), None, True),
+        ('<mrk mtype="seg">One.</mrk>', None, True),
+        # Text outside the only segment, as translate-toolkit wrote it.
+        (_mrk(1, 'One.'), 'Eins.' + _mrk(1), True),
+    ],
+)
+def test_a_trans_unit_stays_whole(seg_source, target, xml_ns):
+    unit = _split(seg_source, target, xml_ns=xml_ns).units[0]
+
+    assert type(unit) is xliff.xliffunit

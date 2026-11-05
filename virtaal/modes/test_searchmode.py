@@ -181,6 +181,40 @@ def test_replace_all_leaves_a_locked_trados_segment_alone():
     assert selected == [units[1]]
 
 
+def test_replace_all_replaces_in_each_trados_segment_alone():
+    data = (
+        '<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2"'
+        ' xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0" version="1.2">'
+        '<file original="a" datatype="x-sdlfilterframework2" source-language="en"'
+        ' target-language="af"><body><trans-unit id="1"><source>Open. Open. Open.</source>'
+        '<seg-source><mrk mtype="seg" mid="1">Open.</mrk> <mrk mtype="seg" mid="2">Open.</mrk>'
+        ' <mrk mtype="seg" mid="3">Open.</mrk></seg-source>'
+        '<target><mrk mtype="seg" mid="1">Oop.</mrk> <mrk mtype="seg" mid="2">Oop.</mrk>'
+        ' <mrk mtype="seg" mid="3">Oop oop.</mrk></target>'
+        '<sdl:seg-defs><sdl:seg id="1"/><sdl:seg id="2" locked="true"/><sdl:seg id="3"/>'
+        '</sdl:seg-defs></trans-unit></body></file></xliff>'
+    )
+    units = xliff.xlifffile.parsestring(data.encode('utf-8')).units
+    f = GrepFilter(searchstring='oop', searchparts=('target',), ignorecase=True, useregexp=False)
+    mode = SearchMode.__new__(SearchMode)
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            unit_controller=None,
+            undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None),
+        )
+    )
+    mode.matches, _ = f.getmatches(units)
+    mode.ent_replace = SimpleNamespace(get_text=lambda: 'Maak oop')
+    mode._search_timeout = 0
+    mode.update_search = lambda: None
+
+    mode._replace_all()
+
+    assert [u.target for u in units] == ['Maak oop.', 'Oop.', 'Maak oop Maak oop.']
+    target = units[0].xmlelement.find(units[0].namespaced('target'))
+    assert [m.tail for m in target] == [' ', ' ', None]
+
+
 def test_replace_all_with_no_replacement_text_deletes_every_match():
     units = [_xliff_unit("x", "Don't know and also Don't know")]
     f = GrepFilter(
