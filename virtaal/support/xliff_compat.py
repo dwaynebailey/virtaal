@@ -42,9 +42,18 @@ def segment_marker(unit, node=None):
     return marker
 
 
+_gettarget = xliff.xliffunit.gettarget
 _get_rich_target = xliff.xliffunit.get_rich_target
 _set_rich_target = xliff.xliffunit.set_rich_target
 _settarget = xliff.xliffunit.settarget
+
+
+def gettarget(self, lang=None):
+    # Not the indentation around the marker of a pretty-printed file.
+    marker = segment_marker(self, self.get_target_dom(lang))
+    if marker is None:
+        return _gettarget(self, lang)
+    return self.getNodeText(marker, getXMLspace(self.xmlelement, self._default_xml_space))
 
 
 def get_rich_target(self, lang=None):
@@ -83,6 +92,7 @@ def settarget(self, target, lang="xx", append=False):
         self.marktranslated()
 
 
+xliff.xliffunit.gettarget = gettarget
 xliff.xliffunit.get_rich_target = get_rich_target
 xliff.xliffunit.set_rich_target = set_rich_target
 xliff.xliffunit.settarget = settarget

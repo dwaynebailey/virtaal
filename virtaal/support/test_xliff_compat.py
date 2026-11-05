@@ -66,6 +66,18 @@ def test_a_plain_target_goes_inside_the_marker_and_is_translated():
     )
 
 
+def test_the_plain_target_is_the_segments_text():
+    unit = _unit('<target>\n    <mrk mtype="seg" mid="1">Hallo  Welt </mrk>\n  </target>')
+    unit.xmlelement.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+
+    assert unit.target == 'Hallo  Welt '
+    unit.target = 'Neu'
+    assert unit.target == 'Neu'
+    assert _target_xml(unit) == (
+        '<target state="translated">\n    <mrk mtype="seg" mid="1">Neu</mrk>\n  </target>'
+    )
+
+
 def test_several_segments_are_left_to_translate_toolkit():
     target = (
         '<target><mrk mtype="seg" mid="1">Eins.</mrk> <mrk mtype="seg" mid="2">Zwei.</mrk></target>'
