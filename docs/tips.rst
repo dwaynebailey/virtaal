@@ -115,6 +115,8 @@ increase the setting for ``max_matches``.
 To see translation memory suggestions exactly as the translation memory has
 them, without their placeables and accelerator key adapted to your text, set
 ``abstract_placeables = False`` in the ``[tm]`` section of ``plugins.ini``.
+Your local translation memory then also finds and scores suggestions on their
+text exactly as it is.
 
 Note that you can specify these same parameters for most of the individual
 sources of TM suggestions. Try adding or editing these settings in ``tm.ini``

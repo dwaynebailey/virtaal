@@ -147,8 +147,10 @@ files", translating "Delete %(count)s files" suggests "Verwyder %(count)s
 lêers". An accelerator key such as the ``_`` in "Maak lêer _oop" takes the
 marker your file's quality checks expect, such as ``&`` for KDE. A placeable
 that differs counts for little in the match percentage, so such a suggestion
-scores close to 100%, while only identical text scores 100%. Hover over an
-adapted suggestion to see what the translation memory has. Machine translation
+scores close to 100%, while only identical text scores 100%. Your local
+translation memory finds such a suggestion even when the placeables' own text
+makes the two look quite different. Hover over an adapted suggestion to see
+what the translation memory has. Machine translation
 suggestions are shown as they come.
 
 .. _using_virtaal#navigation:
