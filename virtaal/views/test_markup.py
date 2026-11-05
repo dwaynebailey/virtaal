@@ -135,3 +135,55 @@ def test_pango_diff_highlights_set_a_readable_text_colour():
 def test_readable_fg_picks_black_on_light_and_white_on_dark():
     assert theme.readable_fg('#ffff70') == '#000'
     assert theme.readable_fg('#4a4a00') == '#fff'
+
+
+@pytest.mark.parametrize(
+    ('a', 'b', 'expected'),
+    [
+        (
+            'Set the %(date)s',
+            'Set the %(time)s',
+            [(0, 'Set the '), (-1, '%(date)s'), (1, '%(time)s')],
+        ),
+        (
+            'Click <b>here</b>',
+            'Click <strong>here</strong>',
+            [
+                (0, 'Click '),
+                (-1, '<b>'),
+                (1, '<strong>'),
+                (0, 'here'),
+                (-1, '</b>'),
+                (1, '</strong>'),
+            ],
+        ),
+        (
+            'Version 3.5 now',
+            'Version 3.6 now',
+            [(0, 'Version '), (-1, '3.5'), (1, '3.6'), (0, ' now')],
+        ),
+    ],
+)
+def test_diff_treats_a_placeable_as_one_unit(a, b, expected):
+    assert markup._diff(a, b) == expected
+
+
+def test_pango_diff_highlights_the_whole_placeable():
+    result = markup.pango_diff('Set the %(date)s', 'Set the %(time)s')
+
+    assert result.startswith('Set the <span ')
+    assert result.endswith('>%(time)s</span>')
+
+
+def test_diff_still_splits_words_and_keeps_equal_placeables():
+    assert markup._diff('Delete %s files', 'Remove %s files') == [
+        (-1, 'Delet'),
+        (1, 'Remov'),
+        (0, 'e %s files'),
+    ]
+
+
+def test_diff_of_text_holding_the_token_block_is_plain():
+    a, b = 'x \U000f0000 %(date)s', 'x \U000f0000 %(time)s'
+
+    assert ''.join(text for op, text in markup._diff(a, b) if op >= 0) == b

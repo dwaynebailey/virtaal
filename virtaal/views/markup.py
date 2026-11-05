@@ -9,6 +9,7 @@ import re
 
 from diff_match_patch import diff_match_patch
 
+from virtaal.support.abstraction import placeables
 from virtaal.views.theme import current_theme, readable_fg
 
 # We want to draw unexpected spaces specially so that users can spot them
@@ -152,6 +153,42 @@ _diff_pango_templates = {
 
 differencer = diff_match_patch()
 
+# While diffing, one plane-15 private-use character per distinct placeable.
+_TOKEN_BASE = 0xF0000
+_TOKEN_RE = re.compile('[\U000f0000-\U000ffffd]')
+
+
+def _diff(a, b):
+    """diff_match_patch's diff of a and b, with each placeable one unit,
+    so a difference inside one shows the whole placeable (#3925)."""
+    if _TOKEN_RE.search(a) or _TOKEN_RE.search(b):
+        diff = differencer.diff_main(a, b)
+        differencer.diff_cleanupSemantic(diff)
+        return diff
+    tokens = {}
+    raws = []
+
+    def encode(text):
+        out = []
+        offset = 0
+        for placeable in placeables(text):
+            token = tokens.get(placeable.raw)
+            if token is None:
+                token = tokens[placeable.raw] = chr(_TOKEN_BASE + len(raws))
+                raws.append(placeable.raw)
+            out.append(text[offset : placeable.start])
+            out.append(token)
+            offset = placeable.end
+        out.append(text[offset:])
+        return ''.join(out)
+
+    diff = differencer.diff_main(encode(a), encode(b))
+    differencer.diff_cleanupSemantic(diff)
+    return [
+        (op, _TOKEN_RE.sub(lambda found: raws[ord(found.group()) - _TOKEN_BASE], text))
+        for op, text in diff
+    ]
+
 
 def pango_diff(a, b):
     """Highlights the differences between a and b for Pango rendering.
@@ -173,9 +210,7 @@ def pango_diff(a, b):
 
     textdiff = ""  # to store the final result
     removed = ""  # the removed text that we might still want to add
-    diff = differencer.diff_main(a, b)
-    differencer.diff_cleanupSemantic(diff)
-    for op, text in diff:
+    for op, text in _diff(a, b):
         if op == 0:  # equality
             if removed:
                 textdiff += _pango_spans(delete_attr, removed)
