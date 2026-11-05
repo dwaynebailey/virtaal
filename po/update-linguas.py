@@ -325,7 +325,7 @@ def progress(langs, libraries=None):
 
     return {
         'format': 1,
-        'generated': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'generated': datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%dT%H:%M:%SZ'),
         'commit': os.environ.get('GITHUB_SHA', ''),
         'tolerance': LEVEL_ONE_TOLERANCE,
         'fifty_percent_until': '%d.%d' % FIFTY_PERCENT_UNTIL,

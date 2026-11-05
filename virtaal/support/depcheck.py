@@ -37,7 +37,7 @@ def test_gtk_version():
 def test_sqlite3_version():
     # No minimum version needed: the stdlib sqlite3 module (with dbapi2) is
     # present in every Python version this project supports (requires-python
-    # >=3.10 in pyproject.toml), and our SQL doesn't use any SQLite feature
+    # >=3.11 in pyproject.toml), and our SQL doesn't use any SQLite feature
     # that would need a version floor.
     return importlib.util.find_spec('sqlite3.dbapi2') is not None
 

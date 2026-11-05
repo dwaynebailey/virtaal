@@ -12,7 +12,7 @@ license = "GPL-2.0-or-later"
 authors = [
     {name = "Translate"},
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -33,13 +33,7 @@ classifiers = [
 # It's a documented system prerequisite, not a normal pip dependency,
 # same reason most GTK Python projects don't declare it either.
 dependencies = [
-    # translate-toolkit 3.18.0+ dropped Python 3.10 support - this
-    # project's own requires-python floor - so a single pin can't cover
-    # the whole matrix; last 3.10-compatible release pinned there,
-    # latest pinned everywhere else, same as pip's own unpinned
-    # resolution already did per-interpreter before this was pinned.
-    "translate-toolkit==3.17.5; python_version < '3.11'",
-    "translate-toolkit==3.20.0; python_version >= '3.11'",
+    "translate-toolkit==3.20.0",
     # translate-toolkit gates Fluent (.ftl) support behind its own
     # "fluent" extra rather than a plain dependency - without this,
     # translate.storage.factory still lists "Fluent file" in the
@@ -51,18 +45,8 @@ dependencies = [
     # httpclient.py's own _configure_ca_bundle().
     "certifi==2026.10.23",
     "diff_match_patch==20241021",
-    # translate-toolkit 3.17.5 (the python_version < '3.11' pin above)
-    # itself constrains lxml to <6.1 - a real cross-package conflict,
-    # not just an availability gap, so this needs the same split.
-    "lxml==6.0.4; python_version < '3.11'",
-    "lxml==6.1.3; python_version >= '3.11'",
-    # Same story as translate-toolkit above: python-Levenshtein's own
-    # Levenshtein engine dependency dropped Python 3.10 support at
-    # 0.27.5 (0.27.4 still supports it) - python-Levenshtein's own
-    # metadata alone doesn't show this, only its unpinned transitive
-    # Levenshtein dependency does.
-    "python-Levenshtein==0.27.4; python_version < '3.11'",
-    "python-Levenshtein==0.27.5; python_version >= '3.11'",
+    "lxml==6.1.3",
+    "python-Levenshtein==0.27.5",
     "cheroot==11.1.2",
     "bottle==0.13.4",
     # translate-toolkit's tr_lang() (language-pair labels, font preview

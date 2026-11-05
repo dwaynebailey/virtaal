@@ -35,8 +35,8 @@ def _patch(state_class):
     state_class.set_encoding = compat_set_encoding
 
 
-# translate-toolkit 3.18.1 and earlier (3.17.5 is the Python 3.10 pin)
-# read these files correctly and have no PoParseState._current_encoding.
+# translate-toolkit 3.18.1 and earlier read these files correctly and
+# have no PoParseState._current_encoding.
 _state_class = getattr(poparser, "PoParseState", None)
 if _state_class is not None and "_current_encoding" in _state_class.__init__.__code__.co_names:
     _patch(_state_class)

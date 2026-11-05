@@ -29,11 +29,6 @@ def db_path(tmp_path):
         connection.close()
 
 
-def _allow(*args):
-    # Python 3.10 ignores set_authorizer(None): it keeps the old authorizer.
-    return sqlite3.SQLITE_OK
-
-
 def _refuse(*denied):
     """An authorizer refusing (action, table) pairs; table None means any."""
     def authorize(action, arg1, arg2, db_name, trigger):
@@ -87,7 +82,7 @@ def test_a_failed_schema_setup_raises_and_leaves_the_connection_usable(db_path, 
 
     # Rolled back: the shared connection isn't left in a failed transaction.
     connection, cursor = next(iter(tmdb.TMDB._tm_dbs[db_path].values()))
-    connection.set_authorizer(_allow)
+    connection.set_authorizer(None)
     assert cursor.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall() == []
     db = tmdb.TMDB(db_path)
     db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
@@ -170,7 +165,7 @@ def test_a_failed_insert_rolls_back_the_whole_unit(db_path):
         with pytest.raises(sqlite3.DatabaseError):
             db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
     finally:
-        db.connection.set_authorizer(_allow)
+        db.connection.set_authorizer(None)
 
     assert _count(db, 'sources') == 0
 
@@ -182,7 +177,7 @@ def test_a_failed_insert_without_commit_leaves_rolling_back_to_the_caller(db_pat
         with pytest.raises(sqlite3.DatabaseError):
             db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af', commit=False)
     finally:
-        db.connection.set_authorizer(_allow)
+        db.connection.set_authorizer(None)
 
     # The source row is still in the open transaction, for the caller to undo.
     assert _count(db, 'sources') == 1
