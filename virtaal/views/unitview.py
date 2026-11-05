@@ -18,6 +18,7 @@ from translate.storage.workflow import StateEnum
 
 from virtaal.common import GObjectWrapper
 from virtaal.common.platform import platform
+from virtaal.support import sdlxliff_compat
 
 from . import rendering
 from .baseview import BaseView
@@ -332,6 +333,11 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if focused is not None:
             self.insert_placeable(focused)
 
+    @property
+    def locked(self):
+        """Whether the unit is shown read-only: a locked Trados segment."""
+        return sdlxliff_compat.is_locked(self.unit)
+
     def _on_store_closed(self, *args):
         self.mnu_next.set_sensitive(False)
         self.mnu_prev.set_sensitive(False)
@@ -362,6 +368,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         return self.targets[n].get_text()
 
     def set_target_n(self, n, newtext, cursor_pos=-1):
+        if not self.targets[n].get_editable():
+            return
         self.targets[n].set_text(newtext)
         if cursor_pos > -1:
             self.targets[n].buffer.place_cursor(
@@ -383,7 +391,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         """Insert the selected source placeable's translation into
         C{textbox}, then select the next placeable."""
         source = textbox.selector_textbox
-        if source is textbox:
+        if source is textbox or not textbox.get_editable():
             return
         source.select_first_elem()
         if source.selected_elem is None:
@@ -395,6 +403,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         """Replace C{textbox}'s text with the source, adapted to the target
         language's punctuation - undone in two steps, first the
         punctuation, then the copy."""
+        if not textbox.get_editable():
+            return False
         undocontroller = self.controller.main_controller.undo_controller
         lang = factory.getlanguage(self.controller.main_controller.lang_controller.target_lang.code)
 
@@ -594,7 +604,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         self._layout_update_targets()
         self._layout_update_notes('translator')
         self._layout_update_states()
-        self.mnu_transfer.set_sensitive(True)
+        self.mnu_transfer.set_sensitive(not self.locked)
         self._update_placeable_menu_sensitivity()
 
     def _update_textview_language(self, text_view, language):
@@ -751,7 +761,9 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if origin == 'programmer':
             note_text = _programmer_notes(self.unit)
         else:
-            note_text = self.unit.getnotes(origin) or ""
+            note_text = '\n'.join(
+                line for line in [self.unit.getnotes(origin)] + self._trados_notes() if line
+            )
 
         if (
             origin == "programmer"
@@ -767,6 +779,19 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             self._widgets['notes'][origin].show_all()
         else:
             self._widgets['notes'][origin].hide()
+
+    def _trados_notes(self):
+        """Lines about the unit's Trados segment, shown with the
+        translator's notes."""
+        notes = []
+        if self.locked:
+            notes.append(
+                _(
+                    # l10n: A Trados Studio file can lock a translation.
+                    "Locked: this translation can't be changed."
+                )
+            )
+        return notes
 
     def _layout_update_sources(self):
         num_source_widgets = len(self.sources)
@@ -852,6 +877,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         text_filter = valid_chars_only if isinstance(self.unit, LISAunit) else None
         for textbox in self.targets:
             textbox.text_filter = text_filter
+            textbox.set_editable(not self.locked)
 
         rich_target = self.unit.rich_target
         rich_target_len = len(rich_target)
@@ -913,6 +939,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             unselectable=self._unselectable_states(),
             select_name=state_name,
         )
+        self._widgets['state'].set_sensitive(not self.locked)
         self._widgets['state'].show_all()
 
     def _unselectable_states(self):
@@ -937,7 +964,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         """Move the current unit's workflow state one step forward
         (offset=1) or back (offset=-1) - shared by Ctrl+Enter/
         Ctrl+Shift+Enter and the Navigation menu's equivalent items."""
-        if not self.unit.STATE:
+        if not self.unit.STATE or self.locked:
             return
         self._widgets['state'].move_state(offset)
 
@@ -1054,7 +1081,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             return
 
         has_selection = focused.get_buffer().get_has_selection()
-        is_target = focused in self.targets
+        is_target = focused in self.targets and focused.get_editable()
         self.mnu_cut.set_sensitive(is_target and has_selection)
         # With nothing selected, Copy copies the source.
         self.mnu_copy.set_sensitive(True)

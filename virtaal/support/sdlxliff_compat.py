@@ -7,19 +7,22 @@
 
 """Trados Studio's segment metadata in SDLXLIFF, which translate-toolkit
 reads as plain XLIFF 1.2: a segment's <sdl:seg> in <sdl:seg-defs> holds
-its confirmation level (conf).
+its confirmation level (conf) and whether it is locked.
 
 translate-toolkit takes the state from the XLIFF state and approved
 attributes, which Trados doesn't write, so every translation showed as
 needing work (#4624). Here a trans-unit with one Trados segment takes
 its state from conf, and a state change writes conf alone. A
-trans-unit with several segments keeps translate-toolkit's state.
+trans-unit with several segments keeps translate-toolkit's state. A
+trans-unit with a locked segment keeps its target and state.
 
 The functions below that take a segment work on one <sdl:seg>, so they
 also serve a trans-unit split into one unit per segment."""
 
 from translate.storage import xliff
 from translate.storage.workflow import StateEnum
+
+from virtaal.support import xliff_compat  # noqa: F401 - patches settarget first
 
 SDL = "{http://sdl.com/FileTypes/SdlXliff/1.0}"
 
@@ -74,6 +77,18 @@ def set_segment_state_n(seg, state_n):
         seg.set("conf", conf)
 
 
+def segment_locked(seg):
+    return seg.get("locked") == "true"
+
+
+def is_locked(unit):
+    """Whether any of C{unit}'s Trados segments is locked: Virtaal edits a
+    trans-unit's segments together. False for a unit of another format."""
+    return isinstance(unit, xliff.xliffunit) and any(
+        segment_locked(seg) for seg in segment_defs(unit)
+    )
+
+
 class _State:
     """A unit's STATE: Trados's steps for a trans-unit with one segment,
     translate-toolkit's otherwise and on the class."""
@@ -91,6 +106,8 @@ _get_state_n = xliff.xliffunit.get_state_n
 _set_state_n = xliff.xliffunit.set_state_n
 _isapproved = xliff.xliffunit.isapproved
 _markapproved = xliff.xliffunit.markapproved
+_settarget = xliff.xliffunit.settarget
+_set_rich_target = xliff.xliffunit.set_rich_target
 
 
 def get_state_n(self):
@@ -101,6 +118,8 @@ def get_state_n(self):
 
 
 def set_state_n(self, value):
+    if is_locked(self):
+        return
     seg = segment_def(self)
     if seg is None:
         _set_state_n(self, value)
@@ -119,8 +138,23 @@ def isapproved(self):
 
 def markapproved(self, value=True):
     # set_state_n() writes conf, which carries approval.
-    if segment_def(self) is None:
+    if segment_def(self) is None and not is_locked(self):
         _markapproved(self, value)
+
+
+def settarget(self, target, lang="xx", append=False):
+    if is_locked(self):
+        # A caller may have changed the cached rich target in place.
+        self._rich_target = None
+        return
+    _settarget(self, target, lang, append)
+
+
+def set_rich_target(self, value, lang="xx", append=False):
+    if is_locked(self):
+        self._rich_target = None
+        return
+    _set_rich_target(self, value, lang, append)
 
 
 xliff.xliffunit.STATE = _State(xliff.xliffunit.STATE)
@@ -128,3 +162,5 @@ xliff.xliffunit.get_state_n = get_state_n
 xliff.xliffunit.set_state_n = set_state_n
 xliff.xliffunit.isapproved = isapproved
 xliff.xliffunit.markapproved = markapproved
+xliff.xliffunit.settarget = settarget
+xliff.xliffunit.set_rich_target = set_rich_target

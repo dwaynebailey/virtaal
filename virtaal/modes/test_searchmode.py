@@ -133,6 +133,54 @@ def test_replace_all_on_xliff_units():
     assert units[1].target == 'REPLACED and also REPLACED'
 
 
+def _sdlxliff_units(*locked):
+    units = ''.join(
+        f'<trans-unit id="{n}"><source>Open</source>'
+        f'<seg-source><mrk mtype="seg" mid="{n}">Open</mrk></seg-source>'
+        f'<target><mrk mtype="seg" mid="{n}">Oop</mrk></target>'
+        f'<sdl:seg-defs><sdl:seg id="{n}" locked="{str(lock).lower()}"/></sdl:seg-defs>'
+        '</trans-unit>'
+        for n, lock in enumerate(locked)
+    )
+    data = (
+        '<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2"'
+        ' xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0" version="1.2">'
+        '<file original="a" datatype="x-sdlfilterframework2" source-language="en"'
+        f' target-language="af"><body>{units}</body></file></xliff>'
+    )
+    return xliff.xlifffile.parsestring(data.encode('utf-8')).units
+
+
+def test_replace_all_leaves_a_locked_trados_segment_alone():
+    units = _sdlxliff_units(True, False)
+    f = GrepFilter(searchstring='Oop', searchparts=('target',), ignorecase=True, useregexp=False)
+    selected = []
+    mode = SearchMode.__new__(SearchMode)
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            unit_controller=SimpleNamespace(
+                view=SimpleNamespace(targets=[None]),
+                get_unit_target=lambda n: 'Oop',
+                set_unit_target=lambda n, text: None,
+            ),
+            select_unit=selected.append,
+            undo_controller=SimpleNamespace(
+                record_start=lambda: None,
+                record_stop=lambda: None,
+                push_current_text=lambda textbox: None,
+            ),
+        )
+    )
+    mode.matches, _ = f.getmatches(units)
+    mode.ent_replace = SimpleNamespace(get_text=lambda: 'Maak oop')
+    mode._search_timeout = 0
+    mode.update_search = lambda: None
+
+    mode._replace_all()
+
+    assert selected == [units[1]]
+
+
 def test_replace_all_with_no_replacement_text_deletes_every_match():
     units = [_xliff_unit("x", "Don't know and also Don't know")]
     f = GrepFilter(
@@ -611,6 +659,22 @@ def test_on_replace_clicked_keeps_the_matches_its_edit_left_alone():
 
 def test_on_replace_clicked_advances_the_cursor_when_the_current_unit_has_no_match():
     mode = _replace_clicked_mode(filter=SimpleNamespace(re_search=re.compile('search')))
+    moved = []
+    mode.storecursor.move = moved.append
+
+    mode._on_replace_clicked(None)
+
+    assert moved == [1]
+
+
+def test_on_replace_clicked_moves_past_a_locked_trados_segment():
+    (locked,) = _sdlxliff_units(True)
+    mode = _replace_clicked_mode(
+        storecursor=SimpleNamespace(deref=lambda: locked, move=lambda offset: None),
+        matches=[SimpleNamespace(unit=locked, part='target')],
+        filter=SimpleNamespace(re_search=re.compile('Oop')),
+    )
+    mode.replace_match = lambda match, repl: pytest.fail('must not replace in a locked unit')
     moved = []
     mode.storecursor.move = moved.append
 

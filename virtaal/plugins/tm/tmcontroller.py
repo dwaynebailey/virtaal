@@ -14,7 +14,14 @@ from translate.lang.data import normalize
 
 from virtaal.common import pan_app
 from virtaal.controllers.basecontroller import BaseController
+from virtaal.support import sdlxliff_compat
 from virtaal.support.translate_compat import forceunicode
+
+
+def _needs_suggestions(unit):
+    """Suggestions show unasked for a unit still to translate. A locked
+    Trados segment can't take one."""
+    return not unit.istranslated() and not sdlxliff_compat.is_locked(unit)
 
 
 class TMController(BaseController):
@@ -284,7 +291,7 @@ class TMController(BaseController):
         for distance, index in enumerate(upcoming, 1):
             unit = cursor.model[index]
             # Translated units get no suggestions unless asked.
-            if unit is None or unit.istranslated():
+            if unit is None or not _needs_suggestions(unit):
                 continue
             for model, depth in models:
                 if depth >= distance and model.requests_in_flight() <= self.PREFETCH_BUSY:
@@ -306,7 +313,7 @@ class TMController(BaseController):
         if not self.storecursor:
             return
         unit = getattr(self, 'unit', None)
-        if self.view.active and unit is not None and not unit.istranslated():
+        if self.view.active and unit is not None and _needs_suggestions(unit):
             return self.start_query()
         if getattr(self, '_delay_id', None):
             GLib.source_remove(self._delay_id)
@@ -422,7 +429,7 @@ class TMController(BaseController):
             return
         unit = self.storecursor.deref()
         if getattr(self.view, 'summoned', False) or (
-            self.view.active and unit is not None and not unit.istranslated()
+            self.view.active and unit is not None and _needs_suggestions(unit)
         ):
             self.start_query()
 

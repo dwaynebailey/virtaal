@@ -8,6 +8,7 @@
 from types import SimpleNamespace
 
 import pytest
+from translate.storage import xliff
 
 from virtaal.plugins.tm.tmcontroller import TMController
 
@@ -672,6 +673,23 @@ def test_on_cursor_changed_never_changes_the_toggle(translated, active, expected
 
     assert events == expected
     assert controller.view.summoned is False
+
+
+def test_a_locked_trados_segment_gets_no_suggestions_unasked():
+    data = (
+        b'<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2"'
+        b' xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0" version="1.2">'
+        b'<file original="a" datatype="x-sdlfilterframework2" source-language="en"'
+        b' target-language="af"><body><trans-unit id="1"><source>Open</source>'
+        b'<sdl:seg-defs><sdl:seg id="1" locked="true"/></sdl:seg-defs>'
+        b'</trans-unit></body></file></xliff>'
+    )
+    unit = xliff.xlifffile.parsestring(data).units[0]
+    controller, events = _suggestions_controller(unit)
+
+    controller.update_suggestions()
+
+    assert events == ['hide']
 
 
 @pytest.mark.parametrize('active', [True, False])

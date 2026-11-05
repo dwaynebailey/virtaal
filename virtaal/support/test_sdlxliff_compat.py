@@ -6,7 +6,8 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import pytest
-from translate.storage import xliff
+from translate.storage import pypo, xliff
+from translate.storage.placeables import StringElem
 from translate.storage.workflow import StateEnum
 
 from virtaal.support import sdlxliff_compat
@@ -170,3 +171,35 @@ def test_plain_xliff_keeps_translate_toolkits_state():
     unit.set_state_n(StateEnum.FINAL)
     assert unit.get_target_dom().get('state') == 'signed-off'
     assert unit.xmlelement.get('approved') == 'yes'
+
+
+@pytest.mark.parametrize(
+    'segs', [_seg('Draft', ' locked="true"'), _seg() + _seg(extra=' locked="true"')]
+)
+def test_a_locked_segment_keeps_its_target_and_status(segs):
+    unit = _store(segs=segs).units[0]
+    before = bytes(unit._store)
+
+    unit.target = 'Neu'
+    unit.rich_target = [StringElem('Neu')]
+    unit.set_state_n(StateEnum.FINAL)
+    unit.markfuzzy(False)
+
+    assert sdlxliff_compat.is_locked(unit)
+    assert bytes(unit._store) == before
+
+
+def test_a_locked_segment_drops_a_rich_target_changed_in_place():
+    # The editor changes the cached rich target, then sets it.
+    unit = _unit(extra=' locked="true"')
+    rich_target = unit.rich_target
+    rich_target[0] = StringElem('Neu')
+
+    unit.rich_target = rich_target
+
+    assert str(unit.rich_target[0]) == 'Hallo'
+
+
+def test_only_a_trados_lock_locks_a_unit():
+    assert not sdlxliff_compat.is_locked(_unit(extra=' locked="false"'))
+    assert not sdlxliff_compat.is_locked(pypo.pounit('Open'))

@@ -12,9 +12,15 @@ from difflib import SequenceMatcher
 from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.controllers.cursor import Cursor
+from virtaal.support import sdlxliff_compat
 from virtaal.views.theme import base_color, current_theme, rgba_to_str
 
 from .basemode import BaseMode
+
+
+def _replaceable(match):
+    """Replace changes targets, and never a locked Trados segment's."""
+    return match.part == 'target' and not sdlxliff_compat.is_locked(match.unit)
 
 
 class SearchMode(BaseMode):
@@ -231,7 +237,7 @@ class SearchMode(BaseMode):
         main_controller = self.controller.main_controller
         unit_controller = main_controller.unit_controller
         # Using unit_controller directly is a hack to make sure that the replacement changes are immediately displayed.
-        if match.part != 'target':
+        if not _replaceable(match):
             return
 
         if unit_controller is None:
@@ -615,7 +621,7 @@ class SearchMode(BaseMode):
             unit_matches = [
                 match
                 for match in self.matches
-                if match.unit is current_unit and match.part == 'target'
+                if match.unit is current_unit and _replaceable(match)
             ]
             if len(unit_matches) > 0:
                 self.controller.main_controller.undo_controller.record_start()

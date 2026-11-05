@@ -40,6 +40,8 @@ PACKAGES = sorted(glob.glob(os.path.join(TRADOS, '*', '*.sdl?px')))
 WORKBENCH_TMX = sorted(glob.glob(os.path.join(TRADOS, '*', '*English - German.tmx')))
 # Every Trados status, twice, by sdl:seg id.
 STATUSES = glob.glob(os.path.join(TRADOS, 'matecat', '*.sdlxliff'))[0]
+# Segments 6 and 7 are locked.
+COMMENTS = os.path.join(TRADOS, 'okapi', 'comments.sdlxliff')
 
 
 def _in_content(element):
@@ -213,11 +215,11 @@ class TestTradosRoundTrip(TestScaffolding):
         self.store_controller.open_file(str(path))
         return path, etree.parse(str(path)).getroot()
 
-    def _load(self, seg_id):
+    def _load(self, *seg_ids):
         unit = next(
             u
             for u in self.store_controller.store.get_units()
-            if [s.get('id') for s in sdlxliff_compat.segment_defs(u)] == [seg_id]
+            if [s.get('id') for s in sdlxliff_compat.segment_defs(u)] == list(seg_ids)
         )
         for textbox in self.unit_controller.view.targets:
             textbox._suggestion = None
@@ -290,3 +292,34 @@ class TestTradosRoundTrip(TestScaffolding):
             StateEnum.UNREVIEWED: 2,
             StateEnum.FINAL: 4,
         }
+
+    def test_a_locked_segment_is_read_only(self, tmp_path):
+        path, before = self._open_copy(COMMENTS, tmp_path)
+        unit, view = self._load('6', '7')
+        target = view.targets[0]
+
+        assert not target.get_editable()
+        assert not view._widgets['state'].get_sensitive()
+        assert not view.mnu_transfer.get_sensitive()
+        assert "Locked: this translation can't be changed." in (
+            view._widgets['notes']['translator'].get_text()
+        )
+        # What typing does: GtkTextView inserts only where it is editable.
+        assert not target.buffer.insert_interactive_at_cursor('Neu', -1, target.get_editable())
+        view.set_target_n(0, 'Neu')
+        view.copy_original(target)
+        view.advance_workflow_state(1)
+        unit.target = 'Neu'
+        unit.set_state_n(StateEnum.FINAL)
+        unit._modified = True
+        self.store_controller.save_file()
+
+        # Showing a unit collapses its source's whitespace, as
+        # xml:space="default" allows.
+        after = etree.parse(str(path)).getroot()
+        assert _infoset(after, collapse=True) == _infoset(before, collapse=True)
+        _unit, view = self._load('8', '9', '10')
+        assert str(unit.rich_target[0]) == str(factory.getobject(COMMENTS).units[0].rich_target[0])
+        assert view.targets[0].get_editable()
+        assert view._widgets['state'].get_sensitive()
+        assert view.mnu_transfer.get_sensitive()

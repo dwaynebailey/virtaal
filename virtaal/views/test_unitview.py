@@ -45,6 +45,7 @@ class _FakeTextbox:
     def __init__(self, visible=True):
         self.props = type('_Props', (), {'visible': visible})()
         self.text = None
+        self.editable = True
         self.selector_textboxes = None
         self.selector_textbox = None
 
@@ -53,6 +54,12 @@ class _FakeTextbox:
 
     def set_text(self, text):
         self.text = text
+
+    def set_editable(self, editable):
+        self.editable = editable
+
+    def get_editable(self):
+        return self.editable
 
     def get_parent(self):
         return _FakeParent()
@@ -236,6 +243,9 @@ class _FakeEditableTextbox:
 
     def get_text(self):
         return self._text
+
+    def get_editable(self):
+        return True
 
     def is_focus(self):
         return self._focused
@@ -732,6 +742,18 @@ def test_set_target_n_sets_text_without_moving_the_cursor_by_default():
     assert tb.text == 'hello'
 
 
+def test_set_target_n_leaves_a_read_only_target_alone():
+    # A locked Trados segment.
+    view = UnitView.__new__(UnitView)
+    tb = _FakeTextbox()
+    tb.set_editable(False)
+    view._widgets = {'targets': [tb]}
+
+    view.set_target_n(0, 'hello')
+
+    assert tb.text is None
+
+
 def test_set_target_n_places_the_cursor_when_a_position_is_given():
     view = UnitView.__new__(UnitView)
     buf = Gtk.TextBuffer()
@@ -763,9 +785,10 @@ class _FakeSource:
             self.selected_elem = self._elems[0]
 
 
-def _insert_placeable_target(source, deferred=False):
+def _insert_placeable_target(source, deferred=False, editable=True):
     inserted, moved = [], []
     textbox = SimpleNamespace(
+        get_editable=lambda: editable,
         selector_textbox=source,
         insert_translation=lambda elem: inserted.append(elem) or not deferred,
         move_elem_selection=moved.append,
@@ -813,6 +836,14 @@ def test_insert_placeable_keeps_the_selection_while_a_candidate_is_chosen():
     assert moved == []
 
 
+def test_insert_placeable_leaves_a_read_only_target_alone():
+    textbox, inserted, moved = _insert_placeable_target(_FakeSource(['first']), editable=False)
+
+    UnitView.__new__(UnitView).insert_placeable(textbox)
+
+    assert (inserted, moved) == ([], [])
+
+
 def test_select_first_placeables_skips_hidden_targets():
     view = UnitView.__new__(UnitView)
     visible_source, hidden_source = _FakeSource(['a']), _FakeSource(['b'])
@@ -856,6 +887,7 @@ def _copy_original_view(source_text, target_lang_code, role='target'):
     source_textbox = SimpleNamespace(selected_elem=None)
     set_calls, refresh_calls = [], []
     textbox = SimpleNamespace(
+        get_editable=lambda: True,
         selector_textbox=source_textbox,
         selector_textboxes=[source_textbox],
         role=role,
