@@ -21,6 +21,7 @@ class Plugin(BasePlugin):
         ),
         'max_matches': '5',
         'min_quality': '70',
+        'abstract_placeables': 'True',
     }
 
     # INITIALIZERS #

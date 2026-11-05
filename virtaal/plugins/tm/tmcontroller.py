@@ -14,7 +14,7 @@ from translate.lang.data import normalize
 
 from virtaal.common import pan_app
 from virtaal.controllers.basecontroller import BaseController
-from virtaal.support import sdlxliff_compat
+from virtaal.support import abstraction, sdlxliff_compat
 from virtaal.support.translate_compat import forceunicode
 
 
@@ -47,6 +47,10 @@ class TMController(BaseController):
     """Preload nothing for a backend with more requests than this
         unanswered, so a preload never crowds out a real query."""
 
+    abstract_placeables = True
+    """Whether TM matches are scored without their placeables and get the
+        current unit's own: plugins.ini's [tm] abstract_placeables."""
+
     # INITIALIZERS #
     def __init__(self, main_controller, config=None):
         from virtaal.common import GObjectWrapper
@@ -58,6 +62,8 @@ class TMController(BaseController):
         self.disabled_model_names = ['basetmmodel'] + self.config.get('disabled_models', [])
         self.max_matches = self.config.get('max_matches', 5)
         self.min_quality = self.config.get('min_quality', 75)
+        setting = str(self.config.get('abstract_placeables', True)).strip().lower()
+        self.abstract_placeables = setting not in ('false', 'no', 'off', '0')
 
         # plug-in signals:
         self._signal_ids = {}
@@ -179,6 +185,9 @@ class TMController(BaseController):
             if 'tmsource' not in match or match['tmsource'] is None:
                 match['tmsource'] = tmmodel.display_name
             match['query_str'] = query_str
+        if self.abstract_placeables:
+            accel_markers = self._accel_markers()
+            matches = [self._adapt(query_str, match, accel_markers) for match in matches]
 
         anything_new = False
         for match in matches:
@@ -208,6 +217,37 @@ class TMController(BaseController):
         # Only call display_matches if necessary:
         if self.matches:
             self.view.display_matches(self.matches)
+
+    def _accel_markers(self):
+        checks_controller = getattr(
+            getattr(self, 'main_controller', None), 'checks_controller', None
+        )
+        checker = checks_controller.get_checker() if checks_controller is not None else None
+        return tuple(getattr(getattr(checker, 'config', None), 'accelmarkers', None) or ())
+
+    @staticmethod
+    def _adapt(query_str, match, accel_markers):
+        """match, or a copy with its target rebuilt with the current unit's
+        placeables and accelerator, and its quality rescored. Machine
+        translations (no quality) are left alone."""
+        if not match.get('quality') or match.get('source') is None or not match.get('target'):
+            return match
+        source, target = forceunicode(match['source']), forceunicode(match['target'])
+        adapted = abstraction.adapt(query_str, source, target, match['quality'], accel_markers)
+        if adapted.target == target and adapted.quality == match['quality']:
+            return match
+        logging.debug(
+            'TM: %r scored %d, adapted %d: %r',
+            target,
+            match['quality'],
+            adapted.quality,
+            adapted.target,
+        )
+        match = dict(match, quality=adapted.quality, raw_quality=adapted.raw_quality)
+        if adapted.target != target:
+            match['target'] = adapted.target
+            match['tm_target'] = target
+        return match
 
     def destroy(self):
         # Destroy the view
