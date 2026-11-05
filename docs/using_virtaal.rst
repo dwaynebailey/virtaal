@@ -260,6 +260,16 @@ The consequences are that (a) your translations remain on the local machine and
 (b) translations from all previous texts are served as matches for all future
 texts.
 
+To add translations you made elsewhere without opening them, use
+:menuselection:`File --> Import into Translation Memory…` and pick one or more
+files: a TMX file exported from another translation tool, or any file Virtaal
+can open, such as PO or XLIFF. Their translations go under the languages the
+file gives (a TMX file's languages, an XLIFF file's, a PO file's Language
+header), or under the current language pair if it gives none. A notice then
+says how many translations were added. Importing a file again updates its
+translations the same way saving does. The menu item is there only while the
+Local Translation Memory is one of the sources of suggestions.
+
 The first time this version of Virtaal opens a ``tm.db`` from an older
 version, it saves a copy of it as ``tm-v0.db`` beside it before updating it.
 An older Virtaal can still use the updated file, and the copy can be deleted
