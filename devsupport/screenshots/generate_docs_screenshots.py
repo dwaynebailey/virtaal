@@ -101,11 +101,11 @@ def _capture_window(gdk_window, width, height):
 
 
 def _setup_autocomplete(app, window, main_controller):
-    """Autocomplete: autocomplete.po's unit 0 target seeds the word list
-    with "vertaalbaar" (see that fixture's own header comment); unit 1's
-    target already has valid text typed, so typing "vert" after it shows
-    a translator continuing a partial translation, not starting from an
-    empty field - triggers a suggested completion to "aalbaar".
+    """Autocomplete: autocomplete.po's unit 1 target already has
+    "vertaalbaar" in it (see that fixture's own header comment), so
+    typing "vert" at its end shows a translator continuing a partial
+    translation, not starting from an empty field - triggers a suggested
+    completion to "aalbaar".
 
     One character at a time, not a bulk insert: AutoCompletor._on_
     insert_text() only reacts to single-character insertions (its own

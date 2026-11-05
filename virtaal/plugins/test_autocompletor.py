@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 from gi.repository import GLib, Gtk
+from translate.misc.multistring import multistring
 
 from virtaal.plugins.autocompletor import AutoCompletor, Plugin
 from virtaal.views.widgets.textbox import TextBox
@@ -74,29 +75,55 @@ def test_add_words_accumulates_frequency_across_calls():
     assert ac._word_freq['word'] == 2
 
 
-# add_words_from_units() #
+# set_unit() - the per-unit candidate pool #
 
 
-def test_add_words_from_units_splits_target_text_into_words():
+def _unit(source, target=''):
+    return SimpleNamespace(source=source, target=target)
+
+
+def test_set_unit_collects_words_from_the_source_and_the_target():
     ac = _ac(comp_len=1)
-    unit = SimpleNamespace(target='hello world')
 
-    ac.add_words_from_units([unit])
+    ac.set_unit(_unit('Open the file', 'Maak die lêer oop'))
 
-    assert 'hello' in ac._word_list
-    assert 'world' in ac._word_list
+    assert 'file' in ac._word_list
+    assert 'lêer' in ac._word_list
 
 
-def test_add_words_from_units_skips_a_unit_with_no_target():
+def test_set_unit_keeps_the_usable_word_rule_for_unit_words():
+    ac = _ac(comp_len=4)
+
+    ac.set_unit(_unit('short', 'alongenoughword'))
+
+    assert ac._word_list == ['alongenoughword']
+
+
+def test_set_unit_replaces_the_previous_units_words():
     ac = _ac(comp_len=1)
-    unit = SimpleNamespace(target='')
+    ac.set_unit(_unit('Helsinki', 'Helsinki'))
 
-    ac.add_words_from_units([unit])  # must not raise
+    ac.set_unit(_unit('Hello', 'Hallo'))
+
+    assert ac.autocomplete('Hel') == ('Hello', 'lo')
+    assert 'Helsinki' not in ac._word_list
+
+
+def test_set_unit_collects_every_plural_form_skipping_empty_ones():
+    ac = _ac(comp_len=1)
+
+    ac.set_unit(_unit(multistring(['one file', 'many files']), multistring(['', 'baie lêers'])))
+
+    assert {'file', 'files', 'lêers'} <= set(ac._word_list)
+
+
+def test_set_unit_with_no_unit_clears_every_word():
+    ac = _ac(comp_len=1)
+    ac.set_unit(_unit('See the example', 'Sien die voorbeeld'))
+
+    ac.set_unit(None)
 
     assert ac._word_list == []
-
-
-# autocomplete() #
 
 
 def test_autocomplete_finds_the_first_matching_prefix_by_frequency():
@@ -156,8 +183,8 @@ def test_remove_words_accepts_a_list_of_words():
 
 
 def test_remove_words_tolerates_a_word_freq_entry_never_synced_to_word_list():
-    """add_words(update=False) - used internally by add_words_from_units()'s
-    per-unit loop - populates _word_freq without rebuilding _word_list,
+    """add_words(update=False) - used internally by set_unit()'s
+    per-string loop - populates _word_freq without rebuilding _word_list,
     so the two can legitimately disagree about a given word. Removing
     such a word used to raise an uncaught ValueError from
     _word_list.remove() (only KeyError was ever caught)."""
@@ -176,22 +203,6 @@ def test_remove_words_tolerates_the_same_desync_for_a_list_of_words():
     ac.add_words(['itisalongword'], update=False)
 
     ac.remove_words(['itisalongword', 'nosuchword'])  # must not raise
-
-
-def test_add_words_from_units_stops_after_reaching_max_words():
-    ac = _ac(comp_len=1)
-    ac.MAX_WORDS = 1
-    units = [
-        SimpleNamespace(target='firstword'),
-        SimpleNamespace(target='secondword'),
-        SimpleNamespace(target='thirdword'),
-    ]
-
-    ac.add_words_from_units(units)
-
-    assert 'firstword' in ac._word_list
-    assert 'secondword' in ac._word_list
-    assert 'thirdword' not in ac._word_list
 
 
 # widget registration #
@@ -389,9 +400,6 @@ def test_on_insert_text_schedules_and_applies_a_deferred_suggestion(monkeypatch)
     assert (start.get_offset(), end.get_offset()) == (3, 8)
 
 
-# Plugin - completely untested until now #
-
-
 def _plugin_main_controller(store=None, targets=None):
     calls = []
     store_controller = SimpleNamespace(
@@ -474,49 +482,36 @@ def test_plugin_destroy_skips_optional_disconnects_when_never_set(monkeypatch):
     assert ('disconnect', 'store-sig') in calls
 
 
-def test_on_cursor_change_first_call_just_remembers_the_unit(monkeypatch):
+def _cursor_on(*units):
+    remaining = iter(units)
+    return SimpleNamespace(deref=lambda: next(remaining))
+
+
+def test_on_cursor_change_loads_the_new_units_words(monkeypatch):
     scheduled = []
     monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add', scheduled.append)
     plugin = Plugin.__new__(Plugin)
     plugin.autocomp = AutoCompletor(main_controller=None, comp_len=1)
-    first_unit = object()
-    cursor = SimpleNamespace(deref=lambda: first_unit)
+
+    plugin._on_cursor_change(_cursor_on(_unit('Hello world', 'Hallo wêreld')))
+    scheduled[0]()
+
+    assert plugin.autocomp.autocomplete('wê') == ('wêreld', 'reld')
+
+
+def test_on_cursor_change_does_not_offer_another_units_words(monkeypatch):
+    scheduled = []
+    monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add', scheduled.append)
+    plugin = Plugin.__new__(Plugin)
+    plugin.autocomp = AutoCompletor(main_controller=None, comp_len=1)
+    cursor = _cursor_on(_unit('Helsinki', 'Helsinki'), _unit('Open', 'Oop'))
 
     plugin._on_cursor_change(cursor)
     scheduled[0]()
-
-    assert plugin.lastunit is first_unit
-    assert plugin.autocomp._word_list == []
-
-
-def test_on_cursor_change_adds_the_previous_units_singular_target_words(monkeypatch):
-    scheduled = []
-    monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add', scheduled.append)
-    plugin = Plugin.__new__(Plugin)
-    plugin.autocomp = AutoCompletor(main_controller=None, comp_len=1)
-    plugin.lastunit = SimpleNamespace(hasplural=lambda: False, target='helloworld')
-    next_unit = object()
-    cursor = SimpleNamespace(deref=lambda: next_unit)
-
     plugin._on_cursor_change(cursor)
-    scheduled[0]()
+    scheduled[1]()
 
-    assert 'helloworld' in plugin.autocomp._word_list
-    assert plugin.lastunit is next_unit
-
-
-def test_on_cursor_change_skips_an_empty_singular_target(monkeypatch):
-    scheduled = []
-    monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add', scheduled.append)
-    plugin = Plugin.__new__(Plugin)
-    plugin.autocomp = AutoCompletor(main_controller=None, comp_len=1)
-    plugin.lastunit = SimpleNamespace(hasplural=lambda: False, target='')
-    cursor = SimpleNamespace(deref=lambda: object())
-
-    plugin._on_cursor_change(cursor)
-    scheduled[0]()  # must not raise
-
-    assert plugin.autocomp._word_list == []
+    assert plugin.autocomp.autocomplete('Hel') == (None, '')
 
 
 def test_on_cursor_change_after_a_cursor_with_no_unit(monkeypatch):
@@ -526,52 +521,35 @@ def test_on_cursor_change_after_a_cursor_with_no_unit(monkeypatch):
     monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add', scheduled.append)
     plugin = Plugin.__new__(Plugin)
     plugin.autocomp = AutoCompletor(main_controller=None, comp_len=1)
-    plugin.lastunit = SimpleNamespace(hasplural=lambda: False, target='helloworld')
-    next_unit = object()
-    units = iter([None, next_unit])
-    cursor = SimpleNamespace(deref=lambda: next(units))
+    cursor = _cursor_on(_unit('helloworld', 'helloworld'), None, _unit('nextunit'))
 
     plugin._on_cursor_change(cursor)
     scheduled[0]()
     plugin._on_cursor_change(cursor)
     scheduled[1]()  # must not raise
+    assert plugin.autocomp._word_list == []
+    plugin._on_cursor_change(cursor)
+    scheduled[2]()
 
-    assert plugin.lastunit is next_unit
+    assert plugin.autocomp._word_list == ['nextunit']
 
 
-def test_on_cursor_change_adds_every_plural_forms_words_skipping_empty_ones(monkeypatch):
+def test_on_store_loaded_wires_the_cursor_and_loads_its_unit(monkeypatch):
     scheduled = []
     monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add', scheduled.append)
     plugin = Plugin.__new__(Plugin)
     plugin.autocomp = AutoCompletor(main_controller=None, comp_len=1)
-    plugin.lastunit = SimpleNamespace(
-        hasplural=lambda: True,
-        target=SimpleNamespace(strings=['', 'catscatscats']),
-    )
-    cursor = SimpleNamespace(deref=lambda: object())
-
-    plugin._on_cursor_change(cursor)
-    scheduled[0]()
-
-    assert 'catscatscats' in plugin.autocomp._word_list
-
-
-def test_on_store_loaded_adds_words_and_wires_the_cursor(monkeypatch):
-    monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add', lambda f: None)
-    plugin = Plugin.__new__(Plugin)
-    plugin.autocomp = AutoCompletor(main_controller=None, comp_len=1)
-    unit = SimpleNamespace(target='helloworld')
-    store = SimpleNamespace(get_units=lambda: [unit])
     cursor_calls = []
     cursor = SimpleNamespace(
         connect=lambda signal, handler: cursor_calls.append((signal, handler)) or 'cursor-sig',
-        deref=lambda: None,
+        deref=lambda: _unit('helloworld'),
     )
-    storecontroller = SimpleNamespace(get_store=lambda: store, cursor=cursor)
+    storecontroller = SimpleNamespace(cursor=cursor)
 
     plugin._on_store_loaded(storecontroller)
+    scheduled[0]()
 
-    assert 'helloworld' in plugin.autocomp._word_list
+    assert plugin.autocomp._word_list == ['helloworld']
     assert plugin.store_cursor is cursor
     assert cursor_calls == [('cursor-changed', plugin._on_cursor_change)]
     assert plugin._cursor_changed_id == 'cursor-sig'

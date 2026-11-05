@@ -1,13 +1,13 @@
 # A small, purpose-built fixture for docs/screenshots.rst's Autocomplete
 # screenshot (issue #3746). Deliberately synthetic, not an excerpt of real
-# translator work: unit 0's target seeds AutoCompletor's word list with
-# "vertaalbaar" (Afrikaans "translatable" - the target language here is
-# Afrikaans, so the completed word needs to actually be Afrikaans, long
-# enough to be a usable suggestion - see AutoCompletor.isusable()); unit
-# 1's target already has valid text typed - generate_docs_screenshots.py
-# positions the cursor at its end and types "vert" there to trigger the
-# suggestion, showing a translator continuing a partial translation, not
-# starting from an empty field.
+# translator work: unit 1's target already has "vertaalbaar" (Afrikaans
+# "translatable" - the target language here is Afrikaans, so the
+# completed word needs to actually be Afrikaans, long enough to be a
+# usable suggestion - see AutoCompletor.isusable()), and AutoCompletor
+# only offers the current unit's own words. generate_docs_screenshots.py
+# positions the cursor at the end of that target and types "vert" there
+# to trigger the suggestion, showing a translator continuing a partial
+# translation, not starting from an empty field.
 msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 0.4\n"
@@ -27,8 +27,8 @@ msgstr ""
 msgid "This string is translatable."
 msgstr "Hierdie string is vertaalbaar."
 
-msgid "This string is also translatable."
-msgstr "Hierdie string is ook "
+msgid "This string is translatable, and so is this one."
+msgstr "Hierdie string is vertaalbaar, en hierdie een is ook "
 
 msgid "Close"
 msgstr "Maak toe"

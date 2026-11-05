@@ -19,11 +19,13 @@ from virtaal.views.widgets.textbox import TextBox
 class AutoCompletor:
     """
     Does auto-completion of registered words in registered widgets.
+
+    The words come from the current unit only (see L{set_unit()}), so
+    nothing from other units is offered.
     """
 
     wordsep_re = re.compile(r'\W+', re.UNICODE)
 
-    MAX_WORDS = 10000
     DEFAULT_COMPLETION_LENGTH = 4  # The default minimum length of a word that may
     # be auto-completed.
 
@@ -60,23 +62,6 @@ class AutoCompletor:
         if update:
             self._update_word_list()
 
-    def add_words_from_units(self, units):
-        """Collect all words from the given translation units to use for
-        auto-completion.
-
-        @type  units: list
-        @param units: The translation units to collect words from.
-        """
-        for unit in units:
-            target = unit.target
-            if not target:
-                continue
-            self.add_words(self.wordsep_re.split(target), update=False)
-            if len(self._word_freq) > self.MAX_WORDS:
-                break
-
-        self._update_word_list()
-
     def autocomplete(self, word):
         for w in self._word_list:
             if w.startswith(word):
@@ -97,6 +82,16 @@ class AutoCompletor:
         """Returns a value indicating if the given word should be kept as a
         suggestion for autocomplete."""
         return len(word) > self.comp_len + 2
+
+    def set_unit(self, unit):
+        """Replace all words with the source and target words of the given
+        unit."""
+        self.clear_words()
+        if unit is None:
+            return
+        for text in self._strings(unit.source) + self._strings(unit.target):
+            self.add_words(self.wordsep_re.split(text), update=False)
+        self._update_word_list()
 
     def remove_widget(self, widget):
         """Remove a widget (currently only L{TextBox}s are accepted) from
@@ -183,6 +178,14 @@ class AutoCompletor:
 
         self.widgets.remove(textbox)
 
+    @staticmethod
+    def _strings(text):
+        """The non-empty forms of a source or target: one, or every plural
+        form of a multistring."""
+        if not text:
+            return []
+        return [str(s) for s in getattr(text, 'strings', [text]) if s]
+
     def _update_word_list(self):
         """Update and sort found words according to frequency."""
         wordlist = list(self._word_freq.items())
@@ -237,31 +240,14 @@ class Plugin(BasePlugin):
 
     # EVENT HANDLERS #
     def _on_cursor_change(self, cursor):
-        def add_widgets():
+        def load_unit():
             # deref() is None while the cursor has no unit (a search with
             # no matches).
-            if getattr(self, 'lastunit', None) is not None:
-                if self.lastunit.hasplural():
-                    # target is a multistring (subclasses str) - iterate
-                    # target.strings, not target itself, or this yields
-                    # characters of the first plural form only.
-                    for target in self.lastunit.target.strings:
-                        if target:
-                            # logging.debug('Adding words: %s' % (self.autocomp.wordsep_re.split(str(target))))
-                            self.autocomp.add_words(self.autocomp.wordsep_re.split(str(target)))
-                else:
-                    if self.lastunit.target:
-                        # logging.debug('Adding words: %s' % (self.autocomp.wordsep_re.split(str(self.lastunit.target))))
-                        self.autocomp.add_words(
-                            self.autocomp.wordsep_re.split(str(self.lastunit.target))
-                        )
-            self.lastunit = cursor.deref()
+            self.autocomp.set_unit(cursor.deref())
 
-        GLib.idle_add(add_widgets)
+        GLib.idle_add(load_unit)
 
     def _on_store_loaded(self, storecontroller):
-        self.autocomp.add_words_from_units(storecontroller.get_store().get_units())
-
         if hasattr(self, '_cursor_changed_id'):
             self.store_cursor.disconnect(self._cursor_changed_id)
         self.store_cursor = storecontroller.cursor
