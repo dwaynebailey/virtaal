@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-05 16:54+0000\n"
+"POT-Creation-Date: 2026-11-05 17:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -506,6 +506,7 @@ msgid "TBX Glossary"
 msgstr ""
 
 #: devsupport/tmp_strings.py share/mime/packages/virtaal-mimetype.xml.in
+#: virtaal/plugins/tm/localtmdialog.py
 msgid "TMX Translation Memory"
 msgstr ""
 
@@ -1527,6 +1528,7 @@ msgid "Add Term \"%(selection)s\"…"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
+#: virtaal/plugins/tm/localtmdialog.py
 msgid "File"
 msgstr ""
 
@@ -1611,6 +1613,94 @@ msgstr ""
 
 #: virtaal/plugins/tm/__init__.py
 msgid "Translation memory suggestions"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "Earlier translations (file not recorded)"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "Saved"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "Imported"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "_Remove"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "_Export…"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py virtaal/views/mainview.py
+#: virtaal/views/widgets/selectdialog.py
+msgid "_Close"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "Languages"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "Translations"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "Last updated"
+msgstr ""
+
+#. l10n: Column heading: how a file came into the translation
+#. memory, "Saved" (by saving it) or "Imported"
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "Type"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "Couldn't read the local translation memory."
+msgstr ""
+
+#. l10n: A file in the translation memory that is no longer on disk
+#: virtaal/plugins/tm/localtmdialog.py
+#, python-format
+msgid "%(file)s (file not found)"
+msgstr ""
+
+#. l10n: %(file)s is a file name, or "Earlier translations (file not recorded)"
+#: virtaal/plugins/tm/localtmdialog.py
+#, python-format
+msgid "Remove %(count)d translation from '%(file)s'?"
+msgid_plural "Remove %(count)d translations from '%(file)s'?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "Translations another file also added stay in the translation memory."
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+#, python-format
+msgid "Couldn't remove '%(file)s' from the translation memory."
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "Export Translation Memory"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+msgid "_Only the selected file"
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+#, python-format
+msgid "Couldn't export the translation memory to '%(file)s'."
+msgstr ""
+
+#: virtaal/plugins/tm/localtmdialog.py
+#, python-format
+msgid "Exported the translation memory to '%(file)s'."
 msgstr ""
 
 #. l10n: Try to keep this as short as possible.
@@ -2355,10 +2445,6 @@ msgstr ""
 
 #: virtaal/views/mainview.py
 msgid "Logs"
-msgstr ""
-
-#: virtaal/views/mainview.py virtaal/views/widgets/selectdialog.py
-msgid "_Close"
 msgstr ""
 
 #. l10n: This refers to the 'mode' that determines how Virtaal moves

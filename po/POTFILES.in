@@ -34,6 +34,7 @@ virtaal/plugins/terminology/models/localfile/localfileview.py
 virtaal/plugins/terminology/models/pontoon.py
 virtaal/plugins/terminology/termview.py
 virtaal/plugins/tm/__init__.py
+virtaal/plugins/tm/localtmdialog.py
 virtaal/plugins/tm/models/amagama.py
 virtaal/plugins/tm/models/apertium.py
 virtaal/plugins/tm/models/currentfile.py
