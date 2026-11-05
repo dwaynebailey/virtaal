@@ -57,19 +57,18 @@ def test_disable_all_clears_the_language_set():
 # query()
 
 
-def test_query_truncates_a_source_string_that_exceeds_googles_url_limit():
-    # Google's Terms of Service caps the whole URL at 2000 characters.
-    from urllib.parse import unquote_plus
-
+def test_query_sends_nothing_for_a_source_over_googles_url_limit():
+    # Google's Terms of Service caps the whole URL at 2000 characters, and
+    # the translation of a cut string would not be the unit's.
     added = []
     model = _model()
     model.client = SimpleNamespace(add=lambda req: added.append(req))
-    long_source = 'x' * 3000
+    room = 2000 - len(model.translate_url)
 
-    model.query(None, SimpleNamespace(source=long_source))
+    model.query(None, SimpleNamespace(source='x' * (room + 1)))
+    model.query(None, SimpleNamespace(source='x' * room))
 
-    query_param = added[0].url.split('q=')[1].split('&')[0]
-    assert len(unquote_plus(query_param)) == 2000 - len(model.translate_url)
+    assert len(added) == 1
 
 
 def test_query_translates_language_codes_before_checking_support():
@@ -327,3 +326,46 @@ def test_the_key_is_not_logged(monkeypatch, tmp_path, caplog):
     model.client.added[0].emit('http-client-error', 403)
 
     assert 'secret-key' not in caplog.text
+
+
+# The text goes as HTML, its placeables in translate="no" spans (#1423).
+
+
+def test_query_sends_the_text_as_html_with_its_placeables_left_untranslated():
+    from urllib.parse import parse_qs, urlsplit
+
+    added = []
+    model = _model()
+    model.client = SimpleNamespace(add=lambda req: added.append(req))
+
+    model.query(None, SimpleNamespace(source='Delete %(count)s files < folders & more'))
+
+    (q,) = parse_qs(urlsplit(added[0].url).query)['q']
+    assert q == 'Delete <span translate="no">%(count)s</span> files &lt; folders &amp; more'
+
+
+def test_got_translation_restores_the_units_placeables():
+    model = _model()
+    emitted = []
+    model.connect('match-found', lambda m, q, r: emitted.append(r))
+    # As Google returns HTML: the spans kept, an apostrophe as an entity.
+    text = 'Verwyder <span translate="no">%(count)s</span> l&#39;êers'
+    response = json.dumps({'data': {'translations': [{'translatedText': text}]}})
+
+    model.got_translation(response, 'Delete %(count)s files')
+
+    (match,) = emitted[0]
+    assert match['target'] == "Verwyder %(count)s l'êers"
+    assert 'tm_target' not in match
+
+
+def test_got_translation_adds_a_lost_placeable_and_marks_the_suggestion():
+    model = _model()
+    text = '<span translate="no">%2</span> na'
+    response = json.dumps({'data': {'translations': [{'translatedText': text}]}})
+
+    model.got_translation(response, 'Copy %1 to %2')
+
+    (match,) = model.cache['Copy %1 to %2']
+    assert match['target'] == '%2 na %1'
+    assert match['tm_target'] == '%2 na'

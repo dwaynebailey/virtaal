@@ -14,7 +14,8 @@ import pycurl
 from virtaal.support.httpclient import HTTPClient, RESTRequest
 from virtaal.views.widgets.settingsdialog import api_key_field
 
-from .basetmmodel import BaseTMModel, unescape_html_entities
+from ..mtplaceables import Spans, suggestion
+from .basetmmodel import BaseTMModel
 
 # Some codes are weird or can be reused for others
 code_translation = {
@@ -45,6 +46,9 @@ class TMModel(BaseTMModel):
     PREFETCH_MAX = 2
     default_config = {'api_key': '', 'prefetch': 0}
     settings = (api_key_field(),)
+
+    # The API reads the text as HTML.
+    protection = Spans('<span translate="no">', '</span>', always=True)
 
     translate_url = "https://www.googleapis.com/language/translate/v2?key=%(key)s&q=%(message)s&source=%(from)s&target=%(to)s"
     languages_url = "https://www.googleapis.com/language/translate/v2/languages?key=%(key)s"
@@ -91,9 +95,12 @@ class TMModel(BaseTMModel):
             return
 
         query_str = unit.source
+        protected = self.protection.protect(query_str)
         # Google's Terms of Service says the whole URL must be less than "2K"
-        # characters.
-        query_str = query_str[: 2000 - len(self.translate_url)]
+        # characters. A cut translation would not be of this string.
+        if len(protected.text) > 2000 - len(self.translate_url):
+            logging.debug('Too long for Google Translate: %d characters', len(protected.text))
+            return
         source_lang = code_translation.get(self.source_lang, self.source_lang).replace('_', '-')
         target_lang = code_translation.get(self.target_lang, self.target_lang).replace('_', '-')
         if source_lang not in self._languages or target_lang not in self._languages:
@@ -105,7 +112,7 @@ class TMModel(BaseTMModel):
         else:
             real_url = self.translate_url % {
                 'key': self.config['api_key'],
-                'message': quote_plus(query_str.encode('utf-8')),
+                'message': quote_plus(protected.text.encode('utf-8')),
                 'from': source_lang,
                 'to': target_lang,
             }
@@ -147,13 +154,12 @@ class TMModel(BaseTMModel):
             self._disable_all("Error with json response: %s" % e)
             return
 
-        target_unescaped = unescape_html_entities(text)
-        match = {
-            'source': query_str,
-            'target': target_unescaped,
-            # l10n: Try to keep this as short as possible. Feel free to transliterate.
-            'tmsource': _('Google'),
-        }
+        protected = self.protection.protect(query_str)
+        restored = self.protection.restore(text, protected)
+        if restored.returned != restored.text:
+            logging.debug('Google Translate: placeables moved in %r', text)
+        # l10n: Try to keep this as short as possible. Feel free to transliterate.
+        match = suggestion(query_str, restored, _('Google'))
         self.cache[query_str] = [match]
         self.emit('match-found', query_str, [match])
 

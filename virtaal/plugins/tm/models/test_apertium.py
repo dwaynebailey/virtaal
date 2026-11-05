@@ -546,3 +546,46 @@ def test_a_pair_missing_from_the_live_list_too_sends_nothing(monkeypatch, config
 
     assert [r.url for r in model.client.added] == [model.url_getpairs]
     assert model.languages_known
+
+
+# Placeables go in apertium-notrans, which its html format passes on
+# untranslated where it was (#1423).
+
+
+def test_query_sends_placeables_in_apertium_notrans():
+    from urllib.parse import parse_qs, urlsplit
+
+    added = []
+    model = _model()
+    model.client = SimpleNamespace(add=lambda req: added.append(req))
+
+    model.query(None, SimpleNamespace(source='Delete %(count)s files & <b>more</b>'))
+
+    (q,) = parse_qs(urlsplit(added[0].url).query)['q']
+    assert q == (
+        'Delete <apertium-notrans>%(count)s</apertium-notrans> files &amp; '
+        '<apertium-notrans>&lt;b&gt;</apertium-notrans>more'
+        '<apertium-notrans>&lt;/b&gt;</apertium-notrans>'
+    )
+
+
+def test_got_translation_restores_the_units_placeables():
+    model = _model()
+    text = 'Skrap <apertium-notrans>%(count)s</apertium-notrans> l&ecirc;ers\n'
+    response = json.dumps({'responseStatus': 200, 'responseData': {'translatedText': text}})
+
+    model.got_translation(response, 'Delete %(count)s files')
+
+    (match,) = model.cache['Delete %(count)s files']
+    assert match['target'] == 'Skrap %(count)s lêers'
+    assert 'tm_target' not in match
+
+
+def test_got_translation_adds_a_lost_placeable_and_marks_the_suggestion():
+    model = _model()
+    response = json.dumps({'responseStatus': 200, 'responseData': {'translatedText': 'Skrap'}})
+
+    model.got_translation(response, 'Delete %s')
+
+    (match,) = model.cache['Delete %s']
+    assert (match['target'], match['tm_target']) == ('Skrap %s', 'Skrap')

@@ -30,7 +30,8 @@ import pycountry
 from virtaal.common import pan_app
 from virtaal.support.httpclient import HTTPClient, RESTRequest
 
-from .basetmmodel import BaseTMModel, unescape_html_entities
+from ..mtplaceables import Spans, suggestion
+from .basetmmodel import BaseTMModel
 
 # APY codes that pycountry's ISO 639-3 code doesn't give.
 APY_LANGUAGES = {
@@ -43,6 +44,10 @@ APY_LANGUAGES = {
 
 # The last pair list Apertium returned, in the config dir.
 PAIRS_FILENAME = 'apertium-pairs.json'
+
+
+def _chop_newline(text):
+    return text[:-1] if text.endswith("\n") else text
 
 
 def _config_dir():
@@ -112,6 +117,9 @@ class TMModel(BaseTMModel):
     """This is the translation memory model."""
 
     __gtype_name__ = 'ApertiumTMModel'
+    # Its html format passes this element through untranslated, though
+    # it keeps it where it was in the source.
+    protection = Spans('<apertium-notrans>', '</apertium-notrans>', always=True)
     display_name = _('Apertium')
     description = _('Unreviewed machine translations from Apertium')
     online_service = 'Apertium'
@@ -184,7 +192,7 @@ class TMModel(BaseTMModel):
             self.emit('match-found', query_str, self.cache[query_str])
         else:
             values = {
-                'q': query_str,
+                'q': self.protection.protect(query_str).text,
                 'langpair': "%s|%s" % pair,
                 'markUnknown': "no",
                 'format': 'html',
@@ -248,15 +256,15 @@ class TMModel(BaseTMModel):
             # Not JSON, or of another shape (#4438).
             logging.warning("Ignoring an Apertium translation it can't read: %s", exc)
             return
-        target = unescape_html_entities(target)
-        if target.endswith("\n") and not query_str.endswith("\n"):
-            target = target[:-1]  # chop of \n
-        match = {
-            'source': query_str,
-            'target': target,
-            # l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for optimal vertical display.
-            'tmsource': _('Apertium'),
-        }
+        restored = self.protection.restore(target, self.protection.protect(query_str))
+        if restored.returned != restored.text:
+            logging.debug('Apertium: placeables moved in %r', target)
+        if not query_str.endswith("\n"):
+            restored = restored._replace(
+                text=_chop_newline(restored.text), returned=_chop_newline(restored.returned)
+            )
+        # l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for optimal vertical display.
+        match = suggestion(query_str, restored, _('Apertium'))
         self.cache[query_str] = [match]
 
         self.emit('match-found', query_str, [match])
