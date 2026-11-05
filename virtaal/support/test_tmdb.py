@@ -1084,3 +1084,78 @@ def test_an_older_algorithm_writes_no_abstracts_into_a_newer_file(db_path):
     assert _abstracts(db, 'targets') == [('Verwyder', None)]
     assert db.backfill_abstracts() == 0
     assert _abstracts(db, 'sources') == [(DELETE, None)]
+
+
+def test_a_match_differing_only_in_placeables_passes_the_default_minimum(db_path):
+    # The TM plugin's default min_quality.
+    db = tmdb.TMDB(db_path, min_similarity=70)
+    db.add_dict(
+        {'source': 'Delete {0} files', 'target': 'Verwyder {0} lêers', 'context': ''}, 'en', 'af'
+    )
+
+    (match,) = db.translate_unit(DELETE, 'en', 'af')
+
+    assert match['source'] == 'Delete {0} files'
+    assert match['target'] == 'Verwyder {0} lêers'
+    assert (match['quality'], match['raw_quality']) == (99, 59)
+
+
+def test_raw_matching_misses_it(db_path):
+    db = tmdb.TMDB(db_path, min_similarity=70, abstract=False)
+    db.add_dict(
+        {'source': 'Delete {0} files', 'target': 'Verwyder {0} lêers', 'context': ''}, 'en', 'af'
+    )
+
+    assert db.translate_unit(DELETE, 'en', 'af') == []
+
+
+@pytest.mark.parametrize(
+    'query, stored',
+    [
+        # Outside the raw length window: 17 against 27.
+        ('Click <b>here</b>', 'Click <strong>here</strong>'),
+        # Over 3 words: the full-text search.
+        ('Open the selected %(name)s file now', 'Open the selected {0} file now'),
+    ],
+)
+def test_the_length_window_and_minimum_are_on_the_abstract(db_path, query, stored):
+    db = tmdb.TMDB(db_path, min_similarity=90)
+    db.add_dict({'source': stored, 'target': 'Vertaal', 'context': ''}, 'en', 'af')
+
+    (match,) = db.translate_unit(query, 'en', 'af')
+
+    assert (match['source'], match['quality']) == (stored, 99)
+
+
+def test_an_abstract_not_yet_filled_is_matched_on_its_text(db_path, old_tmdb):
+    _v0_file(old_tmdb, db_path, ('Delete {0} files', 'Verwyder {0} lêers'))
+    db = tmdb.TMDB(db_path, min_similarity=70)
+
+    (match,) = db.translate_unit(DELETE, 'en', 'af')
+
+    assert match['quality'] == 99
+
+
+def test_a_raw_match_the_abstract_window_would_miss_is_kept(db_path):
+    # Abstracts of 1 and 3 characters; the raw strings are close.
+    query = '%(very_long_name)s x'
+    db = tmdb.TMDB(db_path, min_similarity=75)
+    db.add_dict({'source': '%(very_long_name)s', 'target': 'T', 'context': ''}, 'en', 'af')
+
+    (match,) = db.translate_unit(query, 'en', 'af')
+
+    assert match['quality'] == match['raw_quality'] == 90
+
+
+def test_matches_rank_on_the_adapted_quality(db_path):
+    db = tmdb.TMDB(db_path, min_similarity=70, max_candidates=1)
+    db.add_dict(
+        {'source': 'Delete the files', 'target': 'Verwyder die lêers', 'context': ''}, 'en', 'af'
+    )
+    db.add_dict(
+        {'source': 'Delete {0} files', 'target': 'Verwyder {0} lêers', 'context': ''}, 'en', 'af'
+    )
+
+    (match,) = db.translate_unit(DELETE, 'en', 'af')
+
+    assert match['target'] == 'Verwyder {0} lêers'

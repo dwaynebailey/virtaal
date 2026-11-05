@@ -72,6 +72,25 @@ def test_a_server_match_gets_the_unit_placeables(model_class):
     assert model.cache['Delete %(count)s files'][0]['target'] == 'Verwyder {0} lêers'
 
 
+def test_a_local_tm_match_keeps_the_servers_raw_quality():
+    controller = _controller('Delete %(count)s files')
+    model = _remote(localtm.TMModel, controller)
+    reply = [
+        {
+            'source': 'Delete {0} files',
+            'target': 'Verwyder {0} lêers',
+            'quality': 99,
+            'raw_quality': 59,
+        }
+    ]
+
+    model._handle_matches(SimpleNamespace(), 'Delete %(count)s files', reply)
+
+    (match,) = controller.matches
+    assert match['target'] == 'Verwyder %(count)s lêers'
+    assert (match['quality'], match['raw_quality']) == (99, 59)
+
+
 def test_a_current_file_match_gets_the_unit_placeables():
     store = po.pofile()
     done = store.addsourceunit('Click <strong>here</strong>')

@@ -205,6 +205,32 @@ def test_add_unit_then_translate_unit_round_trips_over_http(tmp_path):
     assert matches[0]['target'] == 'chat'
 
 
+def test_a_match_differing_in_placeables_comes_with_its_raw_quality(tmp_path):
+    _, port = _start_server(tmp_path / 'tm.db')
+    unit = {'source': 'Delete {0} files', 'target': 'Verwyder {0} lêers'}
+    _request(port, 'PUT', '/en/af/unit/x', json.dumps(unit))
+
+    (match,) = _translate(port, 'Delete %(count)s files', 'en', 'af')
+
+    assert (match['target'], match['quality'], match['raw_quality']) == (unit['target'], 99, 59)
+
+
+def test_raw_quality_keeps_to_the_raw_text(monkeypatch, tmp_path):
+    made = []
+    monkeypatch.setattr(sys, 'argv', ['tmserver', '-d', str(tmp_path / 'tm.db'), '--raw-quality'])
+    monkeypatch.setattr(tmserver.Bottle, 'run', lambda self, **kwargs: None)
+    monkeypatch.setattr(tmserver.tmdb, 'TMDB', lambda *args: made.append(args) or _NoBackfill())
+
+    tmserver.main()
+
+    assert made[0][-1] is False
+
+
+class _NoBackfill:
+    def start_backfill(self):
+        pass
+
+
 def test_the_server_fills_missing_abstracts_meanwhile(tmp_path, monkeypatch):
     started = []
     monkeypatch.setattr(tmserver.tmdb.TMDB, 'start_backfill', lambda self: started.append(self))
@@ -496,6 +522,7 @@ def test_build_parser_defaults():
     assert args.max_candidates == 3
     assert args.min_similarity == 75
     assert args.max_length == 1000
+    assert args.abstract is True
     assert args.debug is False
 
 

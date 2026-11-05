@@ -190,6 +190,16 @@ def test_build_tmserver_command_includes_bind_port_db_and_controller_settings(mo
     assert '--max-candidates=5' in command
 
 
+def test_build_tmserver_command_keeps_to_raw_text_without_abstract_placeables(monkeypatch):
+    monkeypatch.setattr(helperprocess, 'platform', Platform(frozen=False))
+    model = _model_with_config()
+    controller = _fake_controller()
+
+    assert '--raw-quality' not in model._build_tmserver_command(55555, controller)
+    controller.abstract_placeables = False
+    assert '--raw-quality' in model._build_tmserver_command(55555, controller)
+
+
 def test_build_tmserver_command_appends_debug_flag_when_pan_app_debug(monkeypatch):
     monkeypatch.setattr(helperprocess, 'platform', Platform(frozen=False))
     monkeypatch.setattr(pan_app, 'DEBUG', True)

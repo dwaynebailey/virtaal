@@ -49,7 +49,7 @@ from translate.search.lshtein import LevenshteinComparer
 from translate.storage import tmx
 
 from virtaal.support import shareddb
-from virtaal.support.abstraction import abstract
+from virtaal.support.abstraction import abstract, adapt
 
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
@@ -155,10 +155,15 @@ class LanguageError(Exception):
 class TMDB:
     _tm_dbs = {}
 
-    def __init__(self, db_file, max_candidates=3, min_similarity=75, max_length=1000) -> None:
+    def __init__(
+        self, db_file, max_candidates=3, min_similarity=75, max_length=1000, abstract=True
+    ) -> None:
         self.max_candidates = max_candidates
         self.min_similarity = min_similarity
         self.max_length = max_length
+        self.abstract = abstract
+        """Whether matching looks past placeables and accelerators: if
+        not, candidates and scores are on the raw text alone."""
 
         if not isinstance(db_file, str):
             db_file = str(db_file)  # don't know which encoding
@@ -881,52 +886,82 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         return deleted
 
     def translate_unit(self, unit_source, source_langs, target_langs):
-        """Return TM suggestions for unit_source."""
+        """Return TM suggestions for unit_source.
+
+        Each has the quality its target gets once rebuilt with
+        unit_source's placeables (see abstraction.adapt), so a source that
+        differs only in placeables or accelerator is found and kept however
+        low its raw quality, which is given as raw_quality."""
         source_in, source_params = _language_match("s.lang", source_langs)
         target_in, target_params = _language_match("t.lang", target_langs)
         langs_in = "%s AND %s" % (source_in, target_in)
         lang_params = (*source_params, *target_params)
 
-        minlen = min_levenshtein_length(len(unit_source), self.min_similarity)
-        maxlen = max_levenshtein_length(len(unit_source), self.min_similarity, self.max_length)
+        windows = [(len(unit_source), "s.length")]
+        query_abstract = unit_source
+        if self.abstract:
+            query_abstract = _abstract(unit_source)
+            # Either window: abstraction may only add candidates.
+            windows.append((len(query_abstract), "length(COALESCE(s.abstract, s.text))"))
+        window_sql = " OR ".join("%s BETWEEN ? AND ?" % column for _length, column in windows)
+        window_params = []
+        for length, _column in windows:
+            window_params += [
+                min_levenshtein_length(length, self.min_similarity),
+                max_levenshtein_length(length, self.min_similarity, self.max_length),
+            ]
 
         # split source into words, remove punctuation and special
         # chars, keep words that are at least 3 chars long
-        unit_words = STRIP_REGEXP.sub(" ", unit_source).split()
+        unit_words = STRIP_REGEXP.sub(" ", query_abstract).split()
         unit_words = list(filter(lambda word: len(word) > 2, unit_words))
 
+        columns = "s.text, t.text, s.context, s.abstract"
         if self.fulltext and len(unit_words) > 3:
             logger.debug("fulltext matching")
-            query = (
-                """SELECT s.text, t.text, s.context, s.lang, t.lang FROM sources s JOIN targets t ON s.sid = t.sid JOIN fulltext f ON s.sid = f.docid
-                       WHERE %s AND s.length BETWEEN ? AND ?
-                       AND fulltext MATCH ?"""
-                % langs_in
-            )
+            query = """SELECT %s FROM sources s JOIN targets t ON s.sid = t.sid JOIN fulltext f ON s.sid = f.docid
+                       WHERE %s AND (%s)
+                       AND fulltext MATCH ?""" % (columns, langs_in, window_sql)
             # Quoted, so a word such as AND, NOT or NEAR isn't read as an
             # FTS operator (#4332). STRIP_REGEXP has removed any quote.
             search_str = " OR ".join('"%s"' % word for word in unit_words)
-            self.cursor.execute(query, (*lang_params, minlen, maxlen, search_str))
+            self.cursor.execute(query, (*lang_params, *window_params, search_str))
         else:
             logger.debug("nonfulltext matching")
-            query = (
-                """SELECT s.text, t.text, s.context, s.lang, t.lang FROM sources s JOIN targets t ON s.sid = t.sid
-            WHERE %s
-            AND s.length >= ? AND s.length <= ?"""
-                % langs_in
-            )
-            self.cursor.execute(query, (*lang_params, minlen, maxlen))
+            query = """SELECT %s FROM sources s JOIN targets t ON s.sid = t.sid
+            WHERE %s AND (%s)""" % (columns, langs_in, window_sql)
+            self.cursor.execute(query, (*lang_params, *window_params))
 
         results = []
-        for row in self.cursor:
-            quality = self.comparer.similarity(unit_source, row[0], self.min_similarity)
-            if quality >= self.min_similarity:
+        for source, target, context, source_abstract in self.cursor.fetchall():
+            if not self.abstract:
+                quality = self.comparer.similarity(unit_source, source, self.min_similarity)
+                if quality >= self.min_similarity:
+                    results.append(
+                        {"source": source, "target": target, "context": context, "quality": quality}
+                    )
+                continue
+            raw_quality = self.comparer.similarity(unit_source, source, self.min_similarity)
+            if raw_quality < self.min_similarity:
+                if source_abstract is None:
+                    source_abstract = _abstract(source)
+                # Penalties only lower it: an upper bound on the quality.
+                bound = self.comparer.similarity(
+                    query_abstract, source_abstract, self.min_similarity
+                )
+                if round(bound) < self.min_similarity:
+                    continue
+                # Cut short below the minimum: worked out in full.
+                raw_quality = self.comparer.similarity(unit_source, source, 0)
+            adapted = adapt(unit_source, source, target, raw_quality)
+            if adapted.quality >= self.min_similarity:
                 results.append(
                     {
-                        "source": row[0],
-                        "target": row[1],
-                        "context": row[2],
-                        "quality": quality,
+                        "source": source,
+                        "target": target,
+                        "context": context,
+                        "quality": adapted.quality,
+                        "raw_quality": adapted.raw_quality,
                     }
                 )
         results.sort(key=operator.itemgetter("quality"), reverse=True)

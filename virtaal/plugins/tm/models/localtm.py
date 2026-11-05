@@ -123,6 +123,8 @@ class TMModel(remotetm.TMModel):
             "--min-similarity=%d" % controller.min_quality,
             "--max-candidates=%d" % controller.max_matches,
         ]
+        if not getattr(controller, "abstract_placeables", True):
+            command.append("--raw-quality")
 
         if pan_app.DEBUG:
             command.append("--debug")

@@ -233,7 +233,9 @@ class TMController(BaseController):
         if not match.get('quality') or match.get('source') is None or not match.get('target'):
             return match
         source, target = forceunicode(match['source']), forceunicode(match['target'])
-        adapted = abstraction.adapt(query_str, source, target, match['quality'], accel_markers)
+        # The local TM scored it on the abstracts already.
+        raw_quality = match.get('raw_quality', match['quality'])
+        adapted = abstraction.adapt(query_str, source, target, raw_quality, accel_markers)
         if adapted.target == target and adapted.quality == match['quality']:
             return match
         logging.debug(

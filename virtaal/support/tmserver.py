@@ -70,11 +70,12 @@ class TMServer:
         prefix="",
         source_lang=None,
         target_lang=None,
+        abstract=True,
     ) -> None:
         if not isinstance(tmdbfile, str):
             tmdbfile = tmdbfile.decode(sys.getfilesystemencoding())
 
-        self.tmdb = tmdb.TMDB(tmdbfile, max_candidates, min_similarity, max_length)
+        self.tmdb = tmdb.TMDB(tmdbfile, max_candidates, min_similarity, max_length, abstract)
 
         if tmfiles:
             self._load_files(tmfiles, source_lang, target_lang)
@@ -292,6 +293,12 @@ def build_parser() -> ArgumentParser:
         help="Maximum string length",
     )
     parser.add_argument(
+        "--raw-quality",
+        action="store_false",
+        dest="abstract",
+        help="match and score on the raw text, not past placeables and accelerators",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         dest="debug",
@@ -321,6 +328,7 @@ def main() -> None:
         prefix="/tmserver",
         source_lang=args.source_lang,
         target_lang=args.target_lang,
+        abstract=args.abstract,
     )
     logger.info("Starting server, listening on port %s", args.port)
     try:
