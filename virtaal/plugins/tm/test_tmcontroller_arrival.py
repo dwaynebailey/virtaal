@@ -227,7 +227,7 @@ class TestArrival(TestScaffolding):
     def _environment(self, monkeypatch, tmp_path):
         monkeypatch.setattr('virtaal.common.pan_app.get_config_dir', lambda: str(tmp_path))
         # Pumping the real main loop hangs in this suite.
-        monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args) and None)
+        monkeypatch.setattr(GLib, 'idle_add', lambda func, *args, **kwargs: func(*args) and None)
 
     def test_a_move_tells_the_controller_how_the_unit_was_reached(self):
         disabled = [m for m in MODELS if m != 'currentfile']

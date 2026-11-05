@@ -43,7 +43,7 @@ class TestTMStartup(TestScaffolding):
         self.config_dir = tmp_path
         # Plug-ins load from idle callbacks; pumping the real main loop
         # hangs in this suite.
-        monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args) and None)
+        monkeypatch.setattr(GLib, 'idle_add', lambda func, *args, **kwargs: func(*args) and None)
         self.launched = []
         real_popen = subprocess.Popen
 
