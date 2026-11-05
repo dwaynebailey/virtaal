@@ -828,6 +828,49 @@ def test_import_store_files_units_under_their_own_languages(db_path):
     assert db.store_stats(PO, 'en', 'af')['units'] == 0
 
 
+TMX_HEADER = (
+    b'<tmx version="1.4"><header srclang="en" adminlang="en" datatype="plaintext"'
+    b' segtype="sentence" creationtool="test" creationtoolversion="1" o-tmf="test"/><body>'
+)
+
+
+def _tmx(*tus):
+    return tmx.tmxfile.parsestring(TMX_HEADER + b''.join(tus) + b'</body></tmx>')
+
+
+def _tuv(lang, text):
+    return b'<tuv xml:lang="%s"><seg>%s</seg></tuv>' % (lang, text)
+
+
+def test_import_store_files_a_tmx_under_its_tuvs_languages(db_path):
+    store = _tmx(b'<tu>' + _tuv(b'en', SHORT.encode()) + _tuv(b'de', b'Offne es') + b'</tu>')
+
+    db = tmdb.TMDB(db_path)
+    counts = db.import_store(store, '/home/user/memory.tmx', 'en', 'af')
+
+    assert counts['added'] == 1
+    assert db.translate_unit(SHORT, 'en', 'de')[0]['target'] == 'Offne es'
+    assert db.translate_unit(SHORT, 'en', 'af') == []
+
+
+def test_import_store_takes_each_language_of_a_multilingual_tmx(db_path):
+    store = _tmx(
+        b'<tu>'
+        + _tuv(b'en', SHORT.encode())
+        + _tuv(b'de', b'Offne es')
+        + _tuv(b'fr', b'Ouvre-le')
+        + b'</tu>',
+        b'<tu srclang="de">' + _tuv(b'fr', b'Bonjour') + _tuv(b'de', b'Guten Tag') + b'</tu>',
+    )
+
+    db = tmdb.TMDB(db_path)
+    db.import_store(store, '/home/user/memory.tmx', 'en', 'af')
+
+    assert db.translate_unit(SHORT, 'en', 'de')[0]['target'] == 'Offne es'
+    assert db.translate_unit(SHORT, 'en', 'fr')[0]['target'] == 'Ouvre-le'
+    assert db.translate_unit('Guten Tag', 'de', 'fr')[0]['target'] == 'Bonjour'
+
+
 def test_importing_a_file_with_nothing_translated_empties_its_store(db_path):
     db = tmdb.TMDB(db_path)
     db.sync_store(PO, [_unit(SHORT, 'Maak dit oop')], 'en', 'af')

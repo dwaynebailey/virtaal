@@ -44,7 +44,9 @@ import time
 from sqlite3 import dbapi2
 
 from translate.lang import data
+from translate.misc.xml_helpers import getXMLlang, getXMLspace
 from translate.search.lshtein import LevenshteinComparer
+from translate.storage import lisa, tmx
 
 from virtaal.support import shareddb
 
@@ -467,13 +469,14 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         them."""
         pairs = {}
         for unit in store.units:
-            if unit.istranslatable() and unit.istranslated():
-                langs = unit_languages(unit, source_lang, target_lang)
+            if not (unit.istranslatable() and unit.istranslated()):
+                continue
+            for langs, source, target in unit_translations(unit, source_lang, target_lang):
                 pair = tuple(data.normalize_code(lang) for lang in langs)
                 pairs.setdefault(pair, []).append(
                     {
-                        "source": unit.source,
-                        "target": unit.target,
+                        "source": source,
+                        "target": target,
                         "context": unit.getcontext(),
                         "key": unit.getid(),
                     }
@@ -499,16 +502,20 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             return None
         counts = {"added": 0, "replaced": 0, "removed": 0}
         unlinked = set()
+        # A store's units are linked by target language alone, so pairs
+        # into one target language (a multilingual TMX) are synced as one.
+        by_target = {}
         for (source_lang, target_lang), units in pairs.items():
+            current = by_target.setdefault(target_lang, {})
+            for unit in units:
+                unit = {**unit, "context": unit.get("context") or ""}
+                current[unit_key(unit)] = self._add_target(unit, source_lang, target_lang)
+        for target_lang, current in by_target.items():
             self.cursor.execute(
                 "SELECT unit_key, tid FROM origins WHERE store_id = ? AND lang = ?",
                 (store_id, target_lang),
             )
             linked = dict(self.cursor.fetchall())
-            current = {}
-            for unit in units:
-                unit = {**unit, "context": unit.get("context") or ""}
-                current[unit_key(unit)] = self._add_target(unit, source_lang, target_lang)
             for key, tid in current.items():
                 old = linked.get(key)
                 if old is None:
@@ -855,6 +862,37 @@ def unit_languages(unit, source_lang=None, target_lang=None):
     if not target_lang:
         raise LanguageError("undefined target language")
     return source_lang, target_lang
+
+
+def unit_translations(unit, source_lang=None, target_lang=None):
+    """C{unit}'s ((source language, target language), source, target)
+    for each translation it holds: one, or for a TMX unit one per
+    language after its source's."""
+    nodes = unit.getlanguageNodes() if isinstance(unit, tmx.tmxunit) else []
+    if len(nodes) < 2:
+        return [(unit_languages(unit, source_lang, target_lang), unit.source, unit.target)]
+    # The unit's own srclang, else the header's.
+    store = getattr(unit, "_store", None)
+    srclang = unit.xmlelement.get("srclang") or (store and store.getsourcelanguage())
+    xml_space = getXMLspace(unit.xmlelement, unit._default_xml_space)
+    langs = [getXMLlang(node) for node in nodes]
+    texts = [unit.getNodeText(node, xml_space) for node in nodes]
+    wanted = lisa.normalize_language(srclang)
+    source_index = next(
+        (i for i, lang in enumerate(langs) if lisa.normalize_language(lang) == wanted), 0
+    )
+    source = texts[source_index]
+    source_lang = langs[source_index] or source_lang
+    if not source_lang:
+        raise LanguageError("undefined source language")
+    translations = []
+    for i, (lang, text) in enumerate(zip(langs, texts)):
+        if i == source_index or not text:
+            continue
+        if not (lang or target_lang):
+            raise LanguageError("undefined target language")
+        translations.append(((source_lang, lang or target_lang), source, text))
+    return translations
 
 
 def unit_key(unit):
