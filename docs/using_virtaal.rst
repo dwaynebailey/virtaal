@@ -246,15 +246,21 @@ deleted manually.
 Virtaal's Local TM
 ------------------
 
-All translated segments of any file opened, edited and saved in Virtaal are
-added to Virtaal's local translation memory (TM) in a file called tm.db (on
-Windows XP machines, this file may be found in Application Data\Virtaal).  The
-TM is not purged or deleted when Virtaal exists, and the TM file can only have
-the name "tm.db".
+When you save a file, its translated segments go into Virtaal's local
+translation memory (TM), a file called ``tm.db`` in Virtaal's settings
+folder. Saving the same file again replaces its earlier translations: a
+segment you changed is updated, and one that is no longer translated (or is
+now fuzzy) is removed. The TM records which file each translation came from,
+so a translation that another file also has stays.
 
-The consequences are that (a) your translation remains on the local machine and
+The consequences are that (a) your translations remain on the local machine and
 (b) translations from all previous texts are served as matches for all future
 texts.
+
+The first time this version of Virtaal opens a ``tm.db`` from an older
+version, it saves a copy of it as ``tm-v0.db`` beside it before updating it.
+An older Virtaal can still use the updated file, and the copy can be deleted
+once you no longer need it.
 
 It is safe to delete and/or rename the file.
 
