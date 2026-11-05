@@ -242,6 +242,51 @@ def test_a_late_answer_about_a_closed_file_is_dropped():
     assert not view.mnu_add_on_save.get_sensitive()
 
 
+def test_the_answer_on_opening_arrives_once_the_tm_is_up_without_acting():
+    view, mainview = _tmview()
+    waiting = []
+    model = _Model()
+    model.store_status = lambda sc, on_done, on_error: waiting.append(on_done)
+    view.add_exclude_menu_item(model)
+    assert view.mnu_add_on_save.get_active()
+    assert view.mnu_add_on_save.get_sensitive()
+
+    waiting[0](True, 0)
+
+    assert not view.mnu_add_on_save.get_active()
+    assert model.set == view.confirmed == []
+    assert mainview.notices == mainview.errors == []
+
+
+def test_unticking_before_the_answer_on_opening_isnt_undone_by_it():
+    view, _mainview = _tmview()
+    waiting = []
+    model = _Model()
+    model.store_status = lambda sc, on_done, on_error: waiting.append(on_done)
+    view.add_exclude_menu_item(model)
+
+    _untick(view)
+    waiting[0](False, 2)  # the answer to opening the file
+    waiting[1](False, 2)  # the answer to unticking
+
+    assert view.confirmed == [('af.po', 2)]
+    assert model.set == [('/home/user/af.po', True)]
+    assert not view.mnu_add_on_save.get_active()
+
+
+def test_a_tm_that_never_answers_leaves_the_item_usable():
+    view, mainview = _tmview()
+    model = _Model({'/home/user/af.po': None})
+    view.add_exclude_menu_item(model)
+
+    assert view.mnu_add_on_save.get_active()
+    assert view.mnu_add_on_save.get_sensitive()
+    assert mainview.errors == []
+    _untick(view)
+    assert view.mnu_add_on_save.get_active()
+    assert mainview.errors == ["Couldn't remove 'af.po' from the translation memory."]
+
+
 def test_saving_under_another_name_asks_about_the_new_file():
     store_controller = _StoreController()
     view, _mainview = _tmview(store_controller)

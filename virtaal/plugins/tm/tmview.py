@@ -37,8 +37,8 @@ class TMView(BaseView, GObjectWrapper):
     mnu_import = None
     _import_model = None
     # File > Add to Local TM on Save, the model it asks, and a count of
-    # files opened and closed, so a late reply about an earlier one is
-    # dropped.
+    # files opened and closed and of the user's changes to it, so a late
+    # reply about an earlier one is dropped.
     mnu_add_on_save = None
     _exclude_model = None
     _add_on_save_id = None
@@ -290,6 +290,9 @@ class TMView(BaseView, GObjectWrapper):
         if model is None or store_controller.get_store() is None:
             return
         name = os.path.basename(store_controller.get_store_filename())
+        # The answer to the question asked on opening the file is no
+        # longer wanted: it would tick the item again.
+        self._opened += 1
         opened = self._opened
 
         def later(func, *args):
