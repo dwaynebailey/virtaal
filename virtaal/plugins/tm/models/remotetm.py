@@ -113,14 +113,23 @@ class TMModel(BaseTMModel):
         # A string already sent shows when its answer lands.
         if self._sent(query_str) or time.monotonic() < self._retry_at:
             return
+        self._track(self._send(query_str), query_str)
+
+    def _params(self):
         params = {}
         if self.checker:
             params['style'] = self.checker
-        request = self.tmclient.translate_unit(
-            query_str, self.source_lang, self.target_lang, self._handle_matches, params
+        return params
+
+    def _send(self, query_str):
+        """The request for query_str, or None if the client's queue was full."""
+        return self.tmclient.translate_unit(
+            query_str, self.source_lang, self.target_lang, self._handle_matches, self._params()
         )
+
+    def _track(self, request, query_str):
+        """Keep query_str's request pending until it is answered."""
         if request is None:
-            # The client's queue was full.
             return
         request.tm_key = self._key()
         self._pending = {**self._pending, query_str: request}

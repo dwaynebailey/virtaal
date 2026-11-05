@@ -146,7 +146,7 @@ class TestTMStartup(TestScaffolding):
         controller = self._controller('amagama')
         model = controller.plugin_controller.plugins['amagama']
         sent = []
-        model.tmclient.translate_unit = lambda query_str, *args: sent.append(query_str)
+        model.tmclient.translate_abstract = lambda base, query_str, *args: sent.append(query_str)
         cursor = self.store_controller.cursor
         controller.storecursor = cursor
         cursor.pos = 0

@@ -62,6 +62,36 @@ class TMClient(HTTPClient):
             request.connect("http-success", _json_callback(callback))
         return request
 
+    def translate_abstract(
+        self,
+        base_url,
+        query_str,
+        abstract,
+        version,
+        source_lang,
+        target_lang,
+        callback=None,
+        params=None,
+    ):
+        """suggest translations from amaGama's API v2 at base_url, sending only
+        the abstract of query_str made by abstraction version
+        @returns: The request, or None if the queue was too full to send it."""
+        request = RESTRequest(
+            base_url + "/%s/%s/unit/" % (source_lang, target_lang),
+            None,
+            "GET",
+            user_agent=self.user_agent,
+            params={**(params or {}), 'q': abstract, 'av': version},
+        )
+        # The callback gets query_str, as from translate_unit().
+        request.id = query_str
+        request.curl.setopt(pycurl.TIMEOUT, 30)
+        if not self.add(request):
+            return None
+        if callback:
+            request.connect("http-success", _json_callback(callback))
+        return request
+
     def add_unit(self, unit, source_lang, target_lang, callback=None):
         request = RESTRequest(
             self.base_url + "/%s/%s/unit" % (source_lang, target_lang),

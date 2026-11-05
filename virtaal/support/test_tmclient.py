@@ -105,6 +105,38 @@ def test_translate_unit_wires_the_callback_with_decoded_json(monkeypatch):
     assert calls == [('hello', {'target': 'hallo'})]
 
 
+def test_translate_abstract_sends_only_the_abstract(monkeypatch):
+    client, requests = _make_client(monkeypatch)
+    calls = []
+
+    request = client.translate_abstract(
+        'https://example.com/api/v2',
+        'Delete %(count)s files',
+        'Delete \ue001 files',
+        1,
+        'en',
+        'af',
+        callback=lambda widget, id, data: calls.append((id, data)),
+        params={'style': 'gnome'},
+    )
+
+    assert request is requests[0]
+    assert request.url == 'https://example.com/api/v2/en/af/unit/'
+    assert request.params == {'style': 'gnome', 'q': 'Delete \ue001 files', 'av': 1}
+    assert request.user_agent == 'Virtaal/test'
+    assert request.curl.opts[pycurl.TIMEOUT] == 30
+    # The reply is passed on for the raw string.
+    _fire_callback(request, {'matches': []})
+    assert calls == [('Delete %(count)s files', {'matches': []})]
+
+
+def test_translate_abstract_returns_none_for_a_request_it_could_not_queue(monkeypatch):
+    client, _requests = _make_client(monkeypatch)
+    monkeypatch.setattr(client, 'add', lambda request: False)
+
+    assert client.translate_abstract('https://example.com/api/v2', 'a', 'a', 1, 'en', 'af') is None
+
+
 def test_add_unit_builds_a_put_request_with_the_unit_as_json(monkeypatch):
     client, requests = _make_client(monkeypatch)
     unit = {'source': 'hello', 'target': 'hallo'}
