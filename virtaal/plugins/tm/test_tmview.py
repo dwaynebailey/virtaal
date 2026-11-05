@@ -128,6 +128,21 @@ def test_display_matches_adds_a_shortcut_tooltip_for_the_first_nine_only():
     assert shown == ['show', 'geometry']
 
 
+def test_display_matches_shows_the_tm_target_of_an_adapted_match():
+    view = _tmview()
+    view.show = lambda force=False: None
+    view.update_geometry = lambda: None
+    adapted = {'target': 'Klik <b>hier</b>', 'tm_target': 'Klik <strong>hier</strong>'}
+
+    view.display_matches([{'target': 'Klik hier'}, adapted])
+
+    tooltips = [row[1] for row in view.tmwindow.liststore]
+    assert tooltips == [
+        'Ctrl+1',
+        'Ctrl+2\nAdapted to this unit from: Klik &lt;strong&gt;hier&lt;/strong&gt;',
+    ]
+
+
 def test_display_matches_clears_previous_matches_first():
     view = _tmview()
     view.tmwindow.liststore.append([{'source': 'stale'}, ''])

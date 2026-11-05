@@ -473,10 +473,20 @@ class TMView(BaseView, GObjectWrapper):
         liststore = self.tmwindow.liststore
         liststore.clear()
         for match in matches:
-            tooltip = ''
+            lines = []
             if len(liststore) < 9:
-                tooltip = _('Ctrl+%(number_key)d') % {"number_key": len(liststore) + 1}
-            liststore.append([match, tooltip])
+                lines.append(_('Ctrl+%(number_key)d') % {"number_key": len(liststore) + 1})
+            if match.get('tm_target'):
+                lines.append(
+                    _(
+                        # l10n: Tooltip on a suggestion whose placeables or accelerator
+                        # were changed to fit the current unit. %(target)s is the
+                        # suggestion as the translation memory has it.
+                        'Adapted to this unit from: %(target)s'
+                    )
+                    % {'target': match['tm_target']}
+                )
+            liststore.append([match, GLib.markup_escape_text('\n'.join(lines))])
 
         if len(liststore) > 0:
             self.show()

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-05 20:43+0000\n"
+"POT-Creation-Date: 2026-11-05 21:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1881,6 +1881,14 @@ msgstr ""
 #: virtaal/plugins/tm/tmview.py
 #, python-format
 msgid "Ctrl+%(number_key)d"
+msgstr ""
+
+#. l10n: Tooltip on a suggestion whose placeables or accelerator
+#. were changed to fit the current unit. %(target)s is the
+#. suggestion as the translation memory has it.
+#: virtaal/plugins/tm/tmview.py
+#, python-format
+msgid "Adapted to this unit from: %(target)s"
 msgstr ""
 
 #. l10n: The 'sources' here refer to different translation memory plugins,
