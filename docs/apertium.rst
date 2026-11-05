@@ -15,6 +15,9 @@ Apertium project for information on what language pairs are supported, what
 quality can be expected, and to hear how to get involved. More information is
 available on `their wiki <http://wiki.apertium.org/>`_.
 
+Apertium leaves your :doc:`placeables <placeables>` untranslated, though it
+keeps each where it is in your text, even when the words around it move.
+
 The plugin queries a web service over the Internet, and suggestions might
 therefore take a moment before they are displayed. Future versions might be
 able to make use of a locally installed copy of Apertium. Join us to make this

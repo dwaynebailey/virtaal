@@ -150,7 +150,12 @@ that differs counts for little in the match percentage, so such a suggestion
 scores close to 100%, while only identical text scores 100%. Your local
 translation memory finds such a suggestion even when the placeables' own text
 makes the two look quite different. Hover over an adapted suggestion to see
-what the translation memory has. Machine translation
+what the translation memory has.
+
+Machine translation keeps your placeables too: Virtaal asks the service to
+leave them untranslated and puts your own placeables in its suggestion. Should
+the service lose or repeat one, the suggestion has each placeable once, with any
+lost one at the end, and hovering over it shows what the service gave. Moses
 suggestions are shown as they come.
 
 .. _using_virtaal#navigation:

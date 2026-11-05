@@ -10,6 +10,8 @@ machine translation (MT). Familiarise yourself with Google's `terms of service
 version 1.0 you need to have an API key in your configuration (``tm.init``).
 
 The Virtaal plugin provides the output of Google Translate as suggestions.
+Google Translate is asked to leave your :doc:`placeables <placeables>`
+untranslated.
 
 The plugin queries a web service over the Internet, and suggestions might
 therefore take a moment before they are displayed. Also keep in mind that your
