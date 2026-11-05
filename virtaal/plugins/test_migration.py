@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import os
 import sqlite3
 import sys
 from types import SimpleNamespace
@@ -13,6 +14,7 @@ import pytest
 
 from virtaal.common.platform import platform
 from virtaal.plugins import migration
+from virtaal.support import tmdb
 
 
 def _plugin(tmp_path, poedit_exists=False, lokalize_rc_exists=False):
@@ -253,11 +255,11 @@ def _lokalize_db(tmp_path, name='project.db', with_config=True, with_rows=True):
 class _FakeTMDB:
     def __init__(self):
         self.added = []
-        self.committed = False
-        self.connection = SimpleNamespace(commit=lambda: setattr(self, 'committed', True))
+        self.stores = []
 
-    def add_dict(self, unit, source_lang, target_lang, commit=False):
-        self.added.append((unit, source_lang, target_lang))
+    def sync_store(self, path, units, source_lang, target_lang, kind):
+        self.stores.append((path, kind))
+        self.added.extend((unit, source_lang, target_lang) for unit in units)
 
 
 def test_do_lokalize_tm_import_reads_units_and_language_codes(tmp_path):
@@ -269,12 +271,33 @@ def test_do_lokalize_tm_import_reads_units_and_language_codes(tmp_path):
     plugin.do_lokalize_tm_import(db_path)
 
     assert plugin.tmdb.added == [
-        ({'source': 'Hello', 'target': 'Hallo', 'context': ''}, 'en', 'af'),
+        ({'source': 'Hello', 'target': 'Hallo', 'context': '', 'key': '1'}, 'en', 'af'),
     ]
-    assert plugin.tmdb.committed is True
+    assert plugin.tmdb.stores == [(os.path.realpath(db_path), tmdb.STORE_IMPORTED)]
     assert plugin.migrated == [
         "Lokalize's Translation Memory: %(database_name)s" % {'database_name': 'project.db'},
     ]
+
+
+def test_do_lokalize_tm_import_keeps_every_target_of_a_source(tmp_path):
+    # Lokalize keeps one row per file a translation came from.
+    db_path = _lokalize_db(tmp_path)
+    connection = sqlite3.connect(db_path)
+    connection.execute("INSERT INTO target_strings VALUES (2, 'Haai')")
+    connection.execute('INSERT INTO main VALUES (1, 2)')
+    connection.commit()
+    connection.close()
+    plugin = _plugin(tmp_path)
+    plugin.tmdb = tmdb.TMDB(str(tmp_path / 'tm.db'))
+    plugin.migrated = []
+
+    plugin.do_lokalize_tm_import(db_path)
+    plugin.do_lokalize_tm_import(db_path)
+
+    stats = plugin.tmdb.store_stats(os.path.realpath(db_path), 'en', 'af')
+    assert stats['units'] == 2
+    targets = {match['target'] for match in plugin.tmdb.translate_unit('Hello', 'en', 'af')}
+    assert targets == {'Hallo', 'Haai'}
 
 
 def test_do_lokalize_tm_import_falls_back_when_tm_config_is_missing(tmp_path):
@@ -302,7 +325,7 @@ def test_do_lokalize_tm_import_records_nothing_for_an_empty_database(tmp_path):
     plugin.do_lokalize_tm_import(db_path)
 
     assert plugin.tmdb.added == []
-    assert plugin.tmdb.committed is False
+    assert plugin.tmdb.stores == []
     assert plugin.migrated == []
 
 

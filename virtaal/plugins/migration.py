@@ -240,21 +240,23 @@ class Plugin(BasePlugin):
             # target_strings/main (foreign keys), not a single flat table -
             # see initSqliteDb() in src/tm/jobs.cpp upstream.
             cursor.execute("""
-                SELECT source_strings.source, target_strings.target
+                SELECT main.rowid, source_strings.source, target_strings.target
                 FROM main
                 JOIN source_strings ON main.source = source_strings.id
                 JOIN target_strings ON main.target = target_strings.id;
             """)
-            count = 0
-            for source, target in cursor:
-                unit = {"source": source, "target": target, "context": ""}
-                self.tmdb.add_dict(unit, source_lang, target_lang, commit=False)
-                count += 1
+            # Keyed by Lokalize's row: one source can have several targets.
+            units = [
+                {"source": source, "target": target, "context": "", "key": str(rowid)}
+                for rowid, source, target in cursor
+            ]
         finally:
             connection.close()
 
-        if count:
-            self.tmdb.connection.commit()
+        if units:
+            self.tmdb.sync_store(
+                path.realpath(filename), units, source_lang, target_lang, kind=tmdb.STORE_IMPORTED
+            )
             self.migrated.append(
                 _("Lokalize's Translation Memory: %(database_name)s")
                 % {"database_name": path.basename(filename)}
