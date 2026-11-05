@@ -310,9 +310,11 @@ It is safe to delete and/or rename the file.
 
 Trados files
 ------------
-Trados Studio bilingual files (.sdlxliff) open like other XLIFF files.
-Where a unit holds one Trados segment, Virtaal also uses what Trados keeps
-with it:
+Trados Studio bilingual files (.sdlxliff) open like other XLIFF files. Trados
+splits a paragraph into segments, usually one per sentence, and Virtaal shows
+each segment as its own unit, as Trados does. Text and tags between the
+segments of a paragraph aren't shown and stay as they are. Each unit also uses
+what Trados keeps with its segment:
 
 - The segment's Trados status is the unit's state:
 
@@ -331,14 +333,15 @@ with it:
   and Needs work clear the status). A unit whose state you don't change keeps
   its status, Sign-off included.
 - Where the translation came from, such as ``tm, 100% match``, shows below
-  the translation, as do Trados comments on the unit.
+  the translation, as do Trados comments on the segment.
 - A locked segment shows its translation and state but can't be changed, and
-  Replace skips it.
+  Replace skips it. Other segments of the same paragraph can still be
+  changed.
 
-A unit that holds several Trados segments keeps the plain XLIFF state, and its
-Trados status is left as it is. Virtaal doesn't handle Trados tracked changes:
-both the added and the deleted text show in the translation, each as a
-placeable.
+A paragraph of several segments whose translation isn't split into them shows
+as one unit with the plain XLIFF state, and its Trados status is left as it is.
+Virtaal doesn't handle Trados tracked changes: both the added and the deleted
+text show in the translation, each as a placeable.
 
 Translation memories and termbases from Trados can be used as they are,
 without Trados:

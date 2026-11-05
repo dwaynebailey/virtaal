@@ -96,8 +96,8 @@ Virtaal supports many file formats:
 - Qt Linguist (.ts)
 - Qt Phrase Book (.qph)
 - OmegaT glossary (.tab and .utf8)
-- Trados Studio bilingual files (.sdlxliff), with their Trados status (see
-  :ref:`using_virtaal#trados`)
+- Trados Studio bilingual files (.sdlxliff), a unit per Trados segment with its
+  Trados status (see :ref:`using_virtaal#trados`)
 
 Translation memories and termbases from Trados can be used without
 opening them (see :ref:`using_virtaal#trados`):
