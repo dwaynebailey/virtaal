@@ -379,11 +379,48 @@ def test_export_tmx_builds_a_get_request(monkeypatch, path, member, params):
     assert request.curl.opts[pycurl.TIMEOUT] == 600
 
 
-@pytest.mark.parametrize('call', ['list_stores', 'remove_store', 'export_tmx'])
+def test_store_info_builds_a_get_request_for_a_bundles_file(monkeypatch):
+    client, requests = _make_client(monkeypatch)
+
+    assert client.store_info('/home/user/p.zip', 'en', 'af', 'doc.po') is requests[0]
+
+    request = requests[0]
+    assert (request.url, request.id, request.method, request.params) == (
+        'http://example.com/en/af/store',
+        '/home/user/p.zip',
+        'GET',
+        {'member': 'doc.po'},
+    )
+
+
+@pytest.mark.parametrize('exclude', [True, False])
+def test_set_exclude_posts_the_flag_and_member(monkeypatch, exclude):
+    client, requests = _make_client(monkeypatch)
+
+    assert client.set_exclude('/home/user/p.zip', exclude, 'en', 'af', 'doc.po') is requests[0]
+
+    request = requests[0]
+    assert (request.url, request.id, request.method) == (
+        'http://example.com/en/af/store',
+        '/home/user/p.zip',
+        'POST',
+    )
+    assert json.loads(request.data) == {'exclude': exclude, 'member': 'doc.po'}
+
+
+@pytest.mark.parametrize(
+    'call', ['list_stores', 'remove_store', 'export_tmx', 'store_info', 'set_exclude']
+)
 def test_store_requests_are_none_when_the_queue_is_full(monkeypatch, call):
     client, _requests = _make_client(monkeypatch)
     monkeypatch.setattr(client, 'add', lambda request: False)
-    args = {'list_stores': (), 'remove_store': ('/a.po', 'en', 'af'), 'export_tmx': ('en', 'af')}
+    args = {
+        'list_stores': (),
+        'remove_store': ('/a.po', 'en', 'af'),
+        'export_tmx': ('en', 'af'),
+        'store_info': ('/a.po', 'en', 'af'),
+        'set_exclude': ('/a.po', True, 'en', 'af'),
+    }
 
     assert getattr(client, call)(*args[call]) is None
 
@@ -439,6 +476,28 @@ def test_store_stats_and_forget_store_reach_the_servers_routes(tm_server, monkey
     status, replies = _send(client, monkeypatch, client.forget_store, store, 'en', 'fr')
     assert (status, replies) == (200, [{'removed': 1}])
     assert app.tmdb.translate_unit('cat', 'en', 'fr') == []
+
+
+def test_set_exclude_and_store_info_reach_the_servers_routes(tm_server, monkeypatch):
+    app, client = tm_server
+    app.tmdb.sync_store('/p.zip', [{'source': 'cat', 'target': 'chat'}], 'en', 'fr', 'doc.po')
+
+    def send(request):
+        request.curl.perform()
+        request.handle_result()
+        return request.status, json.loads(request.result.getvalue())
+
+    monkeypatch.setattr(client, 'add', lambda request: True)
+    assert send(client.set_exclude('/p.zip', True, 'en', 'fr', 'doc.po')) == (
+        200,
+        {'exclude': True},
+    )
+    assert app.tmdb.translate_unit('cat', 'en', 'fr') == []
+    status, stats = send(client.store_info('/p.zip', 'en', 'fr', 'doc.po'))
+    assert (status, stats['exclude'], stats['units']) == (200, True, 0)
+
+    send(client.set_exclude('/p.zip', False, 'en', 'fr', 'doc.po'))
+    assert send(client.store_info('/p.zip', 'en', 'fr', 'doc.po'))[1]['exclude'] is False
 
 
 def test_upload_store_imports_the_file_on_the_server(tm_server, monkeypatch):

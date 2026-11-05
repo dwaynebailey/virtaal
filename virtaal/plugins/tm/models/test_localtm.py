@@ -310,6 +310,7 @@ def _pushing_model():
     model.source_lang = 'en'
     model.target_lang = 'af'
     model.cache = {'stale': 'entry'}
+    model._excluded = {}
     model.sent = []
     model.tmclient = SimpleNamespace(add_store=lambda *a: model.sent.append(a))
     return model
@@ -660,6 +661,136 @@ def test_store_calls_report_a_full_queue(call):
     }
 
     getattr(model, call)(*args[call], done, error)
+
+    assert results == [('error',)]
+
+
+# store_status(), set_exclude(): File > Add to Local TM on Save.
+
+
+def _status(model, store_controller):
+    results, done, error = _results()
+    model.store_status(store_controller, done, error)
+    return results
+
+
+def test_store_status_of_a_file_the_tm_doesnt_know(tmp_path, importing_model):
+    model, _app, send = importing_model
+    store_controller = _store_controller(PO, str(tmp_path / 'af.po'))
+
+    results = _status(model, store_controller)
+    send()
+
+    assert results == [('done', False, 0)]
+
+
+def test_store_status_counts_what_a_saved_file_added(tmp_path, importing_model):
+    model, app, send = importing_model
+    filename = str(tmp_path / 'af.po')
+    app.tmdb.sync_store(filename, [{'source': 'cat', 'target': 'kat'}], 'en', 'af')
+    app.tmdb.sync_store(filename, [{'source': 'cat', 'target': 'Katze'}], 'en', 'de')
+
+    results = _status(model, _store_controller(PO, filename))
+    send()
+
+    assert results == [('done', False, 1)]
+
+
+def test_excluding_a_file_removes_what_it_added_and_stops_its_saves(tmp_path, importing_model):
+    model, app, send = importing_model
+    filename = str(tmp_path / 'af.po')
+    store_controller = _store_controller(PO, filename)
+    app.tmdb.sync_store(filename, [{'source': 'Open', 'target': 'Maak oop'}], 'en', 'af')
+    results, done, error = _results()
+
+    model.set_exclude(store_controller, True, lambda: done(), error)
+    send()
+
+    assert results == [('done',)]
+    assert app.tmdb.translate_unit('Open', 'en', 'af') == []
+    assert model.cache == {}
+    assert model._generation == 1
+    results = _status(model, store_controller)
+    send()
+    assert results == [('done', True, 0)]
+    model.tmclient.add_store = lambda *a: model.sent.append(a)
+    model.push_store(store_controller)
+    assert model.sent == []
+
+
+def test_a_bundles_file_is_excluded_on_its_own(tmp_path, importing_model):
+    model, app, send = importing_model
+    bundle = str(tmp_path / 'project.zip')
+    doc = _store_controller(PO, '/tmp/x/doc.po', bundle=bundle, member='doc.po')
+    other = _store_controller(PO, '/tmp/x/other.po', bundle=bundle, member='other.po')
+
+    model.set_exclude(doc, True, lambda: None, lambda: None)
+    send()
+
+    assert app.tmdb.store_stats(os.path.realpath(bundle), 'en', 'af', 'doc.po')['exclude']
+    results = _status(model, other)
+    send()
+    assert results == [('done', False, 0)]
+    results = _status(model, doc)
+    send()
+    assert results == [('done', True, 0)]
+
+
+def test_a_file_let_in_again_is_added_by_its_next_save(tmp_path, importing_model, monkeypatch):
+    model, app, send = importing_model
+    filename = str(tmp_path / 'af.po')
+    store_controller = _store_controller(PO, filename)
+    model.set_exclude(store_controller, True, lambda: None, lambda: None)
+    send()
+
+    model.set_exclude(store_controller, False, lambda: None, lambda: None)
+    send()
+    model.push_store(store_controller)
+    send()
+
+    assert model._excluded == {(os.path.realpath(filename), ''): False}
+    assert app.tmdb.translate_unit('Open', 'en', 'af')[0]['target'] == 'Maak oop'
+    assert app.tmdb.store_stats(os.path.realpath(filename), 'en', 'af')['units'] == 2
+
+
+def test_push_store_sends_when_the_files_state_is_unknown(tmp_path):
+    model = _pushing_model()
+    model._excluded = {(os.path.realpath(tmp_path / 'other.po'), ''): True}
+
+    model.push_store(_store_controller(PO, str(tmp_path / 'af.po')))
+
+    assert len(model.sent) == 1
+
+
+@pytest.mark.parametrize('call', ['store_status', 'set_exclude'])
+def test_exclude_calls_report_a_server_that_doesnt_answer(tmp_path, importing_model, call):
+    model, _app, _send = importing_model
+    from virtaal.support import tmclient
+
+    model.tmclient = tmclient.TMClient('http://127.0.0.1:%d' % _closed_port())
+    requests = []
+    model.tmclient.add = lambda request: requests.append(request) or True
+    results, done, error = _results()
+    args = () if call == 'store_status' else (True,)
+
+    getattr(model, call)(_store_controller(PO, str(tmp_path / 'af.po')), *args, done, error)
+    try:
+        requests[0].curl.perform()
+    except Exception as e:
+        requests[0].emit('http-failed', str(e))
+
+    assert results == [('error',)]
+    assert model._excluded == {}
+
+
+@pytest.mark.parametrize('call, method', [('store_status', 'store_info'), ('set_exclude',) * 2])
+def test_exclude_calls_report_a_full_queue(tmp_path, call, method):
+    model = _pushing_model()
+    model.tmclient = SimpleNamespace(**{method: lambda *a: None})
+    results, done, error = _results()
+    args = () if call == 'store_status' else (True,)
+
+    getattr(model, call)(_store_controller(PO, str(tmp_path / 'af.po')), *args, done, error)
 
     assert results == [('error',)]
 

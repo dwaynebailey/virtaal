@@ -50,6 +50,8 @@ class TMModel(remotetm.TMModel):
         # Do not use super() here, as remotetm.TMModel does a bit more than we
         # want in this case.
         BaseTMModel.__init__(self, controller)
+        # Whether the local TM leaves each store out, as last heard from it.
+        self._excluded = {}
         # Configure… in the sources dialog opens the Local Translation Memory dialog.
         self.configure_func = self.configure
         self._signal_tracker.connect(
@@ -140,7 +142,10 @@ class TMModel(remotetm.TMModel):
         """Sync the saved file into the local TM: a changed unit replaces
         its earlier target and a unit no longer translated drops out. The
         server leaves a file excluded from the TM alone."""
-        path, member = store_key(store_controller)
+        key = store_key(store_controller)
+        if self._excluded.get(key):
+            return
+        path, member = key
         units = [
             {**remotetm.unit2dict(unit), 'key': unit.getid()}
             for unit in store_controller.store.get_units()
@@ -235,6 +240,57 @@ class TMModel(remotetm.TMModel):
 
         _on_reply(request, on_success, on_error, "remove %s" % path)
 
+    def store_status(self, store_controller, on_done, on_error):
+        """C{on_done(excluded, units)} for the open file: whether the local
+        TM leaves it out, and how many of this pair's translations it
+        added; C{on_error()} if the server doesn't say."""
+        key = store_key(store_controller)
+        path, member = key
+        request = self.tmclient.store_info(path, self.source_lang, self.target_lang, member)
+        if request is None:
+            on_error()
+            return
+
+        def on_success(reply):
+            try:
+                stats = json.loads(reply)
+                excluded, units = bool(stats['exclude']), int(stats['units'])
+            except (ValueError, KeyError, TypeError):
+                on_error()
+                return
+            self._excluded[key] = excluded
+            on_done(excluded, units)
+
+        def on_client_error(_request, status):
+            # A file never saved or imported isn't in the TM yet.
+            if status == 404:
+                self._excluded[key] = False
+                on_done(False, 0)
+
+        request.connect('http-client-error', on_client_error)
+        _on_reply(request, on_success, on_error, "look up %s" % path, ignore_status=(404,))
+
+    def set_exclude(self, store_controller, exclude, on_done, on_error):
+        """Keep the open file out of the local TM from now on, removing
+        what it added, or let its next save add it again. C{on_done()}
+        once the TM has it, C{on_error()} if it couldn't be changed."""
+        key = store_key(store_controller)
+        path, member = key
+        request = self.tmclient.set_exclude(
+            path, exclude, self.source_lang, self.target_lang, member
+        )
+        if request is None:
+            on_error()
+            return
+
+        def on_success(_reply):
+            self._excluded[key] = bool(exclude)
+            if exclude:
+                self._forget_cached()
+            on_done()
+
+        _on_reply(request, on_success, on_error, "change %s" % path)
+
     def export_tmx(self, source_lang, target_lang, on_done, on_error, path=None, member=''):
         """C{on_done(data)} with the TMX bytes of this language pair's
         entries, only the store at C{path}'s if given; C{on_error()} if
@@ -263,11 +319,13 @@ class TMModel(remotetm.TMModel):
             logging.debug("killing tmserver with pid %d" % self.tmserver.pid)
 
 
-def _on_reply(request, on_success, on_error, action):
+def _on_reply(request, on_success, on_error, action, ignore_status=()):
     """Call C{on_success(reply)} when C{request} succeeds, else
-    C{on_error()}."""
+    C{on_error()}, except for an HTTP status in C{ignore_status}."""
 
     def on_failure(_request, reason):
+        if reason in ignore_status:
+            return
         logging.warning("The local TM couldn't %s: %s", action, reason)
         on_error()
 

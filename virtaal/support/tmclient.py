@@ -175,13 +175,32 @@ class TMClient(HTTPClient):
             return None
         return request
 
-    def _store_request(self, path, member, source_lang, target_lang, method):
+    def _store_request(self, path, member, source_lang, target_lang, method, data=None):
         url = self.base_url + "/%s/%s/store" % (source_lang, target_lang)
         if not path:
             # The legacy store: an empty path after the slash.
             url += "/"
         params = {'member': member} if member else None
-        return RESTRequest(url, path, method, user_agent=self.user_agent, params=params)
+        return RESTRequest(url, path, method, data, user_agent=self.user_agent, params=params)
+
+    def store_info(self, path, source_lang, target_lang, member=''):
+        """Ask for the store at C{path}: its unit count for this language
+        pair and whether it is excluded from the TM.
+        @returns: The request, or None if the queue was too full to send it."""
+        request = self._store_request(path, member, source_lang, target_lang, "GET")
+        if not self.add(request):
+            return None
+        return request
+
+    def set_exclude(self, path, exclude, source_lang, target_lang, member=''):
+        """Keep the store at C{path} out of the TM, removing what it
+        added, or let it in again.
+        @returns: The request, or None if the queue was too full to send it."""
+        body = json.dumps({'exclude': bool(exclude), 'member': member})
+        request = self._store_request(path, '', source_lang, target_lang, "POST", body)
+        if not self.add(request):
+            return None
+        return request
 
     def remove_store(self, path, source_lang, target_lang, member=''):
         """Remove what the store at C{path} added for this language pair.
