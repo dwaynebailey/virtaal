@@ -79,9 +79,10 @@ code.
 
 Autocomplete
 ------------
-Automatic completion currently uses a very simple approach of remembering words
-as typed. Only basic word segmentation is used. Feel free to contribute
-something more advanced as needed for your language.
+Automatic completion currently uses a very simple approach of offering the
+words in the current segment's source and target. Only basic word segmentation
+is used. Feel free to contribute something more advanced as needed for your
+language.
 
 .. _localising_virtaal#search:
 

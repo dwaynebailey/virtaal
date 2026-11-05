@@ -11,8 +11,8 @@ functionality, hopefully it gives an idea of some of the features.
 Autocomplete
 ============
 
-Virtaal can provide word based suggestions for some of the longer words you
-have used before. This way you can increase your typing speed.
+Virtaal can provide word based suggestions for some of the longer words in the
+segment you are translating. This way you can increase your typing speed.
 
 .. figure:: /_static/autocomplete.png
 

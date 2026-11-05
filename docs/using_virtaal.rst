@@ -63,7 +63,10 @@ Time Savers
 Auto-completion
 ---------------
 Virtaal will save you some time by trying to complete some long words for you.
-Users of OpenOffice.org will already love this feature. You will see the
+Users of OpenOffice.org will already love this feature. Suggestions only come
+from the segment you are translating: long words in its source and target, and
+after just two letters, the source's placeables (such as numbers, URLs and
+XML tags) and translations of its terminology. You will see the
 auto-completion suggesting a possible word, and the suggestion can be accepted
 by pressing :kbd:`Tab`. If the suggestion is not what you want, you can simply
 continue typing the word you had in mind. If you accepted a suggestion that you
