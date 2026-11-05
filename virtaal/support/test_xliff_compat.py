@@ -94,3 +94,19 @@ def test_a_target_without_a_marker_is_unchanged():
     unit.rich_target = [StringElem('Neu')]
 
     assert _target_xml(unit) == '<target>Neu</target>'
+
+
+def test_translate_toolkit_still_reindents_a_seg_source():
+    # Once this fails translate-toolkit keeps <seg-source> as it is, and
+    # the XMLindent change in xliff_compat can go.
+    assert 'seg-source' not in xliff_compat._ttk_xml_indent['leaves']
+
+
+def test_saving_keeps_the_text_between_segments():
+    seg_source = (
+        '<seg-source><mrk mtype="seg" mid="1">One.</mrk> <mrk mtype="seg" mid="2">Two.</mrk>'
+        '</seg-source>'
+    )
+    unit = _unit(seg_source + '<target/>')
+
+    assert seg_source.encode() in bytes(unit._store)

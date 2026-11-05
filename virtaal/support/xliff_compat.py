@@ -86,3 +86,12 @@ def settarget(self, target, lang="xx", append=False):
 xliff.xliffunit.get_rich_target = get_rich_target
 xliff.xliffunit.set_rich_target = set_rich_target
 xliff.xliffunit.settarget = settarget
+
+# translate-toolkit reindents <seg-source> on save like a container, so
+# the text between segments, which Trados keeps there, became newlines
+# and indentation.
+_ttk_xml_indent = xliff.xlifffile.XMLindent
+xliff.xlifffile.XMLindent = {
+    **_ttk_xml_indent,
+    "leaves": set(_ttk_xml_indent.get("leaves", ())) | {"seg-source"},
+}
