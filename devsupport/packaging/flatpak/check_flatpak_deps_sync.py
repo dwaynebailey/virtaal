@@ -7,7 +7,8 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """Check that every pyproject.toml [project.dependencies] entry has a
-matching module in virtaal-python-deps.yaml, at the pinned version.
+matching module in virtaal-python-deps.yaml, and that every package
+that file bundles is at uv.lock's version.
 
 flatpak-builder's sandboxed build has no network access during the
 module-build step, so each pip package's source must be pre-declared
@@ -19,13 +20,14 @@ Parses both files with plain string/regex extraction rather than
 PyYAML: adding a parsing dependency just for this check would be its
 own kind of self-defeating drift risk."""
 
-import operator
 import re
 import sys
+import tomllib
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 PYPROJECT = REPO_ROOT / 'pyproject.toml'
+UV_LOCK = REPO_ROOT / 'uv.lock'
 DEPS_YAML = REPO_ROOT / 'devsupport' / 'packaging' / 'flatpak' / 'virtaal-python-deps.yaml'
 
 
@@ -68,46 +70,14 @@ def pyproject_dependency_names(text):
     return names
 
 
-MARKER_OPS = {'<': operator.lt, '<=': operator.le, '>': operator.gt,
-              '>=': operator.ge, '==': operator.eq, '!=': operator.ne}
-
-
-def version_tuple(version):
-    return tuple(int(part) for part in version.split('.'))
-
-
-def marker_applies(marker, python):
-    """Evaluate a "python_version <op> 'X.Y'" marker; nothing else is
-    used here, so anything else is an error rather than a guess."""
-    if not marker:
-        return True
-    match = re.fullmatch(r"\s*python_version\s*(<=|>=|==|!=|<|>)\s*'([\d.]+)'\s*", marker)
-    if not match:
-        raise ValueError('unsupported environment marker: %s' % marker)
-    return MARKER_OPS[match.group(1)](python, version_tuple(match.group(2)))
-
-
-def pyproject_pins(text, python):
-    """{normalized name: (name, version)} for the == pins that apply to
-    the given Python."""
-    pins = {}
-    for requirement in pyproject_requirements(text):
-        spec, _, marker = requirement.partition(';')
-        match = re.fullmatch(r'\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^]]*\])?\s*==\s*(\S+)\s*',
-                             spec)
-        if match and marker_applies(marker, python):
-            pins[normalize(match.group(1))] = (match.group(1), match.group(2))
-    return pins
-
-
-def flatpak_python(text):
-    """The runtime's Python, from its CPython-specific wheels (cp314-cp314);
-    abi3 wheels only give a minimum."""
-    tags = set(re.findall(r'-cp3(\d+)-cp3\1-', text))
-    if len(tags) != 1:
-        raise ValueError('expected one cp3XY-cp3XY wheel tag in %s, found %s'
-                         % (DEPS_YAML.name, sorted(tags) or 'none'))
-    return (3, int(tags.pop()))
+def locked_versions(text):
+    """{normalized name: {version}} from uv.lock; a package can have one
+    version per Python range."""
+    versions = {}
+    for package in tomllib.loads(text)['package']:
+        if 'version' in package:
+            versions.setdefault(normalize(package['name']), set()).add(package['version'])
+    return versions
 
 
 def flatpak_versions(text):
@@ -120,12 +90,14 @@ def flatpak_versions(text):
     return versions
 
 
-def version_mismatches(pyproject_text, yaml_text):
-    pins = pyproject_pins(pyproject_text, flatpak_python(yaml_text))
-    versions = flatpak_versions(yaml_text)
-    return [(name, version, sorted(versions.get(key, ())))
-            for key, (name, version) in pins.items()
-            if versions.get(key) != {version}]
+def version_mismatches(lock_text, yaml_text):
+    """(name, bundled versions, locked versions) for each bundled package
+    whose version isn't one uv.lock has. Packages uv.lock doesn't list
+    are build tools (rapidfuzz's cmake, ninja, ...)."""
+    locked = locked_versions(lock_text)
+    return [(name, sorted(bundled), sorted(locked[name]))
+            for name, bundled in sorted(flatpak_versions(yaml_text).items())
+            if name in locked and not bundled <= locked[name]]
 
 
 def flatpak_module_names(text):
@@ -185,18 +157,18 @@ def main():
         print('originally generated via flatpak-pip-generator).')
         return 1
 
-    mismatches = version_mismatches(pyproject_text, yaml_text)
+    mismatches = version_mismatches(UV_LOCK.read_text(encoding='utf-8'), yaml_text)
     if mismatches:
-        print('pyproject.toml pins a different version than %s bundles:'
+        print('%s bundles a different version than uv.lock has:'
               % DEPS_YAML.relative_to(REPO_ROOT))
-        for name, version, bundled in mismatches:
-            print(' - %s==%s (bundled: %s)' % (name, version, ', '.join(bundled) or 'none'))
+        for name, bundled, locked in mismatches:
+            print(' - %s %s (uv.lock: %s)' % (name, ', '.join(bundled), ', '.join(locked) or 'none'))
         print()
-        print("Update each package's url and sha256 to the pinned version.")
+        print("Update each package's url and sha256 to uv.lock's version.")
         return 1
 
-    print('All %d pyproject.toml dependencies have a matching flatpak module at the'
-          ' pinned version.' % len(pyproject_deps))
+    print('All %d pyproject.toml dependencies have a matching flatpak module, and'
+          ' every bundled package is at uv.lock\'s version.' % len(pyproject_deps))
     return 0
 
 
