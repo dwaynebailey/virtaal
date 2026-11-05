@@ -97,6 +97,14 @@ Virtaal supports many file formats:
 - Qt Phrase Book (.qph)
 - OmegaT glossary (.tab and .utf8)
 
+Translation memories and termbases from Trados can be used without
+opening them (see :ref:`using_virtaal#trados`):
+
+- Trados Studio translation memories (.sdltm)
+- Trados Translator's Workbench text exports (.txt)
+- MultiTerm XML termbase exports (.xml)
+- Trados Studio and MultiTerm termbases (.sdltb)
+
 .. _features#more:
 
 More

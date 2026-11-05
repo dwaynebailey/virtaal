@@ -270,6 +270,31 @@ says how many translations were added. Importing a file again updates its
 translations the same way saving does. The menu item is there only while the
 Local Translation Memory is one of the sources of suggestions.
 
+.. _using_virtaal#trados:
+
+Trados translation memories and termbases
+-----------------------------------------
+Translation memories and termbases from Trados can be used as they are,
+without Trados:
+
+- A Trados Studio translation memory (.sdltm), a Translator's Workbench text
+  export (.txt) or a MultiTerm XML export (.xml) can be imported with
+  :menuselection:`File --> Import into Translation Memory…`. A Trados Studio
+  translation memory's translations go under its own languages, such as en-US
+  and de-DE, and are suggested when translating from English to German too.
+  Their formatting tags are left out of the text, and Virtaal never changes
+  the file.
+- A MultiTerm XML export (.xml) or a Trados Studio or MultiTerm termbase
+  (.sdltb) can be added to the terminology files with
+  :menuselection:`Edit --> Terminology Files…`. A termbase can hold many
+  languages: Virtaal suggests its terms for the current language pair, from the
+  original's language to the translation's. Each term's other translations and
+  its fields, such as a definition, are kept with it. Virtaal only reads these
+  files, so it can't add terms to them.
+
+Reading a .sdltb termbase needs the access-parser Python module. Without it,
+export the termbase from MultiTerm as MultiTerm XML and add that file instead.
+
 The first time this version of Virtaal opens a ``tm.db`` from an older
 version, it saves a copy of it as ``tm-v0.db`` beside it before updating it.
 An older Virtaal can still use the updated file, and the copy can be deleted
