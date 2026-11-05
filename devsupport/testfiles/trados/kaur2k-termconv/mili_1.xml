@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mtf>
+    <conceptGrp>
+      <concept>8</concept>
+      <system type="entryClass">avalik</system>
+      <transacGrp>
+        <transac type="origination">super</transac>
+        <date>2003-04-14T22:19:22</date>
+      </transacGrp>
+      <transacGrp>
+        <transac type="modification">LPS</transac>
+        <date>2007-02-13T23:23:09</date>
+      </transacGrp>
+      <descripGrp>
+        <descrip type="Mõistetüüp">verbitüüpi</descrip>
+      </descripGrp>
+      <descripGrp>
+        <descrip type="Valdkonnakood">
+          <xref Tlink="Valdkond:IA">IA</xref>
+        </descrip>
+      </descripGrp>
+      <languageGrp>
+        <language type="en" lang="EN-GB"/>
+        <termGrp>
+          <term>abort</term>
+          <descripGrp>
+            <descrip type="Keelenditüüp">eelistermin</descrip>
+          </descripGrp>
+          <descripGrp>
+            <descrip type="Allikaviide">
+              <xref Tlink="Allikas:AAP-6">AAP-6</xref>; <xref Tlink="Allikas:ADDR-ENEN">ADDR-ENEN</xref>
+            </descrip>
+          </descripGrp>
+          <descripGrp>
+            <descrip type="Definitsioon">1. to terminate a mission for any reason other than enemy action. It may occur at any point after the beginning of the mission and prior to its completion. [<xref Tlink="Allikas:AAP-6">AAP-6</xref>]2. to discontinue aircraft take-off or missile launch [<xref Tlink="Allikas:AAP-6">AAP-6</xref>]</descrip>
+          </descripGrp>
+          <transacGrp>
+            <transac type="origination">HTM</transac>
+            <date>2003-10-02T17:30:52</date>
+          </transacGrp>
+          <transacGrp>
+            <transac type="modification">HTM</transac>
+            <date>2003-10-02T17:30:52</date>
+          </transacGrp>
+          <descripGrp>
+            <descrip type="Kuupäev">02.10.2003</descrip>
+          </descripGrp>
+        </termGrp>
+      </languageGrp>
+      <languageGrp>
+        <language type="fr" lang="FR"/>
+        <termGrp>
+          <term>avorter</term>
+          <descripGrp>
+            <descrip type="Keelenditüüp">eelistermin</descrip>
+          </descripGrp>
+          <descripGrp>
+            <descrip type="Allikaviide">
+              <xref Tlink="Allikas:AAP-6">AAP-6</xref>
+            </descrip>
+          </descripGrp>
+          <transacGrp>
+            <transac type="origination">HTM</transac>
+            <date>2003-10-02T17:30:52</date>
+          </transacGrp>
+          <transacGrp>
+            <transac type="modification">HTM</transac>
+            <date>2003-10-02T17:30:52</date>
+          </transacGrp>
+          <descripGrp>
+            <descrip type="Kuupäev">02.10.2003</descrip>
+          </descripGrp>
+        </termGrp>
+      </languageGrp>
+      <languageGrp>
+        <language type="et" lang="ET"/>
+        <termGrp>
+          <term>katkestus</term>
+          <descripGrp>
+            <descrip type="Keelenditüüp">eelistermin</descrip>
+          </descripGrp>
+          <descripGrp>
+            <descrip type="Definitsioon">1. ükskõik mis põhjusel, välja arvatud vaenlase tegevus, lõpetamata ülesanne. Katkestus võib toimuda mis tahes hetkel pärast tegevuse algust ja enne selle lõppu [AAP-6 tõlge]2. õhuki või raketi starti poole pealt katkestama [AAP-6 tõlge]</descrip>
+          </descripGrp>
+          <transacGrp>
+            <transac type="origination">HTM</transac>
+            <date>2003-10-02T17:30:52</date>
+          </transacGrp>
+          <transacGrp>
+            <transac type="modification">LPS</transac>
+            <date>2007-02-13T23:23:09</date>
+          </transacGrp>
+          <descripGrp>
+            <descrip type="Kuupäev">13.02.2007</descrip>
+          </descripGrp>
+        </termGrp>
+        <termGrp>
+          <term>katkestamine</term>
+          <transacGrp>
+            <transac type="origination">LPS</transac>
+            <date>2007-02-13T23:23:09</date>
+          </transacGrp>
+          <transacGrp>
+            <transac type="modification">LPS</transac>
+            <date>2007-02-13T23:23:09</date>
+          </transacGrp>
+          <descripGrp>
+            <descrip type="Keelenditüüp">eelistermin</descrip>
+          </descripGrp>
+          <descripGrp>
+            <descrip type="Kuupäev">13.02.2007</descrip>
+          </descripGrp>
+        </termGrp>
+      </languageGrp>
+    </conceptGrp>
+</mtf>
