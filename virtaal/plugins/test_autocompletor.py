@@ -10,6 +10,8 @@ from types import SimpleNamespace
 import pytest
 from gi.repository import GLib, Gtk
 from translate.misc.multistring import multistring
+from translate.storage.placeables import StringElem, general
+from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.plugins.autocompletor import AutoCompletor, Plugin
 from virtaal.views.widgets.textbox import TextBox
@@ -82,6 +84,27 @@ def _unit(source, target=''):
     return SimpleNamespace(source=source, target=target)
 
 
+def _parsing_ac(*parsers, comp_len=1):
+    main_controller = SimpleNamespace(placeables_controller=SimpleNamespace(parsers=list(parsers)))
+    return AutoCompletor(main_controller=main_controller, comp_len=comp_len)
+
+
+def _term_parser(term, *translations):
+    """A placeables parser that marks every occurrence of term as a
+    TerminologyPlaceable with the given translations, the way the
+    terminology plugin's matchers do."""
+
+    def parse(text):
+        if term not in text:
+            return None
+        before, _sep, after = text.partition(term)
+        placeable = TerminologyPlaceable([term])
+        placeable.translations = list(translations)
+        return [StringElem(before), placeable, StringElem(after)]
+
+    return parse
+
+
 def test_set_unit_collects_words_from_the_source_and_the_target():
     ac = _ac(comp_len=1)
 
@@ -117,13 +140,117 @@ def test_set_unit_collects_every_plural_form_skipping_empty_ones():
     assert {'file', 'files', 'lêers'} <= set(ac._word_list)
 
 
-def test_set_unit_with_no_unit_clears_every_word():
-    ac = _ac(comp_len=1)
-    ac.set_unit(_unit('See the example', 'Sien die voorbeeld'))
+def test_set_unit_with_no_unit_clears_every_candidate():
+    ac = _parsing_ac(general.UrlPlaceable.parse)
+    ac.set_unit(_unit('See http://example.com/', 'Sien http://example.com/'))
 
     ac.set_unit(None)
 
     assert ac._word_list == []
+    assert ac._fast_candidates == []
+
+
+def test_set_unit_has_no_fast_candidates_without_a_placeables_controller():
+    ac = _ac(comp_len=1)  # main_controller=None
+
+    ac.set_unit(_unit('See http://example.com/'))  # must not raise
+
+    assert ac._fast_candidates == []
+    assert 'example' in ac._word_list
+
+
+def test_set_unit_has_no_fast_candidates_with_no_parsers():
+    ac = _parsing_ac()
+
+    ac.set_unit(_unit('See http://example.com/'))
+
+    assert ac._fast_candidates == []
+
+
+def test_set_unit_offers_the_sources_placeables_as_fast_candidates():
+    ac = _parsing_ac(*general.parsers)
+
+    ac.set_unit(_unit('Open <b>%(name)s</b> at http://example.com/ in 2026'))
+
+    assert ac._fast_candidates == [
+        '<b>',
+        '%(name)s',
+        '</b>',
+        'http://example.com/',
+        '2026',
+    ]
+
+
+def test_set_unit_leaves_out_punctuation_and_too_short_placeables():
+    ac = _parsing_ac(*general.parsers)
+
+    ac.set_unit(_unit('Delete %s files… 42'))
+
+    assert ac._fast_candidates == []
+
+
+def test_set_unit_offers_term_translations_not_the_term_itself():
+    ac = _parsing_ac(_term_parser('Cancel', 'Kanselleer', 'Staak'))
+
+    ac.set_unit(_unit('Cancel the download'))
+
+    assert sorted(ac._fast_candidates) == ['Kanselleer', 'Staak']
+
+
+def test_set_unit_collects_fast_candidates_from_every_plural_source_form():
+    ac = _parsing_ac(general.NumberPlaceable.parse)
+
+    ac.set_unit(_unit(multistring(['1000 file', '2000 files'])))
+
+    assert ac._fast_candidates == ['1000', '2000']
+
+
+# autocomplete_fast() #
+
+
+def test_autocomplete_fast_completes_a_term_translation_at_a_short_prefix():
+    ac = _parsing_ac(_term_parser('Cancel', 'Kanselleer'))
+    ac.set_unit(_unit('Cancel'))
+
+    assert ac.autocomplete_fast('Ka') == ('Kanselleer', 'nselleer')
+
+
+def test_autocomplete_fast_completes_a_placeable_that_starts_with_punctuation():
+    ac = _parsing_ac(general.XMLTagPlaceable.parse)
+    ac.set_unit(_unit('Press </b> now'))
+
+    assert ac.autocomplete_fast('Druk nou </') == ('</b>', 'b>')
+
+
+def test_autocomplete_fast_completes_a_multi_word_term_translation():
+    ac = _parsing_ac(_term_parser('Close', 'Maak toe'))
+    ac.set_unit(_unit('Close'))
+
+    assert ac.autocomplete_fast('Maak t') == ('Maak toe', 'oe')
+
+
+def test_autocomplete_fast_needs_the_fast_completion_length():
+    ac = _parsing_ac(_term_parser('Cancel', 'Kanselleer'))
+    ac.set_unit(_unit('Cancel'))
+
+    assert ac.autocomplete_fast('K') == (None, '')
+
+
+def test_autocomplete_fast_does_not_complete_from_the_middle_of_a_word():
+    ac = _parsing_ac(_term_parser('Cancel', 'Kanselleer'))
+    ac.set_unit(_unit('Cancel'))
+
+    assert ac.autocomplete_fast('aKa') == (None, '')
+
+
+def test_autocomplete_fast_does_not_offer_a_completed_candidate():
+    ac = _parsing_ac(general.NumberPlaceable.parse)
+    ac.set_unit(_unit('In 2026'))
+
+    assert ac.autocomplete_fast('In 2026') == (None, '')
+
+
+# autocomplete() #
 
 
 def test_autocomplete_finds_the_first_matching_prefix_by_frequency():
@@ -398,6 +525,50 @@ def test_on_insert_text_schedules_and_applies_a_deferred_suggestion(monkeypatch)
     assert calls == [('block', 'sigid'), ('unblock', 'sigid')]
     start, end = textbox.buffer.get_selection_bounds()
     assert (start.get_offset(), end.get_offset()) == (3, 8)
+
+
+def test_on_insert_text_suggests_a_term_translation_below_comp_len(monkeypatch):
+    ac = _parsing_ac(_term_parser('Cancel', 'Kanselleer'), comp_len=4)
+    ac.set_unit(_unit('Cancel'))
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append(f),
+    )
+    textbox, _ = _insert_text_box(prefix='K', suffix='', buffer_text='Kanselleer')
+    ac._textbox_insert_ids = {textbox: 'sigid'}
+
+    ac._on_insert_text(textbox, text='a', offset=1, elem=None)
+
+    scheduled[0]()
+    assert textbox.suggestion == {'text': 'nselleer', 'offset': 2}
+
+
+def test_on_insert_text_suggests_a_placeable_after_a_separator_character(monkeypatch):
+    ac = _parsing_ac(general.XMLTagPlaceable.parse)
+    ac.set_unit(_unit('Press </b> now'))
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append(f),
+    )
+    textbox, _ = _insert_text_box(prefix='<', suffix='', buffer_text='</b>')
+    ac._textbox_insert_ids = {textbox: 'sigid'}
+
+    ac._on_insert_text(textbox, text='/', offset=1, elem=None)
+
+    scheduled[0]()
+    assert textbox.suggestion == {'text': 'b>', 'offset': 2}
+
+
+def test_on_insert_text_ignores_a_space_even_with_fast_candidates():
+    ac = _parsing_ac(general.XMLTagPlaceable.parse)
+    ac.set_unit(_unit('Press </b> now'))
+
+    ac._on_insert_text(SimpleNamespace(), text=' ', offset=0, elem=None)  # must not raise
+
+
+# Plugin - completely untested until now #
 
 
 def _plugin_main_controller(store=None, targets=None):
