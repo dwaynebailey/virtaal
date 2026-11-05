@@ -78,6 +78,7 @@ class TMServer:
 
         if tmfiles:
             self._load_files(tmfiles, source_lang, target_lang)
+        self.tmdb.start_backfill()
 
         # initialize url dispatcher
         self.rest = Bottle()

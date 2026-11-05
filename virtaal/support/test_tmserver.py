@@ -205,6 +205,15 @@ def test_add_unit_then_translate_unit_round_trips_over_http(tmp_path):
     assert matches[0]['target'] == 'chat'
 
 
+def test_the_server_fills_missing_abstracts_meanwhile(tmp_path, monkeypatch):
+    started = []
+    monkeypatch.setattr(tmserver.tmdb.TMDB, 'start_backfill', lambda self: started.append(self))
+
+    app = tmserver.TMServer(str(tmp_path / 'tm.db'), None)
+
+    assert started == [app.tmdb]
+
+
 def test_update_unit_changes_the_target(tmp_path):
     _, port = _start_server(tmp_path / 'tm.db')
     _request(port, 'PUT', '/en/fr/unit/dog', json.dumps({'source': 'dog', 'target': 'wrong'}))

@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 from translate.storage import base, pypo, tmx, xliff
 
-from virtaal.support import tmdb
+from virtaal.support import abstraction, tmdb
 from virtaal.support._testhelpers import OtherProcess, scale_lock_waits
 
 LONG = 'Open the selected translation file'  # Over 3 words: full-text search.
@@ -480,7 +480,7 @@ def test_a_file_another_process_migrated_meanwhile_is_left_alone(db_path, old_tm
 
 _OPEN = """
 import sys, time
-from virtaal.support import tmdb
+from virtaal.support import abstraction, tmdb
 time.sleep(max(0, float(sys.argv[2]) - time.time()))
 tmdb.TMDB(sys.argv[1])
 """
@@ -935,3 +935,152 @@ def test_translate_unit_keeps_other_regions_and_scripts_apart(db_path, stored, l
     db.add_dict({'source': SHORT, 'target': 'Translated', 'context': ''}, stored, 'de')
 
     assert db.translate_unit(SHORT, looked_up, 'de') == []
+
+
+# Abstracts: stored on insert, backfilled, and matched on.
+
+DELETE = 'Delete %(count)s files'
+DELETE_ABSTRACT = 'Delete  files'
+
+
+def _abstracts(db, table):
+    return db.cursor.execute('SELECT text, abstract FROM %s ORDER BY text' % table).fetchall()
+
+
+def test_the_schema_stores_this_abstraction_algorithms_abstracts():
+    assert tmdb.SCHEMA_ABSTRACTION[tmdb.SCHEMA_VERSION] == abstraction.ABSTRACTION_VERSION
+
+
+def test_a_unit_added_stores_its_sources_and_targets_abstracts(db_path):
+    db = tmdb.TMDB(db_path)
+
+    db.add_dict({'source': DELETE, 'target': 'Verwyder %(count)s lêers', 'context': ''}, 'en', 'af')
+    db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
+
+    assert _abstracts(db, 'sources') == [(DELETE, DELETE_ABSTRACT), (SHORT, SHORT)]
+    assert _abstracts(db, 'targets') == [
+        ('Maak dit oop', 'Maak dit oop'),
+        ('Verwyder %(count)s lêers', 'Verwyder  lêers'),
+    ]
+
+
+def test_a_synced_store_stores_abstracts(db_path):
+    db = tmdb.TMDB(db_path)
+
+    db.sync_store(PO, [_unit('Save _As', 'Stoor _as', 'k1')], 'en', 'af')
+
+    assert _abstracts(db, 'sources') == [('Save _As', 'Save As')]
+    assert _abstracts(db, 'targets') == [('Stoor _as', 'Stoor as')]
+
+
+def test_a_string_the_parsers_fail_on_stores_its_text(db_path, monkeypatch):
+    def fail(text):
+        raise ValueError(text)
+
+    monkeypatch.setattr(tmdb, 'abstract', fail)
+    db = tmdb.TMDB(db_path)
+
+    db.add_dict({'source': DELETE, 'target': 'Verwyder', 'context': ''}, 'en', 'af')
+
+    assert _abstracts(db, 'sources') == [(DELETE, DELETE)]
+
+
+def test_the_backfill_fills_what_an_older_virtaal_added(db_path, old_tmdb):
+    tmdb.TMDB(db_path)
+    _close(db_path)
+    old = old_tmdb.TMDB(db_path)
+    old.add_dict(
+        {'source': DELETE, 'target': 'Verwyder %(count)s lêers', 'context': ''}, 'en', 'af'
+    )
+    old.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
+    db = tmdb.TMDB(db_path)
+    assert {a for _t, a in _abstracts(db, 'sources') + _abstracts(db, 'targets')} == {None}
+
+    assert db.backfill_abstracts(batch_size=1) == 4
+
+    assert _abstracts(db, 'sources') == [(DELETE, DELETE_ABSTRACT), (SHORT, SHORT)]
+    assert [a for _t, a in _abstracts(db, 'targets')] == ['Maak dit oop', 'Verwyder  lêers']
+    assert db.backfill_abstracts() == 0
+
+
+def test_the_backfill_fills_a_migrated_file(db_path, old_tmdb):
+    _v0_file(old_tmdb, db_path, (DELETE, 'Verwyder %(count)s lêers'))
+    db = tmdb.TMDB(db_path)
+
+    assert db.backfill_abstracts() == 2
+    assert _abstracts(db, 'sources') == [(DELETE, DELETE_ABSTRACT)]
+
+
+def test_the_backfill_waits_while_another_process_writes(db_path, old_tmdb, monkeypatch, caplog):
+    _v0_file(old_tmdb, db_path, (SHORT, 'Maak dit oop'))
+    scale_lock_waits(monkeypatch)
+    db = tmdb.TMDB(db_path)
+
+    with caplog.at_level(logging.WARNING, logger=tmdb.logger.name):
+        with OtherProcess(db_path):
+            assert db.backfill_abstracts() == 0
+
+    assert 'Left TM abstracts for later' in caplog.text
+    assert _abstracts(db, 'sources') == [(SHORT, None)]
+    assert db.backfill_abstracts() == 2
+
+
+def test_the_backfill_runs_in_a_thread_with_its_own_connection(db_path, old_tmdb):
+    _v0_file(old_tmdb, db_path, (SHORT, 'Maak dit oop'))
+    db = tmdb.TMDB(db_path)
+
+    thread = db.start_backfill()
+    thread.join(10)
+
+    assert not thread.is_alive()
+    assert _abstracts(db, 'sources') == [(SHORT, SHORT)]
+    assert thread not in tmdb.TMDB._tm_dbs[db_path]
+
+
+def test_an_in_memory_database_has_nothing_to_backfill():
+    assert tmdb.TMDB(':memory:').start_backfill() is None
+
+
+@pytest.fixture
+def next_algorithm(monkeypatch):
+    """A schema version 2 for a changed abstraction algorithm, which
+    upper-cases."""
+
+    def apply():
+        monkeypatch.setattr(tmdb, 'SCHEMA_VERSION', 2)
+        monkeypatch.setitem(tmdb.MIGRATIONS, 2, tmdb.CLEAR_ABSTRACTS)
+        monkeypatch.setitem(tmdb.SCHEMA_ABSTRACTION, 2, 2)
+        monkeypatch.setattr(tmdb, 'abstract', lambda text: (text.upper(), []))
+
+    return apply
+
+
+def test_a_new_abstraction_algorithm_recomputes_every_abstract(db_path, next_algorithm):
+    db = tmdb.TMDB(db_path)
+    db.add_dict({'source': DELETE, 'target': 'Verwyder', 'context': ''}, 'en', 'af')
+    _close(db_path)
+    next_algorithm()
+
+    db = tmdb.TMDB(db_path)
+
+    assert db._user_version() == 2
+    assert _abstracts(db, 'sources') == [(DELETE, None)]
+    assert db.backfill_abstracts() == 2
+    assert _abstracts(db, 'sources') == [(DELETE, DELETE.upper())]
+    assert _abstracts(db, 'targets') == [('Verwyder', 'VERWYDER')]
+    assert not os.path.exists(db_path[: -len('.db')] + '-v0.db')
+
+
+def test_an_older_algorithm_writes_no_abstracts_into_a_newer_file(db_path):
+    db = tmdb.TMDB(db_path)
+    # A newer Virtaal's file: its user_version is past this one's.
+    db.cursor.execute('PRAGMA user_version = %d' % (tmdb.SCHEMA_VERSION + 1))
+    _close(db_path)
+    db = tmdb.TMDB(db_path)
+
+    db.add_dict({'source': DELETE, 'target': 'Verwyder', 'context': ''}, 'en', 'af')
+
+    assert _abstracts(db, 'sources') == [(DELETE, None)]
+    assert _abstracts(db, 'targets') == [('Verwyder', None)]
+    assert db.backfill_abstracts() == 0
+    assert _abstracts(db, 'sources') == [(DELETE, None)]

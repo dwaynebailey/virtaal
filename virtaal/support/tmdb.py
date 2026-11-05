@@ -49,12 +49,26 @@ from translate.search.lshtein import LevenshteinComparer
 from translate.storage import tmx
 
 from virtaal.support import shareddb
+from virtaal.support.abstraction import abstract
 
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
 
 SCHEMA_VERSION = 1
 """PRAGMA user_version of the schema below; 0 is a file an older Virtaal made."""
+
+SCHEMA_ABSTRACTION = {1: 1}
+"""The abstraction algorithm whose abstracts each schema version stores.
+A new algorithm needs a new schema version, whose migration clears the
+abstracts for the backfill to recompute, so that one file never mixes
+two algorithms."""
+
+CLEAR_ABSTRACTS = (
+    "UPDATE sources SET abstract = NULL",
+    "UPDATE targets SET abstract = NULL",
+)
+
+BACKFILL_BATCH = 500
 
 STORE_LEGACY = 0
 """Entries added before files were recorded, or without a file."""
@@ -118,6 +132,16 @@ SCHEMA_V1 = (
     "ALTER TABLE sources ADD COLUMN abstract VARCHAR DEFAULT NULL",
     "ALTER TABLE targets ADD COLUMN abstract VARCHAR DEFAULT NULL",
 )
+
+MIGRATIONS = {1: SCHEMA_V0 + SCHEMA_V1}
+"""The statements bringing a file up to each schema version from the one
+before. A later version that changes only the abstraction algorithm
+migrates with CLEAR_ABSTRACTS."""
+
+# Only a process whose schema version is the file's writes an abstract:
+# an older one leaves NULL for the newer one to fill. Read in the same
+# statement as the write, so a migration can't come in between.
+_ABSTRACT_IF_CURRENT = "CASE WHEN (SELECT user_version FROM pragma_user_version) = ? THEN ? END"
 
 
 class LanguageError(Exception):
@@ -195,15 +219,17 @@ class TMDB:
             self.cursor.execute("BEGIN IMMEDIATE")
 
     def _migrate(self):
-        if self._has_table("sources"):
+        if self._user_version() == 0 and self._has_table("sources"):
             self._back_up()
         self._begin()
         # Another process may have migrated the file while this one waited.
-        if self._user_version() >= SCHEMA_VERSION:
+        version = self._user_version()
+        if version >= SCHEMA_VERSION:
             self.connection.commit()
             return
-        for statement in SCHEMA_V0 + SCHEMA_V1:
-            self.cursor.execute(statement)
+        for step in range(version + 1, SCHEMA_VERSION + 1):
+            for statement in MIGRATIONS[step]:
+                self.cursor.execute(statement)
         self._file_under_legacy()
         self.cursor.execute("PRAGMA user_version = %d" % SCHEMA_VERSION)
         self.connection.commit()
@@ -273,6 +299,68 @@ class TMDB:
         self.cursor.execute(
             "UPDATE stores SET updated = ? WHERE store_id = ?", (now, LEGACY_STORE_ID)
         )
+
+    def backfill_abstracts(self, batch_size=BACKFILL_BATCH):
+        """Fill in the abstracts that are missing, such as those of entries
+        an older Virtaal added, a batch per transaction. Stops early when
+        another process holds the file, or when it has another schema
+        version. Returns how many it filled."""
+        filled = 0
+        for table, key in (("sources", "sid"), ("targets", "tid")):
+            last = 0
+            while True:
+                if self._user_version() != SCHEMA_VERSION:
+                    return filled
+                rows = self.cursor.execute(
+                    "SELECT %s, text FROM %s WHERE %s > ? AND abstract IS NULL "
+                    "ORDER BY %s LIMIT ?" % (key, table, key, key),
+                    (last, batch_size),
+                ).fetchall()
+                self.connection.commit()
+                if not rows:
+                    break
+                last = rows[-1][0]
+                values = [(_abstract(text), row_id, SCHEMA_VERSION) for row_id, text in rows]
+                try:
+                    self._begin()
+                    self.cursor.executemany(
+                        "UPDATE %s SET abstract = ? WHERE %s = ? AND abstract IS NULL "
+                        "AND (SELECT user_version FROM pragma_user_version) = ?" % (table, key),
+                        values,
+                    )
+                    self.connection.commit()
+                except dbapi2.OperationalError as e:
+                    self.connection.rollback()
+                    if not shareddb.is_locked(e):
+                        raise
+                    # The next open carries on.
+                    logger.warning("Left TM abstracts for later: %s", e)
+                    return filled
+                filled += len(rows)
+        return filled
+
+    def start_backfill(self):
+        """Run backfill_abstracts() in a thread of its own, with its own
+        connection, so the server answers meanwhile."""
+        if self.db_file == ":memory:" or self.db_file.startswith("file:"):
+            # Another thread's connection is another database.
+            return None
+
+        def run():
+            try:
+                filled = self.backfill_abstracts()
+                if filled:
+                    logger.debug("Filled %d TM abstracts", filled)
+            except Exception:
+                logger.exception("Could not fill TM abstracts")
+            finally:
+                connection, _cursor = self._tm_db.pop(threading.current_thread(), (None, None))
+                if connection is not None:
+                    connection.close()
+
+        thread = threading.Thread(target=run, name="tm-abstracts", daemon=True)
+        thread.start()
+        return thread
 
     def init_fulltext(self) -> None:
         """Detects if fts3 fulltext indexing module exists, initializes fulltext table if it does."""
@@ -384,8 +472,16 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         """The tid of C{unit}'s target, inserted with its source if new."""
         try:
             self.cursor.execute(
-                "INSERT INTO sources (text, context, lang, length) VALUES(?, ?, ?, ?)",
-                (unit["source"], unit["context"], source_lang, len(unit["source"])),
+                "INSERT INTO sources (text, context, lang, length, abstract) "
+                "VALUES(?, ?, ?, ?, %s)" % _ABSTRACT_IF_CURRENT,
+                (
+                    unit["source"],
+                    unit["context"],
+                    source_lang,
+                    len(unit["source"]),
+                    SCHEMA_VERSION,
+                    _abstract(unit["source"]),
+                ),
             )
             sid = self.cursor.lastrowid
         except dbapi2.IntegrityError:
@@ -397,8 +493,16 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             (sid,) = self.cursor.fetchone()
         try:
             self.cursor.execute(
-                "INSERT INTO targets (sid, text, lang, time) VALUES (?, ?, ?, ?)",
-                (sid, unit["target"], target_lang, int(time.time())),
+                "INSERT INTO targets (sid, text, lang, time, abstract) "
+                "VALUES (?, ?, ?, ?, %s)" % _ABSTRACT_IF_CURRENT,
+                (
+                    sid,
+                    unit["target"],
+                    target_lang,
+                    int(time.time()),
+                    SCHEMA_VERSION,
+                    _abstract(unit["target"]),
+                ),
             )
             return self.cursor.lastrowid
         except dbapi2.IntegrityError:
@@ -829,6 +933,15 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         results = results[: self.max_candidates]
         logger.debug("results: %s", results)
         return results
+
+
+def _abstract(text):
+    """text's abstract; text itself should the placeable parsers fail."""
+    try:
+        return abstract(text)[0]
+    except Exception:
+        logger.debug("No abstract for %r", text, exc_info=True)
+        return text
 
 
 def unit_languages(unit, source_lang=None, target_lang=None):
