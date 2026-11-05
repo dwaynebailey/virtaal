@@ -21,6 +21,14 @@ That installs a git hook so the checks run automatically before each
 commit. ``pre-commit`` itself also still works unmodified against the
 same config file, if you'd rather use that.
 
+Dependencies and uv.lock
+========================
+
+``pyproject.toml`` gives minimum versions; ``uv.lock`` pins every
+package, including indirect ones. After changing a dependency, run
+``uv lock`` and commit both files: the ``uv-lock`` check fails while
+``uv.lock`` is out of date.
+
 Copyright headers
 ===================
 
