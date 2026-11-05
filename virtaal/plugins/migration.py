@@ -56,7 +56,9 @@ class Plugin(BasePlugin):
         # Poedit 2 and later keep their TM as a Lucene index here, which
         # only Poedit can read; it exports it as TMX.
         if platform.is_mac:
-            poedit_data = path.expanduser('~/Library/Application Support/Poedit')
+            poedit_data = path.join(
+                path.expanduser('~'), 'Library', 'Application Support', 'Poedit'
+            )
         elif platform.is_windows:
             poedit_data = path.join(os.environ.get('APPDATA', ''), 'Poedit')
         else:

@@ -480,6 +480,7 @@ def test_init_plugin_looks_for_the_poedit_tm_where_poedit_keeps_it(
     monkeypatch.setattr(migration.platform, 'is_mac', is_mac)
     monkeypatch.setattr(migration.platform, 'is_windows', is_windows)
     monkeypatch.setenv('HOME', str(tmp_path / 'home'))
+    monkeypatch.setenv('USERPROFILE', str(tmp_path / 'home'))
     monkeypatch.setenv('APPDATA', str(tmp_path / 'appdata'))
     monkeypatch.setenv('XDG_DATA_HOME', str(tmp_path / 'xdg'))
     plugin = _plugin_for_init(tmp_path, has_anything=False)
