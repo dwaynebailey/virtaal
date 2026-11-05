@@ -33,6 +33,11 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Pin pip installs to uv.lock
+        uses: $/.github/actions/uv-constraints
+        with:
+          args: --only-group manifest
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip

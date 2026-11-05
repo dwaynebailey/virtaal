@@ -64,6 +64,11 @@ jobs:
             python3-dev
             xvfb
 
+      - name: Pin pip installs to uv.lock
+        uses: $/.github/actions/uv-constraints
+        with:
+          args: --extra spellcheck --group test --group gtk
+
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
@@ -114,6 +119,11 @@ jobs:
         run: |
           python3 -m venv --system-site-packages .venv
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Pin pip installs to uv.lock
+        uses: $/.github/actions/uv-constraints
+        with:
+          args: --extra spellcheck --group test --group gtk
 
       - name: Install Python dependencies
         run: |
@@ -215,6 +225,11 @@ jobs:
           $sitepkgs = python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])"
           $content = "import os`nif os.name == 'nt':`n    os.add_dll_directory(r'C:\gtk\bin')`n"
           Set-Content -Path "$sitepkgs\sitecustomize.py" -Value $content -NoNewline
+
+      - name: Pin pip installs to uv.lock
+        uses: $/.github/actions/uv-constraints
+        with:
+          args: --extra spellcheck --group test --group gtk
 
       - name: Install Python dependencies
         run: |

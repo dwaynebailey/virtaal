@@ -57,6 +57,11 @@ jobs:
             python3-dev
             xvfb
 
+      - name: Pin pip installs to uv.lock
+        uses: $/.github/actions/uv-constraints
+        with:
+          args: --extra spellcheck --group test --group gtk
+
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
