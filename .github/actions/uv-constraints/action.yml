@@ -18,5 +18,5 @@ runs:
         ARGS: ${{ inputs.args }}
       run: | # zizmor: ignore[github-env]
         # shellcheck disable=SC2086  # ARGS holds several options
-        uv export --locked --no-hashes --no-emit-project $ARGS -o "$RUNNER_TEMP/constraints.txt"
+        uv export --quiet --locked --no-hashes --no-emit-project $ARGS -o "$RUNNER_TEMP/constraints.txt"
         echo "PIP_CONSTRAINT=$RUNNER_TEMP/constraints.txt" >> "$GITHUB_ENV"

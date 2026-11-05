@@ -92,7 +92,7 @@ for mod, dist in ((gi, "PyGObject"), (cairo, "pycairo")):
         os.symlink(src, os.path.join(sys.argv[1], os.path.basename(src)))
 EOF
 export PIP_CONSTRAINT="$OUT/constraints.txt"
-uv export --locked --no-hashes --no-emit-project --extra spellcheck --group build-app -o "$PIP_CONSTRAINT"
+devsupport/packaging/export_constraints.sh "$PIP_CONSTRAINT"
 "$PYTHON" -m pip install -q setuptools wheel pyinstaller translate-toolkit
 "$PYTHON" -m pip install -q --no-build-isolation ".[spellcheck]"
 "$PYTHON" devsupport/packaging/macos/check_build_venv.py

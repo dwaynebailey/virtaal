@@ -1110,7 +1110,12 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/Library/Caches/pip
-          key: pip-${{ matrix.runner }}-${{ runner.arch }}-${{ hashFiles('pyproject.toml') }}
+          key: pip-${{ matrix.runner }}-${{ runner.arch }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+
+      - name: Pin pip installs to uv.lock
+        uses: $/.github/actions/uv-constraints
+        with:
+          args: --extra spellcheck --group test
 
       - name: Install Python dependencies
         run: |
@@ -1232,7 +1237,11 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/Library/Caches/pip
-          key: pip-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('pyproject.toml') }}
+          key: pip-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.7"
 
       - name: Hash the libraries PyInstaller will collect
         id: bincache

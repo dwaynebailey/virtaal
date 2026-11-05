@@ -17,8 +17,6 @@
 set -eu
 cd "$(git rev-parse --show-toplevel)"
 
-PYINSTALLER_VERSION=6.22.3  # keep in step with ci.yml's Windows build
-
 # A fresh venv, not .venv: PyInstaller bundles whatever an import trace
 # reaches, so a stray package can ship a native library that shadows
 # GTK's (#3871). Only Homebrew's PyGObject and pycairo are linked in, not
@@ -44,8 +42,10 @@ for mod, dist in ((gi, "PyGObject"), (cairo, "pycairo")):
 EOF
 # setup.py imports translate-toolkit to compile .mo files, so it has to
 # be present before virtaal's own install resolves it to the pinned one.
-"$PYTHON" -m pip install -q setuptools==84.0.0 wheel==0.48.0 \
-    "pyinstaller==$PYINSTALLER_VERSION" translate-toolkit
+mkdir -p build
+export PIP_CONSTRAINT="$PWD/build/constraints.txt"
+devsupport/packaging/export_constraints.sh "$PIP_CONSTRAINT"
+"$PYTHON" -m pip install -q setuptools wheel pyinstaller translate-toolkit
 "$PYTHON" -m pip install -q --no-build-isolation ".[spellcheck]"
 "$PYTHON" devsupport/packaging/macos/check_build_venv.py
 

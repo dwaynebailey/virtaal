@@ -19,7 +19,10 @@ PYTHON="$PWD/.venv/bin/python3"
   exit 1
 }
 
-"$PYTHON" -m pip install -q dmgbuild==1.6.7
+mkdir -p build
+export PIP_CONSTRAINT="$PWD/build/constraints.txt"
+devsupport/packaging/export_constraints.sh "$PIP_CONSTRAINT"
+"$PYTHON" -m pip install -q dmgbuild
 
 rm -f dist/Virtaal.dmg
 "$PYTHON" -m dmgbuild --settings devsupport/packaging/macos/dmgbuild-settings.py \

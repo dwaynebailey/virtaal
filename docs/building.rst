@@ -216,7 +216,7 @@ Building a distributable ``.app``/``.dmg`` uses `PyInstaller
 <https://dmgbuild.readthedocs.io/>`_ on top of the above, and bundles
 Homebrew's Adwaita icon theme with librsvg to draw it::
 
-  brew install adwaita-icon-theme librsvg
+  brew install adwaita-icon-theme librsvg uv
   devsupport/packaging/macos/build_standalone.sh
   devsupport/packaging/macos/codesign_app.sh
   devsupport/packaging/macos/build_dmg.sh
@@ -227,7 +227,8 @@ The first produces ``dist/Virtaal.app`` (PyInstaller, settings in
 can see packages Virtaal doesn't depend on (PyInstaller may bundle
 them); the second signs it with
 the hardened runtime; the third wraps it into ``dist/Virtaal.dmg``
-(settings in ``devsupport/packaging/macos/dmgbuild-settings.py``).
+(settings in ``devsupport/packaging/macos/dmgbuild-settings.py``). The
+Python packages they install come at ``uv.lock``'s versions.
 CI's ``build-macos-app`` job runs these same scripts and uploads the
 results as workflow artifacts on every push.
 
