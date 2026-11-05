@@ -45,8 +45,11 @@ Required Packages
 The remaining Python packages above are all declared in ``pyproject.toml`` and
 installed automatically by ``pip install .`` - only GTK3/PyGObject/cairo
 and pycairo need installing separately first. ``pyproject.toml`` also
-has extras: ``spellcheck`` (pyenchant), ``test`` (see :doc:`testing`)
-and ``docs`` (Sphinx).
+has a ``spellcheck`` extra (pyenchant) and dependency groups for
+development: ``test`` (see :doc:`testing`), ``docs`` (Sphinx), ``gtk``
+(PyGObject and pycairo), ``build-app`` (PyInstaller, dmgbuild), ``lint``
+and ``manifest``. It gives minimum versions; ``uv.lock`` has the exact
+versions CI and the release builds use.
 
 .. _building#optional_packages:
 
@@ -82,6 +85,11 @@ You should be able to run Virtaal from the source tree. If you would like to
 install Virtaal::
 
   pip install .
+
+To get the locked versions in ``.venv`` instead, use
+`uv <https://docs.astral.sh/uv/>`_::
+
+  uv sync --extra spellcheck --group gtk
 
 .. _building#distribution_packagers:
 
@@ -200,7 +208,7 @@ gtkspell3`` for spell checking)::
   brew install pygobject3 gtk+3 gtk-mac-integration enchant gtkspell3
   python3 -m venv --system-site-packages .venv
   . .venv/bin/activate
-  pip install .[test,spellcheck]
+  pip install .[spellcheck] --group test
   python bin/virtaal
 
 Building a distributable ``.app``/``.dmg`` uses `PyInstaller

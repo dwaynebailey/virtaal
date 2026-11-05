@@ -118,9 +118,8 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
-          # The docs extra's own pins, without building virtaal itself.
-          python -c "import tomllib; print('\n'.join(tomllib.load(open('pyproject.toml', 'rb'))['project']['optional-dependencies']['docs']))" > "$RUNNER_TEMP/docs-requirements.txt"
-          pip install -r "$RUNNER_TEMP/docs-requirements.txt"
+          # The docs group, without building virtaal itself.
+          pip install --group docs
           # update-linguas.py --report reads po/virtaal.priorities.yaml.
           python -c "import tomllib; print(next(d for d in tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies'] if d.startswith('PyYAML')))" > "$RUNNER_TEMP/yaml-requirement.txt"
           pip install -r "$RUNNER_TEMP/yaml-requirement.txt"
@@ -491,8 +490,8 @@ jobs:
         # Not `python setup.py install` - unreliable about where it
         # puts the script.
         run: |
-          # shellcheck disable=SC2102  # .[test] is pip extras syntax, not a glob range
-          pip install .[test,spellcheck]
+          # shellcheck disable=SC2102  # .[spellcheck] is pip extras syntax, not a glob range
+          pip install .[spellcheck] --group test
 
       - name: Compile-check all Python files
         if: steps.queue.outputs.tested != 'true'
@@ -561,8 +560,8 @@ jobs:
       - name: Install virtaal
         run: |
           pip install --upgrade pip
-          # shellcheck disable=SC2102  # .[test] is pip extras syntax, not a glob range
-          pip install .[test,spellcheck]
+          # shellcheck disable=SC2102  # .[spellcheck] is pip extras syntax, not a glob range
+          pip install .[spellcheck] --group test
 
       - name: Run tests
         if: steps.queue.outputs.tested != 'true'
@@ -1103,7 +1102,7 @@ jobs:
         # --system-site-packages venv above sees Homebrew's `gi` directly.
         # --ignore-installed keeps every other dependency in the venv at
         # pyproject.toml's version instead of reusing Homebrew's copy.
-        run: pip install --ignore-installed .[test,spellcheck]
+        run: pip install --ignore-installed .[spellcheck] --group test
 
       - name: Compile-check all Python files
         if: steps.queue.outputs.tested != 'true'
@@ -1712,7 +1711,7 @@ jobs:
         # the tests expect a checkout; Flatpak-only code has its own tests.
         # Uninstalled afterwards so the runtime cache doesn't keep it.
         run: |
-          read -ra deps <<< "$(python3 -c 'import tomllib; print(" ".join(d for d in tomllib.load(open("pyproject.toml", "rb"))["project"]["optional-dependencies"]["test"] if not d.startswith("pytest-cov")))')"
+          read -ra deps <<< "$(python3 -c 'import tomllib; print(" ".join(d for d in tomllib.load(open("pyproject.toml", "rb"))["dependency-groups"]["test"] if not d.startswith("pytest-cov")))')"
           xvfb-run -a --server-args="-screen 0 1024x768x24" dbus-run-session -- \
             flatpak run --devel --filesystem="$GITHUB_WORKSPACE" --command=sh io.github.translate.Virtaal \
             -euxc 'cd "$1"; shift; python3 -m pip install --target /tmp/testdeps "$@"; PYTHONPATH=/tmp/testdeps env -u FLATPAK_ID python3 -m pytest -rvxs -n auto --dist loadgroup virtaal' \

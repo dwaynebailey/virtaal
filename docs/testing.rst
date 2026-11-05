@@ -30,10 +30,15 @@ exact Linux packages:
   checking tests are skipped without them
 - Xvfb, on Linux without a real display (see below)
 
-Run it the same way CI does::
+Run it the same way CI does (``--group`` needs pip 25.1 or newer)::
 
-  pip install .[test,spellcheck]
+  pip install .[spellcheck] --group test
   pytest -rvxs virtaal
+
+Or with uv, using the locked versions::
+
+  uv sync --extra spellcheck --group test --group gtk
+  uv run pytest -rvxs virtaal
 
 On Linux without a real display, wrap it in ``xvfb-run`` (CI does)::
 
@@ -231,7 +236,7 @@ installs inside the VM, rather than improvising a different setup:
    on ``PATH``), set the same environment variables ``ci.yml``'s Windows job
    sets - ``PKG_CONFIG_PATH``, ``GI_TYPELIB_PATH``, ``INCLUDE``/``LIB`` pointing
    at ``C:\gtk``, and add ``C:\gtk\bin`` to ``PATH`` - before
-   ``pip install .[test]``. Read through the
+   ``pip install . --group test``. Read through the
    ``test-windows`` job's steps directly for the exact current values and
    ordering (some of them, like ``PKG_CONFIG_PATH``, get silently
    overwritten by other tools if set in the wrong order - see that

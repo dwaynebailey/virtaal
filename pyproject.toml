@@ -31,43 +31,53 @@ classifiers = [
 # system, which varies wildly by platform (apt/Homebrew/gvsbuild) - see
 # each CI job's prerequisites.
 # It's a documented system prerequisite, not a normal pip dependency,
-# same reason most GTK Python projects don't declare it either.
+# same reason most GTK Python projects don't declare it either; the gtk
+# dependency group below has them for platforms that build them.
+# Minimum versions here; uv.lock has the exact ones.
 dependencies = [
     # The levenshtein extra brings RapidFuzz, the fast fuzzy matcher
     # behind TM suggestions; without it translate-toolkit falls back to
     # a slow pure-Python one.
-    "translate-toolkit[levenshtein]==3.20.0",
+    "translate-toolkit[levenshtein]>=3.20.0",
     # translate-toolkit gates Fluent (.ftl) support behind its own
     # "fluent" extra rather than a plain dependency - without this,
     # translate.storage.factory still lists "Fluent file" in the
     # supported-formats list (and Virtaal's Open dialog offers it),
     # but actually opening one raises ModuleNotFoundError.
-    "fluent.syntax==0.19.0",
-    "pycurl==7.48.0",
+    "fluent.syntax>=0.19.0",
+    "pycurl>=7.48.0",
     # pycurl's own wheel bundles no CA bundle to verify against - see
     # httpclient.py's own _configure_ca_bundle().
-    "certifi==2026.10.23",
-    "diff_match_patch==20241021",
-    "lxml==6.1.3",
-    "cheroot==11.1.2",
-    "bottle==0.13.4",
+    "certifi>=2026.10.23",
+    "diff_match_patch>=20241021",
+    "lxml>=6.1.3",
+    "cheroot>=11.1.2",
+    "bottle>=0.13.4",
     # translate-toolkit's tr_lang() (language-pair labels, font preview
     # text) prefers pycountry's bundled locale data over the system
     # iso-codes package - without it, those names silently fall back to
     # English wherever the OS doesn't happen to have iso-codes installed.
-    "pycountry==26.2.16",
-    "PyYAML==6.0.3",
+    "pycountry>=26.2.16",
+    "PyYAML>=6.0.3",
     # Numbers in the UI language's own format (CLDR patterns and symbols).
-    "babel==2.18.0",
+    "babel>=2.18.0",
 ]
 
 [project.optional-dependencies]
-spellcheck = ["pyenchant==3.3.0"]
-test = ["pytest==9.1.1", "pytest-cov==7.1.0", "pytest-xdist==3.8.0", "pytest-timeout==2.4.0"]
-docs = ["Sphinx==9.1.0; python_version >= '3.12'"]
+spellcheck = ["pyenchant>=3.3.0"]
+
+[dependency-groups]
+test = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "pytest-xdist>=3.8.0", "pytest-timeout>=2.4.0"]
+docs = ["Sphinx>=9.1.0; python_version >= '3.12'"]
 # Not wired into pre-commit or CI - GTK/GI stub coverage isn't good
 # enough yet for a repo-wide rollout.
-type-check = ["ty==0.0.91"]
+type-check = ["ty>=0.0.91"]
+# Building these needs GTK3's headers; macOS uses Homebrew's instead.
+gtk = ["pycairo>=1.29.1", "pygobject>=3.58.0"]
+build-app = ["pyinstaller>=6.22.3", "dmgbuild>=1.6.7; sys_platform == 'darwin'"]
+lint = ["prek>=0.5.10", "pylint>=4.1.3", "ruff>=0.17.2"]
+# update-asset-manifest.yml's check, which doesn't install Virtaal.
+manifest = ["lxml>=6.1.3", "PyYAML>=6.0.3"]
 
 [project.urls]
 Homepage = "https://virtaal.translatehouse.org"
@@ -168,7 +178,7 @@ omit = [
 fail_under = 87
 
 [tool.codespell]
-skip = "*.po,*.pot,po/*,ChangeLog,build,dist,*.egg-info,docs/_themes,devsupport/testfiles,.git,virtaal/support/test_statsdb_ported.py,devsupport/packaging/windows/languages/*"
+skip = "*.po,*.pot,po/*,ChangeLog,build,dist,*.egg-info,docs/_themes,devsupport/testfiles,.git,virtaal/support/test_statsdb_ported.py,devsupport/packaging/windows/languages/*,uv.lock"
 # test_statsdb_ported.py: verbatim French/Afrikaans PO fixture content
 # ported from translate-toolkit's own test suite, same reasoning as
 # skipping *.po/*.pot themselves. devsupport/packaging/windows/languages/:
