@@ -308,8 +308,38 @@ It is safe to delete and/or rename the file.
 
 .. _using_virtaal#trados:
 
-Trados translation memories and termbases
------------------------------------------
+Trados files
+------------
+Trados Studio bilingual files (.sdlxliff) open like other XLIFF files.
+Where a unit holds one Trados segment, Virtaal also uses what Trados keeps
+with it:
+
+- The segment's Trados status is the unit's state:
+
+  ======================================== ==============
+  Trados status                            Virtaal state
+  ======================================== ==============
+  Not translated (no status), with text    Needs work
+  Rejected Translation, Rejected Sign-off  Rejected
+  Draft                                    Needs review
+  Translated                               Translated
+  Approved Translation, Approved Sign-off  Reviewed
+  ======================================== ==============
+
+  Choosing another state sets the matching Trados status (Rejected and
+  Reviewed set Rejected Translation and Approved Translation; Untranslated
+  and Needs work clear the status). A unit whose state you don't change keeps
+  its status, Sign-off included.
+- Where the translation came from, such as ``tm, 100% match``, shows below
+  the translation, as do Trados comments on the unit.
+- A locked segment shows its translation and state but can't be changed, and
+  Replace skips it.
+
+A unit that holds several Trados segments keeps the plain XLIFF state, and its
+Trados status is left as it is. Virtaal doesn't handle Trados tracked changes:
+both the added and the deleted text show in the translation, each as a
+placeable.
+
 Translation memories and termbases from Trados can be used as they are,
 without Trados:
 
