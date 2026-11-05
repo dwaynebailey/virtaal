@@ -284,11 +284,14 @@ def fullest_catalog(locale_dirs, domain):
     return max(candidates, key=_mo_count, default=None)
 
 
-def _keep_untranslated(path):
-    """Clears path's translation of each message _untranslated() names."""
+def _finish_po(path):
+    """Clears path's translation of each message _untranslated() names,
+    and gives it English plural forms in place of the template's
+    placeholder, which gettext can't parse."""
     from translate.storage import po
 
     store = po.pofile.parsefile(path)
+    store.updateheaderplural(2, "(n != 1)")
     for unit in store.units:
         if not unit.isheader() and _untranslated(unit.source):
             unit.target = ""
@@ -305,7 +308,7 @@ def _generate_virtaal_mo(code, mo_dir):
                 podebug.convertpo(infile, outfile, None, format=VIRTAAL_TAG)
             else:
                 podebug.convertpo(infile, outfile, None, rewritestyle=LOCALES[code])
-        _keep_untranslated(tmp_po)
+        _finish_po(tmp_po)
 
         mo_path = os.path.join(mo_dir, "virtaal.mo")
         with open(tmp_po, "rb") as compile_in, open(mo_path, "w") as compile_out:

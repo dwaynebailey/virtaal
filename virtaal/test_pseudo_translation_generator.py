@@ -172,3 +172,11 @@ def test_pseudo_level_tags_virtaals_catalog_from_the_priority_file(
     assert t.gettext("_File") == "1:_File"
     assert t.gettext("Settings") == "2:Settings"
     assert t.gettext("Add Term") == "?:Add Term"
+
+
+def test_a_pseudo_locale_has_english_plural_forms(generator, tmp_path):
+    mo = generator.generate_locale("pseudo", str(tmp_path))
+    with open(mo, "rb") as f:
+        translation = gettext.GNUTranslations(f)
+
+    assert [translation.plural(n) for n in (0, 1, 2)] == [1, 0, 1]
