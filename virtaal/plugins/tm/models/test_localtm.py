@@ -13,12 +13,13 @@ import sys
 from types import SimpleNamespace
 
 import pytest
-from gi.repository import GObject
+from gi.repository import GObject, Gtk
 from translate.storage import pypo
 
 from virtaal.common import SignalTracker, pan_app
 from virtaal.common.platform import Platform
 from virtaal.controllers.baseplugin import PluginUnsupported
+from virtaal.plugins.tm._testhelpers import fake_controller
 from virtaal.plugins.tm.models import localtm
 from virtaal.plugins.tm.models.localtm import TMModel, find_free_port
 from virtaal.support import helperprocess, tmdb
@@ -661,3 +662,73 @@ def test_store_calls_report_a_full_queue(call):
     getattr(model, call)(*args[call], done, error)
 
     assert results == [('error',)]
+
+
+# Opening it: Configure… on the local TM in the sources dialog.
+
+
+def test_the_local_tm_model_opens_the_dialog_from_configure(monkeypatch):
+    monkeypatch.setattr(
+        TMModel,
+        'load_config',
+        lambda self: setattr(self, 'config', dict(TMModel.default_config)),
+    )
+    monkeypatch.setattr(TMModel, '_check_config', lambda self: None)
+    monkeypatch.setattr(TMModel, '_pick_port', lambda self: 1)
+    monkeypatch.setattr(TMModel, '_launch_tmserver', lambda self, command, port: None)
+    controller = fake_controller()
+    controller.min_quality, controller.max_matches = 75, 3
+    controller.main_controller.store_controller = controller
+    controller.main_controller.view = SimpleNamespace(main_window=Gtk.Window())
+    model = TMModel('localtm', controller)
+    shown = []
+    from virtaal.plugins.tm.localtmdialog import LocalTMDialog
+
+    monkeypatch.setattr(LocalTMDialog, 'show', lambda self: shown.append(self))
+    parent = Gtk.Window()
+
+    model.configure_func(parent)
+
+    (dialog,) = shown
+    assert dialog.model is model
+    assert dialog.dialog.get_transient_for() is parent
+    dialog.dialog.destroy()
+
+
+def test_the_sources_dialog_offers_configure_only_while_the_local_tm_is_on(monkeypatch):
+    from virtaal.views import backendselect
+
+    model = SimpleNamespace(configure_func=lambda parent: None)
+    runs = []
+
+    class _SelectDialog:
+        def __init__(self, **kwargs):
+            pass
+
+        def set_icon(self, icon):
+            pass
+
+        def connect(self, *args):
+            pass
+
+        def run(self, items):
+            runs.append({item['data']['internal_name']: item['config'] for item in items})
+
+    monkeypatch.setattr('virtaal.views.widgets.selectdialog.SelectDialog', _SelectDialog)
+    for plugins in ({'localtm': model}, {}):
+        plugin_controller = SimpleNamespace(
+            _find_plugin_names=lambda: ['localtm'],
+            get_plugin_info=lambda name: {'display_name': 'Local TM', 'description': ''},
+            plugins=plugins,
+        )
+        backendselect.select_backends(
+            SimpleNamespace(view=SimpleNamespace(main_window=Gtk.Window())),
+            plugin_controller,
+            {'disabled_models': []},
+            'basetmmodel',
+            'title',
+            'message',
+            (1, 1),
+        )
+
+    assert runs == [{'localtm': model.configure_func}, {'localtm': None}]

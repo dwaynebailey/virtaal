@@ -50,6 +50,8 @@ class TMModel(remotetm.TMModel):
         # Do not use super() here, as remotetm.TMModel does a bit more than we
         # want in this case.
         BaseTMModel.__init__(self, controller)
+        # Configure… in the sources dialog opens the Local Translation Memory dialog.
+        self.configure_func = self.configure
         self._signal_tracker.connect(
             self.controller.main_controller.store_controller, "store-saved", self.push_store
         )
@@ -128,6 +130,11 @@ class TMModel(remotetm.TMModel):
         except OSError:
             logging.exception('Failed to start TM server')
             raise
+
+    def configure(self, parent):
+        from ..localtmdialog import LocalTMDialog
+
+        LocalTMDialog(self, parent).show()
 
     def push_store(self, store_controller):
         """Sync the saved file into the local TM: a changed unit replaces
