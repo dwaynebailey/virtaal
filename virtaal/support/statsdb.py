@@ -53,6 +53,13 @@ from virtaal.support import (
 
 logger = logging.getLogger(__name__)
 
+# What the toolkitbuild column holds: the stats of a file depend on both
+# translate-toolkit's reading of it and Virtaal's. Raise REVISION when
+# Virtaal reads some files' units differently, and caches made before
+# are dropped. 1: a Trados segment is a unit, with its own state (#4625).
+REVISION = 1
+CACHE_BUILD = toolkitversion.build * 100 + REVISION
+
 brtagre = re.compile(r"<br\s*?/?>")
 # xmltagre is a direct copy of the from placeables/general.py
 xmltagre = re.compile(
@@ -321,7 +328,7 @@ class StatsCache:
                     val = cache.cur.fetchone()
                     # An empty database has nothing out of date, and another
                     # process may have it open.
-                    if val and val[0] is not None and val[0] < toolkitversion.build:
+                    if val and val[0] is not None and val[0] < CACHE_BUILD:
                         cache.con.close()
                         del cache
                         shareddb.remove(statsfile)
@@ -561,7 +568,7 @@ class StatsCache:
         self.cur.execute(
             """INSERT INTO files
             (fileid, path, st_mtime, st_size, toolkitbuild) values (NULL, ?, ?, ?, ?);""",
-            (realpath, mod_info[0], mod_info[1], toolkitversion.build),
+            (realpath, mod_info[0], mod_info[1], CACHE_BUILD),
         )
         # Unusual capitalisation intended. See bug 2073.
         fileid = self.cur.lastrowid

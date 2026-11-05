@@ -249,13 +249,18 @@ def test_a_second_connection_to_an_empty_database_keeps_it(tmp_path, fresh_cache
     assert path.exists()
 
 
-def test_a_database_from_an_older_toolkit_is_recreated(tmp_path, fresh_caches):
+@pytest.mark.parametrize(
+    'build',
+    [0, statsdb.toolkitversion.build, statsdb.CACHE_BUILD - 1],
+    ids=['older toolkit', 'before revisions', 'older revision'],
+)
+def test_a_database_from_an_older_toolkit_or_virtaal_is_recreated(tmp_path, fresh_caches, build):
     path = tmp_path / "stats.db"
     po_file = tmp_path / "af.po"
     po_file.write_text('msgid "Hello"\nmsgstr "Hallo"\n')
     cache = statsdb.StatsCache(str(path))
     cache.filestatestats(str(po_file))
-    cache.cur.execute("UPDATE files SET toolkitbuild=0")
+    cache.cur.execute("UPDATE files SET toolkitbuild=?", (build,))
     cache.con.commit()
     cache.con.close()
     fresh_caches()
