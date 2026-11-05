@@ -86,27 +86,35 @@ class TMClient(HTTPClient):
         if callback:
             request.connect("http-success", _json_callback(callback))
 
-    def forget_unit(self, unit_source, source_lang, target_lang, callback=None):
+    def forget_unit(
+        self, unit_source, source_lang, target_lang, callback=None, target=None, context=None
+    ):
+        """Remove C{target} as a suggestion for C{unit_source}; in any
+        context if C{context} is None."""
         request = RESTRequest(
             self.base_url + "/%s/%s/unit" % (source_lang, target_lang),
             unit_source,
             "DELETE",
+            json.dumps({'target': target, 'context': context}),
             user_agent=self.user_agent,
         )
         self.add(request)
         if callback:
             request.connect("http-success", _json_callback(callback))
 
-    def get_store_stats(self, store, callback=None):
+    def get_store_stats(self, store, source_lang, target_lang, callback=None):
         request = RESTRequest(
-            self.base_url + "/store", store.filename, "GET", user_agent=self.user_agent
+            self.base_url + "/%s/%s/store" % (source_lang, target_lang),
+            store.filename,
+            "GET",
+            user_agent=self.user_agent,
         )
         self.add(request)
         if callback:
             request.connect("http-success", _json_callback(callback))
 
     def upload_store(self, store, source_lang, target_lang, callback=None):
-        data = str(store)
+        data = bytes(store)
         request = RESTRequest(
             self.base_url + "/%s/%s/store" % (source_lang, target_lang),
             store.filename,
@@ -130,9 +138,12 @@ class TMClient(HTTPClient):
         if callback:
             request.connect("http-success", _json_callback(callback))
 
-    def forget_store(self, store, callback=None):
+    def forget_store(self, store, source_lang, target_lang, callback=None):
         request = RESTRequest(
-            self.base_url + "/store", store.filename, "DELETE", user_agent=self.user_agent
+            self.base_url + "/%s/%s/store" % (source_lang, target_lang),
+            store.filename,
+            "DELETE",
+            user_agent=self.user_agent,
         )
         self.add(request)
         if callback:
