@@ -58,8 +58,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
-          cache: pip
-          cache-dependency-path: pyproject.toml
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.7"
+          enable-cache: true
 
       - name: Install system dependencies
         # gettext (xgettext/msgmerge/msgcat): po/check-pot-freshness.sh
@@ -71,7 +74,9 @@ jobs:
       - name: Install prek
         # Drop-in, Rust-based pre-commit replacement - same
         # .pre-commit-config.yaml, no per-hook virtualenv bootstrap.
-        run: pip install prek
+        run: |
+          uv sync --locked --only-group lint
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Run prek on changed files
         run: |
@@ -107,8 +112,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
-          cache: pip
-          cache-dependency-path: pyproject.toml
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.7"
+          enable-cache: true
 
       - name: Install system dependencies
         uses: $/.github/actions/apt-install
@@ -116,13 +124,11 @@ jobs:
           packages: gettext
 
       - name: Install Python dependencies
+        # Without building virtaal itself. The manifest group has PyYAML,
+        # for update-linguas.py --report.
         run: |
-          pip install --upgrade pip
-          # The docs group, without building virtaal itself.
-          pip install --group docs
-          # update-linguas.py --report reads po/virtaal.priorities.yaml.
-          python -c "import tomllib; print(next(d for d in tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies'] if d.startswith('PyYAML')))" > "$RUNNER_TEMP/yaml-requirement.txt"
-          pip install -r "$RUNNER_TEMP/yaml-requirement.txt"
+          uv sync --locked --only-group docs --only-group manifest
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Check translation catalogs
         # -c fails on real errors (mismatched printf-style placeholders,
@@ -174,8 +180,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
-          cache: pip
-          cache-dependency-path: pyproject.toml
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.7"
+          enable-cache: true
 
       - name: Install system dependencies
         # `test`'s package list plus the window manager, input driver,
@@ -202,14 +211,11 @@ jobs:
             imagemagick
             fonts-lohit-beng-bengali
 
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install pygobject==3.58.0
-
       - name: Install virtaal
-        # No `.[test]` extras here - this job never runs pytest.
-        run: pip install .[spellcheck]
+        # No test group here - this job never runs pytest.
+        run: |
+          uv sync --locked --no-editable --extra spellcheck --group gtk
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Generate and check AppData screenshots
         if: steps.queue.outputs.tested != 'true'
@@ -314,8 +320,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
-          cache: pip
-          cache-dependency-path: pyproject.toml
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.7"
+          enable-cache: true
 
       - name: Install system dependencies
         # appdata-screenshots' packages for running Virtaal, plus a GTK
@@ -341,13 +350,10 @@ jobs:
             xvfb
             openbox
 
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install pygobject==3.58.0
-
       - name: Install virtaal
-        run: pip install .[spellcheck]
+        run: |
+          uv sync --locked --no-editable --extra spellcheck --group gtk
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Check translation priorities
         if: steps.queue.outputs.tested != 'true'
@@ -392,11 +398,16 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
-          cache: pip
-          cache-dependency-path: pyproject.toml
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.7"
+          enable-cache: true
 
       - name: Install ruff and pylint
-        run: pip install ruff pylint
+        run: |
+          uv sync --locked --only-group lint
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Check for overly complex functions (ruff)
         # C901 (mccabe complexity) + ruff's ported pylint-refactor "too
@@ -454,8 +465,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
-          cache: pip
-          cache-dependency-path: pyproject.toml
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.7"
+          enable-cache: true
 
       - name: Install system dependencies
         uses: $/.github/actions/apt-install
@@ -478,20 +492,12 @@ jobs:
             python3-dev
             xvfb
 
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip
-          # GTK3/PyGObject aren't declared in pyproject.toml at all -
-          # pip install pygobject only succeeds with GTK3 headers
-          # already present, which apt provides here.
-          pip install pygobject==3.58.0
-
       - name: Install virtaal
-        # Not `python setup.py install` - unreliable about where it
-        # puts the script.
+        # The gtk group builds PyGObject against apt's GTK3 headers.
+        # --no-editable: installed the way pip install . does.
         run: |
-          # shellcheck disable=SC2102  # .[spellcheck] is pip extras syntax, not a glob range
-          pip install .[spellcheck] --group test
+          uv sync --locked --no-editable --python "$(command -v python)" --extra spellcheck --group test --group gtk
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Compile-check all Python files
         if: steps.queue.outputs.tested != 'true'
@@ -551,17 +557,19 @@ jobs:
             python3-venv
             xvfb
 
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.7"
+          enable-cache: true
+
       - name: Create venv with system site-packages
         # --system-site-packages so the venv sees the distro's gi.
         run: |
-          /usr/bin/python3 -m venv --system-site-packages .venv
+          uv venv --system-site-packages --python /usr/bin/python3 .venv
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install virtaal
-        run: |
-          pip install --upgrade pip
-          # shellcheck disable=SC2102  # .[spellcheck] is pip extras syntax, not a glob range
-          pip install .[spellcheck] --group test
+        run: uv sync --locked --no-editable --extra spellcheck --group test
 
       - name: Run tests
         if: steps.queue.outputs.tested != 'true'
@@ -1779,6 +1787,16 @@ jobs:
             build/appimage/tools
             build/appimage/enchant
           key: appimage-enchant-${{ matrix.runner }}-${{ hashFiles('devsupport/packaging/linux/build_appimage.sh') }}
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.7"
+
+      - name: Pin the build's Python packages to uv.lock
+        # build_appimage.sh installs with pip, which reads PIP_CONSTRAINT.
+        run: |
+          uv export --locked --no-hashes --no-emit-project --extra spellcheck --group build-app -o "$RUNNER_TEMP/constraints.txt"
+          echo "PIP_CONSTRAINT=$RUNNER_TEMP/constraints.txt" >> "$GITHUB_ENV"
 
       - name: Build the AppImage
         # PyInstaller imports virtaal's modules, which start GTK.
