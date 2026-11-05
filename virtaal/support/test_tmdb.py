@@ -914,3 +914,24 @@ def test_an_older_virtaal_works_on_a_file_with_stores(db_path, old_tmdb):
     assert db._user_version() == 1
     assert db.store_stats(PO, 'en', 'af')['units'] == 1
     assert db.store_stats('', 'en', 'af')['units'] == 1
+
+
+@pytest.mark.parametrize(
+    'stored, looked_up',
+    [('en_US', 'en'), ('en', 'en_US'), ('es_419', 'es'), ('EN-us', 'en-US')],
+)
+def test_translate_unit_matches_a_language_across_a_region(db_path, stored, looked_up):
+    db = tmdb.TMDB(db_path)
+    db.add_dict({'source': SHORT, 'target': 'Translated', 'context': ''}, stored, 'de-DE')
+
+    assert [m['target'] for m in db.translate_unit(SHORT, looked_up, 'de')] == ['Translated']
+
+
+@pytest.mark.parametrize(
+    'stored, looked_up', [('en_GB', 'en_US'), ('sr@latin', 'sr'), ('en', 'eng')]
+)
+def test_translate_unit_keeps_other_regions_and_scripts_apart(db_path, stored, looked_up):
+    db = tmdb.TMDB(db_path)
+    db.add_dict({'source': SHORT, 'target': 'Translated', 'context': ''}, stored, 'de')
+
+    assert db.translate_unit(SHORT, looked_up, 'de') == []

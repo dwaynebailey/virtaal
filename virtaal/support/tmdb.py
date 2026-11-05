@@ -778,17 +778,10 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
 
     def translate_unit(self, unit_source, source_langs, target_langs):
         """Return TM suggestions for unit_source."""
-        if not isinstance(source_langs, list):
-            source_langs = [source_langs]
-        source_langs = [data.normalize_code(lang) for lang in source_langs]
-        if not isinstance(target_langs, list):
-            target_langs = [target_langs]
-        target_langs = [data.normalize_code(lang) for lang in target_langs]
-        # One placeholder per language: "IN (?)" with "en,fr" matches neither.
-        langs_in = "s.lang IN (%s) AND t.lang IN (%s)" % (
-            ",".join("?" * len(source_langs)),
-            ",".join("?" * len(target_langs)),
-        )
+        source_in, source_params = _language_match("s.lang", source_langs)
+        target_in, target_params = _language_match("t.lang", target_langs)
+        langs_in = "%s AND %s" % (source_in, target_in)
+        lang_params = (*source_params, *target_params)
 
         minlen = min_levenshtein_length(len(unit_source), self.min_similarity)
         maxlen = max_levenshtein_length(len(unit_source), self.min_similarity, self.max_length)
@@ -809,7 +802,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             # Quoted, so a word such as AND, NOT or NEAR isn't read as an
             # FTS operator (#4332). STRIP_REGEXP has removed any quote.
             search_str = " OR ".join('"%s"' % word for word in unit_words)
-            self.cursor.execute(query, (*source_langs, *target_langs, minlen, maxlen, search_str))
+            self.cursor.execute(query, (*lang_params, minlen, maxlen, search_str))
         else:
             logger.debug("nonfulltext matching")
             query = (
@@ -818,7 +811,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             AND s.length >= ? AND s.length <= ?"""
                 % langs_in
             )
-            self.cursor.execute(query, (*source_langs, *target_langs, minlen, maxlen))
+            self.cursor.execute(query, (*lang_params, minlen, maxlen))
 
         results = []
         for row in self.cursor:
@@ -862,6 +855,37 @@ def unit_languages(unit, source_lang=None, target_lang=None):
     if not target_lang:
         raise LanguageError("undefined target language")
     return source_lang, target_lang
+
+
+def _language_match(column, languages):
+    """An SQL test of C{column} for any of C{languages}, and its
+    parameters. A language matches itself and, across a region only, its
+    regional variants or its bare language: en matches en-us and en-us
+    matches en, but en-us doesn't match en-gb, nor sr sr-latin."""
+    if not isinstance(languages, list):
+        languages = [languages]
+    exact = set()
+    variants = []
+    for language in languages:
+        language = data.normalize_code(language)
+        exact.add(language)
+        primary, _sep, rest = language.partition("-")
+        if not rest:
+            variants.append(language)
+        elif _is_region(rest):
+            exact.add(primary)
+    exact = sorted(exact)
+    # One placeholder per language: "IN (?)" with "en,fr" matches neither.
+    tests = ["%s IN (%s)" % (column, ",".join("?" * len(exact)))]
+    params = list(exact)
+    for language in variants:
+        tests.append("%s GLOB ? OR %s GLOB ?" % (column, column))
+        params += [language + "-[a-z][a-z]", language + "-[0-9][0-9][0-9]"]
+    return "(%s)" % " OR ".join(tests), params
+
+
+def _is_region(subtag):
+    return (len(subtag) == 2 and subtag.isalpha()) or (len(subtag) == 3 and subtag.isdigit())
 
 
 def _language_tag_key(language):
