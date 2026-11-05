@@ -15,6 +15,7 @@ from virtaal.support import (
     lisa_compat,  # noqa: F401 - applies its patch on import
     poparser_compat,  # noqa: F401 - applies its patch on import
     qm_compat,  # noqa: F401 - applies its patch on import
+    tmx_compat,  # noqa: F401 - applies its patch on import
     xliff_compat,  # noqa: F401 - applies its patch on import
 )
 

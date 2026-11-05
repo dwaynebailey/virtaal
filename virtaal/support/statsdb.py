@@ -45,7 +45,10 @@ from translate.misc.multistring import multistring
 from translate.storage import factory
 from translate.storage.workflow import StateEnum
 
-from virtaal.support import shareddb
+from virtaal.support import (
+    shareddb,
+    tmx_compat,  # noqa: F401 - applies its patch on import
+)
 
 logger = logging.getLogger(__name__)
 
