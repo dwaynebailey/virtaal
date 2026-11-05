@@ -29,6 +29,11 @@ _("WiX Localization File")
 _("Wordfast Translation Memory")
 _("XLIFF Translation File")
 
+# Virtaal's own Trados readers (virtaal/support/sdltm.py and
+# multiterm.py), named in the TM import and terminology file choosers.
+_("MultiTerm XML Termbase")
+_("Trados Studio Translation Memory")
+
 # Windows installer only (devsupport/packaging/windows/virtaal.iss).
 _("SDL XLIFF Translation File")
 _("Associate Virtaal with translation file types (.po, .xlf, .tmx, ...)")

@@ -213,6 +213,7 @@ class TMView(BaseView, GObjectWrapper):
         self.controller.main_controller.view.sync_menubar()
 
     def _build_import_chooser(self):
+        from virtaal.support.trados_compat import TM_IMPORT_FORMATS
         from virtaal.views.mainview import add_translation_file_filters
 
         mainview = self.controller.main_controller.view
@@ -230,7 +231,7 @@ class TMView(BaseView, GObjectWrapper):
         )
         chooser.set_default_response(Gtk.ResponseType.ACCEPT)
         chooser.set_select_multiple(True)
-        add_translation_file_filters(chooser)
+        add_translation_file_filters(chooser, TM_IMPORT_FORMATS)
         last_dir = pan_app.settings.general["lastdir"] or ""
         if os.path.isdir(last_dir):
             chooser.set_current_folder(last_dir)

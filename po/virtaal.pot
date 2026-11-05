@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-05 16:00+0000\n"
+"POT-Creation-Date: 2026-11-05 16:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -527,6 +527,14 @@ msgstr ""
 
 #: devsupport/tmp_strings.py
 msgid "XLIFF Translation File"
+msgstr ""
+
+#: devsupport/tmp_strings.py
+msgid "MultiTerm XML Termbase"
+msgstr ""
+
+#: devsupport/tmp_strings.py
+msgid "Trados Studio Translation Memory"
 msgstr ""
 
 #: devsupport/tmp_strings.py

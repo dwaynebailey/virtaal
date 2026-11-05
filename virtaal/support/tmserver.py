@@ -32,6 +32,7 @@ from virtaal.support import (
     fluent_compat,  # noqa: F401 - applies its patch on import
     poparser_compat,  # noqa: F401 - applies its patch on import
     tmdb,
+    trados_compat,  # noqa: F401 - applies its patch on import
 )
 
 logger = logging.getLogger(__name__)
@@ -99,9 +100,8 @@ class TMServer:
         if not isinstance(tmfiles, list):
             tmfiles = [tmfiles]
         for tmfile in tmfiles:
-            self.tmdb.import_store(
-                factory.getobject(tmfile), os.path.realpath(tmfile), source_lang, target_lang
-            )
+            store = _read_store(tmfile, source_lang, target_lang)
+            self.tmdb.import_store(store, os.path.realpath(tmfile), source_lang, target_lang)
 
     def translate_unit(self, slang, tlang, uid):
         response.content_type = "text/plain"
@@ -149,7 +149,7 @@ class TMServer:
         data = BytesIO(request.body.read())
         data.name = sid
         try:
-            store = factory.getobject(data)  # ty:ignore[invalid-argument-type]
+            store = _read_store(data, slang, tlang)
         except Exception as e:
             logger.warning("Can't read the uploaded %s: %s", sid, e)
             return _json_reply({"error": "unreadable file"}, 400)
@@ -199,6 +199,14 @@ class TMServer:
             return _json_reply({"error": "unknown store"}, 404)
         response.content_type = "application/x-tmx+xml"
         return tmx
+
+
+def _read_store(storefile, source_lang, target_lang):
+    store = factory.getobject(storefile)  # ty:ignore[invalid-argument-type]
+    if hasattr(store, "select_languages"):
+        # A termbase of many languages gives the pair asked for.
+        store.select_languages(source_lang, target_lang)
+    return store
 
 
 def _json_body():

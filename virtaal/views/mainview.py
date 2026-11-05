@@ -165,19 +165,19 @@ def _set_native_return_key(title, modifiers):
     )
 
 
-def add_translation_file_filters(chooser):
+def add_translation_file_filters(chooser, extra_formats=()):
     """Give a file chooser the Open dialog's filters: all supported
-    files, each format, and all files."""
+    files, each format, and all files. C{extra_formats}: (name,
+    extensions) of more formats to offer."""
     all_supported_filter = Gtk.FileFilter()
     all_supported_filter.set_name(_("All Supported Files"))
     chooser.add_filter(all_supported_filter)
     from translate.storage import factory as storage_factory
 
+    formats = list(storage_factory.supported_files())
+    formats += [(name, extensions, []) for name, extensions in extra_formats]
     supported_files_dict = dict(
-        [
-            (_(name), (extensions, mimetypes))
-            for name, extensions, mimetypes in storage_factory.supported_files()
-        ]
+        [(_(name), (extensions, mimetypes)) for name, extensions, mimetypes in formats]
     )
     supported_file_names = list(supported_files_dict.keys())
     supported_file_names.sort(key=locale.strxfrm)

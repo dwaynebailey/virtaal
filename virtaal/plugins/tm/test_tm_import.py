@@ -212,7 +212,11 @@ def test_the_chooser_opens_several_translation_files_from_the_last_folder(tmp_pa
         names = [f.get_name() for f in chooser.list_filters()]
         assert names[0] == 'All Supported Files'
         assert 'TMX Translation Memory' in names
+        assert 'Trados Studio Translation Memory' in names
+        assert 'MultiTerm XML Termbase' in names
         assert names[-1] == 'All Files'
+        patterns = chooser.list_filters()[0].to_gvariant().unpack()[1]
+        assert (0, '*.sdltm') in patterns
         assert folders == [str(tmp_path)]
         accept = chooser.get_widget_for_response(Gtk.ResponseType.ACCEPT)
         assert accept.get_use_underline()

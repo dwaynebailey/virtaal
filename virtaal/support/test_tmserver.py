@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import gzip
 import json
 import os
 import signal
@@ -615,3 +616,31 @@ def test_upload_store_rejects_a_file_it_cant_read(tmp_path):
 
     assert (status, reply) == (400, {'error': 'unreadable file'})
     assert app.tmdb.list_stores() == []
+
+
+TRADOS = os.path.join('devsupport', 'testfiles', 'trados')
+
+
+def test_upload_store_imports_a_trados_studio_tm_in_its_own_languages(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    sample = os.path.join(TRADOS, 'rws-trados-studio-api-samples', 'Software En-De.sdltm.gz')
+    with gzip.open(sample) as f:
+        data = f.read()
+
+    status, reply = _json(port, 'PUT', _store_path('/home/user/Software En-De.sdltm'), data)
+
+    assert (status, reply) == (200, {'added': 12, 'replaced': 0, 'removed': 0})
+    matches = _translate(port, 'Configuring the Spelling Checker', 'en', 'de')
+    assert matches[0]['target'] == 'Die Rechtschreibprüfung konfigurieren:'
+    assert _translate(port, 'Configuring the Spelling Checker', 'en', 'fr') == []
+
+
+def test_upload_store_imports_a_termbase_in_the_asked_for_pair(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    with open(os.path.join(TRADOS, 'kaur2k-termconv', 'mili_1.xml'), 'rb') as f:
+        data = f.read()
+
+    status, reply = _json(port, 'PUT', _store_path('/home/user/mili_1.xml', 'en', 'et'), data)
+
+    assert status == 200
+    assert _translate(port, 'abort', 'en', 'et')[0]['target'] == 'katkestus'
