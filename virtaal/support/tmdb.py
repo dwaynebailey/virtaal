@@ -46,7 +46,7 @@ from sqlite3 import dbapi2
 from translate.lang import data
 from translate.misc.xml_helpers import getXMLlang, getXMLspace
 from translate.search.lshtein import LevenshteinComparer
-from translate.storage import lisa, tmx
+from translate.storage import tmx
 
 from virtaal.support import shareddb
 
@@ -864,6 +864,11 @@ def unit_languages(unit, source_lang=None, target_lang=None):
     return source_lang, target_lang
 
 
+def _language_tag_key(language):
+    """An XML language tag in a form to compare: en_US and en-us match."""
+    return language.replace("_", "-").lower() if language else None
+
+
 def unit_translations(unit, source_lang=None, target_lang=None):
     """C{unit}'s ((source language, target language), source, target)
     for each translation it holds: one, or for a TMX unit one per
@@ -871,16 +876,15 @@ def unit_translations(unit, source_lang=None, target_lang=None):
     nodes = unit.getlanguageNodes() if isinstance(unit, tmx.tmxunit) else []
     if len(nodes) < 2:
         return [(unit_languages(unit, source_lang, target_lang), unit.source, unit.target)]
-    # The unit's own srclang, else the header's.
-    store = getattr(unit, "_store", None)
-    srclang = unit.xmlelement.get("srclang") or (store and store.getsourcelanguage())
+    # The unit's own srclang, else the header's: read from the XML, as
+    # translate-toolkit before 3.18 doesn't take it from the header.
+    header = unit.xmlelement.getroottree().getroot().find("header")
+    srclang = unit.xmlelement.get("srclang") or (header is not None and header.get("srclang"))
     xml_space = getXMLspace(unit.xmlelement, unit._default_xml_space)
     langs = [getXMLlang(node) for node in nodes]
     texts = [unit.getNodeText(node, xml_space) for node in nodes]
-    wanted = lisa.normalize_language(srclang)
-    source_index = next(
-        (i for i, lang in enumerate(langs) if lisa.normalize_language(lang) == wanted), 0
-    )
+    wanted = _language_tag_key(srclang)
+    source_index = next((i for i, lang in enumerate(langs) if _language_tag_key(lang) == wanted), 0)
     source = texts[source_index]
     source_lang = langs[source_index] or source_lang
     if not source_lang:

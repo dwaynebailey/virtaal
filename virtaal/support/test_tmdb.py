@@ -871,6 +871,21 @@ def test_import_store_takes_each_language_of_a_multilingual_tmx(db_path):
     assert db.translate_unit('Guten Tag', 'de', 'fr')[0]['target'] == 'Bonjour'
 
 
+def test_import_store_finds_a_tmx_source_whatever_its_tags_case(db_path):
+    store = tmx.tmxfile.parsestring(
+        TMX_HEADER.replace(b'srclang="en"', b'srclang="EN_us"')
+        + b'<tu>'
+        + _tuv(b'de', b'Offne es')
+        + _tuv(b'en-US', SHORT.encode())
+        + b'</tu></body></tmx>'
+    )
+
+    db = tmdb.TMDB(db_path)
+    db.import_store(store, '/home/user/memory.tmx', 'en', 'af')
+
+    assert db.translate_unit(SHORT, 'en-US', 'de')[0]['target'] == 'Offne es'
+
+
 def test_importing_a_file_with_nothing_translated_empties_its_store(db_path):
     db = tmdb.TMDB(db_path)
     db.sync_store(PO, [_unit(SHORT, 'Maak dit oop')], 'en', 'af')
