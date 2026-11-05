@@ -9,7 +9,13 @@
 come from SQLite itself: an authorizer refuses the statement."""
 
 import logging
+import os
 import sqlite3
+import subprocess
+import sys
+import time
+import types
+from pathlib import Path
 
 import pytest
 from translate.storage import base, xliff
@@ -332,3 +338,206 @@ def test_translate_unit_matches_any_of_several_languages(db_path, source):
 
     assert [match['target'] for match in matches] == ['Afrikaans']
     assert db.translate_unit(source, ['de', 'fr'], ['af_ZA']) == []
+
+
+# The schema version and the migration of a file an older Virtaal made.
+
+TESTFILES = Path(__file__).resolve().parents[2] / 'devsupport' / 'testfiles'
+
+
+@pytest.fixture
+def old_tmdb():
+    """Virtaal 1.0's tmdb module, which knows no schema version."""
+    path = TESTFILES / 'tmdb-1.0.py.txt'
+    module = types.ModuleType('tmdb_1_0')
+    exec(compile(path.read_text(encoding='utf-8'), str(path), 'exec'), module.__dict__)
+    yield module
+    for connections in module.TMDB._tm_dbs.values():
+        for connection, _cursor in connections.values():
+            connection.close()
+
+
+def _close(db_path):
+    for connection, _cursor in tmdb.TMDB._tm_dbs.pop(db_path, {}).values():
+        connection.close()
+
+
+def _v0_file(old_tmdb, db_path, *pairs):
+    old = old_tmdb.TMDB(db_path)
+    for source, target in pairs:
+        old.add_dict({'source': source, 'target': target, 'context': ''}, 'en', 'af')
+    return old
+
+
+def _columns(db, table):
+    return [row[1] for row in db.cursor.execute('PRAGMA table_info(%s)' % table)]
+
+
+def _origins(db):
+    return db.cursor.execute(
+        'SELECT store_id, lang, unit_key, tid FROM origins ORDER BY tid'
+    ).fetchall()
+
+
+def test_a_new_file_gets_the_current_schema(db_path):
+    db = tmdb.TMDB(db_path)
+
+    assert db._user_version() == tmdb.SCHEMA_VERSION
+    assert db._has_table('stores')
+    assert db._has_table('origins')
+    assert 'abstract' in _columns(db, 'sources')
+    assert 'abstract' in _columns(db, 'targets')
+    assert _count(db, 'stores') == 0
+    assert not os.path.exists(db_path[: -len('.db')] + '-v0.db')
+
+
+def test_a_file_an_older_virtaal_made_is_migrated(db_path, old_tmdb):
+    _v0_file(old_tmdb, db_path, (SHORT, 'Maak dit oop'), (LONG, 'Maak die gekose lêer oop'))
+
+    db = tmdb.TMDB(db_path)
+
+    assert db._user_version() == 1
+    tids = [tid for (tid,) in db.cursor.execute('SELECT tid FROM targets ORDER BY tid')]
+    assert _origins(db) == [(0, 'af', str(tid), tid) for tid in tids]
+    assert db.cursor.execute('SELECT store_id, path, kind FROM stores').fetchall() == [
+        (0, '', tmdb.STORE_LEGACY)
+    ]
+    assert db.cursor.execute('SELECT abstract FROM targets').fetchall() == [(None,), (None,)]
+    assert db.translate_unit(LONG, 'en', 'af')[0]['target'] == 'Maak die gekose lêer oop'
+
+
+def test_the_migration_keeps_a_copy_of_the_older_file(db_path, old_tmdb):
+    _v0_file(old_tmdb, db_path, (SHORT, 'Maak dit oop'))
+
+    tmdb.TMDB(db_path)
+
+    backup = sqlite3.connect(db_path[: -len('.db')] + '-v0.db')
+    try:
+        assert backup.execute('PRAGMA user_version').fetchone() == (0,)
+        assert backup.execute('SELECT text FROM targets').fetchall() == [('Maak dit oop',)]
+        tables = backup.execute("SELECT name FROM sqlite_master WHERE name = 'stores'")
+        assert tables.fetchall() == []
+    finally:
+        backup.close()
+
+
+def test_a_backup_that_fails_does_not_stop_the_migration(db_path, old_tmdb, caplog):
+    _v0_file(old_tmdb, db_path, (SHORT, 'Maak dit oop'))
+    os.mkdir(db_path[: -len('.db')] + '-v0.db.%d.tmp' % os.getpid())
+
+    with caplog.at_level(logging.WARNING, logger=tmdb.logger.name):
+        db = tmdb.TMDB(db_path)
+
+    assert 'Could not back up' in caplog.text
+    assert db._user_version() == 1
+    assert not os.path.exists(db_path[: -len('.db')] + '-v0.db')
+
+
+def test_reopening_a_migrated_file_changes_nothing(db_path, old_tmdb):
+    _v0_file(old_tmdb, db_path, (SHORT, 'Maak dit oop'))
+    tmdb.TMDB(db_path)
+    os.unlink(db_path[: -len('.db')] + '-v0.db')
+    _close(db_path)
+
+    db = tmdb.TMDB(db_path)
+
+    assert len(_origins(db)) == 1
+    assert _count(db, 'stores') == 1
+    # The copy is of the older file only.
+    assert not os.path.exists(db_path[: -len('.db')] + '-v0.db')
+
+
+def test_a_failed_migration_leaves_the_older_file_as_it_was(db_path, old_tmdb, refusing_connect):
+    _v0_file(old_tmdb, db_path, (SHORT, 'Maak dit oop'))
+    refusing_connect((sqlite3.SQLITE_ALTER_TABLE, None))
+
+    with pytest.raises(sqlite3.DatabaseError):
+        tmdb.TMDB(db_path)
+
+    connection, cursor = next(iter(tmdb.TMDB._tm_dbs[db_path].values()))
+    connection.set_authorizer(_allow)
+    assert cursor.execute('PRAGMA user_version').fetchone() == (0,)
+    assert cursor.execute("SELECT name FROM sqlite_master WHERE name = 'stores'").fetchall() == []
+    assert tmdb.TMDB(db_path)._user_version() == 1
+
+
+def test_a_file_another_process_migrated_meanwhile_is_left_alone(db_path, old_tmdb, monkeypatch):
+    _v0_file(old_tmdb, db_path, (SHORT, 'Maak dit oop'))
+    tmdb.TMDB(db_path)
+    _close(db_path)
+    # Read as 0 before this process waited for the other's write lock.
+    stale = [0]
+    user_version = tmdb.TMDB._user_version
+    monkeypatch.setattr(
+        tmdb.TMDB, '_user_version', lambda self: stale.pop() if stale else user_version(self)
+    )
+
+    db = tmdb.TMDB(db_path)
+
+    assert len(_origins(db)) == 1
+    assert _columns(db, 'targets').count('abstract') == 1
+
+
+_OPEN = """
+import sys, time
+from virtaal.support import tmdb
+time.sleep(max(0, float(sys.argv[2]) - time.time()))
+tmdb.TMDB(sys.argv[1])
+"""
+
+
+def test_two_processes_migrate_the_same_file_at_once(db_path, old_tmdb):
+    _v0_file(old_tmdb, db_path, *((f'Unit {n}', f'Eenheid {n}') for n in range(200)))
+    root = Path(__file__).resolve().parents[2]
+    env = dict(
+        os.environ, PYTHONPATH=os.pathsep.join([str(root), os.environ.get('PYTHONPATH', '')])
+    )
+    start = str(time.time() + 2)
+
+    processes = [
+        subprocess.Popen([sys.executable, '-c', _OPEN, db_path, start], cwd=root, env=env)
+        for _ in range(2)
+    ]
+
+    assert [process.wait(timeout=60) for process in processes] == [0, 0]
+    db = tmdb.TMDB(db_path)
+    assert db._user_version() == 1
+    assert _count(db, 'stores') == 1
+    assert len(_origins(db)) == 200
+
+
+def test_targets_an_older_virtaal_adds_go_to_the_legacy_store(db_path, old_tmdb):
+    tmdb.TMDB(db_path)
+    _close(db_path)
+    old = old_tmdb.TMDB(db_path)
+
+    old.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
+    assert old.translate_unit(SHORT, 'en', 'af')[0]['target'] == 'Maak dit oop'
+
+    db = tmdb.TMDB(db_path)
+    (tid,) = db.cursor.execute('SELECT tid FROM targets').fetchone()
+    assert _origins(db) == [(0, 'af', str(tid), tid)]
+
+
+def test_unattributed_targets_wait_while_another_process_writes(db_path, old_tmdb, monkeypatch):
+    tmdb.TMDB(db_path)
+    _close(db_path)
+    _v0_file(old_tmdb, db_path, (SHORT, 'Maak dit oop'))
+    scale_lock_waits(monkeypatch)
+
+    with OtherProcess(db_path):
+        db = tmdb.TMDB(db_path)
+
+    assert _origins(db) == []
+    assert db.translate_unit(SHORT, 'en', 'af')[0]['target'] == 'Maak dit oop'
+
+
+def test_a_unit_added_without_a_file_goes_to_the_legacy_store(db_path):
+    db = tmdb.TMDB(db_path)
+
+    db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
+    db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
+
+    (tid,) = db.cursor.execute('SELECT tid FROM targets').fetchone()
+    assert _origins(db) == [(0, 'af', str(tid), tid)]
+    assert db.cursor.execute('SELECT kind FROM stores').fetchall() == [(tmdb.STORE_LEGACY,)]

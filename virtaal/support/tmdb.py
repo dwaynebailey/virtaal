@@ -37,6 +37,7 @@ import contextlib
 import logging
 import math
 import operator
+import os
 import re
 import threading
 import time
@@ -49,6 +50,72 @@ from virtaal.support import shareddb
 
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
+
+SCHEMA_VERSION = 1
+"""PRAGMA user_version of the schema below; 0 is a file an older Virtaal made."""
+
+STORE_LEGACY = 0
+"""Entries added before files were recorded, or without a file."""
+STORE_SAVED = 1
+STORE_IMPORTED = 2
+LEGACY_STORE_ID = 0
+
+# What an older Virtaal creates, and keeps creating if missing: it finds
+# its tables, indexes and full-text triggers by these names, so they
+# never change, and nothing new on sources or targets may be NOT NULL
+# without a default.
+SCHEMA_V0 = (
+    """CREATE TABLE IF NOT EXISTS sources (
+       sid INTEGER PRIMARY KEY AUTOINCREMENT,
+       text VARCHAR NOT NULL,
+       context VARCHAR DEFAULT NULL,
+       lang VARCHAR NOT NULL,
+       length INTEGER NOT NULL
+)""",
+    "CREATE INDEX IF NOT EXISTS sources_context_idx ON sources (context)",
+    "CREATE INDEX IF NOT EXISTS sources_lang_idx ON sources (lang)",
+    "CREATE INDEX IF NOT EXISTS sources_length_idx ON sources (length)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS sources_uniq_idx ON sources (text, context, lang)",
+    """CREATE TABLE IF NOT EXISTS targets (
+       tid INTEGER PRIMARY KEY AUTOINCREMENT,
+       sid INTEGER NOT NULL,
+       text VARCHAR NOT NULL,
+       lang VARCHAR NOT NULL,
+       time INTEGER DEFAULT NULL,
+       FOREIGN KEY (sid) references sources(sid)
+)""",
+    "CREATE INDEX IF NOT EXISTS targets_sid_idx ON targets (sid)",
+    "CREATE INDEX IF NOT EXISTS targets_lang_idx ON targets (lang)",
+    "CREATE INDEX IF NOT EXISTS targets_time_idx ON targets (time)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS targets_uniq_idx ON targets (sid, text, lang)",
+)
+
+# Which file (store) and unit each target came from. An older Virtaal
+# ignores these; the targets it adds get no origin until the next open.
+SCHEMA_V1 = (
+    """CREATE TABLE stores (
+       store_id INTEGER PRIMARY KEY,
+       path VARCHAR NOT NULL,
+       member VARCHAR NOT NULL DEFAULT '',
+       kind INTEGER NOT NULL,
+       exclude INTEGER NOT NULL DEFAULT 0,
+       added INTEGER,
+       updated INTEGER,
+       UNIQUE (path, member)
+)""",
+    """CREATE TABLE origins (
+       store_id INTEGER NOT NULL,
+       lang VARCHAR NOT NULL,
+       unit_key VARCHAR NOT NULL,
+       tid INTEGER NOT NULL,
+       time INTEGER,
+       PRIMARY KEY (store_id, lang, unit_key)
+) WITHOUT ROWID""",
+    "CREATE INDEX origins_tid_idx ON origins (tid)",
+    # The placeable-free form of each string, filled in later.
+    "ALTER TABLE sources ADD COLUMN abstract VARCHAR DEFAULT NULL",
+    "ALTER TABLE targets ADD COLUMN abstract VARCHAR DEFAULT NULL",
+)
 
 
 class LanguageError(Exception):
@@ -98,40 +165,112 @@ class TMDB:
     cursor = property(lambda self: self._get_connection(1))
 
     def init_database(self) -> None:
-        """Creates database tables and indices."""
-        script = """
-CREATE TABLE IF NOT EXISTS sources (
-       sid INTEGER PRIMARY KEY AUTOINCREMENT,
-       text VARCHAR NOT NULL,
-       context VARCHAR DEFAULT NULL,
-       lang VARCHAR NOT NULL,
-       length INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS sources_context_idx ON sources (context);
-CREATE INDEX IF NOT EXISTS sources_lang_idx ON sources (lang);
-CREATE INDEX IF NOT EXISTS sources_length_idx ON sources (length);
-CREATE UNIQUE INDEX IF NOT EXISTS sources_uniq_idx ON sources (text, context, lang);
-
-CREATE TABLE IF NOT EXISTS targets (
-       tid INTEGER PRIMARY KEY AUTOINCREMENT,
-       sid INTEGER NOT NULL,
-       text VARCHAR NOT NULL,
-       lang VARCHAR NOT NULL,
-       time INTEGER DEFAULT NULL,
-       FOREIGN KEY (sid) references sources(sid)
-);
-CREATE INDEX IF NOT EXISTS targets_sid_idx ON targets (sid);
-CREATE INDEX IF NOT EXISTS targets_lang_idx ON targets (lang);
-CREATE INDEX IF NOT EXISTS targets_time_idx ON targets (time);
-CREATE UNIQUE INDEX IF NOT EXISTS targets_uniq_idx ON targets (sid, text, lang);
-"""
-
+        """Creates database tables and indices, or brings an older file's
+        up to date."""
         try:
-            self.cursor.executescript(script)
             self.connection.commit()
+            if self._user_version() < SCHEMA_VERSION:
+                self._migrate()
+            self._attach_unattributed()
         except Exception:
             self.connection.rollback()
             raise
+
+    def _user_version(self):
+        (version,) = self.cursor.execute("PRAGMA user_version").fetchone()
+        return version
+
+    def _has_table(self, name):
+        self.cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)
+        )
+        return self.cursor.fetchone() is not None
+
+    def _begin(self):
+        # IMMEDIATE: a deferred transaction that reads first can't wait
+        # for another process's write lock when it comes to write.
+        if not self.connection.in_transaction:
+            self.cursor.execute("BEGIN IMMEDIATE")
+
+    def _migrate(self):
+        if self._has_table("sources"):
+            self._back_up()
+        self._begin()
+        # Another process may have migrated the file while this one waited.
+        if self._user_version() >= SCHEMA_VERSION:
+            self.connection.commit()
+            return
+        for statement in SCHEMA_V0 + SCHEMA_V1:
+            self.cursor.execute(statement)
+        self._file_under_legacy()
+        self.cursor.execute("PRAGMA user_version = %d" % SCHEMA_VERSION)
+        self.connection.commit()
+
+    def _back_up(self):
+        """Copy the file as an older Virtaal made it, once, beside it."""
+        if self.db_file == ":memory:" or self.db_file.startswith("file:"):
+            return
+        root, ext = os.path.splitext(self.db_file)
+        backup = "%s-v0%s" % (root, ext)
+        if os.path.exists(backup):
+            return
+        partial = "%s.%d.tmp" % (backup, os.getpid())
+        try:
+            copy = dbapi2.connect(partial)
+            try:
+                self.connection.backup(copy)
+                (version,) = copy.execute("PRAGMA user_version").fetchone()
+            finally:
+                copy.close()
+            # Otherwise another process migrated the file first.
+            if version == 0:
+                os.replace(partial, backup)
+        except (OSError, dbapi2.Error):
+            logger.warning("Could not back up %s to %s", self.db_file, backup, exc_info=True)
+        finally:
+            with contextlib.suppress(OSError):
+                os.unlink(partial)
+
+    def _attach_unattributed(self):
+        """File targets with no origin, which an older Virtaal added, under
+        the legacy store."""
+        self.cursor.execute(
+            "SELECT 1 FROM targets t WHERE NOT EXISTS "
+            "(SELECT 1 FROM origins o WHERE o.tid = t.tid) LIMIT 1"
+        )
+        if self.cursor.fetchone() is None:
+            return
+        try:
+            self._begin()
+            self._file_under_legacy()
+            self.connection.commit()
+        except dbapi2.OperationalError as e:
+            if not shareddb.is_locked(e):
+                raise
+            # They stay suggestions; the next start files them.
+            self.connection.rollback()
+            logger.warning("Left unattributed TM entries for later: %s", e)
+
+    def _file_under_legacy(self):
+        now = int(time.time())
+        self.cursor.execute(
+            "INSERT INTO origins (store_id, lang, unit_key, tid, time) "
+            "SELECT ?, t.lang, CAST(t.tid AS TEXT), t.tid, t.time FROM targets t "
+            "WHERE NOT EXISTS (SELECT 1 FROM origins o WHERE o.tid = t.tid)",
+            (LEGACY_STORE_ID,),
+        )
+        if self.cursor.rowcount:
+            self._legacy_store(now)
+
+    def _legacy_store(self, now):
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO stores (store_id, path, member, kind, added, updated) "
+            "VALUES (?, '', '', ?, ?, ?)",
+            (LEGACY_STORE_ID, STORE_LEGACY, now, now),
+        )
+        self.cursor.execute(
+            "UPDATE stores SET updated = ? WHERE store_id = ?", (now, LEGACY_STORE_ID)
+        )
 
     def init_fulltext(self) -> None:
         """Detects if fts3 fulltext indexing module exists, initializes fulltext table if it does."""
@@ -246,26 +385,15 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         source_lang = data.normalize_code(source_lang)
         target_lang = data.normalize_code(target_lang)
         try:
-            try:
-                self.cursor.execute(
-                    "INSERT INTO sources (text, context, lang, length) VALUES(?, ?, ?, ?)",
-                    (unit["source"], unit["context"], source_lang, len(unit["source"])),
-                )
-                sid = self.cursor.lastrowid
-            except dbapi2.IntegrityError:
-                # source string already exists in db, run query to find sid
-                self.cursor.execute(
-                    "SELECT sid FROM sources WHERE text=? AND context=? and lang=?",
-                    (unit["source"], unit["context"], source_lang),
-                )
-                sid = self.cursor.fetchone()
-                (sid,) = sid
-            # target string already exists in db, do nothing
-            with contextlib.suppress(dbapi2.IntegrityError):
-                self.cursor.execute(
-                    "INSERT INTO targets (sid, text, lang, time) VALUES (?, ?, ?, ?)",
-                    (sid, unit["target"], target_lang, int(time.time())),
-                )
+            tid = self._add_target(unit, source_lang, target_lang)
+            # Added without a file: the legacy store holds it.
+            now = int(time.time())
+            self._legacy_store(now)
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO origins (store_id, lang, unit_key, tid, time) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (LEGACY_STORE_ID, target_lang, str(tid), tid, now),
+            )
 
             if commit:
                 self.connection.commit()
@@ -273,6 +401,35 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             if commit:
                 self.connection.rollback()
             raise
+
+    def _add_target(self, unit, source_lang, target_lang):
+        """The tid of C{unit}'s target, inserted with its source if new."""
+        try:
+            self.cursor.execute(
+                "INSERT INTO sources (text, context, lang, length) VALUES(?, ?, ?, ?)",
+                (unit["source"], unit["context"], source_lang, len(unit["source"])),
+            )
+            sid = self.cursor.lastrowid
+        except dbapi2.IntegrityError:
+            # source string already exists in db, run query to find sid
+            self.cursor.execute(
+                "SELECT sid FROM sources WHERE text=? AND context=? and lang=?",
+                (unit["source"], unit["context"], source_lang),
+            )
+            (sid,) = self.cursor.fetchone()
+        try:
+            self.cursor.execute(
+                "INSERT INTO targets (sid, text, lang, time) VALUES (?, ?, ?, ?)",
+                (sid, unit["target"], target_lang, int(time.time())),
+            )
+            return self.cursor.lastrowid
+        except dbapi2.IntegrityError:
+            self.cursor.execute(
+                "SELECT tid FROM targets WHERE sid=? AND text=? AND lang=?",
+                (sid, unit["target"], target_lang),
+            )
+            (tid,) = self.cursor.fetchone()
+            return tid
 
     def add_store(self, store, source_lang, target_lang, commit=True):
         """Insert all units in store in database."""
