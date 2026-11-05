@@ -1,0 +1,679 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<xliff sdl:version="1.0" version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0">
+	<doc-info xmlns="http://sdl.com/FileTypes/SdlXliff/1.0">
+		<cmt-defs>
+			<cmt-def id="161eee70-823e-4d82-942a-99d479e57e6b">
+				<Comments>
+					<Comment date="2022-09-26T14:17:00+00:00" severity="Low" user="Tay, AmandaX" version="1.0">To add into the current promotion page</Comment>
+				</Comments>
+			</cmt-def>
+			<cmt-def id="4a08f0dd-1281-4280-a2a2-460aff926f88">
+				<Comments>
+					<Comment date="2022-09-26T14:17:00+00:00" severity="Low" user="System Administrator" version="1.0">To add into the current promotion page</Comment>
+				</Comments>
+			</cmt-def>
+			<cmt-def id="783baf9a-21cc-4756-aa40-80453d6610ad">
+				<Comments>
+					<Comment date="2022-09-26T14:18:00+00:00" severity="Low" user="Tay, AmandaX" version="1.0">To replace in the current promotion page</Comment>
+				</Comments>
+			</cmt-def>
+		</cmt-defs>
+	</doc-info>
+	<file datatype="x-sdlfilterframework2" original="\\sdlproducts.com\awsstorage\OREGON\INTEL\Data\TC\109379\SRC\EN-US\Helper_Q2'22 Distributor Engagement Campaign Winner Promotion Page Copysheet (ENG).docx" source-language="en-US" target-language="id-ID">
+		<header>
+			<reference>
+				<internal-file form="base64">asdfghjkl
+				</internal-file>
+			</reference>
+			<sdl:ref-files>
+				<sdl:ref-file date="09/30/2022 10:02:25" expected-use="Generation" id="Docx.DependencyFileId" name="0nmq00tv.mog.docx" o-path="\\sdlproducts.com\awsstorage\OREGON\INTEL\Data\TC\109379\SRC\EN-US\Helper_Q2'22 Distributor Engagement Campaign Winner Promotion Page Copysheet (ENG).docx" uid="0"/>
+			</sdl:ref-files>
+			<file-info xmlns="http://sdl.com/FileTypes/SdlXliff/1.0">
+				<value key="SDL:FileId">e1781eb0-cb50-4c3b-bfec-a926d5863162</value>
+				<value key="SDL:CreationDate">09/30/2022 10:02:27</value>
+				<value key="SDL:OriginalFilePath">\\sdlproducts.com\awsstorage\OREGON\INTEL\Data\TC\109379\SRC\EN-US\Helper_Q2'22 Distributor Engagement Campaign Winner Promotion Page Copysheet (ENG).docx</value>
+				<value key="SDL:FileTypeDllVersion">2.14.13.0</value>
+				<value key="NeedsSegmentRenumbering">False</value>
+				<value key="RelationshipHighestId">24</value>
+				<value key="CommentHighestId">1</value>
+				<value key="ParagraphTextDirections"/>
+				<sniff-info>
+					<detected-source-lang detection-level="Guess" lang="en-US"/>
+				</sniff-info>
+			</file-info>
+			<sdl:filetype-info>
+				<sdl:filetype-id>WordprocessingML v. 2</sdl:filetype-id>
+			</sdl:filetype-info>
+			<fmt-defs xmlns="http://sdl.com/FileTypes/SdlXliff/1.0">
+				<fmt-def id="1">
+					<value key="FontSize">11</value>
+					<value key="FontName">Verdana</value>
+				</fmt-def>
+				<fmt-def id="2">
+					<value key="TextColor">Black</value>
+				</fmt-def>
+				<fmt-def id="3">
+					<value key="Bold">True</value>
+				</fmt-def>
+				<fmt-def id="4">
+					<value key="Bold">True</value>
+					<value key="TextColor">Black</value>
+				</fmt-def>
+				<fmt-def id="5">
+					<value key="Bold">True</value>
+					<value key="TextColor">White</value>
+				</fmt-def>
+				<fmt-def id="6">
+					<value key="FontSize">9</value>
+				</fmt-def>
+				<fmt-def id="7">
+					<value key="Bold">True</value>
+					<value key="TextColor">Black</value>
+					<value key="Underline">True</value>
+				</fmt-def>
+				<fmt-def id="8">
+					<value key="TextColor">0, 0, 0, 255</value>
+					<value key="Underline">True</value>
+					<value key="rStyle">Hyperlink</value>
+				</fmt-def>
+			</fmt-defs>
+			<cxt-defs xmlns="http://sdl.com/FileTypes/SdlXliff/1.0">
+				<cxt-def id="1" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">2382</value>
+						<value key="EndsAt">3765</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:pStyle w:val=&quot;Header&quot;/&gt;&lt;/w:pPr&gt;</value>
+						<value key="header">header2.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="2" purpose="Match" type="x-tm-header-footer"/>
+				<cxt-def id="3" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">2395</value>
+						<value key="EndsAt">2955</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:autoSpaceDE w:val=&quot;0&quot;/&gt;&lt;w:autoSpaceDN w:val=&quot;0&quot;/&gt;&lt;w:adjustRightInd w:val=&quot;0&quot;/&gt;&lt;w:spacing w:after=&quot;0&quot; w:line=&quot;240&quot; w:lineRule=&quot;auto&quot;/&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:color w:val=&quot;000000&quot; w:themeColor=&quot;text1&quot;/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="4" type="sdl:paragraph"/>
+				<cxt-def id="5" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">3617</value>
+						<value key="EndsAt">4073</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:spacing w:after=&quot;0&quot; w:line=&quot;240&quot; w:lineRule=&quot;auto&quot;/&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:b/&gt;&lt;w:vanish/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="6" purpose="Match" type="x-tm-table-cell"/>
+				<cxt-def id="7" type="sdl:table-row"/>
+				<cxt-def id="8" type="sdl:table"/>
+				<cxt-def id="9" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">4339</value>
+						<value key="EndsAt">4878</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:spacing w:after=&quot;0&quot; w:line=&quot;240&quot; w:lineRule=&quot;auto&quot;/&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:b/&gt;&lt;w:vanish/&gt;&lt;w:color w:val=&quot;FFFFFF&quot; w:themeColor=&quot;background1&quot;/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="10" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">5488</value>
+						<value key="EndsAt">5918</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:spacing w:after=&quot;0&quot; w:line=&quot;240&quot; w:lineRule=&quot;auto&quot;/&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:vanish/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="11" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">5986</value>
+						<value key="EndsAt">6326</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="12" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">6539</value>
+						<value key="EndsAt">6972</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:spacing w:after=&quot;0&quot; w:line=&quot;240&quot; w:lineRule=&quot;auto&quot;/&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:vanish/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="13" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">7040</value>
+						<value key="EndsAt">8092</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="14" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">8394</value>
+						<value key="EndsAt">8762</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:vanish/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="15" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">8919</value>
+						<value key="EndsAt">9269</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="16" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">9647</value>
+						<value key="EndsAt">10074</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:spacing w:after=&quot;0&quot; w:line=&quot;240&quot; w:lineRule=&quot;auto&quot;/&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:vanish/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="17" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">10142</value>
+						<value key="EndsAt">10448</value>
+						<value key="ParagraphFormatting"/>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="18" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">10826</value>
+						<value key="EndsAt">11253</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:spacing w:after=&quot;0&quot; w:line=&quot;240&quot; w:lineRule=&quot;auto&quot;/&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:vanish/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="19" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">11321</value>
+						<value key="EndsAt">11627</value>
+						<value key="ParagraphFormatting"/>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="20" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">12005</value>
+						<value key="EndsAt">12425</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:spacing w:after=&quot;0&quot; w:line=&quot;240&quot; w:lineRule=&quot;auto&quot;/&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:vanish/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="21" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">12493</value>
+						<value key="EndsAt">13633</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:rPr&gt;&lt;w:rFonts w:eastAsia=&quot;Times New Roman&quot; w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="22" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">13639</value>
+						<value key="EndsAt">14461</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:rPr&gt;&lt;w:rFonts w:eastAsia=&quot;Times New Roman&quot; w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:b/&gt;&lt;w:bCs/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+				<cxt-def id="23" purpose="Location" type="LocationDetails">
+					<fmt id="1"/>
+					<props>
+						<value key="StartsAt">14839</value>
+						<value key="EndsAt">15490</value>
+						<value key="ParagraphFormatting">&lt;w:pPr&gt;&lt;w:spacing w:after=&quot;0&quot; w:line=&quot;240&quot; w:lineRule=&quot;auto&quot;/&gt;&lt;w:rPr&gt;&lt;w:rFonts w:cstheme=&quot;minorHAnsi&quot;/&gt;&lt;w:vanish/&gt;&lt;/w:rPr&gt;&lt;/w:pPr&gt;</value>
+						<value key="document">word\document.xml</value>
+					</props>
+				</cxt-def>
+			</cxt-defs>
+			<node-defs xmlns="http://sdl.com/FileTypes/SdlXliff/1.0">
+				<node-def id="1">
+					<cxt id="2"/>
+				</node-def>
+				<node-def id="2" parent="3">
+					<cxt id="7"/>
+				</node-def>
+				<node-def id="3">
+					<cxt id="8"/>
+				</node-def>
+				<node-def id="4" parent="2">
+					<cxt id="6"/>
+				</node-def>
+				<node-def id="5" parent="3">
+					<cxt id="7"/>
+				</node-def>
+				<node-def id="6" parent="5">
+					<cxt id="6"/>
+				</node-def>
+				<node-def id="7" parent="3">
+					<cxt id="7"/>
+				</node-def>
+				<node-def id="8" parent="7">
+					<cxt id="6"/>
+				</node-def>
+				<node-def id="9" parent="7">
+					<cxt id="6"/>
+				</node-def>
+				<node-def id="10" parent="3">
+					<cxt id="7"/>
+				</node-def>
+				<node-def id="11" parent="10">
+					<cxt id="6"/>
+				</node-def>
+				<node-def id="12" parent="10">
+					<cxt id="6"/>
+				</node-def>
+				<node-def id="13" parent="3">
+					<cxt id="7"/>
+				</node-def>
+				<node-def id="14" parent="13">
+					<cxt id="6"/>
+				</node-def>
+				<node-def id="15" parent="13">
+					<cxt id="6"/>
+				</node-def>
+				<node-def id="16" parent="3">
+					<cxt id="7"/>
+				</node-def>
+				<node-def id="17" parent="16">
+					<cxt id="6"/>
+				</node-def>
+				<node-def id="18" parent="16">
+					<cxt id="6"/>
+				</node-def>
+			</node-defs>
+			<tag-defs xmlns="http://sdl.com/FileTypes/SdlXliff/1.0">
+				<tag id="6">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf color=000000&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:color">&lt;w:color w:val=&quot;000000&quot; w:themeColor=&quot;text1&quot;/&gt;</value>
+						<value key="Parent: w:color">w:r</value>
+						<value key="TextColor">000000</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="2"/>
+				</tag>
+				<tag id="99">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf bold=True&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:b">&lt;w:b/&gt;</value>
+						<value key="Parent: w:b">w:r</value>
+						<value key="Bold">True</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+						<value key="SDL:AutoCloned">True</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="3"/>
+				</tag>
+				<tag id="113">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf color=000000&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:color">&lt;w:color w:val=&quot;000000&quot;/&gt;</value>
+						<value key="Parent: w:color">w:r</value>
+						<value key="TextColor">000000</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="2"/>
+				</tag>
+				<tag id="125">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf color=000000&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:color">&lt;w:color w:val=&quot;000000&quot;/&gt;</value>
+						<value key="Parent: w:color">w:r</value>
+						<value key="TextColor">000000</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="2"/>
+				</tag>
+				<tag id="140">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf color=000000&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:color">&lt;w:color w:val=&quot;000000&quot;/&gt;</value>
+						<value key="Parent: w:color">w:r</value>
+						<value key="TextColor">000000</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="2"/>
+				</tag>
+				<tag id="143">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf bold=True color=000000&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:b">&lt;w:b/&gt;</value>
+						<value key="Parent: w:b">w:r</value>
+						<value key="Bold">True</value>
+						<value key="w:color">&lt;w:color w:val=&quot;000000&quot;/&gt;</value>
+						<value key="Parent: w:color">w:r</value>
+						<value key="TextColor">000000</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot; w:eastAsia=&quot;en-SG&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="4"/>
+				</tag>
+				<tag id="152">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf bold=True color=FFFFFF&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:b">&lt;w:b/&gt;</value>
+						<value key="Parent: w:b">w:r</value>
+						<value key="Bold">True</value>
+						<value key="w:color">&lt;w:color w:val=&quot;FFFFFF&quot;/&gt;</value>
+						<value key="Parent: w:color">w:r</value>
+						<value key="TextColor">FFFFFF</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="5"/>
+				</tag>
+				<tag id="155">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf bold=True color=FFFFFF&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:b">&lt;w:b/&gt;</value>
+						<value key="Parent: w:b">w:r</value>
+						<value key="Bold">True</value>
+						<value key="w:color">&lt;w:color w:val=&quot;FFFFFF&quot;/&gt;</value>
+						<value key="Parent: w:color">w:r</value>
+						<value key="TextColor">FFFFFF</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="5"/>
+				</tag>
+				<tag id="158">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf bold=True color=FFFFFF&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:b">&lt;w:b/&gt;</value>
+						<value key="Parent: w:b">w:r</value>
+						<value key="Bold">True</value>
+						<value key="w:color">&lt;w:color w:val=&quot;FFFFFF&quot;/&gt;</value>
+						<value key="Parent: w:color">w:r</value>
+						<value key="TextColor">FFFFFF</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="5"/>
+				</tag>
+				<tag id="161">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf bold=True color=FFFFFF&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:b">&lt;w:b/&gt;</value>
+						<value key="Parent: w:b">w:r</value>
+						<value key="Bold">True</value>
+						<value key="w:color">&lt;w:color w:val=&quot;FFFFFF&quot;/&gt;</value>
+						<value key="Parent: w:color">w:r</value>
+						<value key="TextColor">FFFFFF</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="5"/>
+				</tag>
+				<tag id="219">
+					<bpt can-hide="true" name="cf" word-end="false">&lt;cf size=9&gt;</bpt>
+					<bpt-props>
+						<value key="StartTag">w:rPr</value>
+						<value key="ParentTag">w:r</value>
+						<value key="ContentFormattingTagPairTypeKey">True</value>
+						<value key="w:sz">&lt;w:sz w:val=&quot;18&quot;/&gt;</value>
+						<value key="Parent: w:sz">w:r</value>
+						<value key="FontSize">9</value>
+						<value key="w:lang">&lt;w:lang w:val=&quot;en-US&quot; w:eastAsia=&quot;en-SG&quot;/&gt;</value>
+						<value key="Parent: w:lang">w:r</value>
+					</bpt-props>
+					<ept can-hide="true" name="cf" word-end="false">&lt;/cf&gt;</ept>
+					<fmt id="6"/>
+				</tag>
+			</tag-defs>
+		</header>
+		<body>
+			<group>
+				<sdl:cxts>
+					<sdl:cxt id="21"/>
+					<sdl:cxt id="6"/>
+					<sdl:cxt id="7"/>
+					<sdl:cxt id="8"/>
+					<sdl:node id="24"/>
+				</sdl:cxts>
+				<trans-unit id="6879d177-9e6a-4b88-b67d-dd6c40aa905a">
+					<source>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
+					tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
+					quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+					consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+					cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
+					proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</source>
+					<seg-source>
+						<mrk mid="6" mtype="seg">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
+					tempor incididunt ut labore et dolore magna aliqua. </mrk>
+						<mrk mid="7" mtype="seg">Ut enim ad minim veniam,
+					quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+					consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+					cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
+					proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</mrk>
+					</seg-source>
+					<target>
+						<mrk mid="6" mtype="seg">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
+					tempor incididunt ut labore et dolore magna aliqua. </mrk>
+						<mrk mid="7" mtype="seg">Ut enim ad minim veniam,
+					quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+					consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+					cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
+					proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</mrk>
+					</target>
+					<sdl:seg-defs>
+						<sdl:seg conf="Draft" id="6" locked="true" origin="tm" origin-system="CTP TM Seq" percent="100"/>
+						<sdl:seg conf="Draft" id="7" locked="true" origin="tm" origin-system="CTP TM Seq" percent="100"/>
+					</sdl:seg-defs>
+				</trans-unit>
+			</group>
+			<group>
+				<sdl:cxts>
+					<sdl:cxt id="22"/>
+					<sdl:cxt id="6"/>
+					<sdl:cxt id="7"/>
+					<sdl:cxt id="8"/>
+					<sdl:node id="24"/>
+				</sdl:cxts>
+				<trans-unit id="1e72c446-0b40-4dc8-8845-52c1c042f72f">
+					<source>
+						<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+							<g id="99">Lorem ipsum dolor sit amet.</g>
+						</mrk>
+						<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+							<g id="99"/>
+						</mrk>
+						<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+							<g id="99">Ut enim ad minim veniam,
+							quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+							consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+							cillum dolore eu fugiat nulla pariatur.</g>
+						</mrk>
+						<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+							<g id="99"/>
+						</mrk>
+						<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+							<g id="99">Excepteur sint occaecat cupidatat non
+							proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</g>
+						</mrk>
+					</source>
+					<seg-source>
+						<mrk mid="8" mtype="seg">
+							<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+								<g id="99">Lorem ipsum dolor sit amet.</g>
+							</mrk>
+						</mrk>
+						<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+							<g id="99"/>
+						</mrk>
+						<mrk mid="9" mtype="seg">
+							<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+								<g id="99">Ut enim ad minim veniam,
+							quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+							consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+							cillum dolore eu fugiat nulla pariatur.</g>
+							</mrk>
+						</mrk>
+						<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+							<g id="99"/>
+						</mrk>
+						<mrk mid="10" mtype="seg">
+							<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+								<g id="99">Excepteur sint occaecat cupidatat non
+							proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</g>
+							</mrk>
+						</mrk>
+					</seg-source>
+					<target>
+						<mrk mid="8" mtype="seg">
+							<mrk mtype="x-sdl-comment" sdl:cid="4a08f0dd-1281-4280-a2a2-460aff926f88">
+								<g id="99">Lorem ipsum dolor sit amet.</g>
+							</mrk>
+						</mrk>
+						<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+							<g id="99"/>
+						</mrk>
+						<mrk mid="9" mtype="seg">
+							<mrk mtype="x-sdl-comment" sdl:cid="4a08f0dd-1281-4280-a2a2-460aff926f88">
+								<g id="99">Ut enim ad minim veniam,
+							quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+							consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+							cillum dolore eu fugiat nulla pariatur.</g>
+							</mrk>
+						</mrk>
+						<mrk mtype="x-sdl-comment" sdl:cid="161eee70-823e-4d82-942a-99d479e57e6b">
+							<g id="99"/>
+						</mrk>
+						<mrk mid="10" mtype="seg">
+							<mrk mtype="x-sdl-comment" sdl:cid="4a08f0dd-1281-4280-a2a2-460aff926f88">
+								<g id="99">Excepteur sint occaecat cupidatat non
+							proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</g>
+							</mrk>
+						</mrk>
+					</target>
+					<sdl:seg-defs>
+						<sdl:seg id="8" origin="source"/>
+						<sdl:seg id="9" origin="source"/>
+						<sdl:seg id="10" origin="source"/>
+					</sdl:seg-defs>
+				</trans-unit>
+			</group>
+			<group>
+				<sdl:cxts>
+					<sdl:cxt id="23"/>
+					<sdl:cxt id="6"/>
+					<sdl:cxt id="7"/>
+					<sdl:cxt id="8"/>
+					<sdl:node id="26"/>
+				</sdl:cxts>
+				<trans-unit id="328c5ada-4131-4b7d-8cc1-141fc9b7578b">
+					<source>
+						<mrk mtype="x-sdl-comment" sdl:cid="783baf9a-21cc-4756-aa40-80453d6610ad">
+							<x id="107"/>
+						</mrk>
+					</source>
+					<seg-source>
+						<mrk mid="0" mtype="seg">
+							<mrk mtype="x-sdl-comment" sdl:cid="783baf9a-21cc-4756-aa40-80453d6610ad">
+								<x id="107"/>
+							</mrk>
+						</mrk>
+					</seg-source>
+					<target>
+						<mrk mid="0" mtype="seg">
+							<mrk mtype="x-sdl-comment" sdl:cid="783baf9a-21cc-4756-aa40-80453d6610ad">
+								<x id="107"/>
+							</mrk>
+						</mrk>
+					</target>
+				</trans-unit>
+			</group>
+			<group>
+				<sdl:cxts>
+					<sdl:cxt id="24"/>
+					<sdl:cxt id="6"/>
+					<sdl:cxt id="7"/>
+					<sdl:cxt id="8"/>
+					<sdl:node id="27"/>
+				</sdl:cxts>
+				<trans-unit id="96a9b039-cde4-4e96-b2c2-73143e375224">
+					<source>
+						<g id="113">Lorem ipsum</g>dolor sit amet, sunt in culpa qui officia deserunt mollit anim id est laborum.</source>
+					<seg-source>
+						<mrk mid="11" mtype="seg">
+							<g id="113">Lorem ipsum</g>dolor sit amet, </mrk>
+						<mrk mid="12" mtype="seg">sunt in culpa qui officia deserunt mollit anim id est laborum.</mrk>
+					</seg-source>
+					<target>
+						<mrk mid="11" mtype="seg">
+							<g id="113">Lorem ipsum</g>dolor sit amet, </mrk>
+						<mrk mid="12" mtype="seg">sunt in culpa qui officia deserunt mollit anim id est laborum.</mrk>
+					</target>
+					<sdl:seg-defs>
+						<sdl:seg id="11" origin="source"/>
+						<sdl:seg id="12" origin="source"/>
+					</sdl:seg-defs>
+				</trans-unit>
+			</group>
+		</body>
+	</file>
+</xliff>

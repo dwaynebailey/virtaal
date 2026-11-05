@@ -1,0 +1,10 @@
+file	licence	source
+matecat/Test stati sdlxliff.txt_it-IT_en-US.sdlxliff	LGPL-3.0 (matecat/LICENSE.md)	https://github.com/matecat/xliff-parser/blob/08d5fd1eb06eb53509658c895d55eaa95ee0eef0/tests/files/12/unused/Test%20stati%20sdlxliff.txt_it-IT_en-US.sdlxliff
+okapi/comments.sdlxliff	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/37edac5ae16320df4bfcc210c0a6a76ff76efd00/integration-tests/okapi/src/test/resources/xliff/sdlxliff/comments.sdlxliff
+okapi/test-comments.docx.sdlxliff	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/37edac5ae16320df4bfcc210c0a6a76ff76efd00/okapi/filters/xliff/src/test/resources/test-comments.docx.sdlxliff
+okapi/test-weird-ids.docx.sdlxliff	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/37edac5ae16320df4bfcc210c0a6a76ff76efd00/okapi/filters/xliff/src/test/resources/test-weird-ids.docx.sdlxliff
+okapi/test-packages.sdlppx	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/37edac5ae16320df4bfcc210c0a6a76ff76efd00/okapi/filters/sdlpackage/src/test/resources/test-packages.sdlppx
+okapi/test-packages.sdlrpx	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/37edac5ae16320df4bfcc210c0a6a76ff76efd00/okapi/filters/sdlpackage/src/test/resources/test-packages.sdlrpx
+rws-sdl-community/Master English - German.tmx	Apache-2.0 (rws-sdl-community/LICENSE)	https://github.com/RWS/Sdl-Community/blob/eb7e401f3dddf605e1357d3a718d04f487fd7ad2/File%20type%20definition%20for%20TMX/Sample%20Files/Master%20English%20-%20German.tmx
+rws-sdl-community/Sample English - German.tmx	Apache-2.0 (rws-sdl-community/LICENSE)	https://github.com/RWS/Sdl-Community/blob/eb7e401f3dddf605e1357d3a718d04f487fd7ad2/File%20type%20definition%20for%20TMX/Sample%20Files/Sample%20English%20-%20German.tmx
+rws-sdl-community/TTSExample.docx.sdlxliff	Apache-2.0 (rws-sdl-community/LICENSE)	https://github.com/RWS/Sdl-Community/blob/eb7e401f3dddf605e1357d3a718d04f487fd7ad2/SDLTM%20Import%20Plus/SDLTMImportUnitTests/TestingFiles/TTSExample.docx.sdlxliff

@@ -1,2 +1,4 @@
 *.po text eol=lf
 *.pot text eol=lf
+# Third-party Trados samples, kept byte for byte (UTF-16, CRLF, BOM).
+devsupport/testfiles/trados/** -text
