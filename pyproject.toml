@@ -33,7 +33,10 @@ classifiers = [
 # It's a documented system prerequisite, not a normal pip dependency,
 # same reason most GTK Python projects don't declare it either.
 dependencies = [
-    "translate-toolkit==3.20.0",
+    # The levenshtein extra brings RapidFuzz, the fast fuzzy matcher
+    # behind TM suggestions; without it translate-toolkit falls back to
+    # a slow pure-Python one.
+    "translate-toolkit[levenshtein]==3.20.0",
     # translate-toolkit gates Fluent (.ftl) support behind its own
     # "fluent" extra rather than a plain dependency - without this,
     # translate.storage.factory still lists "Fluent file" in the
@@ -46,7 +49,6 @@ dependencies = [
     "certifi==2026.10.23",
     "diff_match_patch==20241021",
     "lxml==6.1.3",
-    "python-Levenshtein==0.27.5",
     "cheroot==11.1.2",
     "bottle==0.13.4",
     # translate-toolkit's tr_lang() (language-pair labels, font preview

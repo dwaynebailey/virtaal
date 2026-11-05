@@ -76,25 +76,20 @@ modules:
         --prefix=${FLATPAK_DEST} "lxml" --no-build-isolation --ignore-installed
     sources:
       - *id001
-  - name: python3-python-Levenshtein
+  - name: python3-rapidfuzz
     buildsystem: simple
     build-commands:
-      # levenshtein/rapidfuzz use the scikit-build-core backend, which
-      # also isn't importable in this sandboxed pip env - bootstrap it
-      # (plus cmake/ninja, in case the SDK doesn't provide them) from
-      # local wheels first, then build these two from source.
+      # rapidfuzz (translate-toolkit's levenshtein extra) uses the
+      # scikit-build-core backend, which also isn't importable in this
+      # sandboxed pip env - bootstrap it (plus cmake/ninja, in case the
+      # SDK doesn't provide them) from local wheels first, then build
+      # rapidfuzz from source.
       - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
         --prefix=${FLATPAK_DEST} scikit-build-core packaging pathspec cmake ninja
         --no-build-isolation
       - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} "python-Levenshtein" --no-build-isolation
+        --prefix=${FLATPAK_DEST} "rapidfuzz" --no-build-isolation
     sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/81/ab/d55fdebfdee7605df174913708d44f75dfec0ec5e4e5fd8e978bb88897eb/levenshtein-0.27.5.tar.gz
-        sha256: 22021caf5867a46fae5ab927bbdcb430599d7e5ee3898449cbbe430ff07b7d08
-      - type: file
-        url: https://files.pythonhosted.org/packages/4a/2c/9bcea060eb5231d33ca753e6e6a7c2fa42cbfd068a1cbb46f8b1f62d9d14/python_levenshtein-0.27.5-py3-none-any.whl
-        sha256: da716ff072204e2a6432c68bd9ff92c3e7f1202e4a908640717f191dbb482693
       - type: file
         url: https://files.pythonhosted.org/packages/18/97/226c43b7b5d957bc3840ed52ea99eed261f99834c4619be7a4742cbaeafa/rapidfuzz-3.14.6.tar.gz
         sha256: e13a8160d017b499ec7a2fa9d0ce1ae2e7377080815785819f966fb235d4eb60

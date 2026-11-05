@@ -221,7 +221,7 @@ jobs:
           pip install --upgrade pip
           pip install pycairo
           pip install pygobject
-          pip install python-Levenshtein
+          pip install rapidfuzz
           pip install pycurl
           pip install lxml
           pip install diff_match_patch

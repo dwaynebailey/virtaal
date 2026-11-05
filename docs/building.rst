@@ -27,14 +27,15 @@ Required Packages
 - `pycairo <https://pypi.org/project/pycairo/>`_ - also needs
   installing separately (``pip install pycairo``), not part of
   ``pip install .``
-- `Translate Toolkit <https://pypi.org/project/translate-toolkit/>`_
+- `Translate Toolkit <https://pypi.org/project/translate-toolkit/>`_, with
+  its ``levenshtein`` extra (`RapidFuzz <https://pypi.org/project/RapidFuzz/>`_)
+  for fast fuzzy matching
 - `fluent.syntax <https://pypi.org/project/fluent.syntax/>`_ - Fluent
   (``.ftl``) files
 - `lxml <https://pypi.org/project/lxml/>`_
 - `PycURL <https://pypi.org/project/pycurl/>`_
 - `certifi <https://pypi.org/project/certifi/>`_
 - `diff_match_patch <https://pypi.org/project/diff-match-patch/>`_
-- `python-Levenshtein <https://pypi.org/project/python-Levenshtein/>`_
 - `cheroot <https://pypi.org/project/cheroot/>`_
 - `Bottle <https://pypi.org/project/bottle/>`_
 - `pycountry <https://pypi.org/project/pycountry/>`_

@@ -680,7 +680,7 @@ jobs:
         # slower on Windows than the equivalent single batched install.
         run: |
           pip install --upgrade pip
-          pip install pycairo==1.29.1 pygobject==3.58.0 python-Levenshtein pycurl lxml diff_match_patch cheroot pytest pytest-xdist pytest-cov pytest-timeout
+          pip install pycairo==1.29.1 pygobject==3.58.0 rapidfuzz pycurl lxml diff_match_patch cheroot pytest pytest-xdist pytest-cov pytest-timeout
 
       - name: Install virtaal
         run: pip install .
@@ -821,7 +821,7 @@ jobs:
         # own step comment for why.
         run: |
           pip install --upgrade pip
-          pip install setuptools==84.0.0 wheel==0.48.0 pycairo==1.29.1 pygobject==3.58.0 python-Levenshtein pycurl lxml diff_match_patch cheroot pyinstaller==6.22.3
+          pip install setuptools==84.0.0 wheel==0.48.0 pycairo==1.29.1 pygobject==3.58.0 rapidfuzz pycurl lxml diff_match_patch cheroot pyinstaller==6.22.3
 
       - name: Install virtaal
         run: pip install .[spellcheck]
@@ -1592,7 +1592,7 @@ jobs:
 
       - name: Cache flatpak-builder's module state
         # Downloaded sources plus built output for each Python deps
-        # module - lxml, pycurl and rapidfuzz (via python-Levenshtein)
+        # module - lxml, pycurl and rapidfuzz
         # compile from source tarballs, so without this every run
         # recompiles all of them from scratch even when neither
         # manifest has changed. --force-clean below only wipes
