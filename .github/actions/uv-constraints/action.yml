@@ -1,0 +1,22 @@
+name: Pin pip installs to uv.lock
+description: >-
+  Exports uv.lock as a pip constraints file and points PIP_CONSTRAINT at
+  it, so the job's later pip installs get the locked versions.
+inputs:
+  args:
+    description: uv export options choosing the extras and groups.
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v10.3.3
+      with:
+        version: "0.13.7"
+    # The value written is a fixed path under RUNNER_TEMP.
+    - shell: bash
+      env:
+        ARGS: ${{ inputs.args }}
+      run: | # zizmor: ignore[github-env]
+        # shellcheck disable=SC2086  # ARGS holds several options
+        uv export --locked --no-hashes --no-emit-project $ARGS -o "$RUNNER_TEMP/constraints.txt"
+        echo "PIP_CONSTRAINT=$RUNNER_TEMP/constraints.txt" >> "$GITHUB_ENV"

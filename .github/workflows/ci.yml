@@ -681,13 +681,18 @@ jobs:
           $content = "import os`nif os.name == 'nt':`n    os.add_dll_directory(r'C:\gtk\bin')`n"
           Set-Content -Path "$sitepkgs\sitecustomize.py" -Value $content -NoNewline
 
+      - name: Pin pip installs to uv.lock
+        uses: $/.github/actions/uv-constraints
+        with:
+          args: --extra spellcheck --group test --group gtk
+
       - name: Install Python dependencies
         # One call, not one pip invocation per package - each separate
         # invocation pays its own resolver/startup cost, measurably
         # slower on Windows than the equivalent single batched install.
         run: |
           pip install --upgrade pip
-          pip install pycairo==1.29.1 pygobject==3.58.0 rapidfuzz pycurl lxml diff_match_patch cheroot pytest pytest-xdist pytest-cov pytest-timeout
+          pip install pycairo pygobject rapidfuzz pycurl lxml diff_match_patch cheroot pytest pytest-xdist pytest-cov pytest-timeout
 
       - name: Install virtaal
         run: pip install .
@@ -823,12 +828,18 @@ jobs:
           $content = "import os`nif os.name == 'nt':`n    os.add_dll_directory(r'C:\gtk\bin')`n"
           Set-Content -Path "$sitepkgs\sitecustomize.py" -Value $content -NoNewline
 
+      - name: Pin pip installs to uv.lock
+        # build_standalone.ps1's pip installs too.
+        uses: $/.github/actions/uv-constraints
+        with:
+          args: --extra spellcheck --group gtk --group build-app
+
       - name: Install Python dependencies
         # One call, not one pip invocation per package - see test-windows's
         # own step comment for why.
         run: |
           pip install --upgrade pip
-          pip install setuptools==84.0.0 wheel==0.48.0 pycairo==1.29.1 pygobject==3.58.0 rapidfuzz pycurl lxml diff_match_patch cheroot pyinstaller==6.22.3
+          pip install setuptools wheel pycairo pygobject rapidfuzz pycurl lxml diff_match_patch cheroot pyinstaller
 
       - name: Install virtaal
         run: pip install .[spellcheck]
