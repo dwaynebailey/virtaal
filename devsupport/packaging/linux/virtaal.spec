@@ -70,10 +70,10 @@ IMMODULES_CACHE.write_text(subprocess.run(
 ).stdout.replace(str(IMMODULES_DIR), "@BUNDLE@/" + IMMODULES_DEST), encoding="utf-8")
 
 # Adwaita, as a run from source has, for hosts without GNOME's icons.
-# Ubuntu 22.04's has its symbolic icons in scalable/ and 16x16/. Not its
-# cursors: GTK uses the host's.
+# Ubuntu 24.04's has its symbolic icons in symbolic/. Not its cursors:
+# GTK uses the host's.
 ADWAITA = Path("/usr/share/icons/Adwaita")
-ADWAITA_PARTS = ["index.theme", "scalable", "scalable-up-to-32", "16x16"]
+ADWAITA_PARTS = ["index.theme", "scalable", "symbolic", "symbolic-up-to-32", "16x16"]
 for _part in ADWAITA_PARTS:
     _required(ADWAITA / _part)
 

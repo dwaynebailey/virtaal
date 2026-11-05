@@ -143,7 +143,7 @@ Linux (AppImage)
 
 The AppImage is a beta. It's a PyInstaller bundle of Virtaal, Python,
 GTK and the spell checker, packed with `appimagetool
-<https://github.com/AppImage/appimagetool>`_. Build it on Ubuntu 22.04:
+<https://github.com/AppImage/appimagetool>`_. Build it on Ubuntu 24.04:
 the AppImage runs on distributions with the same or a newer glibc.
 Install the packages listed at the top of
 ``devsupport/packaging/linux/build_appimage.sh``, then::

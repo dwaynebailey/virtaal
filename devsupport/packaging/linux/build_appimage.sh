@@ -1,7 +1,7 @@
 #!/bin/bash
 # Builds build/appimage/Virtaal-linux-<arch>.AppImage: a PyInstaller
 # bundle of Virtaal, Python, GTK and the spell checker, packed with
-# appimagetool. Run it on Ubuntu 22.04 (its glibc is the oldest the
+# appimagetool. Run it on Ubuntu 24.04 (its glibc is the oldest the
 # AppImage runs on), with these packages installed:
 #
 #   python3-venv python3-gi python3-gi-cairo gir1.2-gtk-3.0
@@ -17,8 +17,8 @@ cd "$(dirname "$0")/../../.."
 PYINSTALLER_VERSION=6.22.3  # keep in step with ci.yml's Windows build
 APPIMAGETOOL_VERSION=1.9.1
 RUNTIME_VERSION=20251108
-ENCHANT_VERSION=2.3.2  # Ubuntu 22.04's
-ENCHANT_SHA256=ce9ba47fd4d34031bd69445598a698a6611602b2b0e91d705e91a6f5099ead6e
+ENCHANT_VERSION=2.3.3  # Ubuntu 24.04's
+ENCHANT_SHA256=3da12103f11cf49c3cf2fd2ce3017575c5321a489e5b9bfa81dd91ec413f3891
 
 ARCH="$(uname -m)"
 case "$ARCH" in
