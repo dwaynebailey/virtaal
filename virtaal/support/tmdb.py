@@ -348,31 +348,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
 
     def add_unit(self, unit, source_lang=None, target_lang=None, commit=True) -> None:
         """Inserts unit in the database."""
-        # A unit's own languages win over the passed ones, which are the
-        # fallback for a unit that has none.
-        #
-        # A bare TranslationUnit (as add_unit/tmserver.py builds one from a
-        # single {"source", "target"} dict, with no store behind it) has no
-        # language of its own: current translate-toolkit's
-        # getsourcelanguage()/gettargetlanguage() unconditionally delegate to
-        # self._store, which raises AttributeError instead of returning None
-        # for such a unit - hence the guard here.
-        try:
-            if unit.getsourcelanguage():
-                source_lang = unit.getsourcelanguage()
-        except AttributeError:
-            pass
-        try:
-            if unit.gettargetlanguage():
-                target_lang = unit.gettargetlanguage()
-        except AttributeError:
-            pass
-
-        if not source_lang:
-            raise LanguageError("undefined source language")
-        if not target_lang:
-            raise LanguageError("undefined target language")
-
+        source_lang, target_lang = unit_languages(unit, source_lang, target_lang)
         unitdict = {
             "source": unit.source,
             "target": unit.target,
@@ -455,6 +431,344 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             self.connection.commit()
         return count
 
+    def sync_store(
+        self,
+        path,
+        units,
+        source_lang,
+        target_lang,
+        member="",
+        kind=STORE_SAVED,
+        replace=True,
+    ):
+        """Make the store at C{path} hold C{units} for this language pair,
+        dictionaries with source, target, context and an optional key.
+
+        With C{replace}, a unit whose target changed or that is no longer
+        in C{units} loses its old target, which goes once no other store
+        holds it.
+
+        @return: counts of units added, replaced and removed, or None if
+            the store is excluded from the TM."""
+        source_lang = data.normalize_code(source_lang)
+        target_lang = data.normalize_code(target_lang)
+        try:
+            self._begin()
+            counts = self._sync(path, member, kind, {(source_lang, target_lang): units}, replace)
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+        return counts
+
+    def import_store(self, store, path, source_lang=None, target_lang=None, member=""):
+        """Sync the translated units of the toolkit C{store} as the
+        imported store at C{path}, each under its own languages if it has
+        them."""
+        pairs = {}
+        for unit in store.units:
+            if unit.istranslatable() and unit.istranslated():
+                langs = unit_languages(unit, source_lang, target_lang)
+                pair = tuple(data.normalize_code(lang) for lang in langs)
+                pairs.setdefault(pair, []).append(
+                    {
+                        "source": unit.source,
+                        "target": unit.target,
+                        "context": unit.getcontext(),
+                        "key": unit.getid(),
+                    }
+                )
+        if not pairs and source_lang and target_lang:
+            # Nothing translated any more.
+            pairs[(data.normalize_code(source_lang), data.normalize_code(target_lang))] = []
+        try:
+            self._begin()
+            counts = self._sync(path, member, STORE_IMPORTED, pairs, replace=True)
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+        return counts
+
+    def _sync(self, path, member, kind, pairs, replace):
+        if not path:
+            raise ValueError("a store needs a path")
+        now = int(time.time())
+        store_id, exclude = self._store(path, member, kind, now)
+        if exclude:
+            return None
+        counts = {"added": 0, "replaced": 0, "removed": 0}
+        unlinked = set()
+        for (source_lang, target_lang), units in pairs.items():
+            self.cursor.execute(
+                "SELECT unit_key, tid FROM origins WHERE store_id = ? AND lang = ?",
+                (store_id, target_lang),
+            )
+            linked = dict(self.cursor.fetchall())
+            current = {}
+            for unit in units:
+                unit = {**unit, "context": unit.get("context") or ""}
+                current[unit_key(unit)] = self._add_target(unit, source_lang, target_lang)
+            for key, tid in current.items():
+                old = linked.get(key)
+                if old is None:
+                    counts["added"] += 1
+                    self.cursor.execute(
+                        "INSERT INTO origins (store_id, lang, unit_key, tid, time) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        (store_id, target_lang, key, tid, now),
+                    )
+                elif old != tid:
+                    counts["replaced"] += 1
+                    unlinked.add(old)
+                    self.cursor.execute(
+                        "UPDATE origins SET tid = ?, time = ? "
+                        "WHERE store_id = ? AND lang = ? AND unit_key = ?",
+                        (tid, now, store_id, target_lang, key),
+                    )
+            if replace:
+                gone = [(key, tid) for key, tid in linked.items() if key not in current]
+                counts["removed"] += len(gone)
+                unlinked.update(tid for _key, tid in gone)
+                self.cursor.executemany(
+                    "DELETE FROM origins WHERE store_id = ? AND lang = ? AND unit_key = ?",
+                    [(store_id, target_lang, key) for key, _tid in gone],
+                )
+        if replace:
+            self._drop_unheld(unlinked)
+        else:
+            # Kept, but no longer this file's.
+            self._file_under_legacy()
+        return counts
+
+    def _find_store(self, path, member):
+        self.cursor.execute(
+            "SELECT store_id, exclude FROM stores WHERE path = ? AND member = ?", (path, member)
+        )
+        return self.cursor.fetchone()
+
+    def _store(self, path, member, kind, now):
+        """The id and exclude flag of the store at C{path}, made C{kind}
+        unless excluded."""
+        row = self._find_store(path, member)
+        if row is not None and row[1]:
+            return row
+        if row is None:
+            self.cursor.execute(
+                "INSERT INTO stores (path, member, kind, added, updated) VALUES (?, ?, ?, ?, ?)",
+                (path, member, kind, now, now),
+            )
+            return self.cursor.lastrowid, 0
+        self.cursor.execute(
+            "UPDATE stores SET kind = ?, updated = ? WHERE store_id = ?", (kind, now, row[0])
+        )
+        return row
+
+    def _drop_unheld(self, tids):
+        """Delete those of C{tids} no store holds, and sources left
+        without a target. Returns how many targets went."""
+        sids = set()
+        deleted = 0
+        for tid in tids:
+            self.cursor.execute(
+                "SELECT sid FROM targets t WHERE tid = ? "
+                "AND NOT EXISTS (SELECT 1 FROM origins o WHERE o.tid = t.tid)",
+                (tid,),
+            )
+            row = self.cursor.fetchone()
+            if row is None:
+                continue
+            sids.add(row[0])
+            self.cursor.execute("DELETE FROM targets WHERE tid = ?", (tid,))
+            deleted += 1
+        # The full-text trigger removes each from the index.
+        self.cursor.executemany(
+            "DELETE FROM sources WHERE sid = ? "
+            "AND NOT EXISTS (SELECT 1 FROM targets WHERE targets.sid = sources.sid)",
+            [(sid,) for sid in sids],
+        )
+        return deleted
+
+    def forget_store(self, path, source_lang, target_lang, member=""):
+        """Remove what the store at C{path} added for this language pair,
+        except targets another store also holds. The store goes once it
+        holds nothing, unless it is excluded (which it remembers).
+
+        @return: how many units it held, or None for an unknown store."""
+        source_lang = data.normalize_code(source_lang)
+        target_lang = data.normalize_code(target_lang)
+        try:
+            self._begin()
+            row = self._find_store(path, member)
+            if row is None:
+                self.connection.commit()
+                return None
+            store_id = row[0]
+            self.cursor.execute(
+                "SELECT o.unit_key, o.tid FROM origins o JOIN targets t ON t.tid = o.tid "
+                "JOIN sources s ON s.sid = t.sid "
+                "WHERE o.store_id = ? AND o.lang = ? AND s.lang = ?",
+                (store_id, target_lang, source_lang),
+            )
+            held = self.cursor.fetchall()
+            self.cursor.executemany(
+                "DELETE FROM origins WHERE store_id = ? AND lang = ? AND unit_key = ?",
+                [(store_id, target_lang, key) for key, _tid in held],
+            )
+            self._drop_unheld({tid for _key, tid in held})
+            self.cursor.execute(
+                "DELETE FROM stores WHERE store_id = ? AND exclude = 0 "
+                "AND NOT EXISTS (SELECT 1 FROM origins WHERE store_id = ?)",
+                (store_id, store_id),
+            )
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+        return len(held)
+
+    def set_exclude(self, path, exclude, member=""):
+        """Keep the store at C{path} out of the TM, removing what it added,
+        or let it in again."""
+        try:
+            self._begin()
+            row = self._find_store(path, member)
+            if row is None:
+                now = int(time.time())
+                self.cursor.execute(
+                    "INSERT INTO stores (path, member, kind, added, updated) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (path, member, STORE_SAVED, now, now),
+                )
+                store_id = self.cursor.lastrowid
+            else:
+                store_id = row[0]
+            self.cursor.execute(
+                "UPDATE stores SET exclude = ? WHERE store_id = ?", (int(bool(exclude)), store_id)
+            )
+            if exclude:
+                self.cursor.execute("SELECT tid FROM origins WHERE store_id = ?", (store_id,))
+                tids = {tid for (tid,) in self.cursor.fetchall()}
+                self.cursor.execute("DELETE FROM origins WHERE store_id = ?", (store_id,))
+                self._drop_unheld(tids)
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+
+    def store_stats(self, path, source_lang, target_lang, member=""):
+        """The store at C{path}: its unit count for this language pair,
+        when it was last synced, its kind and exclude flag; None if
+        unknown."""
+        self.cursor.execute(
+            "SELECT store_id, kind, exclude, updated FROM stores WHERE path = ? AND member = ?",
+            (path, member),
+        )
+        row = self.cursor.fetchone()
+        if row is None:
+            return None
+        store_id, kind, exclude, updated = row
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM origins o JOIN targets t ON t.tid = o.tid "
+            "JOIN sources s ON s.sid = t.sid "
+            "WHERE o.store_id = ? AND o.lang = ? AND s.lang = ?",
+            (store_id, data.normalize_code(target_lang), data.normalize_code(source_lang)),
+        )
+        (units,) = self.cursor.fetchone()
+        return {"units": units, "updated": updated, "kind": kind, "exclude": bool(exclude)}
+
+    def list_stores(self):
+        """Every store, with its unit count and last change per language
+        pair, and whether its file is still there (None for the legacy
+        store, which has none)."""
+        self.cursor.execute(
+            "SELECT st.store_id, st.path, st.member, st.kind, st.exclude, st.added, st.updated, "
+            "p.slang, p.tlang, COUNT(p.tlang), MAX(p.time) FROM stores st LEFT JOIN "
+            "(SELECT o.store_id, s.lang AS slang, o.lang AS tlang, o.time FROM origins o "
+            "JOIN targets t ON t.tid = o.tid JOIN sources s ON s.sid = t.sid) p "
+            "ON p.store_id = st.store_id "
+            "GROUP BY st.store_id, p.slang, p.tlang ORDER BY st.store_id, p.slang, p.tlang"
+        )
+        stores = {}
+        for row in self.cursor.fetchall():
+            store_id, path, member, kind, exclude, added, updated = row[:7]
+            slang, tlang, units, changed = row[7:]
+            if store_id not in stores:
+                stores[store_id] = {
+                    "id": store_id,
+                    "path": path,
+                    "member": member,
+                    "kind": kind,
+                    "exclude": bool(exclude),
+                    "added": added,
+                    "updated": updated,
+                    "exists": os.path.exists(path) if path else None,
+                    "pairs": [],
+                }
+            if tlang is not None:
+                stores[store_id]["pairs"].append(
+                    {
+                        "source_lang": slang,
+                        "target_lang": tlang,
+                        "units": units,
+                        "updated": changed,
+                    }
+                )
+        return list(stores.values())
+
+    def export_tmx(self, source_lang, target_lang, path=None, member=""):
+        """The TM's entries for this language pair as TMX bytes; only the
+        store at C{path}'s if given (None if it is unknown)."""
+        from translate.storage import tmx
+
+        query = (
+            "SELECT s.text, t.text, s.context FROM sources s JOIN targets t ON s.sid = t.sid "
+            "WHERE s.lang = ? AND t.lang = ?"
+        )
+        params = [data.normalize_code(source_lang), data.normalize_code(target_lang)]
+        if path is not None:
+            row = self._find_store(path, member)
+            if row is None:
+                return None
+            query += " AND t.tid IN (SELECT tid FROM origins WHERE store_id = ?)"
+            params.append(row[0])
+        self.cursor.execute(query + " ORDER BY s.sid, t.tid", params)
+        # TMX takes BCP 47 tags.
+        source_tag = source_lang.replace("_", "-")
+        target_tag = target_lang.replace("_", "-")
+        store = tmx.tmxfile(sourcelanguage=source_tag, targetlanguage=target_tag)
+        for source, target, context in self.cursor.fetchall():
+            store.addtranslation(source, source_tag, target, target_tag, context=context or None)
+        return bytes(store)
+
+    def forget_unit(self, source, target, source_lang, target_lang, context=None):
+        """Remove a target from the TM, whichever stores hold it; any
+        context if C{context} is None. Returns how many targets went."""
+        query = (
+            "SELECT t.tid FROM sources s JOIN targets t ON s.sid = t.sid "
+            "WHERE s.text = ? AND t.text = ? AND s.lang = ? AND t.lang = ?"
+        )
+        params = [
+            source,
+            target,
+            data.normalize_code(source_lang),
+            data.normalize_code(target_lang),
+        ]
+        if context is not None:
+            query += " AND s.context IS ?"
+            params.append(context)
+        try:
+            self._begin()
+            self.cursor.execute(query, params)
+            tids = [tid for (tid,) in self.cursor.fetchall()]
+            self.cursor.executemany("DELETE FROM origins WHERE tid = ?", [(tid,) for tid in tids])
+            deleted = self._drop_unheld(tids)
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+        return deleted
+
     def translate_unit(self, unit_source, source_langs, target_langs):
         """Return TM suggestions for unit_source."""
         if not isinstance(source_langs, list):
@@ -515,6 +829,42 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         results = results[: self.max_candidates]
         logger.debug("results: %s", results)
         return results
+
+
+def unit_languages(unit, source_lang=None, target_lang=None):
+    """C{unit}'s own languages, or the passed ones for a unit that has none."""
+    # A bare TranslationUnit (as add_unit/tmserver.py builds one from a
+    # single {"source", "target"} dict, with no store behind it) has no
+    # language of its own: current translate-toolkit's
+    # getsourcelanguage()/gettargetlanguage() unconditionally delegate to
+    # self._store, which raises AttributeError instead of returning None
+    # for such a unit - hence the guard here.
+    try:
+        if unit.getsourcelanguage():
+            source_lang = unit.getsourcelanguage()
+    except AttributeError:
+        pass
+    try:
+        if unit.gettargetlanguage():
+            target_lang = unit.gettargetlanguage()
+    except AttributeError:
+        pass
+
+    if not source_lang:
+        raise LanguageError("undefined source language")
+    if not target_lang:
+        raise LanguageError("undefined target language")
+    return source_lang, target_lang
+
+
+def unit_key(unit):
+    """What identifies a unit in its file: its key, else its context and
+    source as a PO file's id joins them."""
+    if unit.get("key"):
+        return unit["key"]
+    if unit.get("context"):
+        return "%s\x04%s" % (unit["context"], unit["source"])
+    return unit["source"]
 
 
 def min_levenshtein_length(length, min_similarity):

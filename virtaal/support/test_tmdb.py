@@ -18,7 +18,7 @@ import types
 from pathlib import Path
 
 import pytest
-from translate.storage import base, xliff
+from translate.storage import base, pypo, tmx, xliff
 
 from virtaal.support import tmdb
 from virtaal.support._testhelpers import OtherProcess, scale_lock_waits
@@ -541,3 +541,318 @@ def test_a_unit_added_without_a_file_goes_to_the_legacy_store(db_path):
     (tid,) = db.cursor.execute('SELECT tid FROM targets').fetchone()
     assert _origins(db) == [(0, 'af', str(tid), tid)]
     assert db.cursor.execute('SELECT kind FROM stores').fetchall() == [(tmdb.STORE_LEGACY,)]
+
+
+# Stores: syncing a saved or imported file, removing it, its stats and export.
+
+PO = '/home/user/project/af.po'
+OTHER = '/home/user/other/af.po'
+
+
+def _unit(source, target, key=None, context=''):
+    unit = {'source': source, 'target': target, 'context': context}
+    if key:
+        unit['key'] = key
+    return unit
+
+
+def _targets(db):
+    return sorted(text for (text,) in db.cursor.execute('SELECT text FROM targets'))
+
+
+def _suggested(db, source):
+    return [match['target'] for match in db.translate_unit(source, 'en', 'af')]
+
+
+def test_a_sync_adds_each_unit_under_its_key(db_path):
+    db = tmdb.TMDB(db_path)
+
+    counts = db.sync_store(
+        PO, [_unit(SHORT, 'Maak dit oop', 'k1'), _unit(LONG, 'Maak oop', 'k2')], 'en', 'af'
+    )
+
+    assert counts == {'added': 2, 'replaced': 0, 'removed': 0}
+    keys = db.cursor.execute('SELECT unit_key FROM origins ORDER BY unit_key').fetchall()
+    assert keys == [('k1',), ('k2',)]
+    assert db.store_stats(PO, 'en', 'af')['units'] == 2
+
+
+def test_a_resync_replaces_a_changed_target(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+
+    counts = db.sync_store(PO, [_unit(SHORT, 'Open dit', 'k1')], 'en', 'af')
+
+    assert counts == {'added': 0, 'replaced': 1, 'removed': 0}
+    assert _suggested(db, SHORT) == ['Open dit']
+    assert _targets(db) == ['Open dit']
+
+
+def test_a_resync_removes_units_no_longer_translated(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(
+        PO, [_unit(SHORT, 'Maak dit oop', 'k1'), _unit(LONG, 'Maak oop', 'k2')], 'en', 'af'
+    )
+
+    counts = db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+
+    assert counts == {'added': 0, 'replaced': 0, 'removed': 1}
+    assert _suggested(db, LONG) == []
+    assert _count(db, 'sources') == 1
+    assert _count(db, 'fulltext') == 1
+
+
+def test_a_resync_keeps_a_target_another_store_holds(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+    db.sync_store(OTHER, [_unit(SHORT, 'Maak dit oop', 'other')], 'en', 'af')
+
+    db.sync_store(PO, [], 'en', 'af')
+
+    assert _suggested(db, SHORT) == ['Maak dit oop']
+    assert db.store_stats(OTHER, 'en', 'af')['units'] == 1
+
+
+def test_a_resync_keeps_a_target_added_before_files_were_recorded(db_path):
+    db = tmdb.TMDB(db_path)
+    db.add_dict(_unit(SHORT, 'Maak dit oop'), 'en', 'af')
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+
+    db.sync_store(PO, [_unit(SHORT, 'Open dit', 'k1')], 'en', 'af')
+
+    assert sorted(_suggested(db, SHORT)) == ['Maak dit oop', 'Open dit']
+
+
+def test_a_sync_without_replace_keeps_old_targets_in_the_legacy_store(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+
+    db.sync_store(PO, [_unit(SHORT, 'Open dit', 'k1')], 'en', 'af', replace=False)
+
+    assert sorted(_suggested(db, SHORT)) == ['Maak dit oop', 'Open dit']
+    assert db.store_stats(PO, 'en', 'af')['units'] == 1
+    assert db.store_stats('', 'en', 'af')['units'] == 1
+
+
+def test_a_unit_without_a_key_is_keyed_by_its_context_and_source(db_path):
+    db = tmdb.TMDB(db_path)
+
+    db.sync_store(
+        PO, [_unit(SHORT, 'Maak dit oop'), _unit(SHORT, 'Oop', context='menu')], 'en', 'af'
+    )
+
+    keys = db.cursor.execute('SELECT unit_key FROM origins ORDER BY unit_key').fetchall()
+    assert keys == [(SHORT,), ('menu\x04' + SHORT,)]
+
+
+def test_a_sync_needs_a_path(db_path):
+    db = tmdb.TMDB(db_path)
+
+    with pytest.raises(ValueError):
+        db.sync_store('', [_unit(SHORT, 'Maak dit oop')], 'en', 'af')
+    with pytest.raises(ValueError):
+        db.import_store(pypo.pofile(), '', 'en', 'af')
+    assert _count(db, 'stores') == 0
+
+
+def test_a_failed_sync_changes_nothing(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+    db.connection.set_authorizer(_refuse((sqlite3.SQLITE_DELETE, 'targets')))
+    try:
+        with pytest.raises(sqlite3.DatabaseError):
+            db.sync_store(PO, [_unit(SHORT, 'Open dit', 'k1')], 'en', 'af')
+    finally:
+        db.connection.set_authorizer(_allow)
+
+    assert _targets(db) == ['Maak dit oop']
+    assert db.cursor.execute('SELECT unit_key FROM origins').fetchall() == [('k1',)]
+
+
+def test_a_bundle_member_is_its_own_store(db_path):
+    db = tmdb.TMDB(db_path)
+
+    db.sync_store('/tmp/b.zip', [_unit(SHORT, 'Maak dit oop')], 'en', 'af', member='a.xlf')
+    db.sync_store('/tmp/b.zip', [_unit(LONG, 'Maak oop')], 'en', 'af', member='b.xlf')
+
+    assert db.store_stats('/tmp/b.zip', 'en', 'af', member='a.xlf')['units'] == 1
+    assert db.store_stats('/tmp/b.zip', 'en', 'af', member='b.xlf')['units'] == 1
+    assert db.store_stats('/tmp/b.zip', 'en', 'af') is None
+
+
+def test_forgetting_a_store_keeps_targets_another_store_holds(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(
+        PO, [_unit(SHORT, 'Maak dit oop', 'k1'), _unit(LONG, 'Maak oop', 'k2')], 'en', 'af'
+    )
+    db.sync_store(OTHER, [_unit(SHORT, 'Maak dit oop', 'other')], 'en', 'af')
+
+    assert db.forget_store(PO, 'en', 'af') == 2
+
+    assert _suggested(db, SHORT) == ['Maak dit oop']
+    assert _suggested(db, LONG) == []
+    assert db.store_stats(PO, 'en', 'af') is None
+    assert db.forget_store(PO, 'en', 'af') is None
+
+
+def test_forgetting_a_store_for_one_pair_keeps_its_other_pair(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+    db.sync_store(PO, [_unit(SHORT, 'Vula', 'k1')], 'en', 'zu')
+
+    db.forget_store(PO, 'en', 'af')
+
+    assert db.store_stats(PO, 'en', 'zu')['units'] == 1
+    assert db.translate_unit(SHORT, 'en', 'zu')[0]['target'] == 'Vula'
+
+
+def test_forgetting_the_legacy_store(db_path, old_tmdb):
+    _v0_file(old_tmdb, db_path, (SHORT, 'Maak dit oop'))
+    db = tmdb.TMDB(db_path)
+
+    assert db.forget_store('', 'en', 'af') == 1
+
+    assert _count(db, 'targets') == 0
+    assert _count(db, 'stores') == 0
+
+
+def test_excluding_a_store_removes_what_it_added_and_stops_its_syncs(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+
+    db.set_exclude(PO, True)
+
+    assert _suggested(db, SHORT) == []
+    assert db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af') is None
+    assert _count(db, 'targets') == 0
+    stats = db.store_stats(PO, 'en', 'af')
+    assert stats['exclude'] is True
+    assert stats['units'] == 0
+    # Forgetting it keeps the setting.
+    db.forget_store(PO, 'en', 'af')
+    assert db.store_stats(PO, 'en', 'af')['exclude'] is True
+
+
+def test_a_store_let_in_again_syncs(db_path):
+    db = tmdb.TMDB(db_path)
+    db.set_exclude(PO, True)
+
+    db.set_exclude(PO, False)
+
+    assert db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')['added'] == 1
+
+
+def test_list_stores_gives_each_pairs_units_and_whether_the_file_is_there(db_path, tmp_path):
+    there = tmp_path / 'af.po'
+    there.write_text('')
+    db = tmdb.TMDB(db_path)
+    db.add_dict(_unit(LONG, 'Maak oop'), 'en', 'af')
+    db.sync_store(str(there), [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+    db.sync_store(str(there), [_unit(SHORT, 'Vula', 'k1')], 'en', 'zu')
+    db.sync_store(OTHER, [], 'en', 'af', kind=tmdb.STORE_IMPORTED)
+
+    stores = db.list_stores()
+
+    assert [(s['path'], s['kind'], s['exists']) for s in stores] == [
+        ('', tmdb.STORE_LEGACY, None),
+        (str(there), tmdb.STORE_SAVED, True),
+        (OTHER, tmdb.STORE_IMPORTED, False),
+    ]
+    assert [(p['target_lang'], p['units']) for p in stores[1]['pairs']] == [('af', 1), ('zu', 1)]
+    assert stores[2]['pairs'] == []
+
+
+def test_export_gives_the_pairs_entries_as_tmx(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+    db.sync_store(OTHER, [_unit(LONG, 'Maak oop', context='menu')], 'en', 'af')
+    db.sync_store(PO, [_unit(SHORT, 'Vula', 'k1')], 'en', 'zu')
+
+    exported = tmx.tmxfile(db.export_tmx('en', 'af'))
+
+    assert [(u.source, u.target, u.getcontext()) for u in exported.units] == [
+        (SHORT, 'Maak dit oop', ''),
+        (LONG, 'Maak oop', 'menu'),
+    ]
+
+
+def test_export_of_one_store(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en_US', 'af')
+    db.sync_store(OTHER, [_unit(LONG, 'Maak oop')], 'en_US', 'af')
+
+    exported = db.export_tmx('en_US', 'af', path=OTHER)
+
+    assert [u.target for u in tmx.tmxfile(exported).units] == ['Maak oop']
+    assert b'xml:lang="en-US"' in exported
+    assert db.export_tmx('en_US', 'af', path='/nowhere.po') is None
+
+
+def test_forget_unit_removes_the_target_from_every_store(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(
+        PO, [_unit(SHORT, 'Maak dit oop', 'k1'), _unit(SHORT, 'Oop', context='x')], 'en', 'af'
+    )
+    db.sync_store(OTHER, [_unit(SHORT, 'Maak dit oop', 'other')], 'en', 'af')
+
+    assert db.forget_unit(SHORT, 'Maak dit oop', 'en', 'af', context='') == 1
+
+    assert _suggested(db, SHORT) == ['Oop']
+    assert db.store_stats(OTHER, 'en', 'af')['units'] == 0
+
+
+def test_import_store_syncs_a_files_translated_units(db_path, tmp_path):
+    po = pypo.pofile.parsestring(
+        b'msgid "Open it"\nmsgstr "Maak dit oop"\n\n'
+        b'#, fuzzy\nmsgid "Close it"\nmsgstr "Maak dit toe"\n\n'
+        b'msgctxt "menu"\nmsgid "Quit"\nmsgstr "Verlaat"\n'
+    )
+    db = tmdb.TMDB(db_path)
+
+    counts = db.import_store(po, PO, 'en', 'af')
+
+    assert counts == {'added': 2, 'replaced': 0, 'removed': 0}
+    keys = db.cursor.execute('SELECT unit_key FROM origins ORDER BY unit_key').fetchall()
+    assert keys == [('Open it',), ('menu\x04Quit',)]
+    assert db.store_stats(PO, 'en', 'af')['kind'] == tmdb.STORE_IMPORTED
+
+
+def test_import_store_files_units_under_their_own_languages(db_path):
+    store = xliff.xlifffile(sourcelanguage='en', targetlanguage='zu')
+    store.addsourceunit(SHORT).target = 'Vula'
+
+    db = tmdb.TMDB(db_path)
+    db.import_store(store, PO, 'en', 'af')
+
+    assert db.translate_unit(SHORT, 'en', 'zu')[0]['target'] == 'Vula'
+    assert db.store_stats(PO, 'en', 'af')['units'] == 0
+
+
+def test_importing_a_file_with_nothing_translated_empties_its_store(db_path):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop')], 'en', 'af')
+
+    counts = db.import_store(
+        pypo.pofile.parsestring(b'msgid "Open it"\nmsgstr ""\n'), PO, 'en', 'af'
+    )
+
+    assert counts['removed'] == 1
+    assert _count(db, 'targets') == 0
+
+
+def test_an_older_virtaal_works_on_a_file_with_stores(db_path, old_tmdb):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(SHORT, 'Maak dit oop', 'k1')], 'en', 'af')
+    _close(db_path)
+
+    old = old_tmdb.TMDB(db_path)
+    old.add_dict(_unit(LONG, 'Maak die gekose lêer oop'), 'en', 'af')
+    old.add_dict(_unit(SHORT, 'Maak dit oop'), 'en', 'af')
+
+    assert old.translate_unit(SHORT, 'en', 'af')[0]['target'] == 'Maak dit oop'
+    assert old.translate_unit(LONG, 'en', 'af')[0]['target'] == 'Maak die gekose lêer oop'
+    assert _count(old, 'targets') == 2
+    db = tmdb.TMDB(db_path)
+    assert db._user_version() == 1
+    assert db.store_stats(PO, 'en', 'af')['units'] == 1
+    assert db.store_stats('', 'en', 'af')['units'] == 1
