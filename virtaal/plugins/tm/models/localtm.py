@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import json
 import logging
 import os
 import socket
@@ -146,6 +147,52 @@ class TMModel(remotetm.TMModel):
         )
         self.cache = {}
         self._generation += 1
+
+    def import_file(self, path, on_done, on_error):
+        """Import the translation file at C{path} into the local TM, as a
+        store of its own keyed by its real path, without opening it.
+
+        The server reads the file, filing each unit under the file's own
+        languages where the format has them, else under the current pair.
+        C{on_done(path, added)} runs with the number of translations the
+        TM didn't have yet, C{on_error(path)} if the file can't be read
+        or imported."""
+        path = os.path.realpath(path)
+        try:
+            with open(path, 'rb') as f:
+                data = f.read()
+        except OSError as e:
+            logging.warning("Can't import %s into the local TM: %s", path, e)
+            on_error(path)
+            return
+        # An empty body would make curl read the upload from stdin.
+        if not data:
+            on_error(path)
+            return
+        request = self.tmclient.import_file(path, data, self.source_lang, self.target_lang)
+        if request is None:
+            on_error(path)
+            return
+
+        def on_success(_request, reply):
+            try:
+                counts = json.loads(reply)
+            except ValueError:
+                counts = None
+            if not isinstance(counts, dict):
+                on_error(path)
+                return
+            self.cache = {}
+            self._generation += 1
+            on_done(path, counts.get('added', 0) + counts.get('replaced', 0))
+
+        def on_failure(_request, reason):
+            logging.warning("The local TM didn't import %s: %s", path, reason)
+            on_error(path)
+
+        request.connect('http-success', on_success)
+        for signal in ('http-redirect', 'http-client-error', 'http-server-error', 'http-failed'):
+            request.connect(signal, on_failure)
 
     def destroy(self):
         self._signal_tracker.disconnect_all()

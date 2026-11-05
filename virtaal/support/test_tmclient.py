@@ -403,3 +403,23 @@ def test_forget_unit_removes_the_target_on_the_server(tm_server, monkeypatch):
 
     assert (status, replies) == (200, [{'removed': 1}])
     assert app.tmdb.translate_unit('cat', 'en', 'fr') == []
+
+
+def test_import_file_puts_the_files_content_at_its_path(monkeypatch):
+    client, requests = _make_client(monkeypatch)
+
+    request = client.import_file('/home/user/memory.tmx', b'<tmx/>', 'en', 'af')
+
+    assert request is requests[0]
+    assert request.url == 'http://example.com/en/af/store'
+    assert request.method == 'PUT'
+    assert request.id == '/home/user/memory.tmx'
+    assert request.data == b'<tmx/>'
+    assert request.curl.opts[pycurl.TIMEOUT] == 600
+
+
+def test_import_file_is_none_when_the_queue_is_full(monkeypatch):
+    client, _requests = _make_client(monkeypatch)
+    monkeypatch.setattr(client, 'add', lambda request: False)
+
+    assert client.import_file('/home/user/fr.po', b'x', 'en', 'fr') is None

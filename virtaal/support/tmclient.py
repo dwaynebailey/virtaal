@@ -126,6 +126,24 @@ class TMClient(HTTPClient):
         if callback:
             request.connect("http-success", _json_callback(callback))
 
+    def import_file(self, path, data, source_lang, target_lang):
+        """Send C{data}, the content of the translation file at C{path},
+        to be imported as the store at that path; units without
+        languages of their own go under the passed ones.
+        @returns: The request, or None if the queue was too full to send it."""
+        request = RESTRequest(
+            self.base_url + "/%s/%s/store" % (source_lang, target_lang),
+            path,
+            "PUT",
+            data,
+            user_agent=self.user_agent,
+        )
+        # A big TMX takes the server a while to read.
+        request.curl.setopt(pycurl.TIMEOUT, 600)
+        if not self.add(request):
+            return None
+        return request
+
     def add_store(self, filename, store, source_lang, target_lang, callback=None):
         request = RESTRequest(
             self.base_url + "/%s/%s/store" % (source_lang, target_lang),

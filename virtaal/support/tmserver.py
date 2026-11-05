@@ -148,7 +148,11 @@ class TMServer:
         """Import the uploaded file as the store at its path."""
         data = BytesIO(request.body.read())
         data.name = sid
-        store = factory.getobject(data)  # ty:ignore[invalid-argument-type]
+        try:
+            store = factory.getobject(data)  # ty:ignore[invalid-argument-type]
+        except Exception as e:
+            logger.warning("Can't read the uploaded %s: %s", sid, e)
+            return _json_reply({"error": "unreadable file"}, 400)
         counts = self.tmdb.import_store(store, sid, slang, tlang, request.query.member)
         return _json_reply(counts if counts is not None else {"excluded": True})
 

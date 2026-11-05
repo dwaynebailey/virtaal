@@ -21,7 +21,7 @@ from virtaal.common.platform import Platform
 from virtaal.controllers.baseplugin import PluginUnsupported
 from virtaal.plugins.tm.models import localtm
 from virtaal.plugins.tm.models.localtm import TMModel, find_free_port
-from virtaal.support import helperprocess
+from virtaal.support import helperprocess, tmdb
 
 # localtm.test_port is a production function, not a test - even a
 # module-level alias here would make pytest try to collect and run it
@@ -382,3 +382,161 @@ def test_saving_twice_replaces_a_changed_translation_on_the_server(tmp_path, mon
     finally:
         while test_tmserver._servers:
             test_tmserver._servers.pop().stop()
+
+
+# import_file(): a file chosen by the user goes into the local TM.
+
+TMX = b'''<?xml version="1.0" encoding="utf-8"?>
+<tmx version="1.4"><header srclang="en" adminlang="en" datatype="plaintext"
+ segtype="sentence" creationtool="test" creationtoolversion="1" o-tmf="test"/>
+<body>
+<tu><tuv xml:lang="en"><seg>Open file</seg></tuv><tuv xml:lang="de"><seg>Datei offnen</seg></tuv></tu>
+<tu><tuv xml:lang="en"><seg>Close file</seg></tuv><tuv xml:lang="de"><seg>Datei schliessen</seg></tuv></tu>
+</body></tmx>
+'''
+
+
+@pytest.fixture
+def importing_model(tmp_path, monkeypatch):
+    """A model talking to a real server; returns (model, app, send) where
+    send() completes the request import_file() queued."""
+    from virtaal.support import test_tmserver, tmclient
+
+    app, port = test_tmserver._start_server(tmp_path / 'tm.db')
+    model = _pushing_model()
+    model._generation = 0
+    model.tmclient = tmclient.TMClient('http://127.0.0.1:%d' % port)
+    requests = []
+    monkeypatch.setattr(model.tmclient, 'add', lambda request: requests.append(request) or True)
+
+    def send():
+        request = requests.pop()
+        try:
+            request.curl.perform()
+        except Exception as e:
+            request.emit('http-failed', str(e))
+            return
+        request.handle_result()
+
+    yield model, app, send
+    while test_tmserver._servers:
+        test_tmserver._servers.pop().stop()
+
+
+def _import(model, path):
+    results = []
+    model.import_file(
+        str(path),
+        lambda path, added: results.append(('done', path, added)),
+        lambda path: results.append(('error', path)),
+    )
+    return results
+
+
+def test_import_file_adds_a_tmx_under_its_own_languages(tmp_path, importing_model):
+    model, app, send = importing_model
+    (tmp_path / 'sub').mkdir()
+    tmx = tmp_path / 'memory.tmx'
+    tmx.write_bytes(TMX)
+
+    results = _import(model, tmp_path / 'sub' / '..' / 'memory.tmx')
+    send()
+
+    assert results == [('done', os.path.realpath(tmx), 2)]
+    assert app.tmdb.translate_unit('Open file', 'en', 'de')[0]['target'] == 'Datei offnen'
+    assert app.tmdb.translate_unit('Open file', 'en', 'af') == []
+    stats = app.tmdb.store_stats(os.path.realpath(tmx), 'en', 'de')
+    assert stats['kind'] == tmdb.STORE_IMPORTED
+    assert model.cache == {}
+    assert model._generation == 1
+
+
+def test_import_file_files_a_po_without_languages_under_the_current_pair(tmp_path, importing_model):
+    model, app, send = importing_model
+    po = tmp_path / 'af.po'
+    po.write_bytes(PO)
+
+    results = _import(model, po)
+    send()
+
+    assert results == [('done', os.path.realpath(po), 2)]
+    assert app.tmdb.translate_unit('Quit', 'en', 'af')[0]['target'] == 'Verlaat'
+
+
+def test_importing_a_file_again_adds_nothing(tmp_path, importing_model):
+    model, _app, send = importing_model
+    po = tmp_path / 'af.po'
+    po.write_bytes(PO)
+    _import(model, po)
+    send()
+
+    results = _import(model, po)
+    send()
+
+    assert results == [('done', os.path.realpath(po), 0)]
+
+
+def test_importing_a_changed_file_counts_its_new_translations(tmp_path, importing_model):
+    model, app, send = importing_model
+    po = tmp_path / 'af.po'
+    po.write_bytes(PO)
+    _import(model, po)
+    send()
+    po.write_bytes(PO.replace(b'"Maak oop"', b'"Open dit"'))
+
+    results = _import(model, po)
+    send()
+
+    assert results == [('done', os.path.realpath(po), 1)]
+    assert [m['target'] for m in app.tmdb.translate_unit('Open', 'en', 'af')] == ['Open dit']
+
+
+@pytest.mark.parametrize(
+    'content', [None, b'', b'<tmx>broken'], ids=['missing', 'empty', 'unreadable']
+)
+def test_import_file_reports_a_file_it_cant_import(tmp_path, importing_model, content):
+    model, app, send = importing_model
+    path = tmp_path / 'memory.tmx'
+    if content is not None:
+        path.write_bytes(content)
+
+    results = _import(model, path)
+    if content:
+        send()
+
+    assert results == [('error', os.path.realpath(path))]
+    assert model.cache == {'stale': 'entry'}
+
+
+def test_import_file_reports_a_server_that_doesnt_answer(tmp_path, importing_model):
+    model, _app, _send = importing_model
+    from virtaal.support import tmclient
+
+    model.tmclient = tmclient.TMClient('http://127.0.0.1:%d' % _closed_port())
+    requests = []
+    model.tmclient.add = lambda request: requests.append(request) or True
+    po = tmp_path / 'af.po'
+    po.write_bytes(PO)
+
+    results = _import(model, po)
+    try:
+        requests[0].curl.perform()
+    except Exception as e:
+        requests[0].emit('http-failed', str(e))
+
+    assert results == [('error', os.path.realpath(po))]
+
+
+def test_import_file_reports_a_full_queue(tmp_path):
+    model = _pushing_model()
+    model.tmclient = SimpleNamespace(import_file=lambda *a: None)
+    po = tmp_path / 'af.po'
+    po.write_bytes(PO)
+
+    assert _import(model, po) == [('error', os.path.realpath(po))]
+
+
+def _closed_port():
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1', 0))
+        return sock.getsockname()[1]

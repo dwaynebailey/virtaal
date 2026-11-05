@@ -606,3 +606,12 @@ def test_main_serves_over_http_as_the_subprocess_localtm_spawns(tmp_path):
     finally:
         proc.send_signal(signal.SIGTERM)
         proc.wait(timeout=5)
+
+
+def test_upload_store_rejects_a_file_it_cant_read(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+
+    status, reply = _json(port, 'PUT', _store_path('/home/user/memory.tmx'), 'not XML')
+
+    assert (status, reply) == (400, {'error': 'unreadable file'})
+    assert app.tmdb.list_stores() == []
