@@ -53,6 +53,15 @@ class Plugin(BasePlugin):
         xdg_data_home = os.environ.get('XDG_DATA_HOME') or path.expanduser('~/.local/share')
         self.lokalize_rc = path.join(xdg_config_home, 'lokalizerc')
         self.lokalize_tm_dir = path.join(xdg_data_home, 'lokalize')
+        # Poedit 2 and later keep their TM as a Lucene index here, which
+        # only Poedit can read; it exports it as TMX.
+        if platform.is_mac:
+            poedit_data = path.expanduser('~/Library/Application Support/Poedit')
+        elif platform.is_windows:
+            poedit_data = path.join(os.environ.get('APPDATA', ''), 'Poedit')
+        else:
+            poedit_data = path.join(xdg_data_home, 'poedit')
+        self.poedit_tm_dir = path.join(poedit_data, 'TranslationMemory')
 
         # No evidence of anything to migrate - stay silent, and persist
         # that with write() so it sticks across launches.
@@ -83,10 +92,13 @@ class Plugin(BasePlugin):
                 message += _('The following items were migrated:') + '\n\n'
                 message += "\n".join([" • %s" % item for item in self.migrated])
                 #   (we can mark this ^^^ for translation if somebody asks)
-                self.main_controller.show_info(_('Migration completed'), message)
+                title = _('Migration completed')
             else:
                 message = _("Virtaal was not able to migrate any settings or data")
-                self.main_controller.show_info(_('Nothing migrated'), message)
+                title = _('Nothing migrated')
+            if self._poedit_tm_exists():
+                message += '\n\n' + self.poedit_tm_hint()
+            self.main_controller.show_info(title, message)
             logging.debug('Migration plugin executed')
 
         pan_app.settings.plugin_state[self.internal_name] = "disabled"
@@ -96,7 +108,7 @@ class Plugin(BasePlugin):
         """Cheap existence-only checks (no parsing) for whether *any*
         supported source has real data to offer - the gate for
         whether to prompt at all."""
-        if self._poedit_config_exists():
+        if self._poedit_config_exists() or self._poedit_tm_exists():
             return True
         if path.exists(self.lokalize_rc):
             return True
@@ -107,6 +119,19 @@ class Plugin(BasePlugin):
             ):
                 return True
         return False
+
+    def _poedit_tm_exists(self):
+        return path.isdir(self.poedit_tm_dir) and bool(os.listdir(self.poedit_tm_dir))
+
+    @staticmethod
+    def poedit_tm_hint():
+        return _(
+            # l10n: Use Poedit's own translation of its menu names where it
+            # has one; the last one is Virtaal's File menu item.
+            "Poedit's translation memory can't be imported directly. In Poedit, "
+            "choose Preferences > Translation Memory > Manage… > Export to TMX…, "
+            "then add that file in Virtaal with File > Import into Translation Memory…"
+        )
 
     def _poedit_config_exists(self):
         if platform.is_mac:

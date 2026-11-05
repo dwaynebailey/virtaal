@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-05 14:28+0000\n"
+"POT-Creation-Date: 2026-11-05 16:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1445,6 +1445,15 @@ msgstr ""
 
 #: virtaal/plugins/migration.py
 msgid "Nothing migrated"
+msgstr ""
+
+#. l10n: Use Poedit's own translation of its menu names where it
+#. has one; the last one is Virtaal's File menu item.
+#: virtaal/plugins/migration.py
+msgid ""
+"Poedit's translation memory can't be imported directly. In Poedit, choose "
+"Preferences > Translation Memory > Manage… > Export to TMX…, then add that "
+"file in Virtaal with File > Import into Translation Memory…"
 msgstr ""
 
 #: virtaal/plugins/migration.py

@@ -25,6 +25,7 @@ def _plugin(tmp_path, poedit_exists=False, lokalize_rc_exists=False):
         str(tmp_path / 'lokalizerc') if not lokalize_rc_exists else str(tmp_path / 'lokalizerc')
     )
     plugin.lokalize_tm_dir = str(tmp_path / 'lokalize_tm')
+    plugin.poedit_tm_dir = str(tmp_path / 'poedit_tm')
     return plugin
 
 
@@ -358,6 +359,7 @@ def _plugin_for_init(tmp_path, has_anything, accepts=True):
     plugin = _plugin(tmp_path)
     plugin.config = {'tmdb': str(tmp_path / 'tm.db')}
     plugin._has_anything_to_migrate = lambda: has_anything
+    plugin._poedit_tm_exists = lambda: False
     prompted = []
     shown = []
     plugin.main_controller = SimpleNamespace(
@@ -428,6 +430,63 @@ def test_init_plugin_shows_nothing_migrated_when_all_imports_find_nothing(tmp_pa
     assert plugin._shown == [
         ('Nothing migrated', 'Virtaal was not able to migrate any settings or data')
     ]
+
+
+# Poedit's translation memory: a Lucene index Virtaal can't read, so the
+# summary says how to export it as TMX instead.
+
+
+def test_has_anything_to_migrate_with_a_poedit_tm(tmp_path):
+    plugin = _plugin(tmp_path)
+    os.makedirs(plugin.poedit_tm_dir)
+    assert plugin._has_anything_to_migrate() is False
+
+    open(os.path.join(plugin.poedit_tm_dir, 'segments.gen'), 'w').close()
+
+    assert plugin._has_anything_to_migrate() is True
+
+
+def test_init_plugin_explains_how_to_bring_over_a_poedit_tm(tmp_path, monkeypatch):
+    monkeypatch.setattr(migration.pan_app.settings, 'plugin_state', {})
+    monkeypatch.setattr(migration.pan_app.settings, 'write', lambda: None)
+    monkeypatch.setattr(migration.tmdb, 'TMDB', lambda path: SimpleNamespace())
+    plugin = _plugin_for_init(tmp_path, has_anything=True, accepts=True)
+    plugin._poedit_tm_exists = lambda: True
+    plugin.poedit_settings_import = lambda: None
+    plugin.lokalize_settings_import = lambda: None
+    plugin.lokalize_tm_import = lambda: None
+
+    plugin._init_plugin()
+
+    ((title, message),) = plugin._shown
+    assert title == 'Nothing migrated'
+    assert message.endswith(migration.Plugin.poedit_tm_hint())
+    assert 'Export to TMX' in message
+
+
+@pytest.mark.parametrize(
+    'is_mac, is_windows, expected',
+    [
+        (True, False, ('home', 'Library', 'Application Support', 'Poedit')),
+        (False, True, ('appdata', 'Poedit')),
+        (False, False, ('xdg', 'poedit')),
+    ],
+)
+def test_init_plugin_looks_for_the_poedit_tm_where_poedit_keeps_it(
+    tmp_path, monkeypatch, is_mac, is_windows, expected
+):
+    monkeypatch.setattr(migration.pan_app.settings, 'plugin_state', {})
+    monkeypatch.setattr(migration.pan_app.settings, 'write', lambda: None)
+    monkeypatch.setattr(migration.platform, 'is_mac', is_mac)
+    monkeypatch.setattr(migration.platform, 'is_windows', is_windows)
+    monkeypatch.setenv('HOME', str(tmp_path / 'home'))
+    monkeypatch.setenv('APPDATA', str(tmp_path / 'appdata'))
+    monkeypatch.setenv('XDG_DATA_HOME', str(tmp_path / 'xdg'))
+    plugin = _plugin_for_init(tmp_path, has_anything=False)
+
+    plugin._init_plugin()
+
+    assert plugin.poedit_tm_dir == os.path.join(str(tmp_path), *expected, 'TranslationMemory')
 
 
 # The Windows registry: Poedit keeps its settings there when there's no
