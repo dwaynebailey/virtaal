@@ -138,6 +138,27 @@ def test_selected_lists_the_states_units_are_in_for_a_format_without_states():
     assert mode.state_names == [('done', 'Done')]
 
 
+def test_selected_lists_the_states_of_every_unit():
+    # A Trados segment in an SDLXLIFF file has states other units don't.
+    controller = _controller({'total': [0, 1], 'extended': {'new': [0, 1]}})
+    controller.main_controller.store_controller.cursor.model.units[1].STATE = {
+        **_FORMAT_STATES,
+        'rejected': (60, 100),
+    }
+    names = controller.main_controller.unit_controller.get_unit_state_names()
+    names['rejected'] = 'Rejected'
+    mode = _mode(controller=controller)
+
+    mode.selected()
+
+    assert [name for _state, name in mode.state_names] == [
+        'Done',
+        'Needs work',
+        'New',
+        'Rejected',
+    ]
+
+
 def test_selected_ticks_the_menu_items_of_the_states_still_filtered():
     mode = _mode(
         filter_states=['fuzzy'],

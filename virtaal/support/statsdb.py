@@ -46,6 +46,7 @@ from translate.storage import factory
 from translate.storage.workflow import StateEnum
 
 from virtaal.support import (
+    sdlxliff_compat,  # noqa: F401 - applies its patch on import
     shareddb,
     tmx_compat,  # noqa: F401 - applies its patch on import
 )

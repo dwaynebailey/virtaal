@@ -79,10 +79,14 @@ class WorkflowMode(BaseMode):
         model = self.storecursor.model if self.storecursor else None
         if not model:
             return sorted(names.items())
-        states = []
-        if len(model):
-            # Negative states (obsolete) aren't workflow states.
-            states = [state for state, (low, _high) in type(model[0]).STATE.items() if low >= 0]
+        # Negative states (obsolete) aren't workflow states. Units of one
+        # format can differ: an SDLXLIFF segment has Trados's states.
+        states = {
+            state
+            for index in range(len(model))
+            for state, (low, _high) in model[index].STATE.items()
+            if low >= 0
+        }
         if not states:
             states = list(model.stats.get('extended', {}))
         return sorted((state, names[state]) for state in states if state in names)

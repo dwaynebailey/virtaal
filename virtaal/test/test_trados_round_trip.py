@@ -20,9 +20,10 @@ from lxml import etree
 from test_scaffolding import TestScaffolding
 from test_textbox_editing import _Editor
 from translate.storage import factory
+from translate.storage.workflow import StateEnum
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
-from virtaal.support import xliff_compat
+from virtaal.support import sdlxliff_compat, xliff_compat
 from virtaal.views.widgets import textbox as textbox_module
 
 TRADOS = os.path.join('devsupport', 'testfiles', 'trados')
@@ -37,6 +38,8 @@ CONTENT = {
 SDLXLIFF_FILES = sorted(glob.glob(os.path.join(TRADOS, '*', '*.sdlxliff')))
 PACKAGES = sorted(glob.glob(os.path.join(TRADOS, '*', '*.sdl?px')))
 WORKBENCH_TMX = sorted(glob.glob(os.path.join(TRADOS, '*', '*English - German.tmx')))
+# Every Trados status, twice, by sdl:seg id.
+STATUSES = glob.glob(os.path.join(TRADOS, 'matecat', '*.sdlxliff'))[0]
 
 
 def _in_content(element):
@@ -77,6 +80,11 @@ def _without(root, edited_index):
     edited = _units(root)[edited_index]
     edited.getparent().replace(edited, etree.Element('edited'))
     return _infoset(root)
+
+
+def _segs(root):
+    """Each <sdl:seg>'s attributes by its id."""
+    return {seg.get('id'): dict(seg.attrib) for seg in root.iter(SDL + 'seg')}
 
 
 def _package_files(tmp_path):
@@ -198,3 +206,87 @@ class TestTradosRoundTrip(TestScaffolding):
             factory.getobject(original).units[index].source,
             'Neu',
         )
+
+    def _open_copy(self, original, tmp_path):
+        path = tmp_path / os.path.basename(original)
+        shutil.copy(original, path)
+        self.store_controller.open_file(str(path))
+        return path, etree.parse(str(path)).getroot()
+
+    def _load(self, seg_id):
+        unit = next(
+            u
+            for u in self.store_controller.store.get_units()
+            if [s.get('id') for s in sdlxliff_compat.segment_defs(u)] == [seg_id]
+        )
+        for textbox in self.unit_controller.view.targets:
+            textbox._suggestion = None
+        view = self.unit_controller.load_unit(unit)
+        view._layout_update_targets()
+        return unit, view
+
+    def test_a_state_change_writes_only_that_segments_status(self, tmp_path):
+        path, before = self._open_copy(STATUSES, tmp_path)
+        self._load('2')
+
+        self.unit_controller.set_current_state(StateEnum.FINAL, from_user=True)
+        self.store_controller.save_file()
+
+        after = etree.parse(str(path)).getroot()
+        old, new = _segs(before), _segs(after)
+        assert new.pop('2') == {**old.pop('2'), 'conf': 'ApprovedTranslation'}
+        assert new == old
+        reopened = factory.getobject(str(path)).units
+        assert [u.get_state_n() for u in reopened if u.istranslatable()][:7] == [
+            StateEnum.NEEDS_WORK,
+            StateEnum.FINAL,
+            StateEnum.UNREVIEWED,
+            StateEnum.REJECTED,
+            StateEnum.FINAL,
+            StateEnum.REJECTED + 1,
+            StateEnum.FINAL + 1,
+        ]
+
+    def test_editing_keeps_a_status_between_steps(self, tmp_path):
+        path, before = self._open_copy(STATUSES, tmp_path)
+        _unit, view = self._load('6')
+        editor = _Editor(self, view.targets[0])
+        editor.buffer.select_range(editor.buffer.get_end_iter(), editor.buffer.get_start_iter())
+
+        editor.type('Neu')
+        self.store_controller.save_file()
+
+        assert _segs(etree.parse(str(path)).getroot()) == _segs(before)
+        reopened = [
+            u for u in factory.getobject(str(path)).units if sdlxliff_compat.segment_defs(u)
+        ]
+        assert str(reopened[5].rich_target[0]) == 'Neu'
+
+    def test_undoing_a_state_change_keeps_the_status(self, tmp_path):
+        path, before = self._open_copy(STATUSES, tmp_path)
+        unit, _view = self._load('7')
+        self.undo_controller.model.clear()
+        self.unit_controller.set_current_state(StateEnum.REJECTED, from_user=True)
+
+        self.undo_controller._on_undo_activated()
+        assert unit._current_state == StateEnum.FINAL + 1
+        self.store_controller.save_file()
+
+        assert _segs(etree.parse(str(path)).getroot()) == _segs(before)
+        self.undo_controller._on_redo_activated()
+        self.store_controller.save_file()
+        assert _segs(etree.parse(str(path)).getroot())['7']['conf'] == 'RejectedTranslation'
+
+    def test_the_state_lists_have_every_trados_status(self, tmp_path):
+        self._open_copy(STATUSES, tmp_path)
+
+        extended = self.store_controller.store.stats['extended']
+
+        assert {state: len(indices) for state, indices in extended.items()} == {
+            StateEnum.EMPTY: 2,
+            StateEnum.NEEDS_WORK: 1,
+            StateEnum.REJECTED: 4,
+            StateEnum.NEEDS_REVIEW: 2,
+            StateEnum.UNREVIEWED: 2,
+            StateEnum.FINAL: 4,
+        }
