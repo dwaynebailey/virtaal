@@ -18,6 +18,7 @@ local TM server process (and amaGama, from a copy) can use it.
 """
 
 import re
+from collections import Counter
 from functools import lru_cache
 from typing import NamedTuple
 
@@ -310,14 +311,24 @@ def similarity(a, b):
 
 REBUILT_PENALTY = 1
 UNRESOLVED_PENALTY = 5
+UNMATCHED_PENALTY = 8
+"""Per placeable that one of query and source has and the other lacks:
+on the abstracts it is a one-character edit, too cheap on its own."""
+
+
+def _unmatched(query_placeables, source_placeables):
+    query = Counter(placeable.marker for placeable in query_placeables)
+    source = Counter(placeable.marker for placeable in source_placeables)
+    return (query - source).total() + (source - query).total()
 
 
 def adapt(query, source, target, raw_quality, accel_markers=()):
     """A TM match for query (with source and target) adapted to it, as an
     L{Adapted}: the target rebuilt with query's own placeables and
     accelerator, and a quality that is the better of raw_quality and the
-    abstract forms' similarity less the rebuild's penalties. Only a source
-    identical to query scores 100."""
+    abstract forms' similarity less the penalties for the rebuild and for
+    placeables that query and source don't share. Only a source identical
+    to query scores 100."""
     query, source, target = str(query), str(source), str(target)
     query_abstract, query_placeables = abstract(query)
     source_abstract, source_placeables = abstract(source)
@@ -326,6 +337,7 @@ def adapt(query, source, target, raw_quality, accel_markers=()):
         similarity(query_abstract, source_abstract)
         - REBUILT_PENALTY * result.rebuilt
         - UNRESOLVED_PENALTY * result.unresolved
+        - UNMATCHED_PENALTY * _unmatched(query_placeables, source_placeables)
     )
     if query != source:
         adjusted = min(adjusted, 99)

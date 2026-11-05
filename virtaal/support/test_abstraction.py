@@ -244,6 +244,28 @@ def test_extra_query_placeables_are_not_added():
     assert adapt('Open %s in %s', 'Open %s', 'Maak %s oop', 54).target == 'Maak %s oop'
 
 
+def test_a_placeable_only_one_side_has_costs_more_than_one_edit():
+    # On the abstracts a missing placeable is one character: without the
+    # penalty, 'usage: ' (88) would outrank the right match (81).
+    short = adapt('usage: %s', 'usage: ', 'Verwendung: ', 77)
+    right = adapt('usage: %s', 'usage: %s\n\n', 'Verwendung: %s\n\n', 81)
+
+    assert short.quality == round(87.5 - abstraction.UNMATCHED_PENALTY)
+    assert right.quality == 81
+    assert right.quality > short.quality
+
+
+def test_an_extra_source_placeable_costs_both_penalties():
+    result = adapt('Open %s for %s', 'Open %s for %s in %s', 'Maak %s oop vir %s in %s', 50)
+
+    assert result.rebuilt.unresolved == 1
+    assert result.quality == round(
+        abstraction.similarity('Open \ue001 for \ue001', 'Open \ue001 for \ue001 in \ue001')
+        - abstraction.UNRESOLVED_PENALTY
+        - abstraction.UNMATCHED_PENALTY
+    )
+
+
 def test_quality_is_never_below_raw():
     # A worse abstract score after penalties keeps the raw one.
     result = adapt('5 of 6 and 7', '5 of 6 and 7 ok', '8 van 9 en 10 goed', 90)
