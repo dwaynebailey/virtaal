@@ -140,6 +140,17 @@ suggestion into the target text with :kbd:`Ctrl+1`, or use :kbd:`Ctrl+2`, etc.
 to select the others. You can also double click the suggestion to obtain the
 same effect.
 
+A translation memory suggestion for text that differs from yours only in its
+:doc:`placeables <placeables>` or its accelerator key is adapted to your text.
+For example, if the translation memory has "Verwyder {0} lêers" for "Delete {0}
+files", translating "Delete %(count)s files" suggests "Verwyder %(count)s
+lêers". An accelerator key such as the ``_`` in "Maak lêer _oop" takes the
+marker your file's quality checks expect, such as ``&`` for KDE. A placeable
+that differs counts for little in the match percentage, so such a suggestion
+scores close to 100%, while only identical text scores 100%. Hover over an
+adapted suggestion to see what the translation memory has. Machine translation
+suggestions are shown as they come.
+
 .. _using_virtaal#navigation:
 
 Navigation

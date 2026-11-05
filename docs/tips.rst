@@ -112,6 +112,10 @@ for ``min_quality``.
 If you want to receive more suggestions at a time, edit ``plugins.ini`` and
 increase the setting for ``max_matches``.
 
+To see translation memory suggestions exactly as the translation memory has
+them, without their placeables and accelerator key adapted to your text, set
+``abstract_placeables = False`` in the ``[tm]`` section of ``plugins.ini``.
+
 Note that you can specify these same parameters for most of the individual
 sources of TM suggestions. Try adding or editing these settings in ``tm.ini``
 under a heading corresponding to the name of the plugin.
