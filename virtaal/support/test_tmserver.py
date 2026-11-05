@@ -20,6 +20,7 @@ from urllib.parse import quote
 
 import pytest
 from cheroot import wsgi
+from translate.storage import tmx
 
 from virtaal.support import tmserver
 
@@ -229,17 +230,46 @@ def test_translate_unit_wraps_response_in_jsonp_callback(tmp_path):
     assert json.loads(body[len('myCallback(') : -1])[0]['target'] == 'oiseau'
 
 
-def test_forget_unit_returns_the_not_implemented_stub(tmp_path):
+def _json(port, method, path, data=None):
+    """(status, decoded reply) of a request, error replies too."""
+    if data is not None and not isinstance(data, (str, bytes)):
+        data = json.dumps(data)
+    try:
+        status, body = _request(port, method, path, data)
+    except urllib.error.HTTPError as e:
+        status, body = e.code, e.read().decode('utf-8')
+    return status, json.loads(body)
+
+
+def _store_path(path, slang='en', tlang='fr'):
+    return '/%s/%s/store/%s' % (slang, tlang, quote(path, safe=''))
+
+
+PO = '/home/user/fr.po'
+
+
+def test_forget_unit_removes_the_target(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    app.tmdb.add_dict({'source': 'cat', 'target': 'chat', 'context': ''}, 'en', 'fr')
+    app.tmdb.add_dict({'source': 'cat', 'target': 'minou', 'context': ''}, 'en', 'fr')
+
+    status, reply = _json(port, 'DELETE', '/en/fr/unit/cat', {'target': 'chat'})
+
+    assert (status, reply) == (200, {'removed': 1})
+    assert [m['target'] for m in _translate(port, 'cat', 'en', 'fr')] == ['minou']
+
+
+def test_forget_unit_needs_a_target(tmp_path):
     _, port = _start_server(tmp_path / 'tm.db')
 
-    status, body = _request(port, 'DELETE', '/en/fr/unit/cat')
+    status, _reply = _json(port, 'DELETE', '/en/fr/unit/cat')
 
-    assert status == 200
-    assert body == 'FIXME'
+    assert status == 400
 
 
 def test_add_store_then_translate_unit_finds_the_loaded_units(tmp_path):
-    _, port = _start_server(tmp_path / 'tm.db')
+    # The older server's bare list: added, replacing nothing.
+    app, port = _start_server(tmp_path / 'tm.db')
     units = json.dumps([{'source': 'fish', 'target': 'poisson', 'context': ''}])
 
     status, body = _request(port, 'POST', '/en/fr/store/myimport', units)
@@ -248,45 +278,150 @@ def test_add_store_then_translate_unit_finds_the_loaded_units(tmp_path):
     assert body == 'added 1 units from myimport'
     matches = _translate(port, 'fish', 'en', 'fr')
     assert matches[0]['target'] == 'poisson'
+    assert app.tmdb.store_stats('', 'en', 'fr')['units'] == 1
 
 
-def test_upload_store_parses_an_uploaded_file(tmp_path):
+def test_posting_a_stores_units_syncs_it(tmp_path):
     _, port = _start_server(tmp_path / 'tm.db')
+    units = [
+        {'source': 'fish', 'target': 'poisson', 'context': '', 'key': 'fish'},
+        {'source': 'cat', 'target': 'chat', 'context': '', 'key': 'cat'},
+    ]
+    _json(port, 'POST', _store_path(PO), {'units': units, 'replace': True})
+
+    status, reply = _json(
+        port,
+        'POST',
+        _store_path(PO),
+        {'units': [{**units[0], 'target': 'un poisson'}], 'replace': True},
+    )
+
+    assert (status, reply) == (200, {'added': 0, 'replaced': 1, 'removed': 1})
+    assert [m['target'] for m in _translate(port, 'fish', 'en', 'fr')] == ['un poisson']
+    assert _translate(port, 'cat', 'en', 'fr') == []
+
+
+def test_posting_a_bundle_members_units(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    units = [{'source': 'fish', 'target': 'poisson', 'context': ''}]
+
+    _json(port, 'POST', _store_path('/tmp/b.zip'), {'units': units, 'member': 'a.xlf'})
+
+    status, reply = _json(port, 'GET', _store_path('/tmp/b.zip') + '?member=a.xlf')
+    assert (status, reply['units']) == (200, 1)
+    assert _json(port, 'GET', _store_path('/tmp/b.zip'))[0] == 404
+
+
+def test_posting_neither_units_nor_exclude_is_refused(tmp_path):
+    _, port = _start_server(tmp_path / 'tm.db')
+
+    assert _json(port, 'POST', _store_path(PO), {'replace': True})[0] == 400
+
+
+def test_excluding_a_store_over_http(tmp_path):
+    _, port = _start_server(tmp_path / 'tm.db')
+    units = [{'source': 'fish', 'target': 'poisson', 'context': ''}]
+    _json(port, 'POST', _store_path(PO), {'units': units})
+
+    status, reply = _json(port, 'POST', _store_path(PO), {'exclude': True})
+
+    assert (status, reply) == (200, {'exclude': True})
+    assert _translate(port, 'fish', 'en', 'fr') == []
+    assert _json(port, 'POST', _store_path(PO), {'units': units}) == (200, {'excluded': True})
+    assert _json(port, 'GET', _store_path(PO))[1]['exclude'] is True
+
+
+def test_upload_store_imports_an_uploaded_file(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
     po_content = 'msgid "tree"\nmsgstr "arbre"\n'
 
-    status, body = _request(port, 'PUT', '/en/fr/store/import.po', po_content)
+    status, reply = _json(port, 'PUT', _store_path('/home/user/import.po'), po_content)
 
-    assert status == 200
-    assert body == 'added 1 units from import.po'
+    assert (status, reply) == (200, {'added': 1, 'replaced': 0, 'removed': 0})
     matches = _translate(port, 'tree', 'en', 'fr')
     assert matches[0]['target'] == 'arbre'
+    stats = app.tmdb.store_stats('/home/user/import.po', 'en', 'fr')
+    assert stats['kind'] == tmserver.tmdb.STORE_IMPORTED
 
 
-def test_get_store_stats_returns_the_not_implemented_stub(tmp_path):
+def test_get_store_stats(tmp_path):
     _, port = _start_server(tmp_path / 'tm.db')
+    units = [{'source': 'fish', 'target': 'poisson', 'context': ''}]
+    _json(port, 'POST', _store_path(PO), {'units': units})
 
-    status, body = _request(port, 'GET', '/en/fr/store/myimport')
+    status, reply = _json(port, 'GET', _store_path(PO))
 
     assert status == 200
-    assert body == 'FIXME'
+    assert reply['units'] == 1
+    assert reply['kind'] == tmserver.tmdb.STORE_SAVED
+    assert reply['exclude'] is False
+    assert isinstance(reply['updated'], int)
+
+
+def test_get_store_stats_of_an_unknown_store(tmp_path):
+    _, port = _start_server(tmp_path / 'tm.db')
+
+    assert _json(port, 'GET', _store_path('myimport'))[0] == 404
 
 
 def test_store_routes_accept_a_name_containing_a_newline(tmp_path):
     _, port = _start_server(tmp_path / 'tm.db')
+    units = [{'source': 'fish', 'target': 'poisson', 'context': ''}]
+    _json(port, 'POST', _store_path('my\nimport'), {'units': units})
 
-    status, body = _request(port, 'GET', '/en/fr/store/' + quote('my\nimport', safe=''))
+    status, reply = _json(port, 'GET', _store_path('my\nimport'))
 
-    assert status == 200
-    assert body == 'FIXME'
+    assert (status, reply['units']) == (200, 1)
 
 
-def test_forget_store_returns_the_not_implemented_stub(tmp_path):
+def test_forget_store(tmp_path):
     _, port = _start_server(tmp_path / 'tm.db')
+    units = [{'source': 'fish', 'target': 'poisson', 'context': ''}]
+    _json(port, 'POST', _store_path(PO), {'units': units})
 
-    status, body = _request(port, 'DELETE', '/en/fr/store/myimport')
+    assert _json(port, 'DELETE', _store_path(PO)) == (200, {'removed': 1})
+
+    assert _translate(port, 'fish', 'en', 'fr') == []
+    assert _json(port, 'DELETE', _store_path(PO))[0] == 404
+
+
+def test_forget_the_legacy_store(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    app.tmdb.add_dict({'source': 'cat', 'target': 'chat', 'context': ''}, 'en', 'fr')
+
+    assert _json(port, 'DELETE', '/en/fr/store/') == (200, {'removed': 1})
+
+    assert _translate(port, 'cat', 'en', 'fr') == []
+
+
+def test_list_stores(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    app.tmdb.sync_store(PO, [{'source': 'fish', 'target': 'poisson'}], 'en', 'fr')
+
+    status, reply = _json(port, 'GET', '/stores')
 
     assert status == 200
-    assert body == 'FIXME'
+    assert [(s['path'], s['exists']) for s in reply] == [(PO, False)]
+    assert [(p['source_lang'], p['target_lang'], p['units']) for p in reply[0]['pairs']] == [
+        ('en', 'fr', 1)
+    ]
+
+
+def test_export(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    app.tmdb.sync_store(PO, [{'source': 'fish', 'target': 'poisson'}], 'en', 'fr')
+    app.tmdb.sync_store('/other.po', [{'source': 'cat', 'target': 'chat'}], 'en', 'fr')
+
+    url = 'http://127.0.0.1:%d/en/fr/export?store=%s' % (port, quote(PO, safe=''))
+    with urllib.request.urlopen(url, timeout=5) as resp:
+        content_type = resp.headers['Content-Type']
+        exported = tmx.tmxfile(resp.read())
+
+    assert content_type == 'application/x-tmx+xml'
+    assert [u.target for u in exported.units] == ['poisson']
+    _status, whole = _request(port, 'GET', '/en/fr/export')
+    assert len(tmx.tmxfile(whole.encode('utf-8')).units) == 2
+    assert _json(port, 'GET', '/en/fr/export?store=nowhere')[0] == 404
 
 
 def test_unknown_path_returns_404(tmp_path):

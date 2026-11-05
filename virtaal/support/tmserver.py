@@ -19,6 +19,7 @@ clients using JSON over HTTP.
 
 import json
 import logging
+import os
 import sys
 from argparse import ArgumentParser
 from io import BytesIO
@@ -81,22 +82,26 @@ class TMServer:
         self.rest.add_hook("before_request", _decode_path_from_request_uri)
         # Bottle's path filter is ".+?", which doesn't match a newline.
         unit_path = rf"{prefix}/<slang>/<tlang>/unit/<uid:re:[\s\S]+>"
-        store_path = rf"{prefix}/<slang>/<tlang>/store/<sid:re:[\s\S]+>"
+        # A store is its file's path; the legacy store's is empty.
+        store_path = rf"{prefix}/<slang>/<tlang>/store/<sid:re:[\s\S]*>"
         self.rest.route(unit_path, "GET", self.translate_unit)
         self.rest.route(unit_path, "POST", self.update_unit)
         self.rest.route(unit_path, "PUT", self.add_unit)
-        self.rest.route(unit_path, "DELETE", self._forget_unit_route)
-        self.rest.route(store_path, "GET", self._get_store_stats_route)
+        self.rest.route(unit_path, "DELETE", self.forget_unit)
+        self.rest.route(store_path, "GET", self.get_store_stats)
         self.rest.route(store_path, "PUT", self.upload_store)
         self.rest.route(store_path, "POST", self.add_store)
-        self.rest.route(store_path, "DELETE", self._forget_store_route)
+        self.rest.route(store_path, "DELETE", self.forget_store)
+        self.rest.route(f"{prefix}/stores", "GET", self.list_stores)
+        self.rest.route(f"{prefix}/<slang>/<tlang>/export", "GET", self.export)
 
     def _load_files(self, tmfiles, source_lang, target_lang) -> None:
-        if isinstance(tmfiles, list):
-            for tmfile in tmfiles:
-                self.tmdb.add_store(factory.getobject(tmfile), source_lang, target_lang)
-        elif tmfiles:
-            self.tmdb.add_store(factory.getobject(tmfiles), source_lang, target_lang)
+        if not isinstance(tmfiles, list):
+            tmfiles = [tmfiles]
+        for tmfile in tmfiles:
+            self.tmdb.import_store(
+                factory.getobject(tmfile), os.path.realpath(tmfile), source_lang, target_lang
+            )
 
     def translate_unit(self, slang, tlang, uid):
         response.content_type = "text/plain"
@@ -124,45 +129,88 @@ class TMServer:
         self.tmdb.add_unit(unit, slang, tlang)
         return ""
 
-    def forget_unit(self, uid):
-        # Not implemented: tmdb has no way to remove a unit.
-        response.content_type = "text/plain"
-        return "FIXME"
+    def forget_unit(self, slang, tlang, uid):
+        """Remove the target in the JSON body, {"target", "context"},
+        from every store."""
+        data = _json_body()
+        if not isinstance(data, dict) or "target" not in data:
+            return _json_reply({"error": "no target"}, 400)
+        removed = self.tmdb.forget_unit(uid, data["target"], slang, tlang, data.get("context"))
+        return _json_reply({"removed": removed})
 
-    def _forget_unit_route(self, slang, tlang, uid):
-        return self.forget_unit(uid)
-
-    def get_store_stats(self, sid):
-        # Not implemented: tmdb doesn't record which store a unit came from (#3662).
-        response.content_type = "text/plain"
-        return "FIXME"
-
-    def _get_store_stats_route(self, slang, tlang, sid):
-        return self.get_store_stats(sid)
+    def get_store_stats(self, slang, tlang, sid):
+        stats = self.tmdb.store_stats(sid, slang, tlang, request.query.member)
+        if stats is None:
+            return _json_reply({"error": "unknown store"}, 404)
+        return _json_reply(stats)
 
     def upload_store(self, slang, tlang, sid):
-        """Add units from uploaded file to tmdb."""
-        response.content_type = "text/plain"
+        """Import the uploaded file as the store at its path."""
         data = BytesIO(request.body.read())
         data.name = sid
         store = factory.getobject(data)  # ty:ignore[invalid-argument-type]
-        count = self.tmdb.add_store(store, slang, tlang)
-        return f"added {count} units from {sid}"
+        counts = self.tmdb.import_store(store, sid, slang, tlang, request.query.member)
+        return _json_reply(counts if counts is not None else {"excluded": True})
 
     def add_store(self, slang, tlang, sid):
-        """Add unit from POST data to tmdb."""
-        response.content_type = "text/plain"
-        units = json.loads(request.body.read())
-        count = self.tmdb.add_list(units, slang, tlang)
-        return f"added {count} units from {sid}"
+        """Sync the store at C{sid} with the POSTed units,
+        C{{"units": [...], "replace": true, "member": ...}}, or set
+        whether it is excluded, C{{"exclude": true}}.
 
-    def forget_store(self, sid):
-        # Not implemented: tmdb doesn't record which store a unit came from (#3661).
-        response.content_type = "text/plain"
-        return "FIXME"
+        A bare list of units is added to the legacy store, replacing
+        nothing, as for any client of the older server."""
+        data = json.loads(request.body.read())
+        if isinstance(data, list):
+            response.content_type = "text/plain"
+            count = self.tmdb.add_list(data, slang, tlang)
+            return f"added {count} units from {sid}"
+        if not isinstance(data, dict) or not sid:
+            return _json_reply({"error": "no units for a store"}, 400)
+        member = data.get("member", "")
+        if "units" in data:
+            counts = self.tmdb.sync_store(
+                sid, data["units"], slang, tlang, member, replace=data.get("replace", True)
+            )
+            return _json_reply(counts if counts is not None else {"excluded": True})
+        if "exclude" in data:
+            self.tmdb.set_exclude(sid, data["exclude"], member)
+            return _json_reply({"exclude": bool(data["exclude"])})
+        return _json_reply({"error": "no units for a store"}, 400)
 
-    def _forget_store_route(self, slang, tlang, sid):
-        return self.forget_store(sid)
+    def forget_store(self, slang, tlang, sid):
+        removed = self.tmdb.forget_store(sid, slang, tlang, request.query.member)
+        if removed is None:
+            return _json_reply({"error": "unknown store"}, 404)
+        return _json_reply({"removed": removed})
+
+    def list_stores(self):
+        return _json_reply(self.tmdb.list_stores())
+
+    def export(self, slang, tlang):
+        """The pair's entries as TMX, only those of the store at
+        ?store=<path> if given."""
+        path = request.query.getunicode("store")
+        tmx = self.tmdb.export_tmx(slang, tlang, path, request.query.member)
+        if tmx is None:
+            return _json_reply({"error": "unknown store"}, 404)
+        response.content_type = "application/x-tmx+xml"
+        return tmx
+
+
+def _json_body():
+    body = request.body.read()
+    if not body:
+        return None
+    try:
+        return json.loads(body)
+    except ValueError:
+        return None
+
+
+def _json_reply(data, status=200):
+    response.status = status
+    response.content_type = "application/json"
+    return json.dumps(data)
 
 
 def build_parser() -> ArgumentParser:
