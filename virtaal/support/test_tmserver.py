@@ -635,6 +635,33 @@ def test_upload_store_imports_a_trados_studio_tm_in_its_own_languages(tmp_path):
     assert _translate(port, 'Configuring the Spelling Checker', 'en', 'fr') == []
 
 
+def test_upload_store_imports_each_translated_trados_segment(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    with open(os.path.join(TRADOS, 'okapi', 'test-weird-ids.docx.sdlxliff'), 'rb') as f:
+        data = f.read()
+
+    status, reply = _json(port, 'PUT', _store_path('/home/user/a.docx.sdlxliff'), data)
+
+    # Segment "1 a" is a draft; 2 and 3 are untranslated.
+    assert (status, reply) == (200, {'added': 1, 'replaced': 0, 'removed': 0})
+    assert _translate(port, 'and more text goes here.', 'en', 'fr')[0]['target'] == (
+        'Plus de texte ici.'
+    )
+
+
+def test_the_tm_server_process_reads_trados_segments():
+    # The local TM server runs in its own process.
+    code = (
+        'import sys, virtaal.support.tmserver;'
+        ' print("virtaal.support.sdlxliff_compat" in sys.modules)'
+    )
+    result = subprocess.run(
+        [sys.executable, '-c', code], capture_output=True, text=True, check=True
+    )
+
+    assert result.stdout.strip() == 'True'
+
+
 def test_upload_store_imports_a_termbase_in_the_asked_for_pair(tmp_path):
     app, port = _start_server(tmp_path / 'tm.db')
     with open(os.path.join(TRADOS, 'kaur2k-termconv', 'mili_1.xml'), 'rb') as f:
