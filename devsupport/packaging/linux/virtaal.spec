@@ -65,7 +65,7 @@ IMMODULES_DEST = "lib/gtk-3.0/3.0.0/immodules"
 IMMODULES_CACHE = ROOT / "build" / "appimage" / "immodules.cache.in"
 IMMODULES_CACHE.parent.mkdir(parents=True, exist_ok=True)
 IMMODULES_CACHE.write_text(subprocess.run(
-    [str(_required(ARCH_LIBDIR / "libgtk-3-0" / "gtk-query-immodules-3.0"))] + [str(p) for p in IMMODULES],
+    [str(_required(ARCH_LIBDIR / "libgtk-3-0t64" / "gtk-query-immodules-3.0"))] + [str(p) for p in IMMODULES],
     capture_output=True, text=True, check=True,
 ).stdout.replace(str(IMMODULES_DIR), "@BUNDLE@/" + IMMODULES_DEST), encoding="utf-8")
 
