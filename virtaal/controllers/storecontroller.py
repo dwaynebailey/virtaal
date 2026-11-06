@@ -49,6 +49,9 @@ class StoreController(BaseController):
         self._loading_store = False
         self.project = None
         self.store = None
+        # The path the open store was read from, or None if it can't be
+        # read again (a temporary file).
+        self.opened_filename = None
         self._view = None
 
         self._controller_register_id = self.main_controller.connect(
@@ -248,6 +251,7 @@ class StoreController(BaseController):
         extension = filename.split(os.extsep)[-1]
         force_saveas = False
         readonly = self._is_readonly(filename)
+        self.opened_filename = None if forget_dir else os.path.abspath(filename)
         if extension == 'zip':
             self._open_bundle(filename)
         else:

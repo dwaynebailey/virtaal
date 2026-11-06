@@ -205,12 +205,29 @@ def test_open_with_file_constructs_controllers_in_order_and_opens_the_file(monke
 # Virtaal._open_startup_file() #
 
 
+class _FakeRecovery:
+    def __init__(self, calls, resume_file=None):
+        self.calls = calls
+        self.resume_file = resume_file
+
+    def choose_startup_file(self, startupfile, wanted=None):
+        self.calls.append(('choose', startupfile, wanted))
+        return self.resume_file or startupfile
+
+    def show_startup_notices(self):
+        self.calls.append('notices')
+
+    def startup_file_opened(self, opened):
+        self.calls.append(('resume', opened))
+
+
 def test_open_startup_file_hides_the_loading_notice_and_defers_load_extras_on_success():
     v = Virtaal.__new__(Virtaal)
     v._open_with_file = lambda filename: True
     calls = []
     v.main_controller = SimpleNamespace(
         welcomescreen_controller=SimpleNamespace(activate=lambda: calls.append('activated')),
+        recovery_controller=_FakeRecovery(calls),
         view=SimpleNamespace(
             hide_loading_notice=lambda: calls.append('hidden'),
             show_progress=lambda msg: calls.append(('progress', msg)),
@@ -224,7 +241,7 @@ def test_open_startup_file_hides_the_loading_notice_and_defers_load_extras_on_su
 
     # No welcome screen re-activation and no failure notice on success.
     # Progress stays up while the plugins load and process the file.
-    assert calls == ['hidden', ('progress', "Loading 'some.po'…")]
+    assert calls == ['hidden', ('resume', True), ('progress', "Loading 'some.po'…")]
     assert deferred == [(v._load_extras, ())]
 
 
@@ -234,9 +251,10 @@ def test_open_startup_file_keeps_the_loading_notice_up_while_the_file_loads():
     calls = []
     v._open_with_file = lambda filename: calls.append('opened') or True
     v.main_controller = SimpleNamespace(
+        recovery_controller=_FakeRecovery([]),
         view=SimpleNamespace(
             hide_loading_notice=lambda: calls.append('hidden'), show_progress=lambda msg: None
-        )
+        ),
     )
     v.defer = lambda func, *args: None
 
@@ -253,6 +271,7 @@ def test_open_startup_file_shows_the_welcome_screen_and_failure_notice_with_the_
     v.main_controller = SimpleNamespace(
         last_open_error='The file does not exist.',
         welcomescreen_controller=SimpleNamespace(activate=lambda: calls.append('activated')),
+        recovery_controller=_FakeRecovery(calls),
         store_controller=SimpleNamespace(
             connect=lambda signal, handler: connected.append((signal, handler))
         ),
@@ -267,7 +286,12 @@ def test_open_startup_file_shows_the_welcome_screen_and_failure_notice_with_the_
 
     v._open_startup_file('missing.po')
 
-    assert calls == ['hidden', 'activated', ('shown', 'missing.po', 'The file does not exist.')]
+    assert calls == [
+        'hidden',
+        ('resume', False),
+        'activated',
+        ('shown', 'missing.po', 'The file does not exist.'),
+    ]
     assert deferred == [(v._load_extras, ())]
     # A later successful open clears the notice instead of leaving it as
     # a stale reminder about a file the user has since moved past.
@@ -491,7 +515,7 @@ class _FakeDeferer:
         self.calls.append((func, args))
 
 
-def _stub_virtaal_construction(monkeypatch, startupfile_exists=True):
+def _stub_virtaal_construction(monkeypatch, startupfile_exists=True, resume_file=None):
     import virtaal.main as main_module
 
     monkeypatch.setattr('virtaal.support.crash_dialog.install', lambda: None)
@@ -515,6 +539,11 @@ def _stub_virtaal_construction(monkeypatch, startupfile_exists=True):
     )
     monkeypatch.setattr(
         'virtaal.controllers.storecontroller.StoreController', lambda mc: store_controller
+    )
+    main_controller.recovery_calls = []
+    monkeypatch.setattr(
+        'virtaal.controllers.recoverycontroller.RecoveryController',
+        lambda mc: _FakeRecovery(mc.recovery_calls, resume_file),
     )
 
     welcome_instances = []
@@ -592,3 +621,29 @@ def test_init_with_a_missing_startupfile_skips_the_loading_notice_but_still_defe
     assert loading_notices == []
     assert failure_notices == []
     assert v.defer.calls == [(v._open_startup_file, ('missing.po',))]
+
+
+def test_init_resumes_a_recovered_file_instead_of_the_welcome_screen(monkeypatch):
+    main_controller, welcome_instances, _FakeWSC, loading_notices, _failures = (
+        _stub_virtaal_construction(monkeypatch, resume_file='/files/left.po')
+    )
+
+    v = Virtaal('')
+
+    assert welcome_instances[0].activated is False
+    assert loading_notices == ['/files/left.po']
+    assert v.defer.calls == [(v._open_startup_file, ('/files/left.po',))]
+    assert main_controller.recovery_calls == [('choose', '', ''), 'notices']
+
+
+def test_init_matches_a_file_uri_by_its_path(monkeypatch):
+    monkeypatch.setattr(platform, 'is_windows', False)
+    main_controller, *_rest = _stub_virtaal_construction(monkeypatch)
+
+    Virtaal('file:///files/some.po')
+
+    assert main_controller.recovery_calls[0] == (
+        'choose',
+        'file:///files/some.po',
+        '/files/some.po',
+    )

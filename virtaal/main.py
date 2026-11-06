@@ -99,11 +99,13 @@ class Virtaal:
 
         # We try to get the welcomescreen loaded as early as possible
         from virtaal.controllers.maincontroller import MainController
+        from virtaal.controllers.recoverycontroller import RecoveryController
         from virtaal.controllers.storecontroller import StoreController
         from virtaal.controllers.welcomescreencontroller import WelcomeScreenController
 
         main_controller = MainController()
         StoreController(main_controller)
+        recovery = RecoveryController(main_controller)
 
         self.defer = _Deferer()
         self.main_controller = main_controller
@@ -115,6 +117,9 @@ class Virtaal:
         # shows a lightweight loading notice instead until the open
         # resolves, falling back to the full welcome screen on failure.
         wc = WelcomeScreenController(main_controller)
+        # Resumes where an unclean end left off, instead of the welcome screen.
+        wanted = startupfile and _resolve_startup_path(startupfile)
+        startupfile = recovery.choose_startup_file(startupfile, wanted) or startupfile
         if startupfile:
             # Only gates the loading notice - _open_startup_file always
             # runs regardless, since it does controller construction
@@ -127,6 +132,7 @@ class Virtaal:
         else:
             wc.activate()
             self.defer(self._open_with_welcome)
+        recovery.show_startup_notices()
 
     def _install_signal_handlers(self):
         """An external SIGTERM/SIGINT (a test harness's `kill`, Ctrl+C,
@@ -168,6 +174,7 @@ class Virtaal:
         main_controller = self.main_controller
         opened = self._open_with_file(startupfile)
         main_controller.view.hide_loading_notice()
+        main_controller.recovery_controller.startup_file_opened(opened)
         if opened:
             # Plugins load next, and process the open file.
             import os

@@ -3465,3 +3465,34 @@ def test_restore_window_geometry_ignores_bad_values(monkeypatch, width, height, 
 
     defaults = pan_app.Settings.general
     assert calls == [('resize', defaults['windowwidth'], defaults['windowheight'])]
+
+
+# show_resume_blocked_notice() - the crash-loop guard held a resume back.
+
+
+def _label_text(infobar):
+    return infobar.get_content_area().get_children()[0].get_text()
+
+
+def test_show_resume_blocked_notice_names_the_file_and_reopen_runs_the_callback():
+    view, vbox = _view_for_same_lang_notice()
+    calls = []
+    view.show_resume_blocked_notice('/files/open.po', lambda: calls.append('reopen'))
+    infobar = view._resume_blocked_infobar
+
+    assert '/files/open.po' in _label_text(infobar)
+    infobar.emit('response', Gtk.ResponseType.OK)
+
+    assert calls == ['reopen']
+    assert view._resume_blocked_infobar is None
+
+
+def test_show_resume_blocked_notice_dismiss_does_not_reopen():
+    view, vbox = _view_for_same_lang_notice()
+    calls = []
+    view.show_resume_blocked_notice('/files/open.po', lambda: calls.append('reopen'))
+
+    view._resume_blocked_infobar.emit('response', Gtk.ResponseType.CLOSE)
+
+    assert calls == []
+    assert view._resume_blocked_infobar is None

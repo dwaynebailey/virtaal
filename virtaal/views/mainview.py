@@ -1396,6 +1396,40 @@ class MainView(BaseView):
             self._startup_open_failure_infobar = None
             infobar.destroy()
 
+    def show_resume_blocked_notice(self, filename, on_reopen):
+        """Virtaal crashed each time it reopened filename after a crash,
+        so it showed the welcome screen instead; on_reopen tries again."""
+        infobar = Gtk.InfoBar()
+        infobar.set_message_type(Gtk.MessageType.WARNING)
+        infobar.set_show_close_button(True)
+        label = Gtk.Label(
+            # l10n: Shown on the welcome screen after Virtaal crashed twice in a
+            # row while reopening a file it was editing when it last crashed.
+            label=_("Virtaal closed unexpectedly while reopening '%(file)s'.") % {'file': filename}
+        )
+        label.set_line_wrap(True)
+        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.add_button(_('_Reopen'), Gtk.ResponseType.OK)
+
+        def on_response(infobar, response_id):
+            self.hide_resume_blocked_notice()
+            if response_id == Gtk.ResponseType.OK:
+                on_reopen()
+
+        infobar.connect('response', on_response)
+
+        self._resume_blocked_infobar = infobar
+        infobar.show_all()
+        vbox_main = self.gui.get_object('vbox_main')
+        vbox_main.pack_start(infobar, False, False, 0)
+        vbox_main.reorder_child(infobar, 1)  # directly below the menu bar
+
+    def hide_resume_blocked_notice(self):
+        infobar = getattr(self, '_resume_blocked_infobar', None)
+        if infobar is not None:
+            self._resume_blocked_infobar = None
+            infobar.destroy()
+
     def show_language_change_notice(self):
         """Called once the UI language is changed in Preferences - a
         running app can't retranslate widgets already built with the
