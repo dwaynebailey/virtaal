@@ -10,6 +10,7 @@ import re
 from difflib import SequenceMatcher
 
 from gi.repository import Gdk, GLib, Gtk
+from translate.storage.placeables import StringElem
 
 from virtaal.controllers.cursor import Cursor
 from virtaal.support import sdlxliff_compat
@@ -21,6 +22,44 @@ from .basemode import BaseMode
 def _replaceable(match):
     """Replace changes targets, and never a locked Trados segment's."""
     return match.part == 'target' and not sdlxliff_compat.is_locked(match.unit)
+
+
+def _rich_offset(rich, plain, offset):
+    """The offset in C{rich} of C{plain}'s C{offset}, where C{plain} is
+    C{rich} with runs of whitespace collapsed (XLIFF targets)."""
+    i = 0
+    for j in range(offset + 1):
+        want = plain[j] if j < len(plain) else None
+        while i < len(rich) and rich[i] != want and rich[i].isspace():
+            i += 1
+        if j < offset:
+            i += 1
+    return i
+
+
+def replace_in_elem(elem, plain, start, end, replace_str):
+    """Replace C{plain[start:end]} inside the string tree C{elem},
+    keeping its placeables. C{plain} is the unit's plain target."""
+    rich = str(elem)
+    if rich != plain:
+        start, end = _rich_offset(rich, plain, start), _rich_offset(rich, plain, end)
+    if replace_str and end > start and elem.insert(start + 1, replace_str):
+        # Inserted inside the first replaced character's placeable, so
+        # replacing all of a tag's text keeps the tag.
+        n = len(replace_str)
+        elem.delete_range(start + 1 + n, end + n)
+        elem.delete_range(start, start + 1)
+    else:
+        if end > start:
+            elem.delete_range(start, end)
+        if replace_str:
+            elem.insert(start, replace_str)
+    elem.prune()
+    return elem
+
+
+def _has_placeables(elem):
+    return any(type(leaf) is not StringElem for leaf in elem.flatten())
 
 
 class SearchMode(BaseMode):
@@ -241,31 +280,35 @@ class SearchMode(BaseMode):
     def replace_match(self, match, replace_str):
         main_controller = self.controller.main_controller
         unit_controller = main_controller.unit_controller
-        # Using unit_controller directly is a hack to make sure that the replacement changes are immediately displayed.
         if not _replaceable(match):
             return
 
-        if unit_controller is None:
-            if match.unit.hasplural():
-                strings = match.unit.target.strings
-                string_n = strings[match.part_n]
-                strings[match.part_n] = (
-                    string_n[: match.start] + replace_str + string_n[match.end :]
-                )
-                match.unit.target = strings
-            else:
-                rstring = match.unit.target
-                rstring = rstring[: match.start] + replace_str + rstring[match.end :]
-                match.unit.target = rstring
-        else:
+        if unit_controller is not None:
             self.select_match_unit(match)
+        unit = match.unit
+        strings = list(unit.target.strings) if unit.hasplural() else [unit.target]
+        plain = str(strings[match.part_n])
+        # A copy: some units keep their rich target cached.
+        rich = list(unit.rich_target)
+        elem = rich[match.part_n].copy()
+        if _has_placeables(elem):
+            value = rich[match.part_n] = replace_in_elem(
+                elem, plain, match.start, match.end, replace_str
+            )
+        else:
+            rich = None
+            value = strings[match.part_n] = plain[: match.start] + replace_str + plain[match.end :]
+
+        if unit_controller is not None:
+            # Through the editor, so the replacement shows at once.
             main_controller.undo_controller.push_current_text(
                 unit_controller.view.targets[match.part_n]
             )
-            rstring = unit_controller.get_unit_target(match.part_n)
-            unit_controller.set_unit_target(
-                match.part_n, rstring[: match.start] + replace_str + rstring[match.end :]
-            )
+            unit_controller.set_unit_target(match.part_n, value)
+        elif rich is not None:
+            unit.rich_target = rich
+        else:
+            unit.target = strings if unit.hasplural() else value
 
     def select_match_unit(self, match):
         index = self._match_indices.get(id(match))
