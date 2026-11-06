@@ -114,6 +114,15 @@ def test_set_unit_collects_words_from_the_source_and_the_target():
     assert 'lêer' in ac._word_list
 
 
+@pytest.mark.parametrize('word', ['করুন', 'हिन्दी', 'می‌خواهم'])
+def test_set_unit_keeps_vowel_signs_viramas_and_zwnj_inside_words(word):
+    ac = _ac(comp_len=1)
+
+    ac.set_unit(_unit('Do it', word + '। ' + word))
+
+    assert ac._word_list == [word]
+
+
 def test_set_unit_keeps_the_usable_word_rule_for_unit_words():
     ac = _ac(comp_len=4)
 
