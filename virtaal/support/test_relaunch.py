@@ -65,6 +65,37 @@ def test_relaunch_args_drops_a_one_run_ui_language(option):
     assert relaunch.relaunch_args(['virtaal', *option]) == []
 
 
+@pytest.mark.parametrize(
+    ('lang', 'chosen', 'expected'),
+    [
+        ('zu:af', 'xh', ['--lang', 'xh:af']),
+        ('zu:af:de', 'af', ['--lang', 'af:de']),
+        ('zu:en', 'xh', ['--lang', 'xh:en_US']),
+        ('zu:af', 'af', []),
+        ('zu:af', '', []),
+        ('zu', 'xh', []),
+    ],
+)
+def test_relaunch_args_keeps_a_language_lists_fallbacks_after_the_new_language(
+    lang, chosen, expected
+):
+    assert relaunch.relaunch_args(['virtaal', '--lang', lang], ui_language=chosen) == expected
+
+
+def test_relaunch_passes_the_language_chosen_in_preferences(monkeypatch):
+    from virtaal.common import pan_app
+
+    calls = []
+    monkeypatch.setattr(sys, 'argv', ['virtaal', '--lang=zu:af'])
+    monkeypatch.setitem(pan_app.settings.language, 'uilang', 'xh')
+    monkeypatch.setattr(relaunch, 'relaunch_command', lambda args: (args, None))
+    monkeypatch.setattr(relaunch, 'spawn', lambda argv, env: calls.append(argv))
+
+    relaunch.relaunch()
+
+    assert calls == [['--lang', 'xh:af']]
+
+
 # relaunch_command() #
 
 

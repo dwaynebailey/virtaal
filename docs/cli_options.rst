@@ -53,7 +53,8 @@ out templates (``.pot``).
    - a colon-separated list, as in the ``LANGUAGE`` environment variable
      (e.g. ``zu:af``) - Virtaal uses the first language it has a translation
      for, and takes strings missing from it from the ones after it. ``en``
-     ends the list.
+     ends the list. Restarting for a UI language chosen in Preferences keeps
+     the rest of the list after it (``zu:af``, then Xhosa chosen: ``xh:af``).
 
 Developer options
 =================

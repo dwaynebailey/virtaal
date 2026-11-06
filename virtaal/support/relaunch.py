@@ -18,6 +18,7 @@ import os
 import subprocess
 import sys
 
+from virtaal.common import pan_app
 from virtaal.common.platform import platform
 from virtaal.support import helperprocess
 
@@ -26,11 +27,24 @@ FLATPAK_COMMAND = '/app/bin/virtaal'
 _APPIMAGE_VARS = ('APPIMAGE', 'APPDIR', 'ARGV0', 'OWD')
 
 
-def relaunch_args(argv, filename=None):
+def _lang_chain_args(lang, ui_language):
+    """--lang for the new instance: a list's fallbacks after the newly
+    chosen C{ui_language} ("zu:af", xh chosen: "xh:af")."""
+    if not lang or ':' not in lang or not ui_language:
+        return []
+    fallbacks = [code for code in pan_app.parse_ui_language_chain(lang)[1:] if code != ui_language]
+    if not fallbacks:
+        return []
+    return ['--lang', ':'.join([ui_language, *fallbacks])]
+
+
+def relaunch_args(argv, filename=None, ui_language=None):
     """The command-line arguments for the new instance: this one's
     options, with the file open at quit instead of the startup file.
     --lang and the pseudo-translations override the UI language for
-    one run, which would hide the new one the restart is for."""
+    one run, which would hide the new one the restart is for
+    (C{ui_language}, '' for the system's); only a --lang list's
+    fallbacks are kept, after the new language."""
     args = []
     if len(argv) > 1:
         from virtaal.cli import build_parser
@@ -48,6 +62,7 @@ def relaunch_args(argv, filename=None):
                 args += ['--config', os.path.abspath(options.config)]
             if options.debug:
                 args.append('--debug')
+            args += _lang_chain_args(options.lang, ui_language)
     if filename and os.path.isfile(filename):
         args.append(os.path.abspath(filename))
     return args
@@ -127,7 +142,8 @@ def spawn(argv, env):
 
 def relaunch(filename=None):
     """Start a new instance of Virtaal, reopening C{filename}."""
-    argv, env = relaunch_command(relaunch_args(sys.argv, filename))
+    ui_language = pan_app.settings.language['uilang']
+    argv, env = relaunch_command(relaunch_args(sys.argv, filename, ui_language))
     logging.info('Restarting Virtaal: %s', argv)
     try:
         spawn(argv, env)
