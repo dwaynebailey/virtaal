@@ -134,3 +134,9 @@ def test_save_writes_only_the_modified_files(stream, tmp_path):
 def test_save_as_is_refused(stream):
     with pytest.raises(ValueError):
         stream.save_file('/tmp/elsewhere.po')
+
+
+def test_the_language_picked_is_the_target_language(stream):
+    stream.language = 'zu'
+
+    assert stream.get_target_language() == 'zu'

@@ -122,3 +122,15 @@ class TestStreamOpenSave(TestScaffolding):
 
         with pytest.raises(ValueError):
             self.store_controller.update_file(str(self.dir / 'a.pot'))
+
+    def test_another_language_of_the_folder_opens_its_files(self):
+        self.store_controller.open_files([str(self.dir)])
+        sc = self.store_controller
+        assert sc.stream_language == 'af'
+        assert sc.opened_folder() == str(self.dir)
+
+        sc.open_stream_language('zu')
+
+        assert [u.source for u in sc.store] == ['Five']
+        assert sc.store.get_target_language() == 'zu'
+        assert sorted(code for code in sc.all_files.languages()) == ['af', 'zu']

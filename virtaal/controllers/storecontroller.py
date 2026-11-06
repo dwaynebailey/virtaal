@@ -29,9 +29,14 @@ class StoreController(BaseController):
         'checks-changed': (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
-    # With several files open: the paths given, and their FileSet.
+    # With several files open: the paths given, every file found in
+    # them, the language picked, and the FileSet of that language.
     opened_paths = None
+    all_files = None
+    stream_language = None
     fileset = None
+    # The target language the user had, when the files opened aren't in it.
+    stream_language_replaced = None
     _file_loaded_id = None
 
     arrival = None
@@ -262,26 +267,48 @@ class StoreController(BaseController):
         opens as with L{open_file()}."""
         from virtaal.models.fileset import FileSet
 
-        fileset = FileSet.from_paths(paths)
-        if len(fileset) == 1:
-            return self.open_file(fileset[0].path)
+        all_files = FileSet.from_paths(paths)
+        if len(all_files) == 1:
+            return self.open_file(all_files[0].path)
+        from virtaal.models.langmodel import same_language
+
         target = self.main_controller.lang_controller
         target = target and target.target_lang and target.target_lang.code
-        language = fileset.choose_language(target)
-        if language:
-            fileset = fileset.for_language(language)
-        if not len(fileset):
-            raise ValueError('The file contains nothing to translate.')
-        self._open_stream(fileset, paths)
+        language = all_files.choose_language(target)
+        replaced = target if target and language and not same_language(target, language) else None
+        self._open_stream(all_files, language, paths, replaced)
 
-    def _open_stream(self, fileset, paths):
+    def open_stream_language(self, language):
+        """Open the files in C{language} of those already open."""
+        self._open_stream(self.all_files, language, self.opened_paths)
+
+    def stream_name(self):
+        """The name of the folder, or first file, opened."""
+        paths = self.opened_paths or ('',)
+        return os.path.basename(os.path.normpath(paths[0]))
+
+    def opened_folder(self):
+        """The folder opened, when one folder was."""
+        paths = self.opened_paths or ()
+        if len(paths) == 1 and os.path.isdir(paths[0]):
+            return paths[0]
+        return None
+
+    def _open_stream(self, all_files, language, paths, replaced=None):
         from virtaal.models.streammodel import StreamModel
 
+        fileset = all_files.for_language(language) if language else all_files
+        if not len(fileset):
+            raise ValueError('The file contains nothing to translate.')
         store = StreamModel(fileset, self)
+        store.language = language
         self._forget_stream()
         self.project = None
         self.opened_filename = None
         self.opened_paths = [os.path.abspath(path) for path in paths]
+        self.all_files = all_files
+        self.stream_language = language
+        self.stream_language_replaced = replaced
         self.fileset = fileset
         self.store = store
         self._file_loaded_id = (store, store.connect('file-loaded', self._on_file_loaded))
@@ -314,6 +341,9 @@ class StoreController(BaseController):
             stream.disconnect(handler)
             self._file_loaded_id = None
         self.fileset = None
+        self.all_files = None
+        self.stream_language = None
+        self.stream_language_replaced = None
         self.opened_paths = None
 
     def _on_file_loaded(self, store, number, peek):
@@ -423,7 +453,7 @@ class StoreController(BaseController):
 
     def revert_file(self):
         if self.is_stream():
-            self._open_stream(self.fileset, self.opened_paths)
+            self.open_stream_language(self.stream_language)
             return
         self.open_file(self.store.filename)
 

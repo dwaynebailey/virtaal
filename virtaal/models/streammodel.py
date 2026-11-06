@@ -146,6 +146,9 @@ class StreamModel(BaseModel):
     # Read the next or previous file once the cursor is this close to it.
     PREFETCH_UNITS = 10
 
+    # The target language the files were picked for, if any.
+    language = None
+
     def __init__(self, fileset, controller):
         super().__init__()
         self.controller = controller
@@ -355,7 +358,7 @@ class StreamModel(BaseModel):
         return self.current_model.get_source_language()
 
     def get_target_language(self):
-        return self.current_model.get_target_language()
+        return self.language or self.current_model.get_target_language()
 
     def set_source_language(self, langcode):
         return self._set_language('set_source_language', langcode)

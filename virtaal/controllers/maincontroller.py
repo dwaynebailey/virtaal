@@ -310,6 +310,36 @@ class MainController(BaseController):
             )
             return False
 
+    def open_stream_language(self, language):
+        """With several files open, open those in C{language} instead.
+        @returns: Whether they opened."""
+        if self._opening_file:
+            return None
+        self._opening_file = True
+        try:
+            if self.store_controller.is_modified():
+                response = self._show_save_confirm_dialog()
+                if response == 'save':
+                    if not self.save_file():
+                        return False
+                elif response == 'cancel':
+                    return False
+            with self.view.busy(_("Loading '%s'…") % self.store_controller.stream_name()):
+                self.store_controller.open_stream_language(language)
+                self.mode_controller.refresh_mode()
+            return True
+        except Exception as exc:
+            import logging
+
+            logging.exception('MainController.open_stream_language(%r)', language)
+            self.show_error(
+                _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
+                % {'error_message': str(exc)}
+            )
+            return False
+        finally:
+            self._opening_file = False
+
     def _show_save_confirm_dialog(self):
         if getattr(self.store_controller, 'fileset', None) is None:
             return self.view.show_save_confirm_dialog()
