@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -215,3 +216,54 @@ def test_find_is_none_without_a_priority_file(tmp_path):
     translation.write_text('')
 
     assert priorityfile.find(str(translation)) is None
+
+
+_LEVEL = {'id': 'a', 'name': 'A', 'order': 1}
+
+
+@pytest.mark.parametrize(
+    ('data', 'message'),
+    [
+        ([], 'not a format 1 priority file'),
+        ({'format': 1}, 'no priorities'),
+        ({'format': 1, 'priorities': ['a']}, "priority 'a' is not a mapping"),
+        ({'format': 1, 'priorities': [{'name': '', 'order': 1}]}, 'has no name'),
+        ({'format': 1, 'priorities': [{'name': 'A', 'order': True}]}, 'no whole-number order'),
+        (
+            {'format': 1, 'priorities': [{**_LEVEL, 'description': 3}]},
+            'description is not a string',
+        ),
+        ({'format': 1, 'priorities': [{**_LEVEL, 'id': True}]}, 'priority id True is not'),
+        ({'format': 1, 'priorities': [_LEVEL, {**_LEVEL, 'name': 'B'}]}, 'share an id'),
+        ({'format': 1, 'priorities': [_LEVEL], 'domains': ['app']}, 'domains is not a mapping'),
+        ({'format': 1, 'priorities': [_LEVEL], 'domains': {'app': 1}}, 'domain app is not'),
+        (
+            {'format': 1, 'priorities': [_LEVEL], 'domains': {'app': {'b': []}}},
+            "domain app: priority 'b' is not defined",
+        ),
+        (
+            {'format': 1, 'priorities': [_LEVEL], 'domains': {'app': {'a': 'Open'}}},
+            'domain app, priority a: not a list of strings',
+        ),
+    ],
+)
+def test_parse_says_what_is_wrong(data, message):
+    with pytest.raises(ValueError, match=re.escape(message)):
+        priorityfile.parse(data)
+
+
+def test_parse_keeps_each_level_and_domain():
+    data = {
+        'format': 1,
+        'priorities': [{**_LEVEL, 'description': None}, {'id': 2, 'name': 'B', 'order': 0}],
+        'domains': {7: {'a': ['Open'], 2: []}},
+    }
+
+    parsed = priorityfile.parse(data, 'p.yaml')
+
+    assert parsed.path == 'p.yaml'
+    assert [(lv.id, lv.name, lv.description, lv.order) for lv in parsed.levels] == [
+        ('2', 'B', '', 0),
+        ('a', 'A', '', 1),
+    ]
+    assert parsed.domains == {'7': {'a': frozenset({'Open'}), '2': frozenset()}}
