@@ -8,7 +8,9 @@
 import weakref
 from types import SimpleNamespace
 
-from virtaal.plugins.tm.models.currentfile import TMModel
+from gi.repository import GLib
+
+from virtaal.plugins.tm.models.currentfile import TMModel, _UnitMatcher
 
 
 class _FakeUnit:
@@ -62,6 +64,14 @@ def _make_model(min_quality=50):
     model = TMModel.__new__(TMModel)
     model.controller = SimpleNamespace(min_quality=min_quality)
     return model
+
+
+def _load(model):
+    """Run the file's loading steps the main loop would."""
+    source_id = model._loading.source_id
+    while model._load_step():
+        pass
+    GLib.source_remove(source_id)
 
 
 def test_check_alttrans_returns_empty_list_without_getalttrans():
@@ -279,6 +289,7 @@ def _model_for(store):
     )
     storecontroller = SimpleNamespace(get_store=lambda: SimpleNamespace(_trans_store=store))
     model.recreate_matcher(storecontroller)
+    _load(model)
     return model, emitted
 
 
@@ -390,6 +401,7 @@ def _edit(model, unit, target):
 
 def _reopen(model, store):
     model.recreate_matcher(SimpleNamespace(get_store=lambda: SimpleNamespace(_trans_store=store)))
+    _load(model)
 
 
 def test_query_offers_only_the_latest_version_of_an_edited_unit():
@@ -572,3 +584,88 @@ def test_units_with_the_same_translation_share_one_candidate():
 
     assert len(model.matcher.candidates.units) == 1
     assert _offered(model, emitted, store.units[2]) == [('Maak oop', 100)]
+
+
+# Reading a large file a step at a time (#4260) #
+
+
+def _big_store(count):
+    return _po_store(
+        [(None, 'Open file number %d' % (n % 37), 'Maak lêer %d oop' % n) for n in range(count)]
+    )
+
+
+def test_a_file_is_read_in_steps_from_the_main_loop(monkeypatch):
+    monkeypatch.setattr(TMModel, 'LOAD_CHUNK', 10)
+    monkeypatch.setattr(TMModel, 'LOAD_BUDGET', 0)
+    store = _big_store(45)
+    model, emitted = _model_for(_po_store([]))
+    model.recreate_matcher(SimpleNamespace(get_store=lambda: SimpleNamespace(_trans_store=store)))
+    source_id = model._loading.source_id
+
+    read = []
+    while model._load_step():
+        read.append(len(model.matcher._by_unit))
+    GLib.source_remove(source_id)
+
+    assert read == [10, 20, 30, 40, 45]
+    assert len(model.matcher._by_unit) == 45
+    assert model._loading is None
+
+
+def test_reading_in_steps_gives_the_candidates_of_reading_at_once(monkeypatch):
+    monkeypatch.setattr(TMModel, 'LOAD_CHUNK', 7)
+    store = _big_store(200)
+    model, emitted = _model_for(store)
+
+    at_once = _UnitMatcher(store, max_candidates=10, min_similarity=75, max_length=1000)
+
+    def shown(matcher):
+        return [(c.source, c.target, len(c.unit_refs)) for c in matcher.candidates.units]
+
+    assert shown(model.matcher) == shown(at_once)
+
+
+def test_a_query_while_reading_is_asked_again_once_read(monkeypatch):
+    monkeypatch.setattr(TMModel, 'LOAD_CHUNK', 1)
+    monkeypatch.setattr(TMModel, 'LOAD_BUDGET', 0)
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', 'Open maak'), (None, 'Open', '')])
+    model, emitted = _model_for(_po_store([]))
+    model.recreate_matcher(SimpleNamespace(get_store=lambda: SimpleNamespace(_trans_store=store)))
+    source_id = model._loading.source_id
+    model._load_step()
+    tmcontroller = SimpleNamespace(current_query='Open')
+
+    model.query(tmcontroller, store.units[2])
+    while model._load_step():
+        pass
+    GLib.source_remove(source_id)
+
+    assert [sorted(matches) for matches in emitted] == [
+        [('Maak oop', 100)],
+        [('Maak oop', 100), ('Open maak', 100)],
+    ]
+
+
+def test_opening_or_closing_a_file_stops_reading_the_last_one():
+    model, emitted = _model_for(_po_store([]))
+    for _ in range(2):
+        model.recreate_matcher(
+            SimpleNamespace(get_store=lambda: SimpleNamespace(_trans_store=_big_store(10)))
+        )
+    source_id = model._loading.source_id
+
+    model._stop_loading()
+
+    assert model._loading is None
+    assert GLib.main_context_default().find_source_by_id(source_id) is None
+
+
+def test_an_edited_unit_goes_where_sorting_would_put_it():
+    store = _big_store(100)
+    model, emitted = _model_for(store)
+    for n, unit in enumerate(store.units[:20]):
+        _edit(model, unit, 'Nuut %d' % n)
+
+    units = model.matcher.candidates.units
+    assert units == sorted(units, key=lambda c: len(c.source))
