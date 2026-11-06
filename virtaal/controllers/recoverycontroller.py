@@ -417,7 +417,33 @@ class RecoveryController:
         self._drop_slot()
 
     @_guarded
+    def end_session(self, reason):
+        """The OS or a signal is ending Virtaal, with no one to answer a
+        dialog: write everything now and keep the slot, so the next
+        start-up resumes silently with the unsaved work."""
+        self._ending = True
+        if self.slot is None:
+            return
+        if self.store_controller.is_modified():
+            logging.warning('Ending on %s with unsaved changes; kept for the next start-up', reason)
+        self._cancel_debounce()
+        if self._pending_upto is None:
+            # Work the crash notice still offers keeps asking.
+            self.slot.data['end_reason'] = reason
+        self._write()
+        self.slot.sync()
+
+    _ending = False
+
+    @_guarded
     def _on_quit(self, main_controller):
+        if self._ending:
+            self._cancel_debounce()
+            self._cancel_sync()
+            if self.slot is not None:
+                self.slot.close()
+                self.slot = None
+            return
         self._drop_slot(write=True)
 
     def _drop_slot(self, write=False):

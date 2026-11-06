@@ -314,7 +314,7 @@ class TestResume(RecoveryScaffolding):
         assert self._slots() == []
 
 
-class TestUnsavedWork(RecoveryScaffolding):
+class UnsavedScaffolding(RecoveryScaffolding):
     @pytest.fixture(autouse=True)
     def _notices(self, monkeypatch):
         view = self.main_controller.view
@@ -353,6 +353,8 @@ class TestUnsavedWork(RecoveryScaffolding):
     def _targets(self):
         return [str(self.store_controller.store[i].target) for i in range(4)]
 
+
+class TestUnsavedWork(UnsavedScaffolding):
     def test_nothing_is_journalled_before_an_edit(self):
         self.store_controller.open_file(self._po())
 
@@ -530,3 +532,70 @@ class TestUnsavedWork(RecoveryScaffolding):
         self._type(0, 'Oop')
         self._edit_at(1)
         assert self._journal() == []
+
+
+class TestEndSession(UnsavedScaffolding):
+    """A signal or the OS ending Virtaal."""
+
+    @pytest.fixture(autouse=True)
+    def _not_ending(self):
+        yield
+        self.recovery._ending = False
+
+    def test_ending_keeps_the_slot_with_the_draft(self):
+        self.store_controller.open_file(self._po())
+        self._type(0, 'Oop')
+        self._edit_at(1)
+        self._type(1, ' nou')
+        slot = self.recovery.slot
+
+        self.recovery.end_session('signal')
+        self.main_controller.emit('quit')
+
+        [orphan] = recovery.find_orphans(self.root)
+        assert orphan.id == slot.id
+        assert orphan.data['end_reason'] == 'signal'
+        assert orphan.document(DOCUMENT)['draft']['fields']['targets'] == ['Maak toe nou']
+        assert orphan.data['position']['unit_index'] == 1
+        orphan.close()
+
+    def test_the_next_start_up_resumes_silently_with_the_work(self):
+        self.store_controller.open_file(self._po())
+        self._type(0, 'Oop')
+        self._edit_at(1)
+        self._type(1, ' nou')
+        self.recovery.end_session('signal')
+        self.main_controller.emit('quit')
+        self.recovery._ending = False
+        self.store_controller.close_file()
+
+        self._resume()
+
+        assert self.notices == [('restored', 2, 0)]
+        assert self._targets()[:2] == ['Oop', 'Maak toe nou']
+        assert self.store_controller.cursor.index == 1
+        assert self._session()['end_reason'] is None
+
+    def test_ending_with_nothing_unsaved_still_keeps_the_position(self):
+        self.store_controller.open_file(self._po())
+        self._edit_at(3)
+
+        self.recovery.end_session('signal')
+        self.main_controller.emit('quit')
+        self.recovery._ending = False
+        self.store_controller.close_file()
+        self._resume()
+
+        assert self.notices == []
+        assert self.store_controller.cursor.index == 3
+
+    def test_ending_while_the_crash_notice_waits_keeps_asking(self):
+        self.store_controller.open_file(self._po())
+        self._type(0, 'Oop')
+        self._edit_at(1)
+        self._crash()
+        self._resume()
+
+        self.recovery.end_session('signal')
+
+        assert self._session()['end_reason'] is None

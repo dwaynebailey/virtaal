@@ -135,23 +135,26 @@ class Virtaal:
         recovery.show_startup_notices()
 
     def _install_signal_handlers(self):
-        """An external SIGTERM/SIGINT (a test harness's `kill`, Ctrl+C,
-        systemd/launchd stopping the process) previously killed the
-        process immediately, without reaching quit()'s own
-        plugin-shutdown path - orphaning any subprocess a plugin
-        launched (e.g. localtm.py's tmserver). GLib.unix_signal_add
-        integrates with the main loop, unlike signal.signal() - safe
-        to call back into GTK/GLib from. POSIX-only; Windows has no
+        """SIGTERM (logout, shutdown, systemd or a test harness stopping
+        the process), SIGHUP (the terminal closing) and SIGINT (Ctrl+C)
+        quit through quit(), so plugins shut down their subprocesses,
+        without the save-changes dialog nobody is there to answer.
+        Unsaved work stays in the recovery slot and is restored on the
+        next start-up. GLib.unix_signal_add integrates with the main
+        loop, unlike signal.signal(). POSIX-only; Windows has no
         equivalent signal to catch here."""
         if platform.is_windows:
             return
         import signal
 
         def handle_signal(signum):
+            recovery = getattr(self.main_controller, 'recovery_controller', None)
+            if recovery is not None:
+                recovery.end_session('signal')
             self.main_controller.quit(force=True)
             return GLib.SOURCE_REMOVE
 
-        for sig in (signal.SIGTERM, signal.SIGINT):
+        for sig in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
             GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, sig, handle_signal, sig)
 
     def _open_with_file(self, startupfile):

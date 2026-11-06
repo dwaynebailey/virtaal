@@ -131,7 +131,7 @@ def test_install_signal_handlers_does_nothing_on_windows(monkeypatch):
     v._install_signal_handlers()  # must not raise
 
 
-def test_install_signal_handlers_registers_sigterm_and_sigint(monkeypatch):
+def test_install_signal_handlers_registers_sigterm_sighup_and_sigint(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', False)
     registered = []
     monkeypatch.setattr(
@@ -144,7 +144,7 @@ def test_install_signal_handlers_registers_sigterm_and_sigint(monkeypatch):
 
     v._install_signal_handlers()
 
-    assert [sig for sig, handler in registered] == [signal.SIGTERM, signal.SIGINT]
+    assert [sig for sig, handler in registered] == [signal.SIGTERM, signal.SIGHUP, signal.SIGINT]
 
 
 def test_signal_handler_forces_a_quit_and_removes_its_own_source(monkeypatch):
@@ -155,13 +155,17 @@ def test_signal_handler_forces_a_quit_and_removes_its_own_source(monkeypatch):
         _fake_glib(unix_signal_add=lambda priority, sig, handler, s: handlers.append(handler)),
     )
     v = Virtaal.__new__(Virtaal)
-    quit_calls = []
-    v.main_controller = SimpleNamespace(quit=lambda force: quit_calls.append(force))
+    calls = []
+    v.main_controller = SimpleNamespace(
+        quit=lambda force: calls.append(('quit', force)),
+        recovery_controller=SimpleNamespace(end_session=lambda r: calls.append(('end', r))),
+    )
 
     v._install_signal_handlers()
     result = handlers[0](signal.SIGTERM)
 
-    assert quit_calls == [True]
+    # The slot is kept for a silent resume before the quit would drop it.
+    assert calls == [('end', 'signal'), ('quit', True)]
     assert result == GLib.SOURCE_REMOVE
 
 
