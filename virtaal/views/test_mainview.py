@@ -1671,6 +1671,18 @@ def test_show_info_notice_replaces_the_last_one():
     assert first.get_parent() is None
 
 
+def test_hide_info_notice_leaves_a_newer_notice():
+    view, vbox = _view_for_same_lang_notice()
+    first = view.show_info_notice('first')
+    second = view.show_info_notice('second')
+
+    view.hide_info_notice(first)
+
+    assert view._info_infobar is second
+    view.hide_info_notice(second)
+    assert view._info_infobar is None
+
+
 def test_show_info_notice_dismiss_clears_the_tracked_infobar():
     view, vbox = _view_for_same_lang_notice()
     view.show_info_notice('text')

@@ -705,3 +705,34 @@ def test_a_monolingual_files_stats_and_checks_come_from_memory(tmp_path):
     assert (totals['needs-review']['units'], totals['empty']['units']) == (1, 1)
     assert model.update_checks(checks.StandardChecker()) is model.checks
     assert model.checks is not None
+
+
+@pytest.mark.parametrize(
+    'plural_forms, problem',
+    [
+        ('nplurals=2; plural=(n != 1);', None),
+        ('nplurals=INTEGER; plural=EXPRESSION;', None),
+        ('nplurals=2; plural=(;', 'The plural expression is not valid.'),
+        ('nplurals=2; plural=n;', 'The plural expression does not match the number of plurals.'),
+        (
+            'nplurals=3; plural=(n != 1);',
+            'The plural expression does not match the number of plurals.',
+        ),
+    ],
+)
+def test_get_plural_problem_checks_the_files_own_plural_equation(tmp_path, plural_forms, problem):
+    path = tmp_path / "plural.po"
+    path.write_text(
+        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
+        f'"Plural-Forms: {plural_forms}\\n"\n\nmsgid "Hello"\nmsgstr "Hallo"\n',
+        encoding="utf-8",
+    )
+
+    assert StoreModel(str(path), _FakeController()).get_plural_problem() == problem
+
+
+def test_get_plural_problem_ignores_a_file_without_plural_forms(tmp_path):
+    path = tmp_path / "plain.po"
+    path.write_bytes(_OLD_PO)
+
+    assert StoreModel(str(path), _FakeController()).get_plural_problem() is None

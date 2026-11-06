@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 18:17+0000\n"
+"POT-Creation-Date: 2026-11-06 18:50+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1248,6 +1248,14 @@ msgstr ""
 
 #: virtaal/models/storemodel.py
 msgid "Not a valid file."
+msgstr ""
+
+#: virtaal/models/storemodel.py virtaal/views/widgets/langadddialog.py
+msgid "The plural expression is not valid."
+msgstr ""
+
+#: virtaal/models/storemodel.py virtaal/views/widgets/langadddialog.py
+msgid "The plural expression does not match the number of plurals."
 msgstr ""
 
 #. l10n: Context: show every unit, not only the matching ones
@@ -2956,14 +2964,6 @@ msgstr ""
 #: virtaal/views/widgets/langadddialog.py
 #, python-format
 msgid "Language code %s is already used."
-msgstr ""
-
-#: virtaal/views/widgets/langadddialog.py
-msgid "The plural expression is not valid."
-msgstr ""
-
-#: virtaal/views/widgets/langadddialog.py
-msgid "The plural expression does not match the number of plurals."
 msgstr ""
 
 #. l10n: This is the column heading for the language code

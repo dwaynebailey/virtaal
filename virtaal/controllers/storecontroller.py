@@ -63,6 +63,7 @@ class StoreController(BaseController):
         # read again (a temporary file).
         self.opened_filename = None
         self._view = None
+        self._plural_notice = None
 
         self._controller_register_id = self.main_controller.connect(
             'controller-registered', self._on_controller_registered
@@ -434,6 +435,10 @@ class StoreController(BaseController):
             from virtaal.support.templatefinder import translations_of
 
             self.main_controller.view.show_source_notice(translations_of(filename))
+        self._hide_plural_notice()
+        plural_problem = self.store.get_plural_problem()
+        if plural_problem:
+            self._plural_notice = self.main_controller.view.show_info_notice(plural_problem)
 
         self._start_cursor()
 
@@ -441,6 +446,12 @@ class StoreController(BaseController):
         self.view.show()
 
         self._emit_store_loaded()
+
+    def _hide_plural_notice(self):
+        notice = getattr(self, '_plural_notice', None)
+        if notice is not None:
+            self._plural_notice = None
+            self.main_controller.view.hide_info_notice(notice)
 
     def _emit_store_loaded(self):
         # Languages filled in on load (see LanguageController) aren't user edits.
@@ -489,6 +500,7 @@ class StoreController(BaseController):
         self.store = None
         self.set_modified(False)
         self.main_controller.view.hide_read_only_notice()
+        self._hide_plural_notice()
         self.view.hide()  # This MUST be called BEFORE `self.cursor = None`
         self.emit(
             'store-closed'

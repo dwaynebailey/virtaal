@@ -1869,7 +1869,8 @@ class MainView(BaseView):
         return menu
 
     def show_info_notice(self, text):
-        """Show a dismissable notice with C{text}, in place of the last one."""
+        """Show a dismissable notice with C{text}, in place of the last one,
+        and return it."""
         self.hide_info_notice()
 
         infobar = Gtk.InfoBar()
@@ -1889,10 +1890,12 @@ class MainView(BaseView):
         vbox_main = self.gui.get_object('vbox_main')
         vbox_main.pack_start(infobar, False, False, 0)
         vbox_main.reorder_child(infobar, 1)  # directly below the menu bar
+        return infobar
 
-    def hide_info_notice(self):
+    def hide_info_notice(self, notice=None):
+        """Hide the notice, or only C{notice} if it is still showing."""
         infobar = getattr(self, '_info_infobar', None)
-        if infobar is not None:
+        if infobar is not None and notice in (None, infobar):
             self._info_infobar = None
             infobar.destroy()
 

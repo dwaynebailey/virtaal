@@ -428,6 +428,23 @@ class StoreModel(BaseModel):
         self._trans_store.fileobj = oldfileobj
         self.nplurals = self._compute_nplurals(self._trans_store)
 
+    def get_plural_problem(self):
+        """Why gettext would reject the file's own plural equation, or
+        C{None}."""
+        from translate.storage.poheader import poheader
+
+        if not isinstance(self._trans_store, poheader):
+            return None
+        nplurals, plural = self._trans_store.getheaderplural()
+        if nplurals is None or plural is None:
+            return None
+        forms = plural_forms(plural)
+        if forms is None:
+            return _('The plural expression is not valid.')
+        if forms != set(range(self.nplurals)):
+            return _('The plural expression does not match the number of plurals.')
+        return None
+
     def get_declared_nplurals(self):
         """The number of plural forms the file's own Plural-Forms header
         declares, or C{None}."""

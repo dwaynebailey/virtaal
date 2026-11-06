@@ -43,6 +43,9 @@ def _fake_storemodel_factory(units):
         def index_of(self, unit):
             return _index_of(units, unit)
 
+        def get_plural_problem(self):
+            return None
+
     return _FakeStoreModel
 
 
@@ -418,6 +421,24 @@ def test_open_file_loads_and_shows_a_plain_file(monkeypatch):
     assert controller.shown == [controller.store, 'shown']
     assert controller.read_only_notice_calls == ['hidden']
     assert emitted == [True]
+
+
+def test_open_file_shows_a_notice_for_an_invalid_plural_equation(monkeypatch):
+    controller = _open_file_controller(monkeypatch, units=[object()])
+    shown, hidden = [], []
+    controller.main_controller.view.show_info_notice = lambda text: shown.append(text) or 'notice'
+    controller.main_controller.view.hide_info_notice = hidden.append
+    problem = ['The plural expression is not valid.']
+    monkeypatch.setattr(
+        'virtaal.models.storemodel.StoreModel.get_plural_problem', lambda self: problem[0]
+    )
+
+    controller.open_file('file.po')
+    problem[0] = None
+    controller.open_file('other.po')
+
+    assert shown == ['The plural expression is not valid.']
+    assert hidden == ['notice']
 
 
 def test_open_file_raises_and_cleans_up_for_an_empty_store(monkeypatch):
