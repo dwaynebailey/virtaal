@@ -37,6 +37,16 @@ def _units(pair):
     return dict(pair.units())
 
 
+def _reviewed(project):
+    """Open the pair, mark every translation reviewed and save: the
+    baseline then holds the files as they are."""
+    pair = _open(project)
+    for _key, unit in pair.units():
+        unit.markfuzzy(False)
+    pair.save()
+    return pair
+
+
 def _state(unit):
     if unit.isfuzzy():
         return 'fuzzy'
@@ -79,6 +89,8 @@ def test_save_writes_only_the_target_in_its_own_format(project):
 
 def test_round_trip_open_edit_save_reopen(project):
     pair = _open(project)
+    for _key, unit in pair.units():
+        unit.markfuzzy(False)
     _units(pair)['greeting'].target = 'Goeie dag, {0}!'
     pair.save()
 
@@ -118,7 +130,7 @@ def test_the_baseline_is_kept_outside_the_project(project):
 
 
 def test_a_changed_source_needs_review_and_shows_the_old_source(project):
-    _open(project)
+    _reviewed(project)
     (project / 'en.properties').write_text(
         EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
     )
@@ -133,7 +145,7 @@ def test_a_changed_source_needs_review_and_shows_the_old_source(project):
 
 
 def test_a_review_still_shows_on_the_next_open(project):
-    _open(project)
+    _reviewed(project)
     (project / 'en.properties').write_text(
         EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
     )
@@ -146,7 +158,7 @@ def test_a_review_still_shows_on_the_next_open(project):
 
 
 def test_a_reviewed_unit_is_settled_by_saving(project):
-    _open(project)
+    _reviewed(project)
     (project / 'en.properties').write_text(
         EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
     )
@@ -163,7 +175,7 @@ def test_a_reviewed_unit_is_settled_by_saving(project):
 
 
 def test_a_unit_left_for_review_stays_fuzzy_after_saving(project):
-    _open(project)
+    _reviewed(project)
     (project / 'en.properties').write_text(
         EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
     )
@@ -177,7 +189,7 @@ def test_a_unit_left_for_review_stays_fuzzy_after_saving(project):
 
 
 def test_a_new_key_is_untranslated_and_a_removed_one_dropped(project):
-    _open(project)
+    _reviewed(project)
     (project / 'en.properties').write_text(
         EN.replace('quit=Quit\n', 'help=Help\n'), encoding='utf-8'
     )
@@ -193,7 +205,7 @@ def test_a_new_key_is_untranslated_and_a_removed_one_dropped(project):
 
 
 def test_a_target_changed_outside_is_taken_and_flagged(project):
-    _open(project)
+    _reviewed(project)
     (project / 'af.properties').write_text(
         AF.replace('Hallo, {0}!', 'Goeie môre, {0}!'), encoding='utf-8'
     )
@@ -206,7 +218,7 @@ def test_a_target_changed_outside_is_taken_and_flagged(project):
 
 
 def test_a_translation_added_outside_with_a_new_key_is_flagged(project):
-    _open(project)
+    _reviewed(project)
     (project / 'en.properties').write_text(EN + 'help=Help\n', encoding='utf-8')
     (project / 'af.properties').write_text(AF + 'help=Hulp\n', encoding='utf-8')
 
@@ -217,7 +229,7 @@ def test_a_translation_added_outside_with_a_new_key_is_flagged(project):
 
 
 def test_a_renamed_key_with_the_same_source_keeps_its_translation(project):
-    _open(project)
+    _reviewed(project)
     (project / 'en.properties').write_text(
         EN.replace('app.title=', 'window.title='), encoding='utf-8'
     )
@@ -234,14 +246,40 @@ def test_a_renamed_key_with_the_same_source_keeps_its_translation(project):
     assert 'app.title' not in text
 
 
-def test_no_baseline_means_nothing_is_flagged(project):
-    (project / 'en.properties').write_text(
-        EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
-    )
+def test_first_open_marks_every_translation_for_review(project):
+    (project / 'af.properties').write_text(AF + 'quit=Quit\n', encoding='utf-8')
 
     pair = _open(project)
 
-    assert not any(unit.isfuzzy() for unit in _units(pair).values())
+    assert {key: _state(u) for key, u in _units(pair).items()} == {
+        'app.title': 'fuzzy',
+        'greeting': 'fuzzy',
+        # The same as the English, but the target has it.
+        'quit': 'fuzzy',
+    }
+    states = {
+        key: e['state'] for key, e in baseline.load(str(project / 'af.properties'))['units'].items()
+    }
+    assert states == {'app.title': 'fuzzy', 'greeting': 'fuzzy', 'quit': 'fuzzy'}
+    assert not any(unit.getnotes('translator') for unit in _units(pair).values())
+
+
+def test_first_open_leaves_keys_the_target_lacks_untranslated(project):
+    unit = _units(_open(project))['quit']
+
+    assert (unit.target, unit.isfuzzy()) == ('', False)
+
+
+def test_saving_a_first_open_unchanged_writes_the_targets_values(project):
+    from virtaal.support.converters import PropertiesConverter
+
+    af = str(project / 'af.properties')
+    before = PropertiesConverter().values(af)
+
+    _open(project).save()
+
+    after = PropertiesConverter().values(af)
+    assert {key: after[key] for key in before} == before
 
 
 @pytest.mark.skipif(
@@ -257,6 +295,8 @@ def test_a_fluent_pair_round_trips(tmp_path):
     target = str(tmp_path / 'af' / 'main.ftl')
     pair = MonolingualPair(target, str(tmp_path / 'en-US' / 'main.ftl'))
     assert pair.store.getsourcelanguage() == 'en_US'
+    for _key, unit in pair.units():
+        unit.markfuzzy(False)
     _units(pair)['quit'].target = 'Verlaat'
 
     pair.save()

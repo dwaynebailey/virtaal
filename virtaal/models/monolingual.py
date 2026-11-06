@@ -78,7 +78,7 @@ class MonolingualPair:
         for key, unit in self.units():
             previous = old_units.get(key)
             if old is None:
-                units[key] = self._seen(unit)
+                units[key] = self._first_seen(key, unit)
             elif not unit.target:
                 units[key] = self._untranslated(unit, renamed, values)
             elif previous is None:
@@ -91,10 +91,13 @@ class MonolingualPair:
         if data != old:
             baseline.save(self.target, data)
 
-    @staticmethod
-    def _seen(unit):
+    def _first_seen(self, key, unit):
+        """With nothing to compare with, every translation needs review."""
         target = _target_text(unit)
-        return baseline.entry(unit.source, target, TRANSLATED if target else UNTRANSLATED)
+        if not target:
+            return baseline.entry(unit.source, None, UNTRANSLATED)
+        self._mark(key, unit, _Review())
+        return baseline.entry(unit.source, target, FUZZY)
 
     def _untranslated(self, unit, renamed, values):
         old_key = renamed.get(text_hash(unit.source))
