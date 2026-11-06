@@ -187,3 +187,37 @@ def test_diff_of_text_holding_the_token_block_is_plain():
     a, b = 'x \U000f0000 %(date)s', 'x \U000f0000 %(time)s'
 
     assert ''.join(text for op, text in markup._diff(a, b) if op >= 0) == b
+
+
+@pytest.mark.parametrize(
+    ('ops', 'expected'),
+    [
+        ([(0, 'a & '), (1, 'b')], 'a &amp; [INS:b]'),
+        ([(-1, 'x'), (0, 'y')], '[DEL:x]y'),
+        ([(0, 'y'), (-1, 'x')], 'y[DEL:x]'),
+        # Only the last of two deletions in a row is shown.
+        ([(-1, 'a'), (-1, 'b'), (0, 'c')], '[DEL:b]c'),
+        ([(-1, 'Save'), (1, 'save')], '[CASE:save]'),
+        ([(-1, 'Untitled'), (1, 'titled')], '[CASE:titled]'),
+        ([(-1, 'XYZabc'), (1, 'abc')], '[ADD:abc]'),
+        ([(-1, 'cat'), (1, 'dog')], '[ADD:dog]'),
+        ([(-1, '%(count)s'), (1, 'x')], '[DEL:%(count)s][ADD:x]'),
+        ([(-1, 'abcdefgh'), (1, 'x')], '[ADD:x]'),
+        ([(1, 'new'), (-1, 'old')], '[INS:new][DEL:old]'),
+    ],
+)
+def test_pango_diff_spans_for_each_kind_of_change(monkeypatch, ops, expected):
+    monkeypatch.setattr(markup, '_diff', lambda a, b: ops)
+    monkeypatch.setattr(
+        markup,
+        '_diff_pango_templates',
+        {
+            'insert_attr': 'INS',
+            'delete_attr': 'DEL',
+            'replace_attr_add': 'ADD',
+            'replace_attr_add_case': 'CASE',
+        },
+    )
+    monkeypatch.setattr(markup, '_pango_spans', lambda attr, text: '[%s:%s]' % (attr, text))
+
+    assert markup.pango_diff('a', 'b') == expected

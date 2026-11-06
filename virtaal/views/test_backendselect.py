@@ -281,3 +281,40 @@ def test_a_downloading_source_says_it_sends_no_text(monkeypatch):
 
     assert items['terms']['notice'] == 'Downloads from Example Corp, sending none of your text.'
     assert items['terms']['link'] == ('Terms of service', 'https://example.org/terms')
+
+
+def test_an_online_source_that_also_downloads_says_where_its_text_goes(monkeypatch):
+    items = _items_for(
+        monkeypatch,
+        {
+            'mt': {
+                'display_name': 'MT',
+                'description': 'd',
+                'online_service': 'Example MT',
+                'downloads_from': 'Example Corp',
+            }
+        },
+    )
+
+    assert items['mt']['notice'] == 'Sends the text you translate to Example MT.'
+
+
+def test_terms_without_a_notice_give_no_link(monkeypatch):
+    items = _items_for(
+        monkeypatch,
+        {'local': {'display_name': 'L', 'description': 'd', 'terms_url': 'https://x.org'}},
+    )
+
+    assert 'link' not in items['local']
+
+
+def test_a_backend_without_plugin_info_is_left_out(monkeypatch):
+    class _Unreadable(dict):
+        def __getitem__(self, name):
+            if name == 'broken':
+                raise ImportError(name)
+            return dict.__getitem__(self, name)
+
+    infos = _Unreadable(broken={}, good={'display_name': 'Good', 'description': 'd'})
+
+    assert list(_items_for(monkeypatch, infos)) == ['good']
