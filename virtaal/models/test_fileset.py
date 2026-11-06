@@ -109,3 +109,23 @@ def test_for_language_keeps_unknown_languages(tmp_path):
     names = [e.display_name for e in fileset.for_language('af')]
 
     assert names == ['af.po', 'notes.po']
+
+
+def _write(root, relpath, text='a=b\n'):
+    path = root.joinpath(*relpath.split('/'))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding='utf-8')
+    return str(path)
+
+
+def test_a_folder_scan_keeps_monolingual_sources_out_of_the_files(tmp_path):
+    po = _write(tmp_path, 'po/af.po', 'msgid "a"\nmsgstr "b"\n')
+    en = _write(tmp_path, 'i18n/en.properties')
+    _write(tmp_path, 'i18n/af.properties')
+    _write(tmp_path, 'i18n/lone.properties')
+
+    files = FileSet.from_paths([str(tmp_path)])
+
+    assert files.paths == [po]
+    assert [entry.path for entry in files.templates] == [en]
+    assert [entry.path for entry in files.for_language('af').templates] == [en]

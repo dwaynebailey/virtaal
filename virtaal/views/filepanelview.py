@@ -14,7 +14,16 @@ from virtaal.support.libi18n.numbers import format_number, format_percent
 
 from .baseview import BaseView
 
-COL_NAME, COL_ICON, COL_PERCENT, COL_PERCENT_TEXT, COL_SEGMENTS, COL_WEIGHT, COL_TOOLTIP = range(7)
+(
+    COL_NAME,
+    COL_ICON,
+    COL_PERCENT,
+    COL_PERCENT_TEXT,
+    COL_SEGMENTS,
+    COL_WEIGHT,
+    COL_TOOLTIP,
+    COL_SENSITIVE,
+) = range(8)
 
 # Folders open fully up to this many files; past it, only towards the
 # file being edited.
@@ -89,7 +98,7 @@ class FilePanelView(BaseView):
         self.language_box.pack_start(self._all_languages_button(), False, False, 0)
         self.widget.pack_start(self.language_box, False, False, 0)
 
-        self.model = Gtk.TreeStore(str, str, int, str, object, int, str)
+        self.model = Gtk.TreeStore(str, str, int, str, object, int, str, bool)
         self.treeview = Gtk.TreeView(model=self.model)
         self.treeview.set_headers_visible(False)
         self.treeview.set_enable_search(True)
@@ -102,11 +111,13 @@ class FilePanelView(BaseView):
         icon = Gtk.CellRendererPixbuf()
         column.pack_start(icon, False)
         column.add_attribute(icon, 'icon-name', COL_ICON)
+        column.add_attribute(icon, 'sensitive', COL_SENSITIVE)
         name = Gtk.CellRendererText()
         name.props.ellipsize = Pango.EllipsizeMode.MIDDLE
         column.pack_start(name, True)
         column.add_attribute(name, 'text', COL_NAME)
         column.add_attribute(name, 'weight', COL_WEIGHT)
+        column.add_attribute(name, 'sensitive', COL_SENSITIVE)
         column.set_expand(True)
         self.treeview.append_column(column)
 
@@ -116,6 +127,7 @@ class FilePanelView(BaseView):
         column.pack_start(progress, False)
         column.add_attribute(progress, 'value', COL_PERCENT)
         column.add_attribute(progress, 'text', COL_PERCENT_TEXT)
+        column.add_attribute(progress, 'visible', COL_SENSITIVE)
         self.treeview.append_column(column)
 
         selection = self.treeview.get_selection()
@@ -188,16 +200,18 @@ class FilePanelView(BaseView):
     def focus(self):
         self.treeview.grab_focus()
 
-    def load(self, entries, languages=(), language=None):
+    def load(self, entries, languages=(), language=None, templates=()):
         """Show the files C{entries} (FileEntry objects, as numbered in
         the stream) and the C{languages}, (code, name, count) each, with
-        C{language} chosen."""
+        C{language} chosen. C{templates} are shown greyed, outside the
+        stream."""
         self._building = True
         try:
             self.model.clear()
             self._rows = {}
             self._current = None
-            tree = build_tree([entry.display_name for entry in entries])
+            self._file_count = len(entries)
+            tree = build_tree([entry.display_name for entry in list(entries) + list(templates)])
             # A folder holding everything adds nothing: start inside it.
             while not tree['files'] and len(tree['folders']) == 1:
                 tree = next(iter(tree['folders'].values()))
@@ -212,11 +226,18 @@ class FilePanelView(BaseView):
     def _add_node(self, parent, node, unknown):
         numbers = []
         for name in sorted(node['folders'], key=str.lower):
-            it = self.model.append(parent, [name, 'folder', 0, '', [], Pango.Weight.NORMAL, None])
+            it = self.model.append(
+                parent, [name, 'folder', 0, '', [], Pango.Weight.NORMAL, None, True]
+            )
             below = self._add_node(it, node['folders'][name], unknown)
             self.model[it][COL_SEGMENTS] = below
             numbers.extend(below)
         for name, number in node['files']:
+            if number >= self._file_count:
+                self.model.append(
+                    parent, [name, 'text-x-generic', 0, '', [], Pango.Weight.NORMAL, None, False]
+                )
+                continue
             tooltip = None
             if unknown and unknown[number]:
                 # A file whose language isn't known joins the language chosen.
@@ -225,7 +246,7 @@ class FilePanelView(BaseView):
                 tooltip = _("This file doesn't say what language it is in.")
             it = self.model.append(
                 parent,
-                [name, 'text-x-generic', 0, '', [number], Pango.Weight.NORMAL, tooltip],
+                [name, 'text-x-generic', 0, '', [number], Pango.Weight.NORMAL, tooltip, True],
             )
             self._rows[number] = Gtk.TreeRowReference.new(self.model, self.model.get_path(it))
             numbers.append(number)
@@ -259,6 +280,9 @@ class FilePanelView(BaseView):
                 row = self.model[it]
                 if row[COL_ICON] == 'folder':
                     t, n = update(self.model.iter_children(it))
+                elif not row[COL_SEGMENTS]:
+                    it = self.model.iter_next(it)
+                    continue
                 else:
                     t, _fuzzy, n = counts[row[COL_SEGMENTS][0]]
                 fraction = t / n if n else 1

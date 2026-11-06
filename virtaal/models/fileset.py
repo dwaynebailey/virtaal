@@ -84,17 +84,36 @@ def is_template(path):
     return path.lower().endswith(TEMPLATE_EXTENSIONS)
 
 
-def scan_directory(directory):
-    """Translation files under directory, sorted by relative path."""
+def _walk(directory, wanted):
     found = []
     for dirpath, dirnames, filenames in os.walk(directory):
         dirnames[:] = sorted(d for d in dirnames if not d.startswith('.') and d not in SKIP_DIRS)
         for name in filenames:
-            if name.startswith('.') or not name.lower().endswith(SCAN_EXTENSIONS):
-                continue
-            found.append(os.path.join(dirpath, name))
+            if not name.startswith('.') and wanted(name):
+                found.append(os.path.join(dirpath, name))
     found.sort(key=lambda path: os.path.relpath(path, directory).split(os.sep))
     return found
+
+
+def scan_directory(directory):
+    """Translation files under directory, sorted by relative path."""
+    return _walk(directory, lambda name: name.lower().endswith(SCAN_EXTENSIONS))
+
+
+def is_monolingual_source(path):
+    """Whether C{path} is a monolingual file that others translate."""
+    from virtaal.support import converters, templatefinder
+
+    return converters.is_monolingual(path) and bool(templatefinder.translations_of(path))
+
+
+def scan_monolingual_sources(directory):
+    """The monolingual source-language files under directory."""
+    from virtaal.support import converters
+
+    return [
+        path for path in _walk(directory, converters.is_monolingual) if is_monolingual_source(path)
+    ]
 
 
 class FileEntry:
@@ -125,11 +144,14 @@ class FileEntry:
 
 
 class FileSet:
-    """An ordered list of translation files."""
+    """An ordered list of translation files, and the monolingual
+    source-language files (C{templates}) found with them, which aren't
+    translated in place."""
 
-    def __init__(self, entries, root=None):
+    def __init__(self, entries, root=None, templates=()):
         self.entries = list(entries)
         self.root = root
+        self.templates = list(templates)
 
     @classmethod
     def from_paths(cls, paths):
@@ -143,15 +165,20 @@ class FileSet:
             common = os.path.commonpath(paths)
             root = common if os.path.isdir(common) else os.path.dirname(common)
         entries = []
+        templates = []
         seen = set()
         for path in paths:
-            found = scan_directory(path) if os.path.isdir(path) else [path]
-            for name in found:
+            if os.path.isdir(path):
+                found = scan_directory(path)
+                sources = scan_monolingual_sources(path)
+            else:
+                found, sources = ([], [path]) if is_monolingual_source(path) else ([path], [])
+            for name in found + sources:
                 if name in seen:
                     continue
                 seen.add(name)
-                entries.append(FileEntry(name, root))
-        return cls(entries, root)
+                (templates if name in sources else entries).append(FileEntry(name, root))
+        return cls(entries, root, templates)
 
     def __len__(self):
         return len(self.entries)
@@ -177,6 +204,7 @@ class FileSet:
         return FileSet(
             [e for e in self.entries if e.language is None or same_language(e.language, code)],
             self.root,
+            self.templates,
         )
 
     def choose_language(self, current=None):

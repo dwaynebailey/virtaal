@@ -137,7 +137,12 @@ class FilePanelController(BaseController):
         languages = stream_languages(sc.all_files)
         reloaded = self._opened_paths == sc.opened_paths
         self._notify_language(sc, languages)
-        view.load([segment.entry for segment in sc.store.segments], languages, sc.stream_language)
+        view.load(
+            [segment.entry for segment in sc.store.segments],
+            languages,
+            sc.stream_language,
+            sc.all_files.templates,
+        )
         view.update_progress(sc.store.segment_counts())
         self.menu_item.set_sensitive(True)
         self.set_shown(view.shown if reloaded else panel_shown_at_open(sc))

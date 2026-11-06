@@ -69,3 +69,38 @@ def test_the_panel_goes_beside_the_units_and_the_ribbon_box():
     units.hide()
     assert not view.paned.get_visible()
     vbox.destroy()
+
+
+def _loaded_view(entries, templates):
+    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    units = Gtk.ScrolledWindow()
+    vbox.pack_start(units, True, True, 0)
+    objects = {'vbox_main': vbox, 'scrwnd_storeview': units}
+    mainview = SimpleNamespace(gui=SimpleNamespace(get_object=objects.get))
+    view = FilePanelView(SimpleNamespace(main_controller=SimpleNamespace(view=mainview)))
+    view.load(entries, templates=templates)
+    return view, vbox
+
+
+def _rows(model, it=None):
+    rows = []
+    it = model.iter_children(it)
+    while it is not None:
+        rows.append(tuple(model[it]))
+        rows.extend(_rows(model, it))
+        it = model.iter_next(it)
+    return rows
+
+
+def test_monolingual_sources_show_greyed_outside_the_stream():
+    entry = SimpleNamespace(display_name='po/af.po', language='af')
+    source = SimpleNamespace(display_name='i18n/en.properties', language='en')
+    view, vbox = _loaded_view([entry], [source])
+
+    view.update_progress([(1, 0, 2)])
+
+    rows = {row[0]: row for row in _rows(view.model)}
+    assert rows['en.properties'][4] == [] and rows['en.properties'][7] is False
+    assert rows['af.po'][4] == [0] and rows['af.po'][7] is True
+    assert rows['af.po'][2] == 50
+    vbox.destroy()
