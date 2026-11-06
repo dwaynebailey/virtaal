@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -103,6 +104,17 @@ def _term_parser(term, *translations):
         return [StringElem(before), placeable, StringElem(after)]
 
     return parse
+
+
+def _native_number_parse(text):
+    """Marks runs of non-ASCII digits as NumberPlaceables, which
+    NumberPlaceable's own 0-9 pattern doesn't."""
+    parts = re.split(r'((?:(?![0-9])\d)+)', text)
+    if len(parts) == 1:
+        return None
+    return [
+        general.NumberPlaceable([p]) if i % 2 else StringElem(p) for i, p in enumerate(parts) if p
+    ]
 
 
 def test_set_unit_collects_words_from_the_source_and_the_target():
@@ -309,6 +321,35 @@ def test_autocomplete_fast_still_offers_placeables_already_in_the_target():
     ac.set_unit(_unit('Delete %s'))
 
     assert ac.autocomplete_fast('%s %', '%s %') == ('%s', 's')
+
+
+@pytest.mark.parametrize(
+    'source, typed, expected',
+    [
+        ('In ১২৩৪', 'In 1', ('১২৩৪', '২৩৪')),
+        ('In 2026', 'In ২০', ('2026', '26')),
+        ('In ٢٠٢٦', 'In ۲', ('٢٠٢٦', '٠٢٦')),
+    ],
+)
+def test_autocomplete_fast_matches_digits_by_value(source, typed, expected):
+    ac = _parsing_ac(general.NumberPlaceable.parse, _native_number_parse)
+    ac.set_unit(_unit(source))
+
+    assert ac.autocomplete_fast(typed) == expected
+
+
+def test_autocomplete_fast_matches_a_no_break_space_with_a_space():
+    ac = _parsing_ac(_term_parser('Close', 'Maak\xa0toe'))
+    ac.set_unit(_unit('Close'))
+
+    assert ac.autocomplete_fast('Maak t') == ('Maak\xa0toe', 'oe')
+
+
+def test_autocomplete_fast_counts_a_placeable_typed_in_other_digits_as_present():
+    ac = _parsing_ac(general.NumberPlaceable.parse, _native_number_parse)
+    ac.set_unit(_unit('২০২৬ or 2027'))
+
+    assert ac.autocomplete_fast('2026 or 2', '2026 or 2') == ('2027', '027')
 
 
 def test_autocomplete_fast_does_not_complete_from_the_middle_of_a_word():
@@ -651,6 +692,23 @@ def test_on_insert_text_suggests_the_missing_placeable_after_one_sigil(monkeypat
 
     scheduled[0]()
     assert textbox.suggestion == {'text': 'd', 'offset': 1}
+
+
+def test_on_insert_text_suggests_replacing_digits_typed_in_another_script(monkeypatch):
+    ac = _parsing_ac(_native_number_parse)
+    ac.set_unit(_unit('In ১২৩৪'))
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append(f),
+    )
+    textbox, _ = _insert_text_box(prefix='', suffix='', buffer_text='1২৩৪')
+    ac._textbox_insert_ids = {textbox: 'sigid'}
+
+    ac._on_insert_text(textbox, text='1', offset=0, elem=None)
+
+    scheduled[0]()
+    assert textbox.suggestion == {'text': '২৩৪', 'offset': 1, 'replace': '১'}
 
 
 def test_on_insert_text_ignores_a_space_even_with_fast_candidates():

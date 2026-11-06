@@ -36,6 +36,15 @@ def _combining_marks():
     )
 
 
+_SPACES = '\u00a0\u2007\u2009\u202f'
+_FOLD = {ord(c): ' ' for c in _SPACES}
+_FOLD.update(
+    (code, str(unicodedata.decimal(chr(code))))
+    for code in range(0x20000)
+    if unicodedata.decimal(chr(code), None) is not None and not 0x30 <= code <= 0x39
+)
+
+
 class AutoCompletor:
     """
     Does auto-completion of registered words in registered widgets.
@@ -90,8 +99,9 @@ class AutoCompletor:
             self._update_word_list()
 
     def autocomplete(self, word):
+        folded = self.fold(word)
         for w in self._word_list:
-            if w.startswith(word):
+            if self.fold(w).startswith(folded):
                 return w, w[len(word) :]
         return None, ''
 
@@ -100,19 +110,27 @@ class AutoCompletor:
         placeables or term translations, which may contain spaces and
         punctuation. Those not yet in C{target} as often as in the source
         come first, each group in source order."""
+        folded_prefix = self.fold(prefix)
         for candidate in self._ordered_fast_candidates(target):
+            folded = self._folded[candidate]
             first = max(0, len(prefix) - len(candidate) + 1)
             for start in range(first, len(prefix)):
                 typed = prefix[start:]
                 if len(typed) < self.FAST_COMPLETION_LENGTH and not self._is_sigil(typed[0]):
                     continue
-                if not candidate.startswith(typed):
+                if not folded.startswith(folded_prefix[start:]):
                     continue
                 # Don't complete "ab" in "tab" to "about".
                 if start > 0 and self._isword(prefix[start - 1]) and self._isword(candidate[0]):
                     continue
                 return candidate, candidate[len(typed) :]
         return None, ''
+
+    @staticmethod
+    def fold(text):
+        """text as matched: digits of every script as 0-9 and no-break or
+        thin spaces as spaces, one character for one."""
+        return text.translate(_FOLD)
 
     def clear_widgets(self):
         """Release all registered widgets from the spell of auto-completion."""
@@ -124,6 +142,7 @@ class AutoCompletor:
         self._word_list = []
         self._word_freq = defaultdict(lambda: 0)
         self._fast_candidates = []
+        self._folded = {}
         self._source_counts = Counter()
 
     def isusable(self, word):
@@ -145,6 +164,7 @@ class AutoCompletor:
         candidates = self._placeable_candidates(sources)
         self._source_counts = Counter(candidates)
         self._fast_candidates = list(dict.fromkeys(candidates))
+        self._folded = {c: self.fold(c) for c in self._fast_candidates}
 
     def remove_widget(self, widget):
         """Remove a widget (currently only L{TextBox}s are accepted) from
@@ -210,19 +230,20 @@ class AutoCompletor:
             if len(lastword) < self.comp_len:
                 return
             completed_word, word_postfix = self.autocomplete(lastword)
-            if completed_word == lastword:
-                return
 
-        if completed_word:
+        if completed_word and word_postfix:
             # Updating of the buffer is deferred until after this signal
             # and its side effects are taken care of. We abuse
             # GLib.idle_add for that.
             insert_offset = offset + 1  # len(text) == 1
+            suggestion = {'text': word_postfix, 'offset': insert_offset}
+            typed_len = len(completed_word) - len(word_postfix)
+            if completed_word[:typed_len] != prefix[len(prefix) - typed_len :]:
+                suggestion['replace'] = completed_word[:typed_len]
 
             def suggest_completion():
                 textbox.handler_block(self._textbox_insert_ids[textbox])
-                # logging.debug("textbox.suggestion = {'text': u'%s', 'offset': %d}" % (word_postfix, insert_offset))
-                textbox.suggestion = {'text': word_postfix, 'offset': insert_offset}
+                textbox.suggestion = suggestion
                 textbox.handler_unblock(self._textbox_insert_ids[textbox])
 
                 sel_iter_start = buffer.get_iter_at_offset(insert_offset)
@@ -266,9 +287,10 @@ class AutoCompletor:
     def _ordered_fast_candidates(self, target):
         if not target:
             return self._fast_candidates
+        target = self.fold(target)
         missing, present = [], []
         for candidate in self._fast_candidates:
-            if target.count(candidate) >= self._source_counts[candidate]:
+            if target.count(self._folded[candidate]) >= self._source_counts[candidate]:
                 present.append(candidate)
             else:
                 missing.append(candidate)
