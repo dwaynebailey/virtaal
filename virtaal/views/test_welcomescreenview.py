@@ -10,17 +10,14 @@ from types import SimpleNamespace
 import pytest
 from gi.repository import Gtk
 
-from virtaal.views import baseview, welcomescreenview
+from virtaal.views import welcomescreenview
 from virtaal.views.welcomescreenview import WelcomeScreenView
 
-
-@pytest.fixture(autouse=True)
-def _fresh_builder_cache(monkeypatch):
-    # WelcomeScreenView.__init__ loads real widgets from virtaal.ui via
-    # the cached builder - a cached one would hand back the very same
-    # WelcomeScreen object (already reparented by a previous test's
-    # construction) across tests.
-    monkeypatch.setattr(baseview, '_builders', {})
+# WelcomeScreenView.__init__ loads real widgets from virtaal.ui via
+# the cached builder - a cached one would hand back the very same
+# WelcomeScreen object (already reparented by a previous test's
+# construction) across tests.
+pytestmark = pytest.mark.usefixtures('private_ui_builders')
 
 
 def _real_builder():

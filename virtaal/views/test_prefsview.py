@@ -10,17 +10,14 @@ from types import SimpleNamespace
 import pytest
 from gi.repository import Gtk
 
-from virtaal.views import baseview, prefsview
+from virtaal.views import prefsview
 from virtaal.views.baseview import BaseView
 from virtaal.views.prefsview import PreferencesView
 
-
-@pytest.fixture(autouse=True)
-def _fresh_builder_cache(monkeypatch):
-    # _load_widgets() below loads real widgets from virtaal.ui - a
-    # cached builder would hand back the very same GtkComboBoxText
-    # object (and whatever it was left showing) across tests.
-    monkeypatch.setattr(baseview, '_builders', {})
+# _load_widgets() below loads real widgets from virtaal.ui - a
+# cached builder would hand back the very same GtkComboBoxText
+# object (and whatever it was left showing) across tests.
+pytestmark = pytest.mark.usefixtures('private_ui_builders')
 
 
 class _FakeSelectView:

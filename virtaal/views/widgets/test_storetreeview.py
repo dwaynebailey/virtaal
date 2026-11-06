@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from types import SimpleNamespace
 
 import gi
+import pytest
 
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gdk', '3.0')
@@ -16,6 +17,9 @@ from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.views.widgets.storetreemodel import StoreTreeModel
 from virtaal.views.widgets.storetreeview import StoreTreeView
+
+# Each test's own virtaal.ui windows are destroyed after it.
+pytestmark = pytest.mark.usefixtures('destroy_ui_windows')
 
 
 class _Arrivals:

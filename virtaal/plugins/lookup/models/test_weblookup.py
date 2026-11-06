@@ -15,12 +15,8 @@ from virtaal.plugins.lookup.models.weblookup import (
     WebLookupAddDialog,
     WebLookupConfigDialog,
 )
-from virtaal.views import baseview
 
-
-@pytest.fixture(autouse=True)
-def _fresh_builder_cache(monkeypatch):
-    monkeypatch.setattr(baseview, '_builders', {})
+pytestmark = pytest.mark.usefixtures('private_ui_builders')
 
 
 def test_treeview_scrolled_window_is_not_focusable():

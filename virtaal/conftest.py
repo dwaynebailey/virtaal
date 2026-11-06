@@ -463,6 +463,43 @@ def _no_stats_cache_fill(monkeypatch):
     monkeypatch.setattr(statsworker, 'fill_in_background', lambda filename: None)
 
 
+@pytest.fixture
+def destroy_ui_windows(monkeypatch):
+    """Destroy the windows and menus of the builders the test loaded,
+    except the shared baseview cache's. Left alive, a worker holds
+    thousands, and a test changing the text direction or theme restyles
+    them all: past the timeout, or out of memory."""
+    from gi.repository import Gtk
+
+    from virtaal.views import baseview
+
+    shared = baseview._builders
+    built = []
+    add_from_file = Gtk.Builder.add_from_file
+
+    def recording_add_from_file(builder, filename):
+        built.append(builder)
+        return add_from_file(builder, filename)
+
+    monkeypatch.setattr(Gtk.Builder, 'add_from_file', recording_add_from_file)
+    yield
+    cached = [id(builder) for builder in shared.values()]
+    for builder in built:
+        if id(builder) in cached:
+            continue
+        for obj in builder.get_objects():
+            if isinstance(obj, (Gtk.Window, Gtk.Menu)):
+                obj.destroy()
+
+
+@pytest.fixture
+def private_ui_builders(destroy_ui_windows, monkeypatch):
+    """A builder cache of the test's own, its windows destroyed after."""
+    from virtaal.views import baseview
+
+    monkeypatch.setattr(baseview, '_builders', {})
+
+
 def pytest_sessionfinish(session, exitstatus):
     allowed_prefixes = _load_allowlist()
     unexpected = [
