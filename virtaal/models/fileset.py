@@ -28,7 +28,7 @@ _HEADER_LANGUAGE_RES = (
 _CODE_RE = re.compile(r'^([a-z]{2,3})(?:[_-]([A-Za-z]{2}|[A-Za-z]{4}|\d{3}))?(?:@\w+)?$')
 
 
-def _known_language(token):
+def known_language(token):
     """The language code token names, or None."""
     from translate.lang import data
 
@@ -70,7 +70,7 @@ def path_language(path, root=None):
             break
         candidates.append(segment)
     for candidate in candidates:
-        code = _known_language(candidate)
+        code = known_language(candidate)
         if code:
             return code
     return None
