@@ -58,6 +58,8 @@ Virtaal will make you more productive
   - Local files on your computer
   - `Mozilla Pontoon <https://pontoon.mozilla.org/terminology/>`_,
     for any language it covers
+  - :ref:`Microsoft Terminology <autoterm#microsoft>`, for the languages
+    Microsoft translates its software into
 
 - Reuse existing translations. Suggestions can come from:
 

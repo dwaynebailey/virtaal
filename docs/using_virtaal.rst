@@ -288,6 +288,15 @@ says how many translations were added. Importing a file again updates its
 translations the same way saving does. The menu item is there only while the
 Local Translation Memory is one of the sources of suggestions.
 
+Microsoft's translations of its own software, the "Translation and UI Strings
+Glossaries", can be imported the same way. Download them from `Visual Studio
+Dev Essentials <https://my.visualstudio.com/downloads?pid=6822>`_ (the import
+file chooser links there; you need a Microsoft account), then import the
+downloaded .zip file or the .csv files in it. Each file's translations go under
+the language in its name, such as af-ZA. The few rows with broken quoting in
+Microsoft's files are left out. Microsoft's notice at the top of each file
+says how you may use them.
+
 To keep a file's translations out of the local TM, for example ones you are
 not yet sure of, untick :menuselection:`File --> Add to Local TM on Save` while
 the file is open. If saving it already added translations, Virtaal asks before

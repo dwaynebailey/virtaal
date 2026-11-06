@@ -27,3 +27,19 @@ This powerful feature has many benefits:
 You can also point Virtaal at your own terminology file's URL instead - a PO
 file from a Pootle/Weblate server, for example, so the same terms are also
 recommended there. All file formats supported by Virtaal can be used.
+
+.. _autoterm#microsoft:
+
+Microsoft Terminology
+=====================
+
+Virtaal can also suggest the terms Microsoft uses in its software, from the
+`Microsoft Terminology Collection
+<https://learn.microsoft.com/globalization/reference/microsoft-terminology>`_,
+when you translate from English. It is off until you turn it on: open
+:menuselection:`Edit --> Preferences`, select Terminology Help under Features,
+click its :guilabel:`Configure…` button and tick Microsoft Terminology.
+
+Virtaal then downloads only your language's file from Microsoft (up to a few
+megabytes) and keeps it in its settings folder. It checks once a week whether
+Microsoft has a newer one. Nothing you translate is sent to Microsoft.
