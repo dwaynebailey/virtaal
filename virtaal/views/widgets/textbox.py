@@ -433,6 +433,27 @@ class TextBox(Gtk.TextView):
 
         GLib.idle_add(show)
 
+    def _accept_suggestion(self, suggestion):
+        """Insert suggestion's text; with a 'replace' text, that replaces
+        as many characters typed before it (another case or digits)."""
+        start = suggestion['offset']
+        text = suggestion['text']
+        replace = suggestion.get('replace')
+        if not replace:
+            self.buffer.insert(self.buffer.get_iter_at_offset(start), text)
+            return
+        recording = self.undo_controller and not self.undo_controller.model.recording
+        if recording:
+            self.undo_controller.record_start()
+        start -= len(replace)
+        self.buffer.delete(
+            self.buffer.get_iter_at_offset(start),
+            self.buffer.get_iter_at_offset(start + len(replace)),
+        )
+        self.buffer.insert(self.buffer.get_iter_at_offset(start), replace + text)
+        if recording:
+            self.undo_controller.record_stop()
+
     def _insert_candidate(self, text, start, end):
         # The selection-delete and the insert are one undo entry.
         recording = self.undo_controller and not self.undo_controller.model.recording
@@ -1127,10 +1148,7 @@ class TextBox(Gtk.TextView):
         if self.suggestion_is_visible():
             if event.keyval == Gdk.KEY_Tab:
                 self.hide_suggestion()
-                self.buffer.insert(
-                    self.buffer.get_iter_at_offset(self.suggestion['offset']),
-                    self.suggestion['text'],
-                )
+                self._accept_suggestion(self.suggestion)
                 self.suggestion = None
                 self.emit("changed")
                 return True

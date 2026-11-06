@@ -319,6 +319,40 @@ class TestTextBox(TestScaffolding):
         assert not textbox.suggestion_is_visible()
         assert textbox.get_text() == '%d files removed'
 
+    def _fresh_target_for(self, source_text):
+        """_target_for() on a unit of a new copy of the store, for a test
+        that edits the target."""
+        unit = next(
+            u for u in factory.getobject(PLACEABLES_PO).getunits() if u.source == source_text
+        )
+        for textbox in self.unit_controller.view.targets:
+            textbox._suggestion = None
+        return self.unit_controller.load_unit(unit).targets[0]
+
+    @staticmethod
+    def _press_tab(textbox):
+        event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
+        event.keyval = Gdk.KEY_Tab
+        return textbox._on_key_pressed(textbox, event)
+
+    def test_tab_accepts_a_suggestion(self):
+        textbox = self._fresh_target_for('%d files removed')
+        textbox.suggestion = {'text': ' extra', 'offset': len('%d files removed')}
+
+        assert self._press_tab(textbox) is True
+
+        assert textbox.get_text() == '%d files removed extra'
+        assert textbox.suggestion is None
+
+    def test_tab_accepts_a_suggestion_that_replaces_the_typed_text(self):
+        # Autocomplete's case or native-digit form of what was typed.
+        textbox = self._fresh_target_for('%d files removed')
+        textbox.suggestion = {'text': 'X', 'offset': len('%d files'), 'replace': 'FILES'}
+
+        assert self._press_tab(textbox) is True
+
+        assert textbox.get_text() == '%d FILESX removed'
+
     def test_suggestion_set_to_none_hides_an_existing_one(self):
         textbox = self._target_for('%1 files moved')
         textbox.suggestion = {'text': ' extra', 'offset': len('%1 files moved')}
