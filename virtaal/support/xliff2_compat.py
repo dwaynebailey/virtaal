@@ -23,7 +23,8 @@ from translate.storage import factory, xliff2
 from translate.storage.workflow import StateEnum
 
 _ROOT = re.compile(rb"<(?:[\w.-]+:)?xliff\b[^>]*>")
-_VERSION_2 = re.compile(rb"""\bversion\s*=\s*["']2\.""")
+# Not a namespaced attribute: ITS tools put its:version="2.0" on XLIFF 1.2.
+_VERSION_2 = re.compile(rb"""(?<![\w:.-])version\s*=\s*["']2\.""")
 _NAMESPACE_2 = re.compile(rb"urn:oasis:names:tc:xliff:document:2\.")
 
 
