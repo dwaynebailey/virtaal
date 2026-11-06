@@ -274,6 +274,75 @@ class TestRealPlaceableRendering(TestScaffolding):
         assert textbox.elem.gui_info.elem_at_offset(-1) is None
         assert textbox.elem.gui_info.elem_at_offset(999) is None
 
+    # The element at each offset, as (class name, text, run length): a
+    # widget counts as one offset, and is its own placeable's.
+    ELEMS_AT_OFFSETS = {
+        'Click here to continue.': [
+            ('StringElem', 'Click ', 6),
+            ('G', 'here', 6),
+            ('StringElem', ' to continue.', 13),
+        ],
+        'A line breakafter it.': [
+            ('StringElem', 'A line break', 12),
+            ('X', '', 1),
+            ('StringElem', 'after it.', 9),
+        ],
+        'Some bold text.': [
+            ('StringElem', 'Some ', 5),
+            ('Bx', '', 1),
+            ('StringElem', 'bold', 4),
+            ('Ex', '', 1),
+            ('StringElem', ' text.', 6),
+        ],
+        'A placeholder: CODE here.': [
+            ('StringElem', 'A placeholder: ', 15),
+            ('UnknownXML', 'CODE', 6),
+            ('StringElem', ' here.', 6),
+        ],
+        'An opening isolated tag.': [
+            ('StringElem', 'An ', 3),
+            ('UnknownXML', 'opening', 9),
+            ('StringElem', ' isolated tag.', 14),
+        ],
+        '%s files copied': [
+            ('PythonFormattingPlaceable', '%s', 2),
+            ('StringElem', ' files copied', 13),
+        ],
+        'First line.\nSecond line.': [
+            ('StringElem', 'First line.', 11),
+            ('NewlinePlaceable', '\n', 2),
+            ('StringElem', 'Second line.', 12),
+        ],
+        'Click <a>here</a> to continue.': [
+            ('StringElem', 'Click ', 6),
+            ('XMLTagPlaceable', '<a>', 3),
+            ('StringElem', 'here', 4),
+            ('XMLTagPlaceable', '</a>', 4),
+            ('StringElem', ' to continue.', 13),
+        ],
+    }
+
+    def test_elem_at_offset_at_every_offset(self):
+        xliff_texts = {
+            'Click here to continue.',
+            'A line breakafter it.',
+            'Some bold text.',
+            'A placeholder: CODE here.',
+            'An opening isolated tag.',
+        }
+        for text, runs in self.ELEMS_AT_OFFSETS.items():
+            store = self.xliff_store if text in xliff_texts else self.po_store
+            gui_info = self._target_for(store, text).elem.gui_info
+            expected = [(name, elem) for name, elem, count in runs for _ in range(count)]
+
+            found = []
+            for offset in range(gui_info.length()):
+                elem = gui_info.elem_at_offset(offset)
+                found.append((type(elem).__name__, str(elem)))
+
+            assert found == expected, text
+            assert gui_info.elem_at_offset(gui_info.length()) is None
+
     def test_g_placeable_wraps_its_content_in_bracket_widgets(self):
         textbox = self._target_for(self.xliff_store, 'Click here to continue.')
 

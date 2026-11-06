@@ -614,6 +614,37 @@ def test_on_target_key_pressed_ctrl_shift_enter_advances_the_workflow_backward()
     assert advanced == [-1]
 
 
+def test_on_target_key_pressed_enter_past_a_hidden_target_moves_on():
+    view = _view_for_key_press()
+    view.advance_workflow_state = lambda direction: pytest.fail('workflow advanced')
+    key_press_calls = []
+    view._on_key_press_event = lambda widget, event: key_press_calls.append(event)
+    hidden = SimpleNamespace(
+        get_parent=lambda: SimpleNamespace(props=SimpleNamespace(visible=False))
+    )
+
+    result = view._on_target_key_pressed(None, 'the-event', 'enter', hidden)
+
+    assert result is True
+    assert key_press_calls == ['the-event']
+
+
+def test_on_target_key_pressed_ctrl_enter_with_a_next_target_only_focuses_it():
+    view = _view_for_key_press()
+    view.advance_workflow_state = lambda direction: pytest.fail('workflow advanced')
+    view._on_key_press_event = lambda widget, event: pytest.fail('moved on')
+    focused = []
+    view.focus_text_view = lambda tb: focused.append(tb)
+    next_textbox = SimpleNamespace(
+        get_parent=lambda: SimpleNamespace(props=SimpleNamespace(visible=True))
+    )
+
+    result = view._on_target_key_pressed(None, 'the-event', 'ctrl-enter', next_textbox)
+
+    assert result is True
+    assert focused == [next_textbox]
+
+
 def test_on_target_key_pressed_alt_down_schedules_insert_placeable(monkeypatch):
     view = _view_for_key_press()
     scheduled = []
@@ -1226,6 +1257,20 @@ def test_on_key_press_event_resets_must_advance_for_a_non_enter_key():
 
     assert result is False
     assert view.must_advance is False
+
+
+@pytest.mark.parametrize('keyval', [Gdk.KEY_Return, Gdk.KEY_KP_Enter])
+def test_on_key_press_event_finishes_editing_on_enter(keyval):
+    view = UnitView.__new__(UnitView)
+    view.must_advance = True
+    finished = []
+    view.finish_editing_and_advance = lambda: finished.append(True)
+
+    result = view._on_key_press_event(None, SimpleNamespace(keyval=keyval))
+
+    assert result is True
+    assert finished == [True]
+    assert view.must_advance is True
 
 
 # _unselectable_states() #
