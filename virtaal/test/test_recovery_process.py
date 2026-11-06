@@ -101,6 +101,8 @@ DRIVER = textwrap.dedent(
                 target_n=n,
                 offset=view.targets[n].get_cursor_position(),
                 editor_text=view.targets[n].get_text(),
+                editor_mapped=view.targets[n].get_mapped(),
+                editor_height=view.targets[n].get_allocated_height(),
             )
         return out
 
@@ -221,6 +223,7 @@ def test_a_crash_with_nothing_unsaved_resumes_silently_at_the_unit_and_offset(la
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert resumed['store'] == po
     assert (resumed['index'], resumed['target_n'], resumed['offset']) == (2, 0, 5)
+    assert resumed['editor_mapped'], resumed
     assert resumed['notices'] == []
     assert not resumed['modified']
     # A clean quit leaves nothing to resume.

@@ -118,6 +118,12 @@ class RecoveryScaffolding(TestScaffolding):
         self.store_controller.cursor.force_index(index)
         self.unit_controller.load_unit(self.store_controller.store[index])
 
+    def _settle(self):
+        """Until the resumed unit is selected."""
+        wanted = self.recovery._text_cursor
+        if wanted is not None:
+            _pump(lambda: self.store_controller.cursor.deref() is wanted['unit'], seconds=2)
+
     def _resume(self, startupfile=''):
         path = self.recovery.choose_startup_file(startupfile)
         opened = False
@@ -127,6 +133,7 @@ class RecoveryScaffolding(TestScaffolding):
             opened = True
         self.recovery.startup_file_opened(opened)
         if opened:
+            self._settle()
             cursor = self.store_controller.cursor
             self.unit_controller.load_unit(self.store_controller.store[cursor.index])
         return path
@@ -254,6 +261,17 @@ class TestResume(RecoveryScaffolding):
 
         assert not _pump(lambda: view.targets[0].get_cursor_position() == 4, seconds=0.5)
 
+    def test_a_write_before_the_unit_is_selected_keeps_the_saved_position(self):
+        path = self._po()
+        self._orphan(path, position=_at(3, 'Quit'))
+        self.recovery.choose_startup_file('')
+        self.store_controller.open_file(path)
+        self.recovery.startup_file_opened(True)
+
+        self.recovery._write()
+
+        assert self._session()['position']['unit_index'] == 3
+
     def test_the_resumed_slot_becomes_this_processs_slot(self):
         path = self._po()
         orphan = self._orphan(path)
@@ -320,6 +338,7 @@ class TestResume(RecoveryScaffolding):
         self.recovery.show_startup_notices()
 
         self.notices[0][2]()
+        self._settle()
 
         assert self.store_controller.store.get_filename() == path
         assert self.store_controller.cursor.index == 3
@@ -335,6 +354,7 @@ class TestResume(RecoveryScaffolding):
         monkeypatch.setattr(self.main_controller, 'show_prompt', lambda *a, **k: pytest.fail())
 
         self.notices[0][2]()
+        self._settle()
 
         assert self.recovery.slot.id == orphan.id
         assert self._slots() == [orphan.id]

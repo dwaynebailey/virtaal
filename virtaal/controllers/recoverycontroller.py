@@ -79,6 +79,8 @@ class RecoveryController:
         self._buffers = weakref.WeakSet()
         self._unit_controller = None
         self._text_cursor = None
+        # A resumed unit not selected yet: the cursor isn't where the slot says.
+        self._selecting = False
         self._watching_editor = False
         # Whether the document's units can be journalled and replayed.
         self._replayable = False
@@ -306,7 +308,6 @@ class RecoveryController:
             index = position.get('unit_index')
             if not isinstance(index, int) or not 0 <= index < len(store):
                 return
-        self.store_controller.cursor.force_index(index)
         self._text_cursor = {
             'unit': store[index],
             'target_n': position.get('target_index') or 0,
@@ -314,7 +315,22 @@ class RecoveryController:
             'until': time.monotonic() + TEXT_CURSOR_HOLD_SECONDS,
         }
         self._watch_editor()
+        self._selecting = True
+        GLib.timeout_add(50, self._select_resumed_unit, store, index, self._text_cursor)
+
+    def _select_resumed_unit(self, store, index, wanted):
+        """Move to the unit once the store view has started editing the
+        first one: a move before that leaves the editor undrawn."""
+        sc = self.store_controller
+        if sc.store is not store:
+            return False
+        if sc.view._treeview._waiting_for_row_change and time.monotonic() < wanted['until']:
+            return True
+        self._selecting = False
+        sc.cursor.force_index(index)
+        wanted['selected'] = True
         GLib.timeout_add(50, self._place_text_cursor)
+        return False
 
     def _watch_editor(self):
         """Refocusing the editor (a plug-in loading after the resume
@@ -344,6 +360,9 @@ class RecoveryController:
         wanted = self._text_cursor
         if wanted is None or time.monotonic() > wanted['until']:
             self._text_cursor = None
+            return False
+        if not wanted.get('selected'):
+            # _select_resumed_unit() comes back here once it has moved.
             return False
         uc = self._unit_controller
         view = uc and uc.view
@@ -397,6 +416,7 @@ class RecoveryController:
         self._write()
 
     def _new_document(self, path):
+        self._selecting = False
         sc = self.store_controller
         bundle = sc.get_bundle_filename()
         # Replay starts from the file as read, which a bundle's temporary
@@ -656,7 +676,7 @@ class RecoveryController:
         self._dirty_at = None
         if reset_attempts:
             self.slot.data['resume_attempts'] = 0
-        position = self._position()
+        position = None if self._selecting else self._position()
         if position is not None:
             self.slot.data['position'] = position
         doc = self.slot.document(DOCUMENT)
