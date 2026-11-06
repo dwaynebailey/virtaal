@@ -516,3 +516,117 @@ def test_match_text_is_right_aligned_in_a_right_to_left_view():
 
     assert renderer.target_layout.get_alignment() == Pango.Alignment.RIGHT
     assert renderer.source_layout.get_alignment() == Pango.Alignment.RIGHT
+
+
+# update_geometry() with stand-ins for every widget it asks: where the
+# popup goes for each side the room is on.
+
+
+def _rect(x, y, width, height):
+    return SimpleNamespace(x=x, y=y, width=width, height=height)
+
+
+def _fake_widget(top, *, rtl=False, source_top=None, below=(), frame=None):
+    """A target at y=top (40 high, 300 wide) in a window covering frame
+    (1000x800 by default), its source at source_top."""
+    frame = frame or _rect(0, 0, 1000, 800)
+    origin = SimpleNamespace(x=200, y=top)
+    widget = SimpleNamespace(
+        get_parent=lambda: SimpleNamespace(get_allocation=lambda: _rect(0, 0, 300, 40)),
+        get_window=lambda kind: SimpleNamespace(get_origin=lambda: origin),
+        get_direction=lambda: Gtk.TextDirection.RTL if rtl else Gtk.TextDirection.LTR,
+        get_toplevel=lambda: SimpleNamespace(
+            get_window=lambda: SimpleNamespace(get_frame_extents=lambda: frame)
+        ),
+        below_widgets=below,
+    )
+    if source_top is not None:
+        source_origin = SimpleNamespace(x=200, y=source_top)
+        widget.selector_textbox = SimpleNamespace(
+            get_window=lambda kind: SimpleNamespace(get_origin=lambda: source_origin)
+        )
+    return widget
+
+
+def _fake_below(height, offset, mapped=True):
+    return SimpleNamespace(
+        get_mapped=lambda: mapped,
+        get_allocated_height=lambda: height,
+        translate_coordinates=lambda widget, x, y: (x, offset + y),
+    )
+
+
+def _place(widget, rows_height=100, tm_source_width=60, scrollbar=False):
+    calls = []
+    border = SimpleNamespace(top=1, bottom=1)
+    window = SimpleNamespace(
+        move_resize=lambda *args: calls.append(('window', *args)),
+        get_toplevel=lambda: SimpleNamespace(
+            move_resize=lambda *args: calls.append(('toplevel', *args))
+        ),
+    )
+    popup = SimpleNamespace(
+        MAX_HEIGHT=TMWindow.MAX_HEIGHT,
+        MIN_HEIGHT=TMWindow.MIN_HEIGHT,
+        get_realized=lambda: True,
+        tvc_match=SimpleNamespace(queue_resize=lambda: None),
+        tvc_perc=SimpleNamespace(get_width=lambda: 40),
+        tvc_tm_source=SimpleNamespace(get_width=lambda: tm_source_width),
+        scrolled_window=SimpleNamespace(
+            get_vscrollbar=lambda: SimpleNamespace(
+                props=SimpleNamespace(visible=scrollbar),
+                get_allocation=lambda: _rect(0, 0, 12, 0),
+            ),
+            get_style_context=lambda: SimpleNamespace(get_border=lambda state: border),
+            set_size_request=lambda *args: calls.append(('scrolled', *args)),
+        ),
+        rows_height=lambda: rows_height,
+        move=lambda *args: calls.append(('move', *args)),
+        resize=lambda *args: calls.append(('resize', *args)),
+        get_window=lambda: window,
+    )
+    TMWindow.update_geometry(popup, widget)
+    return calls
+
+
+@pytest.mark.parametrize(
+    ('widget', 'kwargs', 'expected'),
+    [
+        # Room below.
+        (_fake_widget(100), {}, (160, 142, 400, 102)),
+        # Below a shown comment, not a hidden one.
+        (
+            _fake_widget(100, below=(_fake_below(30, 50), _fake_below(30, 200, mapped=False))),
+            {},
+            (160, 182, 400, 102),
+        ),
+        # No room below: above the source.
+        (_fake_widget(700, source_top=650), {}, (160, 546, 400, 102)),
+        # Without a source, above the target itself.
+        (_fake_widget(700), {}, (160, 596, 400, 102)),
+        # Room on neither side: shrink into the roomier.
+        (_fake_widget(300, frame=_rect(0, 0, 1000, 400)), {'rows_height': 300}, (160, 0, 400, 298)),
+        (
+            _fake_widget(60, frame=_rect(0, 0, 1000, 400)),
+            {'rows_height': 300},
+            (160, 102, 400, 298),
+        ),
+        # Too little room anywhere: clamped over the unit.
+        (_fake_widget(30, frame=_rect(0, 0, 1000, 120)), {'rows_height': 300}, (160, 0, 400, 302)),
+        # Right to left, with a scroll bar; a too-wide source column.
+        (_fake_widget(100, rtl=True), {'scrollbar': True}, (127, 142, 413, 102)),
+        (_fake_widget(100), {'tm_source_width': 150}, (160, 142, 380, 102)),
+        # Kept inside the window's frame.
+        (_fake_widget(100, frame=_rect(300, 0, 400, 800)), {}, (300, 142, 400, 102)),
+    ],
+)
+def test_update_geometry_places_the_popup(widget, kwargs, expected):
+    x, y, width, height = expected
+
+    assert _place(widget, **kwargs) == [
+        ('move', x, y),
+        ('resize', width, height),
+        ('scrolled', width, height),
+        ('window', 0, 0, width, height),
+        ('toplevel', x, y, width, height),
+    ]

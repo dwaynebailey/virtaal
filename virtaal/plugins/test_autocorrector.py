@@ -773,3 +773,37 @@ def test_the_plugin_reads_the_asset_manifest_from_the_config_dir(tmp_path, monke
     assert isinstance(manifest, AssetManifest)
     assert os.path.dirname(manifest._cache_path) == str(tmp_path)
     assert plugin._get_asset_manifest() is manifest
+
+
+def test_changing_the_target_language_loads_downloads_and_reattaches(monkeypatch, tmp_path):
+    _write_document_list(tmp_path, 'af')
+    attached = []
+    target = SimpleNamespace(connect=lambda *args: attached.append(args) or 'sig')
+    plugin, main_controller, calls = _init_plugin(
+        monkeypatch, tmp_path, store=None, targets=[target], target_lang_code='af'
+    )
+    monkeypatch.setattr(plugin.autocorr, 'add_widget', lambda widget: attached.append(widget))
+    on_target_lang_changed = next(h for s, h in calls if s == 'target-lang-changed')
+
+    on_target_lang_changed(main_controller.lang_controller, 'af')
+    assert plugin.autocorr.lang == 'af'
+    assert attached == [target]
+    assert _FakeAutocorrectDownloader.started == []
+
+    on_target_lang_changed(main_controller.lang_controller, 'xx')
+    assert plugin.autocorr.correctiondict == {}
+    assert _FakeAutocorrectDownloader.started == ['xx']
+    assert attached == [target, target]
+
+
+def test_no_download_without_a_target_language(monkeypatch, tmp_path):
+    plugin, main_controller, calls = _init_plugin(
+        monkeypatch, tmp_path, store=None, targets=[], target_lang_code=''
+    )
+    on_store_loaded = next(h for s, h in calls if s == 'store-loaded')
+    cursor, _ = _fake_cursor()
+
+    on_store_loaded(SimpleNamespace(cursor=cursor))
+
+    assert _FakeAutocorrectDownloader.started == []
+    assert _FakeAutocorrectDownloader.known_files_started == []

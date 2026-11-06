@@ -141,6 +141,38 @@ def test_accept_response_sorts_by_quality_descending_and_truncates_to_max_matche
     assert [m['target'] for m in controller.matches] == ['hoog', 'middel']
 
 
+def test_accept_response_tidies_each_match():
+    controller = _make_controller()
+    matches = [
+        {'target': 'een', 'quality': None, 'tmsource': None},
+        {'target': 'twee'},
+        {'target': 'drie', 'quality': 70.6, 'tmsource': 'Elsewhere'},
+    ]
+
+    controller.accept_response(_tmmodel('Some TM'), b'hello', matches)
+
+    assert [(m['target'], m.get('quality'), m['tmsource']) for m in controller.matches] == [
+        ('drie', 70, 'Elsewhere'),
+        ('een', 0, 'Some TM'),
+        ('twee', None, 'Some TM'),
+    ]
+    assert {m['query_str'] for m in controller.matches} == {'hello'}
+
+
+def test_accept_response_keeps_the_first_of_two_matches_with_one_target():
+    controller = _make_controller()
+
+    controller.accept_response(
+        _tmmodel(),
+        'hello',
+        [{'target': 'hallo', 'quality': 0}, {'target': 'hallo', 'quality': 90}],
+    )
+
+    # The first has no quality, so the second replaces it.
+    assert [m['quality'] for m in controller.matches] == [90]
+    assert len(controller.displayed) == 1
+
+
 # __init__() #
 
 

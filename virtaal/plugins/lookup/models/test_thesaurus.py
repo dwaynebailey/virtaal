@@ -789,3 +789,14 @@ def test_a_destroyed_model_no_longer_downloads_for_a_new_language(monkeypatch, t
 
     assert threads == []
     assert 'pl_PL' not in model._auto_tried
+
+
+def test_create_menu_items_prefers_loading_to_any_other_state():
+    model = _make_model()
+    model._parsing.add('pl_PL')
+    model._unavailable.add('pl_PL')
+    model._checking.add('pl_PL')
+
+    [item] = model.create_menu_items('word', 'source', 'pl_PL', 'en', None)
+
+    assert item.get_label() == 'Loading thesaurus…'
