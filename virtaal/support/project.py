@@ -129,29 +129,9 @@ class Project:
             if input_type == "tgt":
                 raise ValueError(f"Cannot convert a target document further: {input_fname}")
 
-            if isinstance(template, str):
-                templ_fname = template
-                template = store_template = self.get_file(templ_fname)
-
-            if template and not templ_fname:
-                templ_fname = template.name
-
-            # Check if we can determine a template from the conversion map
-            if template is None:
-                convert_map = self.store.convert_map
-                if input_fname in convert_map:
-                    templ_fname = convert_map[input_fname][1]
-                    if templ_fname:
-                        template = store_template = self.get_file(templ_fname)
-                elif input_type == "trans":
-                    # inputfile is a translatable file, so it needed to be converted
-                    # from some input document. Let's try and use that document as a
-                    # template for this conversion.
-                    for in_name, (out_name, _tmpl_name) in self.store.convert_map.items():
-                        if input_fname == out_name:
-                            template = store_template = self.get_file(in_name)
-                            templ_fname = in_name
-                            break
+            template, templ_fname, store_template = self._find_template(
+                input_fname, input_type, template
+            )
 
             # Populate the conv_options dict with the options we can detect
             conv_options = {"in_fname": input_fname}
@@ -174,10 +154,67 @@ class Project:
         # unlink()/rename() below don't hit an open-file lock on Windows.
         converted_file.close()
 
-        # Determine the file name and path where the output should be moved.
+        output_fname = self._output_filename(
+            input_fname, inputfile, output_fname, converted_ext, options
+        )
+
+        if os.path.isfile(output_fname):
+            # If the output file already exist, we can't assume that it's safe
+            # to overwrite it.
+            os.unlink(converted_file.name)
+            raise OSError(f"Output file already exists: {output_fname}")
+
+        os.rename(converted_file.name, output_fname)
+
+        output_type = cast("str", self.store.TYPE_INFO["next_type"][input_type])
+        outputfile, output_fname = self.store.append_file(
+            output_fname,
+            None,
+            ftype=output_type,
+            delete_orig=True,
+        )
+        self.store.convert_map[input_fname] = (output_fname, templ_fname)
+
+        return outputfile, output_fname
+
+    def _find_template(self, input_fname, input_type, template):
+        """
+        The template for converting ``input_fname``: ``template`` (a file
+        object or project name), else the one recorded for an earlier
+        conversion, else the source document a translatable file came from.
+
+        :returns 3-tuple: the template, its project name, and the template
+                          again if it was got from the store (to release).
+        """
+        if isinstance(template, str):
+            store_template = self.get_file(template)
+            return store_template, template, store_template
+        if template is not None:
+            return template, template.name if template else None, None
+
+        convert_map = self.store.convert_map
+        if input_fname in convert_map:
+            templ_fname = convert_map[input_fname][1]
+            if templ_fname:
+                store_template = self.get_file(templ_fname)
+                return store_template, templ_fname, store_template
+            return None, templ_fname, None
+        if input_type == "trans":
+            # inputfile is a translatable file, so it needed to be converted
+            # from some input document. Let's try and use that document as a
+            # template for this conversion.
+            for in_name, (out_name, _tmpl_name) in convert_map.items():
+                if input_fname == out_name:
+                    store_template = self.get_file(in_name)
+                    return store_template, in_name, store_template
+        return None, None, None
+
+    @staticmethod
+    def _output_filename(input_fname, inputfile, output_fname, converted_ext, options):
+        """Where the converted file goes: ``output_fname``, or the input
+        file's name in its own directory, with ``converted_ext`` added."""
         if not output_fname:
             _dir, fname = os.path.split(input_fname)
-            directory = ""
             if hasattr(inputfile, "name"):
                 # Prefer to put it in the same directory as the input file
                 directory, _fn = os.path.split(inputfile.name)
@@ -199,26 +236,7 @@ class Project:
             output_ext_parts = output_ext_parts[:-1]
         else:
             output_ext_parts.append(converted_ext)
-        output_fname += os.extsep.join(["", *output_ext_parts])
-
-        if os.path.isfile(output_fname):
-            # If the output file already exist, we can't assume that it's safe
-            # to overwrite it.
-            os.unlink(converted_file.name)
-            raise OSError(f"Output file already exists: {output_fname}")
-
-        os.rename(converted_file.name, output_fname)
-
-        output_type = cast("str", self.store.TYPE_INFO["next_type"][input_type])
-        outputfile, output_fname = self.store.append_file(
-            output_fname,
-            None,
-            ftype=output_type,
-            delete_orig=True,
-        )
-        self.store.convert_map[input_fname] = (output_fname, templ_fname)
-
-        return outputfile, output_fname
+        return output_fname + os.extsep.join(["", *output_ext_parts])
 
     def export_file(self, fname, destfname) -> None:
         """

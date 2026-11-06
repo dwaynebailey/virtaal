@@ -22,6 +22,7 @@ the search never caught (#4395); keep that when the rest goes.
 import re
 
 from translate.tools.pogrep import GrepFilter as _UpstreamGrepFilter
+from translate.tools.pogrep import find_matches
 
 
 class GrepFilter(_UpstreamGrepFilter):
@@ -44,28 +45,13 @@ class GrepFilter(_UpstreamGrepFilter):
 
         # Everything below here is upstream's getmatches(), except that
         # it stops at max_matches instead of raising.
-        from translate.tools.pogrep import find_matches
-
         matches = []
         indexes = []
 
         for index, unit in enumerate(units):
-            old_length = len(matches)
-
-            if self.search_target:
-                targets = unit.target.strings if unit.hasplural() else [unit.target]
-                matches.extend(find_matches(unit, "target", targets, self.re_search))
-            if self.search_source:
-                sources = unit.source.strings if unit.hasplural() else [unit.source]
-                matches.extend(find_matches(unit, "source", sources, self.re_search))
-            if self.search_notes:
-                matches.extend(find_matches(unit, "notes", unit.getnotes(), self.re_search))
-
-            if self.search_locations:
-                matches.extend(find_matches(unit, "locations", unit.getlocations(), self.re_search))
-
-            if len(matches) > old_length:
-                old_length = len(matches)
+            unit_matches = self._unit_matches(unit)
+            if unit_matches:
+                matches.extend(unit_matches)
                 indexes.append(index)
 
             # Upstream raises ValueError here; stop at the limit instead,
@@ -75,3 +61,23 @@ class GrepFilter(_UpstreamGrepFilter):
                 break
 
         return matches, indexes
+
+    def _unit_matches(self, unit):
+        matches = []
+        for part, searched, strings in _PARTS:
+            if getattr(self, searched):
+                matches.extend(find_matches(unit, part, strings(unit), self.re_search))
+        return matches
+
+
+def _plural_strings(text, unit):
+    return text.strings if unit.hasplural() else [text]
+
+
+# (part, GrepFilter flag, the unit's strings for it), searched in this order.
+_PARTS = (
+    ('target', 'search_target', lambda unit: _plural_strings(unit.target, unit)),
+    ('source', 'search_source', lambda unit: _plural_strings(unit.source, unit)),
+    ('notes', 'search_notes', lambda unit: unit.getnotes()),
+    ('locations', 'search_locations', lambda unit: unit.getlocations()),
+)

@@ -313,103 +313,100 @@ class StatsCache:
 
     def __new__(cls, statsfile=None):
         current_thread = _thread.get_ident()
-
-        def make_database(statsfile):
-
-            def connect(cache, name=statsfile):
-                # sqlite needs to get the name in utf-8 on all platforms.
-                # Other Virtaal processes use the same file (#1340).
-                cache.con = shareddb.connect(name)
-                cache.cur = cache.con.cursor()
-
-            def clear_old_data(cache):
-                try:
-                    cache.cur.execute("""SELECT min(toolkitbuild) FROM files""")
-                    val = cache.cur.fetchone()
-                    # An empty database has nothing out of date, and another
-                    # process may have it open.
-                    if val and val[0] is not None and val[0] < CACHE_BUILD:
-                        cache.con.close()
-                        del cache
-                        shareddb.remove(statsfile)
-                        return True
-                    return False
-                except dbapi2.OperationalError:
-                    return False
-
-            def open_database(name=statsfile):
-                cache = object.__new__(cls)
-                connect(cache, name)
-                try:
-                    if clear_old_data(cache):
-                        connect(cache)
-                    cache.create()
-                except Exception:
-                    cache.con.close()
-                    raise
-                return cache
-
-            def in_memory(error):
-                # Once per process: every thread and later open use memory.
-                logging.warning(
-                    "Keeping statistics in memory, %s can't be used: %s", statsfile, error
-                )
-                cls.unusable_files.add(statsfile)
-                return open_database(':memory:')
-
-            if statsfile in cls.unusable_files:
-                cache = open_database(':memory:')
-            else:
-                try:
-                    cache = open_database()
-                except dbapi2.DatabaseError as e:
-                    # It only holds statistics, so a corrupt one is replaced
-                    # rather than stopping every file from opening (#4430),
-                    # but never one another process has locked (#1340).
-                    if shareddb.is_locked(e) or (
-                        os.path.exists(statsfile) and not os.path.isfile(statsfile)
-                    ):
-                        cache = in_memory(e)
-                    else:
-                        logging.warning(
-                            "The statistics cache %s can't be read, starting a new one: %s",
-                            statsfile,
-                            e,
-                        )
-                        try:
-                            if os.path.isfile(statsfile):
-                                shareddb.remove(statsfile)
-                            cache = open_database()
-                        except (OSError, dbapi2.DatabaseError) as e:
-                            cache = in_memory(e)
-            cls._caches.setdefault(current_thread, {})[statsfile] = cache
-            return cache
-
-        if not statsfile:
-            if not cls.defaultfile:
-                # Not at the top: virtaal.common starts GTK, which the
-                # statsworker child process mustn't.
-                from virtaal.common.platform import platform
-
-                userdir = os.path.expanduser("~")
-                cachedir = None
-                if platform.is_windows:
-                    cachedir = os.path.join(userdir, "Translate Toolkit")
-                elif platform.is_flatpak:
-                    cachedir = os.path.join(os.environ['XDG_CACHE_HOME'], "translate_toolkit")
-                else:
-                    cachedir = os.path.join(userdir, ".translate_toolkit")
-                if not os.path.exists(cachedir):
-                    os.mkdir(cachedir)
-                cls.defaultfile = os.path.realpath(os.path.join(cachedir, "stats.db"))
-            statsfile = cls.defaultfile
-        else:
-            statsfile = os.path.realpath(statsfile)
+        statsfile = os.path.realpath(statsfile) if statsfile else cls._default_statsfile()
         # First see if a cache for this file already exists:
         if current_thread in cls._caches and statsfile in cls._caches[current_thread]:
             return cls._caches[current_thread][statsfile]
         # No existing cache. Let's build a new one and keep a copy
-        return make_database(statsfile)
+        cache = cls._make_database(statsfile)
+        cls._caches.setdefault(current_thread, {})[statsfile] = cache
+        return cache
+
+    @classmethod
+    def _default_statsfile(cls):
+        if not cls.defaultfile:
+            # Not at the top: virtaal.common starts GTK, which the
+            # statsworker child process mustn't.
+            from virtaal.common.platform import platform
+
+            userdir = os.path.expanduser("~")
+            if platform.is_windows:
+                cachedir = os.path.join(userdir, "Translate Toolkit")
+            elif platform.is_flatpak:
+                cachedir = os.path.join(os.environ['XDG_CACHE_HOME'], "translate_toolkit")
+            else:
+                cachedir = os.path.join(userdir, ".translate_toolkit")
+            if not os.path.exists(cachedir):
+                os.mkdir(cachedir)
+            cls.defaultfile = os.path.realpath(os.path.join(cachedir, "stats.db"))
+        return cls.defaultfile
+
+    @classmethod
+    def _make_database(cls, statsfile):
+        if statsfile in cls.unusable_files:
+            return cls._open_database(statsfile, ':memory:')
+        try:
+            return cls._open_database(statsfile)
+        except dbapi2.DatabaseError as e:
+            # It only holds statistics, so a corrupt one is replaced
+            # rather than stopping every file from opening (#4430),
+            # but never one another process has locked (#1340).
+            if shareddb.is_locked(e) or (
+                os.path.exists(statsfile) and not os.path.isfile(statsfile)
+            ):
+                return cls._in_memory(statsfile, e)
+            logging.warning(
+                "The statistics cache %s can't be read, starting a new one: %s",
+                statsfile,
+                e,
+            )
+            try:
+                if os.path.isfile(statsfile):
+                    shareddb.remove(statsfile)
+                return cls._open_database(statsfile)
+            except (OSError, dbapi2.DatabaseError) as e:
+                return cls._in_memory(statsfile, e)
+
+    @classmethod
+    def _in_memory(cls, statsfile, error):
+        # Once per process: every thread and later open use memory.
+        logging.warning("Keeping statistics in memory, %s can't be used: %s", statsfile, error)
+        cls.unusable_files.add(statsfile)
+        return cls._open_database(statsfile, ':memory:')
+
+    @classmethod
+    def _open_database(cls, statsfile, name=None):
+        cache = object.__new__(cls)
+        cache._connect(name or statsfile)
+        try:
+            if cache._clear_old_data(statsfile):
+                cache._connect(statsfile)
+            cache.create()
+        except Exception:
+            cache.con.close()
+            raise
+        return cache
+
+    def _connect(self, name):
+        # sqlite needs to get the name in utf-8 on all platforms.
+        # Other Virtaal processes use the same file (#1340).
+        self.con = shareddb.connect(name)
+        self.cur = self.con.cursor()
+
+    def _clear_old_data(self, statsfile):
+        """Remove statsfile if it's from an older build; True if removed."""
+        try:
+            self.cur.execute("""SELECT min(toolkitbuild) FROM files""")
+            val = self.cur.fetchone()
+            # An empty database has nothing out of date, and another
+            # process may have it open.
+            if val and val[0] is not None and val[0] < CACHE_BUILD:
+                self.con.close()
+                shareddb.remove(statsfile)
+                return True
+            return False
+        except dbapi2.OperationalError:
+            return False
 
     @transaction
     def create(self):

@@ -154,20 +154,9 @@ class ProjectStore:
             # Try and use afile as the file name
             fname, afile = afile, open(afile, 'rb')  # noqa: SIM115
 
-        # Check if we can get an real file name
-        realfname = fname
-        if realfname is None or not os.path.isfile(realfname):
-            realfname = getattr(afile, "name", None)
-        if realfname is None or not os.path.isfile(realfname):
-            realfname = getattr(afile, "filename", None)
-        if not realfname or not os.path.isfile(realfname):
-            realfname = None
-
+        realfname = _real_filename(fname, afile)
         # Try to get the file name from the file object, if it was not given:
-        if not fname:
-            fname = getattr(afile, "name", None)
-        if not fname:
-            fname = getattr(afile, "filename", None)
+        fname = fname or getattr(afile, "name", None) or getattr(afile, "filename", None)
 
         fname = self._fix_type_filename(ftype, fname)
 
@@ -176,7 +165,7 @@ class ProjectStore:
         if fname in self._files:
             raise FileExistsInProjectError(fname)
 
-        if realfname is not None and os.path.isfile(realfname):
+        if realfname is not None:
             self._files[fname] = realfname
         else:
             self._files[fname] = afile
@@ -303,63 +292,39 @@ class ProjectStore:
         xml = etree.Element("translationproject")
 
         # Add file names to settings XML
-        if self._sourcefiles:
-            sources_el = etree.Element("sources")
-            for fname in self._sourcefiles:
-                src_el = etree.Element("filename")
-                src_el.text = fname
-                sources_el.append(src_el)
-            xml.append(sources_el)
-        if self._transfiles:
-            transfiles_el = etree.Element("transfiles")
-            for fname in self._transfiles:
-                trans_el = etree.Element("filename")
-                trans_el.text = fname
-                transfiles_el.append(trans_el)
-            xml.append(transfiles_el)
-        if self._targetfiles:
-            target_el = etree.Element("targets")
-            for fname in self._targetfiles:
-                tgt_el = etree.Element("filename")
-                tgt_el.text = fname
-                target_el.append(tgt_el)
-            xml.append(target_el)
+        for tag, fnames in (
+            ("sources", self._sourcefiles),
+            ("transfiles", self._transfiles),
+            ("targets", self._targetfiles),
+        ):
+            if fnames:
+                group_el = etree.SubElement(xml, tag)
+                for fname in fnames:
+                    etree.SubElement(group_el, "filename").text = fname
 
         # Add conversion mappings
         if self.convert_map:
-            conversions_el = etree.Element("conversions")
-            for in_fname, (out_fname, templ_fname) in self.convert_map.items():
-                if in_fname not in self._files or out_fname not in self._files:
-                    continue
-                conv_el = etree.Element("conv")
-
-                input_el = etree.Element("input")
-                input_el.text = in_fname
-                conv_el.append(input_el)
-
-                output_el = etree.Element("output")
-                output_el.text = out_fname
-                conv_el.append(output_el)
-
-                if templ_fname:
-                    templ_el = etree.Element("template")
-                    templ_el.text = templ_fname
-                    conv_el.append(templ_el)
-
-                conversions_el.append(conv_el)
-            xml.append(conversions_el)
+            self._add_conversions(etree.SubElement(xml, "conversions"))
 
         # Add options to settings
         if "options" in self.settings:
-            options_el = etree.Element("options")
+            options_el = etree.SubElement(xml, "options")
             for option, value in self.settings["options"].items():
-                opt_el = etree.Element("option")
+                opt_el = etree.SubElement(options_el, "option")
                 opt_el.attrib["name"] = option
                 opt_el.text = value
-                options_el.append(opt_el)
-            xml.append(options_el)
 
         return etree.tostring(xml, pretty_print=True)
+
+    def _add_conversions(self, conversions_el):
+        for in_fname, (out_fname, templ_fname) in self.convert_map.items():
+            if in_fname not in self._files or out_fname not in self._files:
+                continue
+            conv_el = etree.SubElement(conversions_el, "conv")
+            etree.SubElement(conv_el, "input").text = in_fname
+            etree.SubElement(conv_el, "output").text = out_fname
+            if templ_fname:
+                etree.SubElement(conv_el, "template").text = templ_fname
 
     def _load_settings(self, settingsxml) -> None:
         """
@@ -382,31 +347,7 @@ class ProjectStore:
 
         conversions_el = xml.find("conversions")
         if conversions_el is not None:
-            self.convert_map = {}
-            for conv_el in conversions_el.iterchildren():
-                in_fname, out_fname, templ_fname = None, None, None
-                for child_el in conv_el.iterchildren():
-                    if child_el.tag == "input":
-                        in_fname = child_el.text
-                    elif child_el.tag == "output":
-                        out_fname = child_el.text
-                    elif child_el.tag == "template":
-                        templ_fname = child_el.text
-                # Make sure that in_fname and out_fname exist in
-                # settings['sources'], settings['targets'] or
-                # settings['transfiles']
-                in_found, out_found, templ_found = False, False, False
-                for section in ("sources", "transfiles", "targets"):
-                    if section not in settings:
-                        continue
-                    if in_fname in settings[section]:
-                        in_found = True
-                    if out_fname in settings[section]:
-                        out_found = True
-                    if templ_fname and templ_fname in settings[section]:
-                        templ_found = True
-                if in_found and out_found and (not templ_fname or templ_found):
-                    self.convert_map[in_fname] = (out_fname, templ_fname)
+            self.convert_map = _load_conversions(conversions_el, settings)
 
         # Load options
         groupnode = xml.find("options")
@@ -416,3 +357,39 @@ class ProjectStore:
                 settings["options"][opt.attrib["name"]] = opt.text
 
         self.settings = settings
+
+
+def _real_filename(fname, afile):
+    """The first of ``fname``, ``afile.name`` and ``afile.filename`` that
+    is a real file, or None."""
+    for candidate in (fname, getattr(afile, "name", None), getattr(afile, "filename", None)):
+        if candidate and os.path.isfile(candidate):
+            return candidate
+    return None
+
+
+_CONVERSION_PARTS = {"input": 0, "output": 1, "template": 2}
+
+
+def _load_conversions(conversions_el, settings):
+    """The conversion map in ``conversions_el``, keeping only conversions
+    whose files are all among the ``settings`` file lists."""
+    project_files = [
+        fname
+        for section in ("sources", "transfiles", "targets")
+        for fname in settings.get(section, ())
+    ]
+    convert_map = {}
+    for conv_el in conversions_el.iterchildren():
+        parts = [None, None, None]
+        for child_el in conv_el.iterchildren():
+            if child_el.tag in _CONVERSION_PARTS:
+                parts[_CONVERSION_PARTS[child_el.tag]] = child_el.text
+        in_fname, out_fname, templ_fname = parts
+        if (
+            in_fname in project_files
+            and out_fname in project_files
+            and (not templ_fname or templ_fname in project_files)
+        ):
+            convert_map[in_fname] = (out_fname, templ_fname)
+    return convert_map

@@ -221,6 +221,40 @@ class RESTRequest(HTTPRequest):
         self.curl.setopt(pycurl.URL, url)
 
 
+def _os_release_distro(lines):
+    """All systems supporting systemd."""
+    distro = None
+    distro_version = None
+    for line in lines:
+        if line.startswith('NAME'):
+            distro = line.split('=')[-1].replace('"', '')
+        if line.startswith('VERSION'):
+            distro_version = line.split('=')[-1].replace('"', '')
+    yield '%s %s' % (distro, distro_version)
+
+
+def _lsb_release_distro(lines):
+    """Debian, Ubuntu, Mandriva."""
+    for line in lines:
+        if line.startswith('DISTRIB_DESCRIPTION'):
+            yield line.split('=')[-1].replace('"', '')
+
+
+def _system_release_distro(lines):
+    """Fedora, RHEL."""
+    for line in lines:
+        distro, _release, distro_version, _codename = line.split()
+        yield '%s %s' % (distro, distro_version)
+
+
+# The first of these that exists names the distribution.
+_LINUX_RELEASE_FILES = (
+    ('/etc/os-release', _os_release_distro),
+    ('/etc/lsb-release', _lsb_release_distro),
+    ('/etc/system-release', _system_release_distro),
+)
+
+
 class HTTPClient:
     """Non-blocking client that can handle multiple (asynchronous) HTTP requests."""
 
@@ -340,46 +374,16 @@ class HTTPClient:
     def _linux_platform_string(self, platform):
         import os
 
-        # All systems supporting systemd:
-        if os.path.isfile('/etc/os-release'):
-            try:
-                with open('/etc/os-release', encoding='utf-8') as f:
-                    lines = f.read().splitlines()
-                distro = None
-                distro_version = None
-                for line in lines:
-                    if line.startswith('NAME'):
-                        distro = line.split('=')[-1]
-                        distro = distro.replace('"', '')
-                    if line.startswith('VERSION'):
-                        distro_version = line.split('=')[-1]
-                        distro_version = distro_version.replace('"', '')
-                platform = '%s; %s %s' % (platform, distro, distro_version)
-            except Exception:
-                pass
-
-        # Debian, Ubuntu, Mandriva:
-        elif os.path.isfile('/etc/lsb-release'):
-            try:
-                with open('/etc/lsb-release', encoding='utf-8') as f:
-                    lines = f.read().splitlines()
-                for line in lines:
-                    if line.startswith('DISTRIB_DESCRIPTION'):
-                        distro = line.split('=')[-1]
-                        distro = distro.replace('"', '')
+        for path, describe in _LINUX_RELEASE_FILES:
+            if os.path.isfile(path):
+                try:
+                    with open(path, encoding='utf-8') as f:
+                        lines = f.read().splitlines()
+                    for distro in describe(lines):
                         platform = '%s; %s' % (platform, distro)
-            except Exception:
-                pass
-        # Fedora, RHEL:
-        elif os.path.isfile('/etc/system-release'):
-            try:
-                with open('/etc/system-release', encoding='utf-8') as f:
-                    lines = f.read().splitlines()
-                for line in lines:
-                    distro, dummy, distro_version, codename = line.split()
-                    platform = '%s; %s %s' % (platform, distro, distro_version)
-            except Exception:
-                pass
+                except Exception:
+                    pass
+                break
         return platform
 
     def _windows_platform_string(self, platform):
