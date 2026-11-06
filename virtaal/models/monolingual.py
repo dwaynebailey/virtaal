@@ -35,7 +35,10 @@ class MonolingualPair:
     """C{target} translated from C{template}. C{store} is the bilingual
     store to edit; L{save()} writes only the target. Untranslated keys
     get the template's text there, unless C{skip_untranslated} (if not
-    given, what the baseline last recorded)."""
+    given, what the baseline last recorded).
+
+    A template paired with itself is the source-language file: its text
+    as source, no translations, and it can't be saved over."""
 
     def __init__(self, target, template, language=None, skip_untranslated=None):
         from virtaal.models.fileset import path_language
@@ -45,16 +48,24 @@ class MonolingualPair:
             raise ValueError('Not a monolingual file: %s' % target)
         self.target = os.path.abspath(target)
         self.template = os.path.abspath(template)
+        self.source_only = os.path.normcase(self.target) == os.path.normcase(self.template)
         self.store = self.converter.to_bilingual(self.template, self.target)
         self.store.filename = self.target
-        self.store.settargetlanguage(language or path_language(self.target) or '')
+        if self.source_only:
+            language = ''
+            for _key, unit in self.units():
+                unit.target = ''
+        self.store.settargetlanguage(
+            path_language(self.target) or '' if language is None else language
+        )
         self.store.setsourcelanguage(path_language(self.template) or 'en')
         self.reviews = {}
         """{key: _Review} of the units marked for review on open."""
         self.carried = 0
         """Translations carried over from a renamed key on open."""
         self.skip_untranslated = skip_untranslated
-        self._compare()
+        if not self.source_only:
+            self._compare()
 
     @property
     def name(self):
@@ -161,6 +172,8 @@ class MonolingualPair:
         """Write the target (or C{path}) in its own format, and record
         what it now holds as the baseline."""
         path = os.path.abspath(path or self.target)
+        if os.path.normcase(path) == os.path.normcase(self.template):
+            raise OSError(_('This file is read-only.'))
         translations = {key: _target_text(unit) for key, unit in self.units() if unit.target}
         data = self.converter.to_monolingual(
             self.template, self.target, translations, self.skip_untranslated
@@ -168,6 +181,7 @@ class MonolingualPair:
         with open(path, 'wb') as f:
             f.write(data)
         old = baseline.load(self.target) if path == self.target else None
+        self.source_only = False
         self.target = path
         self.store.filename = path
         saved = self.converter.values(path)

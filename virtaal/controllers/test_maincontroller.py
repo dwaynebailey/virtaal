@@ -1134,3 +1134,14 @@ def test_other_files_need_no_template(tmp_path):
 
     assert controller._monolingual_template(str(tmp_path / 'af.po')) is None
     assert asked == []
+
+
+def test_a_source_file_opens_as_the_source_without_asking(tmp_path):
+    controller, _target, asked = _controller_for_template(tmp_path)
+    (tmp_path / 'af.properties').write_text('a=d\n', encoding='utf-8')
+    source = str(tmp_path / 'en.properties')
+
+    match = controller._monolingual_template(source)
+
+    assert (match.template, match.how) == (source, 'source')
+    assert asked == []

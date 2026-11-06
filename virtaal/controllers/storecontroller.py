@@ -413,7 +413,9 @@ class StoreController(BaseController):
 
         # a read-only file also forces saveas (#517), but unlike a
         # template it's unexpected, so it gets a notice too
-        if readonly:
+        pair = getattr(self.store, 'pair', None)
+        source_only = pair is not None and pair.source_only
+        if readonly or source_only:
             force_saveas = True
 
         # forgetting the directory only makes sense if we force save as
@@ -428,6 +430,10 @@ class StoreController(BaseController):
             self.main_controller.view.show_read_only_notice()
         else:
             self.main_controller.view.hide_read_only_notice()
+        if source_only:
+            from virtaal.support.templatefinder import translations_of
+
+            self.main_controller.view.show_source_notice(translations_of(filename))
 
         self._start_cursor()
 

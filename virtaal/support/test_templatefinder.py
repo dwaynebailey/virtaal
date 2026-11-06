@@ -210,3 +210,33 @@ def test_template_paths_are_native(tmp_path):
     en, af = _touch(tmp_path, 'locales/en/main.ftl', 'locales/af/main.ftl')
     assert find_template(af).template == os.path.join(str(tmp_path), 'locales', 'en', 'main.ftl')
     assert en == find_template(af).template
+
+
+def test_translations_of_a_source_beside_its_translations(tmp_path):
+    en, af, de = _touch(tmp_path, 'en.properties', 'af.properties', 'de.properties')
+
+    assert templatefinder.translations_of(en) == [af, de]
+    assert templatefinder.translations_of(af) == []
+
+
+def test_translations_of_a_source_in_a_language_folder(tmp_path):
+    en, af = _touch(tmp_path, 'locales/en-US/app.ftl', 'locales/af/app.ftl')
+
+    assert templatefinder.translations_of(en) == [af]
+
+
+def test_translations_of_a_crowdin_source(tmp_path):
+    _config(
+        tmp_path,
+        'crowdin.yml',
+        'files:\n  - source: /src/Strings.properties\n'
+        '    translation: /src/Strings-%two_letters_code%.properties\n',
+    )
+    en, af = _touch(tmp_path, 'src/Strings.properties', 'src/Strings-af.properties')
+
+    assert templatefinder.translations_of(en) == [af]
+
+
+def test_a_file_nothing_translates_has_no_translations(tmp_path):
+    (lone,) = _touch(tmp_path, 'lone.properties')
+    assert templatefinder.translations_of(lone) == []

@@ -347,3 +347,39 @@ def test_a_fluent_pair_round_trips(tmp_path):
 def test_not_a_monolingual_file(tmp_path):
     with pytest.raises(ValueError):
         MonolingualPair(str(tmp_path / 'af.po'), str(tmp_path / 'en.po'))
+
+
+def test_the_source_file_paired_with_itself_shows_its_text_untranslated(project):
+    en = str(project / 'en.properties')
+
+    pair = MonolingualPair(en, en)
+
+    assert pair.source_only
+    assert [(u.source, u.target) for _key, u in pair.units()] == [
+        ('File Manager', ''),
+        ('Hello, {0}!', ''),
+        ('Quit', ''),
+    ]
+    assert pair.store.gettargetlanguage() in ('', None)
+    assert baseline.load(en) is None
+
+
+def test_the_source_file_is_never_saved_over(project):
+    en = str(project / 'en.properties')
+    pair = MonolingualPair(en, en)
+
+    with pytest.raises(OSError):
+        pair.save()
+
+    assert (project / 'en.properties').read_text(encoding='utf-8') == EN
+
+
+def test_the_source_file_saved_as_another_file_starts_a_translation(project):
+    en = str(project / 'en.properties')
+    pair = MonolingualPair(en, en)
+    _units(pair)['quit'].target = 'Verlaat'
+
+    pair.save(str(project / 'af_new.properties'))
+
+    assert not pair.source_only
+    assert 'quit=Verlaat' in (project / 'af_new.properties').read_text(encoding='utf-8')

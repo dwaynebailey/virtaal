@@ -1200,3 +1200,20 @@ def test_open_file_passes_on_the_projects_untranslated_policy(tmp_path):
     )
 
     assert controller.store.pair.skip_untranslated is True
+
+
+def test_open_file_shows_the_source_file_read_only_with_its_translations(tmp_path):
+    from virtaal.support.templatefinder import TemplateMatch
+
+    target = _write_pair(tmp_path, 'a=Open\n')
+    template = str(tmp_path / 'en.properties')
+    controller = _pair_controller()
+    notices, saveas = [], []
+    controller.main_controller.view.show_source_notice = notices.append
+    controller.main_controller.set_force_saveas = saveas.append
+
+    controller.open_file(template, template=TemplateMatch(template, None, 'source'))
+
+    assert notices == [[target]]
+    assert saveas == [True]
+    assert [(u.source, u.target) for u in controller.store.get_units()] == [('Open', '')]

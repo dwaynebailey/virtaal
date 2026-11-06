@@ -3682,14 +3682,20 @@ def test_the_source_file_chooser_offers_the_targets_format(tmp_path):
     chooser.destroy()
 
 
+class _TemplateChooser(_FakeChooser):
+    destroyed = False
+    is_source = 'false'
+
+    def destroy(self):
+        self.destroyed = True
+
+    def get_choice(self, choice_id):
+        assert choice_id == mainview.SOURCE_CHOICE
+        return self.is_source
+
+
 def test_ask_template_returns_the_chosen_file(tmp_path, monkeypatch):
-    class _Chooser(_FakeChooser):
-        destroyed = False
-
-        def destroy(self):
-            self.destroyed = True
-
-    chooser = _Chooser(Gtk.ResponseType.ACCEPT, str(tmp_path / 'en.properties'))
+    chooser = _TemplateChooser(Gtk.ResponseType.ACCEPT, str(tmp_path / 'en.properties'))
     view = _make_view_with_chooser('unused', None)
     monkeypatch.setattr(view, '_source_file_chooser', lambda target, guess: chooser)
 
@@ -3698,8 +3704,7 @@ def test_ask_template_returns_the_chosen_file(tmp_path, monkeypatch):
 
 
 def test_ask_template_returns_nothing_on_cancel(monkeypatch):
-    chooser = _FakeChooser(Gtk.ResponseType.CANCEL)
-    chooser.destroy = lambda: None
+    chooser = _TemplateChooser(Gtk.ResponseType.CANCEL)
     view = _make_view_with_chooser('unused', None)
     monkeypatch.setattr(view, '_source_file_chooser', lambda target, guess: chooser)
 
@@ -3713,3 +3718,78 @@ def test_the_open_chooser_offers_properties_files():
     names = [f.get_name() for f in view.open_chooser.list_filters()]
 
     assert 'Java Properties' in names
+
+
+def test_ask_template_returns_the_file_itself_when_the_user_says_it_is_the_source(monkeypatch):
+    chooser = _TemplateChooser(Gtk.ResponseType.ACCEPT, '/elsewhere/other.properties')
+    chooser.is_source = 'true'
+    view = _make_view_with_chooser('unused', None)
+    monkeypatch.setattr(view, '_source_file_chooser', lambda target, guess: chooser)
+
+    assert view.ask_template('en.properties') == 'en.properties'
+
+
+def test_the_source_file_chooser_lets_the_user_say_it_is_the_source(tmp_path):
+    view = MainView.__new__(MainView)
+    view.main_window = None
+
+    chooser = view._source_file_chooser(str(tmp_path / 'en.properties'), None)
+
+    assert chooser.get_choice(mainview.SOURCE_CHOICE) == 'false'
+    chooser.destroy()
+
+
+def _view_with_main_box():
+    view = MainView.__new__(MainView)
+    box = Gtk.Box()
+    view.gui = SimpleNamespace(get_object=lambda name: box)
+    opened = []
+    view.controller = SimpleNamespace(open_file=lambda path: opened.append(path))
+    return view, box, opened
+
+
+def _settle():
+    for _ in range(20):
+        while Gtk.events_pending():
+            Gtk.main_iteration_do(False)
+
+
+def test_the_source_notice_opens_the_only_translation():
+    view, box, opened = _view_with_main_box()
+
+    view.show_source_notice(['/p/af.properties'])
+
+    (infobar,) = box.get_children()
+    labels = [w.get_label() for w in infobar.get_content_area().get_children()]
+    assert labels == ['This is the source-language file.']
+    infobar.response(Gtk.ResponseType.OK)
+    _settle()
+    assert opened == ['/p/af.properties']
+    view.hide_read_only_notice()
+    assert box.get_children() == []
+
+
+def test_the_source_notice_without_translations_has_no_button():
+    view, box, _opened = _view_with_main_box()
+
+    view.show_source_notice([])
+
+    (infobar,) = box.get_children()
+    assert infobar.get_action_area().get_children() == []
+    view.hide_read_only_notice()
+
+
+def test_the_translations_menu_names_each_file_and_opens_it():
+    opened = []
+    paths = [os.path.join('/p', 'locales', code, 'app.ftl') for code in ('af', 'de')]
+
+    menu = MainView._translations_menu(paths, opened.append)
+
+    items = menu.get_children()
+    assert [item.get_label() for item in items] == [
+        os.path.join('af', 'app.ftl'),
+        os.path.join('de', 'app.ftl'),
+    ]
+    items[1].activate()
+    assert opened == [paths[1]]
+    menu.destroy()

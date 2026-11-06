@@ -291,6 +291,9 @@ class MainController(BaseController):
         match = self.store_controller.find_template(filename)
         if match is not None:
             return match
+        if templatefinder.translations_of(filename):
+            # The source-language file itself.
+            return templatefinder.TemplateMatch(filename, None, 'source')
         chosen = self.view.ask_template(filename, templatefinder.guess_template(filename))
         if not chosen:
             return False

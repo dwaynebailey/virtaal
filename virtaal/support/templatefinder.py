@@ -327,6 +327,44 @@ def find_template(target):
     return from_config(target) or from_layout(target)
 
 
+def _translation_candidates(source):
+    """Files that may translate C{source}: beside it in its format, and
+    at the same place under the folders beside a source-language one."""
+    directory, name = os.path.split(source)
+    extension = os.path.splitext(name)[1].lower()
+    try:
+        names = sorted(os.listdir(directory))
+    except OSError:
+        names = []
+    for other in names:
+        if os.path.splitext(other)[1].lower() == extension:
+            yield os.path.join(directory, other)
+    parts = source.split(os.sep)
+    for index in range(len(parts) - 2, 0, -1):
+        if (known_language(parts[index]) or '').split('_')[0] != 'en':
+            continue
+        try:
+            siblings = sorted(os.listdir(os.sep.join(parts[:index])))
+        except OSError:
+            continue
+        for sibling in siblings:
+            yield os.sep.join(parts[:index] + [sibling] + parts[index + 1 :])
+
+
+def translations_of(source):
+    """The files whose template, by config or layout, is C{source}:
+    empty unless C{source} is a source-language file."""
+    source = os.path.abspath(source)
+    found = []
+    for candidate in _translation_candidates(source):
+        if candidate == source or candidate in found or not os.path.isfile(candidate):
+            continue
+        match = find_template(candidate)
+        if match and os.path.samefile(match.template, source):
+            found.append(candidate)
+    return found
+
+
 def guess_template(target):
     """A file to preselect when asking for C{target}'s template: one
     beside it in the same format, in a source language or none."""

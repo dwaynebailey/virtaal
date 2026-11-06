@@ -14,7 +14,7 @@ import subprocess
 from contextlib import contextmanager
 from functools import cache, cached_property
 
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.common import pan_app
 from virtaal.common.pan_app import ngettext
@@ -163,6 +163,18 @@ def _find_native_menu_item(menu, title):
 
 # The language-change notice's Restart; any positive id is the app's own.
 RESTART_RESPONSE = 1
+
+# The template file chooser's "this is the source file" box.
+SOURCE_CHOICE = 'source'
+
+
+def _source_file_text():
+    return _(
+        # l10n: Shown for a file like en.properties that the project's other
+        # files (af.properties, de.properties) translate.
+        "This is the source-language file."
+    )
+
 
 NS_SHIFT_KEY_MASK = 1 << 17
 NS_CONTROL_KEY_MASK = 1 << 18
@@ -1202,12 +1214,16 @@ class MainView(BaseView):
     def ask_template(self, target, guess=None):
         """Ask for the source-language file of C{target}, starting at
         C{guess} if given.
-        @returns: The file chosen, or C{None}."""
+        @returns: The file chosen (C{target} itself when the user says it
+            is the source-language file), or C{None}."""
         chooser = self._source_file_chooser(target, guess)
         chooser.set_transient_for(self._top_window)
         accepted = chooser.run() == Gtk.ResponseType.ACCEPT
         chooser.hide()
-        filename = chooser.get_filename() if accepted else None
+        filename = None
+        if accepted:
+            is_source = chooser.get_choice(SOURCE_CHOICE) == 'true'
+            filename = target if is_source else chooser.get_filename()
         chooser.destroy()
         return filename
 
@@ -1234,6 +1250,7 @@ class MainView(BaseView):
         all_filter.set_name(_("All Files"))
         all_filter.add_pattern("*")
         chooser.add_filter(all_filter)
+        chooser.add_choice(SOURCE_CHOICE, _source_file_text(), None, None)
         if guess:
             chooser.set_filename(guess)
         else:
@@ -1798,10 +1815,58 @@ class MainView(BaseView):
         vbox_main.reorder_child(infobar, 1)  # directly below the menu bar
 
     def hide_read_only_notice(self):
-        infobar = getattr(self, '_read_only_infobar', None)
-        if infobar is not None:
-            self._read_only_infobar = None
-            infobar.destroy()
+        """Hide the read-only notice, and the source-language file's."""
+        for name in ('_read_only_infobar', '_source_infobar'):
+            infobar = getattr(self, name, None)
+            if infobar is not None:
+                setattr(self, name, None)
+                infobar.destroy()
+
+    def show_source_notice(self, translations):
+        """Say that the file open is the source-language file, offering
+        to open one of C{translations} instead."""
+        infobar = Gtk.InfoBar()
+        infobar.set_message_type(Gtk.MessageType.INFO)
+        infobar.set_show_close_button(True)
+        label = Gtk.Label(label=_source_file_text())
+        infobar.get_content_area().pack_start(label, True, True, 0)
+        button = None
+        if translations:
+            button = infobar.add_button(_('Open Translation'), Gtk.ResponseType.OK)
+
+        def open_later(path):
+            GLib.idle_add(lambda: self.controller.open_file(path) and False)
+
+        def on_response(infobar, response_id):
+            if response_id != Gtk.ResponseType.OK:
+                self._source_infobar = None
+                infobar.destroy()
+            elif len(translations) == 1:
+                open_later(translations[0])
+            else:
+                self._translations_menu(translations, open_later).popup_at_widget(
+                    button, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, None
+                )
+
+        infobar.connect('response', on_response)
+        self._source_infobar = infobar
+        infobar.show_all()
+        vbox_main = self.gui.get_object('vbox_main')
+        vbox_main.pack_start(infobar, False, False, 0)
+        vbox_main.reorder_child(infobar, 1)  # directly below the menu bar
+
+    @staticmethod
+    def _translations_menu(translations, activate):
+        menu = Gtk.Menu()
+        root = os.path.commonpath(translations)
+        if root in translations:
+            root = os.path.dirname(root)
+        for path in translations:
+            item = Gtk.MenuItem(label=os.path.relpath(path, root))
+            item.connect('activate', lambda _item, path=path: activate(path))
+            menu.append(item)
+        menu.show_all()
+        return menu
 
     def show_info_notice(self, text):
         """Show a dismissable notice with C{text}, in place of the last one."""
