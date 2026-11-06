@@ -9,7 +9,7 @@ import gi
 
 gi.require_version('Gtk', '3.0')
 import pytest
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
 from virtaal.models.langmodel import LanguageModel
 from virtaal.views.widgets.langadddialog import LanguageAddDialog
@@ -304,3 +304,17 @@ def test_run_edit_focuses_the_first_plural_field(monkeypatch):
     dialog.run_edit('Afrikaans', 'af', 2, '(n != 1)')
 
     assert dialog.dialog.get_focus() is dialog.sbtn_nplurals
+
+
+def test_run_hides_the_dialog_and_presents_its_parent_again(monkeypatch, private_ui_builders):
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
+    dialog = LanguageAddDialog()
+    parent = Gtk.Window()
+    dialog.dialog.set_transient_for(parent)
+    presented = []
+    monkeypatch.setattr(parent, 'present', lambda: presented.append(dialog.dialog.get_visible()))
+    monkeypatch.setattr(dialog.dialog, 'run', lambda: Gtk.ResponseType.OK)
+
+    assert dialog.run() is True
+    assert presented == [False]
+    parent.destroy()
