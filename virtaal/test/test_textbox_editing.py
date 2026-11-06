@@ -659,10 +659,10 @@ class TestTextBoxEditing(TestScaffolding):
 
     # Random edits: whatever a translator does, the buffer keeps showing
     # the tree, undoing everything gets the original back and redoing
-    # everything gets the last text back.
+    # everything gets the last text back. One branch per kind of edit.
 
     @pytest.mark.parametrize('seed', range(40))
-    def test_random_edits(self, seed):
+    def test_random_edits(self, seed):  # noqa: C901, PLR0912
         rnd = random.Random(seed)
         path = rnd.choice([PLACEABLES_PO, PLACEABLES_XLIFF])
         editor = self._editor(path, rnd.randrange(len(factory.getobject(path).getunits())))

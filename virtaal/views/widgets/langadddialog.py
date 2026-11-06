@@ -127,7 +127,8 @@ class LanguageAddDialog:
                 return error
         return self._check_plural()
 
-    def _check_name_and_code(self):
+    # One return per message.
+    def _check_name_and_code(self):  # noqa: PLR0911
         if not self.langname.strip():
             return _('Enter a language name.')
 
