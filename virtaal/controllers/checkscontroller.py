@@ -126,20 +126,10 @@ class ChecksController(BaseController):
     # ACCESSORS #
     def _get_checker_info(self):
         if not self._checker_info:
-            from translate.filters import checks
+            from virtaal.support.checkerspec import checker_classes
 
-            from virtaal.support.qtchecks import QtChecker
-
-            self._checker_info = {
-                # A new checker code also needs a name in _checker_code_to_name.
-                None: checks.StandardChecker,
-                'openoffice': checks.OpenOfficeChecker,
-                'mozilla': checks.MozillaChecker,
-                'drupal': checks.DrupalChecker,
-                'gnome': checks.GnomeChecker,
-                'kde': checks.KdeChecker,
-                'qt': QtChecker,
-            }
+            # A new checker code also needs a name in _checker_code_to_name.
+            self._checker_info = checker_classes()
         return self._checker_info
 
     checker_info = property(_get_checker_info)
