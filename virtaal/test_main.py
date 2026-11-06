@@ -546,6 +546,9 @@ def _stub_virtaal_construction(monkeypatch, startupfile_exists=True, resume_file
     monkeypatch.setattr(
         'virtaal.controllers.storecontroller.StoreController', lambda mc: store_controller
     )
+    monkeypatch.setattr(
+        'virtaal.controllers.filepanelcontroller.FilePanelController', lambda mc: None
+    )
     main_controller.recovery_calls = []
     monkeypatch.setattr(
         'virtaal.controllers.recoverycontroller.RecoveryController',

@@ -911,6 +911,17 @@ If you are translating from English to French then French would be your translat
                         <accelerator key="F8" signal="activate"/>
                       </object>
                     </child>
+                    <child>
+                      <object class="GtkCheckMenuItem" id="mnu_files_panel">
+                        <property name="visible">True</property>
+                        <property name="sensitive">False</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="label" translatable="yes">Files _Panel</property>
+                        <property name="use_underline">True</property>
+                        <accelerator key="F7" signal="activate"/>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>

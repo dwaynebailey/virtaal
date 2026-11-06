@@ -136,6 +136,15 @@ def test_save_as_is_refused(stream):
         stream.save_file('/tmp/elsewhere.po')
 
 
+def test_segment_counts_follow_the_stream_stats(stream):
+    assert stream.segment_counts() == [(1, 0, 2), (1, 0, 3), (1, 0, 1)]
+
+    stream.get_unit(0).target = 'Een'
+    stream.update_unit_stats(0)
+
+    assert stream.segment_counts()[0] == (2, 0, 2)
+
+
 def test_the_language_picked_is_the_target_language(stream):
     stream.language = 'zu'
 

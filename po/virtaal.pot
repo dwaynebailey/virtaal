@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 09:44+0000\n"
+"POT-Creation-Date: 2026-11-06 09:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -179,6 +179,10 @@ msgid "_Quality Checks"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
+msgid "Files _Panel"
+msgstr ""
+
+#: share/virtaal/virtaal.ui
 msgid "_Navigation"
 msgstr ""
 
@@ -289,7 +293,7 @@ msgstr ""
 msgid "<b>Fonts</b>"
 msgstr ""
 
-#: share/virtaal/virtaal.ui
+#: share/virtaal/virtaal.ui virtaal/views/filepanelview.py
 msgid "Language:"
 msgstr ""
 
@@ -935,6 +939,13 @@ msgstr ""
 
 #: virtaal/controllers/checkscontroller.py
 msgid "Drupal"
+msgstr ""
+
+#. l10n: Shown when a folder holds files in several languages
+#: virtaal/controllers/filepanelcontroller.py
+#, python-format
+msgid ""
+"Showing the %(language)s files. Choose another language in the Files Panel."
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
@@ -2385,6 +2396,28 @@ msgstr ""
 msgid "Quality checks"
 msgstr ""
 
+#. l10n: A language in the files panel's list, and how many of the open files are in it
+#: virtaal/views/filepanelview.py
+#, python-format
+msgid "%(language)s (%(count)s file)"
+msgid_plural "%(language)s (%(count)s files)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/views/filepanelview.py virtaal/views/widgets/langselectdialog.py
+msgid "Language"
+msgstr ""
+
+#. l10n: The accessible name of the list of open files
+#: virtaal/views/filepanelview.py
+msgid "Files"
+msgstr ""
+
+#. l10n: Tooltip of a file in the files panel
+#: virtaal/views/filepanelview.py
+msgid "This file doesn't say what language it is in."
+msgstr ""
+
 #: virtaal/views/langview.py
 msgid "_New Language Pair…"
 msgstr ""
@@ -2789,10 +2822,6 @@ msgstr ""
 msgid "The plural expression does not match the number of plurals."
 msgstr ""
 
-#: virtaal/views/widgets/langselectdialog.py
-msgid "Language"
-msgstr ""
-
 #. l10n: This is the column heading for the language code
 #: virtaal/views/widgets/langselectdialog.py
 msgid "Code"
@@ -2890,6 +2919,10 @@ msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py
 msgid "Move to previous search match"
+msgstr ""
+
+#: virtaal/views/widgets/shortcutswindow.py
+msgid "Show/Hide the files panel"
 msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py

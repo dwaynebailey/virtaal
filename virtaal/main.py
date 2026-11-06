@@ -110,6 +110,7 @@ class Virtaal:
             appimage.integrate()
 
         # We try to get the welcomescreen loaded as early as possible
+        from virtaal.controllers.filepanelcontroller import FilePanelController
         from virtaal.controllers.maincontroller import MainController
         from virtaal.controllers.recoverycontroller import RecoveryController
         from virtaal.controllers.storecontroller import StoreController
@@ -117,6 +118,7 @@ class Virtaal:
 
         main_controller = MainController()
         StoreController(main_controller)
+        FilePanelController(main_controller)
         recovery = RecoveryController(main_controller)
 
         self.defer = _Deferer()

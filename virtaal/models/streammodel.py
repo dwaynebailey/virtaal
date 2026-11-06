@@ -15,7 +15,7 @@ stream indices."""
 
 import logging
 import os
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 
 from gi.repository import GObject
 
@@ -283,6 +283,21 @@ class StreamModel(BaseModel):
     def file_offsets(self):
         """(stream index of its first unit, FileEntry) for each file."""
         return [(segment.offset, segment.entry) for segment in self.segments]
+
+    def segment_counts(self):
+        """(translated, fuzzy, total) units of each file, from the
+        stream's sorted stats lists."""
+        stats = self.stats or {}
+        counts = []
+        for segment in self.segments:
+            start, end = segment.offset, segment.offset + segment.count
+            counts.append(
+                tuple(
+                    bisect_left(stats.get(key, ()), end) - bisect_left(stats.get(key, ()), start)
+                    for key in ('translated', 'fuzzy', 'total')
+                )
+            )
+        return counts
 
     def file_start(self, index):
         """The file whose first unit is at stream index C{index}, or None."""

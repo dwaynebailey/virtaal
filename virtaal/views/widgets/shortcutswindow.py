@@ -48,6 +48,7 @@ SHORTCUT_GROUPS = [
             ("<Primary>f F3", _("Search")),
             ("<Primary>g", _("Move to next search match")),
             ("<Primary><Shift>g", _("Move to previous search match")),
+            ("F7", _("Show/Hide the files panel")),
         ],
     ),
     (
