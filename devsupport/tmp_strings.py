@@ -31,6 +31,7 @@ _("XLIFF Translation File")
 
 # Virtaal's own readers (virtaal/support/sdltm.py, multiterm.py and
 # ms_glossary.py), named in the TM import and terminology file choosers.
+_("Java Properties")
 _("Microsoft UI Strings Glossary")
 _("MultiTerm Termbase")
 _("MultiTerm XML Termbase")

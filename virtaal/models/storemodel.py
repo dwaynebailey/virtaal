@@ -94,10 +94,10 @@ class StoreModel(BaseModel):
     __gtype_name__ = "StoreModel"
 
     # INITIALIZERS #
-    def __init__(self, fileobj, controller, fill_stats_cache=True):
+    def __init__(self, fileobj, controller, fill_stats_cache=True, template=None, language=None):
         super().__init__()
         self.controller = controller
-        self.load_file(fileobj, fill_stats_cache)
+        self.load_file(fileobj, fill_stats_cache, template, language)
 
     # SPECIAL METHODS #
     def __getitem__(self, index):
@@ -162,6 +162,8 @@ class StoreModel(BaseModel):
         return True
 
     def get_store_type(self):
+        if self.pair is not None:
+            return self.pair.name
         return self._trans_store.Name
 
     def get_unit(self, index):
@@ -186,7 +188,7 @@ class StoreModel(BaseModel):
         """Return totals for word and string counts."""
         if not self.filename:
             return {}
-        if not os.path.isfile(self.filename):
+        if not self._cached():
             return self.get_live_stats_totals()
         from virtaal.support import statsdb, statsworker
 
@@ -213,7 +215,9 @@ class StoreModel(BaseModel):
         return totals
 
     # METHODS #
-    def load_file(self, fileobj, fill_stats_cache=True):
+    def load_file(self, fileobj, fill_stats_cache=True, template=None, language=None):
+        """Open C{fileobj}; a monolingual file opens paired with its
+        C{template}, in C{language} if given."""
         # Adapted from Document.__init__()
         filename = fileobj
         if isinstance(filename, str):
@@ -237,9 +241,16 @@ class StoreModel(BaseModel):
         import logging
 
         logging.info('Loading file %s' % (filename))
-        from translate.storage import factory
+        self.pair = None
+        if template:
+            from .monolingual import MonolingualPair
 
-        self._trans_store = factory.getobject(fileobj)
+            self.pair = MonolingualPair(filename, template, language)
+            self._trans_store = self.pair.store
+        else:
+            from translate.storage import factory
+
+            self._trans_store = factory.getobject(fileobj)
         self.filename = filename
         self._checker = None
         self.checks = None
@@ -251,20 +262,29 @@ class StoreModel(BaseModel):
         self.nplurals = self._compute_nplurals(self._trans_store)
 
     def save_file(self, filename=None):
-        self._update_header()
         if filename is None:
             filename = self.filename
-        if filename == self.filename:
+        if self.pair is not None:
+            # The working store's header isn't written anywhere.
+            self.pair.save(filename)
+        elif filename == self.filename:
+            self._update_header()
             self._trans_store.save()
         else:
+            self._update_header()
             self._trans_store.savefile(filename)
         self.filename = filename
         self._edited_units = set()
         self.update_stats()
         self._fill_stats_cache()
 
+    def _cached(self):
+        """Whether the stats cache can read the file on disk: it can't
+        read the pairing of a monolingual file."""
+        return self.pair is None and os.path.isfile(self.filename)
+
     def _fill_stats_cache(self):
-        if os.path.isfile(self.filename):
+        if self._cached():
             from virtaal.support import statsworker
 
             statsworker.fill_in_background(self.filename)
@@ -327,7 +347,7 @@ class StoreModel(BaseModel):
         else:
             self._checker = checker
 
-        if not os.path.isfile(filename):
+        if not os.path.isfile(filename) or self.pair is not None:
             checks = {}
             edited_units = range(len(self))
         else:
@@ -381,7 +401,7 @@ class StoreModel(BaseModel):
         oldfileobj = self._trans_store.fileobj
 
         # get a copy of old stats before we convert
-        if os.path.isfile(oldfilename):
+        if self._cached():
             from translate.filters import checks
 
             statsworker.wait()

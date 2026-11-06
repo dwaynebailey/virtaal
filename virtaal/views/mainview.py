@@ -565,7 +565,9 @@ class MainView(BaseView):
             None,
             None,
         )
-        add_translation_file_filters(chooser)
+        from virtaal.support import converters
+
+        add_translation_file_filters(chooser, converters.open_formats())
         chooser.set_select_multiple(True)
         return chooser
 

@@ -242,10 +242,27 @@ class StoreController(BaseController):
             )
             self.store = StoreModel(transfile, self)
 
-    def _open_plain(self, filename):
+    def _open_plain(self, filename, template=None):
         from virtaal.models.storemodel import StoreModel
+        from virtaal.support import converters
 
-        self.store = StoreModel(filename, self)
+        if template is None and converters.is_monolingual(filename):
+            template = self.find_template(filename)
+            if template is None:
+                raise ValueError('No source-language file was found for this file.')
+        if template is None:
+            self.store = StoreModel(filename, self)
+        else:
+            self.store = StoreModel(
+                filename, self, template=template.template, language=template.language
+            )
+
+    def find_template(self, filename):
+        """The L{TemplateMatch} for a monolingual file, without asking:
+        from the project or its layout."""
+        from virtaal.support import templatefinder
+
+        return templatefinder.find_template(filename)
 
     def _rename_pot_template(self, filename, force_saveas):
         import re
@@ -360,7 +377,9 @@ class StoreController(BaseController):
         store.update_checks()
         self.emit('checks-changed')
 
-    def open_file(self, filename, uri='', forget_dir=False):
+    def open_file(self, filename, uri='', forget_dir=False, template=None):
+        """@param template: A L{TemplateMatch} for a monolingual file;
+        found with L{find_template()} if not given."""
         extension = filename.split(os.extsep)[-1]
         force_saveas = False
         readonly = self._is_readonly(filename)
@@ -368,7 +387,7 @@ class StoreController(BaseController):
         if extension == 'zip':
             self._open_bundle(filename)
         else:
-            self._open_plain(filename)
+            self._open_plain(filename, template)
         self._forget_stream()
 
         if len(self.store.get_units()) < 1:
@@ -473,6 +492,8 @@ class StoreController(BaseController):
             raise ValueError('No file is open to update.')
         if self.is_stream():
             raise ValueError('Several files are open.')
+        if getattr(self.store, 'pair', None) is not None:
+            raise ValueError('A monolingual file updates from its template when it opens.')
 
         from translate.storage import factory
 

@@ -3666,3 +3666,12 @@ def test_recent_add_folder_names_it_as_virtaal_s(tmp_path):
     ((uri, data),) = calls
     assert data.mime_type == 'inode/directory'
     assert data.app_name == 'Virtaal'
+
+
+def test_the_open_chooser_offers_properties_files():
+    view = MainView.__new__(MainView)
+    view.main_window = None
+
+    names = [f.get_name() for f in view.open_chooser.list_filters()]
+
+    assert 'Java Properties' in names

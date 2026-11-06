@@ -658,3 +658,49 @@ def test_saving_records_the_projects_checks_style(tmp_path, monkeypatch):
 
     header = StoreModel(str(path), _FakeController())._trans_store.parseheader()
     assert header["X-Project-Style"] == "openoffice"
+
+
+# A monolingual file paired with its template #
+
+
+def _properties_pair(tmp_path):
+    (tmp_path / 'en.properties').write_text('hello=Hello\nbye=Goodbye\n', encoding='utf-8')
+    (tmp_path / 'af.properties').write_text('hello=Hallo\n', encoding='utf-8')
+    return str(tmp_path / 'af.properties'), str(tmp_path / 'en.properties')
+
+
+def test_a_monolingual_file_opens_with_its_template_as_source(tmp_path):
+    target, template = _properties_pair(tmp_path)
+
+    model = StoreModel(target, _FakeController(), template=template, language='af')
+
+    assert [(u.source, u.target) for u in model.get_units()] == [
+        ('Hello', 'Hallo'),
+        ('Goodbye', ''),
+    ]
+    assert model.get_filename() == target
+    assert model.get_store_type() == 'Java Properties'
+    assert model.get_target_language() == 'af'
+
+
+def test_a_monolingual_file_saves_in_its_own_format(tmp_path):
+    target, template = _properties_pair(tmp_path)
+    model = StoreModel(target, _FakeController(), template=template)
+    model.get_units()[1].target = 'Totsiens'
+
+    model.save_file()
+
+    with open(target, encoding='utf-8') as f:
+        assert f.read() == 'hello=Hallo\nbye=Totsiens\n'
+
+
+def test_a_monolingual_files_stats_and_checks_come_from_memory(tmp_path):
+    from translate.filters import checks
+
+    target, template = _properties_pair(tmp_path)
+    model = StoreModel(target, _FakeController(), template=template)
+
+    totals = model.get_stats_totals()
+    assert (totals['unreviewed']['units'], totals['empty']['units']) == (1, 1)
+    assert model.update_checks(checks.StandardChecker()) is model.checks
+    assert model.checks is not None
