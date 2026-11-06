@@ -7,6 +7,7 @@
 
 from gi.repository import Gdk, Gtk
 
+from virtaal.common.platform import platform
 from virtaal.test.test_scaffolding import TestScaffolding
 
 
@@ -107,7 +108,11 @@ class TestStoreView(TestScaffolding):
             found, entry = Gtk.AccelMap.lookup_entry(path)
             assert found
             assert entry.accel_key == key
-            assert entry.accel_mods == Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK
+            if platform.is_mac:
+                mods = Gdk.ModifierType.META_MASK | Gdk.ModifierType.MOD2_MASK
+            else:
+                mods = Gdk.ModifierType.CONTROL_MASK
+            assert entry.accel_mods == mods | Gdk.ModifierType.SHIFT_MASK
 
     def test_next_and_previous_file_are_greyed_for_one_file(self):
         view = self.store_controller.view
