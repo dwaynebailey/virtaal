@@ -492,7 +492,7 @@ jobs:
         # puts the script.
         run: |
           # shellcheck disable=SC2102  # .[test] is pip extras syntax, not a glob range
-          pip install .[test,spellcheck]
+          pip install .[test,spellcheck,termbase]
 
       - name: Compile-check all Python files
         if: steps.queue.outputs.tested != 'true'
@@ -562,7 +562,7 @@ jobs:
         run: |
           pip install --upgrade pip
           # shellcheck disable=SC2102  # .[test] is pip extras syntax, not a glob range
-          pip install .[test,spellcheck]
+          pip install .[test,spellcheck,termbase]
 
       - name: Run tests
         if: steps.queue.outputs.tested != 'true'
@@ -683,7 +683,7 @@ jobs:
           pip install pycairo==1.29.1 pygobject==3.58.0 python-Levenshtein pycurl lxml diff_match_patch cheroot pytest pytest-xdist pytest-cov pytest-timeout
 
       - name: Install virtaal
-        run: pip install .
+        run: pip install .[termbase]
 
       - name: Compile-check all Python files
         if: steps.queue.outputs.tested != 'true'
@@ -824,7 +824,7 @@ jobs:
           pip install setuptools==84.0.0 wheel==0.48.0 pycairo==1.29.1 pygobject==3.58.0 python-Levenshtein pycurl lxml diff_match_patch cheroot pyinstaller==6.22.3
 
       - name: Install virtaal
-        run: pip install .[spellcheck]
+        run: pip install .[spellcheck,termbase]
 
       - name: Build self-contained bundle
         shell: pwsh
@@ -1103,7 +1103,7 @@ jobs:
         # --system-site-packages venv above sees Homebrew's `gi` directly.
         # --ignore-installed keeps every other dependency in the venv at
         # pyproject.toml's version instead of reusing Homebrew's copy.
-        run: pip install --ignore-installed .[test,spellcheck]
+        run: pip install --ignore-installed .[test,spellcheck,termbase]
 
       - name: Compile-check all Python files
         if: steps.queue.outputs.tested != 'true'

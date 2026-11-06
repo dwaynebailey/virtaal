@@ -172,6 +172,22 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/38/b0/35926bad6885fb7bc24aa7e1b45e6d86540c6c57ee4abc4fed1ef58d4ec0/pyenchant-3.3.0-py3-none-any.whl
         sha256: 3da00b1d01314d85aac733bb997415d7a3e875666dc81735ddcf320aa36b7a70
+  - name: python3-access-parser
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "access-parser" --no-build-isolation
+    sources:
+      # Pure Python; only published as an sdist.
+      - type: file
+        url: https://files.pythonhosted.org/packages/cb/8f/2eb15ff25f58ae4674737aa3f5d6d7b44fc98d9a14c35f06c221a8950cc9/access_parser-0.0.6.tar.gz
+        sha256: 4fe1eb197cd49fa0b8ac02320d8dd98e07795f6fc01a59061434f50c064b4c69
+      - type: file
+        url: https://files.pythonhosted.org/packages/b2/fb/08b3f4bf05da99aba8ffea52a558758def16e8516bc75ca94ff73587e7d3/construct-2.10.70-py3-none-any.whl
+        sha256: c80be81ef595a1a821ec69dc16099550ed22197615f4320b57cc9ce2a672cb30
+      - type: file
+        url: https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl
+        sha256: f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3
   - name: python3-pyyaml
     buildsystem: simple
     build-commands:

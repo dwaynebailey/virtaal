@@ -65,6 +65,9 @@ These are not build dependencies but usually improve the user experience.
   - Linux: ``libgettextpo0`` or similar
   - macOS: Homebrew's ``gettext``, already installed with ``gtk+3``
   - Windows: ``gettextpo.dll``, part of gvsbuild's GTK3 build
+- access-parser (``pip install .[termbase]``) -- reads Trados Studio /
+  MultiTerm termbases (.sdltb); the Windows and macOS packages, the Flatpak and
+  the AppImage already include it
 - iso-codes -- if you want translated language names
 - glib-networking -- uses the desktop's proxy settings on Linux; usually
   installed with GTK

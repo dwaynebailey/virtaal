@@ -445,7 +445,8 @@ without Trados:
   files, so it can't add terms to them: they can't be picked as Extendable, and
   Add Term doesn't offer them.
 
-Reading a .sdltb termbase needs the access-parser Python module. Without it,
+Reading a .sdltb termbase needs the access-parser Python module, which the
+Windows and macOS packages, the Flatpak and the AppImage include. Without it,
 export the termbase from MultiTerm as MultiTerm XML and add that file instead.
 
 

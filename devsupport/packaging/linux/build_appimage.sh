@@ -92,7 +92,7 @@ for mod, dist in ((gi, "PyGObject"), (cairo, "pycairo")):
 EOF
 "$PYTHON" -m pip install -q setuptools==84.0.0 wheel==0.48.0 \
     "pyinstaller==$PYINSTALLER_VERSION" translate-toolkit
-"$PYTHON" -m pip install -q --no-build-isolation ".[spellcheck]"
+"$PYTHON" -m pip install -q --no-build-isolation ".[spellcheck,termbase]"
 "$PYTHON" devsupport/packaging/macos/check_build_venv.py
 
 ./maketranslations

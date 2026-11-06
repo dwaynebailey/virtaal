@@ -32,7 +32,7 @@ exact Linux packages:
 
 Run it the same way CI does::
 
-  pip install .[test,spellcheck]
+  pip install .[test,spellcheck,termbase]
   pytest -rvxs virtaal
 
 On Linux without a real display, wrap it in ``xvfb-run`` (CI does)::
