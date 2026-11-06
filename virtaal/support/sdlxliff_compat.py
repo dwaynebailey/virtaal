@@ -36,7 +36,7 @@ from translate.storage.placeables import StringElem
 from translate.storage.placeables.lisa import strelem_to_xml, xml_to_strelem
 from translate.storage.workflow import StateEnum
 
-from virtaal.support import xliff_compat  # noqa: F401 - patches settarget first
+from virtaal.support import lisa_compat, xliff_compat  # noqa: F401 - patch parse and settarget first
 
 SDL = "{http://sdl.com/FileTypes/SdlXliff/1.0}"
 
