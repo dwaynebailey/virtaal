@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtaal Downloads</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; headline figure, then the monthly timeline, then breakdowns in a two-up grid */
+:root{
+  --bg:#f7f8fa; --surface:#ffffff; --fg:#14181f; --fg2:#4d5562; --muted:#7a8291;
+  --grid:#e3e6eb; --rule:#d6dae1; --series:#2a78d6; --series-soft:rgba(42,120,214,.14); --mark:#eb6834; --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121417; --surface:#1a1d21; --fg:#eef0f3; --fg2:#b9bfc9; --muted:#8a919c;
+  --grid:#2a2f36; --rule:#353b43; --series:#3987e5; --series-soft:rgba(57,135,229,.22); --mark:#d95926; --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121417; --surface:#1a1d21; --fg:#eef0f3; --fg2:#b9bfc9; --muted:#8a919c;
+  --grid:#2a2f36; --rule:#353b43; --series:#3987e5; --series-soft:rgba(57,135,229,.22); --mark:#d95926; --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding-block:40px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:650;font-size:clamp(30px,5vw,44px);line-height:1.1;margin:0;text-wrap:balance}
+.lede{color:var(--fg2);max-width:65ch;margin:0}
+.stats{display:flex;flex-wrap:wrap;gap:12px 40px}
+.stat{display:flex;flex-direction:column}
+.stat b{font-family:var(--display);font-weight:500;font-size:32px;font-variant-numeric:tabular-nums;line-height:1.15}
+.stat span{font-size:13px;color:var(--muted)}
+section.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+h2{font-family:var(--display);font-weight:500;font-size:20px;margin:0}
+.sub{font-size:13px;color:var(--muted);margin:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px}
+.chart{position:relative;width:100%}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{fill:var(--muted);font-family:var(--mono);font-size:11px}
+svg .lbl{fill:var(--fg2);font-family:var(--body);font-size:12px}
+svg .val{fill:var(--fg);font-family:var(--mono);font-size:11px}
+.tip{position:absolute;pointer-events:none;background:var(--fg);color:var(--bg);font-size:12px;padding:6px 9px;border-radius:6px;white-space:nowrap;font-variant-numeric:tabular-nums;transform:translate(-50%,-110%)}
+.tip b{font-weight:600}
+.part{display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid var(--rule)}
+.part h2{font-size:26px}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--fg2);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+details{font-size:13px;color:var(--fg2)}
+summary{cursor:pointer;color:var(--fg2)}
+summary:focus-visible{outline:2px solid var(--series);outline-offset:2px}
+.tbl{overflow-x:auto;max-height:320px;margin-top:8px}
+table{border-collapse:collapse;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12px}
+td,th{padding:3px 14px 3px 0;text-align:right;border-bottom:1px solid var(--grid)}
+th{color:var(--muted);font-weight:500}
+td:first-child,th:first-child{text-align:left}
+footer{font-size:12px;color:var(--muted);max-width:75ch;display:flex;flex-direction:column;gap:4px}
+footer a{color:var(--fg2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">GitHub releases · SourceForge files</div>
+  <h1>Virtaal downloads</h1>
+  <p class="lede">Downloads of the Virtaal 1.0 pre-releases from GitHub, tracked daily since <span id="fGhStartLong"></span>, followed by the full SourceForge history of the 0.x releases from <span id="fSfStartYear"></span> on.</p>
+</header>
+
+<div class="part">
+  <div class="eyebrow">translate/virtaal · download-stats branch</div>
+  <h2>GitHub releases</h2>
+  <p class="sub">GitHub only reports a running total per release asset. A daily workflow snapshots it, so these charts start on <span id="fGhStart"></span>, with <span id="fGhBase"></span> downloads already counted.</p>
+</div>
+<div class="stats" id="ghstats"></div>
+
+<section class="card">
+  <h2>Running total</h2>
+  <p class="sub">All GitHub release assets, one point per daily snapshot. Orange ticks mark new release candidates. Hover for the day's total.</p>
+  <div class="chart" id="ghcum"></div>
+</section>
+
+<section class="card">
+  <h2>New downloads per day, by platform</h2>
+  <p class="sub">The change between consecutive snapshots. Hover a bar for the breakdown.</p>
+  <div class="legend" id="ghlegend"></div>
+  <div class="chart" id="ghdaily"></div>
+  <details><summary>Show as a table</summary><div class="tbl" id="ghdailyTbl"></div></details>
+</section>
+
+<div class="grid2">
+  <section class="card">
+    <h2>By release</h2>
+    <p class="sub">Running total as of <span id="fGhEnd"></span>.</p>
+    <div class="chart" id="ghtags"></div>
+  </section>
+  <section class="card">
+    <h2>By platform</h2>
+    <p class="sub">Installers by file type. Source & notes covers tarballs and release notes on the 0.x releases.</p>
+    <div class="chart" id="ghplat"></div>
+  </section>
+</div>
+
+<div class="part">
+  <div class="eyebrow">sourceforge.net/projects/translate/files/Virtaal</div>
+  <h2>SourceForge, <span id="fSfYears"></span></h2>
+  <p class="sub">Every download of the 0.x releases from SourceForge, month by month. Downloads climbed with each release until 0.7.1 shipped in January 2012, peaked in 2013–2014, and have tapered since.</p>
+</div>
+<div class="stats" id="stats"></div>
+
+<section class="card">
+  <h2>Downloads per month</h2>
+  <p class="sub"><span id="fSfRange"></span>. Orange ticks mark the month each release first got downloads. Hover for exact counts.</p>
+  <div class="chart" id="monthly"></div>
+  <details><summary>Show as a table</summary><div class="tbl" id="monthlyTbl"></div></details>
+</section>
+
+<section class="card">
+  <h2>Downloads per year</h2>
+  <p class="sub"><span id="fSfYearNote"></span></p>
+  <div class="chart" id="yearly"></div>
+</section>
+
+<div class="grid2">
+  <section class="card">
+    <h2>By release</h2>
+    <p class="sub">All-time downloads of each version folder.</p>
+    <div class="chart" id="versions"></div>
+  </section>
+  <section class="card">
+    <h2>By operating system</h2>
+    <p class="sub">Since February 2010, when SourceForge began recording it.</p>
+    <div class="chart" id="oses"></div>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Top countries</h2>
+  <p class="sub">Since February 2010. <span id="fSfCountries"></span> countries in total.</p>
+  <div class="chart" id="countries"></div>
+</section>
+
+<footer>
+  <span>GitHub data: <a href="https://github.com/translate/virtaal/blob/download-stats/download-stats.csv" target="_blank" rel="noopener">download-stats.csv</a>, last snapshot <span id="fGhLast"></span>.</span>
+  <span>SourceForge data: <a href="https://sourceforge.net/projects/translate/files/Virtaal/stats/timeline" target="_blank" rel="noopener">SourceForge download statistics</a>, fetched <span id="upd"></span> UTC.</span>
+</footer>
+</div>
+<script>
+/*GH*/
+/*DATA*/
+const fmt=n=>n.toLocaleString('en-US');
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const ml=s=>MON[+s.slice(5,7)-1]+' '+s.slice(0,4);
+const NS='http://www.w3.org/2000/svg';
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e}
+function tip(host){const t=document.createElement('div');t.className='tip';t.hidden=true;host.appendChild(t);return{show(x,y,h){t.innerHTML=h;t.hidden=false;t.style.left=x+'px';t.style.top=y+'px'},hide(){t.hidden=true}}}
+function nice(max){const p=Math.pow(10,Math.floor(Math.log10(max)));for(const m of[1,2,2.5,5,10])if(m*p>=max)return m*p}
+function ticks(max,n=4){const s=nice(max/n);const a=[];for(let v=0;v<=max+1e-9;v+=s)a.push(v);if(a[a.length-1]<max)a.push(a[a.length-1]+s);return a}
+function kfmt(v){return v>=1000?(v/1000)+'k':v}
+
+// stats
+const m=DATA.monthly;
+const peak=m.reduce((a,b)=>b[1]>a[1]?b:a);
+const last12=m.slice(-12).reduce((s,x)=>s+x[1],0);
+const v71=DATA.versions.find(v=>v[0]==='0.7.1');
+document.getElementById('stats').innerHTML=[
+ [fmt(DATA.total),'total downloads'],
+ [fmt(peak[1]),'peak month ('+ml(peak[0])+')'],
+ [Math.round(v71[1]/DATA.total*100)+'%','of all downloads are 0.7.1'],
+ [fmt(last12),'in the last 12 months']
+].map(([b,s])=>`<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
+document.getElementById('upd').textContent=DATA.updated;
+
+// monthly area + crosshair
+(function(){
+ const host=document.getElementById('monthly');const W=1000,H=320,L=44,R=12,T=12,B=28;
+ const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Monthly Virtaal downloads, line chart'},host);
+ const max=Math.max(...m.map(x=>x[1]));const tk=ticks(max);const ym=tk[tk.length-1];
+ const x=i=>L+i*(W-L-R)/(m.length-1), y=v=>T+(H-T-B)*(1-v/ym);
+ tk.forEach(v=>{el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:'var(--grid)','stroke-width':1},svg);el('text',{x:L-8,y:y(v)+4,'text-anchor':'end'},svg).textContent=kfmt(v)});
+ m.forEach((d,i)=>{if(d[0].endsWith('-01')&&(+d[0].slice(0,4))%2===0){const t=el('text',{x:x(i),y:H-8,'text-anchor':'middle'},svg);t.textContent=d[0].slice(0,4)}});
+ // release ticks
+ DATA.versions.forEach(v=>{const i=m.findIndex(d=>d[0]===v[2]);if(i<0)return;el('line',{x1:x(i),x2:x(i),y1:H-B,y2:H-B-8,stroke:'var(--mark)','stroke-width':2},svg)});
+ const pts=m.map((d,i)=>[x(i),y(d[1])]);
+ el('path',{d:'M'+pts.map(p=>p.join(',')).join('L')+`L${x(m.length-1)},${y(0)}L${x(0)},${y(0)}Z`,fill:'var(--series-soft)'},svg);
+ el('path',{d:'M'+pts.map(p=>p.join(',')).join('L'),fill:'none',stroke:'var(--series)','stroke-width':2,'stroke-linejoin':'round'},svg);
+ el('line',{x1:L,x2:W-R,y1:y(0),y2:y(0),stroke:'var(--rule)','stroke-width':1},svg);
+ const pk=m.indexOf(peak);el('circle',{cx:x(pk),cy:y(peak[1]),r:4,fill:'var(--series)',stroke:'var(--surface)','stroke-width':2},svg);
+ el('text',{x:x(pk)+8,y:y(peak[1])+4,class:'val'},svg).textContent='Peak '+fmt(peak[1])+' · '+ml(peak[0]);
+ const ch=el('line',{y1:T,y2:H-B,stroke:'var(--muted)','stroke-width':1,'stroke-dasharray':'3 3',visibility:'hidden'},svg);
+ const dot=el('circle',{r:4,fill:'var(--series)',stroke:'var(--surface)','stroke-width':2,visibility:'hidden'},svg);
+ const tp=tip(host);
+ const rel={};DATA.versions.forEach(v=>rel[v[2]]=(rel[v[2]]?rel[v[2]]+', ':'')+v[0]);
+ const hit=el('rect',{x:L,y:T,width:W-L-R,height:H-T-B,fill:'transparent'},svg);
+ function move(ev){const r=svg.getBoundingClientRect();const sx=(ev.clientX-r.left)*W/r.width;let i=Math.round((sx-L)/(W-L-R)*(m.length-1));i=Math.max(0,Math.min(m.length-1,i));const d=m[i];
+  ch.setAttribute('x1',x(i));ch.setAttribute('x2',x(i));ch.setAttribute('visibility','visible');dot.setAttribute('cx',x(i));dot.setAttribute('cy',y(d[1]));dot.setAttribute('visibility','visible');
+  tp.show(x(i)*r.width/W,y(d[1])*r.height/H-6,`${ml(d[0])}: <b>${fmt(d[1])}</b>`+(rel[d[0]]?`<br>First downloads of ${rel[d[0]]}`:''))}
+ hit.addEventListener('pointermove',move);hit.addEventListener('pointerleave',()=>{tp.hide();ch.setAttribute('visibility','hidden');dot.setAttribute('visibility','hidden')});
+ document.getElementById('monthlyTbl').innerHTML='<table><tr><th>Month</th><th>Downloads</th></tr>'+m.slice().reverse().map(d=>`<tr><td>${d[0]}</td><td>${fmt(d[1])}</td></tr>`).join('')+'</table>';
+})();
+
+// vertical bars
+function vbars(id,rows,label){
+ const host=document.getElementById(id);const W=1000,H=260,L=44,R=8,T=20,B=26;
+ const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':label},host);
+ const max=Math.max(...rows.map(r=>r[1]));const tk=ticks(max);const ym=tk[tk.length-1];
+ const bw=(W-L-R)/rows.length, y=v=>T+(H-T-B)*(1-v/ym);
+ tk.forEach(v=>{el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:'var(--grid)'},svg);el('text',{x:L-8,y:y(v)+4,'text-anchor':'end'},svg).textContent=kfmt(v)});
+ const tp=tip(host);
+ rows.forEach((r,i)=>{const x0=L+i*bw+1,w=bw-2,h=y(0)-y(r[1]),rr=Math.min(4,w/2,h);
+  const p=el('path',{d:`M${x0},${y(0)}V${y(r[1])+rr}Q${x0},${y(r[1])} ${x0+rr},${y(r[1])}H${x0+w-rr}Q${x0+w},${y(r[1])} ${x0+w},${y(r[1])+rr}V${y(0)}Z`,fill:'var(--series)'},svg);
+  el('text',{x:x0+w/2,y:H-8,'text-anchor':'middle'},svg).textContent=r[0].length>4?r[0]:"'"+r[0].slice(2);
+  const hit=el('rect',{x:L+i*bw,y:T,width:bw,height:H-T-B,fill:'transparent'},svg);
+  hit.addEventListener('pointermove',ev=>{const b=svg.getBoundingClientRect();p.setAttribute('opacity',.8);tp.show((x0+w/2)*b.width/W,y(r[1])*b.height/H-4,`${r[0]}: <b>${fmt(r[1])}</b>`)});
+  hit.addEventListener('pointerleave',()=>{p.removeAttribute('opacity');tp.hide()});
+ });
+ const top=rows.reduce((a,b)=>b[1]>a[1]?b:a);const ti=rows.indexOf(top);
+ el('text',{x:L+ti*bw+bw/2,y:y(top[1])-6,'text-anchor':'middle',class:'val'},svg).textContent=fmt(top[1]);
+}
+const yr={};m.forEach(d=>yr[d[0].slice(0,4)]=(yr[d[0].slice(0,4)]||0)+d[1]);
+vbars('yearly',Object.entries(yr),'Virtaal downloads per year, bar chart');
+
+// horizontal bars
+function hbars(id,rows,label){
+ const host=document.getElementById(id);const rh=26,W=Math.max(280,Math.round(host.clientWidth||600)),L=130,R=70,H=rows.length*rh+4;
+ const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H,role:'img','aria-label':label},host);
+ const max=Math.max(...rows.map(r=>r[1]));const x=v=>(W-L-R)*v/max;
+ rows.forEach((r,i)=>{const y0=i*rh+4,h=rh-8,w=Math.max(x(r[1]),2),rr=Math.min(4,w/2);
+  el('text',{x:L-10,y:y0+h/2+4,'text-anchor':'end',class:'lbl'},svg).textContent=r[0];
+  el('path',{d:`M${L},${y0}H${L+w-rr}Q${L+w},${y0} ${L+w},${y0+rr}V${y0+h-rr}Q${L+w},${y0+h} ${L+w-rr},${y0+h}H${L}Z`,fill:'var(--series)'},svg);
+  el('text',{x:L+w+8,y:y0+h/2+4,class:'val'},svg).textContent=fmt(r[1]);
+ });
+}
+hbars('versions',DATA.versions.map(v=>[v[0],v[1]]).reverse(),'Downloads by Virtaal release');
+hbars('oses',DATA.oses,'Downloads by operating system');
+hbars('countries',DATA.countries,'Downloads by country');
+
+// ---------- generated text ----------
+function longD(d,full){const[y,mo,da]=d.split('-');return (+da)+' '+(full?['January','February','March','April','May','June','July','August','September','October','November','December'][+mo-1]:MON[+mo-1])+' '+y}
+(function(){
+ const set=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t};
+ const m=DATA.monthly,a=m[0][0],z=m[m.length-1][0];
+ set('fGhStartLong',longD(GH.cum[0][0],true));set('fGhStart',longD(GH.cum[0][0],false));
+ set('fGhBase',fmt(GH.cum[0][1]));set('fGhEnd',longD(GH.cum[GH.cum.length-1][0],false));set('fGhLast',GH.cum[GH.cum.length-1][0]);
+ set('fSfStartYear',a.slice(0,4));set('fSfYears',a.slice(0,4)+'–'+z.slice(0,4));set('fSfRange',ml(a)+' – '+ml(z));
+ const MONL=['January','February','March','April','May','June','July','August','September','October','November','December'];
+ set('fSfYearNote',`${a.slice(0,4)} starts in ${MONL[+a.slice(5)-1]}; ${z.slice(0,4)} runs to the end of ${MONL[+z.slice(5)-1]}.`);
+ set('fSfCountries',fmt(DATA.countryCount));
+})();
+
+// ---------- GitHub ----------
+(function(){
+ const cum=GH.cum, last=cum[cum.length-1][1], first=cum[0][1];
+ const top=GH.byTag.filter(t=>t[0].startsWith('v1')).reduce((a,b)=>b[1]>a[1]?b:a);
+ const win=GH.byPlatform[0][1], allp=GH.byPlatform.reduce((s,x)=>s+x[1],0);
+ const dl=d=>{const[y,mo,da]=d.split('-');return (+da)+' '+MON[+mo-1]};
+ document.getElementById('ghstats').innerHTML=[
+  [fmt(last),'total downloads'],
+  ['+'+fmt(last-first),'since '+longD(cum[0][0],false)],
+  [fmt(top[1]),'for '+top[0]+', the most downloaded'],
+  [Math.round(win/allp*100)+'%','are Windows installers']
+ ].map(([b,s])=>`<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
+
+ // running total
+ {const host=document.getElementById('ghcum');const W=1000,H=280,L=44,R=12,T=16,B=28;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Running total of GitHub release downloads'},host);
+  const tk=ticks(last);const ym=tk[tk.length-1];const n=cum.length;
+  const x=i=>L+i*(W-L-R)/(n-1),y=v=>T+(H-T-B)*(1-v/ym);
+  tk.forEach(v=>{el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:'var(--grid)'},svg);el('text',{x:L-8,y:y(v)+4,'text-anchor':'end'},svg).textContent=v});
+  cum.forEach((d,i)=>{if(i%7===0||i===n-1)el('text',{x:x(i),y:H-8,'text-anchor':i===n-1?'end':'middle'},svg).textContent=dl(d[0])});
+  const rel={};GH.released.forEach(([t,d])=>{rel[d]=t;const i=cum.findIndex(c=>c[0]===d);el('line',{x1:x(i),x2:x(i),y1:H-B,y2:H-B-8,stroke:'var(--mark)','stroke-width':2},svg);el('text',{x:x(i),y:H-B-12,'text-anchor':'middle'},svg).textContent=t.replace('v1.0.0-','')});
+  const pts=cum.map((d,i)=>[x(i),y(d[1])]);
+  el('path',{d:'M'+pts.map(p=>p.join(',')).join('L')+`L${x(n-1)},${y(0)}L${x(0)},${y(0)}Z`,fill:'var(--series-soft)'},svg);
+  el('path',{d:'M'+pts.map(p=>p.join(',')).join('L'),fill:'none',stroke:'var(--series)','stroke-width':2,'stroke-linejoin':'round'},svg);
+  el('line',{x1:L,x2:W-R,y1:y(0),y2:y(0),stroke:'var(--rule)'},svg);
+  el('circle',{cx:x(n-1),cy:y(last),r:4,fill:'var(--series)',stroke:'var(--surface)','stroke-width':2},svg);
+  el('text',{x:x(n-1)-8,y:y(last)-8,'text-anchor':'end',class:'val'},svg).textContent=fmt(last);
+  const ch=el('line',{y1:T,y2:H-B,stroke:'var(--muted)','stroke-dasharray':'3 3',visibility:'hidden'},svg);
+  const tp=tip(host);const hit=el('rect',{x:L,y:T,width:W-L-R,height:H-T-B,fill:'transparent'},svg);
+  hit.addEventListener('pointermove',ev=>{const r=svg.getBoundingClientRect();let i=Math.round(((ev.clientX-r.left)*W/r.width-L)/(W-L-R)*(n-1));i=Math.max(0,Math.min(n-1,i));const d=cum[i];
+   ch.setAttribute('x1',x(i));ch.setAttribute('x2',x(i));ch.setAttribute('visibility','visible');
+   tp.show(x(i)*r.width/W,y(d[1])*r.height/H-6,`${dl(d[0])}: <b>${fmt(d[1])}</b>`+(i?` (+${d[1]-cum[i-1][1]})`:'')+(rel[d[0]]?`<br>${rel[d[0]]} released`:''))});
+  hit.addEventListener('pointerleave',()=>{tp.hide();ch.setAttribute('visibility','hidden')});}
+
+ // daily stacked
+ {const P=GH.platforms,cols=P.map((_,i)=>`var(--s${i+1})`);
+  document.getElementById('ghlegend').innerHTML=P.map((p,i)=>`<span><i style="background:${cols[i]}"></i>${p}</span>`).join('');
+  const host=document.getElementById('ghdaily');const rows=GH.daily;const W=1000,H=260,L=44,R=8,T=16,B=28;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'New GitHub downloads per day by platform, stacked bars'},host);
+  const sums=rows.map(r=>r.slice(1).reduce((a,b)=>a+b,0));const tk=ticks(Math.max(...sums));const ym=tk[tk.length-1];
+  const bw=(W-L-R)/rows.length,y=v=>T+(H-T-B)*(1-v/ym);
+  tk.forEach(v=>{el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:'var(--grid)'},svg);el('text',{x:L-8,y:y(v)+4,'text-anchor':'end'},svg).textContent=v});
+  const tp=tip(host);
+  rows.forEach((r,i)=>{const x0=L+i*bw+1,w=bw-2;let acc=0;const g=el('g',{},svg);
+   r.slice(1).forEach((v,k)=>{if(!v)return;const y1=y(acc),y2=y(acc+v);acc+=v;el('rect',{x:x0,y:y2,width:w,height:Math.max(y1-y2-(acc<sums[i]?0:0),0.5),fill:cols[k],stroke:'var(--surface)','stroke-width':1},g)});
+   if(i%7===0)el('text',{x:x0+w/2,y:H-8,'text-anchor':'middle'},svg).textContent=dl(r[0]);
+   const hit=el('rect',{x:L+i*bw,y:T,width:bw,height:H-T-B,fill:'transparent'},svg);
+   hit.addEventListener('pointermove',()=>{const b=svg.getBoundingClientRect();g.setAttribute('opacity',.8);
+    tp.show((x0+w/2)*b.width/W,y(sums[i])*b.height/H-4,`${dl(r[0])}: <b>${sums[i]}</b>`+P.map((p,k)=>r[k+1]?`<br>${p}: ${r[k+1]}`:'').join(''))});
+   hit.addEventListener('pointerleave',()=>{g.removeAttribute('opacity');tp.hide()});});
+  const mx=sums.indexOf(Math.max(...sums));el('text',{x:L+mx*bw+bw/2,y:y(sums[mx])-6,'text-anchor':'middle',class:'val'},svg).textContent=sums[mx]+' on '+dl(rows[mx][0]);
+  el('line',{x1:L,x2:W-R,y1:y(0),y2:y(0),stroke:'var(--rule)'},svg);
+  document.getElementById('ghdailyTbl').innerHTML='<table><tr><th>Date</th>'+P.map(p=>`<th>${p}</th>`).join('')+'<th>Total</th></tr>'+rows.map((r,i)=>[r,i]).reverse().map(([r,i])=>`<tr><td>${r[0]}</td>${r.slice(1).map(v=>`<td>${v}</td>`).join('')}<td>${sums[i]}</td></tr>`).join('')+'</table>';}
+
+ const tags=GH.byTag.filter(t=>t[0].startsWith('v1')).map(t=>[t[0].replace('v1.0.0-','1.0 '),t[1]]);
+ const old=GH.byTag.filter(t=>!t[0].startsWith('v1')).reduce((s,t)=>s+t[1],0);
+ hbars('ghtags',tags.reverse().concat([[`0.x (${GH.byTag.length-tags.length} releases)`,old]]),'GitHub downloads by release');
+ hbars('ghplat',GH.byPlatform,'GitHub downloads by platform');
+})();
+
+</script>
+
+</body>
+</html>
