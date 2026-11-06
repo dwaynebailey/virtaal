@@ -18,6 +18,7 @@ Like abstraction, this needs only translate-toolkit, lxml and the
 standard library, so the local TM server process can use it.
 """
 
+import functools
 import re
 from collections import Counter
 from xml.sax.saxutils import escape
@@ -432,6 +433,34 @@ def rebuild(source_markup, target_markup, unit_source):
         return None
     result = abstraction.rebuild(text, from_placeables, to_placeables)
     return _build(result.text, codes)
+
+
+# Showing a match's codes
+
+
+def _spans(node, offset, out):
+    offset += len(node.text or '')
+    for child in node:
+        start = offset
+        index = len(out)
+        out.append(None)
+        offset = _spans(child, offset, out)
+        out[index] = (start, offset, _local(child.tag), child.get('id'))
+        offset += len(child.tail or '')
+    return offset
+
+
+@functools.lru_cache(maxsize=256)
+def code_spans(markup, text):
+    """The codes of markup whose text is text, as (start, end, tag, id) in
+    text, in document order: a code holding no text has start == end.
+    None unless markup is markup of the kept codes holding exactly text."""
+    node = _codes_node(markup)
+    if node is None or ''.join(node.itertext()) != text:
+        return None
+    out = []
+    _spans(node, 0, out)
+    return tuple(out)
 
 
 def _codes(elem):

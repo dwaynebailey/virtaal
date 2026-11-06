@@ -8,8 +8,9 @@
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
+from virtaal.support import inlinecodes
 from virtaal.support.libi18n.numbers import format_percent
-from virtaal.views import markup, rendering
+from virtaal.views import markup, placeablesguiinfo, rendering
 
 
 def _above_origin(widget, origin):
@@ -367,6 +368,7 @@ class TMMatchRenderer(Gtk.CellRenderer):
             self.matchdata['target'],
             width - (2 * self.BOX_MARGIN),
             rendering.get_target_font_description(),
+            codes=self._codes('target'),
         )
         self.target_layout.get_context().set_language(rendering.get_language(tgtlang))
 
@@ -386,13 +388,23 @@ class TMMatchRenderer(Gtk.CellRenderer):
                 width - (2 * self.BOX_MARGIN),
                 rendering.get_source_font_description(),
                 self.matchdata['query_str'],
+                codes=self._codes('source'),
             )
             self.source_layout.get_context().set_language(rendering.get_language(srclang))
 
             height = self.source_layout.get_pixel_size()[1] + self.target_layout.get_pixel_size()[1]
             return height + self.LINE_SEPARATION + self.ROW_PADDING
 
-    def _get_pango_layout(self, widget, text, width, font_description, diff_text=""):
+    def _codes(self, side):
+        """The match's inline codes on side, as the editor shows them."""
+        code_markup = self.matchdata.get(side + '_markup')
+        if not code_markup:
+            return ()
+        return placeablesguiinfo.code_marks(
+            inlinecodes.code_spans(code_markup, self.matchdata[side])
+        )
+
+    def _get_pango_layout(self, widget, text, width, font_description, diff_text="", codes=()):
         '''Gets the Pango layout used in the cell in a TreeView widget.'''
         # We can't use widget.get_pango_context() because we'll end up
         # overwriting the language and font settings if we don't have a
@@ -402,7 +414,7 @@ class TMMatchRenderer(Gtk.CellRenderer):
         layout.set_wrap(Pango.WrapMode.WORD_CHAR)
         layout.set_width(width * Pango.SCALE)
         # Matches hold one plural form only (#1392).
-        layout.set_markup(markup.markuptext(text, diff_text=diff_text))
+        layout.set_markup(markup.markuptext(text, diff_text=diff_text, codes=codes))
         # This makes no sense, but has the desired effect to align things correctly for
         # both LTR and RTL languages:
         if widget.get_direction() == Gtk.TextDirection.RTL:

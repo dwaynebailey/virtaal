@@ -73,19 +73,23 @@ def _escape_entities(s):
 # Public methods
 
 
-def markuptext(text, fancyspaces=True, markupescapes=True, diff_text=""):
+def markuptext(text, fancyspaces=True, markupescapes=True, diff_text="", codes=()):
     """Markup the given text to be pretty Pango markup.
 
     Special characters (&, <) are converted, XML markup highlighted with
-    escapes and unusual spaces optionally being indicated."""
+    escapes and unusual spaces optionally being indicated. codes are
+    (start, end, open label, close label, span attributes) marking
+    text[start:end] and the labels either side of it."""
     # locations are coming through here for some reason - tooltips, maybe
-    if not text:
+    if not text and not codes:
         return ""
 
     if diff_text and diff_text != text:
         text = pango_diff(diff_text, text)
     else:
         text = _escape_entities(text)
+    if codes:
+        text = _CodeMarker(codes).mark(text)
 
     if fancyspaces:
         text = _unusual_spaces_re.sub(_fancyspaces, text)
@@ -97,6 +101,74 @@ def markuptext(text, fancyspaces=True, markupescapes=True, diff_text=""):
             text = text[: -len('\n</span>')] + '</span>'
 
     return text
+
+
+class _CodeMarker:
+    """Adds codes' labels and spans to Pango markup, counting offsets in
+    the text it shows less a diff's deleted text."""
+
+    def __init__(self, codes):
+        self.labels = {}
+        self.attrs = {}
+        for start, end, open_label, close_label, attr in codes:
+            if open_label:
+                self.labels.setdefault(start, []).append((open_label, attr))
+            for offset in range(start, end):
+                self.attrs[offset] = attr
+            if close_label:
+                self.labels.setdefault(end, []).append((close_label, attr))
+        self.out = []
+        self.open_attr = None
+
+    def _close(self):
+        if self.open_attr is not None:
+            self.out.append('</span>')
+            self.open_attr = None
+
+    def _labels(self, offset):
+        labels = self.labels.pop(offset, ())
+        if labels:
+            self._close()
+        for label, attr in labels:
+            self.out.append(_pango_spans(attr, label))
+
+    def _char(self, offset, char):
+        self._labels(offset)
+        attr = self.attrs.get(offset)
+        if attr != self.open_attr:
+            self._close()
+            if attr is not None:
+                self.out.append('<span %s>' % attr)
+                self.open_attr = attr
+        self.out.append(char)
+
+    def mark(self, text):
+        offset = 0
+        deleted = 0
+        i = 0
+        while i < len(text):
+            if text[i] == '<':
+                end = text.index('>', i) + 1
+                tag = text[i:end]
+                self._close()
+                if tag.startswith('</'):
+                    deleted = max(deleted - 1, 0)
+                elif deleted or 'strikethrough' in tag:
+                    deleted += 1
+                self.out.append(tag)
+                i = end
+                continue
+            end = text.index(';', i) + 1 if text[i] == '&' else i + 1
+            if deleted:
+                self.out.append(text[i:end])
+            else:
+                self._char(offset, text[i:end])
+                offset += 1
+            i = end
+        self._close()
+        for rest in sorted(self.labels):
+            self._labels(rest)
+        return ''.join(self.out)
 
 
 def escape(text):

@@ -409,6 +409,34 @@ class UnknownXMLGUI(StringElemGUI):
             lbl.set_size_request(-1, int(h / 1.2))
 
 
+def _code_labels(tag, code_id):
+    """The labels the editor shows either side of an inline code."""
+    code_id = code_id or ''
+    if tag == 'g':
+        return ('<%s|' % code_id if code_id else '<'), '>'
+    if tag == 'x':
+        return '[%s]' % code_id, None
+    if tag == 'bx':
+        return '((', None
+    if tag == 'ex':
+        return '))', None
+    return '{%s|' % tag, '}'
+
+
+_CODE_GUIS = {'g': GPlaceableGUI, 'x': XPlaceableGUI, 'bx': BxGUI, 'ex': ExGUI}
+
+
+def code_marks(spans):
+    """The inline codes spans (see L{inlinecodes.code_spans}) as codes for
+    L{markup.markuptext}, labelled and coloured as the editor shows them."""
+    marks = []
+    for start, end, tag, code_id in spans or ():
+        bg = _CODE_GUIS.get(tag, UnknownXMLGUI).bg
+        attr = 'background="%s" foreground="%s"' % (bg, theme.readable_fg(bg))
+        marks.append((start, end, *_code_labels(tag, code_id), attr))
+    return marks
+
+
 def update_style(widget):
     _style = widget.get_style_context()
     fg = _style.get_color(Gtk.StateType.NORMAL)

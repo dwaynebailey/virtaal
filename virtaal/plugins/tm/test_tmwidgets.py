@@ -507,6 +507,31 @@ def test_a_machine_translation_shows_only_its_target():
     assert mt.get_property('matchdata')['quality'] == 0
 
 
+def test_a_matchs_inline_codes_are_shown_as_the_editor_shows_them():
+    widget = Gtk.TreeView()
+    renderer = _match_renderer(
+        source='Click here now',
+        target='Klik hier nou',
+        source_markup='Click <g id="1">here</g> now<x id="2"/>',
+        target_markup='Klik <g id="1">hier</g> nou<x id="2"/>',
+    )
+
+    renderer.do_get_size(widget, None)
+
+    assert renderer.source_layout.get_text() == 'Click <1|here> now[2]'
+    assert renderer.target_layout.get_text() == 'Klik <1|hier> nou[2]'
+    assert _drawn_pixels(renderer, widget) > 0
+
+
+def test_a_match_whose_text_isnt_its_markups_shows_the_text():
+    # An adapted target no longer holds the TM's markup.
+    renderer = _match_renderer(target='Klik daar', target_markup='Klik <g id="1">hier</g>')
+
+    renderer.do_get_size(Gtk.TreeView(), None)
+
+    assert renderer.target_layout.get_text() == 'Klik daar'
+
+
 def test_match_text_is_right_aligned_in_a_right_to_left_view():
     widget = Gtk.TreeView()
     widget.set_direction(Gtk.TextDirection.RTL)

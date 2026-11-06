@@ -256,6 +256,21 @@ def test_trees_share_codes_of_the_same_kind_and_id(other, expected):
     assert inlinecodes.shares_codes(elem, _rich_source(other)) is expected
 
 
+def test_code_spans_give_each_codes_place_in_the_text():
+    assert inlinecodes.code_spans(
+        'A <g id="1">b <x id="2"/>c</g> &amp; <ph id="3">&lt;br&gt;</ph><bx id="4"/>',
+        'A b c & <br>',
+    ) == ((2, 5, 'g', '1'), (4, 4, 'x', '2'), (8, 12, 'ph', '3'), (12, 12, 'bx', '4'))
+
+
+@pytest.mark.parametrize(
+    ('markup', 'text'),
+    [('Klik <g id="1">hier</g>', 'Klik daar'), ('Klik <b>hier</b>', 'Klik hier')],
+)
+def test_code_spans_need_markup_holding_the_text(markup, text):
+    assert inlinecodes.code_spans(markup, text) is None
+
+
 def test_markup_is_written_to_tmx_with_tmx_codes():
     seg = etree.Element('seg')
     numbers = {}

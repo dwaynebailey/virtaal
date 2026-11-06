@@ -221,3 +221,41 @@ def test_pango_diff_spans_for_each_kind_of_change(monkeypatch, ops, expected):
     monkeypatch.setattr(markup, '_pango_spans', lambda attr, text: '[%s:%s]' % (attr, text))
 
     assert markup.pango_diff('a', 'b') == expected
+
+
+# Inline codes, as a TM match brings them.
+
+_G = (5, 9, '<1|', '>', 'G')
+
+
+def test_markuptext_labels_and_marks_a_code():
+    assert markuptext('Klik hier & gaan', codes=[_G]) == (
+        'Klik <span G>&lt;1|</span><span G>hier</span><span G>></span> &amp; gaan'
+    )
+
+
+def test_markuptext_puts_codes_with_no_text_between_characters():
+    codes = [(1, 1, '[2]', None, 'X'), (2, 2, None, None, 'Y'), (3, 3, '))', None, 'E')]
+
+    assert markuptext('abc', codes=codes) == 'a<span X>[2]</span>bc<span E>))</span>'
+
+
+def test_markuptext_marks_nested_codes():
+    codes = [(0, 3, '<1|', '>', 'A'), (1, 1, '[2]', None, 'B')]
+
+    assert markuptext('abc', codes=codes) == (
+        '<span A>&lt;1|</span><span A>a</span><span B>[2]</span><span A>bc</span><span A>></span>'
+    )
+
+
+def test_markuptext_counts_codes_past_a_diffs_deleted_text(monkeypatch):
+    monkeypatch.setattr(markup, '_diff', lambda a, b: [(0, 'Klik '), (-1, 'daar '), (0, 'hier')])
+
+    marked = markuptext('Klik hier', diff_text='Klik daar hier', codes=[_G])
+
+    assert marked.startswith('Klik <span strikethrough=')
+    assert marked.endswith('daar </span><span G>&lt;1|</span><span G>hier</span><span G>></span>')
+
+
+def test_markuptext_of_only_codes():
+    assert markuptext('', codes=[(0, 0, '[1]', None, 'X')]) == '<span X>[1]</span>'
