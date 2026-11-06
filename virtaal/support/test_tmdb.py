@@ -1317,3 +1317,36 @@ def test_codes_dont_count_against_a_matchs_score(db_path, tagged_tm):
     assert ('target_markup' in exact[0]) is tagged_tm
     if tagged_tm:
         assert (exact[0]['source_markup'], exact[0]['target_markup']) == TAGGED_MARKUP
+
+
+def test_export_writes_inline_codes_as_tmx_codes(db_path):
+    db = tmdb.TMDB(db_path)
+    _import_tagged(db)
+
+    exported = db.export_tmx('en', 'af').decode('utf-8')
+
+    assert '<seg>Click <bpt i="1"/>here<ept i="1"/> to open<ph x="2"/> the files</seg>' in exported
+    assert '<seg>Klik <bpt i="1"/>hier<ept i="1"/> en maak<ph x="2"/> die lêers oop</seg>' in (
+        exported
+    )
+    assert '<seg>Maak dit toe</seg>' in exported
+    store = tmx.tmxfile(exported.encode('utf-8'))
+    assert [u.target for u in store.units] == ['Klik hier en maak die lêers oop', 'Maak dit toe']
+
+
+def test_an_exported_tmx_imports_with_its_codes(db_path, tmp_path):
+    db = tmdb.TMDB(db_path)
+    _import_tagged(db)
+    exported = tmx.tmxfile(db.export_tmx('en', 'af'))
+    other = str(tmp_path / 'other.db')
+    try:
+        again = tmdb.TMDB(other)
+        again.import_store(exported, '/x/exported.tmx', 'en', 'af')
+
+        assert _markups(again)[0] == (
+            'Klik hier en maak die lêers oop',
+            'Click <bpt id="1"></bpt>here<ept id="1"></ept> to open<ph id="2"></ph> the files',
+            'Klik <bpt id="1"></bpt>hier<ept id="1"></ept> en maak<ph id="2"></ph> die lêers oop',
+        )
+    finally:
+        _close(other)

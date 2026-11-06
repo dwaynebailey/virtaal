@@ -432,3 +432,59 @@ def rebuild(source_markup, target_markup, unit_source):
         return None
     result = abstraction.rebuild(text, from_placeables, to_placeables)
     return _build(result.text, codes)
+
+
+# TMX export
+
+
+def _tmx_number(numbers, key):
+    if key not in numbers:
+        numbers[key] = len(numbers) + 1
+    return str(numbers[key])
+
+
+def _tmx_node(parent, child, numbers):
+    tag = _local(child.tag)
+    code_id = child.get('id') or ''
+    node = None
+    if tag == 'g':
+        number = _tmx_number(numbers, ('g', code_id))
+        etree.SubElement(parent, 'bpt', i=number)
+        _write_markup_as_tmx(parent, child, numbers)
+        node = etree.SubElement(parent, 'ept', i=number)
+    elif tag in ('bpt', 'ept'):
+        node = etree.SubElement(
+            parent, tag, i=_tmx_number(numbers, ('bpt', child.get('rid') or code_id))
+        )
+    elif tag in ('bx', 'ex', 'it'):
+        closing = tag == 'ex' or child.get('pos') == 'close'
+        node = etree.SubElement(parent, 'it', pos='end' if closing else 'begin')
+    else:
+        node = etree.SubElement(parent, 'ph')
+    if code_id.isdigit() and tag not in ('g', 'ept'):
+        node.set('x', code_id)
+    if tag in _NATIVE:
+        node.text = child.text
+    return node
+
+
+def _write_markup_as_tmx(seg, node, numbers):
+    _append_text(seg, node.text)
+    for child in node:
+        _tmx_node(seg, child, numbers)
+        _append_text(seg, child.tail)
+
+
+def write_tmx(seg, markup, numbers):
+    """Replace the TMX C{seg} element's content with markup, its codes
+    written as TMX C{bpt}, C{ept}, C{ph} and C{it}. numbers pairs codes
+    to their TMX C{i} numbers across a translation unit's segments.
+    False, leaving seg alone, if markup can't be read."""
+    node = _parse(markup)
+    if node is None:
+        return False
+    seg.text = None
+    for child in list(seg):
+        seg.remove(child)
+    _write_markup_as_tmx(seg, node, numbers)
+    return True

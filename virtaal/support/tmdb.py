@@ -861,7 +861,8 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         from translate.storage import tmx
 
         query = (
-            "SELECT s.text, t.text, s.context FROM sources s JOIN targets t ON s.sid = t.sid "
+            "SELECT s.text, t.text, s.context, t.source_markup, t.target_markup "
+            "FROM sources s JOIN targets t ON s.sid = t.sid "
             "WHERE s.lang = ? AND t.lang = ?"
         )
         params = [data.normalize_code(source_lang), data.normalize_code(target_lang)]
@@ -876,8 +877,10 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         source_tag = source_lang.replace("_", "-")
         target_tag = target_lang.replace("_", "-")
         store = tmx.tmxfile(sourcelanguage=source_tag, targetlanguage=target_tag)
-        for source, target, context in self.cursor.fetchall():
+        for source, target, context, source_markup, target_markup in self.cursor.fetchall():
             store.addtranslation(source, source_tag, target, target_tag, context=context or None)
+            if source_markup is not None and target_markup is not None:
+                _write_codes(store.units[-1], source_markup, target_markup)
         return bytes(store)
 
     def forget_unit(self, source, target, source_lang, target_lang, context=None):
@@ -1012,6 +1015,14 @@ def _with_markup(match, row):
         match["source_markup"] = source_markup
         match["target_markup"] = target_markup
     return match
+
+
+def _write_codes(unit, source_markup, target_markup):
+    """Give the TMX unit's segments their inline codes."""
+    segs = [next(child for child in node if child.tag == "seg") for node in unit.getlanguageNodes()]
+    numbers = {}
+    for seg, markup in zip(segs, (source_markup, target_markup), strict=True):
+        inlinecodes.write_tmx(seg, markup, numbers)
 
 
 def _markup(unit):

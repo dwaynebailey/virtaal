@@ -239,3 +239,31 @@ def test_a_dropped_code_is_left_out():
         )
         == 'Klik <g id="5">hier</g> nou'
     )
+
+
+def test_markup_is_written_to_tmx_with_tmx_codes():
+    seg = etree.Element('seg')
+    numbers = {}
+
+    assert inlinecodes.write_tmx(seg, ALL_CODES, numbers)
+
+    assert etree.tostring(seg, encoding='unicode') == (
+        '<seg>Click <bpt i="1"/>here <ph x="2"/> now<ept i="1"/> or '
+        '<it pos="begin" x="3"/>x<it pos="end" x="4"/> <ph x="5">&lt;br/&gt;</ph> '
+        '<bpt i="2" x="6">&lt;b&gt;</bpt>bold<ept i="2">&lt;/b&gt;</ept> '
+        '<it pos="begin" x="7">&lt;i&gt;</it> &amp; 5</seg>'
+    )
+
+
+def test_tmx_codes_read_back_as_the_same_kinds():
+    seg = etree.Element('seg')
+    inlinecodes.write_tmx(seg, 'A <g id="1">b</g> <x id="2"/>', {})
+
+    markup = inlinecodes.from_tmx_seg(seg)
+
+    assert markup == 'A <bpt id="1"></bpt>b<ept id="1"></ept> <ph id="2"></ph>'
+    assert _rebuilt(
+        markup,
+        'B <bpt id="1"></bpt>c<ept id="1"></ept> <ph id="2"></ph>',
+        'A <g id="5">b</g> <x id="6"/>',
+    ) == ('B <g id="5">c</g> <x id="6"/>')

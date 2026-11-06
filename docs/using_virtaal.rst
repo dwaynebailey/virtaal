@@ -393,7 +393,8 @@ recorded)".
 - :guilabel:`Export…` saves translations as a TMX file, which other
   translation tools can import: the selected row's language pair (or the
   current one, with nothing selected), only the selected file's translations
-  unless you untick :guilabel:`Only the selected file`.
+  unless you untick :guilabel:`Only the selected file`. Inline codes are saved
+  as TMX codes.
 
 The first time this version of Virtaal opens a ``tm.db`` from an older
 version, it saves a copy of it as ``tm-v0.db`` beside it before updating it.
