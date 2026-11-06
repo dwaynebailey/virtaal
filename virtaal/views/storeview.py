@@ -5,6 +5,8 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+from bisect import bisect_left, bisect_right
+
 from gi.repository import Gdk, Gtk
 
 from virtaal.common import pan_app
@@ -28,6 +30,29 @@ def visible_units(matches, current, context, total):
     if current >= 0:
         rows.update(range(max(0, current - context), min(total, current + context + 1)))
     return sorted(rows)
+
+
+def scoped_units(rows, scope, current, total):
+    """C{rows} (as from L{visible_units}) limited to the sorted (start,
+    end) ranges of C{scope}, keeping C{current}. C{scope} None limits
+    nothing."""
+    if scope is None:
+        return rows
+    if rows is None:
+        limited = [i for start, end in scope for i in range(start, min(end, total))]
+    else:
+        starts = [start for start, _end in scope]
+
+        def inside(i):
+            number = bisect_right(starts, i) - 1
+            return number >= 0 and i < scope[number][1]
+
+        limited = [i for i in rows if inside(i)]
+    if current >= 0:
+        pos = bisect_left(limited, current)
+        if pos == len(limited) or limited[pos] != current:
+            limited.insert(pos, current)
+    return limited
 
 
 def load_context_setting():
@@ -243,6 +268,7 @@ class StoreView(BaseView):
                 rows = visible_units(
                     self.cursor.indices, self.cursor.index, self.context, len(self.store)
                 )
+                rows = scoped_units(rows, self.cursor.scope, self.cursor.index, len(self.store))
                 change = self._treeview.set_visible_rows(rows)
                 if not change or self.cursor.index < 0:
                     continue

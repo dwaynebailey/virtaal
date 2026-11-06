@@ -319,3 +319,62 @@ def test_upcoming_on_an_empty_cursor_is_empty():
     cursor = Cursor(None, [])
 
     assert cursor.upcoming(2) == []
+
+
+# set_scope() #
+
+
+def test_a_scope_limits_the_indices_and_moves_a_cursor_outside_it():
+    cursor, signals = _cursor(list(range(10)))
+    cursor.index = 1
+    signals.clear()
+
+    cursor.set_scope([(6, 8), (3, 5)])
+
+    assert cursor.scope == [(3, 5), (6, 8)]
+    assert cursor.indices == [3, 4, 6, 7]
+    assert cursor.index == 3
+    assert signals == ['changed']
+
+
+def test_a_cursor_inside_the_scope_stays_put():
+    cursor, signals = _cursor(list(range(10)))
+    cursor.index = 7
+    signals.clear()
+
+    cursor.set_scope([(3, 5), (6, 8)])
+
+    assert cursor.index == 7
+    assert signals == []
+
+
+def test_indices_set_later_are_limited_to_the_scope():
+    cursor, _signals = _cursor(list(range(10)))
+    cursor.set_scope([(3, 5)])
+
+    cursor.indices = [1, 4, 8]
+
+    assert cursor.indices == [4]
+
+
+def test_lifting_the_scope_brings_back_every_index():
+    cursor, _signals = _cursor(list(range(10)))
+    cursor.set_scope([(3, 5)])
+    cursor.indices = [1, 4, 8]
+
+    cursor.set_scope(None)
+
+    assert cursor.indices == [1, 4, 8]
+    assert cursor.index == 4
+
+
+def test_a_scope_with_no_matching_index_visits_its_first_unit():
+    cursor, signals = _cursor([1, 2])
+    cursor.index = 1
+    signals.clear()
+
+    cursor.set_scope([(4, 6)])
+
+    assert cursor.indices == []
+    assert cursor.index == 4
+    assert signals == ['changed']

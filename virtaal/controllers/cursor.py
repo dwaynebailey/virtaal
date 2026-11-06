@@ -6,7 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import logging
-from bisect import bisect_left
+from bisect import bisect_left, bisect_right
 
 from gi.repository import GObject
 
@@ -40,6 +40,12 @@ class Cursor(GObjectWrapper):
 
         self.model = model
         self._indices = indices
+        # indices as given, before the scope limits them.
+        self._all_indices = indices
+        # Sorted (start, end) ranges of indices the cursor stays within,
+        # or None for all of them.
+        self.scope = None
+        self._scope_starts = []
         self.circular = circular
 
         self._pos = 0
@@ -93,7 +99,8 @@ class Cursor(GObjectWrapper):
         return self._indices
 
     def _set_indices(self, value):
-        self._replace_indices(value)
+        self._all_indices = value
+        self._replace_indices(self._scoped(value))
         self.emit('indices-changed')
 
     indices = property(_get_indices, _set_indices)
@@ -138,6 +145,53 @@ class Cursor(GObjectWrapper):
         self.index = oldindex
         if oldpos == self.pos and oldindex != self.index:
             self.emit('cursor-changed')
+
+    def in_scope(self, index):
+        if self.scope is None:
+            return True
+        number = bisect_right(self._scope_starts, index) - 1
+        return number >= 0 and index < self.scope[number][1]
+
+    def _scoped(self, value):
+        if self.scope is None:
+            return value
+        return [index for index in value if self.in_scope(index)]
+
+    def set_scope(self, ranges):
+        """Keep the cursor within the (start, end) index ranges, or
+        lift the limit for C{None}. A cursor outside them moves to the
+        first index in them, or visits the first range's start when no
+        index is in them."""
+        before = self.index
+        self.scope = sorted(ranges) if ranges else None
+        self._scope_starts = [start for start, _end in self.scope or ()]
+        scoped = list(self._scoped(self._all_indices))
+        if before >= 0 and self.in_scope(before):
+            self._visiting = None
+            self._indices = scoped
+            pos = bisect_left(scoped, before)
+            if pos < len(scoped) and scoped[pos] == before:
+                self._pos = pos
+            else:
+                self._pos = min(pos, max(len(scoped) - 1, 0))
+                self._visiting = before
+        else:
+            self._visiting = None
+            self._indices = scoped
+            first = self.scope[0][0] if self.scope else 0
+            if scoped:
+                self._pos = min(bisect_left(scoped, first), len(scoped) - 1)
+            else:
+                self._pos = 0
+                if self.scope:
+                    self._visiting = first
+        # The view rebuilds its rows on 'cursor-changed', once the unit
+        # there is ready to edit.
+        if self.index != before and self.index >= 0:
+            self.emit('cursor-changed')
+        self.emit('indices-changed')
+        if self.index < 0:
+            self.emit('cursor-empty')
 
     # METHODS #
     def deref(self):

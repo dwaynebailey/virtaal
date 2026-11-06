@@ -68,7 +68,7 @@ def test_context_setting_round_trips(general_settings):
 def _view(indices, index, context, change=None):
     view = StoreView.__new__(StoreView)
     view.store = ['u'] * 10
-    view.cursor = SimpleNamespace(indices=indices, index=index)
+    view.cursor = SimpleNamespace(indices=indices, index=index, scope=None)
     view.context = context
     view._updating_rows = False
     view._rows_outdated = False
@@ -160,3 +160,28 @@ def test_cursor_moves_with_no_row_change_select_normally():
     view._on_cursor_change(view.cursor)
 
     assert calls == [('rows', [1, 6, 7, 8]), ('select', 7)]
+
+
+# scoped_units() #
+
+
+def test_scoped_units_without_a_scope_keeps_the_rows():
+    assert storeview.scoped_units([1, 2], None, 1, 10) is not None
+    assert storeview.scoped_units(None, None, 1, 10) is None
+
+
+def test_scoped_units_shows_every_unit_of_the_scope_for_all_rows():
+    assert storeview.scoped_units(None, [(2, 4), (7, 9)], 3, 10) == [2, 3, 7, 8]
+
+
+def test_scoped_units_drops_rows_outside_the_scope_but_keeps_the_current_unit():
+    assert storeview.scoped_units([0, 2, 5, 8], [(2, 4), (7, 9)], 5, 10) == [2, 5, 8]
+
+
+def test_update_visible_rows_shows_only_the_files_chosen():
+    view, calls = _view(list(range(10)), 3, CONTEXT_ALL)
+    view.cursor.scope = [(2, 5)]
+
+    view._update_visible_rows()
+
+    assert calls == [('rows', [2, 3, 4])]
