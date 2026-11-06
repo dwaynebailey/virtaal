@@ -433,11 +433,13 @@ def test_open_file_shows_a_notice_for_an_invalid_plural_equation(monkeypatch):
         'virtaal.models.storemodel.StoreModel.get_plural_problem', lambda self: problem[0]
     )
 
-    controller.open_file('file.po')
+    controller.open_file('/some/dir/file.po')
     problem[0] = None
     controller.open_file('other.po')
 
-    assert shown == ['The plural expression is not valid.']
+    assert shown == [
+        'The plural forms of file.po need fixing.\nThe plural expression is not valid.'
+    ]
     assert hidden == ['notice']
 
 

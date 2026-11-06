@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 18:50+0000\n"
+"POT-Creation-Date: 2026-11-06 19:26+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1188,6 +1188,13 @@ msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
 msgid "Placeholders in Drupal strings"
+msgstr ""
+
+#. l10n: Shown on opening a file whose plural forms header gettext would
+#. reject; the reason follows on the next line.
+#: virtaal/controllers/storecontroller.py
+#, python-format
+msgid "The plural forms of %(file)s need fixing."
 msgstr ""
 
 #. l10n: this refers to updating a file to a new template (POT file)

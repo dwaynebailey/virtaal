@@ -393,6 +393,7 @@ class StoreController(BaseController):
         extension = filename.split(os.extsep)[-1]
         force_saveas = False
         readonly = self._is_readonly(filename)
+        shown_name = os.path.basename(filename)
         self.opened_filename = None if forget_dir else os.path.abspath(filename)
         if extension == 'zip':
             self._open_bundle(filename)
@@ -438,7 +439,12 @@ class StoreController(BaseController):
         self._hide_plural_notice()
         plural_problem = self.store.get_plural_problem()
         if plural_problem:
-            self._plural_notice = self.main_controller.view.show_info_notice(plural_problem)
+            # l10n: Shown on opening a file whose plural forms header gettext would
+            # reject; the reason follows on the next line.
+            text = _("The plural forms of %(file)s need fixing.") % {'file': shown_name}
+            self._plural_notice = self.main_controller.view.show_info_notice(
+                text + '\n' + plural_problem
+            )
 
         self._start_cursor()
 
