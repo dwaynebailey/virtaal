@@ -80,6 +80,22 @@ def gtk_table_compute_optimal_height(widget, width):
         compute_optimal_height(child, width)
 
 
+def _estimated_text(widget):
+    """Text to size an empty text view for: its source text, lengthened
+    as a translation into the target language tends to be."""
+    text = getattr(widget, '_source_text', "")
+    if not text:
+        return ""
+    lang = factory.getlanguage(pan_app.settings.language["targetlang"])
+    try:
+        text = lang.alter_length(text)
+    except TypeError:
+        # A language class's length_difference() can return a
+        # non-int that alter_length() then fails to slice with (#3770).
+        pass
+    return markup.escape(text)
+
+
 @compute_optimal_height.register(Gtk.TextView)
 def gtk_textview_compute_optimal_height(widget, width):
     if not widget.props.visible:
@@ -90,23 +106,7 @@ def gtk_textview_compute_optimal_height(widget, width):
     if widget.style_get_property("interior-focus"):
         border += 2 * widget.style_get_property("focus-line-width")
 
-    buftext = buf.props.text
-    # A good way to test height estimation is to use it for all units and
-    # compare the reserved space to the actual space needed to display a unit.
-    # To use height estimation for all units (not just empty units), use:
-    # if True:
-    if not buftext:
-        text = getattr(widget, '_source_text', "")
-        if text:
-            lang = factory.getlanguage(pan_app.settings.language["targetlang"])
-            try:
-                buftext = lang.alter_length(text)
-            except TypeError:
-                # A language class's length_difference() can return a
-                # non-int that alter_length() then fails to slice with (#3770).
-                buftext = text
-            buftext = markup.escape(buftext)
-
+    buftext = buf.props.text or _estimated_text(widget)
     _w, h = rendering.make_pango_layout(widget, buftext, width - border).get_pixel_size()
     # Blind to embedded placeable widgets - approximate their real height too (#3536).
     for child in widget.get_children():
@@ -237,9 +237,7 @@ class StoreCellRenderer(Gtk.CellRenderer):
         return getattr(self, pspec.name)
 
     def do_get_size(self, widget, _cell_area):
-        width = _content_width(widget.get_toplevel()) - 32
-        if width < -1:
-            width = -1
+        width = max(_content_width(widget.get_toplevel()) - 32, -1)
         treeview = self.view._treeview
         if self.editable:
             # compute_optimal_height() below does real Pango text-layout

@@ -79,6 +79,56 @@ def _ensure_suggestion_css(screen):
         _suggestion_color = color
 
 
+def _tag_bound(bound, default, start_index, end_index):
+    """A buffer offset for a create_tags() bound: relative to the
+    element's start, from its end if negative, default if None."""
+    if bound is None:
+        bound = default
+    if bound < 0:
+        return bound + end_index + 1
+    return bound + start_index
+
+
+#################################
+#  Placeable:  |<<|content|>>|  #
+#  Cursor:     a  b       c  d  #
+# ===============================#
+#           Editable            #
+# ===============================#
+#   |  Backspace  |  Delete     #
+# ---|-------------|-------------#
+# a |  N/A        |  Placeable  #
+# b |  Nothing    | @Delete "c" #
+# c | @Delete "t" |  Nothing    #
+# d |  Placeable  |  N/A        #
+# ===============================#
+#         Non-Editable          #
+# ===============================#
+# a |  N/A        |  Placeable  #
+# b | *Nothing    | *Nothing    #
+# c | *Nothing    | *Nothing    #
+# d |  Placeable  |  N/A        #
+#################################
+# What a single-character Backspace or Delete deletes when the cursor is
+# at a boundary position (a, b, c, d) of a placeable. Without widgets,
+# positions b and c fall away, and an editable placeable's "Placeable"
+# needs a widget on that side.
+#
+# @ Deleted like any other text ("normal").
+# * "Placeable" instead if the placeable is fragile.
+_BOUNDARY_ACTIONS = {
+    # (position, key_is_delete): action for an editable placeable
+    ('a', False): 'normal',
+    ('a', True): 'placeable',
+    ('b', False): 'nothing',
+    ('b', True): 'normal',
+    ('c', False): 'normal',
+    ('c', True): 'nothing',
+    ('d', False): 'placeable',
+    ('d', True): 'normal',
+}
+
+
 class TextBox(Gtk.TextView):
     """
     A C{Gtk.TextView} extended to work with our nifty L{StringElem} parsed
@@ -298,48 +348,34 @@ class TextBox(Gtk.TextView):
         if getattr(elem, 'gui_info', None):
             if offset is None:
                 offset = self.elem.gui_info.index(elem)
-            # logging.debug('offset for %s: %d' % (repr(elem), offset))
             if offset >= 0:
-                # logging.debug('[%s] at offset %d' % (str(elem).encode('utf-8'), offset))
-                start_index = offset
-                end_index = offset + elem.gui_info.length()
-                for tag, tag_start, tag_end in elem.gui_info.create_tags():
-                    if tag is None:
-                        continue
-                    # Calculate tag start and end offsets
-                    if tag_start is None:
-                        tag_start = 0
-                    if tag_end is None:
-                        tag_end = end_index
-                    if tag_start < 0:
-                        tag_start += end_index + 1
-                    else:
-                        tag_start += start_index
-                    if tag_end < 0:
-                        tag_end += end_index + 1
-                    else:
-                        tag_end += start_index
-                    if tag_start < start_index:
-                        tag_start = start_index
-                    if tag_end > end_index:
-                        tag_end = end_index
-
-                    # logging.debug('  Apply tag at interval (%d, %d) [%s]' % (tag_start, tag_end, self.get_text(*iters)))
-                    if (
-                        not include_subtree
-                        or not colors_equal(elem.gui_info.fg, placeablesguiinfo.StringElemGUI.fg)
-                        or not colors_equal(elem.gui_info.bg, placeablesguiinfo.StringElemGUI.bg)
-                    ):
-                        self.buffer.get_tag_table().add(tag)
-                        self._placeable_tags.append(tag)
-                        start_iter = self.buffer.get_iter_at_offset(tag_start)
-                        end_iter = self.buffer.get_iter_at_offset(tag_end)
-                        self.buffer.apply_tag(tag, start_iter, end_iter)
+                self._apply_tags(elem, offset, include_subtree)
 
         if include_subtree:
             for sub, index in elem.gui_info.iter_sub_with_index():
                 if isinstance(sub, StringElem):
                     self.apply_gui_info(sub, offset=index + offset)
+
+    def _apply_tags(self, elem, offset, include_subtree):
+        """Apply elem's tags to the buffer, elem being at offset in it."""
+        start_index = offset
+        end_index = offset + elem.gui_info.length()
+        for tag, tag_start, tag_end in elem.gui_info.create_tags():
+            if tag is None:
+                continue
+            if (
+                include_subtree
+                and colors_equal(elem.gui_info.fg, placeablesguiinfo.StringElemGUI.fg)
+                and colors_equal(elem.gui_info.bg, placeablesguiinfo.StringElemGUI.bg)
+            ):
+                continue
+            tag_start = max(_tag_bound(tag_start, 0, start_index, end_index), start_index)
+            tag_end = min(_tag_bound(tag_end, end_index, start_index, end_index), end_index)
+            self.buffer.get_tag_table().add(tag)
+            self._placeable_tags.append(tag)
+            start_iter = self.buffer.get_iter_at_offset(tag_start)
+            end_iter = self.buffer.get_iter_at_offset(tag_end)
+            self.buffer.apply_tag(tag, start_iter, end_iter)
 
     def _remove_placeable_tags(self):
         tagtable = self.buffer.get_tag_table()
@@ -572,22 +608,14 @@ class TextBox(Gtk.TextView):
             raise ValueError('Only one of "elem" or "offset" may be specified.')
 
         if elem is None and offset is None:
-            # Clear current selection
-            # logging.debug('Clearing selected placeable from %s' % (repr(self)))
-            if self.selected_elem is not None:
-                # logging.debug('Selected item *was* %s' % (repr(self.selected_elem)))
-                self.selected_elem.gui_info = None
-                self.add_default_gui_info(self.selected_elem)
-                self.selected_elem = None
-            self.selected_elem_index = None
-            self.emit('element-selected', self.selected_elem)
+            self._clear_selected_elem()
             return
 
         filtered_elems = self.selectable_elems()
         if not filtered_elems:
             return
 
-        if elem is None and offset is not None:
+        if elem is None:
             if self.selected_elem_index is not None and not (0 <= offset < len(filtered_elems)):
                 # Clear selection when we go past the first or last placeable
                 self.select_elem(None)
@@ -599,19 +627,26 @@ class TextBox(Gtk.TextView):
         if elem not in filtered_elems:
             return
 
+        self._show_selected_elem(elem, filtered_elems)
+
+    def _clear_selected_elem(self):
+        if self.selected_elem is not None:
+            self.selected_elem.gui_info = None
+            self.add_default_gui_info(self.selected_elem)
+            self.selected_elem = None
+        self.selected_elem_index = None
+        self.emit('element-selected', self.selected_elem)
+
+    def _show_selected_elem(self, elem, filtered_elems):
         # Reset the default tag for the previously selected element
         if self.selected_elem is not None:
             self.selected_elem.gui_info = None
             self.add_default_gui_info(self.selected_elem)
 
-        i = 0
-        for fe in filtered_elems:
-            if fe is elem:
-                break
-            i += 1
-        self.selected_elem_index = i
+        self.selected_elem_index = next(
+            (i for i, fe in enumerate(filtered_elems) if fe is elem), len(filtered_elems)
+        )
         self.selected_elem = elem
-        # logging.debug('Selected element: %s (%s)' % (repr(self.selected_elem), str(self.selected_elem)))
         if not hasattr(elem, 'gui_info') or not elem.gui_info:
             elem.gui_info = placeablesguiinfo.StringElemGUI(
                 elem,
@@ -756,55 +791,15 @@ class TextBox(Gtk.TextView):
             self.emit("changed")
 
     def _delete_at_placeable_boundary(
-        self,
-        start_iter,
-        start_elem,
-        start_elem_offset,
-        start_elem_len,
-        cursor_pos,
-        key_is_delete,
-        start_offset,
-        end_offset,
+        self, start_elem, start_elem_offset, cursor_pos, key_is_delete
     ):
         """Handle a single-character Backspace/Delete landing on one of
-        the four boundary positions around a placeable, per the table
-        below. Returns (done, deleted, parent, index, start_offset,
-        end_offset); done is True if this fully handled the deletion
-        (the generic range-delete fallback must then be skipped)."""
-        deleted, parent, index = None, None, None
-        position = None
-        #################################
-        #  Placeable:  |<<|content|>>|  #
-        #  Cursor:     a  b       c  d  #
-        # ===============================#
-        #           Editable            #
-        # ===============================#
-        #   |  Backspace  |  Delete     #
-        # ---|-------------|-------------#
-        # a |  N/A        |  Placeable  #
-        # b |  Nothing    | @Delete "c" #
-        # c | @Delete "t" |  Nothing    #
-        # d |  Placeable  |  N/A        #
-        # ===============================#
-        #         Non-Editable          #
-        # ===============================#
-        # a |  N/A        |  Placeable  #
-        # b | *Nothing    | *Nothing    #
-        # c | *Nothing    | *Nothing    #
-        # d |  Placeable  |  N/A        #
-        #################################
-        # The table above specifies what should be deleted for editable and
-        # non-editable placeables when the cursor is at a specific boundary
-        # position (a, b, c, d) and a specified key is pressed (backspace or
-        # delete). Without widgets, positions b and c fall away.
-        #
-        # @ It is unnecessary to handle these cases, as long as control drops
-        #   through to a place where it is handled below.
-        # * Or "Placeable" depending on the value of the XXX flag in the
-        #   placeable's GUI info object
-
-        # First we check if we fall in any of the situations represented by
-        # the table above.
+        the four boundary positions around a placeable, per
+        _BOUNDARY_ACTIONS. Returns (done, deleted, parent, index, span);
+        done is True if this fully handled the deletion (the generic
+        range-delete fallback must then be skipped), and span is the
+        buffer range of a deleted placeable."""
+        start_elem_len = start_elem.gui_info.length()
         has_start_widget = has_end_widget = False
         if hasattr(start_elem, 'gui_info'):
             has_start_widget = start_elem.gui_info.has_start_widget()
@@ -818,52 +813,26 @@ class TextBox(Gtk.TextView):
             position = 'c'
         elif cursor_pos == start_elem_offset + start_elem_len:
             position = 'd'
+        else:
+            return False, None, None, None, None
 
-        done = False
-        # If the current state is in the table, handle it
-        if position:
-            # logging.debug('(a)<<(b)content(c)>>(d)   pos=%s' % (position))
-            if (position == 'a' and not key_is_delete) or (position == 'd' and key_is_delete):
-                # "N/A" fields in table
-                pass
-            elif (position == 'a' and key_is_delete) or (position == 'd' and not key_is_delete):
-                # "Placeable" fields
-                if (position == 'a' and (has_start_widget or not start_elem.iseditable)) or (
-                    position == 'd' and (has_end_widget or not start_elem.iseditable)
-                ):
-                    deleted = start_elem.copy()
-                    parent = self.elem.get_parent_elem(start_elem)
-                    index = self.elem.elem_offset(start_elem)
-                    self.elem.delete_elem(start_elem)
+        action = _BOUNDARY_ACTIONS[position, key_is_delete]
+        if not start_elem.iseditable and position in ('b', 'c'):
+            action = 'placeable' if start_elem.isfragile else 'nothing'
+        elif action == 'placeable' and start_elem.iseditable:
+            # An editable placeable without a widget on that side loses a character.
+            if not (has_start_widget if position == 'a' else has_end_widget):
+                action = 'normal'
 
-                    self.refresh_cursor_pos = start_elem_offset
-                    start_offset = start_elem_offset
-                    end_offset = start_elem_offset + start_elem_len
-                    done = True
-
-            elif not start_elem.iseditable and position in ('b', 'c'):
-                # "*Nothing" fields
-                if start_elem.isfragile:
-                    deleted = start_elem.copy()
-                    parent = self.elem.get_parent_elem(start_elem)
-                    index = self.elem.elem_offset(start_elem)
-                    self.elem.delete_elem(start_elem)
-
-                    self.refresh_cursor_pos = start_elem_offset
-                    start_offset = start_elem_offset
-                    end_offset = start_elem_offset + start_elem_len
-                done = True
-            # At this point we have checked for all cases except where
-            # position in ('b', 'c') for editable elements.
-            elif (position == 'c' and not key_is_delete) or (position == 'b' and key_is_delete):
-                # '@Delete "t"' and '@Delete "c"' fields; handled normally below
-                pass
-            elif (position == 'b' and not key_is_delete) or (position == 'c' and key_is_delete):
-                done = True
-            else:
-                raise Exception('Unreachable code reached. Please close the black hole nearby.')
-
-        return done, deleted, parent, index, start_offset, end_offset
+        if action == 'placeable':
+            deleted = start_elem.copy()
+            parent = self.elem.get_parent_elem(start_elem)
+            index = self.elem.elem_offset(start_elem)
+            self.elem.delete_elem(start_elem)
+            self.refresh_cursor_pos = start_elem_offset
+            span = (start_elem_offset, start_elem_offset + start_elem_len)
+            return True, deleted, parent, index, span
+        return action == 'nothing', None, None, None, None
 
     def _matches_tree(self, text, length):
         """Whether a buffer with C{text} and C{length} positions (text and
@@ -914,39 +883,23 @@ class TextBox(Gtk.TextView):
         start_elem = self.elem.gui_info.elem_at_offset(start_offset)
         if start_elem is None:
             return
-        start_elem_len = start_elem.gui_info.length()
         start_elem_offset = self.elem.gui_info.index(start_elem)
-
         # end_elem can be None if end_offset == self.elem.gui_info.length()
         end_elem = self.elem.gui_info.elem_at_offset(end_offset)
-
-        # logging.debug('pre-checks: %s[%d:%d]' % (repr(self.elem), start_offset, end_offset))
-        # logging.debug('start_elem_offset= %d' % (start_elem_offset))
-        # logging.debug('start_elem_len   = %d' % (start_elem_len))
-        # logging.debug('start_offset     = %d\tend_offset     = %d' % (start_offset, end_offset))
 
         # Per definition of a selection, cursor_pos must be at either
         # start_offset or end_offset
         key_is_delete = cursor_pos == start_offset
         done = False
-
         deleted, parent, index = None, None, None
 
         if abs(start_offset - end_offset) == 1:
-            done, deleted, parent, index, start_offset, end_offset = (
-                self._delete_at_placeable_boundary(
-                    start_iter,
-                    start_elem,
-                    start_elem_offset,
-                    start_elem_len,
-                    cursor_pos,
-                    key_is_delete,
-                    start_offset,
-                    end_offset,
-                )
+            done, deleted, parent, index, span = self._delete_at_placeable_boundary(
+                start_elem, start_elem_offset, cursor_pos, key_is_delete
             )
-            if deleted is not None:
+            if span is not None:
                 # Make GTK delete the whole placeable, widgets included.
+                start_offset, end_offset = span
                 start_iter.set_offset(start_offset)
                 end_iter.set_offset(end_offset)
             elif done:
@@ -954,56 +907,73 @@ class TextBox(Gtk.TextView):
                 buffer.stop_emission_by_name('delete-range')
                 return
 
-        # logging.debug('%s[%d] >===> %s[%d]' % (repr(start_elem), start_offset, repr(end_elem), end_offset))
-
         structural = False
+        start_tree_offset = None
         if not done:
             start_tree_offset = self.elem.gui_info.gui_to_tree_index(start_offset)
-            end_tree_offset = self.elem.gui_info.gui_to_tree_index(end_offset)
-            if unlock_partly_covered_leaves(self.elem, start_tree_offset, end_tree_offset):
-                self.add_default_gui_info(self.elem)
-                structural = True
-            if (
-                start_elem is end_elem
-                and start_elem.isleaf()
-                and start_elem.iseditable
-                and (start_elem.gui_info.has_start_widget() or start_elem.gui_info.has_end_widget())
-            ):
-                deleted, parent, index = self._delete_inside_widget_leaf(
-                    start_elem, start_tree_offset, end_tree_offset
-                )
-            else:
-                deleted, parent, index = self.elem.delete_range(start_tree_offset, end_tree_offset)
-
-            if index is not None:
-                parent_offset = self.elem.elem_offset(parent)
-                if parent_offset < 0:
-                    # prune() merged the leaf it was deleted from into a sibling.
-                    index = start_tree_offset
-                else:
-                    index = parent_offset + index
+            deleted, parent, index, structural = self._delete_tree_range(
+                start_elem, end_elem, start_tree_offset, end_offset
+            )
             self.refresh_cursor_pos = start_offset
 
         if index is None:
             index = start_offset
 
         if deleted is not None:
-            self.elem.prune()
-            if not done and self._reparse_at(start_tree_offset):
-                structural = True
-            # The tree may lose more than GTK deletes (a whole fragile
-            # placeable), or the deletion may change which placeables
-            # there are: the buffer then needs rebuilding from the tree.
-            remaining = self.get_text(None, start_iter) + self.get_text(end_iter, None)
-            remaining_len = self.buffer.get_char_count() - (
-                end_iter.get_offset() - start_iter.get_offset()
+            self._finish_delete(
+                before, deleted, parent, index, start_iter, end_iter, structural, start_tree_offset
             )
-            if structural or not self._matches_tree(remaining, remaining_len):
-                self._structural_change_pending = True
-            self.elem_before_edit = before
-            self.emit(
-                'text-deleted', deleted, parent, index, self.buffer.props.cursor_position, self.elem
+
+    def _finish_delete(
+        self, before, deleted, parent, index, start_iter, end_iter, structural, reparse_offset
+    ):
+        self.elem.prune()
+        if reparse_offset is not None and self._reparse_at(reparse_offset):
+            structural = True
+        # The tree may lose more than GTK deletes (a whole fragile
+        # placeable), or the deletion may change which placeables
+        # there are: the buffer then needs rebuilding from the tree.
+        remaining = self.get_text(None, start_iter) + self.get_text(end_iter, None)
+        remaining_len = self.buffer.get_char_count() - (
+            end_iter.get_offset() - start_iter.get_offset()
+        )
+        if structural or not self._matches_tree(remaining, remaining_len):
+            self._structural_change_pending = True
+        self.elem_before_edit = before
+        self.emit(
+            'text-deleted', deleted, parent, index, self.buffer.props.cursor_position, self.elem
+        )
+
+    def _delete_tree_range(self, start_elem, end_elem, start_tree_offset, end_offset):
+        """Delete the tree range from start_tree_offset to buffer offset
+        end_offset. Returns (deleted, parent, index, structural): index
+        is the deletion's tree offset, structural whether placeables
+        were unlocked."""
+        end_tree_offset = self.elem.gui_info.gui_to_tree_index(end_offset)
+        structural = False
+        if unlock_partly_covered_leaves(self.elem, start_tree_offset, end_tree_offset):
+            self.add_default_gui_info(self.elem)
+            structural = True
+        if (
+            start_elem is end_elem
+            and start_elem.isleaf()
+            and start_elem.iseditable
+            and (start_elem.gui_info.has_start_widget() or start_elem.gui_info.has_end_widget())
+        ):
+            deleted, parent, index = self._delete_inside_widget_leaf(
+                start_elem, start_tree_offset, end_tree_offset
             )
+        else:
+            deleted, parent, index = self.elem.delete_range(start_tree_offset, end_tree_offset)
+
+        if index is not None:
+            parent_offset = self.elem.elem_offset(parent)
+            if parent_offset < 0:
+                # prune() merged the leaf it was deleted from into a sibling.
+                index = start_tree_offset
+            else:
+                index = parent_offset + index
+        return deleted, parent, index, structural
 
     def _on_insert_text(self, buffer, iter, ins_text, length):
         if self.elem is None:
