@@ -156,6 +156,23 @@ def test_init_wires_entry_changed_signals_to_on_entry_changed(monkeypatch):
     assert len(calls) == 2
 
 
+def test_run_focuses_the_source_entry(monkeypatch, private_ui_builders):
+    model = SimpleNamespace(
+        controller=SimpleNamespace(
+            main_controller=SimpleNamespace(lang_controller=None, unit_controller=None)
+        )
+    )
+    dialog = TermAddDialog(model=model)
+    dialog.reset = lambda: None
+    monkeypatch.setattr(dialog.dialog, 'run', lambda: Gtk.ResponseType.CANCEL)
+    dialog.ent_target.grab_focus()
+
+    dialog.run()
+
+    assert dialog.dialog.get_focus() is dialog.ent_source
+    assert not dialog.dialog.get_visible()
+
+
 def test_termfile_combo_ellipsizes_long_paths():
     model = SimpleNamespace(
         controller=SimpleNamespace(
