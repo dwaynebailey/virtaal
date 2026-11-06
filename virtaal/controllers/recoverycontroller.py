@@ -175,8 +175,16 @@ class RecoveryController:
         chosen.data['resume_attempts'] = 1
         chosen.write()
         self._resume = chosen
-        opened = self.main_controller.open_file(chosen.document(DOCUMENT)['open_path'])
-        self.startup_file_opened(opened)
+        self.startup_file_opened(self._open_to_resume(chosen.document(DOCUMENT)['open_path']))
+
+    def _open_to_resume(self, path):
+        sc = self.store_controller
+        if sc.store is not None and sc.opened_filename == path and not sc.is_modified():
+            # The start-up file, opened as given: read it again unasked.
+            sc.open_file(path)
+            self.main_controller.mode_controller.refresh_mode()
+            return True
+        return self.main_controller.open_file(path)
 
     def _resume_into_store(self):
         slot = self.slot

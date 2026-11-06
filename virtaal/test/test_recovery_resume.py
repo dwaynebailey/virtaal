@@ -303,6 +303,21 @@ class TestResume(RecoveryScaffolding):
         assert self.store_controller.cursor.index == 3
         assert self._session()['resume_attempts'] == 1
 
+    def test_reopen_after_opening_the_held_back_file_as_given_resumes_it(self, monkeypatch):
+        path = self._po()
+        orphan = self._orphan(path, attempts=2, position=_at(3, 'Quit'))
+        assert self.recovery.choose_startup_file(path) == path
+        self.store_controller.open_file(path)
+        self.recovery.startup_file_opened(True)
+        self.recovery.show_startup_notices()
+        monkeypatch.setattr(self.main_controller, 'show_prompt', lambda *a, **k: pytest.fail())
+
+        self.notices[0][2]()
+
+        assert self.recovery.slot.id == orphan.id
+        assert self._slots() == [orphan.id]
+        assert self.store_controller.cursor.index == 3
+
     def test_a_missing_file_says_so_and_drops_a_slot_with_nothing_unsaved(self):
         path = str(self.tmp_path / 'gone.po')
         self._orphan(path)
