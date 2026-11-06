@@ -9,11 +9,13 @@
 GTK's key bindings and input-method commit - with undo and redo through
 the real UndoController."""
 
+import json
+import os
 import random
 from types import SimpleNamespace
 
 import pytest
-from gi.repository import GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk
 from test_scaffolding import TestScaffolding
 from translate.storage import factory
 from translate.storage.placeables import base, general
@@ -26,6 +28,7 @@ from virtaal.views.widgets import textbox as textbox_module
 
 PLACEABLES_PO = "devsupport/testfiles/placeables.po"
 PLACEABLES_XLIFF = "devsupport/testfiles/placeables.xliff"
+EDITS_AT_EVERY_POSITION = "devsupport/testfiles/textbox-edits-at-every-position.json"
 
 _ONE_UNIT_PO = 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\nmsgid "Coffee"\nmsgstr "%s"\n'
 
@@ -713,3 +716,84 @@ class TestTextBoxEditing(TestScaffolding):
         while self.undo_controller.model.can_redo():
             editor.redo()
         assert editor.text == final
+
+    # Characterisation: what one Backspace or Delete does at every cursor
+    # position, and the tags placeable selection leaves, for every unit
+    # in the fixtures - with the <g>s locked (not editable) and fragile
+    # too. Recorded in EDITS_AT_EVERY_POSITION.
+
+    def _characterisation_cases(self, tmp_path):
+        nested = tmp_path / 'nested.xlf'
+        nested.write_text(NESTED_G_XLIFF)
+        cases = [
+            (path, index, None)
+            for path in (PLACEABLES_PO, PLACEABLES_XLIFF)
+            for index in range(len(factory.getobject(path).getunits()))
+        ]
+        cases += [(str(nested), 0, lock) for lock in (None, 'locked', 'fragile')]
+        cases += [(PLACEABLES_XLIFF, 0, lock) for lock in ('locked', 'fragile')]
+        return [('%s:%d:%s' % (os.path.basename(p), i, lock), p, i, lock) for p, i, lock in cases]
+
+    def _locked_editor(self, path, index, lock):
+        editor = self._editor(path, index)
+        for g in self._g(editor) if lock else ():
+            g.iseditable = False
+            g.isfragile = lock == 'fragile'
+        return editor
+
+    def _deletions(self, path, index, lock):
+        rows = []
+        for pos in range(self._locked_editor(path, index, lock).buffer.get_char_count() + 1):
+            row = []
+            for key in ('backspace', 'delete'):
+                editor = self._locked_editor(path, index, lock)
+                editor.place(pos)
+                getattr(editor, key)()
+                row.append([editor.text, editor.buffer.get_char_count(), editor.cursor])
+            rows.append(row)
+        return rows
+
+    def _selections(self, path, index, lock):
+        editor = self._locked_editor(path, index, lock)
+        textbox = editor.textbox
+        steps = [['loaded', _placeable_tags(textbox), editor.cursor, textbox.selected_elem_index]]
+        count = len(textbox.selectable_elems())
+        for offset in [*range(count + 1), -1, 0, -1, None]:
+            textbox.select_elem(offset=offset)
+            steps.append(
+                [offset, _placeable_tags(textbox), editor.cursor, textbox.selected_elem_index]
+            )
+        return steps
+
+    def test_backspace_and_delete_at_every_position(self, tmp_path):
+        with open(EDITS_AT_EVERY_POSITION, encoding='utf-8') as f:
+            expected = json.load(f)['deletions']
+        for name, path, index, lock in self._characterisation_cases(tmp_path):
+            assert self._deletions(path, index, lock) == expected[name], name
+
+    def test_selecting_each_placeable_in_turn(self, tmp_path):
+        with open(EDITS_AT_EVERY_POSITION, encoding='utf-8') as f:
+            expected = json.load(f)['selections']
+        for name, path, index, lock in self._characterisation_cases(tmp_path):
+            assert self._selections(path, index, lock) == expected[name], name
+
+
+def _placeable_tags(textbox):
+    """The ranges of each of textbox's placeable tags, sorted, with
+    whether the tag shows the selected placeable's background."""
+    selected_bg = Gdk.RGBA()
+    selected_bg.parse(textbox_module.current_theme['selected_placeable_bg'])
+    buffer = textbox.buffer
+    tags = []
+    for tag in textbox._placeable_tags:
+        ranges = []
+        it = buffer.get_start_iter()
+        while it.starts_tag(tag) or it.forward_to_tag_toggle(tag):
+            if not it.starts_tag(tag):
+                continue
+            start = it.get_offset()
+            it.forward_to_tag_toggle(tag)
+            ranges.append([start, it.get_offset()])
+        props = tag.props
+        tags.append([ranges, props.background_set and props.background_rgba.equal(selected_bg)])
+    return sorted(tags)
