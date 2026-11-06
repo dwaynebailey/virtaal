@@ -456,6 +456,66 @@ def test_the_default_database_in_flatpak_is_under_xdg_cache_home(
     )
 
 
+def test_the_default_database_on_windows_is_in_translate_toolkit(
+    tmp_path, monkeypatch, fresh_caches
+):
+    from virtaal.common.platform import platform
+
+    monkeypatch.setattr(statsdb.StatsCache, 'defaultfile', None)
+    monkeypatch.setattr(platform, 'is_windows', True)
+    monkeypatch.setenv('HOME', str(tmp_path))
+    monkeypatch.setenv('USERPROFILE', str(tmp_path))
+
+    statsdb.StatsCache()
+
+    assert statsdb.StatsCache.defaultfile == os.path.join(
+        os.path.realpath(str(tmp_path)), 'Translate Toolkit', 'stats.db'
+    )
+
+
+def test_the_default_database_is_found_once(tmp_path, monkeypatch, fresh_caches):
+    path = os.path.join(str(tmp_path), 'chosen.db')
+    monkeypatch.setattr(statsdb.StatsCache, 'defaultfile', path)
+
+    cache = statsdb.StatsCache()
+
+    assert statsdb.StatsCache.defaultfile == path
+    assert statsdb.StatsCache(path) is cache
+
+
+def test_a_relative_path_gives_the_cache_of_its_real_path(tmp_path, monkeypatch, fresh_caches):
+    monkeypatch.chdir(tmp_path)
+
+    cache = statsdb.StatsCache('stats.db')
+
+    assert statsdb.StatsCache(os.path.join(str(tmp_path), 'stats.db')) is cache
+    assert list(statsdb.StatsCache._caches.values())[0] == {
+        os.path.realpath(os.path.join(str(tmp_path), 'stats.db')): cache
+    }
+
+
+def test_a_corrupt_database_that_cant_be_removed_falls_back_to_memory(
+    tmp_path, fresh_caches, monkeypatch, caplog
+):
+    path = tmp_path / "stats.db"
+    path.write_text('not a database\n')
+
+    def refuse(name):
+        raise OSError(13, 'Permission denied')
+
+    monkeypatch.setattr(statsdb.shareddb, 'remove', refuse)
+
+    cache = statsdb.StatsCache(str(path))
+
+    cache.cur.execute("SELECT count(*) FROM files")
+    assert path.read_text() == 'not a database\n'
+    assert [r.getMessage().split(',')[0] for r in caplog.records] == [
+        f"The statistics cache {os.path.realpath(str(path))} can't be read",
+        'Keeping statistics in memory',
+    ]
+    assert os.path.realpath(str(path)) in statsdb.StatsCache.unusable_files
+
+
 def test_file_units_lists_each_translatable_unit_in_order(tmp_path):
     path = tmp_path / 'af.po'
     path.write_text(

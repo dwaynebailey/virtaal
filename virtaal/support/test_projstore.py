@@ -105,6 +105,37 @@ def test_append_file_rejects_a_duplicate_filename():
         store.append_file(io.BytesIO(b"b"), "dup.po", ftype="src")
 
 
+def test_append_file_opens_a_path_given_as_the_file(tmp_path):
+    src = tmp_path / "report.txt"
+    src.write_bytes(b"data")
+    store = ProjectStore()
+
+    afile, fname = store.append_file(str(src), None, ftype="src")
+    afile.close()
+
+    assert fname == "sources/report.txt"
+    assert afile.name == str(src)
+    assert store._files[fname] == str(src)
+
+
+def test_append_file_prefers_a_real_file_name_to_the_file_object(tmp_path):
+    src = tmp_path / "report.txt"
+    src.write_bytes(b"data")
+    store = ProjectStore()
+
+    _afile, fname = store.append_file(io.BytesIO(b"other"), str(src), ftype="trans")
+
+    assert fname == "trans/report.txt"
+    assert store._files[fname] == str(src)
+
+
+def test_append_file_without_any_name_raises_type_error():
+    store = ProjectStore()
+
+    with pytest.raises(TypeError):
+        store.append_file(io.BytesIO(b"x"), None, ftype="src")
+
+
 def test_append_targetfile_and_transfile_delegate_with_the_right_ftype():
     store = ProjectStore()
     _afile, tgt_fname = store.append_targetfile(io.BytesIO(b"t"), "out.po")
@@ -390,3 +421,90 @@ def test_load_settings_parses_options():
     store._load_settings(xml)
 
     assert store.settings["options"] == {"mode": "strict"}
+
+
+def test_generate_settings_writes_each_section_in_order():
+    store = ProjectStore()
+    store.append_file(io.BytesIO(b"s"), "doc.odt", ftype="src")
+    store.append_file(io.BytesIO(b"x"), "doc.odt.xlf", ftype="trans")
+    store.append_file(io.BytesIO(b"t"), "doc.odt", ftype="tgt")
+    store.convert_map = {"trans/doc.odt.xlf": ("targets/doc.odt", "sources/doc.odt")}
+    store.settings["options"] = {"mode": "strict"}
+
+    assert store._generate_settings() == (
+        b"<translationproject>\n"
+        b"  <sources>\n    <filename>sources/doc.odt</filename>\n  </sources>\n"
+        b"  <transfiles>\n    <filename>trans/doc.odt.xlf</filename>\n  </transfiles>\n"
+        b"  <targets>\n    <filename>targets/doc.odt</filename>\n  </targets>\n"
+        b"  <conversions>\n    <conv>\n"
+        b"      <input>trans/doc.odt.xlf</input>\n"
+        b"      <output>targets/doc.odt</output>\n"
+        b"      <template>sources/doc.odt</template>\n"
+        b"    </conv>\n  </conversions>\n"
+        b'  <options>\n    <option name="mode">strict</option>\n  </options>\n'
+        b"</translationproject>\n"
+    )
+
+
+def test_generate_settings_of_an_empty_store():
+    assert ProjectStore()._generate_settings() == b"<translationproject/>\n"
+
+
+def test_load_settings_skips_a_conversion_whose_template_is_not_in_the_settings():
+    xml = (
+        b"<translationproject>"
+        b"<sources><filename>sources/doc.odt</filename></sources>"
+        b"<transfiles><filename>trans/doc.odt.xlf</filename></transfiles>"
+        b"<conversions><conv>"
+        b"<input>sources/doc.odt</input>"
+        b"<output>trans/doc.odt.xlf</output>"
+        b"<template>sources/missing.ott</template>"
+        b"</conv></conversions></translationproject>"
+    )
+    store = ProjectStore()
+
+    store._load_settings(xml)
+
+    assert store.convert_map == {}
+    assert store.settings == {
+        "sources": ["sources/doc.odt"],
+        "transfiles": ["trans/doc.odt.xlf"],
+    }
+
+
+def test_load_settings_finds_conversion_files_across_sections():
+    xml = (
+        b"<translationproject>"
+        b"<sources><filename>sources/doc.odt</filename></sources>"
+        b"<targets><filename>targets/doc.odt</filename></targets>"
+        b"<conversions><conv>"
+        b"<template>sources/doc.odt</template>"
+        b"<output>targets/doc.odt</output>"
+        b"<input>sources/doc.odt</input>"
+        b"<other>ignored</other>"
+        b"</conv></conversions></translationproject>"
+    )
+    store = ProjectStore()
+
+    store._load_settings(xml)
+
+    assert store.convert_map == {"sources/doc.odt": ("targets/doc.odt", "sources/doc.odt")}
+
+
+def test_load_settings_with_empty_conversions_clears_the_map():
+    store = ProjectStore()
+    store.convert_map = {"a": ("b", None)}
+
+    store._load_settings(b"<translationproject><conversions/></translationproject>")
+
+    assert store.convert_map == {}
+    assert store.settings == {}
+
+
+def test_load_settings_without_conversions_keeps_the_map():
+    store = ProjectStore()
+    store.convert_map = {"a": ("b", None)}
+
+    store._load_settings(b"<translationproject/>")
+
+    assert store.convert_map == {"a": ("b", None)}

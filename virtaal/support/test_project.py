@@ -440,6 +440,81 @@ def test_convert_forward_raises_and_cleans_up_when_the_output_already_exists(tmp
     assert existing_output.read_bytes() == b'already here'
 
 
+def test_convert_forward_uses_a_given_output_name(tmp_path, monkeypatch):
+    _stub_convert(monkeypatch, tmp_path)
+    src_path = tmp_path / 'greeting.odt'
+    src_path.write_bytes(b'source bytes')
+    store = ProjectStore()
+    project = Project(store)
+    _append(project.add_source, src_path)
+
+    outputfile, output_fname = project.convert_forward(
+        'sources/greeting.odt', output_fname=str(tmp_path / 'result.odt')
+    )
+    outputfile.close()
+
+    assert output_fname == 'trans/result.odt.xlf'
+    assert (tmp_path / 'result.odt.xlf').read_bytes() == b'converted'
+
+
+def test_convert_forward_passes_the_input_name_and_convert_options(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_convert(inputfile, template, options, convert_options):
+        seen['options'] = options
+        seen['convert_options'] = convert_options
+        raise ValueError('no converter')
+
+    monkeypatch.setattr(project_module.convert_factory, 'convert', fake_convert)
+    src_path = tmp_path / 'greeting.odt'
+    src_path.write_bytes(b'source bytes')
+    store = ProjectStore()
+    project = Project(store)
+    _append(project.add_source, src_path)
+
+    with pytest.raises(ValueError, match='no converter'):
+        project.convert_forward('sources/greeting.odt', convert_options={'x': 1})
+
+    assert seen == {'options': {'in_fname': 'sources/greeting.odt'}, 'convert_options': {'x': 1}}
+    assert store.convert_map == {}
+
+
+def test_convert_forward_closes_the_input_when_the_conversion_fails(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_convert(inputfile, template, options, convert_options):
+        seen['input'] = inputfile
+        raise ValueError('no converter')
+
+    monkeypatch.setattr(project_module.convert_factory, 'convert', fake_convert)
+    src_path = tmp_path / 'greeting.odt'
+    src_path.write_bytes(b'source bytes')
+    project = Project(ProjectStore())
+    _append(project.add_source, src_path)
+
+    with pytest.raises(ValueError):
+        project.convert_forward('sources/greeting.odt')
+
+    assert seen['input'].closed
+
+
+def test_convert_forward_with_a_recorded_conversion_without_template(tmp_path, monkeypatch):
+    capture = {}
+    _stub_convert(monkeypatch, tmp_path, capture=capture)
+    trans_path = tmp_path / 'doc.odt.xlf'
+    trans_path.write_bytes(b'xliff bytes')
+    store = ProjectStore()
+    project = Project(store)
+    _append(store.append_transfile, trans_path)
+    store.convert_map['trans/doc.odt.xlf'] = ('targets/old.odt', None)
+
+    outputfile, _fname = project.convert_forward('trans/doc.odt.xlf')
+    outputfile.close()
+
+    # A recorded conversion stops the search for the source document.
+    assert capture['template'] is None
+
+
 # Files got from the store are closed once used #
 
 

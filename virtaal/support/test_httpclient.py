@@ -455,6 +455,73 @@ def test_set_virtaal_useragent_on_macos_includes_the_release(monkeypatch):
     assert 'darwin' in client.user_agent
 
 
+def _linux_platform_string(monkeypatch, release_files):
+    """_linux_platform_string('linux') with release_files ({path: text})
+    as the only files in /etc."""
+    monkeypatch.setattr(os.path, 'isfile', lambda path: path in release_files)
+
+    def fake_open(path, *args, **kwargs):
+        import io
+
+        return io.StringIO(release_files[path])
+
+    monkeypatch.setattr(builtins, 'open', fake_open)
+    return HTTPClient()._linux_platform_string('linux')
+
+
+def test_linux_platform_string_without_a_release_file(monkeypatch):
+    assert _linux_platform_string(monkeypatch, {}) == 'linux'
+
+
+def test_linux_platform_string_uses_the_last_version_line_of_os_release(monkeypatch):
+    release = 'NAME="Ubuntu"\nVERSION="22.04 LTS"\nVERSION_ID="22.04"\nVERSION_CODENAME=jammy\n'
+
+    assert _linux_platform_string(monkeypatch, {'/etc/os-release': release}) == (
+        'linux; Ubuntu jammy'
+    )
+
+
+def test_linux_platform_string_with_an_os_release_lacking_name_and_version(monkeypatch):
+    assert _linux_platform_string(monkeypatch, {'/etc/os-release': 'ID=x\n'}) == (
+        'linux; None None'
+    )
+
+
+def test_linux_platform_string_prefers_os_release(monkeypatch):
+    files = {
+        '/etc/os-release': 'NAME=Debian\nVERSION=12\n',
+        '/etc/lsb-release': 'DISTRIB_DESCRIPTION="Other"\n',
+    }
+
+    assert _linux_platform_string(monkeypatch, files) == 'linux; Debian 12'
+
+
+def test_linux_platform_string_reads_lsb_release(monkeypatch):
+    release = 'DISTRIB_ID=Ubuntu\nDISTRIB_DESCRIPTION="Ubuntu 22.04.4 LTS"\n'
+
+    assert _linux_platform_string(monkeypatch, {'/etc/lsb-release': release}) == (
+        'linux; Ubuntu 22.04.4 LTS'
+    )
+
+
+def test_linux_platform_string_reads_system_release(monkeypatch):
+    files = {'/etc/system-release': 'Fedora release 40 (Forty)\n'}
+
+    assert _linux_platform_string(monkeypatch, files) == 'linux; Fedora 40'
+
+
+def test_linux_platform_string_skips_a_system_release_not_in_four_words(monkeypatch):
+    files = {'/etc/system-release': 'Red Hat Enterprise Linux release 9.4 (Plow)\n'}
+
+    assert _linux_platform_string(monkeypatch, files) == 'linux'
+
+
+def test_linux_platform_string_keeps_system_release_lines_before_a_bad_one(monkeypatch):
+    files = {'/etc/system-release': 'Fedora release 40 (Forty)\n\nFedora release 41 (x)\n'}
+
+    assert _linux_platform_string(monkeypatch, files) == 'linux; Fedora 40'
+
+
 def test_loggable_url_masks_secret_query_values():
     url = 'https://translation.googleapis.com/language/translate/v2?key=SECRET123&q=hi&target=af'
 

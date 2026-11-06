@@ -7,6 +7,7 @@
 
 import unicodedata
 
+from translate.misc.multistring import multistring
 from translate.storage import po
 
 from virtaal.support.pogrep_compat import GrepFilter
@@ -86,3 +87,60 @@ def test_getmatches_stops_at_max_matches_instead_of_raising():
 
     assert len(matches) == 3
     assert indexes == [0, 1]
+
+
+def test_getmatches_with_an_empty_search_finds_nothing():
+    f = GrepFilter(searchstring='', searchparts=('target',), max_matches=10)
+
+    assert f.getmatches([_unit("x", "x")]) == ([], [])
+
+
+def test_getmatches_searches_each_part_in_order():
+    unit = _unit("a", "a")
+    unit.addnote("a")
+    unit.addlocation("a")
+    f = GrepFilter(
+        searchstring="a",
+        searchparts=('source', 'target', 'notes', 'locations'),
+        ignorecase=False,
+        useregexp=False,
+        max_matches=10,
+    )
+
+    matches, indexes = f.getmatches([_unit("x", "y"), unit])
+
+    assert indexes == [1]
+    assert [m.part for m in matches] == ['target', 'source', 'notes', 'locations']
+
+
+def test_getmatches_searches_notes_one_character_at_a_time():
+    # As upstream: getnotes() is one string, searched as a list of characters.
+    unit = _unit("x", "y")
+    unit.addnote("note")
+    f = GrepFilter(
+        searchstring="o",
+        searchparts=('notes',),
+        ignorecase=False,
+        useregexp=False,
+        max_matches=10,
+    )
+
+    assert [m.part_n for m in f.getmatches([unit])[0]] == [1]
+    f.searchstring = "note"
+    assert f.getmatches([unit]) == ([], [])
+
+
+def test_getmatches_searches_every_plural_form():
+    unit = po.pofile().addsourceunit(multistring(["file", "files"]))
+    unit.target = multistring(["lêer", "lêers"])
+    f = GrepFilter(
+        searchstring="lêer",
+        searchparts=('target',),
+        ignorecase=False,
+        useregexp=False,
+        max_matches=10,
+    )
+
+    matches, _ = f.getmatches([unit])
+
+    assert [(m.part_n, m.start) for m in matches] == [(0, 0), (1, 0)]
