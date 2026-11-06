@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import re
 
 from gi.repository import GLib, Gtk
 from translate.lang import data
@@ -133,6 +134,10 @@ class LanguageAddDialog:
 
         if any(c.isspace() for c in code):
             return _('Language code must not contain spaces.')
+
+        if not re.fullmatch(r'[A-Za-z0-9_@.-]+', code):
+            # l10n: Leave the four characters in quotes as they are.
+            return _('Language code can only contain letters, digits, "_", "-", "@" and ".".')
 
         if data.normalize_code(code) in {data.normalize_code(c) for c in LanguageModel.languages}:
             return _('Language code %s is already used.') % code

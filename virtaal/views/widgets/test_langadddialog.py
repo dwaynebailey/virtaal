@@ -86,6 +86,21 @@ def test_check_input_sanity_rejects_a_langcode_with_a_space():
     assert dialog.check_input_sanity() != ''
 
 
+@pytest.mark.parametrize('code', ['q,m', 'q|m', 'q=m', 'q;m', 'q#m', 'q/m', 'q\x01m'])
+def test_check_input_sanity_rejects_a_langcode_with_a_character_a_code_cannot_have(code):
+    # These ended up in virtaal.ini and PO Language headers (#4352).
+    dialog = _dialog_with_langcode(code)
+
+    assert dialog.check_input_sanity() != ''
+
+
+@pytest.mark.parametrize('code', ['qmm', 'qmm_ZA', 'qmm-Latn-ZA', 'qmm@latin', 'qmm.UTF-8'])
+def test_check_input_sanity_accepts_bcp47_and_posix_locale_codes(code):
+    dialog = _dialog_with_langcode(code)
+
+    assert dialog.check_input_sanity() == ''
+
+
 @pytest.mark.parametrize('code', ['af', 'AF', 'pt-BR'])
 def test_check_input_sanity_rejects_a_langcode_already_used(code):
     LanguageModel('en')  # LanguageModel.languages populates lazily on first real use
