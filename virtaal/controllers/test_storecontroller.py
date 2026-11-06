@@ -40,7 +40,19 @@ def _fake_storemodel_factory(units):
         def get_units(self):
             return units
 
+        def index_of(self, unit):
+            return _index_of(units, unit)
+
     return _FakeStoreModel
+
+
+def _index_of(units, unit):
+    return next((i for i, u in enumerate(units) if u is unit), None)
+
+
+def _listed(units):
+    """A fake store with these units."""
+    return SimpleNamespace(get_units=lambda: units, index_of=lambda unit: _index_of(units, unit))
 
 
 def _controller():
@@ -296,7 +308,7 @@ def test_select_unit_sets_the_cursor_index_when_found():
     unit = object()
     other = object()
     controller.cursor = SimpleNamespace(deref=lambda: other, index=None)
-    controller.store = SimpleNamespace(get_units=lambda: [other, unit])
+    controller.store = _listed([other, unit])
 
     controller.select_unit(unit)
 
@@ -309,7 +321,7 @@ def test_select_unit_forces_the_cursor_index_when_found_and_forced():
     other = object()
     forced = []
     controller.cursor = SimpleNamespace(deref=lambda: other, force_index=forced.append)
-    controller.store = SimpleNamespace(get_units=lambda: [other, unit])
+    controller.store = _listed([other, unit])
 
     controller.select_unit(unit, force=True)
 
@@ -321,7 +333,7 @@ def test_select_unit_defaults_to_index_zero_when_not_found():
     unit = object()
     other = object()
     controller.cursor = SimpleNamespace(deref=lambda: other, index=None)
-    controller.store = SimpleNamespace(get_units=lambda: [other])
+    controller.store = _listed([other])
 
     controller.select_unit(unit)
 
@@ -909,7 +921,7 @@ def test_unit_modified_ignores_a_signal_with_no_store_open():
 
 def test_unit_modified_ignores_a_unit_from_a_replaced_store():
     controller = _controller()
-    controller.store = SimpleNamespace(get_units=lambda: [])
+    controller.store = _listed([])
     modified_calls = []
     controller.set_modified = modified_calls.append
 
@@ -921,7 +933,7 @@ def test_unit_modified_ignores_a_unit_from_a_replaced_store():
 def test_unit_modified_marks_the_store_modified():
     controller = _controller()
     unit = object()
-    controller.store = SimpleNamespace(get_units=lambda: [unit])
+    controller.store = _listed([unit])
     modified_calls = []
     controller.set_modified = modified_calls.append
 
@@ -944,6 +956,9 @@ class _StatsStore:
 
     def get_units(self):
         return self.units
+
+    def index_of(self, unit):
+        return _index_of(self.units, unit)
 
     def update_unit_stats(self, index):
         self.updated.append(index)

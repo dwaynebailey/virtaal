@@ -64,11 +64,10 @@ def test_debug_flag_enables_debug_mode(monkeypatch):
     assert pan_app.DEBUG is True
 
 
-def test_a_second_positional_argument_is_rejected(monkeypatch):
-    monkeypatch.setattr(cli, 'run_virtaal', lambda startup_file: None)
+def test_several_positional_arguments_are_passed_through_as_a_list(monkeypatch):
+    started = _run_cli(monkeypatch, ['virtaal', 'file1.po', 'file2.po'])
 
-    with pytest.raises(SystemExit):
-        cli.main(['virtaal', 'file1.po', 'file2.po'])
+    assert started == [['file1.po', 'file2.po']]
 
 
 def test_config_switches_the_active_settings_file(monkeypatch, tmp_path):

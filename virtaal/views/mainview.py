@@ -563,6 +563,7 @@ class MainView(BaseView):
             None,
         )
         add_translation_file_filters(chooser)
+        chooser.set_select_multiple(True)
         return chooser
 
     @cached_property
@@ -827,6 +828,15 @@ class MainView(BaseView):
         menuitem.set_sensitive(value)
         menuitem = self.gui.get_object("mnu_revert")
         menuitem.set_sensitive(value)
+        self._set_title(value)
+        self.modified = value
+
+    def refresh_title(self):
+        """Show the current file's name: with several files open, the
+        one the cursor is in."""
+        self._set_title(self.modified)
+
+    def _set_title(self, value):
         native_marker = self._update_document_edited(value)
         filename = self.controller.get_store_filename()
         if filename:
@@ -851,7 +861,6 @@ class MainView(BaseView):
                     % {"current_file": os.path.basename(filename), "modified_marker": modified}
                 ).rstrip()
             )
-        self.modified = value
 
     def _update_document_edited(self, modified):
         """Mirror the modified state in macOS's native window-close-
@@ -993,6 +1002,8 @@ class MainView(BaseView):
         filename_and_uri = self.show_open_dialog()
         if filename_and_uri:
             filename, uri = filename_and_uri
+            if isinstance(filename, list):
+                return self.controller.open_files(filename)
             self._uri = uri
             return self.controller.open_file(filename, uri=uri)
         return False
@@ -1116,7 +1127,8 @@ class MainView(BaseView):
         return None
 
     def show_open_dialog(self, title='', chooser=None):
-        """@returns: The selected file name and URI if the OK button was clicked.
+        """@returns: The selected file name and URI if the OK button was clicked,
+        or a list of file names and C{None} when several were selected.
         C{None} otherwise."""
         if chooser is None:
             chooser = self.open_chooser
@@ -1136,6 +1148,10 @@ class MainView(BaseView):
         chooser.hide()
 
         if response:
+            filenames = chooser.get_filenames() if chooser.get_select_multiple() else []
+            if len(filenames) > 1:
+                pan_app.settings.general["lastdir"] = os.path.dirname(filenames[0])
+                return (filenames, None)
             filename = chooser.get_filename()
             pan_app.settings.general["lastdir"] = os.path.dirname(filename)
             return (filename, chooser.get_uri())
@@ -1883,9 +1899,11 @@ class MainView(BaseView):
         self.main_window.set_title(_('Virtaal'))
 
     def _on_store_loaded(self, store_controller):
-        self.gui.get_object('mnu_saveas').set_sensitive(True)
+        # Several files are each saved in place, and share no template.
+        single = not store_controller.is_stream()
+        self.gui.get_object('mnu_saveas').set_sensitive(single)
         self.gui.get_object('mnu_close').set_sensitive(True)
-        self.gui.get_object('mnu_update').set_sensitive(True)
+        self.gui.get_object('mnu_update').set_sensitive(single)
         self.gui.get_object('mnu_properties').set_sensitive(True)
         self.gui.get_object('mnu_next_unit').set_sensitive(True)
         self.gui.get_object('mnu_state_advance').set_sensitive(True)

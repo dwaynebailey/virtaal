@@ -24,6 +24,14 @@ def _one_line(*values):
     return tuple(' '.join((value or '').split()) for value in values)
 
 
+def _strip_file_uri(filename):
+    if filename.startswith('file://'):
+        if platform.is_windows:
+            return filename[len('file:///') :]
+        return filename[len('file://') :]
+    return filename
+
+
 class MainController(BaseController):
     """The main controller that initializes the others and contains the main
     program loop."""
@@ -201,7 +209,7 @@ class MainController(BaseController):
         finally:
             self._opening_file = False
 
-    def _open_file(self, filename, uri, forget_dir):
+    def _wait_for_controllers(self):
         # We might be a bit early for some of the other controllers, so
         # let's make it our problem and ensure the last ones are in the
         # main controller. Bounded, not an unconditional while - belt
@@ -214,6 +222,9 @@ class MainController(BaseController):
             import logging
 
             logging.warning('open_file(): gave up waiting for placeables_controller')
+
+    def _open_file(self, filename, uri, forget_dir):
+        self._wait_for_controllers()
         if filename is None:
             self._opening_file = False
             try:
@@ -229,11 +240,7 @@ class MainController(BaseController):
                 return False
             # Unnecessary to test for 'discard'
 
-        if filename.startswith('file://'):
-            if platform.is_windows:
-                filename = filename[len('file:///') :]
-            else:
-                filename = filename[len('file://') :]
+        filename = _strip_file_uri(filename)
 
         if self.store_controller.store and self.store_controller.store.get_filename() == filename:
             promptmsg = _(
@@ -254,6 +261,49 @@ class MainController(BaseController):
             self.last_open_error = str(exc)
             self.show_error(
                 filename
+                + ":\n"
+                + _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
+                % {'error_message': str(exc)}
+            )
+            return False
+
+    def open_files(self, paths):
+        """Open several files, or directories of them, as one list of
+        units. One file opens as with L{open_file()}.
+        @returns: Whether they opened."""
+        paths = [_strip_file_uri(path) for path in paths]
+        if len(paths) == 1 and not os.path.isdir(paths[0]):
+            return self.open_file(paths[0])
+        if self._opening_file:
+            return None
+        self._opening_file = True
+        try:
+            return self._open_files(paths)
+        finally:
+            self._opening_file = False
+
+    def _open_files(self, paths):
+        self._wait_for_controllers()
+        if self.store_controller.is_modified():
+            response = self.view.show_save_confirm_dialog()
+            if response == 'save':
+                if not self.save_file():
+                    return False
+            elif response == 'cancel':
+                return False
+        name = os.path.basename(os.path.normpath(paths[0]))
+        try:
+            with self.view.busy(_("Loading '%s'…") % name):
+                self.store_controller.open_files(paths)
+                self.mode_controller.refresh_mode()
+            return True
+        except Exception as exc:
+            import logging
+
+            logging.exception('MainController.open_files(%r)', paths)
+            self.last_open_error = str(exc)
+            self.show_error(
+                paths[0]
                 + ":\n"
                 + _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
                 % {'error_message': str(exc)}

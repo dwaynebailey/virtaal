@@ -65,6 +65,9 @@ class _FakeChooser:
     def get_filename(self):
         return self._filename
 
+    def get_select_multiple(self):
+        return False
+
     def get_uri(self):
         return 'file://' + self._filename
 
@@ -630,6 +633,7 @@ def test_on_store_loaded_disables_binary_export_for_a_non_po_file(monkeypatch):
     )
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
+        is_stream=lambda: False,
         can_binary_export=lambda: False,
         project=None,
         store=SimpleNamespace(filename='/tmp/document.odt'),
@@ -654,6 +658,7 @@ def test_on_store_loaded_enables_binary_export_for_a_compressed_po_file(monkeypa
     )
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
+        is_stream=lambda: False,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/translations/af.po.gz'),
@@ -681,6 +686,7 @@ def test_on_store_loaded_disables_binary_export_for_a_file_opened_after_a_po_fil
     for filename, is_po in (('af.po', True), ('af.xlf', False)):
         view._on_store_loaded(
             SimpleNamespace(
+                is_stream=lambda: False,
                 can_binary_export=lambda is_po=is_po: is_po,
                 project=None,
                 store=SimpleNamespace(filename='/tmp/' + filename),
@@ -700,6 +706,7 @@ def test_on_store_loaded_adds_the_bundle_filename_for_a_project(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
+        is_stream=lambda: False,
         can_binary_export=lambda: False,
         project=True,
         get_bundle_filename=lambda: '/tmp/bundle.zip',
@@ -729,6 +736,7 @@ def test_on_store_loaded_adds_the_store_filename_even_with_a_stale_uri_set(monke
     view.status_bar = _FakeSensitiveWidget()
     view._uri = 'file:///tmp/stale-from-an-earlier-open.po'
     store_controller = SimpleNamespace(
+        is_stream=lambda: False,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/dropped.po'),
@@ -752,6 +760,7 @@ def test_on_store_loaded_adds_an_extra_leading_slash_on_windows(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
+        is_stream=lambda: False,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/opened.po'),
@@ -1991,6 +2000,7 @@ def test_on_store_loaded_notes_the_bundle_filename_on_mac(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
+        is_stream=lambda: False,
         can_binary_export=lambda: False,
         project=True,
         get_bundle_filename=lambda: '/tmp/bundle.zip',
@@ -2020,6 +2030,7 @@ def test_on_store_loaded_notes_the_store_filename_even_with_a_dropped_uri_set(mo
     view.status_bar = _FakeSensitiveWidget()
     view._uri = 'file:///tmp/stale-from-an-earlier-open.po'
     store_controller = SimpleNamespace(
+        is_stream=lambda: False,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/dropped.po'),
@@ -2043,6 +2054,7 @@ def test_on_store_loaded_notes_the_plain_filename_on_mac(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
+        is_stream=lambda: False,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/opened.po'),
@@ -2065,6 +2077,7 @@ def test_on_store_loaded_skips_noting_a_document_off_mac(monkeypatch):
     view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
+        is_stream=lambda: False,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/opened.po'),

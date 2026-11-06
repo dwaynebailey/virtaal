@@ -29,6 +29,11 @@ class StoreController(BaseController):
         'checks-changed': (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
+    # With several files open: the paths given, and their FileSet.
+    opened_paths = None
+    fileset = None
+    _file_loaded_id = None
+
     arrival = None
     """How the cursor is being moved, while it is: 'commit' (Enter and the
         like), 'step' (a navigation key), 'click', 'jump' (to a search
@@ -98,6 +103,16 @@ class StoreController(BaseController):
 
     def get_store(self):
         return self.store
+
+    def is_stream(self):
+        """Whether several files are open as one list."""
+        return self.fileset is not None
+
+    def modified_stream_files(self):
+        """With several files open, the names of those with unsaved changes."""
+        if not self.is_stream():
+            return []
+        return [entry.display_name for entry in self.store.modified_entries()]
 
     def get_store_filename(self):
         """Returns a display-friendly string representing the current open
@@ -185,17 +200,12 @@ class StoreController(BaseController):
             # Unit is already selected; no need to do more work
             return
 
-        i = 0
-        try:
-            # list.index() here is O(n) (and unit.__eq__ isn't cheap), but
-            # select_unit() is only reached from search-result jumps and
-            # undo/redo, not per-navigation, so it's a deliberate tradeoff
-            # rather than a hot-path problem worth an index-based API.
-            i = self.store.get_units().index(unit)
-        except Exception as exc:
+        i = self.store.index_of(unit)
+        if i is None:
             import logging
 
-            logging.debug('Unit not found:\n%s' % (exc))
+            logging.debug('Unit not found: %s', unit)
+            i = 0
 
         if force:
             self.cursor.force_index(i)
@@ -247,6 +257,68 @@ class StoreController(BaseController):
         .zip, not its extracted temp copy) can't be written to."""
         return os.path.isfile(filename) and not os.access(filename, os.W_OK)
 
+    def open_files(self, paths):
+        """Open files and directories as one list of units. A single file
+        opens as with L{open_file()}."""
+        from virtaal.models.fileset import FileSet
+
+        fileset = FileSet.from_paths(paths)
+        if len(fileset) == 1:
+            return self.open_file(fileset[0].path)
+        target = self.main_controller.lang_controller
+        target = target and target.target_lang and target.target_lang.code
+        language = fileset.choose_language(target)
+        if language:
+            fileset = fileset.for_language(language)
+        if not len(fileset):
+            raise ValueError('The file contains nothing to translate.')
+        self._open_stream(fileset, paths)
+
+    def _open_stream(self, fileset, paths):
+        from virtaal.models.streammodel import StreamModel
+
+        store = StreamModel(fileset, self)
+        self._forget_stream()
+        self.project = None
+        self.opened_filename = None
+        self.opened_paths = [os.path.abspath(path) for path in paths]
+        self.fileset = fileset
+        self.store = store
+        self._file_loaded_id = (store, store.connect('file-loaded', self._on_file_loaded))
+        self._modified = False
+        self.main_controller.set_force_saveas(False)
+        self.main_controller.set_saveable(False)
+        self.main_controller.view.hide_read_only_notice()
+        self._start_cursor()
+        self.view.load_store(self.store)
+        self.view.show()
+        self._emit_store_loaded()
+
+    def _start_cursor(self):
+        from .cursor import Cursor
+
+        self.cursor = Cursor(self.store, self.store.stats['total'], circular=False)
+        if self.is_stream():
+            # Before the view's handler: the file must be read to edit it.
+            self.cursor.connect('cursor-changed', self._on_stream_cursor_changed)
+
+    def _on_stream_cursor_changed(self, cursor):
+        if self.store is None or cursor.index < 0:
+            return
+        if self.store.approach(cursor.index):
+            self.main_controller.view.refresh_title()
+
+    def _forget_stream(self):
+        if self._file_loaded_id is not None:
+            stream, handler = self._file_loaded_id
+            stream.disconnect(handler)
+            self._file_loaded_id = None
+        self.fileset = None
+        self.opened_paths = None
+
+    def _on_file_loaded(self, store, number, peek):
+        self.view.file_loaded(store.segments[number], peek)
+
     def open_file(self, filename, uri='', forget_dir=False):
         extension = filename.split(os.extsep)[-1]
         force_saveas = False
@@ -256,6 +328,7 @@ class StoreController(BaseController):
             self._open_bundle(filename)
         else:
             self._open_plain(filename)
+        self._forget_stream()
 
         if len(self.store.get_units()) < 1:
             # clean up, otherwise self.store still contains the store
@@ -285,9 +358,7 @@ class StoreController(BaseController):
         else:
             self.main_controller.view.hide_read_only_notice()
 
-        from .cursor import Cursor
-
-        self.cursor = Cursor(self.store, self.store.stats['total'], circular=False)
+        self._start_cursor()
 
         self.view.load_store(self.store)
         self.view.show()
@@ -335,6 +406,7 @@ class StoreController(BaseController):
             binary_output.write(compiler.convertstore(self.store._trans_store))
 
     def close_file(self):
+        self._forget_stream()
         del self.project
         self.project = None
         self.store = None
@@ -350,11 +422,16 @@ class StoreController(BaseController):
         gc.collect()
 
     def revert_file(self):
+        if self.is_stream():
+            self._open_stream(self.fileset, self.opened_paths)
+            return
         self.open_file(self.store.filename)
 
     def update_file(self, filename, uri=''):
         if not self.store:
             raise ValueError('No file is open to update.')
+        if self.is_stream():
+            raise ValueError('Several files are open.')
 
         from translate.storage import factory
 
@@ -372,9 +449,7 @@ class StoreController(BaseController):
         self.main_controller.set_saveable(self._modified)
         # Don't force Save As (#3808) - the file already has a real path.
 
-        from .cursor import Cursor
-
-        self.cursor = Cursor(self.store, self.store.stats['total'], circular=False)
+        self._start_cursor()
 
         self.view.load_store(self.store)
         self.view.show()
@@ -440,7 +515,7 @@ class StoreController(BaseController):
     def _unit_index(self, unit):
         if self.cursor and self.cursor.deref() is unit:
             return self.cursor.index
-        return next((i for i, u in enumerate(self.store.get_units()) if u is unit), None)
+        return self.store.index_of(unit)
 
     def _on_unit_checked(self, _checks_controller, unit, checker, failures):
         # Keep store.checks in step with the checks shown while typing.
@@ -458,6 +533,9 @@ class StoreController(BaseController):
         # a unit belonging to a store that's since been replaced.
         if self.store is None:
             return
-        if unit not in self.store.get_units():
+        index = self.store.index_of(unit)
+        if index is None:
             return
+        if self.is_stream():
+            self.store.mark_modified(index)
         self.set_modified(True)

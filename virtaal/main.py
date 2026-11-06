@@ -29,6 +29,18 @@ def _resolve_startup_path(startupfile):
     return startupfile
 
 
+def _is_several(startup):
+    """Whether the start-up paths open as one list of units: several
+    paths, or a directory."""
+    import os
+
+    return isinstance(startup, list) or os.path.isdir(_resolve_startup_path(startup))
+
+
+def _first_path(startup):
+    return startup[0] if isinstance(startup, list) else startup
+
+
 def _open_filename(main_controller):
     """The file to reopen after a restart: the open one, or its bundle."""
     store = main_controller.get_store()
@@ -118,7 +130,10 @@ class Virtaal:
         # resolves, falling back to the full welcome screen on failure.
         wc = WelcomeScreenController(main_controller)
         # Resumes where an unclean end left off, instead of the welcome screen.
-        wanted = startupfile and _resolve_startup_path(startupfile)
+        if isinstance(startupfile, list):
+            wanted = [_resolve_startup_path(path) for path in startupfile]
+        else:
+            wanted = startupfile and _resolve_startup_path(startupfile)
         startupfile = recovery.choose_startup_file(startupfile, wanted) or startupfile
         if startupfile:
             # Only gates the loading notice - _open_startup_file always
@@ -126,8 +141,8 @@ class Virtaal:
             # later deferred code depends on either way.
             import os
 
-            if os.path.exists(_resolve_startup_path(startupfile)):
-                main_controller.view.show_loading_notice(startupfile)
+            if os.path.exists(_resolve_startup_path(_first_path(startupfile))):
+                main_controller.view.show_loading_notice(_first_path(startupfile))
             self.defer(self._open_startup_file, startupfile)
         else:
             wc.activate()
@@ -171,6 +186,9 @@ class Virtaal:
         LanguageController(main_controller)
         PlaceablesController(main_controller)
 
+        if _is_several(startupfile):
+            paths = startupfile if isinstance(startupfile, list) else [startupfile]
+            return main_controller.open_files(paths)
         return main_controller.open_file(startupfile)
 
     def _open_startup_file(self, startupfile):
@@ -182,11 +200,12 @@ class Virtaal:
             # Plugins load next, and process the open file.
             import os
 
-            main_controller.view.show_progress(_("Loading '%s'…") % os.path.basename(startupfile))
+            name = os.path.basename(os.path.normpath(_first_path(startupfile)))
+            main_controller.view.show_progress(_("Loading '%s'…") % name)
         else:
             main_controller.welcomescreen_controller.activate()
             main_controller.view.show_startup_open_failure_notice(
-                startupfile, main_controller.last_open_error
+                _first_path(startupfile), main_controller.last_open_error
             )
             # Otherwise it just sits there as a stale reminder about a
             # file the user has since moved past.

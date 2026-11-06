@@ -173,12 +173,19 @@ def build_parser():
     # Profiling does not make sense in packaged versions.  Set to True to disable profiling.
     if not packaged:
         parser.add_argument("-P", "--profile", dest="profile", help=argparse.SUPPRESS)
-    # nargs='?' makes this genuinely optional and means argparse itself
-    # rejects more than one positional argument (with its own
-    # "unrecognized arguments" error).
     parser.add_argument("--priorities", dest="priorities", metavar="FILE", help=argparse.SUPPRESS)
-    parser.add_argument("translation_file", nargs="?", default=None)
+    # Several files, or a directory, open as one list of units.
+    parser.add_argument("translation_file", nargs="*", default=[])
     return parser
+
+
+def startup_paths(paths):
+    """What Virtaal opens at start-up: None, one path, or a list of them."""
+    if not paths:
+        return None
+    if len(paths) == 1:
+        return paths[0]
+    return list(paths)
 
 
 def run_virtaal(startup_file):
@@ -349,7 +356,7 @@ def main(argv):
         _set_logging(options, parser)
         _set_pseudo_translation(options, parser)
         _set_lang(options, parser)
-        startup_file = options.translation_file
+        startup_file = startup_paths(options.translation_file)
     else:
         # No arguments given, so we save some time by avoiding all the things
         # that could have happened on the command line
