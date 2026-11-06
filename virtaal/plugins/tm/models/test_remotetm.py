@@ -139,9 +139,7 @@ def test_push_store_only_sends_translated_units():
         source='bye', target='', getcontext=lambda: '', istranslated=lambda: False
     )
     store_controller = SimpleNamespace(
-        store=SimpleNamespace(
-            get_units=lambda: [translated, untranslated], get_filename=lambda: 'file.po'
-        )
+        store=SimpleNamespace(file_parts=lambda: [('file.po', [translated, untranslated])])
     )
 
     model.push_store(store_controller)
@@ -155,9 +153,7 @@ def test_push_store_only_sends_translated_units():
 def test_push_store_resets_the_cache():
     model = _model(cache={'stale': 'entry'})
     model.tmclient = SimpleNamespace(add_store=lambda *a: None)
-    store_controller = SimpleNamespace(
-        store=SimpleNamespace(get_units=lambda: [], get_filename=lambda: 'file.po')
-    )
+    store_controller = SimpleNamespace(store=SimpleNamespace(file_parts=lambda: [('file.po', [])]))
 
     model.push_store(store_controller)
 
@@ -413,9 +409,7 @@ def test_a_reply_asked_for_before_a_save_is_dropped():
     # The server may not have had the saved translations yet.
     model, emitted = _prefetching_model()
     model.tmclient.add_store = lambda *a: None
-    store_controller = SimpleNamespace(
-        store=SimpleNamespace(get_units=lambda: [], get_filename=lambda: 'file.po')
-    )
+    store_controller = SimpleNamespace(store=SimpleNamespace(file_parts=lambda: [('file.po', [])]))
 
     model.prefetch(_unit('hello'))
     model.push_store(store_controller)

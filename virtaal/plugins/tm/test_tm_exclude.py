@@ -451,6 +451,9 @@ class _SavingStoreController(GObject.GObject):
     def is_modified(self):
         return self.modified
 
+    def is_stream(self):
+        return False
+
 
 def test_unticking_and_ticking_again_with_the_real_local_tm(tmp_path, monkeypatch):
     from virtaal.common import SignalTracker

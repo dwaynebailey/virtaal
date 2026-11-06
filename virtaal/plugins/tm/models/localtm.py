@@ -184,13 +184,19 @@ class TMModel(remotetm.TMModel):
         """Sync the saved file into the local TM: a changed unit replaces
         its earlier target and a unit no longer translated drops out. The
         server leaves a file excluded from the TM alone."""
-        key = store_key(store_controller)
+        if store_controller.is_stream():
+            for path, units in store_controller.store.file_parts():
+                self._push_units((os.path.realpath(path), ''), units)
+            return
+        self._push_units(store_key(store_controller), store_controller.store.get_units())
+
+    def _push_units(self, key, units):
         if self._excluded.get(key):
             return
         path, member = key
         units = [
             {**remotetm.unit2dict(unit), 'key': unit.getid()}
-            for unit in store_controller.store.get_units()
+            for unit in units
             if unit.istranslated()
         ]
         source_lang, target_lang = self.source_lang, self.target_lang

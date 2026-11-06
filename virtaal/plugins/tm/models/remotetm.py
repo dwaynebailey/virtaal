@@ -174,13 +174,9 @@ class TMModel(BaseTMModel):
 
     def push_store(self, store_controller):
         """Add units in store to TM database on save."""
-        units = []
-        for unit in store_controller.store.get_units():
-            if unit.istranslated():
-                units.append(unit2dict(unit))
-        self.tmclient.add_store(
-            store_controller.store.get_filename(), units, self.source_lang, self.target_lang
-        )
+        for filename, units in store_controller.store.file_parts():
+            units = [unit2dict(unit) for unit in units if unit.istranslated()]
+            self.tmclient.add_store(filename, units, self.source_lang, self.target_lang)
         self.cache = {}
         self._generation += 1
 

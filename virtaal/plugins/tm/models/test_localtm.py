@@ -329,6 +329,7 @@ def _pushing_model():
 def _store_controller(po, filename, bundle=None, member=None):
     store = pypo.pofile.parsestring(po)
     return SimpleNamespace(
+        is_stream=lambda: False,
         store=SimpleNamespace(get_units=lambda: store.units, get_filename=lambda: filename),
         get_bundle_filename=lambda: bundle,
         get_store_filename=lambda: '%s:%s' % (bundle, member) if bundle else filename,
@@ -359,6 +360,28 @@ def test_push_store_syncs_the_files_translated_units_by_key(tmp_path):
         {'source': 'Quit', 'target': 'Verlaat', 'context': 'menu', 'key': 'menu\x04Quit'},
     ]
     assert model.cache == {}
+
+
+def test_push_store_sends_each_file_of_several_under_its_own_key(tmp_path):
+    model = _pushing_model()
+    units = pypo.pofile.parsestring(PO).units
+    store_controller = SimpleNamespace(
+        is_stream=lambda: True,
+        store=SimpleNamespace(
+            file_parts=lambda: [
+                (str(tmp_path / 'a.po'), units[:2]),
+                (str(tmp_path / 'b.po'), units[2:]),
+            ]
+        ),
+    )
+
+    model.push_store(store_controller)
+
+    sent = [(path, [u['source'] for u in body['units']]) for path, body, _s, _t in model.sent]
+    assert sent == [
+        (os.path.realpath(tmp_path / 'a.po'), ['Open']),
+        (os.path.realpath(tmp_path / 'b.po'), ['Quit']),
+    ]
 
 
 def test_push_store_keys_a_bundles_file_by_the_bundle_and_its_name(tmp_path):
