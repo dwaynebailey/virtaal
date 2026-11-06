@@ -310,6 +310,40 @@ def test_get_sends_an_if_none_match_header_when_an_etag_is_given():
     assert added[0].headers == ['If-None-Match: "abc123"']
 
 
+def test_get_adds_extra_headers_and_returns_the_request():
+    client = _client()
+    added = []
+    client.add = lambda request: added.append(request)
+
+    request = client.get(
+        'http://example.com', callback=None, etag='abc', headers=['Range: bytes=-10']
+    )
+
+    assert request is added[0]
+    assert request.headers == ['Range: bytes=-10', 'If-None-Match: "abc"']
+
+
+def test_a_request_caps_the_reply_size(monkeypatch):
+    monkeypatch.setattr('virtaal.support.httpclient.pycurl.Curl', _RecordingCurl)
+
+    assert (
+        HTTPRequest('http://example.com', max_size=100).curl.opts[pycurl.MAXFILESIZE_LARGE] == 100
+    )
+    assert pycurl.MAXFILESIZE_LARGE not in HTTPRequest('http://example.com').curl.opts
+
+
+def test_response_header_reads_the_last_reply_after_a_redirect():
+    req = HTTPRequest('http://example.com')
+    req.result_headers.write(
+        b'HTTP/1.1 302 Found\r\nETag: "old"\r\n\r\n'
+        b'HTTP/1.1 206 Partial Content\r\netag: "new"\r\nContent-Range: bytes 0-1/9\r\n'
+    )
+
+    assert req.response_header('ETag') == '"new"'
+    assert req.response_header('content-range') == 'bytes 0-1/9'
+    assert req.response_header('Last-Modified') is None
+
+
 # set_virtaal_useragent()
 
 

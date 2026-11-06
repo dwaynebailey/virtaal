@@ -61,6 +61,7 @@ class HTTPRequest(GObjectWrapper):
         follow_location=False,
         force_quiet=True,
         download=False,
+        max_size=None,
     ):
         GObjectWrapper.__init__(self)
         self.result = BytesIO()
@@ -83,6 +84,9 @@ class HTTPRequest(GObjectWrapper):
         self.curl.setopt(pycurl.ENCODING, "")  # use all available encodings
         self.curl.setopt(pycurl.URL, self.url)
         self._configure_timeouts(download)
+        if max_size:
+            # Fails a reply announced as bigger, e.g. a whole file for a range.
+            self.curl.setopt(pycurl.MAXFILESIZE_LARGE, max_size)
         self._configure_ca_bundle()
         self._configure_windows_tls_workaround()
         self._configure_method(method, data, headers, user_agent, follow_location)
@@ -170,6 +174,15 @@ class HTTPRequest(GObjectWrapper):
 
     def get_effective_url(self):
         return self.curl.getinfo(pycurl.EFFECTIVE_URL)
+
+    def response_header(self, name):
+        """The value of the reply's last C{name} header, or None."""
+        prefix = name.lower().encode('ascii') + b':'
+        value = None
+        for line in self.result_headers.getvalue().splitlines():
+            if line.lower().startswith(prefix):
+                value = line[len(prefix) :].strip().decode('latin-1')
+        return value
 
     def handle_result(self):
         """called after http request is done"""
@@ -267,17 +280,28 @@ class HTTPClient:
             return False
         return True
 
-    def get(self, url, callback, etag=None, error_callback=None, download=False):
-        headers = None
+    def get(
+        self,
+        url,
+        callback,
+        etag=None,
+        error_callback=None,
+        download=False,
+        headers=None,
+        max_size=None,
+    ):
+        """@returns: The request."""
+        headers = list(headers or [])
         if etag:
             # See http://en.wikipedia.org/wiki/HTTP_ETag for more details about ETags
-            headers = ['If-None-Match: "%s"' % (etag)]
+            headers.append('If-None-Match: "%s"' % (etag))
         request = HTTPRequest(
             url,
-            headers=headers,
+            headers=headers or None,
             user_agent=self.user_agent,
             follow_location=True,
             download=download,
+            max_size=max_size,
         )
         self.add(request)
 
@@ -287,6 +311,7 @@ class HTTPClient:
         if error_callback:
             request.connect('http-client-error', error_callback)
             request.connect('http-server-error', error_callback)
+        return request
 
     def set_virtaal_useragent(self):
         """Set a nice user agent indicating Virtaal, its version, how it
