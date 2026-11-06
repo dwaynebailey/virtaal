@@ -5,7 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from gi.repository import Gtk
+from gi.repository import Gdk, Gtk
 
 from virtaal.test.test_scaffolding import TestScaffolding
 
@@ -98,3 +98,19 @@ class TestStoreView(TestScaffolding):
     # confirmed live to segfault (real SIGSEGV inside GTK's own theme
     # reload, gtk_widget_get_screen on an invalid widget), not just an
     # intermittent pytest-xdist worker crash.
+
+    def test_next_and_previous_file_have_ctrl_shift_page_down_and_up(self):
+        for path, key in (
+            ('<Virtaal>/Navigation/NextFile', Gdk.KEY_Page_Down),
+            ('<Virtaal>/Navigation/PrevFile', Gdk.KEY_Page_Up),
+        ):
+            found, entry = Gtk.AccelMap.lookup_entry(path)
+            assert found
+            assert entry.accel_key == key
+            assert entry.accel_mods == Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK
+
+    def test_next_and_previous_file_are_greyed_for_one_file(self):
+        view = self.store_controller.view
+
+        assert not view.mnu_next_file.get_sensitive()
+        assert not view.mnu_prev_file.get_sensitive()

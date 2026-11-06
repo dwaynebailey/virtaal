@@ -665,6 +665,65 @@ def test_move_first_and_last_delegate_to_keyboard_jump():
     assert calls == [False, True]
 
 
+# _keyboard_file_jump() #
+
+
+def _make_file_jump_view(indices, index, starts=(0, 3, 6), stream=True):
+    view, cursor, _finished = _make_jump_view(indices, index)
+    store = SimpleNamespace(file_offsets=lambda: [(start, None) for start in starts])
+    view.view.controller.get_store = lambda: store
+    view.view.controller.is_stream = lambda: stream
+    return view, cursor
+
+
+def test_keyboard_file_jump_goes_to_the_first_unit_of_the_next_and_previous_file():
+    view, cursor = _make_file_jump_view(list(range(9)), 4)
+
+    StoreTreeView._keyboard_file_jump(view, forward=True)
+    assert cursor.index == 6
+    StoreTreeView._keyboard_file_jump(view, forward=False)
+    assert cursor.index == 3
+    StoreTreeView._keyboard_file_jump(view, forward=False)
+    assert cursor.index == 0
+
+
+def test_keyboard_file_jump_stops_at_the_first_and_last_file():
+    view, cursor = _make_file_jump_view(list(range(9)), 7)
+    StoreTreeView._keyboard_file_jump(view, forward=True)
+    assert cursor.index == 7
+
+    view, cursor = _make_file_jump_view(list(range(9)), 1)
+    StoreTreeView._keyboard_file_jump(view, forward=False)
+    assert cursor.index == 1
+
+
+def test_keyboard_file_jump_skips_files_with_nothing_in_the_navigation_list():
+    # Incomplete: the second file is done.
+    view, cursor = _make_file_jump_view([1, 7, 8], 1)
+
+    StoreTreeView._keyboard_file_jump(view, forward=True)
+    assert cursor.index == 7
+    StoreTreeView._keyboard_file_jump(view, forward=False)
+    assert cursor.index == 1
+
+
+def test_keyboard_file_jump_is_a_jump():
+    view, cursor = _make_file_jump_view(list(range(9)), 4)
+    kinds = []
+    cursor.connect('cursor-changed', lambda c: kinds.append(view.view.controller.arrival))
+
+    StoreTreeView._keyboard_file_jump(view, forward=True)
+
+    assert kinds == ['jump']
+
+
+def test_keyboard_file_jump_does_nothing_for_one_file():
+    view, cursor = _make_file_jump_view(list(range(9)), 4, stream=False)
+
+    assert StoreTreeView._keyboard_file_jump(view, forward=True) is None
+    assert cursor.index == 4
+
+
 # _on_button_press() #
 
 

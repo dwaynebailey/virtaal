@@ -45,6 +45,8 @@ SHORTCUT_GROUPS = [
             ("<Primary>Page_Down", _("Move 10 units down")),
             ("<Primary>Home", _("Move to first unit")),
             ("<Primary>End", _("Move to last unit")),
+            ("<Primary><Shift>Page_Up", _("Move to the previous file")),
+            ("<Primary><Shift>Page_Down", _("Move to the next file")),
             ("<Primary>f F3", _("Search")),
             ("<Primary>g", _("Move to next search match")),
             ("<Primary><Shift>g", _("Move to previous search match")),

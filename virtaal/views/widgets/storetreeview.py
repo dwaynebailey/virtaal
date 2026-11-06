@@ -97,6 +97,12 @@ class StoreTreeView(Gtk.TreeView):
         mainview.gui.get_object('mnu_last').connect(
             'activate', lambda *args: self._move_last(None, None, None, None)
         )
+        mainview.gui.get_object('mnu_prev_file').connect(
+            'activate', lambda *args: self._keyboard_file_jump(forward=False)
+        )
+        mainview.gui.get_object('mnu_next_file').connect(
+            'activate', lambda *args: self._keyboard_file_jump(forward=True)
+        )
 
     def _make_renderer(self):
         renderer = StoreCellRenderer(self.view)
@@ -406,6 +412,29 @@ class StoreTreeView(Gtk.TreeView):
         self._pending_move_advances = False
         with self.view.controller.arriving('jump'):
             cursor.index = cursor.indices[-1] if last else cursor.indices[0]
+        return True
+
+    def _keyboard_file_jump(self, forward):
+        """Move to the first unit of the next or previous file in the
+        navigation list."""
+        from virtaal.views.storeview import file_jump
+
+        controller = self.view.controller
+        if not controller.get_store() or not controller.is_stream():
+            return
+        if self._waiting_for_row_change > 0:
+            return True
+        cursor = self.view.cursor
+        if cursor.index < 0 or not cursor.indices:
+            return True
+        starts = [offset for offset, _entry in controller.get_store().file_offsets()]
+        index = file_jump(cursor.indices, starts, cursor.index, forward)
+        if index is None:
+            return True
+        self._pending_move_offset = 0
+        self._pending_move_advances = False
+        with controller.arriving('jump'):
+            cursor.index = index
         return True
 
     def _move_first(self, _accel_group, _acceleratable, _keyval, _modifier):

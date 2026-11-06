@@ -66,6 +66,15 @@ def test_save_as_is_listed():
     assert shortcuts['Save the current file under a new name'] == '<Primary><Shift>s'
 
 
+def test_next_and_previous_file_are_listed():
+    shortcuts = dict(
+        (description, accel) for _title, group in SHORTCUT_GROUPS for accel, description in group
+    )
+
+    assert shortcuts['Move to the next file'] == '<Primary><Shift>Page_Down'
+    assert shortcuts['Move to the previous file'] == '<Primary><Shift>Page_Up'
+
+
 @pytest.mark.parametrize(
     'is_mac, accelerator', [(True, '<Primary>slash'), (False, '<Primary>question')]
 )

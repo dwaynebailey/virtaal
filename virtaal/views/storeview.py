@@ -10,6 +10,7 @@ from bisect import bisect_left, bisect_right
 from gi.repository import Gdk, Gtk
 
 from virtaal.common import pan_app
+from virtaal.common.platform import platform
 
 from . import theme
 from .baseview import BaseView
@@ -58,6 +59,24 @@ def scoped_units(rows, scope, current, total):
 def load_context_setting():
     value = pan_app.settings.general.get(CONTEXT_SETTING, 'all')
     return int(value) if value.isdigit() else CONTEXT_ALL
+
+
+def file_jump(indices, starts, current, forward):
+    """The index in the sorted C{indices} that a move from C{current} to
+    the next or previous file lands on: that file's first one in
+    C{indices}. None at the first or last file. C{starts}: the sorted
+    index of each file's first unit."""
+    number = bisect_right(starts, current) - 1
+    if forward:
+        if number + 1 >= len(starts):
+            return None
+        pos = bisect_left(indices, starts[number + 1])
+        return indices[pos] if pos < len(indices) else None
+    pos = bisect_left(indices, starts[max(number, 0)]) - 1
+    if pos < 0:
+        return None
+    previous = bisect_right(starts, indices[pos]) - 1
+    return indices[bisect_left(indices, starts[previous])]
 
 
 def save_context_setting(context):
@@ -121,6 +140,17 @@ class StoreView(BaseView):
         Gtk.AccelMap.add_entry(
             "<Virtaal>/Navigation/Last", Gdk.KEY_End, Gdk.ModifierType.CONTROL_MASK
         )
+        if platform.is_mac:
+            # Cmd+Shift: GtkosxApplication doesn't map a Ctrl+Shift accelerator.
+            file_mods = (
+                Gdk.ModifierType.META_MASK
+                | Gdk.ModifierType.MOD2_MASK
+                | Gdk.ModifierType.SHIFT_MASK
+            )
+        else:
+            file_mods = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK
+        Gtk.AccelMap.add_entry("<Virtaal>/Navigation/PrevFile", Gdk.KEY_Page_Up, file_mods)
+        Gtk.AccelMap.add_entry("<Virtaal>/Navigation/NextFile", Gdk.KEY_Page_Down, file_mods)
         # Same physical key as the target textbox's own Ctrl+Enter/
         # Ctrl+Shift+Enter handling (unitview.py) - harmless overlap,
         # since a focused textbox's own key handler consumes the event
@@ -170,6 +200,10 @@ class StoreView(BaseView):
         self.mnu_pagedown.set_accel_path('<Virtaal>/Navigation/PgDown')
         self.mnu_first.set_accel_path('<Virtaal>/Navigation/First')
         self.mnu_last.set_accel_path('<Virtaal>/Navigation/Last')
+        self.mnu_prev_file = mainview.gui.get_object('mnu_prev_file')
+        self.mnu_next_file = mainview.gui.get_object('mnu_next_file')
+        self.mnu_prev_file.set_accel_path('<Virtaal>/Navigation/PrevFile')
+        self.mnu_next_file.set_accel_path('<Virtaal>/Navigation/NextFile')
         mainview.gui.get_object('mnu_state_advance').set_accel_path(
             '<Virtaal>/Navigation/StateAdvance'
         )
@@ -182,7 +216,14 @@ class StoreView(BaseView):
         # because its accel_path/accel_group changed - same fix as
         # mainview.py's own File/Help items (mnu_open et al.).
         menu_navigation = mainview.gui.get_object('menu_navigation')
-        for item_id in ('mnu_first', 'mnu_last', 'mnu_state_advance', 'mnu_state_reverse'):
+        for item_id in (
+            'mnu_first',
+            'mnu_last',
+            'mnu_prev_file',
+            'mnu_next_file',
+            'mnu_state_advance',
+            'mnu_state_reverse',
+        ):
             item = mainview.gui.get_object(item_id)
             pos = menu_navigation.get_children().index(item)
             menu_navigation.remove(item)
@@ -293,6 +334,9 @@ class StoreView(BaseView):
             self.mnu_last,
         ):
             widget.set_sensitive(sensitive)
+        stream = sensitive and self.controller.is_stream()
+        self.mnu_prev_file.set_sensitive(stream)
+        self.mnu_next_file.set_sensitive(stream)
 
     # EVENT HANDLERS #
     def _on_cursor_change(self, cursor):
