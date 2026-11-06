@@ -212,6 +212,10 @@ class StoreView(BaseView):
             return
         self._treeview.select_index(0)
 
+    def file_loaded(self, segment, peek):
+        """A file of the stream was read: its rows now hold its real units."""
+        self._treeview.replace_units(peek, segment.units())
+
     def set_context(self, context):
         """Show C{context} units either side of the one being edited, or
         every unit for L{CONTEXT_ALL}."""

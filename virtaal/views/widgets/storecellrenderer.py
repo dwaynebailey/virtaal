@@ -184,8 +184,8 @@ class StoreCellRenderer(Gtk.CellRenderer):
         self._regrow_scheduled = False
         self._watched_buffers = set()
         self._watched_textboxes = set()
-        # store identity/length -> {id(unit): index}, rebuilt only when
-        # the store itself changes.
+        # store identity/length/generation -> {id(unit): index}, rebuilt
+        # only when the store or its units change.
         self._index_cache = None
         # font description string -> (char_width, line_height).
         self._metrics_cache = {}
@@ -535,9 +535,11 @@ class StoreCellRenderer(Gtk.CellRenderer):
 
     def _unit_index(self, store):
         cache = self._index_cache
-        if cache is None or cache[0] is not store or cache[1] != len(store):
+        # A stream's units change as its files are read.
+        key = (len(store), getattr(store, 'generation', 0))
+        if cache is None or cache[0] is not store or cache[1] != key:
             index_by_id = {id(unit): i for i, unit in enumerate(store)}
-            cache = (store, len(store), index_by_id)
+            cache = (store, key, index_by_id)
             self._index_cache = cache
         return cache[2].get(id(self.unit))
 

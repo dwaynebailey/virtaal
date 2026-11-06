@@ -33,6 +33,8 @@ class StoreTreeModel(GObject.GObject, Gtk.TreeModel):
     def __init__(self, storemodel, rows=None):
         super().__init__()
         self._store = storemodel
+        # Drawing a row mustn't read a file the cursor hasn't reached.
+        self._peek = getattr(storemodel, 'peek_unit', storemodel.__getitem__)
         self._store_len = len(storemodel)
         self._rows = None
         self._row_of = None
@@ -50,7 +52,7 @@ class StoreTreeModel(GObject.GObject, Gtk.TreeModel):
         return self._store_len if self._rows is None else len(self._rows)
 
     def unit_at_row(self, row):
-        return self._store[self._store_index(row)]
+        return self._peek(self._store_index(row))
 
     def _store_index(self, row):
         return row if self._rows is None else self._rows[row]
@@ -93,7 +95,7 @@ class StoreTreeModel(GObject.GObject, Gtk.TreeModel):
     def do_get_value(self, iter_, column):
         index = self._store_index(iter_.user_data)
         if column <= 1:
-            unit = self._store[index]
+            unit = self._peek(index)
             if column == 0:
                 note_text = unit.getnotes()
                 if not note_text:

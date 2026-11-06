@@ -156,6 +156,16 @@ class StoreTreeView(Gtk.TreeView):
     def _on_vscroll(self, _adjustment):
         self.schedule_revalidate_visible_estimated_rows()
 
+    def replace_units(self, old_units, new_units):
+        """Rows that showed C{old_units} now show C{new_units}, with the
+        same text: carry over which heights are still estimates."""
+        estimated = self._estimated_unit_ids
+        for old, new in zip(old_units, new_units):
+            if id(old) in estimated:
+                estimated.discard(id(old))
+                estimated.add(id(new))
+        self.schedule_revalidate_visible_estimated_rows()
+
     def mark_row_estimated(self, unit):
         self._estimated_unit_ids.add(id(unit))
 
