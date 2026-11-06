@@ -26,7 +26,7 @@ THREE_DAYS = 60 * 60 * 24 * 3
 
 class CachedRemoteTerminologyModel(BaseTerminologyModel):
     """Terminology downloaded per language pair from a server and cached
-    as a local file in C{TERMDIR}, refreshed when older than three days."""
+    as a local file in C{TERMDIR}, refreshed when older than C{REFRESH_AGE}."""
 
     __gtype_name__ = None
 
@@ -36,6 +36,8 @@ class CachedRemoteTerminologyModel(BaseTerminologyModel):
     """Directory holding the cached files."""
     DEFAULT_EXT = 'po'
     """Extension for a language pair with no cached file yet."""
+    REFRESH_AGE = THREE_DAYS
+    """Seconds before a cached file is checked again."""
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
@@ -157,7 +159,7 @@ class CachedRemoteTerminologyModel(BaseTerminologyModel):
         stats = os.stat(localfile)
         from datetime import datetime
 
-        return (time.mktime(datetime.now().timetuple()) - stats.st_mtime) > THREE_DAYS
+        return (time.mktime(datetime.now().timetuple()) - stats.st_mtime) > self.REFRESH_AGE
 
     def _check_for_update(self, srclang, tgtlang):
         localfile = self._get_curr_term_filename(srclang, tgtlang)

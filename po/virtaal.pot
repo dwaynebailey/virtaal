@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 06:18+0000\n"
+"POT-Creation-Date: 2026-11-06 06:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1622,6 +1622,15 @@ msgstr ""
 msgid "Existing translations: %(translations)s"
 msgstr ""
 
+#. l10n: A terminology source: the terms Microsoft uses in its software
+#: virtaal/plugins/terminology/models/microsoft.py
+msgid "Microsoft Terminology"
+msgstr ""
+
+#: virtaal/plugins/terminology/models/microsoft.py
+msgid "The terms used in Microsoft's software, in your language"
+msgstr ""
+
 #: virtaal/plugins/terminology/models/pontoon.py
 msgid "Mozilla Pontoon"
 msgstr ""
@@ -2328,6 +2337,12 @@ msgstr ""
 #: virtaal/views/backendselect.py
 #, python-format
 msgid "Sends the text you translate to %(service)s."
+msgstr ""
+
+#. l10n: %(service)s is the name of a company or site, such as Microsoft
+#: virtaal/views/backendselect.py
+#, python-format
+msgid "Downloads from %(service)s, sending none of your text."
 msgstr ""
 
 #: virtaal/views/backendselect.py

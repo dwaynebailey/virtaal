@@ -20,7 +20,13 @@ from translate.storage.placeables.terminology import TerminologyPlaceable
 from virtaal.common import pan_app
 from virtaal.common.platform import platform
 from virtaal.controllers.placeablescontroller import PlaceablesController
-from virtaal.plugins.terminology.models import autoterm, localfile, pontoon
+from virtaal.plugins.terminology.models import (
+    autoterm,
+    localfile,
+    microsoft,
+    pontoon,
+    test_microsoft,
+)
 from virtaal.plugins.terminology.models.localfile import localfileview
 from virtaal.plugins.terminology.termcontroller import TerminologyController
 from virtaal.support.httpclient import HTTPClient
@@ -43,7 +49,8 @@ class TestTerminologyModelsStartup(TestScaffolding):
         PlaceablesController(self.main_controller)
         # Every model is built by the tests themselves.
         self.term_controller = TerminologyController(
-            self.main_controller, {'disabled_models': ['localfile', 'autoterm', 'pontoon']}
+            self.main_controller,
+            {'disabled_models': ['localfile', 'autoterm', 'pontoon', 'microsoft']},
         )
         self.unit_controller.load_unit(self.trans_store.units[1])
         self.unit_view = self.unit_controller.view
@@ -417,3 +424,30 @@ class TestTerminologyModelsStartup(TestScaffolding):
         model.destroy()
 
         assert 'etag-1' in (tmp_path / 'terminology.ini').read_text()
+
+    # Microsoft #
+
+    def test_microsoft_asks_for_the_end_of_its_zip_on_start(self, tmp_path, monkeypatch):
+        self.lang_controller.set_language_pair('en', 'af')
+
+        self._web_model(microsoft, tmp_path, monkeypatch)
+
+        [(url, etag, kwargs)] = self.requests
+        assert url == microsoft.ZIP_URL
+        assert etag is None
+        assert kwargs['headers'][0].startswith('Range: bytes=-')
+
+    def test_microsoft_reads_its_cached_file_and_skips_other_source_languages(
+        self, tmp_path, monkeypatch
+    ):
+        self.lang_controller.set_language_pair('en', 'af')
+        termdir = tmp_path / 'microsoft'
+        termdir.mkdir()
+        (termdir / 'af.tbx').write_bytes(test_microsoft.tbx('af', 'lêer'))
+
+        model, _termdir = self._web_model(microsoft, tmp_path, monkeypatch)
+        assert [(u.source, u.target) for u in model.store.units] == [('file', 'lêer')]
+        self.lang_controller.set_language_pair('de', 'af')
+
+        assert self.requests == []
+        assert model.store.units == []

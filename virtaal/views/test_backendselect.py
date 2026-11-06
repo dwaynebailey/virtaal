@@ -264,3 +264,20 @@ def test_an_offline_source_has_no_notice(monkeypatch):
 
     assert 'notice' not in items['local']
     assert 'link' not in items['local']
+
+
+def test_a_downloading_source_says_it_sends_no_text(monkeypatch):
+    items = _items_for(
+        monkeypatch,
+        {
+            'terms': {
+                'display_name': 'Terms',
+                'description': 'd',
+                'downloads_from': 'Example Corp',
+                'terms_url': 'https://example.org/terms',
+            }
+        },
+    )
+
+    assert items['terms']['notice'] == 'Downloads from Example Corp, sending none of your text.'
+    assert items['terms']['link'] == ('Terms of service', 'https://example.org/terms')

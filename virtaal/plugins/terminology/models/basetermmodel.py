@@ -36,6 +36,9 @@ class BaseTerminologyModel(BaseModel, Configurable):
     online_service = None
     """The outside service, by name, this backend sends the text being
     translated to; None if it sends none (#1301)."""
+    downloads_from = None
+    """The outside service, by name, this backend downloads its terms
+    from without sending it any text."""
     terms_url = None
     """That service's terms of service, if it has any."""
 

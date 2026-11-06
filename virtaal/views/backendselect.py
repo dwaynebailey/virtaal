@@ -45,8 +45,13 @@ def select_backends(
             item['notice'] = _('Sends the text you translate to %(service)s.') % {
                 'service': info['online_service']
             }
-            if info.get('terms_url'):
-                item['link'] = (_('Terms of service'), info['terms_url'])
+        elif info.get('downloads_from'):
+            # l10n: %(service)s is the name of a company or site, such as Microsoft
+            item['notice'] = _('Downloads from %(service)s, sending none of your text.') % {
+                'service': info['downloads_from']
+            }
+        if 'notice' in item and info.get('terms_url'):
+            item['link'] = (_('Terms of service'), info['terms_url'])
         items.append(item)
 
     def item_enabled(dlg, item):

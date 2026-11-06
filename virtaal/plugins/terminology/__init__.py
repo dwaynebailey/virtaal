@@ -9,6 +9,10 @@ from virtaal.controllers.baseplugin import BasePlugin
 
 from .termcontroller import TerminologyController
 
+# Online sources that stay off until turned on, also in a profile saved
+# before they were added.
+OFF_UNTIL_ENABLED = ('microsoft',)
+
 
 class Plugin(BasePlugin):
     display_name = _('Terminology Help')
@@ -20,7 +24,8 @@ class Plugin(BasePlugin):
         # disabled until it has somewhere working to point at. The
         # plugin itself (fetch-any-URL terminology) stays, since it's a
         # distinct concept from Pontoon's own fixed, specific source.
-        'disabled_models': 'autoterm',
+        'disabled_models': 'autoterm,microsoft',
+        'known_models': '',
         'max_matches': '5',
         'min_quality': '70',
     }
@@ -43,6 +48,13 @@ class Plugin(BasePlugin):
         # enforce it regardless of what an old config says.
         if 'autoterm' not in self.config['disabled_models']:
             self.config['disabled_models'].append('autoterm')
+        known = [name for name in self.config['known_models'].split(',') if name]
+        for name in OFF_UNTIL_ENABLED:
+            if name not in known:
+                known.append(name)
+                if name not in self.config['disabled_models']:
+                    self.config['disabled_models'].append(name)
+        self.config['known_models'] = known
         self._config_int('max_matches', 0, 1000)
         # A quality of 0 divides by zero when matching.
         self._config_int('min_quality', 1, 100)

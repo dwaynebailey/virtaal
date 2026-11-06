@@ -43,7 +43,7 @@ def test_init_plugin_parses_the_default_config(monkeypatch):
     assert plugin.main_controller is main_controller
     assert plugin.configure_func == plugin.configure
     assert captured['main_controller'] is main_controller
-    assert captured['config']['disabled_models'] == ['autoterm']
+    assert captured['config']['disabled_models'] == ['autoterm', 'microsoft']
     assert captured['config']['max_matches'] == 5
     assert captured['config']['min_quality'] == 70
     assert captured['config']['backends_dialog_width'] == 400
@@ -58,7 +58,7 @@ def test_init_plugin_loads_and_coerces_an_overridden_config(monkeypatch, isolate
 
     assert captured['config']['backends_dialog_width'] == 250
     assert captured['config']['max_matches'] == 2
-    assert captured['config']['disabled_models'] == ['autoterm']  # not overridden
+    assert captured['config']['disabled_models'] == ['autoterm', 'microsoft']  # not overridden
 
 
 def test_init_plugin_force_disables_autoterm_despite_a_stale_saved_config(
@@ -86,3 +86,38 @@ def test_destroy_saves_config_and_delegates_to_the_controller(monkeypatch):
     plugin.destroy()
 
     assert saved == [True, 'controller']
+
+
+def test_init_plugin_keeps_microsoft_off_in_a_profile_saved_before_it(
+    monkeypatch, isolated_config_dir
+):
+    (isolated_config_dir / Plugin.CONFIG_FILENAME).write_text(
+        '[terminology]\ndisabled_models = autoterm\n'
+    )
+
+    _plugin, captured = _init(monkeypatch)
+
+    assert captured['config']['disabled_models'] == ['autoterm', 'microsoft']
+    assert captured['config']['known_models'] == ['microsoft']
+
+
+def test_init_plugin_keeps_microsoft_on_once_the_user_turned_it_on(
+    monkeypatch, isolated_config_dir
+):
+    (isolated_config_dir / Plugin.CONFIG_FILENAME).write_text(
+        '[terminology]\ndisabled_models = autoterm\nknown_models = microsoft\n'
+    )
+
+    _plugin, captured = _init(monkeypatch)
+
+    assert captured['config']['disabled_models'] == ['autoterm']
+
+
+def test_saved_config_remembers_microsoft_was_offered(monkeypatch, isolated_config_dir):
+    plugin, captured = _init(monkeypatch)
+    captured['config']['disabled_models'].remove('microsoft')
+    plugin.save_config()
+
+    _plugin, captured = _init(monkeypatch)
+
+    assert 'microsoft' not in captured['config']['disabled_models']

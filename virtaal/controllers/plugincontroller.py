@@ -93,7 +93,13 @@ class PluginController(BaseController):
         category,
         interface,
         get_disabled,
-        class_info_attribs=('display_name', 'description', 'online_service', 'terms_url'),
+        class_info_attribs=(
+            'display_name',
+            'description',
+            'online_service',
+            'downloads_from',
+            'terms_url',
+        ),
     ):
         """Build a PluginController for one of the backend categories
         (terminology/tm/lookup) - each owning controller's _load_models()
