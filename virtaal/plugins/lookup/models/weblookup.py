@@ -40,11 +40,12 @@ def _without_scheme(url):
     return url.split('://', 1)[-1]
 
 
-from gi.repository import GLib, Gtk, Pango
+from gi.repository import Gtk, Pango
 
 from virtaal.common import pan_app
 from virtaal.plugins.lookup.models.baselookupmodel import BaseLookupModel
 from virtaal.views.baseview import BaseView
+from virtaal.views.widgets.util import run_dialog
 
 
 class LookupModel(BaseLookupModel):
@@ -326,13 +327,7 @@ class WebLookupConfigDialog:
         if isinstance(parent, Gtk.Widget):
             self.dialog.set_transient_for(parent)
 
-        self.dialog.show()
-        self.dialog.present()
-        transient_for = self.dialog.get_transient_for()
-        self.dialog.run()
-        self.dialog.hide()
-        if transient_for is not None:
-            GLib.idle_add(transient_for.present)
+        run_dialog(self.dialog)
 
     # SIGNAL HANDLERS #
     def _lock_builtin_cell(self, column, cell, model, it, data=None):
@@ -414,13 +409,7 @@ class WebLookupAddDialog:
         self.ent_url_name.grab_focus()
         self._update_ok_sensitivity()
 
-        self.dialog.show()
-        self.dialog.present()
-        transient_for = self.dialog.get_transient_for()
-        response = self.dialog.run()
-        self.dialog.hide()
-        if transient_for is not None:
-            GLib.idle_add(transient_for.present)
+        response = run_dialog(self.dialog)
 
         if response != Gtk.ResponseType.OK:
             return None

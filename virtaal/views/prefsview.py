@@ -12,6 +12,7 @@ from virtaal.common import GObjectWrapper, pan_app
 from virtaal.common.platform import platform
 from virtaal.support.translate_compat import tr_lang
 from virtaal.views.widgets.selectview import SelectView
+from virtaal.views.widgets.util import run_dialog
 
 from .baseview import BaseView
 
@@ -249,16 +250,7 @@ class PreferencesView(BaseView, GObjectWrapper):
         self.placeables_select.select_item(None)
         self.plugins_select.select_item(None)
         self.controller.update_prefs_gui_data()
-        # logging.debug('Plug-in data: %s' % (str(self.plugin_data)))
-        # present() only raises/focuses an already-realized window -
-        # show() explicitly first, run() alone doesn't guarantee that.
-        self._widgets['dialog'].show()
-        self._widgets['dialog'].present()
-        transient_for = self._widgets['dialog'].get_transient_for()
-        self._widgets['dialog'].run()
-        self._widgets['dialog'].hide()
-        if transient_for is not None:
-            GLib.idle_add(transient_for.present)
+        run_dialog(self._widgets['dialog'])
         self.emit('prefs-done')
 
     # EVENT HANDLERS #

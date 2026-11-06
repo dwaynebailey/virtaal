@@ -8,7 +8,7 @@
 from types import SimpleNamespace
 
 import pytest
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.views.widgets import langselectdialog
 from virtaal.views.widgets.langselectdialog import LanguageSelectDialog
@@ -29,7 +29,7 @@ def test_treeview_scrolled_windows_are_not_focusable():
 
 
 def test_run_restores_the_parents_focus_on_close(monkeypatch):
-    monkeypatch.setattr(langselectdialog.GLib, 'idle_add', lambda func, *args: func(*args))
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     parent = Gtk.Window()
     dialog = LanguageSelectDialog(languages=[], parent=parent)
     calls = []

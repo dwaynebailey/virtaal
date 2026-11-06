@@ -7,9 +7,10 @@
 
 import locale
 
-from gi.repository import Gdk, GLib, GObject, Gtk
+from gi.repository import Gdk, GObject, Gtk
 
 from virtaal.views.baseview import BaseView
+from virtaal.views.widgets.util import run_dialog
 
 
 class LanguageSelectDialog:
@@ -140,16 +141,7 @@ class LanguageSelectDialog:
         self._select_lang(self.tvw_targetlang, tgtlang)
 
         self.tvw_targetlang.grab_focus()
-        # present() only raises/focuses an already-realized window -
-        # show() explicitly first, run() alone doesn't guarantee that.
-        self.dialog.show()
-        self.dialog.present()
-        transient_for = self.dialog.get_transient_for()
-        response = self.dialog.run() == Gtk.ResponseType.OK
-        self.dialog.hide()
-        if transient_for is not None:
-            GLib.idle_add(transient_for.present)
-        return response
+        return run_dialog(self.dialog) == Gtk.ResponseType.OK
 
     def update_languages(self, langs):
         selected_srccode = self.get_selected_source_lang()

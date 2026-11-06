@@ -7,11 +7,12 @@
 
 import re
 
-from gi.repository import GLib, Gtk
+from gi.repository import Gtk
 from translate.lang import data
 
 from virtaal.models.langmodel import LanguageModel, plural_forms
 from virtaal.views.baseview import BaseView
+from virtaal.views.widgets.util import run_dialog
 
 
 class LanguageAddDialog:
@@ -94,14 +95,7 @@ class LanguageAddDialog:
             self.clear()
         self._update_ok_sensitivity()
         (self.sbtn_nplurals if self._editing else self.ent_langname).grab_focus()
-        self.dialog.show()
-        self.dialog.present()
-        transient_for = self.dialog.get_transient_for()
-        response = self.dialog.run() == Gtk.ResponseType.OK
-        self.dialog.hide()
-        if transient_for is not None:
-            GLib.idle_add(transient_for.present)
-        return response
+        return run_dialog(self.dialog) == Gtk.ResponseType.OK
 
     def run_edit(self, name, code, nplurals, plural):
         """Edit a known language's plural information; its name and code

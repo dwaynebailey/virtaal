@@ -5,10 +5,11 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from gi.repository import GLib, GObject, Gtk
+from gi.repository import GObject, Gtk
 from gi.repository.GObject import TYPE_PYOBJECT
 
 from virtaal.common import GObjectWrapper
+from virtaal.views.widgets.util import run_dialog
 
 from .selectview import SelectView
 
@@ -83,13 +84,7 @@ class SelectDialog(GObjectWrapper):
             self.sview.set_model(items)
         if isinstance(parent, Gtk.Widget):
             self.set_transient_for(parent)
-        self.dialog.show_all()
-        self.dialog.present()
-        transient_for = self.dialog.get_transient_for()
-        self.response = self.dialog.run()
-        self.dialog.hide()
-        if transient_for is not None:
-            GLib.idle_add(transient_for.present)
+        self.response = run_dialog(self.dialog, show_all=True)
         self.emit('selection-done', self.sview.get_all_items())
         return self.response
 

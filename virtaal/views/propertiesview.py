@@ -11,6 +11,7 @@ from gi.repository import GLib, Gtk
 
 from virtaal.common import GObjectWrapper
 from virtaal.support.libi18n.numbers import format_number, format_percent, format_size
+from virtaal.views.widgets.util import run_dialog
 
 from .baseview import BaseView
 
@@ -154,15 +155,7 @@ class PropertiesView(BaseView, GObjectWrapper):
             self._init_gui()
         self._refresh()
 
-        # present() only raises/focuses an already-realized window -
-        # show() explicitly first, run() alone doesn't guarantee that.
-        self._widgets['dialog'].show()
-        self._widgets['dialog'].present()
-        transient_for = self._widgets['dialog'].get_transient_for()
-        self._widgets['dialog'].run()
-        self._widgets['dialog'].hide()
-        if transient_for is not None:
-            GLib.idle_add(transient_for.present)
+        run_dialog(self._widgets['dialog'])
 
     def _refresh(self):
         self.controller.update_gui_data()

@@ -15,6 +15,7 @@ from virtaal.support.multiterm import MissingReaderError
 from virtaal.support.trados_compat import TERMINOLOGY_FORMATS
 from virtaal.views.baseview import BaseView
 from virtaal.views.theme import current_theme, set_widget_bg_color
+from virtaal.views.widgets.util import run_dialog
 from virtaal.views.widgets.wordatcursor import WordAtCursorSelector
 
 from .extendable import is_extendable
@@ -274,13 +275,7 @@ class FileSelectDialog:
 
         self.clear_selection()
 
-        self.dialog.show_all()
-        self.dialog.present()
-        transient_for = self.dialog.get_transient_for()
-        self.dialog.run()
-        self.dialog.hide()
-        if transient_for is not None:
-            GLib.idle_add(transient_for.present)
+        run_dialog(self.dialog, show_all=True)
 
     # EVENT HANDLERS #
     def _on_add_file_clicked(self, button):
@@ -497,15 +492,9 @@ class TermAddDialog:
         if isinstance(parent, Gtk.Widget):
             self.dialog.set_transient_for(parent)
 
-        self.dialog.show()
-        self.dialog.present()
-        transient_for = self.dialog.get_transient_for()
         self._on_entry_changed(None)
         self.ent_source.grab_focus()
-        response = self.dialog.run()
-        self.dialog.hide()
-        if transient_for is not None:
-            GLib.idle_add(transient_for.present)
+        response = run_dialog(self.dialog)
 
         if response != Gtk.ResponseType.OK:
             return

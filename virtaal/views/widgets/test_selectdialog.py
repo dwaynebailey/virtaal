@@ -5,16 +5,15 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from gi.repository import GdkPixbuf, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
-from virtaal.views.widgets import selectdialog
 from virtaal.views.widgets.selectdialog import SelectDialog
 
 
 def test_run_presents_the_window_and_restores_the_parents_focus(monkeypatch):
     # show_all() alone doesn't request real OS-level focus on macOS: the
     # window opens unfocused, and closing it leaves the parent unfocused.
-    monkeypatch.setattr(selectdialog.GLib, 'idle_add', lambda func, *args: func(*args))
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     dialog = SelectDialog()
     parent = Gtk.Window()
     dialog.set_transient_for(parent)
@@ -37,7 +36,7 @@ def test_scrolled_window_propagates_natural_width():
 
 
 def _run_without_blocking(monkeypatch, dialog):
-    monkeypatch.setattr(selectdialog.GLib, 'idle_add', lambda func, *args: None)
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: None)
     monkeypatch.setattr(dialog.dialog, 'run', lambda: Gtk.ResponseType.CLOSE)
 
 

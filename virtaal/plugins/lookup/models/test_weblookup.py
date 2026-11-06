@@ -6,7 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import pytest
-from gi.repository import GdkPixbuf, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from virtaal.plugins.lookup.models import weblookup
 from virtaal.plugins.lookup.models.weblookup import (
@@ -63,7 +63,7 @@ def test_every_instance_shares_the_same_url_list():
 
 
 def test_run_restores_the_parents_focus_on_close(monkeypatch):
-    monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     dialog = WebLookupConfigDialog(parent=None)
     parent = Gtk.Window()
     calls = []
@@ -76,7 +76,7 @@ def test_run_restores_the_parents_focus_on_close(monkeypatch):
 
 
 def test_add_dialog_run_restores_the_parents_focus_on_close(monkeypatch):
-    monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     parent = Gtk.Window()
     dialog = WebLookupAddDialog(parent=parent)
     calls = []
@@ -90,7 +90,7 @@ def test_add_dialog_run_restores_the_parents_focus_on_close(monkeypatch):
 
 def test_add_dialog_derives_an_id_from_the_typed_name(monkeypatch):
     # Never asks the user for one directly.
-    monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     dialog = WebLookupAddDialog(parent=None)
 
     def _type_and_confirm():
@@ -117,7 +117,7 @@ def test_add_dialog_derives_an_id_from_the_typed_name(monkeypatch):
     ],
 )
 def test_add_dialog_needs_a_url_with_text(monkeypatch, url, ok):
-    monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     dialog = WebLookupAddDialog(parent=None)
     seen = {}
 
@@ -202,7 +202,7 @@ def test_add_dialog_warns_but_allows_a_url_without_the_query():
 
 
 def test_add_dialog_saves_the_name_and_url_trimmed(monkeypatch):
-    monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     dialog = WebLookupAddDialog(parent=None)
 
     def _type_and_confirm():
@@ -229,7 +229,7 @@ def test_config_dialog_opens_over_its_parent_with_its_icon():
 
 
 def test_a_lookup_added_in_the_config_dialog_is_listed(monkeypatch):
-    monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     dialog = WebLookupConfigDialog(parent=None)
     dialog.urldata = [dict(u) for u in LookupModel.URLDATA]
 
@@ -664,7 +664,7 @@ def test_slugify_collapses_whitespace():
     ],
 )
 def test_add_dialog_rejects_a_reserved_or_taken_name(monkeypatch, name, taken, ok):
-    monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     dialog = WebLookupAddDialog(parent=None)
     seen = {}
 
