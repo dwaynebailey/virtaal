@@ -93,7 +93,7 @@ class RecoveryScaffolding(TestScaffolding):
 
     def _po(self, name='open.po', text=PO):
         path = self.tmp_path / name
-        path.write_text(text)
+        path.write_text(text, encoding='utf-8')
         return str(path)
 
     def _slots(self):
@@ -101,7 +101,7 @@ class RecoveryScaffolding(TestScaffolding):
 
     def _session(self, slot=None):
         slot = slot or self.recovery.slot
-        with open(os.path.join(slot.path, 'session.json')) as f:
+        with open(os.path.join(slot.path, 'session.json'), encoding='utf-8') as f:
             return json.load(f)
 
     def _orphan(self, path, attempts=0, position=None, end_reason=None):
@@ -572,7 +572,7 @@ class TestUnsavedWork(UnsavedScaffolding):
         self._edit_at(0)
         self.recovery.slot.data['end_reason'] = 'signal'
         self._crash()
-        with open(path, 'w') as f:
+        with open(path, 'w', encoding='utf-8') as f:
             f.write(PO.replace('msgid "Open"\nmsgstr ""\n\n', ''))
 
         self._resume()

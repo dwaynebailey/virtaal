@@ -269,7 +269,7 @@ def test_replay_leaves_skipped_units_alone(tmp_path):
 def test_a_new_slot_is_locked_and_written(tmp_path):
     slot = Slot.create(str(tmp_path))
 
-    with open(os.path.join(slot.path, 'session.json')) as f:
+    with open(os.path.join(slot.path, 'session.json'), encoding='utf-8') as f:
         data = json.load(f)
     assert data['format'] == recovery.FORMAT
     assert data['end_reason'] is None
@@ -309,7 +309,7 @@ def test_orphans_come_newest_first(tmp_path):
 def test_an_unreadable_slot_is_moved_aside(tmp_path):
     slot = Slot.create(str(tmp_path))
     slot.close()
-    with open(os.path.join(slot.path, 'session.json'), 'w') as f:
+    with open(os.path.join(slot.path, 'session.json'), 'w', encoding='utf-8') as f:
         f.write('{"documents": ')
 
     assert recovery.find_orphans(str(tmp_path)) == []

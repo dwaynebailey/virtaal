@@ -109,7 +109,7 @@ DRIVER = textwrap.dedent(
         return out
 
     def report(name):
-        with open(os.environ['REPORT'] + '.' + name, 'w') as f:
+        with open(os.environ['REPORT'] + '.' + name, 'w', encoding='utf-8') as f:
             json.dump(state(), f)
 
     def driver():
@@ -164,10 +164,10 @@ class _Launcher:
         self.home.mkdir()
         self.state = tmp_path / 'state'
         self.driver = tmp_path / 'driver.py'
-        self.driver.write_text(DRIVER)
+        self.driver.write_text(DRIVER, encoding='utf-8')
         self.po = tmp_path / 'files' / 'open.po'
         self.po.parent.mkdir()
-        self.po.write_text(PO)
+        self.po.write_text(PO, encoding='utf-8')
         self.report = str(tmp_path / 'report')
         self.root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -192,7 +192,7 @@ class _Launcher:
         return proc
 
     def read(self, name):
-        with open(self.report + '.' + name) as f:
+        with open(self.report + '.' + name, encoding='utf-8') as f:
             return json.load(f)
 
     def slots(self):
@@ -203,7 +203,7 @@ class _Launcher:
 
     def session(self):
         [slot] = self.slots()
-        return json.loads((slot / 'session.json').read_text())
+        return json.loads((slot / 'session.json').read_text(encoding='utf-8'))
 
 
 @pytest.fixture
