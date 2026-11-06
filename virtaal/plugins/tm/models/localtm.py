@@ -16,6 +16,7 @@ from gi.repository import GLib
 from virtaal.common import pan_app
 from virtaal.common.platform import platform
 from virtaal.controllers.baseplugin import PluginUnsupported
+from virtaal.support import inlinecodes
 
 from . import remotetm
 from .basetmmodel import BaseTMModel
@@ -194,11 +195,7 @@ class TMModel(remotetm.TMModel):
         if self._excluded.get(key):
             return
         path, member = key
-        units = [
-            {**remotetm.unit2dict(unit), 'key': unit.getid()}
-            for unit in units
-            if unit.istranslated()
-        ]
+        units = [_unit_dict(unit) for unit in units if unit.istranslated()]
         source_lang, target_lang = self.source_lang, self.target_lang
 
         def send():
@@ -405,6 +402,16 @@ def _on_reply(request, on_success, on_error, action, ignore_status=(), log=loggi
     request.connect('http-success', lambda _request, reply: on_success(reply))
     for signal in ('http-redirect', 'http-client-error', 'http-server-error', 'http-failed'):
         request.connect(signal, on_failure)
+
+
+def _unit_dict(unit):
+    """What the local TM keeps of unit: its text, and its inline codes."""
+    unit_dict = {**remotetm.unit2dict(unit), 'key': unit.getid()}
+    source_markup, target_markup = inlinecodes.unit_markup(unit)
+    if source_markup is not None:
+        unit_dict['source_markup'] = source_markup
+        unit_dict['target_markup'] = target_markup
+    return unit_dict
 
 
 def store_key(store_controller):

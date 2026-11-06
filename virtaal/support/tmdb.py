@@ -48,17 +48,17 @@ from translate.misc.xml_helpers import getXMLspace
 from translate.search.lshtein import LevenshteinComparer
 from translate.storage import tmx
 
-from virtaal.support import shareddb
+from virtaal.support import inlinecodes, shareddb
 from virtaal.support.abstraction import abstract, adapt
 from virtaal.support.tmx_compat import tuv_lang
 
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 """PRAGMA user_version of the schema below; 0 is a file an older Virtaal made."""
 
-SCHEMA_ABSTRACTION = {1: 1}
+SCHEMA_ABSTRACTION = {1: 1, 2: 1}
 """The abstraction algorithm whose abstracts each schema version stores.
 A new algorithm needs a new schema version, whose migration clears the
 abstracts for the backfill to recompute, so that one file never mixes
@@ -134,7 +134,14 @@ SCHEMA_V1 = (
     "ALTER TABLE targets ADD COLUMN abstract VARCHAR DEFAULT NULL",
 )
 
-MIGRATIONS = {1: SCHEMA_V0 + SCHEMA_V1}
+# A target's source and target with their XLIFF or TMX inline codes, as
+# XLIFF inline markup; NULL for plain text.
+SCHEMA_V2 = (
+    "ALTER TABLE targets ADD COLUMN source_markup VARCHAR DEFAULT NULL",
+    "ALTER TABLE targets ADD COLUMN target_markup VARCHAR DEFAULT NULL",
+)
+
+MIGRATIONS = {1: SCHEMA_V0 + SCHEMA_V1, 2: SCHEMA_V2}
 """The statements bringing a file up to each schema version from the one
 before. A later version that changes only the abstraction algorithm
 migrates with CLEAR_ABSTRACTS."""
@@ -445,10 +452,13 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
     def add_unit(self, unit, source_lang=None, target_lang=None, commit=True) -> None:
         """Inserts unit in the database."""
         source_lang, target_lang = unit_languages(unit, source_lang, target_lang)
+        source_markup, target_markup = inlinecodes.unit_markup(unit)
         unitdict = {
             "source": unit.source,
             "target": unit.target,
             "context": unit.getcontext(),
+            "source_markup": source_markup,
+            "target_markup": target_markup,
         }
         self.add_dict(unitdict, source_lang, target_lang, commit)
 
@@ -497,10 +507,11 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                 (unit["source"], unit["context"], source_lang),
             )
             (sid,) = self.cursor.fetchone()
+        source_markup, target_markup = _markup(unit)
         try:
             self.cursor.execute(
-                "INSERT INTO targets (sid, text, lang, time, abstract) "
-                "VALUES (?, ?, ?, ?, %s)" % _ABSTRACT_IF_CURRENT,
+                "INSERT INTO targets (sid, text, lang, time, abstract, source_markup, target_markup) "
+                "VALUES (?, ?, ?, ?, %s, ?, ?)" % _ABSTRACT_IF_CURRENT,
                 (
                     sid,
                     unit["target"],
@@ -508,6 +519,8 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                     int(time.time()),
                     SCHEMA_VERSION,
                     _abstract(unit["target"]),
+                    source_markup,
+                    target_markup,
                 ),
             )
             return self.cursor.lastrowid
@@ -517,6 +530,13 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                 (sid, unit["target"], target_lang),
             )
             (tid,) = self.cursor.fetchone()
+            if source_markup is not None:
+                # The latest codes; plain text keeps those it has.
+                self.cursor.execute(
+                    "UPDATE targets SET source_markup = ?, target_markup = ? WHERE tid = ? "
+                    "AND (source_markup IS NOT ? OR target_markup IS NOT ?)",
+                    (source_markup, target_markup, tid, source_markup, target_markup),
+                )
             return tid
 
     def add_store(self, store, source_lang, target_lang, commit=True):
@@ -581,7 +601,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         for unit in store.units:
             if not (unit.istranslatable() and unit.istranslated()):
                 continue
-            for langs, source, target in unit_translations(unit, source_lang, target_lang):
+            for langs, source, target, markup in unit_translations(unit, source_lang, target_lang):
                 pair = tuple(data.normalize_code(lang) for lang in langs)
                 pairs.setdefault(pair, []).append(
                     {
@@ -589,6 +609,8 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                         "target": target,
                         "context": unit.getcontext(),
                         "key": unit.getid(),
+                        "source_markup": markup[0],
+                        "target_markup": markup[1],
                     }
                 )
         if not pairs and source_lang and target_lang:
@@ -917,7 +939,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         unit_words = STRIP_REGEXP.sub(" ", query_abstract).split()
         unit_words = list(filter(lambda word: len(word) > 2, unit_words))
 
-        columns = "s.text, t.text, s.context, s.abstract"
+        columns = "s.text, t.text, s.context, s.abstract, t.source_markup, t.target_markup"
         if self.fulltext and len(unit_words) > 3:
             logger.debug("fulltext matching")
             query = """SELECT %s FROM sources s JOIN targets t ON s.sid = t.sid JOIN fulltext f ON s.sid = f.docid
@@ -934,12 +956,21 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             self.cursor.execute(query, (*lang_params, *window_params))
 
         results = []
-        for source, target, context, source_abstract in self.cursor.fetchall():
+        for row in self.cursor.fetchall():
+            source, target, context, source_abstract = row[:4]
             if not self.abstract:
                 quality = self.comparer.similarity(unit_source, source, self.min_similarity)
                 if quality >= self.min_similarity:
                     results.append(
-                        {"source": source, "target": target, "context": context, "quality": quality}
+                        _with_markup(
+                            {
+                                "source": source,
+                                "target": target,
+                                "context": context,
+                                "quality": quality,
+                            },
+                            row,
+                        )
                     )
                 continue
             raw_quality = self.comparer.similarity(unit_source, source, self.min_similarity)
@@ -957,18 +988,40 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             adapted = adapt(unit_source, source, target, raw_quality)
             if adapted.quality >= self.min_similarity:
                 results.append(
-                    {
-                        "source": source,
-                        "target": target,
-                        "context": context,
-                        "quality": adapted.quality,
-                        "raw_quality": adapted.raw_quality,
-                    }
+                    _with_markup(
+                        {
+                            "source": source,
+                            "target": target,
+                            "context": context,
+                            "quality": adapted.quality,
+                            "raw_quality": adapted.raw_quality,
+                        },
+                        row,
+                    )
                 )
         results.sort(key=operator.itemgetter("quality"), reverse=True)
         results = results[: self.max_candidates]
         logger.debug("results: %s", results)
         return results
+
+
+def _with_markup(match, row):
+    """match, with the markup of a target with inline codes."""
+    source_markup, target_markup = row[4:6]
+    if source_markup is not None and target_markup is not None:
+        match["source_markup"] = source_markup
+        match["target_markup"] = target_markup
+    return match
+
+
+def _markup(unit):
+    """C{unit}'s (source markup, target markup) if both are its texts with
+    inline codes, else (None, None)."""
+    source = inlinecodes.checked(unit.get("source_markup"), unit["source"])
+    target = inlinecodes.checked(unit.get("target_markup"), unit["target"])
+    if source is None or target is None:
+        return None, None
+    return source, target
 
 
 def _abstract(text):
@@ -1043,12 +1096,14 @@ def _language_tag_key(language):
 
 
 def unit_translations(unit, source_lang=None, target_lang=None):
-    """C{unit}'s ((source language, target language), source, target)
-    for each translation it holds: one, or for a TMX unit one per
-    language after its source's."""
+    """C{unit}'s ((source language, target language), source, target,
+    (source markup, target markup)) for each translation it holds: one,
+    or for a TMX unit one per language after its source's. The markup is
+    None for text with no inline codes (see inlinecodes)."""
     nodes = unit.getlanguageNodes() if isinstance(unit, tmx.tmxunit) else []
     if len(nodes) < 2:
-        return [(unit_languages(unit, source_lang, target_lang), unit.source, unit.target)]
+        langs = unit_languages(unit, source_lang, target_lang)
+        return [(langs, unit.source, unit.target, inlinecodes.unit_markup(unit))]
     # The unit's own srclang, else the header's: read from the XML, as
     # translate-toolkit before 3.18 doesn't take it from the header.
     header = unit.xmlelement.getroottree().getroot().find("header")
@@ -1056,9 +1111,11 @@ def unit_translations(unit, source_lang=None, target_lang=None):
     xml_space = getXMLspace(unit.xmlelement, unit._default_xml_space)
     langs = [tuv_lang(node) for node in nodes]
     texts = [unit.getNodeText(node, xml_space) for node in nodes]
+    markups = [inlinecodes.seg_markup(node) for node in nodes]
     wanted = _language_tag_key(srclang)
     source_index = next((i for i, lang in enumerate(langs) if _language_tag_key(lang) == wanted), 0)
     source = texts[source_index]
+    source_markup = markups[source_index]
     source_lang = langs[source_index] or source_lang
     if not source_lang:
         raise LanguageError("undefined source language")
@@ -1068,7 +1125,8 @@ def unit_translations(unit, source_lang=None, target_lang=None):
             continue
         if not (lang or target_lang):
             raise LanguageError("undefined target language")
-        translations.append(((source_lang, lang or target_lang), source, text))
+        markup = inlinecodes.text_pair(source_markup, markups[i], source, text)
+        translations.append(((source_lang, lang or target_lang), source, text, markup))
     return translations
 
 

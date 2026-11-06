@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 from gi.repository import GObject, Gtk
-from translate.storage import pypo
+from translate.storage import pypo, xliff
 
 from virtaal.common import SignalTracker, pan_app
 from virtaal.common.platform import Platform
@@ -360,6 +360,39 @@ def test_push_store_syncs_the_files_translated_units_by_key(tmp_path):
         {'source': 'Quit', 'target': 'Verlaat', 'context': 'menu', 'key': 'menu\x04Quit'},
     ]
     assert model.cache == {}
+
+
+XLIFF = (
+    b'<?xml version="1.0" encoding="UTF-8"?>\n'
+    b'<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">'
+    b'<file original="a" source-language="en" target-language="af" datatype="plaintext"><body>'
+    b'<trans-unit id="1" approved="yes"><source>Click <g id="1">here</g></source>'
+    b'<target>Klik <g id="1">hier</g></target></trans-unit>'
+    b'<trans-unit id="2" approved="yes"><source>Close</source><target>Maak toe</target></trans-unit>'
+    b'</body></file></xliff>'
+)
+
+
+def test_push_store_sends_an_xliff_units_inline_codes(tmp_path):
+    model = _pushing_model()
+    store = xliff.xlifffile.parsestring(XLIFF)
+    store_controller = _store_controller(PO, str(tmp_path / 'af.xlf'))
+    store_controller.store.get_units = lambda: store.units
+
+    model.push_store(store_controller)
+
+    ((_path, body, _source_lang, _target_lang),) = model.sent
+    assert body['units'] == [
+        {
+            'source': 'Click here',
+            'target': 'Klik hier',
+            'context': '',
+            'key': 'a\x041',
+            'source_markup': 'Click <g id="1">here</g>',
+            'target_markup': 'Klik <g id="1">hier</g>',
+        },
+        {'source': 'Close', 'target': 'Maak toe', 'context': '', 'key': 'a\x042'},
+    ]
 
 
 def test_push_store_sends_each_file_of_several_under_its_own_key(tmp_path):

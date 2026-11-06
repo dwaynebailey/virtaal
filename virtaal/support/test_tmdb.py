@@ -396,7 +396,7 @@ def test_a_file_an_older_virtaal_made_is_migrated(db_path, old_tmdb):
 
     db = tmdb.TMDB(db_path)
 
-    assert db._user_version() == 1
+    assert db._user_version() == tmdb.SCHEMA_VERSION
     tids = [tid for (tid,) in db.cursor.execute('SELECT tid FROM targets ORDER BY tid')]
     assert _origins(db) == [(0, 'af', str(tid), tid) for tid in tids]
     assert db.cursor.execute('SELECT store_id, path, kind FROM stores').fetchall() == [
@@ -429,7 +429,7 @@ def test_a_backup_that_fails_does_not_stop_the_migration(db_path, old_tmdb, capl
         db = tmdb.TMDB(db_path)
 
     assert 'Could not back up' in caplog.text
-    assert db._user_version() == 1
+    assert db._user_version() == tmdb.SCHEMA_VERSION
     assert not os.path.exists(db_path[: -len('.db')] + '-v0.db')
 
 
@@ -458,7 +458,7 @@ def test_a_failed_migration_leaves_the_older_file_as_it_was(db_path, old_tmdb, r
     connection.set_authorizer(_allow)
     assert cursor.execute('PRAGMA user_version').fetchone() == (0,)
     assert cursor.execute("SELECT name FROM sqlite_master WHERE name = 'stores'").fetchall() == []
-    assert tmdb.TMDB(db_path)._user_version() == 1
+    assert tmdb.TMDB(db_path)._user_version() == tmdb.SCHEMA_VERSION
 
 
 def test_a_file_another_process_migrated_meanwhile_is_left_alone(db_path, old_tmdb, monkeypatch):
@@ -504,7 +504,7 @@ def test_two_processes_migrate_the_same_file_at_once(db_path, old_tmdb):
 
     assert [process.wait(timeout=60) for process in processes] == [0, 0]
     db = tmdb.TMDB(db_path)
-    assert db._user_version() == 1
+    assert db._user_version() == tmdb.SCHEMA_VERSION
     assert _count(db, 'stores') == 1
     assert len(_origins(db)) == 200
 
@@ -933,7 +933,7 @@ def test_an_older_virtaal_works_on_a_file_with_stores(db_path, old_tmdb):
     assert old.translate_unit(LONG, 'en', 'af')[0]['target'] == 'Maak die gekose lêer oop'
     assert _count(old, 'targets') == 2
     db = tmdb.TMDB(db_path)
-    assert db._user_version() == 1
+    assert db._user_version() == tmdb.SCHEMA_VERSION
     assert db.store_stats(PO, 'en', 'af')['units'] == 1
     assert db.store_stats('', 'en', 'af')['units'] == 1
 
@@ -1065,13 +1065,14 @@ def test_an_in_memory_database_has_nothing_to_backfill():
 
 @pytest.fixture
 def next_algorithm(monkeypatch):
-    """A schema version 2 for a changed abstraction algorithm, which
+    """The next schema version, for a changed abstraction algorithm, which
     upper-cases."""
 
     def apply():
-        monkeypatch.setattr(tmdb, 'SCHEMA_VERSION', 2)
-        monkeypatch.setitem(tmdb.MIGRATIONS, 2, tmdb.CLEAR_ABSTRACTS)
-        monkeypatch.setitem(tmdb.SCHEMA_ABSTRACTION, 2, 2)
+        version = tmdb.SCHEMA_VERSION + 1
+        monkeypatch.setattr(tmdb, 'SCHEMA_VERSION', version)
+        monkeypatch.setitem(tmdb.MIGRATIONS, version, tmdb.CLEAR_ABSTRACTS)
+        monkeypatch.setitem(tmdb.SCHEMA_ABSTRACTION, version, 2)
         monkeypatch.setattr(tmdb, 'abstract', lambda text: (text.upper(), []))
 
     return apply
@@ -1085,7 +1086,7 @@ def test_a_new_abstraction_algorithm_recomputes_every_abstract(db_path, next_alg
 
     db = tmdb.TMDB(db_path)
 
-    assert db._user_version() == 2
+    assert db._user_version() == tmdb.SCHEMA_VERSION
     assert _abstracts(db, 'sources') == [(DELETE, None)]
     assert db.backfill_abstracts() == 2
     assert _abstracts(db, 'sources') == [(DELETE, DELETE.upper())]
@@ -1181,3 +1182,138 @@ def test_matches_rank_on_the_adapted_quality(db_path):
     (match,) = db.translate_unit(DELETE, 'en', 'af')
 
     assert match['target'] == 'Verwyder {0} lêers'
+
+
+# Inline codes: kept beside the plain text, which is matched on.
+
+TAGGED_XLIFF = """<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+<file original="a" source-language="en" target-language="af" datatype="plaintext"><body>
+<trans-unit id="1" approved="yes"><source>Click <g id="1">here</g> to open<x id="2"/> the files</source>
+<target>Klik <g id="1">hier</g> en maak<x id="2"/> die lêers oop</target></trans-unit>
+<trans-unit id="2" approved="yes"><source>Close it</source><target>Maak dit toe</target></trans-unit>
+</body></file></xliff>"""
+TAGGED = 'Click here to open the files'
+TAGGED_MARKUP = (
+    'Click <g id="1">here</g> to open<x id="2"/> the files',
+    'Klik <g id="1">hier</g> en maak<x id="2"/> die lêers oop',
+)
+
+
+def _markups(db):
+    return db.cursor.execute(
+        'SELECT text, source_markup, target_markup FROM targets ORDER BY text'
+    ).fetchall()
+
+
+def _import_tagged(db):
+    return db.import_store(
+        xliff.xlifffile.parsestring(TAGGED_XLIFF.encode('utf-8')), '/x/tags.xlf', 'en', 'af'
+    )
+
+
+def test_a_v1_file_gains_the_markup_columns_and_keeps_its_abstracts(db_path, monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr(tmdb, 'SCHEMA_VERSION', 1)
+        patch.delitem(tmdb.MIGRATIONS, 2)
+        db = tmdb.TMDB(db_path)
+        db.cursor.execute(
+            "INSERT INTO sources (text, context, lang, length, abstract) "
+            "VALUES (?, '', 'en', ?, ?)",
+            (DELETE, len(DELETE), DELETE_ABSTRACT),
+        )
+        db.cursor.execute(
+            "INSERT INTO targets (sid, text, lang, abstract) VALUES (1, 'Verwyder', 'af', 'V')"
+        )
+        db.connection.commit()
+        _close(db_path)
+
+    db = tmdb.TMDB(db_path)
+
+    assert db._user_version() == tmdb.SCHEMA_VERSION
+    assert {'source_markup', 'target_markup'} <= set(_columns(db, 'targets'))
+    assert _abstracts(db, 'sources') == [(DELETE, DELETE_ABSTRACT)]
+    assert _abstracts(db, 'targets') == [('Verwyder', 'V')]
+    assert _markups(db) == [('Verwyder', None, None)]
+    assert db.translate_unit(DELETE, 'en', 'af')[0]['target'] == 'Verwyder'
+
+
+def test_an_imported_xliff_keeps_its_inline_codes(db_path):
+    db = tmdb.TMDB(db_path)
+
+    _import_tagged(db)
+
+    assert _markups(db) == [
+        ('Klik hier en maak die lêers oop', *TAGGED_MARKUP),
+        ('Maak dit toe', None, None),
+    ]
+
+
+def test_a_tmx_keeps_its_inline_codes(db_path):
+    store = tmx.tmxfile.parsestring(
+        b'<tmx version="1.4"><header srclang="en" datatype="plaintext" segtype="sentence" '
+        b'adminlang="en" o-tmf="x" creationtool="x" creationtoolversion="1"/><body><tu>'
+        b'<tuv xml:lang="en"><seg>Press <ph x="1">&lt;br/&gt;</ph> now</seg></tuv>'
+        b'<tuv xml:lang="af"><seg>Druk nou</seg></tuv></tu></body></tmx>'
+    )
+    db = tmdb.TMDB(db_path)
+
+    db.import_store(store, '/x/memory.tmx', 'en', 'af')
+
+    assert _markups(db) == [('Druk nou', 'Press <ph id="1">&lt;br/&gt;</ph> now', 'Druk nou')]
+
+
+def test_a_saved_unit_sends_its_inline_codes(db_path):
+    db = tmdb.TMDB(db_path)
+    unit = {**_unit(TAGGED, 'Klik hier en maak die lêers oop', 'k1')}
+    unit['source_markup'], unit['target_markup'] = TAGGED_MARKUP
+
+    db.sync_store(PO, [unit], 'en', 'af')
+
+    assert _markups(db) == [('Klik hier en maak die lêers oop', *TAGGED_MARKUP)]
+
+
+@pytest.mark.parametrize(
+    'markup',
+    [
+        ('Click <g id="1">there</g> to open the files', TAGGED_MARKUP[1]),
+        ('Click <b>here</b> to open the files', TAGGED_MARKUP[1]),
+        (TAGGED_MARKUP[0], None),
+    ],
+)
+def test_markup_that_isnt_the_units_text_is_not_kept(db_path, markup):
+    db = tmdb.TMDB(db_path)
+    unit = _unit(TAGGED, 'Klik hier en maak die lêers oop', 'k1')
+    unit['source_markup'], unit['target_markup'] = markup
+
+    db.sync_store(PO, [unit], 'en', 'af')
+
+    assert _markups(db) == [('Klik hier en maak die lêers oop', None, None)]
+
+
+def test_a_plain_unit_with_the_same_text_keeps_the_codes(db_path):
+    db = tmdb.TMDB(db_path)
+    _import_tagged(db)
+
+    db.sync_store(PO, [_unit(TAGGED, 'Klik hier en maak die lêers oop', 'k1')], 'en', 'af')
+
+    assert _markups(db)[0] == ('Klik hier en maak die lêers oop', *TAGGED_MARKUP)
+
+
+@pytest.mark.parametrize('tagged_tm', [True, False])
+def test_codes_dont_count_against_a_matchs_score(db_path, tagged_tm):
+    db = tmdb.TMDB(db_path)
+    if tagged_tm:
+        _import_tagged(db)
+    else:
+        db.sync_store(PO, [_unit(TAGGED, 'Klik hier en maak die lêers oop', 'k1')], 'en', 'af')
+
+    # A tagged XLIFF unit's query is its plain text.
+    exact = db.translate_unit(TAGGED, 'en', 'af')
+    fuzzy = db.translate_unit('Click here to open the file', 'en', 'af')
+
+    assert [m['quality'] for m in exact] == [100]
+    assert [m['quality'] for m in fuzzy] == [96]
+    assert ('target_markup' in exact[0]) is tagged_tm
+    if tagged_tm:
+        assert (exact[0]['source_markup'], exact[0]['target_markup']) == TAGGED_MARKUP
