@@ -312,3 +312,221 @@ class TestResume(RecoveryScaffolding):
 
         assert self.notices == [('missing', path)]
         assert self._slots() == []
+
+
+class TestUnsavedWork(RecoveryScaffolding):
+    @pytest.fixture(autouse=True)
+    def _notices(self, monkeypatch):
+        view = self.main_controller.view
+        monkeypatch.setattr(
+            view,
+            'show_recovery_notice',
+            lambda count, when, on_recover, on_discard: self.notices.append(
+                ('recover', count, on_recover, on_discard)
+            ),
+        )
+        monkeypatch.setattr(view, 'hide_recovery_notice', lambda: self.notices.append('hidden'))
+        monkeypatch.setattr(
+            view,
+            'show_restored_notice',
+            lambda count, unplaced=0: self.notices.append(('restored', count, unplaced)),
+        )
+
+    def _type(self, index, text):
+        if self.unit_controller.current_unit is not self.store_controller.store[index]:
+            self._edit_at(index)
+        buffer = self.unit_controller.view.targets[0].buffer
+        buffer.place_cursor(buffer.get_end_iter())
+        buffer.insert_interactive_at_cursor(text, -1, True)
+
+    def _journal(self):
+        return self.recovery.slot.journal(DOCUMENT).records()
+
+    def _crash(self):
+        """Leave the slot as a killed Virtaal would."""
+        self.recovery._write()
+        slot, self.recovery.slot = self.recovery.slot, None
+        slot.close()
+        self.store_controller.close_file()
+        return slot
+
+    def _targets(self):
+        return [str(self.store_controller.store[i].target) for i in range(4)]
+
+    def test_nothing_is_journalled_before_an_edit(self):
+        self.store_controller.open_file(self._po())
+
+        assert sorted(os.listdir(self.recovery.slot.path)) == ['lock', 'session.json']
+
+    def test_leaving_an_edited_unit_journals_it(self):
+        self.store_controller.open_file(self._po())
+
+        self._type(0, 'Oop')
+        self._edit_at(1)
+
+        [record] = self._journal()
+        assert (record['unit_index'], record['unit_id']) == (0, 'Open')
+        assert record['fields']['targets'] == ['Oop']
+
+    def test_the_unit_being_typed_in_is_the_draft(self):
+        self.store_controller.open_file(self._po())
+        self._type(1, ' nou')
+
+        self.recovery._write()
+
+        draft = self._session()['documents'][DOCUMENT]['draft']
+        assert draft['unit_index'] == 1
+        assert draft['fields']['targets'] == ['Maak toe nou']
+        assert self._journal() == []
+
+    def test_saving_starts_a_new_baseline(self):
+        path = self._po()
+        self.store_controller.open_file(path)
+        self._type(0, 'Oop')
+        self._edit_at(1)
+
+        self.store_controller.save_file()
+
+        assert self._journal() == []
+        baseline = self._session()['documents'][DOCUMENT]['baseline']
+        assert baseline == recovery.disk_baseline(path)
+
+    def test_a_crash_offers_the_unsaved_work_without_applying_it(self):
+        path = self._po()
+        self.store_controller.open_file(path)
+        self._type(0, 'Oop')
+        self._edit_at(1)
+        self._crash()
+
+        self._resume()
+
+        [(kind, count, _recover, _discard)] = self.notices
+        assert (kind, count) == ('recover', 1)
+        assert self._targets() == ['', 'Maak toe', 'Stoor', '']
+        assert not self.store_controller.is_modified()
+
+    def test_recover_reapplies_the_journal_and_the_draft_with_no_unit_done(self):
+        self.store_controller.open_file(self._po())
+        self._type(0, 'Oop')
+        self._type(3, 'Maak klaar')
+        self._crash()
+        self._resume()
+        done = []
+        handler = self.unit_controller.connect('unit-done', lambda *a: done.append(a))
+        try:
+            self.notices[0][2]()
+        finally:
+            self.unit_controller.disconnect(handler)
+
+        assert self._targets() == ['Oop', 'Maak toe', 'Stoor', 'Maak klaar']
+        assert self.store_controller.is_modified()
+        assert done == []
+        stats = self.store_controller.store.stats
+        assert (stats['fuzzy'], stats['translated']) == ([0, 3], [1, 2])
+
+    def test_discard_drops_the_work_but_keeps_the_slot(self):
+        self.store_controller.open_file(self._po())
+        self._type(0, 'Oop')
+        self._edit_at(2)
+        slot = self._crash()
+        self._resume()
+
+        self.notices[0][3]()
+
+        assert self._targets() == ['', 'Maak toe', 'Stoor', '']
+        assert self._journal() == []
+        assert self.recovery.slot.id == slot.id
+        assert self.store_controller.cursor.index == 2
+
+    def test_a_draft_older_than_the_journal_is_not_reapplied(self):
+        self.store_controller.open_file(self._po())
+        self._type(0, 'Oo')
+        self.recovery._write()
+        self._type(0, 'p')
+        self._edit_at(1)
+        slot = self.recovery.slot
+        self.recovery.slot = None
+        slot.close()
+        self.store_controller.close_file()
+        self._resume()
+
+        self.notices[0][2]()
+
+        assert self._targets()[0] == 'Oop'
+
+    def test_edits_made_while_the_notice_waits_are_kept_by_recover(self):
+        self.store_controller.open_file(self._po())
+        self._type(0, 'Oop')
+        self._edit_at(1)
+        self._crash()
+        self._resume()
+        self._type(0, 'Maak oop')
+        self._edit_at(2)
+
+        self.notices[0][2]()
+
+        assert self._targets()[0] == 'Maak oop'
+
+    def test_quitting_while_the_notice_waits_keeps_the_work(self):
+        self.store_controller.open_file(self._po())
+        self._type(0, 'Oop')
+        self._edit_at(1)
+        slot = self._crash()
+        self._resume()
+
+        self.main_controller.emit('quit')
+
+        [orphan] = recovery.find_orphans(self.root)
+        assert orphan.id == slot.id
+        assert len(recovery.read_journal(os.path.join(slot.path, '0.journal.jsonl'))) == 1
+        orphan.close()
+
+    def test_a_signal_end_reapplies_the_work_silently(self):
+        self.store_controller.open_file(self._po())
+        self._type(0, 'Oop')
+        self._edit_at(1)
+        self.recovery.slot.data['end_reason'] = 'signal'
+        self._crash()
+
+        self._resume()
+
+        assert self.notices == [('restored', 1, 0)]
+        assert self._targets()[0] == 'Oop'
+        assert self.store_controller.is_modified()
+
+    def test_the_crash_question_can_be_switched_off(self, monkeypatch):
+        monkeypatch.setattr(recoverycontroller, 'ASK_BEFORE_REAPPLYING_AFTER_A_CRASH', False)
+        self.store_controller.open_file(self._po())
+        self._type(0, 'Oop')
+        self._edit_at(1)
+        self._crash()
+
+        self._resume()
+
+        assert self.notices == [('restored', 1, 0)]
+        assert self._targets()[0] == 'Oop'
+
+    def test_a_file_changed_since_is_restored_by_unit_and_saved_as(self):
+        path = self._po()
+        self.store_controller.open_file(path)
+        self._type(2, ' nou')
+        self._edit_at(0)
+        self.recovery.slot.data['end_reason'] = 'signal'
+        self._crash()
+        with open(path, 'w') as f:
+            f.write(PO.replace('msgid "Open"\nmsgstr ""\n\n', ''))
+
+        self._resume()
+
+        assert self.store_controller.store[1].target == 'Stoor nou'
+        assert self.main_controller.get_force_saveas()
+
+    def test_an_updated_template_is_position_only(self):
+        self.store_controller.open_file(self._po())
+        self.store_controller.update_file(self._po('new.pot', text=PO.replace('Quit', 'Exit')))
+
+        doc = self._session()['documents'][DOCUMENT]
+        assert doc['baseline'] == {'kind': 'none'}
+        self._type(0, 'Oop')
+        self._edit_at(1)
+        assert self._journal() == []

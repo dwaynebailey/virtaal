@@ -3496,3 +3496,64 @@ def test_show_resume_blocked_notice_dismiss_does_not_reopen():
 
     assert calls == []
     assert view._resume_blocked_infobar is None
+
+
+# show_recovery_notice() / show_restored_notice() - unsaved work after a
+# crash or a shutdown.
+
+
+def test_show_recovery_notice_counts_the_units_and_has_no_close_button():
+    import time
+
+    view, vbox = _view_for_same_lang_notice()
+
+    view.show_recovery_notice(3, time.time(), lambda: None, lambda: None)
+
+    infobar = view._recovery_infobar
+    assert vbox.packed == [infobar]
+    assert '3 unsaved units' in _label_text(infobar)
+    assert infobar.get_show_close_button() is False
+
+
+def test_show_recovery_notice_buttons_run_their_callbacks():
+    import time
+
+    view, vbox = _view_for_same_lang_notice()
+    calls = []
+    for response, expected in (
+        (Gtk.ResponseType.ACCEPT, 'recover'),
+        (Gtk.ResponseType.REJECT, 'discard'),
+    ):
+        view.show_recovery_notice(
+            1, time.time(), lambda: calls.append('recover'), lambda: calls.append('discard')
+        )
+        view._recovery_infobar.emit('response', response)
+        assert calls[-1] == expected
+
+
+def test_show_recovery_notice_names_an_earlier_day():
+    view, vbox = _view_for_same_lang_notice()
+
+    view.show_recovery_notice(1, 86400 * 365, lambda: None, lambda: None)
+
+    # A short date: 1/1/71 in English.
+    assert '/71' in _label_text(view._recovery_infobar)
+
+
+def test_show_restored_notice_says_what_was_and_wasnt_restored():
+    view, vbox = _view_for_same_lang_notice()
+
+    view.show_restored_notice(1, 2)
+
+    assert _label_text(view._info_infobar) == (
+        'Restored 1 unsaved unit from your last session.\n'
+        '2 unsaved units could not be restored because the file changed.'
+    )
+
+
+def test_show_restored_notice_with_nothing_shows_nothing():
+    view, vbox = _view_for_same_lang_notice()
+
+    view.show_restored_notice(0, 0)
+
+    assert vbox.packed == []

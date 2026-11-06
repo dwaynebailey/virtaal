@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 07:46+0000\n"
+"POT-Creation-Date: 2026-11-06 07:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2502,6 +2502,40 @@ msgstr ""
 #: virtaal/views/mainview.py
 msgid "_Reopen"
 msgstr ""
+
+#. l10n: Shown when Virtaal reopens the file it was editing when it
+#. crashed. %(time)s is when the unsaved work was last kept.
+#: virtaal/views/mainview.py
+#, python-format
+msgid ""
+"Virtaal closed unexpectedly. %(count)s unsaved unit from %(time)s can be "
+"recovered."
+msgid_plural ""
+"Virtaal closed unexpectedly. %(count)s unsaved units from %(time)s can be "
+"recovered."
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/views/mainview.py
+msgid "_Recover"
+msgstr ""
+
+#. l10n: Shown when Virtaal reopens the file it was editing when it
+#. last closed without saving, with the unsaved work re-applied.
+#: virtaal/views/mainview.py
+#, python-format
+msgid "Restored %(count)s unsaved unit from your last session."
+msgid_plural "Restored %(count)s unsaved units from your last session."
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/views/mainview.py
+#, python-format
+msgid "%(count)s unsaved unit could not be restored because the file changed."
+msgid_plural ""
+"%(count)s unsaved units could not be restored because the file changed."
+msgstr[0] ""
+msgstr[1] ""
 
 #: virtaal/views/mainview.py
 msgid "Restart Virtaal for the new language to take effect."

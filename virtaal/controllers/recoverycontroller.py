@@ -14,18 +14,31 @@ import os
 import time
 import weakref
 
-from gi.repository import GLib
+from gi.repository import GLib, Gtk
 
 from virtaal.support import recovery
 
+# After a crash, whether to ask before re-applying unsaved work (True),
+# or re-apply it silently as after an OS shutdown (False). Resuming the
+# position never asks.
+ASK_BEFORE_REAPPLYING_AFTER_A_CRASH = True
+
 # The slot's id for the one document a process edits.
 DOCUMENT = '0'
-# Position is written this long after the last move.
+# Position and the unit being typed in are written this long after the
+# last move or keystroke.
 DEBOUNCE_MS = 1500
+# Journal lines are flushed to disk at most this often.
+SYNC_MS = 2000
+# Beyond this many re-applied units, recount the stats from scratch.
+MAX_UNIT_STATS_UPDATES = 100
 # A resumed session this long without a crash resets the crash-loop guard.
 STABLE_SECONDS = 5
 # Automatic resumes allowed in a row before the guard stops them.
 MAX_RESUME_ATTEMPTS = 2
+
+
+_RECORD_KEYS = ('unit_index', 'unit_id', 'source_sha1', 'fields')
 
 
 def _guarded(method):
@@ -59,8 +72,19 @@ class RecoveryController:
         self._cursor_handler = None
         self._dirty_at = None
         self._debounce_id = None
+        self._sync_id = None
         self._buffers = weakref.WeakSet()
         self._unit_controller = None
+        # Whether the document's units can be journalled and replayed.
+        self._replayable = False
+        self._baseline_ok = True
+        # While the crash notice waits: the last journal seq it covers,
+        # and the units edited since.
+        self._pending_upto = None
+        self._touched = set()
+        # Recently selected units with their indices: unit-done comes
+        # after the cursor has moved on.
+        self._recent = []
 
         self.store_controller.connect('store-loaded', self._on_store_loaded)
         self.store_controller.connect('store-saved', self._on_store_saved)
@@ -156,12 +180,106 @@ class RecoveryController:
 
     def _resume_into_store(self):
         slot = self.slot
+        when = slot.updated_at
+        end_reason = slot.data.get('end_reason')
         position = slot.data.get('position')
+        doc = slot.document(DOCUMENT)
+        records = []
+        if self._replayable:
+            journal = slot.journal(DOCUMENT)
+            draft = doc.get('draft')
+            if draft and draft.get('after_seq', 0) >= journal.seq:
+                journal.append({key: draft.get(key) for key in _RECORD_KEYS})
+            records = journal.records()
+            self._baseline_ok = recovery.baseline_matches(doc['baseline'])
+        doc['draft'] = None
         slot.data['end_reason'] = None
         slot.write()
+        if records:
+            if end_reason or not ASK_BEFORE_REAPPLYING_AFTER_A_CRASH:
+                changed, unplaced = self._apply(records)
+                self.main_controller.view.show_restored_notice(len(changed), unplaced)
+            else:
+                self._pending_upto = records[-1]['seq']
+                self._touched = set()
+                self.main_controller.view.show_recovery_notice(
+                    len(recovery.latest_per_unit(records)), when, self.recover, self.discard
+                )
         if position:
             self._restore_position(position)
         GLib.timeout_add_seconds(STABLE_SECONDS, self._on_stable, slot)
+
+    # UNSAVED WORK #
+    @_guarded
+    def recover(self):
+        """Re-apply the unsaved work the crash notice offered, except to
+        units edited since."""
+        if self._pending_upto is None:
+            return
+        upto, self._pending_upto = self._pending_upto, None
+        self.main_controller.view.hide_recovery_notice()
+        skip = set(self._touched)
+        self._touched = set()
+        current = self._unit_controller and self._unit_controller.current_unit
+        if current is not None and getattr(current, '_modified', False):
+            skip.add(self._index_of(current))
+        records = [r for r in self.slot.journal(DOCUMENT).records() if r['seq'] <= upto]
+        changed, unplaced = self._apply(records, skip)
+        if unplaced:
+            self.main_controller.view.show_restored_notice(len(changed), unplaced)
+
+    @_guarded
+    def discard(self):
+        """Drop the unsaved work the crash notice offered; the position
+        and later edits stay."""
+        if self._pending_upto is None:
+            return
+        upto, self._pending_upto = self._pending_upto, None
+        self._touched = set()
+        self.main_controller.view.hide_recovery_notice()
+        journal = self.slot.journal(DOCUMENT)
+        journal.rewrite([r for r in journal.records() if r['seq'] > upto])
+
+    def _apply(self, records, skip=()):
+        """Replay records into the open store, with no unit-done: the
+        units are restored, not newly translated."""
+        sc = self.store_controller
+        store = sc.store
+        changed, unplaced = recovery.replay(store, records, skip)
+        if not changed:
+            return changed, unplaced
+        if len(changed) > MAX_UNIT_STATS_UPDATES:
+            store.update_stats()
+        else:
+            for index in changed:
+                store.update_unit_stats(index)
+        for index in changed:
+            store.update_unit_checks(index)
+        sc.emit('stats-changed')
+        sc.emit('checks-changed')
+        sc.set_modified(True)
+        if not self._baseline_ok:
+            # The file changed since: never overwrite it unasked.
+            self.main_controller.set_force_saveas(True)
+        self._refresh_units(changed)
+        return changed, unplaced
+
+    def _refresh_units(self, indices):
+        sc = self.store_controller
+        model = sc.view._treeview.get_model()
+        if model is not None and hasattr(model, 'store_index_to_path'):
+            for index in indices:
+                path = model.store_index_to_path(index)
+                if path is not None:
+                    tree_path = Gtk.TreePath(path)
+                    model.row_changed(tree_path, model.get_iter(tree_path))
+        uc = self._unit_controller
+        unit = uc and uc.current_unit
+        if unit is not None and any(sc.store[index] is unit for index in indices):
+            # Reload the editor without finishing the unit.
+            uc.current_unit = None
+            uc.view.unit = None
+            uc.load_unit(unit)
 
     def _on_stable(self, slot):
         if slot is self.slot:
@@ -215,6 +333,7 @@ class RecoveryController:
             if path and os.path.abspath(doc['open_path']) == path:
                 self._drop_slot()
                 self.slot = resume
+                self._replayable = doc.get('baseline', {}).get('kind') == 'disk'
                 self._adopted = True
                 self._track_cursor()
                 return
@@ -237,16 +356,30 @@ class RecoveryController:
     def _new_document(self, path):
         sc = self.store_controller
         bundle = sc.get_bundle_filename()
+        # Replay starts from the file as read, which a bundle's temporary
+        # copy or a template update's merge isn't: position only.
+        self._replayable = bundle is None and not sc.is_modified()
+        self._baseline_ok = True
+        self._end_pending()
         self.slot.set_document(
             DOCUMENT,
             {
                 'open_path': path,
                 'target_path': bundle or sc.store.get_filename(),
+                'baseline': recovery.disk_baseline(path) if self._replayable else {'kind': 'none'},
                 'force_saveas': self.main_controller.get_force_saveas(),
                 'is_bundle': bundle is not None,
                 'format': sc.store.get_store_type(),
+                'draft': None,
             },
         )
+        self.slot.journal(DOCUMENT).truncate()
+
+    def _end_pending(self):
+        if self._pending_upto is not None:
+            self._pending_upto = None
+            self._touched = set()
+            self.main_controller.view.hide_recovery_notice()
 
     @_guarded
     def _on_store_saved(self, store_controller):
@@ -254,10 +387,28 @@ class RecoveryController:
         if not doc:
             return
         sc = self.store_controller
-        target = sc.get_bundle_filename() or sc.store.get_filename()
+        bundle = sc.get_bundle_filename()
+        target = bundle or sc.store.get_filename()
         doc['target_path'] = target
         doc['open_path'] = os.path.abspath(target)
         doc['force_saveas'] = self.main_controller.get_force_saveas()
+        doc['draft'] = None
+        journal = self.slot.journal(DOCUMENT)
+        if self._replayable:
+            # The saved file is the new baseline.
+            doc['baseline'] = recovery.disk_baseline(doc['open_path'])
+            self._baseline_ok = True
+            if self._pending_upto is None:
+                journal.truncate()
+            else:
+                upto = self._pending_upto
+                journal.rewrite(
+                    [
+                        r
+                        for r in journal.records()
+                        if r['seq'] <= upto and r.get('unit_index') not in self._touched
+                    ]
+                )
         self._write()
 
     @_guarded
@@ -267,20 +418,86 @@ class RecoveryController:
 
     @_guarded
     def _on_quit(self, main_controller):
-        self._cancel_debounce()
-        self._drop_slot()
+        self._drop_slot(write=True)
 
-    def _drop_slot(self):
-        """End the slot: the user closed the file or quit."""
+    def _drop_slot(self, write=False):
+        """End the slot: the user closed the file or quit. Unsaved work
+        the crash notice still offers stays for the next start-up."""
         self._cancel_debounce()
-        if self.slot is not None:
+        self._cancel_sync()
+        if self.slot is None:
+            return
+        if self._pending_upto is not None:
+            if write:
+                self._write()
+            self.slot.close()
+        else:
             self.slot.delete()
-            self.slot = None
+        self.slot = None
+        self._end_pending()
+        self._recent = []
+
+    # UNIT CHANGES #
+    def _on_unit_modified(self, unit_controller, unit):
+        self.touch()
+
+    @_guarded
+    def _on_unit_done(self, unit_controller, unit, modified):
+        if not modified or self.slot is None or not self._replayable:
+            return
+        sc = self.store_controller
+        if sc.store is None:
+            return
+        index = self._index_of(unit)
+        if index is None:
+            return
+        record = dict(recovery.unit_key(unit, index), fields=recovery.unit_fields(unit))
+        self.slot.journal(DOCUMENT).append(record)
+        if self._pending_upto is not None:
+            self._touched.add(index)
+        if self._sync_id is None:
+            self._sync_id = GLib.timeout_add(SYNC_MS, self._on_sync, priority=GLib.PRIORITY_LOW)
+        self.touch()
+
+    def _on_sync(self):
+        self._sync_id = None
+        if self.slot is not None:
+            self.slot.sync()
+        return False
+
+    def _cancel_sync(self):
+        if self._sync_id is not None:
+            GLib.source_remove(self._sync_id)
+            self._sync_id = None
+
+    def _index_of(self, unit):
+        sc = self.store_controller
+        if sc.cursor is not None and sc.cursor.deref() is unit:
+            return sc.cursor.index
+        for recent, index in self._recent:
+            if recent is unit:
+                return index
+        return sc._unit_index(unit)
+
+    def _draft(self):
+        """The unit being edited, if it has changes no journal line has."""
+        unit = self._unit_controller and self._unit_controller.current_unit
+        if unit is None or not getattr(unit, '_modified', False):
+            return None
+        index = self._index_of(unit)
+        if index is None:
+            return None
+        state = getattr(unit, '_current_state', None)
+        draft = dict(recovery.unit_key(unit, index), fields=recovery.unit_fields(unit, state))
+        draft['after_seq'] = self.slot.journal(DOCUMENT).seq
+        return draft
 
     # POSITION #
     def _on_controller_registered(self, main_controller, controller):
         if controller is main_controller.unit_controller and controller is not None:
             self._unit_controller = controller
+            controller.connect('unit-modified', self._on_unit_modified)
+            controller.connect('unit-done', self._on_unit_done)
 
     def _track_cursor(self):
         self._untrack_cursor()
@@ -297,6 +514,9 @@ class RecoveryController:
         self._cursor_handler = None
 
     def _on_cursor_changed(self, cursor):
+        unit = cursor.deref()
+        if unit is not None:
+            self._recent = [(unit, cursor.index)] + self._recent[:3]
         self._watch_text_cursors()
         self.touch()
 
@@ -369,4 +589,7 @@ class RecoveryController:
         position = self._position()
         if position is not None:
             self.slot.data['position'] = position
+        doc = self.slot.document(DOCUMENT)
+        if doc is not None and self._replayable:
+            doc['draft'] = self._draft()
         self.slot.write()

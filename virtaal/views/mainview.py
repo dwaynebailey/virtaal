@@ -17,11 +17,30 @@ from functools import cache, cached_property
 from gi.repository import Gdk, Gtk
 
 from virtaal.common import pan_app
+from virtaal.common.pan_app import ngettext
 from virtaal.common.platform import platform
 from virtaal.support.libi18n.locale import rebind_library_domain
 from virtaal.views import rendering, theme
 
 from .baseview import BaseView
+
+
+def _format_time(timestamp):
+    """timestamp as the UI language writes a time, with the date unless
+    it is today."""
+    import datetime
+
+    from babel.dates import format_datetime, format_time
+
+    from virtaal.support.libi18n.numbers import localise_digits, ui_locale
+
+    when = datetime.datetime.fromtimestamp(timestamp)
+    locale = ui_locale()
+    if when.date() == datetime.date.today():
+        text = format_time(when, 'short', locale=locale)
+    else:
+        text = format_datetime(when, 'short', locale=locale)
+    return localise_digits(text, locale)
 
 
 def _set_document_edited(gdk_window, edited):
@@ -1429,6 +1448,80 @@ class MainView(BaseView):
         if infobar is not None:
             self._resume_blocked_infobar = None
             infobar.destroy()
+
+    def show_recovery_notice(self, count, timestamp, on_recover, on_discard):
+        """After a crash: count units of unsaved work, last written at
+        timestamp, can be re-applied (on_recover) or dropped (on_discard)."""
+        from virtaal.support.libi18n.numbers import format_number
+
+        self.hide_recovery_notice()
+        infobar = Gtk.InfoBar()
+        infobar.set_message_type(Gtk.MessageType.WARNING)
+        label = Gtk.Label(
+            label=ngettext(
+                # l10n: Shown when Virtaal reopens the file it was editing when it
+                # crashed. %(time)s is when the unsaved work was last kept.
+                "Virtaal closed unexpectedly. %(count)s unsaved unit from %(time)s "
+                "can be recovered.",
+                "Virtaal closed unexpectedly. %(count)s unsaved units from %(time)s "
+                "can be recovered.",
+                count,
+            )
+            % {'count': format_number(count), 'time': _format_time(timestamp)}
+        )
+        label.set_line_wrap(True)
+        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.add_button(_('_Discard'), Gtk.ResponseType.REJECT)
+        infobar.add_button(_('_Recover'), Gtk.ResponseType.ACCEPT)
+
+        def on_response(infobar, response_id):
+            if response_id == Gtk.ResponseType.ACCEPT:
+                on_recover()
+            elif response_id == Gtk.ResponseType.REJECT:
+                on_discard()
+
+        infobar.connect('response', on_response)
+
+        self._recovery_infobar = infobar
+        infobar.show_all()
+        vbox_main = self.gui.get_object('vbox_main')
+        vbox_main.pack_start(infobar, False, False, 0)
+        vbox_main.reorder_child(infobar, 1)  # directly below the menu bar
+
+    def hide_recovery_notice(self):
+        infobar = getattr(self, '_recovery_infobar', None)
+        if infobar is not None:
+            self._recovery_infobar = None
+            infobar.destroy()
+
+    def show_restored_notice(self, count, unplaced=0):
+        """Unsaved work from the last session was re-applied to count
+        units; unplaced more couldn't be, the file having changed."""
+        from virtaal.support.libi18n.numbers import format_number
+
+        lines = []
+        if count:
+            lines.append(
+                ngettext(
+                    # l10n: Shown when Virtaal reopens the file it was editing when it
+                    # last closed without saving, with the unsaved work re-applied.
+                    "Restored %(count)s unsaved unit from your last session.",
+                    "Restored %(count)s unsaved units from your last session.",
+                    count,
+                )
+                % {'count': format_number(count)}
+            )
+        if unplaced:
+            lines.append(
+                ngettext(
+                    "%(count)s unsaved unit could not be restored because the file changed.",
+                    "%(count)s unsaved units could not be restored because the file changed.",
+                    unplaced,
+                )
+                % {'count': format_number(unplaced)}
+            )
+        if lines:
+            self.show_info_notice('\n'.join(lines))
 
     def show_language_change_notice(self):
         """Called once the UI language is changed in Preferences - a
