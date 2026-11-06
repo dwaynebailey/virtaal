@@ -41,9 +41,22 @@ units form one list: each file's name shows above its first unit, and moving
 past a file's last unit goes on into the next file. A file is read only once
 you come near it, so a large folder opens quickly.
 
-A folder opens the translation files in it and its subfolders (PO, XLIFF and
-Qt .ts), leaving out templates. When they are in several languages, those in
-the current target language open.
+Open a folder with :menuselection:`File --> Open Folder…`, or from
+:menuselection:`File --> Recent Files` once you have. A folder opens the
+translation files in it and its subfolders (PO, XLIFF and Qt .ts), leaving out
+templates.
+
+The :menuselection:`View --> Files Panel` (:kbd:`F7`) beside the units lists
+the folders and files with how much of each is translated. It is open for a
+folder, and hidden until you show it for several files. Select a file or
+folder in it, or several with :kbd:`Ctrl`, to see only their units; press
+:kbd:`Esc` in the panel to see every file again. With nothing selected, the
+file you are in shows in bold.
+
+When the files are in several languages, those in the current target language
+open, and the language list at the top of the panel opens another language's
+files. A file that doesn't say its language is shown with "(?)" and opens with
+every language.
 
 :menuselection:`File --> Save` saves every file you changed, and closing or
 quitting lists the files with unsaved changes.
