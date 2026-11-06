@@ -271,6 +271,27 @@ def test_replace_all_with_no_replacement_text_deletes_every_match():
     assert units[0].target == ' and also '
 
 
+def test_replace_all_of_a_composed_mark_keeps_its_letter():
+    # #4513: the acute is composed into the e of the first target.
+    units = [_xliff_unit("x", "n\u00e9"), _xliff_unit("x", "ne\u0301")]
+    f = GrepFilter(searchstring="\u0301", searchparts=('target',), max_matches=200000)
+    mode = SearchMode.__new__(SearchMode)
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            unit_controller=None,
+            undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None),
+        )
+    )
+    mode.matches, _ = f.getmatches(units)
+    mode.ent_replace = SimpleNamespace(get_text=lambda: "\u0300")
+    mode._search_timeout = 0
+    mode.update_search = lambda: None
+
+    mode._replace_all()
+
+    assert [u.target for u in units] == ["n\u00e8", "ne\u0300"]
+
+
 def test_set_search_bg_accepts_a_colour():
     # A malformed generated CSS string raises Gtk.CssProvider's own
     # GLib.GError - this is really a check that the string built here

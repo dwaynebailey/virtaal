@@ -144,3 +144,56 @@ def test_getmatches_searches_every_plural_form():
     matches, _ = f.getmatches([unit])
 
     assert [(m.part_n, m.start) for m in matches] == [(0, 0), (1, 0)]
+
+
+# "ne" with its acute accent precomposed, decomposed, and on a letter
+# with no precomposed form (#4513).
+_ACCENTED = ["n\u00e9", "ne\u0301", "q\u0301"]
+
+
+def _search(texts, searchstring, useregexp=False):
+    units = [_unit(str(n), text) for n, text in enumerate(texts)]
+    f = GrepFilter(searchstring=searchstring, searchparts=('target',), useregexp=useregexp)
+    return f.getmatches(units)
+
+
+def test_a_combining_mark_alone_matches_where_it_composes_with_its_letter():
+    _matches, indexes = _search(_ACCENTED, "\u0301")
+    _matches, regex_indexes = _search(_ACCENTED, "[\u0300-\u036f]", useregexp=True)
+
+    assert indexes == regex_indexes == [0, 1, 2]
+
+
+def test_a_mark_match_covers_the_character_it_is_composed_into():
+    matches, _indexes = _search(_ACCENTED, "\u0301")
+
+    assert [(m.start, m.end) for m in matches] == [(1, 2), (2, 3), (1, 2)]
+
+
+def test_a_letter_alone_still_misses_its_accented_form():
+    _matches, indexes = _search(_ACCENTED + ["ne"], "ne")
+
+    assert indexes == [3]
+
+
+def test_replacing_a_composed_mark_keeps_its_letter():
+    from virtaal.support.pogrep_compat import replacement
+
+    matches, _indexes = _search(_ACCENTED, "\u0301")
+
+    replaced = [
+        m.unit.target[: m.start] + replacement(m, "\u0300") + m.unit.target[m.end :]
+        for m in matches
+    ]
+    assert replaced == ["n\u00e8", "ne\u0300", "q\u0300"]
+
+
+def test_a_mark_reordered_by_nfd_takes_its_whole_cluster():
+    from virtaal.support.pogrep_compat import replacement
+
+    # NFD puts the dot below (U+0323) before the acute of the e.
+    matches, _indexes = _search(["\u00e9\u0323"], "\u0323")
+
+    (match,) = matches
+    assert (match.start, match.end) == (0, 2)
+    assert replacement(match, "") == "\u00e9"

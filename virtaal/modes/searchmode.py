@@ -13,7 +13,7 @@ from gi.repository import Gdk, GLib, Gtk
 from translate.storage.placeables import StringElem
 
 from virtaal.controllers.cursor import Cursor
-from virtaal.support import sdlxliff_compat
+from virtaal.support import pogrep_compat, sdlxliff_compat
 from virtaal.views.theme import base_color, current_theme, rgba_to_str
 
 from .basemode import BaseMode
@@ -285,6 +285,7 @@ class SearchMode(BaseMode):
 
         if unit_controller is not None:
             self.select_match_unit(match)
+        replace_str = pogrep_compat.replacement(match, replace_str)
         unit = match.unit
         strings = list(unit.target.strings) if unit.hasplural() else [unit.target]
         plain = str(strings[match.part_n])
