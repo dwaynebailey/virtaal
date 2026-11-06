@@ -86,6 +86,7 @@ class FilePanelView(BaseView):
         self.language_combo.connect('changed', self._on_language_changed)
         self.language_box.pack_start(label, False, False, 0)
         self.language_box.pack_start(self.language_combo, True, True, 0)
+        self.language_box.pack_start(self._all_languages_button(), False, False, 0)
         self.widget.pack_start(self.language_box, False, False, 0)
 
         self.model = Gtk.TreeStore(str, str, int, str, object, int, str)
@@ -130,6 +131,26 @@ class FilePanelView(BaseView):
         self.widget.set_size_request(self.WIDTH // 2, -1)
         self.widget.show_all()
         self.language_box.hide()
+
+    def _all_languages_button(self):
+        """A menu of what can be done with every language's files."""
+        menu = Gtk.Menu()
+        items = (
+            (_("Find in All _Languages…"), 'search'),
+            (_("Check All Lan_guages…"), 'check'),
+        )
+        for label, kind in items:
+            item = Gtk.MenuItem.new_with_mnemonic(label)
+            item.connect('activate', lambda _item, kind=kind: self.controller.scan_all(kind))
+            menu.append(item)
+        menu.show_all()
+        button = Gtk.MenuButton(popup=menu)
+        button.set_image(Gtk.Image.new_from_icon_name('view-more-symbolic', Gtk.IconSize.BUTTON))
+        # l10n: Tooltip of the button beside the language list in the files panel
+        button.set_tooltip_text(_("All languages"))
+        button.get_accessible().set_name(_("All languages"))
+        self.all_languages_button = button
+        return button
 
     def _place_beside_units(self):
         """Put the panel and the units in a Gtk.Paned where the units were."""

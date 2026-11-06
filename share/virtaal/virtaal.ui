@@ -808,6 +808,26 @@ If you are translating from English to French then French would be your translat
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="mnu_find_all_languages">
+                        <property name="visible">True</property>
+                        <property name="sensitive">False</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="label" translatable="yes" comments="l10n: Searches the files of every language opened together, not only those being edited">Find in All _Languages…</property>
+                        <property name="use_underline">True</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="mnu_check_all_languages">
+                        <property name="visible">True</property>
+                        <property name="sensitive">False</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="label" translatable="yes" comments="l10n: Runs quality checks on the files of every language opened together">Check All Lan_guages…</property>
+                        <property name="use_underline">True</property>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkSeparatorMenuItem" id="separator_mnu_edit_find">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>

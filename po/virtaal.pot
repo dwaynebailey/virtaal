@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 11:49+0000\n"
+"POT-Creation-Date: 2026-11-06 12:27+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -145,6 +145,16 @@ msgstr ""
 
 #: share/virtaal/virtaal.ui
 msgid "Find Pre_vious"
+msgstr ""
+
+#. l10n: Searches the files of every language opened together, not only those being edited
+#: share/virtaal/virtaal.ui virtaal/views/filepanelview.py
+msgid "Find in All _Languages…"
+msgstr ""
+
+#. l10n: Runs quality checks on the files of every language opened together
+#: share/virtaal/virtaal.ui virtaal/views/filepanelview.py
+msgid "Check All Lan_guages…"
 msgstr ""
 
 #. l10n: Activating this menu item replaces the target with the whole source. The "copy" is not necessarily the same as the source: language-specific punctuation changes are made automatically.
@@ -856,6 +866,11 @@ msgstr ""
 msgid "Punctuation spacing"
 msgstr ""
 
+#. l10n: Name of a quality check: Python format placeholders such as {name}
+#: virtaal/controllers/checkscontroller.py
+msgid "Python braces"
+msgstr ""
+
 #: virtaal/controllers/checkscontroller.py
 msgid "Pure punctuation"
 msgstr ""
@@ -1283,17 +1298,18 @@ msgstr ""
 msgid "Incomplete"
 msgstr ""
 
-#: virtaal/modes/searchmode.py virtaal/views/widgets/shortcutswindow.py
+#: virtaal/modes/searchmode.py virtaal/views/setscanview.py
+#: virtaal/views/widgets/shortcutswindow.py
 msgid "Search"
 msgstr ""
 
-#: virtaal/modes/searchmode.py
+#: virtaal/modes/searchmode.py virtaal/views/setscanview.py
 msgid "_Case sensitive"
 msgstr ""
 
 #. l10n: To read about what regular expressions are, see
 #. http://en.wikipedia.org/wiki/Regular_expression
-#: virtaal/modes/searchmode.py
+#: virtaal/modes/searchmode.py virtaal/views/setscanview.py
 msgid "_Regular expression"
 msgstr ""
 
@@ -1591,7 +1607,7 @@ msgid "Add Term \"%(selection)s\"…"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
-#: virtaal/plugins/tm/localtmdialog.py
+#: virtaal/plugins/tm/localtmdialog.py virtaal/views/setscanview.py
 msgid "File"
 msgstr ""
 
@@ -1708,7 +1724,7 @@ msgid "_Export…"
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py virtaal/views/mainview.py
-#: virtaal/views/widgets/selectdialog.py
+#: virtaal/views/setscanview.py virtaal/views/widgets/selectdialog.py
 msgid "_Close"
 msgstr ""
 
@@ -2417,13 +2433,19 @@ msgid_plural "%(language)s (%(count)s files)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: virtaal/views/filepanelview.py virtaal/views/widgets/langselectdialog.py
+#: virtaal/views/filepanelview.py virtaal/views/setscanview.py
+#: virtaal/views/widgets/langselectdialog.py
 msgid "Language"
 msgstr ""
 
 #. l10n: The accessible name of the list of open files
 #: virtaal/views/filepanelview.py
 msgid "Files"
+msgstr ""
+
+#. l10n: Tooltip of the button beside the language list in the files panel
+#: virtaal/views/filepanelview.py
+msgid "All languages"
 msgstr ""
 
 #. l10n: Tooltip of a file in the files panel
@@ -2708,6 +2730,82 @@ msgstr ""
 
 #: virtaal/views/propertiesview.py
 msgid "This file has unsaved changes."
+msgstr ""
+
+#. l10n: Progress of a check or search of every language's files
+#: virtaal/views/setscanview.py
+#, python-format
+msgid "%(done)s of %(total)s file"
+msgid_plural "%(done)s of %(total)s files"
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: How many problems a check of every language's files found
+#: virtaal/views/setscanview.py
+#, python-format
+msgid "%(count)s problem"
+msgid_plural "%(count)s problems"
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: How many units a search of every language's files found
+#: virtaal/views/setscanview.py
+#, python-format
+msgid "%(count)s unit found"
+msgid_plural "%(count)s units found"
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: Shown after the number of problems or units found, when there are too many to list
+#: virtaal/views/setscanview.py
+#, python-format
+msgid "Only the first %(count)s are listed."
+msgstr ""
+
+#: virtaal/views/setscanview.py
+#, python-format
+msgid "%(count)s file could not be read."
+msgid_plural "%(count)s files could not be read."
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/views/setscanview.py
+msgid "_Stop"
+msgstr ""
+
+#. l10n: Window title
+#: virtaal/views/setscanview.py
+msgid "Check All Languages"
+msgstr ""
+
+#. l10n: Window title
+#: virtaal/views/setscanview.py
+msgid "Find in All Languages"
+msgstr ""
+
+#. l10n: Button: check every language's files
+#: virtaal/views/setscanview.py
+msgid "_Check"
+msgstr ""
+
+#. l10n: Column heading: the quality check a translation fails
+#: virtaal/views/setscanview.py
+msgid "Check"
+msgstr ""
+
+#. l10n: Column heading: the unit's number in its file
+#: virtaal/views/setscanview.py
+msgid "Unit"
+msgstr ""
+
+#. l10n: Column heading: the source text of a unit
+#: virtaal/views/setscanview.py
+msgid "Source"
+msgstr ""
+
+#. l10n: Column heading: the translation of a unit
+#: virtaal/views/setscanview.py
+msgid "Translation"
 msgstr ""
 
 #. l10n: A Trados Studio file can lock a translation.

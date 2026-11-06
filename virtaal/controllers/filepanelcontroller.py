@@ -51,6 +51,9 @@ class FilePanelController(BaseController):
         store_controller.connect('store-saved', self._on_stats_changed)
         self.menu_item = main_controller.view.gui.get_object('mnu_files_panel')
         self.menu_item.connect('toggled', self._on_menu_toggled)
+        from .setscancontroller import SetScanController
+
+        self.scan_controller = SetScanController(main_controller)
 
     @property
     def store_controller(self):
@@ -87,6 +90,10 @@ class FilePanelController(BaseController):
             return
         if not self.main_controller.open_stream_language(language):
             self.view.select_language(sc.stream_language)
+
+    def scan_all(self, kind):
+        """Check or search the files of every language."""
+        self.scan_controller.show(kind)
 
     def focus_units(self):
         unit_view = getattr(self.main_controller.unit_controller, 'view', None)

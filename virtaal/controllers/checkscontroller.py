@@ -43,6 +43,8 @@ check_names = {
     'options': _("Options"),
     'printf': _("printf()"),
     'puncspacing': _("Punctuation spacing"),
+    # l10n: Name of a quality check: Python format placeholders such as {name}
+    'pythonbraceformat': _("Python braces"),
     'purepunc': _("Pure punctuation"),
     'sentencecount': _("Number of sentences"),
     'short': _("Short"),
