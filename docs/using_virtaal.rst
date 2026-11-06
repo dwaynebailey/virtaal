@@ -33,6 +33,21 @@ You can invoke Virtaal from the command line with ::
 See the :doc:`command line options <cli_options>` page for the full list of
 flags Virtaal accepts (e.g. :option:`virtaal --lang`).
 
+Opening Several Files
+---------------------
+Select several files in :menuselection:`File --> Open`, or give several files
+or a folder on the command line, to translate them one after the other. Their
+units form one list: each file's name shows above its first unit, and moving
+past a file's last unit goes on into the next file. A file is read only once
+you come near it, so a large folder opens quickly.
+
+A folder opens the translation files in it and its subfolders (PO, XLIFF and
+Qt .ts), leaving out templates. When they are in several languages, those in
+the current target language open.
+
+:menuselection:`File --> Save` saves every file you changed, and closing or
+quitting lists the files with unsaved changes.
+
 A list of supported translation formats can be found on the :doc:`features
 <features>` page.
 

@@ -8,10 +8,13 @@ Command Line Options
 Besides opening a file by clicking on it, Virtaal can be launched directly
 from the command line::
 
-  virtaal [options] [filename]
+  virtaal [options] [filename ...]
 
 ``filename`` is optional, and is the translation file to open on startup (see
-:ref:`Opening a File <using_virtaal#opening_a_file>`).
+:ref:`Opening a File <using_virtaal#opening_a_file>`). Several files, or a
+folder, open together as one list of units, one file after the other. A folder
+opens the translation files in it and its subfolders in one language, leaving
+out templates (``.pot``).
 
 .. option:: -h, --help
 
