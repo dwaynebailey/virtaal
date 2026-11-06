@@ -454,3 +454,33 @@ def test_the_default_database_in_flatpak_is_under_xdg_cache_home(
     assert statsdb.StatsCache.defaultfile == os.path.join(
         os.path.realpath(str(tmp_path)), 'translate_toolkit', 'stats.db'
     )
+
+
+def test_file_units_lists_each_translatable_unit_in_order(tmp_path):
+    path = tmp_path / 'af.po'
+    path.write_text(
+        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+        'msgid "Open"\nmsgstr "Oop"\n\n#, fuzzy\nmsgid "Close"\nmsgstr "Toe"\n'
+    )
+    cache = statsdb.StatsCache(str(tmp_path / 'stats.db'))
+
+    rows = cache.file_units(str(path))
+
+    assert [row[:4] for row in rows] == [(1, 'Open', 'Open', 'Oop'), (2, 'Close', 'Close', 'Toe')]
+    assert [row[4:] for row in rows] == [
+        (statsdb.TRANSLATED, statsdb.TRANSLATED),
+        (statsdb.FUZZY, statsdb.FUZZY),
+    ]
+
+
+def test_is_cached_until_the_file_changes(tmp_path):
+    path = tmp_path / 'af.po'
+    path.write_text('msgid ""\nmsgstr ""\n\nmsgid "Open"\nmsgstr ""\n')
+    cache = statsdb.StatsCache(str(tmp_path / 'stats.db'))
+
+    assert not cache.is_cached(str(path))
+    cache.filestatestats(str(path))
+    assert cache.is_cached(str(path))
+    path.write_text('msgid ""\nmsgstr ""\n\nmsgid "Open"\nmsgstr "Oop"\n')
+    assert not cache.is_cached(str(path))
+    assert not cache.is_cached(str(tmp_path / 'missing.po'))

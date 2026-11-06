@@ -831,6 +831,27 @@ class StatsCache:
             stats["total"].append(value[2])
         return stats
 
+    def is_cached(self, filename):
+        """Whether the cache has the file as it is on disk now."""
+        realpath = os.path.realpath(filename)
+        self.cur.execute("""SELECT st_mtime, st_size FROM files WHERE path=?;""", (realpath,))
+        row = self.cur.fetchone()
+        try:
+            return row is not None and tuple(row) == get_mod_info(realpath)
+        except OSError:
+            return False
+
+    def file_units(self, filename, store=None):
+        """(unitindex, unitid, source, target, state, e_state) of each
+        translatable unit, in file order."""
+        fileid = self._getfileid(filename, store=store)
+        self.cur.execute(
+            """SELECT unitindex, unitid, source, target, state, e_state
+            FROM units WHERE fileid=? ORDER BY unitindex;""",
+            (fileid,),
+        )
+        return self.cur.fetchall()
+
     def filestats(self, filename, checker, store=None, extended=False):
         """Return a dictionary of property names mapping sets of unit indices
         with those properties.

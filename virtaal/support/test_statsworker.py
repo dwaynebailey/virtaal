@@ -116,6 +116,15 @@ def test_the_main_loop_starts_the_next_fill(tmp_path):
     assert _is_cached(first) and _is_cached(second)
 
 
+def test_fill_caches_several_files_and_waits(tmp_path):
+    first, second = _po(tmp_path, 'one.po'), _po(tmp_path, 'twee ê.po')
+
+    statsworker.fill([first, str(tmp_path / 'missing.po'), second])
+
+    assert statsworker._running is None
+    assert _is_cached(first) and _is_cached(second)
+
+
 def test_a_failed_fill_is_logged_and_the_next_one_still_runs(tmp_path, caplog):
     path = _po(tmp_path)
 

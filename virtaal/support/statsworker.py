@@ -43,6 +43,22 @@ def fill_in_background(filename):
         _start_next()
 
 
+def fill(filenames):
+    """Cache the stats of several files on disk, and wait for it."""
+    wait()
+    statsdb.StatsCache()  # Sets the default stats file.
+    if statsdb.StatsCache.defaultfile in statsdb.StatsCache.unusable_files:
+        return
+    from virtaal.support import helperprocess
+
+    subprocess.run(
+        helperprocess.command(__name__) + [statsdb.StatsCache.defaultfile, '-'],
+        input='\n'.join(filenames).encode('utf-8'),
+        env=helperprocess.env(),
+        check=False,
+    )
+
+
 def wait():
     """Block until every queued fill is done. Call before using
     L{statsdb.StatsCache}, which a running fill may have locked."""
@@ -91,9 +107,23 @@ def _finish(proc):
     _start_next()
 
 
+def _fill_files(statsfile, filenames):
+    """Cache each file; returns the number that couldn't be."""
+    failed = 0
+    for filename in filenames:
+        try:
+            statsdb.StatsCache(statsfile).filestatestats(filename)
+        except Exception:
+            failed += 1
+    return failed
+
+
 if __name__ == '__main__':
     statsfile, filename = sys.argv[1:]
-    try:
-        statsdb.StatsCache(statsfile).filestatestats(filename)
-    except Exception:
+    # "-": one file name per line on stdin.
+    if filename == '-':
+        filenames = [line for line in sys.stdin.buffer.read().decode('utf-8').split('\n') if line]
+    else:
+        filenames = [filename]
+    if _fill_files(statsfile, filenames):
         sys.exit(1)
