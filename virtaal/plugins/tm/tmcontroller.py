@@ -182,6 +182,8 @@ class TMController(BaseController):
         if self.abstract_placeables:
             accel_markers = self._accel_markers()
             matches = [self._adapt(query_str, match, accel_markers) for match in matches]
+        unit = getattr(self, '_queried_unit', None)
+        matches = [self._cap_for_codes(unit, match) for match in matches]
 
         anything_new = False
         for match in matches:
@@ -258,6 +260,16 @@ class TMController(BaseController):
             match['target'] = adapted.target
             match['tm_target'] = target
         return match
+
+    @staticmethod
+    def _cap_for_codes(unit, match):
+        """match, or a copy scored 99 if it is a 100 whose inline codes
+        differ from unit's."""
+        if int(match.get('quality') or 0) < 100 or not inlinecodes.codes_differ(
+            match.get('source_markup'), unit
+        ):
+            return match
+        return dict(match, quality=99)
 
     def destroy(self):
         # Destroy the view

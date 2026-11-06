@@ -208,22 +208,22 @@ files", translating "Delete %(count)s files" suggests "Verwyder %(count)s
 lêers". An accelerator key such as the ``_`` in "Maak lêer _oop" takes the
 marker your file's quality checks expect, such as ``&`` for KDE. A placeable
 that differs counts for little in the match percentage, so such a suggestion
-scores close to 100%, while only identical text scores 100%. Your local
-translation memory finds such a suggestion even when the placeables' own text
-makes the two look quite different. Hover over an adapted suggestion to see
-what the translation memory has.
+scores close to 100%, while only identical text with the same tags scores 100%.
+Your local translation memory finds such a suggestion even when the placeables'
+own text makes the two look quite different. Hover over an adapted suggestion
+to see what the translation memory has.
 
 Your local translation memory also keeps the inline codes (formatting tags) of
-XLIFF and TMX translations. The tags don't count in the match percentage, so a
-segment with tags matches the same text without them; text inside a tag, such
-as the ``<b>`` a TMX file can hold, does count. Suggestions from the file you
-are translating have their tags too. The suggestion list shows the tags as the
-editor does. Picking such a suggestion for a segment with tags puts the
-segment's own tags into the translation, the first of each kind for the first,
-when both originals have the same number of each kind; otherwise only the text
-goes in. :guilabel:`Insert at Cursor` in the
-suggestion's context menu does the same, unless your translation already has
-those tags.
+XLIFF and TMX translations. The tags count in the match percentage only when
+the text is the same: then a different number of some kind of tag scores 99%
+instead of 100%. Text inside a tag, such as the ``<b>`` a TMX file can hold,
+does count. Suggestions from the file you are translating have their tags too.
+The suggestion list shows the tags as the editor does. Picking such a
+suggestion for a segment with tags puts the segment's own tags into the
+translation, the first of each kind for the first, when both originals have the
+same number of each kind; otherwise only the text goes in.
+:guilabel:`Insert at Cursor` in the suggestion's context menu does the same,
+unless your translation already has those tags.
 
 Machine translation keeps your placeables too: Virtaal asks the service to
 leave them untranslated and puts your own placeables in its suggestion. Should

@@ -79,6 +79,66 @@ def test_accept_response_coerces_a_string_quality_to_int():
     assert controller.matches[0]['quality'] == 90
 
 
+_XLIFF = """<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+<file original="a" source-language="en" target-language="af" datatype="plaintext"><body>
+<trans-unit id="1"><source>%s</source></trans-unit>
+</body></file></xliff>"""
+
+
+def _tagged_response(unit_source, match):
+    controller = _make_controller(current_query='Click here')
+    controller._queried_unit = xliff.xlifffile.parsestring(
+        (_XLIFF % unit_source).encode('utf-8')
+    ).units[0]
+    match = dict({'source': 'Click here', 'target': 'Klik hier', 'quality': 100}, **match)
+
+    controller.accept_response(_tmmodel(), 'Click here', [match])
+
+    return controller.matches[0]['quality']
+
+
+@pytest.mark.parametrize(
+    ('unit_source', 'source_markup', 'quality'),
+    [
+        # #4708: the same text with other tags isn't the same.
+        ('Click <g id="1">here</g>', 'Click <x id="1"/>here', 99),
+        ('Click <g id="1">here</g>', 'Click <g id="1">here</g><x id="2"/>', 99),
+        ('Click here', 'Click <g id="1">here</g>', 99),
+        ('Click <g id="1">here</g>', 'Click here', 99),
+        # The same kinds of code, whatever their ids.
+        ('Click <g id="1">here</g>', 'Click <g id="7">here</g>', 100),
+        ('Click <x id="1"/>here', 'Click <ph id="7"></ph>here', 100),
+    ],
+)
+def test_accept_response_scores_a_match_with_other_codes_99(unit_source, source_markup, quality):
+    match = {'source_markup': source_markup, 'target_markup': 'Klik hier'}
+
+    assert _tagged_response(unit_source, match) == quality
+
+
+def test_accept_response_leaves_a_match_without_markup_at_100():
+    assert _tagged_response('Click <g id="1">here</g>', {}) == 100
+
+
+def test_accept_response_leaves_a_po_units_match_at_100():
+    from translate.storage import po
+
+    controller = _make_controller(current_query='Click here')
+    controller._queried_unit = po.pounit('Click here')
+    match = {
+        'source': 'Click here',
+        'target': 'Klik hier',
+        'quality': 100,
+        'source_markup': 'Click <g id="1">here</g>',
+        'target_markup': 'Klik <g id="1">hier</g>',
+    }
+
+    controller.accept_response(_tmmodel(), 'Click here', [match])
+
+    assert controller.matches[0]['quality'] == 100
+
+
 def test_accept_response_defaults_a_missing_tmsource_to_the_models_display_name():
     controller = _make_controller()
 

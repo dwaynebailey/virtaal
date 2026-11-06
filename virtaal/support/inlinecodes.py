@@ -435,6 +435,35 @@ def rebuild(source_markup, target_markup, unit_source):
     return _build(result.text, codes)
 
 
+def _kinds(markup):
+    """How many codes of each kind markup holds, or None if it can't be
+    read."""
+    if not markup:
+        return Counter()
+    node = _codes_node(markup)
+    if node is None:
+        return None
+    return _tag_counts(abstraction.placeables(_markup_skeleton(node, {})))
+
+
+def holds_codes(unit):
+    """Whether unit is a unit of a format with inline codes."""
+    from translate.storage import tmx, xliff
+
+    return isinstance(unit, (xliff.xliffunit, tmx.tmxunit)) and not unit.hasplural()
+
+
+def codes_differ(source_markup, unit):
+    """Whether a match whose source is source_markup has a different
+    number of some kind of code than unit's source. False if either is
+    without markup to tell."""
+    if not source_markup or not holds_codes(unit):
+        return False
+    match_kinds = _kinds(source_markup)
+    unit_kinds = _kinds(unit_markup(unit)[0])
+    return None not in (match_kinds, unit_kinds) and match_kinds != unit_kinds
+
+
 # Showing a match's codes
 
 
