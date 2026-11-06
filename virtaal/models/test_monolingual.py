@@ -9,7 +9,7 @@ import os
 
 import pytest
 
-from virtaal.models.monolingual import MonolingualPair
+from virtaal.models.monolingual import MonolingualPair, state_name
 from virtaal.support import baseline
 from virtaal.support.converters import FluentConverter
 
@@ -48,9 +48,7 @@ def _reviewed(project):
 
 
 def _state(unit):
-    if unit.isfuzzy():
-        return 'fuzzy'
-    return 'translated' if unit.target else 'untranslated'
+    return state_name(unit)
 
 
 def test_the_pair_translates_from_the_template(project):
@@ -138,10 +136,10 @@ def test_a_changed_source_needs_review_and_shows_the_old_source(project):
     pair = _open(project)
 
     unit = _units(pair)['greeting']
-    assert unit.isfuzzy()
+    assert _state(unit) == 'needs-work'
     assert unit.target == 'Hallo, {0}!'
     assert 'Previous source: Hello, {0}!' in unit.getnotes('translator')
-    assert not _units(pair)['app.title'].isfuzzy()
+    assert _state(_units(pair)['app.title']) == 'translated'
 
 
 def test_a_review_still_shows_on_the_next_open(project):
@@ -153,7 +151,7 @@ def test_a_review_still_shows_on_the_next_open(project):
 
     unit = _units(_open(project))['greeting']
 
-    assert unit.isfuzzy()
+    assert _state(unit) == 'needs-work'
     assert 'Previous source: Hello, {0}!' in unit.getnotes('translator')
 
 
@@ -183,7 +181,7 @@ def test_a_unit_left_for_review_stays_fuzzy_after_saving(project):
 
     unit = _units(_open(project))['greeting']
 
-    assert unit.isfuzzy()
+    assert _state(unit) == 'needs-work'
     assert 'Previous source: Hello, {0}!' in unit.getnotes('translator')
     assert 'greeting=Hallo, {0}!' in (project / 'af.properties').read_text(encoding='utf-8')
 
@@ -213,7 +211,7 @@ def test_a_target_changed_outside_is_taken_and_flagged(project):
     unit = _units(_open(project))['greeting']
 
     assert unit.target == 'Goeie môre, {0}!'
-    assert unit.isfuzzy()
+    assert _state(unit) == 'needs-review'
     assert 'Translation changed outside Virtaal' in unit.getnotes('translator')
 
 
@@ -225,7 +223,7 @@ def test_a_translation_added_outside_with_a_new_key_is_flagged(project):
     unit = _units(_open(project))['help']
 
     assert unit.target == 'Hulp'
-    assert unit.isfuzzy()
+    assert _state(unit) == 'needs-review'
 
 
 def test_a_renamed_key_with_the_same_source_keeps_its_translation(project):
@@ -252,15 +250,19 @@ def test_first_open_marks_every_translation_for_review(project):
     pair = _open(project)
 
     assert {key: _state(u) for key, u in _units(pair).items()} == {
-        'app.title': 'fuzzy',
-        'greeting': 'fuzzy',
+        'app.title': 'needs-review',
+        'greeting': 'needs-review',
         # The same as the English, but the target has it.
-        'quit': 'fuzzy',
+        'quit': 'needs-review',
     }
     states = {
         key: e['state'] for key, e in baseline.load(str(project / 'af.properties'))['units'].items()
     }
-    assert states == {'app.title': 'fuzzy', 'greeting': 'fuzzy', 'quit': 'fuzzy'}
+    assert states == {
+        'app.title': 'needs-review',
+        'greeting': 'needs-review',
+        'quit': 'needs-review',
+    }
     assert not any(unit.getnotes('translator') for unit in _units(pair).values())
 
 
@@ -274,7 +276,11 @@ def test_saving_a_first_open_unchanged_writes_the_targets_values(project):
     from virtaal.support.converters import PropertiesConverter
 
     af = str(project / 'af.properties')
+    (project / 'af.properties').write_text(
+        AF + 'quit=Hou  op <b>&amp; {0}\\nnou\n', encoding='utf-8'
+    )
     before = PropertiesConverter().values(af)
+    assert before['quit'] == 'Hou  op <b>&amp; {0}\nnou'
 
     _open(project).save()
 
@@ -299,7 +305,7 @@ def test_english_written_in_and_then_changed_outside_is_taken(project):
 
     unit = _units(_open(project))['quit']
 
-    assert (unit.target, unit.isfuzzy()) == ('Verlaat', True)
+    assert (unit.target, _state(unit)) == ('Verlaat', 'needs-review')
 
 
 def test_a_project_that_skips_untranslated_keys_is_remembered(project):
@@ -383,3 +389,41 @@ def test_the_source_file_saved_as_another_file_starts_a_translation(project):
 
     assert not pair.source_only
     assert 'quit=Verlaat' in (project / 'af_new.properties').read_text(encoding='utf-8')
+
+
+def test_the_working_store_can_hold_needs_review(project):
+    from translate.storage import xliff
+
+    pair = _open(project)
+
+    assert isinstance(pair.store, xliff.xlifffile)
+    assert [key for key, _unit in pair.units()] == ['app.title', 'greeting', 'quit']
+    assert 'The window title' in _units(pair)['app.title'].getnotes('developer')
+
+
+def test_a_changed_source_wins_over_a_change_outside(project):
+    _reviewed(project)
+    (project / 'en.properties').write_text(
+        EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
+    )
+    text = (project / 'af.properties').read_text(encoding='utf-8')
+    (project / 'af.properties').write_text(text.replace('Hallo,', 'Goeie dag,'), encoding='utf-8')
+
+    unit = _units(_open(project))['greeting']
+
+    assert _state(unit) == 'needs-work'
+    notes = unit.getnotes('translator')
+    assert 'Previous source: Hello, {0}!' in notes
+    assert 'Translation changed outside Virtaal' in notes
+
+
+def test_needs_review_is_restored_on_reopen(project):
+    _open(project).save()
+
+    states = {key: _state(u) for key, u in _units(_open(project)).items()}
+
+    assert states == {
+        'app.title': 'needs-review',
+        'greeting': 'needs-review',
+        'quit': 'untranslated',
+    }

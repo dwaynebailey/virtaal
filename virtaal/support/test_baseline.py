@@ -66,7 +66,7 @@ def test_a_sidecar_for_another_path_is_ignored(tmp_path):
 
 
 def test_entry_keeps_review_details_only_while_fuzzy():
-    fuzzy = baseline.entry('New', 'Nuut', baseline.FUZZY, 'Old', True)
+    fuzzy = baseline.entry('New', 'Nuut', baseline.NEEDS_WORK, 'Old', True)
     done = baseline.entry('New', 'Nuut', baseline.TRANSLATED, 'Old', True)
 
     assert fuzzy['previous_source'] == 'Old'

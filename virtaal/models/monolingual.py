@@ -11,12 +11,56 @@ bilingual store in memory. No GTK here."""
 import os
 
 from virtaal.support import baseline, converters
-from virtaal.support.baseline import FUZZY, TRANSLATED, UNTRANSLATED, text_hash
+from virtaal.support.baseline import (
+    NEEDS_REVIEW,
+    NEEDS_WORK,
+    REVIEW_STATES,
+    TRANSLATED,
+    UNTRANSLATED,
+    text_hash,
+)
+
+
+def _state_numbers():
+    from translate.storage.workflow import StateEnum
+
+    return {NEEDS_WORK: StateEnum.NEEDS_WORK, NEEDS_REVIEW: StateEnum.NEEDS_REVIEW}
+
+
+def state_name(unit):
+    """The baseline's name for C{unit}'s state."""
+    from translate.storage.workflow import StateEnum
+
+    if not unit.target:
+        return UNTRANSLATED
+    state = unit.get_state_n()
+    if state >= StateEnum.UNREVIEWED:
+        return TRANSLATED
+    return NEEDS_REVIEW if state >= StateEnum.NEEDS_REVIEW else NEEDS_WORK
 
 
 def unit_key(unit):
-    locations = unit.getlocations()
-    return locations[0] if locations else None
+    # XLIFF prefixes the id with its <file>'s name and \x04.
+    return (unit.getid() or '').rsplit('\x04', 1)[-1] or None
+
+
+def _working_store(bilingual):
+    """An XLIFF store with C{bilingual}'s units, keyed by their first
+    location: XLIFF can hold Needs review, PO can't."""
+    from translate.storage import xliff
+
+    store = xliff.xlifffile()
+    for unit in bilingual.units:
+        locations = unit.getlocations()
+        if unit.isheader() or not locations:
+            continue
+        working = store.addsourceunit(unit.source)
+        working.setid(locations[0])
+        working.target = unit.target
+        notes = unit.getnotes('developer')
+        if notes:
+            working.addnote(notes, 'developer')
+    return store
 
 
 def _target_text(unit):
@@ -49,7 +93,7 @@ class MonolingualPair:
         self.target = os.path.abspath(target)
         self.template = os.path.abspath(template)
         self.source_only = os.path.normcase(self.target) == os.path.normcase(self.template)
-        self.store = self.converter.to_bilingual(self.template, self.target)
+        self.store = _working_store(self.converter.to_bilingual(self.template, self.target))
         self.store.filename = self.target
         if self.source_only:
             language = ''
@@ -99,8 +143,10 @@ class MonolingualPair:
                 units[key] = self._untranslated(unit, renamed, values)
             elif previous is None:
                 # Translated outside Virtaal along with the new key.
-                self._mark(key, unit, _Review(outside=True))
-                units[key] = baseline.entry(unit.source, _target_text(unit), FUZZY, outside=True)
+                self._mark(key, unit, _Review(outside=True), NEEDS_REVIEW)
+                units[key] = baseline.entry(
+                    unit.source, _target_text(unit), NEEDS_REVIEW, outside=True
+                )
             else:
                 units[key] = self._known_key(key, unit, previous)
         data = dict(
@@ -114,8 +160,8 @@ class MonolingualPair:
         target = _target_text(unit)
         if not target:
             return baseline.entry(unit.source, None, UNTRANSLATED)
-        self._mark(key, unit, _Review())
-        return baseline.entry(unit.source, target, FUZZY)
+        self._mark(key, unit, _Review(), NEEDS_REVIEW)
+        return baseline.entry(unit.source, target, NEEDS_REVIEW)
 
     def _untranslated(self, unit, renamed, values):
         old_key = renamed.get(text_hash(unit.source))
@@ -134,26 +180,23 @@ class MonolingualPair:
             unit.target = ''
             return baseline.entry(unit.source, target, UNTRANSLATED)
         review = _Review(previous.get('previous_source'), previous.get('outside', False))
-        fuzzy = previous.get('state') == FUZZY
+        state = previous.get('state') if previous.get('state') in REVIEW_STATES else TRANSLATED
+        if previous.get('target_hash') != text_hash(target):
+            review.outside = True
+            if state == TRANSLATED:
+                state = NEEDS_REVIEW
         if previous.get('source_hash') != text_hash(unit.source):
+            # The translation may no longer fit.
             review.previous_source = review.previous_source or previous.get('source')
-            fuzzy = True
+            state = NEEDS_WORK
         if review.previous_source == unit.source:
             review.previous_source = None
-        if previous.get('target_hash') != text_hash(target):
-            review.outside = fuzzy = True
-        if fuzzy:
-            self._mark(key, unit, review)
-        return baseline.entry(
-            unit.source,
-            target,
-            FUZZY if fuzzy else TRANSLATED,
-            review.previous_source,
-            review.outside,
-        )
+        if state != TRANSLATED:
+            self._mark(key, unit, review, state)
+        return baseline.entry(unit.source, target, state, review.previous_source, review.outside)
 
-    def _mark(self, key, unit, review):
-        unit.markfuzzy(True)
+    def _mark(self, key, unit, review, state):
+        unit.set_state_n(_state_numbers()[state])
         self.reviews[key] = review
         if review.previous_source is not None:
             unit.addnote(
@@ -188,11 +231,8 @@ class MonolingualPair:
         units = {}
         for key, unit in self.units():
             target = saved.get(key)
-            if not unit.target:
-                state = UNTRANSLATED
-            else:
-                state = FUZZY if unit.isfuzzy() else TRANSLATED
-            if state != FUZZY:
+            state = state_name(unit)
+            if state not in REVIEW_STATES:
                 self.reviews.pop(key, None)
             review = self.reviews.get(key, _Review())
             units[key] = baseline.entry(

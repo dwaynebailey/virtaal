@@ -702,6 +702,6 @@ def test_a_monolingual_files_stats_and_checks_come_from_memory(tmp_path):
 
     totals = model.get_stats_totals()
     # A first open marks the translation for review.
-    assert (totals['needs-work']['units'], totals['empty']['units']) == (1, 1)
+    assert (totals['needs-review']['units'], totals['empty']['units']) == (1, 1)
     assert model.update_checks(checks.StandardChecker()) is model.checks
     assert model.checks is not None

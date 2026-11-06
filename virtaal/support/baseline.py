@@ -17,7 +17,8 @@ project), named by a hash of the target's absolute path:
                      "target_hash": <hash or null>, "state": <state>,
                      "previous_source": <text>, "outside": <bool>}}}
 
-"state" is "translated", "fuzzy" or "untranslated"; an untranslated
+"state" is "translated", "needs-review", "needs-work" or
+"untranslated"; an untranslated
 key's target_hash is of the template's text written in for it, if any.
 "previous_source" (the source the translation was made for) and
 "outside" (the target changed outside Virtaal) are kept while the unit
@@ -33,7 +34,9 @@ FORMAT = 1
 DIRECTORY = 'monolingual'
 
 TRANSLATED = 'translated'
-FUZZY = 'fuzzy'
+NEEDS_WORK = 'needs-work'
+NEEDS_REVIEW = 'needs-review'
+REVIEW_STATES = (NEEDS_WORK, NEEDS_REVIEW)
 UNTRANSLATED = 'untranslated'
 
 
@@ -108,8 +111,8 @@ def entry(source, target, state, previous_source=None, outside=False):
         'target_hash': text_hash(target) if target else None,
         'state': state,
     }
-    if state == FUZZY and previous_source is not None:
+    if state in REVIEW_STATES and previous_source is not None:
         found['previous_source'] = previous_source
-    if state == FUZZY and outside:
+    if state in REVIEW_STATES and outside:
         found['outside'] = True
     return found
