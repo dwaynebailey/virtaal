@@ -31,8 +31,11 @@ def row_text(text, rich):
     of an <x/>), the tags of C{rich()} as the editor shows them."""
     if text:
         return text
+    elems = rich()
+    if not elems or elems[0] is None:
+        return text
     parts = []
-    for leaf in rich()[0].flatten():
+    for leaf in elems[0].flatten():
         label = _EMPTY_PLACEABLE_LABELS.get(type(leaf).__name__)
         if str(leaf) or label is None:
             parts.append(str(leaf))

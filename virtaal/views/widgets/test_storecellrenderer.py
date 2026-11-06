@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import cairo
 import pytest
 from gi.repository import Gdk, Gtk, Pango
-from translate.storage import xliff
+from translate.storage import tmx, xliff
 from translate.storage.placeables import StringElem
 
 from virtaal.support import sdlxliff_compat  # noqa: F401 - one unit per segment
@@ -1389,6 +1389,16 @@ def test_row_text_shows_a_tag_only_segment_as_its_tags():
 
     assert storecellrenderer.row_text(unit.source, lambda: unit.rich_source) == '[5]'
     assert storecellrenderer.row_text(unit.target, lambda: unit.rich_target) == '<2|>[5]'
+
+
+def test_row_text_of_a_missing_target_is_the_target():
+    # A TMX unit with only its source tuv has no rich target.
+    unit = tmx.tmxfile.parsestring(
+        b'<tmx version="1.4"><header srclang="en"/><body>'
+        b'<tu><tuv xml:lang="en"><seg>Open</seg></tuv></tu></body></tmx>'
+    ).units[0]
+
+    assert storecellrenderer.row_text(unit.target, lambda: unit.rich_target) is None
 
 
 def test_row_text_is_the_plain_text_when_there_is_any():
