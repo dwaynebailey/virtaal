@@ -258,6 +258,9 @@ class StoreCellRenderer(Gtk.CellRenderer):
         height += extra_padding
 
         y_offset = self.ROW_PADDING / 2
+        header = self._file_header_height(widget)
+        height += header
+        y_offset += header
         if self.editable:
             # Shift to the padded cell's own centre only once this row
             # is the active one, so it lands level with other rows.
@@ -384,6 +387,55 @@ class StoreCellRenderer(Gtk.CellRenderer):
         cr.fill()
         cr.restore()
 
+    FILE_HEADER_PADDING = 4
+
+    def _file_header(self):
+        """The file this row's unit starts, with several files open."""
+        store = self.view.controller.get_store()
+        file_start = getattr(store, 'file_start', None)
+        if file_start is None:
+            return None
+        index = self._unit_index(store)
+        return None if index is None else file_start(index)
+
+    def _file_header_height(self, widget):
+        if self._file_header() is None:
+            return 0
+        font = widget.get_style_context().get_font(Gtk.StateFlags.NORMAL)
+        _char_width, line_height = self._font_metrics(widget, font)
+        return line_height // Pango.SCALE + 2 * self.FILE_HEADER_PADDING
+
+    def _paint_file_header(self, cr, widget, background_area):
+        """The name of the file a row's unit starts, above it."""
+        if background_area is None:
+            return
+        entry = self._file_header()
+        if entry is None:
+            return
+        rgba = str_to_rgba(current_theme['context_gap'])
+        cr.save()
+        cr.set_source_rgba(rgba.red, rgba.green, rgba.blue, rgba.alpha)
+        cr.rectangle(
+            background_area.x, background_area.y, background_area.width, self.GAP_LINE_WIDTH
+        )
+        cr.fill()
+        cr.restore()
+        layout = widget.create_pango_layout(entry.display_name)
+        layout.set_ellipsize(Pango.EllipsizeMode.START)
+        layout.set_width(max(background_area.width - 2 * rendering.UNIT_MARGIN, 1) * Pango.SCALE)
+        style_context = widget.get_style_context()
+        style_context.save()
+        style_context.set_state(Gtk.StateFlags.NORMAL)
+        style_context.add_class('dim-label')
+        Gtk.render_layout(
+            style_context,
+            cr,
+            background_area.x + rendering.UNIT_MARGIN,
+            background_area.y + self.ROW_PADDING / 2 + self.FILE_HEADER_PADDING,
+            layout,
+        )
+        style_context.restore()
+
     def do_render(self, window, widget, background_area, cell_area, flags):
         if background_area is not None:
             self._clear_last_row_padding(window, widget, background_area)
@@ -391,6 +443,7 @@ class StoreCellRenderer(Gtk.CellRenderer):
             self._paint_state_background_if_selected(window, background_area, flags)
         # Also for the editable row, under its editor.
         self._paint_gaps(window, widget, background_area)
+        self._paint_file_header(window, widget, background_area)
         if self.editable:
             return True
 
