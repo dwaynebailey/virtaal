@@ -7,7 +7,7 @@
 
 import logging
 
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk, Pango
 from gi.repository.GObject import SignalFlags
 from translate.storage.placeables import StringElem
 from translate.storage.placeables import parse as elem_parse
@@ -30,6 +30,24 @@ def colors_equal(a, b):
         b = x
 
     return a.equal(b)
+
+
+def _tag_colors(tags, fg):
+    """(foreground, background or None) of a pilcrow from those of
+    tags, lowest priority first, that colour it, else fg."""
+    if isinstance(fg, str):
+        rgba = Gdk.RGBA()
+        rgba.parse(fg)
+        fg = rgba
+    bg = None
+    for tag in tags:
+        if not getattr(tag, 'colours_pilcrow', False):
+            continue
+        if tag.props.foreground_set:
+            fg = tag.props.foreground_rgba
+        if tag.props.background_set:
+            bg = tag.props.background_rgba
+    return fg, bg
 
 
 def unlock_partly_covered_leaves(elem, start, end):
@@ -207,7 +225,7 @@ class TextBox(Gtk.TextView):
         self._completion_popup = None
         # The tag table is shared (search highlight, gtkspell): remove only ours.
         self._placeable_tags = []
-        self._last_cursor_offset = 0
+        self._pilcrow_tag = None
         self.undo_controller = main_controller.undo_controller
 
         self.__connect_default_handlers()
@@ -233,7 +251,6 @@ class TextBox(Gtk.TextView):
         self.buffer.connect('delete-range', self._on_delete_range)
         self.buffer.connect('begin-user-action', self._on_begin_user_action)
         self.buffer.connect('end-user-action', self._on_end_user_action)
-        self.buffer.connect('mark-set', self._on_mark_set)
 
     def _get_suggestion(self):
         return self._suggestion
@@ -382,6 +399,62 @@ class TextBox(Gtk.TextView):
         for tag in self._placeable_tags:
             tagtable.remove(tag)
         self._placeable_tags = []
+
+    def mark_pilcrow(self, start, end):
+        """Show a pilcrow for the newline at buffer offsets [start, end)."""
+        if self._pilcrow_tag is None:
+            self._pilcrow_tag = self.buffer.create_tag(None)
+        self.buffer.apply_tag(
+            self._pilcrow_tag,
+            self.buffer.get_iter_at_offset(start),
+            self.buffer.get_iter_at_offset(end),
+        )
+
+    def do_draw_layer(self, layer, cr):
+        if layer == Gtk.TextViewLayer.ABOVE_TEXT and self._pilcrow_tag is not None:
+            self._draw_pilcrows(cr)
+
+    def _draw_pilcrows(self, cr):
+        """Draw a pilcrow at the end of each line being drawn that ends
+        in a marked newline. cr is in buffer coordinates."""
+        drawn, area = Gdk.cairo_get_clip_rectangle(cr)
+        if not drawn:
+            return
+        itr, _top = self.get_line_at_y(area.y)
+        layout = self.create_pango_layout('¶')
+        size = layout.get_pixel_size()
+        while True:
+            end = itr.copy()
+            if not end.ends_line():
+                end.forward_to_line_end()
+            if end.has_tag(self._pilcrow_tag):
+                self._draw_pilcrow(cr, layout, itr, end, *size)
+            if not itr.forward_line():
+                return
+            y, height = self.get_line_yrange(itr)
+            # Lines not laid out yet have no height, and aren't drawn.
+            if y > area.y + area.height or not height:
+                return
+
+    def _draw_pilcrow(self, cr, layout, line_start, end, width, height):
+        rect, _weak = self.get_cursor_locations(end)
+        x = rect.x
+        start_x = self.get_cursor_locations(line_start)[0].x
+        # Right to left, the line ends at its left.
+        if start_x > x or (start_x == x and x > self.get_visible_rect().width // 2):
+            x -= width
+        y = rect.y + max(rect.height - height, 0)
+        fg, bg = _tag_colors(end.get_tags(), placeablesguiinfo.NewlineGUI.fg)
+        if bg is not None:
+            Gdk.cairo_set_source_rgba(cr, bg)
+            cr.rectangle(x, rect.y, width, rect.height)
+            cr.fill()
+        attrs = Pango.AttrList()
+        attrs.insert(
+            Pango.attr_foreground_new(*(round(c * 65535) for c in (fg.red, fg.green, fg.blue)))
+        )
+        layout.set_attributes(attrs)
+        Gtk.render_layout(self.get_style_context(), cr, x, y, layout)
 
     def get_cursor_position(self):
         return self.buffer.props.cursor_position
@@ -661,7 +734,10 @@ class TextBox(Gtk.TextView):
         self.apply_gui_info(self.elem, include_subtree=False)
         self.apply_gui_info(self.elem)
         self.apply_gui_info(elem, include_subtree=False)
-        cursor_offset = self.elem.find(self.selected_elem) + len(self.selected_elem)
+        cursor_offset = self.elem.find(self.selected_elem)
+        if not isinstance(elem.gui_info, placeablesguiinfo.NewlineGUI):
+            # After a newline is the next line, away from its pilcrow.
+            cursor_offset += len(self.selected_elem)
         self.place_cursor(cursor_offset)
         self.emit('element-selected', self.selected_elem)
 
@@ -736,33 +812,6 @@ class TextBox(Gtk.TextView):
             return
         if not self.undo_controller.model.recording:
             self.undo_controller.record_start()
-
-    @staticmethod
-    def _is_inside_newline(itr):
-        """Whether C{itr} sits between a newline's pilcrow and its line break."""
-        if itr.get_char() != '\n' or itr.is_start():
-            return False
-        before = itr.copy()
-        before.backward_char()
-        anchor = before.get_child_anchor()
-        return anchor is not None and any(
-            getattr(w, 'is_newline_marker', False) for w in anchor.get_widgets()
-        )
-
-    def _on_mark_set(self, buffer, itr, mark):
-        if mark is not buffer.get_insert():
-            return
-        offset = itr.get_offset()
-        previous, self._last_cursor_offset = self._last_cursor_offset, offset
-        if not self._is_inside_newline(itr):
-            return
-        # Moving right steps over the whole newline; anything else (Left,
-        # a click or End on the line) stays at the end of the line.
-        target = buffer.get_iter_at_offset(offset + 1 if previous == offset - 1 else offset - 1)
-        if buffer.get_iter_at_mark(buffer.get_selection_bound()).get_offset() == offset:
-            buffer.place_cursor(target)
-        else:
-            buffer.move_mark(mark, target)
 
     def _on_end_user_action(self, buffer):
         if not self.undo_controller:
@@ -1068,6 +1117,11 @@ class TextBox(Gtk.TextView):
         return None
 
     def _on_insert_text_after(self, buffer, iter, ins_text, length):
+        if self._pilcrow_tag is not None:
+            # Text typed between two line breaks is inside their tag.
+            typed = len(forceunicode(ins_text).encode('utf-8')[:length].decode('utf-8'))
+            start = buffer.get_iter_at_offset(iter.get_offset() - typed)
+            buffer.remove_tag(self._pilcrow_tag, start, iter)
         pending = getattr(self, '_live_insert_pending', None)
         self._live_insert_pending = None
         if pending is None or self.elem is None:
@@ -1079,8 +1133,8 @@ class TextBox(Gtk.TextView):
             return
 
         # Character count is unchanged by reparse - only node structure is -
-        # so any GUI-length growth here is purely new widgets (e.g. a
-        # pilcrow), and the cursor needs correcting by exactly that.
+        # so any GUI-length growth here is purely new widgets, and the
+        # cursor needs correcting by exactly that.
         plain_len = len(str(affected_leaf))
         elem_parse(affected_leaf, self.placeables_controller.get_parsers_for_textbox(self))
 

@@ -315,19 +315,24 @@ class ExGUI(StringElemGUI):
 
 
 class NewlineGUI(StringElemGUI):
-    SCALE_FACTOR = 1.2  # Experimentally determined
+    """A newline, with a pilcrow the text box draws at the line's end:
+    a widget per newline is slow for thousands of lines."""
+
     fg = theme.current_theme['subtle_fg']
 
-    def create_repr_widgets(self):
-        lbl = Gtk.Label(label='¶')
-        lbl.is_newline_marker = True
-        theme.set_widget_fg_color(lbl, self.fg)  # foreground is light grey
-        font_desc = get_role_font_description(self.textbox.role)
-        set_widget_font(lbl, font_desc)
-        self.textbox.get_pango_context().set_font_description(font_desc)
-        w, h = make_pango_layout(self.textbox, '¶', 100).get_pixel_size()
-        lbl.set_size_request(-1, int(h / 1.2))
-        self.widgets.append(lbl)
+    def create_tags(self):
+        # Only for other colours than the pilcrow's own (selected).
+        if self.fg == NewlineGUI.fg and self.bg == StringElemGUI.bg:
+            return []
+        tags = super().create_tags()
+        for tag, _start, _end in tags:
+            tag.colours_pilcrow = True
+        return tags
+
+    def render(self, offset=-1):
+        end = super().render(offset)
+        self.textbox.mark_pilcrow(end - self.length(), end)
+        return end
 
 
 class UrlGUI(StringElemGUI):

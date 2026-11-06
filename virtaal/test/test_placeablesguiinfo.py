@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import cairo
 import pytest
 from gi.repository import Gdk, Gtk
 from test_scaffolding import TestScaffolding
@@ -24,6 +25,7 @@ from virtaal.views.placeablesguiinfo import (
     _count_anchors,
     update_style,
 )
+from virtaal.views.widgets.textbox import TextBox
 
 PLACEABLES_PO = "devsupport/testfiles/placeables.po"
 PLACEABLES_XLIFF = "devsupport/testfiles/placeables.xliff"
@@ -185,15 +187,56 @@ class TestRealPlaceableRendering(TestScaffolding):
 
         assert textbox.elem.gui_info.length() == len('%s files copied')
 
-    def test_render_produces_a_pilcrow_widget_for_a_newline(self):
+    def test_render_marks_a_newline_for_a_pilcrow(self):
         textbox = self._target_for(self.po_store, 'First line.\nSecond line.')
 
         newline_elem = next(
             e for e in textbox.elem.depth_first() if isinstance(e.gui_info, NewlineGUI)
         )
 
-        assert len(newline_elem.gui_info.widgets) == 1
-        assert newline_elem.gui_info.widgets[0].get_label() == '¶'
+        assert newline_elem.gui_info.widgets == []
+        assert textbox.buffer.get_iter_at_offset(11).has_tag(textbox._pilcrow_tag)
+        assert not textbox.buffer.get_iter_at_offset(10).has_tag(textbox._pilcrow_tag)
+        assert not textbox.buffer.get_iter_at_offset(12).has_tag(textbox._pilcrow_tag)
+
+    def test_many_lines_make_no_widgets_or_tags_per_line(self):
+        # A widget per newline made a unit of thousands of lines take
+        # seconds to show, and a tag per newline seconds to leave (#4606).
+        textbox = TextBox(self.main_controller, role='target')
+        textbox.set_text('line\n')
+        tags = textbox.buffer.get_tag_table().get_size()
+
+        textbox.set_text('line\n' * 1000)
+
+        assert textbox.get_children() == []
+        assert textbox.buffer.get_tag_table().get_size() == tags
+        assert textbox.buffer.get_char_count() == 5000
+        textbox.destroy()
+
+    def test_only_the_pilcrows_on_screen_are_drawn(self, monkeypatch):
+        textbox = TextBox(self.main_controller, role='target')
+        textbox.set_text('line\n' * 1000)
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_size_request(200, 100)
+        scrolled.add(textbox)
+        window = Gtk.OffscreenWindow()
+        window.add(scrolled)
+        window.show_all()
+        window.check_resize()
+        drawn = []
+        monkeypatch.setattr(
+            textbox,
+            '_draw_pilcrow',
+            lambda cr, layout, start, end, *size: drawn.append(end.get_offset()),
+        )
+
+        textbox.draw(cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, 200, 100)))
+        window.destroy()
+
+        # The first lines' line breaks, at 4, 9, 14...
+        drawn = sorted(set(drawn))
+        assert drawn == [4 + 5 * line for line in range(len(drawn))]
+        assert 0 < len(drawn) < 20
 
     def test_render_applies_the_url_tag_to_a_url(self):
         # UrlPlaceable is deliberately excluded from target text (URLs
@@ -310,7 +353,7 @@ class TestRealPlaceableRendering(TestScaffolding):
         ],
         'First line.\nSecond line.': [
             ('StringElem', 'First line.', 11),
-            ('NewlinePlaceable', '\n', 2),
+            ('NewlinePlaceable', '\n', 1),
             ('StringElem', 'Second line.', 12),
         ],
         'Click <a>here</a> to continue.': [

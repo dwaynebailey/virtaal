@@ -413,12 +413,14 @@ class TestTextBox(TestScaffolding):
         calls[0]()
 
         assert textbox.get_text() == '%s files copied\n'
-        # The newline is now rendered as a pilcrow widget plus the real
-        # "\n" character, so the buffer's GUI length is one slot longer
-        # than the tree text - and the cursor must land at the true end.
+        # The newline is now shown with a pilcrow, and the cursor is at
+        # the true end.
+        end = textbox.buffer.get_end_iter()
+        end.backward_char()
+        assert end.has_tag(textbox._pilcrow_tag)
         assert textbox.buffer.props.cursor_position == textbox.elem.gui_info.length()
 
-        # Typing right after the pilcrow must not inherit its grey tag.
+        # Typing right after the newline must not inherit its tag.
         textbox.buffer.insert_interactive_at_cursor('d', -1, True)
         d_iter = textbox.buffer.get_iter_at_mark(textbox.buffer.get_insert())
         d_iter.backward_char()

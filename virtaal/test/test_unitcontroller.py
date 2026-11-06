@@ -140,7 +140,6 @@ class TestUnitController(TestScaffolding):
         self._assert_initial_cursor_position("%B", "%|B")
 
     def test_initial_cursor_is_a_buffer_offset_past_a_leading_pilcrow(self):
-        # The buffer has the pilcrow widget before the line break.
         if not getattr(self.main_controller, 'placeables_controller', None):
             PlaceablesController(self.main_controller)
         view = self.unit_controller.load_unit(self.trans_store.getunits()[1])

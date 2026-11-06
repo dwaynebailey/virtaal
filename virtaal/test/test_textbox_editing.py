@@ -56,6 +56,18 @@ NESTED_G_XLIFF = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
+def pilcrow_offsets(textbox):
+    """The buffer offsets of the newlines textbox shows a pilcrow for."""
+    buffer, tag = textbox.buffer, textbox._pilcrow_tag
+    if tag is None:
+        return []
+    return [
+        offset
+        for offset in range(buffer.get_char_count())
+        if buffer.get_iter_at_offset(offset).has_tag(tag)
+    ]
+
+
 class _Editor:
     """Edits a target the way a translator does, checking after every step
     that the buffer still shows the target's placeable tree."""
@@ -74,7 +86,13 @@ class _Editor:
         assert self.test.warnings == []
         assert textbox.get_text() == str(textbox.elem)
         assert textbox.elem.gui_info.length() == buffer.get_char_count()
-        assert not textbox._is_inside_newline(buffer.get_iter_at_mark(buffer.get_insert()))
+        # Every newline placeable shows a pilcrow.
+        newlines = [
+            textbox.elem.gui_info.index(e)
+            for e in textbox.elem.depth_first()
+            if isinstance(e, general.NewlinePlaceable)
+        ]
+        assert pilcrow_offsets(textbox) == sorted(newlines)
 
     def type(self, text):
         for char in text:
@@ -488,8 +506,8 @@ class TestTextBoxEditing(TestScaffolding):
 
         assert editor.cursor == 9
 
-    # PO unit 0, "First line.\nSecond line.": the pilcrow is at 11, the
-    # line break at 12 (#3830).
+    # PO unit 0, "First line.\nSecond line.": the line break is at 11,
+    # drawn as a pilcrow, and the second line starts at 12 (#3830).
 
     def test_right_arrow_steps_over_a_newline(self):
         editor = self._editor(PLACEABLES_PO, 0)
@@ -497,11 +515,11 @@ class TestTextBoxEditing(TestScaffolding):
 
         editor.arrow(1)
 
-        assert editor.cursor == 13
+        assert editor.cursor == 12
 
     def test_left_arrow_stops_before_a_newline(self):
         editor = self._editor(PLACEABLES_PO, 0)
-        editor.place(13)
+        editor.place(12)
 
         editor.arrow(-1)
 
@@ -513,21 +531,30 @@ class TestTextBoxEditing(TestScaffolding):
 
         editor.arrow(1, shift=True)
 
-        assert [i.get_offset() for i in editor.buffer.get_selection_bounds()] == [11, 13]
+        assert [i.get_offset() for i in editor.buffer.get_selection_bounds()] == [11, 12]
 
-    def test_a_click_between_the_pilcrow_and_line_break_types_at_the_line_end(self):
+    def test_typing_at_the_line_end_goes_before_the_newline(self):
         editor = self._editor(PLACEABLES_PO, 0)
-        editor.place(5)
-        editor.place(12)
+        editor.place(11)
 
         editor.type('X')
 
         assert editor.text == 'First line.X\nSecond line.'
         assert editor.cursor == len('First line.X')
+        assert pilcrow_offsets(editor.textbox) == [12]
+
+    def test_delete_at_the_line_end_removes_the_newline(self):
+        editor = self._editor(PLACEABLES_PO, 0)
+        editor.place(11)
+
+        editor.delete()
+
+        assert editor.text == 'First line.Second line.'
+        assert pilcrow_offsets(editor.textbox) == []
 
     def test_backspace_after_a_newline_removes_it(self):
         editor = self._editor(PLACEABLES_PO, 0)
-        editor.place(13)
+        editor.place(12)
 
         editor.backspace()
 

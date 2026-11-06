@@ -55,8 +55,8 @@ class TestTextBoxDeleteRange(TestScaffolding):
         return view.targets[0]
 
     # Newline placeable (PO unit 0, "First line.\nSecond line."):
-    # non-editable, fragile, a widget only at its start (idx=11, len=2
-    # - the widget plus the literal "\n").
+    # non-editable, fragile, no widget (idx=11, len=1), so only
+    # positions a (11) and d (12).
 
     def test_newline_delete_at_a_removes_the_whole_placeable(self):
         textbox = self._target(self.po_store, 0)
@@ -72,31 +72,17 @@ class TestTextBoxDeleteRange(TestScaffolding):
 
         assert result == 'First line\nSecond line.'
 
-    def test_newline_delete_at_b_removes_the_whole_placeable(self):
-        textbox = self._target(self.po_store, 0)
-
-        result = _delete_at(textbox, 12, key_is_delete=True)
-
-        assert result == 'First line.Second line.'
-
-    def test_newline_backspace_at_b_removes_the_whole_placeable(self):
-        textbox = self._target(self.po_store, 0)
-
-        result = _delete_at(textbox, 12, key_is_delete=False)
-
-        assert result == 'First line.Second line.'
-
     def test_newline_delete_at_d_only_removes_the_following_char(self):
         textbox = self._target(self.po_store, 0)
 
-        result = _delete_at(textbox, 13, key_is_delete=True)
+        result = _delete_at(textbox, 12, key_is_delete=True)
 
         assert result == 'First line.\necond line.'
 
     def test_newline_backspace_at_d_removes_the_whole_placeable(self):
         textbox = self._target(self.po_store, 0)
 
-        result = _delete_at(textbox, 13, key_is_delete=False)
+        result = _delete_at(textbox, 12, key_is_delete=False)
 
         assert result == 'First line.Second line.'
 

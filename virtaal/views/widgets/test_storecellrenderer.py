@@ -11,11 +11,11 @@ import cairo
 import pytest
 from gi.repository import Gdk, Gtk, Pango
 from translate.storage import tmx, xliff
-from translate.storage.placeables import StringElem
+from translate.storage.placeables import base
 
 from virtaal.support import sdlxliff_compat  # noqa: F401 - one unit per segment
 from virtaal.views import rendering
-from virtaal.views.placeablesguiinfo import NewlineGUI
+from virtaal.views.placeablesguiinfo import XPlaceableGUI
 from virtaal.views.widgets import storecellrenderer
 from virtaal.views.widgets.storecellrenderer import (
     StoreCellRenderer,
@@ -47,16 +47,16 @@ def test_compute_optimal_height_label_sets_size_request():
 
 def _realized_textview(text, pilcrows=0):
     """A real, off-screen-rendered Gtk.TextView with `text` as its
-    content - optionally with `pilcrows` real NewlineGUI pilcrow
-    widgets (the actual production class, not a stand-in - its
+    content - optionally with `pilcrows` real XPlaceableGUI widgets
+    (the actual production class, not a stand-in - its
     deliberately-small size_request, smaller than a line of text, is
     exactly what makes this bug real), one inserted before each of
-    `text`'s first `pilcrows` newlines."""
+    `text`'s first `pilcrows` newlines, as pilcrow widgets were."""
     win = Gtk.OffscreenWindow()
     textview = Gtk.TextView()
     textview.role = 'target'
     # unitview.py sets this on every real textview regardless of
-    # placeables - without it, a NewlineGUI's own font override (it
+    # placeables - without it, a placeable widget's own font override (it
     # sets the same font, but only as a side effect of existing) makes
     # a with-pilcrow textview measure in a different font than a plain
     # one, comparing two fonts' line heights instead of the
@@ -68,7 +68,7 @@ def _realized_textview(text, pilcrows=0):
     while remaining and '\n' in text:
         before, text = text.split('\n', 1)
         buf.insert(buf.get_end_iter(), before)
-        widget = NewlineGUI(StringElem('\n'), textview).widgets[0]
+        widget = XPlaceableGUI(base.X(id='1'), textview).widgets[0]
         anchor = buf.create_child_anchor(buf.get_end_iter())
         textview.add_child_at_anchor(widget, anchor)
         widget.show()
@@ -136,7 +136,7 @@ def test_compute_optimal_height_reflects_a_reused_widgets_new_content():
 
     buf = textview.get_buffer()
     buf.set_text('First line.')
-    widget = NewlineGUI(StringElem('\n'), textview).widgets[0]
+    widget = XPlaceableGUI(base.X(id='1'), textview).widgets[0]
     anchor = buf.create_child_anchor(buf.get_end_iter())
     textview.add_child_at_anchor(widget, anchor)
     widget.show()
