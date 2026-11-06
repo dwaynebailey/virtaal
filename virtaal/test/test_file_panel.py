@@ -7,6 +7,8 @@
 
 """The files panel beside several files opened as one list."""
 
+import sys
+
 import pytest
 from gi.repository import Gdk, GLib, Gtk, Pango
 from test_scaffolding import TestScaffolding
@@ -236,6 +238,9 @@ class TestFilePanel(TestScaffolding):
 
         assert _rows(view)['app/af.po'][filepanelview.COL_PERCENT] == 100
 
+    @pytest.mark.skipif(
+        sys.platform == 'win32', reason='test classes share one process and its builder cache'
+    )
     def test_the_panel_sits_beside_the_units(self):
         view = self._open_folder()
         units = self.main_controller.view.gui.get_object('scrwnd_storeview')
