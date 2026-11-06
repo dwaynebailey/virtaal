@@ -23,6 +23,7 @@ from translate.storage.placeables import base, general
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.modes.searchmode import SearchMode
 from virtaal.plugins.tm.tmcontroller import TMController
+from virtaal.support import inlinecodes
 from virtaal.support.pogrep_compat import GrepFilter
 from virtaal.views.widgets import textbox as textbox_module
 
@@ -355,6 +356,66 @@ class TestTextBoxEditing(TestScaffolding):
 
         assert editor.text == 'Klik hier vir meer.'
         assert self._g(editor) == []
+
+    # #4708: a local TM match keeps its inline codes, which become the unit's own.
+
+    def _select_tagged(self, monkeypatch, editor, source_markup, target_markup):
+        self._tm_controller(monkeypatch).select_match(
+            {
+                'target': 'Klik hier en gaan voort.',
+                'source_markup': source_markup,
+                'target_markup': target_markup,
+            }
+        )
+        editor.run_idle()
+        editor.check()
+
+    def test_select_match_gives_a_tagged_match_the_units_codes(self, monkeypatch):
+        editor = self._editor(PLACEABLES_XLIFF, 0)
+        unit = self.unit_controller.current_unit
+
+        self._select_tagged(
+            monkeypatch,
+            editor,
+            'Click <g id="7">here</g> to go on.',
+            'Klik <g id="7">hier</g> en gaan voort.',
+        )
+
+        assert editor.text == 'Klik hier en gaan voort.'
+        assert [(g.id, str(g)) for g in self._g(editor)] == [('1', 'hier')]
+        assert (
+            inlinecodes.from_elem(unit.rich_target[0]) == 'Klik <g id="1">hier</g> en gaan voort.'
+        )
+
+        editor.undo()
+
+        assert editor.text == 'Click here to continue.'
+        assert not self.undo_controller.model.can_undo()
+
+    def test_select_match_with_codes_that_dont_map_takes_the_text(self, monkeypatch):
+        editor = self._editor(PLACEABLES_XLIFF, 0)
+
+        self._select_tagged(
+            monkeypatch,
+            editor,
+            'Click <x id="7"/>here to go on.',
+            'Klik <x id="7"/>hier en gaan voort.',
+        )
+
+        assert editor.text == 'Klik hier en gaan voort.'
+        assert self._g(editor) == []
+
+    def test_select_match_with_codes_into_a_plain_unit_takes_the_text(self, monkeypatch):
+        editor = self._editor(PLACEABLES_PO, 0)
+
+        self._select_tagged(
+            monkeypatch,
+            editor,
+            'Click <g id="7">here</g> to go on.',
+            'Klik <g id="7">hier</g> en gaan voort.',
+        )
+
+        assert editor.text == 'Klik hier en gaan voort.'
 
     def test_deleting_an_x_can_be_undone(self):
         # "A line break<x/>after it.": X has a widget and no text.

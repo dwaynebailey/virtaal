@@ -14,7 +14,7 @@ from translate.lang.data import normalize
 
 from virtaal.common import pan_app
 from virtaal.controllers.basecontroller import BaseController
-from virtaal.support import abstraction, sdlxliff_compat
+from virtaal.support import abstraction, inlinecodes, sdlxliff_compat
 from virtaal.support.translate_compat import forceunicode
 
 
@@ -290,7 +290,23 @@ class TMController(BaseController):
         target_n = unit_controller.view.focused_target_n
         textbox = unit_controller.view.targets[target_n]
         self.main_controller.undo_controller.push_current_text(textbox)
-        unit_controller.set_unit_target(target_n, forceunicode(match_data['target']))
+        target = self._rich_target(getattr(unit_controller, 'current_unit', None), match_data)
+        if target is None:
+            target = forceunicode(match_data['target'])
+        unit_controller.set_unit_target(target_n, target)
+
+    @staticmethod
+    def _rich_target(unit, match_data):
+        """The match's target with unit's own inline codes, or None if
+        either has none or they don't map."""
+        source_markup = match_data.get('source_markup')
+        target_markup = match_data.get('target_markup')
+        if not (source_markup and target_markup) or unit is None or unit.hasplural():
+            return None
+        sources = unit.rich_source
+        if len(sources) != 1:
+            return None
+        return inlinecodes.rebuild(source_markup, target_markup, sources[0])
 
     def insert_match(self, match_data):
         """Insert the match's text at the cursor in the focused target,

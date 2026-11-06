@@ -10,17 +10,23 @@
 The local TM matches on a unit's plain text, as translate-toolkit gives
 it, and keeps the unit's source and target with their inline codes beside
 it, written as XLIFF 1.2 inline markup: C{g}, C{x}, C{bx}, C{ex}, C{ph},
-C{bpt}, C{ept} and C{it}, with their ids.
+C{bpt}, C{ept} and C{it}, with their ids. A match picked for a unit with
+codes is rebuilt with the unit's own codes, mapped by kind and order with
+L{abstraction.rebuild}.
 
 Like abstraction, this needs only translate-toolkit, lxml and the
 standard library, so the local TM server process can use it.
 """
 
+import re
+from collections import Counter
 from xml.sax.saxutils import escape
 
 from lxml import etree
 from translate.storage.placeables import StringElem, base
 from translate.storage.placeables.xliff import UnknownXML
+
+from virtaal.support import abstraction
 
 CODES = frozenset(('g', 'x', 'bx', 'ex', 'ph', 'bpt', 'ept', 'it'))
 """The XLIFF 1.2 inline elements kept."""
@@ -258,3 +264,171 @@ def _tmx_unit_markup(unit):
     if source is None or target is None:
         return None, None
     return text_pair(seg_markup(source), seg_markup(target), unit.source, unit.target)
+
+
+# Rebuilding a match with a unit's own codes
+
+# How each code is written in the skeleton the mapping works on: as an
+# open tag, a close tag or an empty tag, so that abstraction's tag classes
+# are the kinds of code.
+_OPENING = frozenset(('bx', 'bpt'))
+_CLOSING = frozenset(('ex', 'ept'))
+
+# Stands for "<" in a skeleton's text, so only codes are tags there.
+_LT = '\ue1ff'
+
+_TAG_MARKERS = (abstraction.TAG_OPEN, abstraction.TAG_CLOSE, abstraction.TAG_EMPTY)
+
+
+def _token(prefix, kind, number):
+    if kind == 'open':
+        return '<%s%d>' % (prefix, number)
+    if kind == 'close':
+        return '</%s%d>' % (prefix, number)
+    return '<%s%d/>' % (prefix, number)
+
+
+def _kind(tag):
+    if tag in _OPENING:
+        return 'open'
+    if tag in _CLOSING:
+        return 'close'
+    return 'empty'
+
+
+def _skeleton_text(text):
+    return (text or '').replace('<', _LT)
+
+
+def _markup_skeleton(node, numbers):
+    """node's markup as a skeleton: each code a tag named for its kind and
+    id, the same in a match's source and target."""
+    out = [_skeleton_text(node.text)]
+    for child in node:
+        tag = _local(child.tag)
+        number = numbers.setdefault((tag, child.get('id')), len(numbers))
+        if tag == 'g':
+            out.append(_token('m', 'open', number))
+            out.append(_markup_skeleton(child, numbers))
+            out.append(_token('m', 'close', number))
+        else:
+            out.append(_token('m', _kind(tag), number))
+        out.append(_skeleton_text(child.tail))
+    return ''.join(out)
+
+
+class _Unsupported(Exception):
+    pass
+
+
+def _elem_skeleton(elem, codes):
+    """The unit's rich tree elem as a skeleton, each code a tag numbered
+    for its place in codes."""
+    if isinstance(elem, str):
+        return _skeleton_text(elem)
+    tag = _code_tag(elem)
+    if tag is None:
+        if isinstance(elem, UnknownXML):
+            raise _Unsupported(elem.xml_node.tag)
+        return ''.join(_elem_skeleton(sub, codes) for sub in elem.sub)
+    number = len(codes)
+    codes.append(elem)
+    if tag != 'g':
+        return _token('u', _kind(tag), number)
+    inner = ''.join(_elem_skeleton(sub, codes) for sub in elem.sub)
+    return _token('u', 'open', number) + inner + _token('u', 'close', number)
+
+
+_RESULT_TOKEN = re.compile(r'<(/?)u(\d+)(/?)>')
+
+
+def _container(code):
+    return _code_tag(code) == 'g'
+
+
+def _place(stack, seen, codes, found):
+    """Put the code a result token stands for into the tree; False if the
+    tokens don't make a tree of the unit's codes."""
+    closing, number, empty = found.group(1), int(found.group(2)), found.group(3)
+    if number >= len(codes):
+        return False
+    code = codes[number]
+    if closing and _container(code):
+        if len(stack) < 2 or stack[-1][0] != number:
+            return False
+        stack.pop()
+        return True
+    key = (number, bool(closing))
+    if key in seen:
+        return False
+    seen.add(key)
+    if empty or closing or not _container(code):
+        stack[-1][1].sub.append(code.copy())
+        return True
+    copy = code.copy()
+    copy.sub = []
+    stack[-1][1].sub.append(copy)
+    stack.append((number, copy))
+    return True
+
+
+def _build(skeleton, codes):
+    root = StringElem()
+    stack = [(None, root)]
+    seen = set()
+    offset = 0
+    for found in _RESULT_TOKEN.finditer(skeleton):
+        text = skeleton[offset : found.start()]
+        if '<' in text:
+            return None
+        if text:
+            stack[-1][1].sub.append(StringElem(text.replace(_LT, '<')))
+        if not _place(stack, seen, codes, found):
+            return None
+        offset = found.end()
+    text = skeleton[offset:]
+    if '<' in text or len(stack) != 1:
+        return None
+    if text:
+        root.sub.append(StringElem(text.replace(_LT, '<')))
+    return root
+
+
+def _tag_counts(placeables):
+    return Counter(p.marker for p in placeables if p.marker in _TAG_MARKERS)
+
+
+def _codes_node(markup):
+    """The parsed markup, or None if it isn't markup of the kept codes."""
+    if not markup or _LT in markup:
+        return None
+    node = _parse(markup)
+    return node if node is not None and _well_formed(node) else None
+
+
+def rebuild(source_markup, target_markup, unit_source):
+    """The match target target_markup (whose source is source_markup) as
+    a rich tree holding the unit's own codes from unit_source, its rich
+    source string: the nth code of a kind in the match's source stands
+    for the nth of that kind in the unit's. None unless the codes map
+    cleanly: both sources have as many codes of each kind, and each of
+    the target's has its counterpart."""
+    if _LT in str(unit_source):
+        return None
+    source_node, target_node = _codes_node(source_markup), _codes_node(target_markup)
+    codes = []
+    try:
+        to_skeleton = _elem_skeleton(unit_source, codes)
+    except _Unsupported:
+        return None
+    if source_node is None or target_node is None or not codes:
+        return None
+    numbers = {}
+    from_skeleton = _markup_skeleton(source_node, numbers)
+    text = _markup_skeleton(target_node, numbers)
+    from_placeables = abstraction.placeables(from_skeleton)
+    to_placeables = abstraction.placeables(to_skeleton)
+    if _tag_counts(from_placeables) != _tag_counts(to_placeables):
+        return None
+    result = abstraction.rebuild(text, from_placeables, to_placeables)
+    return _build(result.text, codes)

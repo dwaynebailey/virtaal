@@ -213,6 +213,14 @@ translation memory finds such a suggestion even when the placeables' own text
 makes the two look quite different. Hover over an adapted suggestion to see
 what the translation memory has.
 
+Your local translation memory also keeps the inline codes (formatting tags) of
+XLIFF and TMX translations. The tags don't count in the match percentage, so a
+segment with tags matches the same text without them; text inside a tag, such
+as the ``<b>`` a TMX file can hold, does count. Picking such a suggestion for a
+segment with tags puts the segment's own tags into the translation, the first
+of each kind for the first, when both originals have the same number of each
+kind; otherwise only the text goes in.
+
 Machine translation keeps your placeables too: Virtaal asks the service to
 leave them untranslated and puts your own placeables in its suggestion. Should
 the service lose or repeat one, the suggestion has each placeable once, with any
