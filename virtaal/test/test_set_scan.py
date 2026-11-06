@@ -7,6 +7,7 @@
 
 """Check All Languages… and Find in All Languages… over a folder."""
 
+import os
 import time
 
 import pytest
@@ -107,7 +108,7 @@ class TestSetScan(TestScaffolding):
             (r[setscanview.COL_CHECK], r[setscanview.COL_LANGUAGE], r[setscanview.COL_FILE])
             + (r[setscanview.COL_UNIT], r[setscanview.COL_TARGET])
             for r in rows
-        ] == [('printf()', 'German', 'de/app.po', 2, 'Öffnen %d')]
+        ] == [('printf()', 'German', os.path.join('de', 'app.po'), 2, 'Öffnen %d')]
         assert view.lbl_summary.get_text() == '1 problem'
         assert not view.progress.get_visible()
         # The af files are open: the scan read the de files from disk.
