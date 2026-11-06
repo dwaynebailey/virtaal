@@ -442,6 +442,11 @@ class AutoCompletor:
                 suggestion['replace'] = completed_word[:typed_len]
 
             def suggest_completion():
+                if getattr(textbox, '_render_pending', False):
+                    # A typed placeable (a digit, say) re-renders the text
+                    # first, which would drop the suggestion's selection.
+                    GLib.idle_add(suggest_completion, priority=GLib.PRIORITY_DEFAULT_IDLE + 10)
+                    return False
                 textbox.handler_block(self._textbox_insert_ids[textbox])
                 textbox.suggestion = suggestion
                 textbox.handler_unblock(self._textbox_insert_ids[textbox])

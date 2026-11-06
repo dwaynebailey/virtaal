@@ -933,6 +933,30 @@ def test_on_insert_text_suggests_a_capital_at_the_start_of_a_sentence(monkeypatc
     assert textbox.suggestion == {'text': 'nload', 'offset': 13, 'replace': 'Dow'}
 
 
+def test_on_insert_text_suggests_after_the_target_is_rendered_again(monkeypatch):
+    # Typing a digit makes a number placeable, and TextBox re-renders the
+    # target in an idle callback of its own.
+    ac = _parsing_ac(general.NumberPlaceable.parse)
+    ac.set_unit(_unit('In 2026'))
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append((f, priority)),
+    )
+    textbox, _ = _insert_text_box(prefix='', suffix='', buffer_text='2026')
+    textbox._render_pending = True
+    ac._textbox_insert_ids = {textbox: 'sigid'}
+
+    ac._on_insert_text(textbox, text='2', offset=0, elem=None)
+    scheduled[0][0]()
+
+    assert not hasattr(textbox, 'suggestion')
+    assert scheduled[1][1] > GLib.PRIORITY_DEFAULT_IDLE
+    textbox._render_pending = False
+    scheduled[1][0]()
+    assert textbox.suggestion == {'text': '026', 'offset': 1}
+
+
 def test_on_insert_text_ignores_a_space_even_with_fast_candidates():
     ac = _parsing_ac(general.XMLTagPlaceable.parse)
     ac.set_unit(_unit('Press </b> now'))
