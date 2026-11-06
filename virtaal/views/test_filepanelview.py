@@ -7,7 +7,14 @@
 
 from types import SimpleNamespace
 
-from virtaal.views.filepanelview import build_tree, language_label, scope_ranges
+from gi.repository import Gtk
+
+from virtaal.views.filepanelview import (
+    FilePanelView,
+    build_tree,
+    language_label,
+    scope_ranges,
+)
 
 
 def test_build_tree_nests_folders_and_numbers_files_in_order():
@@ -42,3 +49,23 @@ def test_scope_ranges_of_none_or_every_file_lift_the_limit():
 def test_language_label_names_the_language_and_its_files():
     assert language_label('Afrikaans', 1) == 'Afrikaans (1 file)'
     assert language_label('Zulu', 12) == 'Zulu (12 files)'
+
+
+def test_the_panel_goes_beside_the_units_and_the_ribbon_box():
+    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    vbox.pack_start(Gtk.Label(label='mode bar'), False, False, 0)
+    units = Gtk.ScrolledWindow()
+    ribbon_box = Gtk.Box()
+    ribbon_box.pack_start(units, True, True, 0)
+    vbox.pack_start(ribbon_box, True, True, 0)
+    vbox.pack_start(Gtk.Label(label='status bar'), False, False, 0)
+    objects = {'vbox_main': vbox, 'scrwnd_storeview': units}
+    mainview = SimpleNamespace(gui=SimpleNamespace(get_object=objects.get))
+    view = FilePanelView(SimpleNamespace(main_controller=SimpleNamespace(view=mainview)))
+
+    assert vbox.get_children()[1] is view.paned
+    assert view.paned.get_child2() is ribbon_box
+    assert units.get_parent() is ribbon_box
+    units.hide()
+    assert not view.paned.get_visible()
+    vbox.destroy()

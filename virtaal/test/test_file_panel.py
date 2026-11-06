@@ -240,5 +240,7 @@ class TestFilePanel(TestScaffolding):
         view = self._open_folder()
         units = self.main_controller.view.gui.get_object('scrwnd_storeview')
 
-        assert units.get_parent() is view.paned
+        # With the navigation ribbon beside them.
+        assert units.get_parent() is view.paned.get_child2()
+        assert self.main_controller.view.nav_ribbon.get_parent() is units.get_parent()
         assert isinstance(view.paned, Gtk.Paned)

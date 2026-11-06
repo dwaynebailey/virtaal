@@ -135,7 +135,11 @@ class FilePanelView(BaseView):
         """Put the panel and the units in a Gtk.Paned where the units were."""
         mainview = self.controller.main_controller.view
         vbox = mainview.gui.get_object('vbox_main')
-        units = mainview.gui.get_object('scrwnd_storeview')
+        storeview = mainview.gui.get_object('scrwnd_storeview')
+        # The units, with the navigation ribbon beside them if it is there.
+        units = storeview
+        while units.get_parent() is not vbox:
+            units = units.get_parent()
         position = vbox.child_get_property(units, 'position')
         self.paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         vbox.remove(units)
@@ -145,8 +149,8 @@ class FilePanelView(BaseView):
         vbox.pack_start(self.paned, True, True, 0)
         vbox.reorder_child(self.paned, position)
         # The units are hidden for the welcome screen: so is the panel.
-        units.connect('notify::visible', lambda w, _p: self.paned.set_visible(w.get_visible()))
-        self.paned.set_visible(units.get_visible())
+        storeview.connect('notify::visible', lambda w, _p: self.paned.set_visible(w.get_visible()))
+        self.paned.set_visible(storeview.get_visible())
         self.widget.hide()
 
     # METHODS #
