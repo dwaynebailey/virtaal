@@ -44,12 +44,13 @@ import time
 from sqlite3 import dbapi2
 
 from translate.lang import data
-from translate.misc.xml_helpers import getXMLlang, getXMLspace
+from translate.misc.xml_helpers import getXMLspace
 from translate.search.lshtein import LevenshteinComparer
 from translate.storage import tmx
 
 from virtaal.support import shareddb
 from virtaal.support.abstraction import abstract, adapt
+from virtaal.support.tmx_compat import tuv_lang
 
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
@@ -1053,7 +1054,7 @@ def unit_translations(unit, source_lang=None, target_lang=None):
     header = unit.xmlelement.getroottree().getroot().find("header")
     srclang = unit.xmlelement.get("srclang") or (header is not None and header.get("srclang"))
     xml_space = getXMLspace(unit.xmlelement, unit._default_xml_space)
-    langs = [getXMLlang(node) for node in nodes]
+    langs = [tuv_lang(node) for node in nodes]
     texts = [unit.getNodeText(node, xml_space) for node in nodes]
     wanted = _language_tag_key(srclang)
     source_index = next((i for i, lang in enumerate(langs) if _language_tag_key(lang) == wanted), 0)

@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import pytest
+from translate.misc import xml_helpers
 from translate.storage import lisa, tmx
 
 from virtaal.support import statsdb, tmx_compat
@@ -57,3 +58,69 @@ def test_the_stats_count_the_unit(tmp_path):
     totals = statsdb.StatsCache(str(tmp_path / "stats.db")).filetotals(str(path))
 
     assert totals["translatedsourcewords"] == 2
+
+
+TMX_1_1 = b"""<?xml version="1.0" encoding="utf-8"?>
+<tmx version="1.1"><header creationtool="x" creationtoolversion="1"
+  segtype="sentence" o-tmf="x" adminlang="en" srclang="en"
+  datatype="plaintext"/><body>
+<tu><tuv lang="af"><seg>Oop</seg></tuv><tuv lang="en"><seg>Open</seg></tuv>
+<tuv lang="de"><seg>Auf</seg></tuv></tu>
+<tu><tuv lang="en"><seg>Close</seg></tuv></tu>
+</body></tmx>"""
+
+
+needs_languages = pytest.mark.skipif(
+    not hasattr(lisa, "MultilingualLISAunit"),
+    reason="translate-toolkit before 3.18 finds a tuv by position, not language",
+)
+
+
+def _store_1_1(targetlanguage="af"):
+    store = tmx.tmxfile.parsestring(TMX_1_1)
+    store.settargetlanguage(targetlanguage)
+    return store
+
+
+def test_translate_toolkit_still_reads_only_xml_lang():
+    # Once this fails translate-toolkit reads lang itself, and the lang
+    # half of tmx_compat can go.
+    tuv = tmx.tmxfile.parsestring(TMX_1_1).units[0].getlanguageNodes()[0]
+    assert xml_helpers.getXMLlang(tuv) is None
+
+
+@needs_languages
+@pytest.mark.parametrize(("lang", "target"), [("af", "Oop"), ("de", "Auf")])
+def test_a_tmx_1_1_unit_is_read_by_its_tuvs_lang(lang, target):
+    unit = _store_1_1(lang).units[0]
+
+    assert (unit.source, unit.target) == ("Open", target)
+
+
+@needs_languages
+def test_a_tmx_1_1_file_keeps_lang_on_save():
+    store = _store_1_1()
+    store.units[0].target = "Maak oop"
+    store.units[1].target = "Maak toe"
+
+    saved = bytes(store)
+
+    assert b"xml:lang" not in saved
+    reopened = tmx.tmxfile.parsestring(saved)
+    reopened.settargetlanguage("af")
+    assert [(u.source, u.target) for u in reopened.units] == [
+        ("Open", "Maak oop"),
+        ("Close", "Maak toe"),
+    ]
+    assert reopened.units[0].gettarget("de") == "Auf"
+
+
+def test_a_new_tuv_in_a_tmx_1_4_file_uses_xml_lang():
+    store = tmx.tmxfile.parsestring(TMX_1_1.replace(b" lang=", b" xml:lang="))
+    store.settargetlanguage("af")
+    store.units[1].target = "Maak toe"
+
+    saved = bytes(store)
+
+    assert b' lang="' not in saved
+    assert tmx.tmxfile.parsestring(saved).units[1].target == "Maak toe"

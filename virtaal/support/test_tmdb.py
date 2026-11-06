@@ -874,6 +874,25 @@ def test_import_store_takes_each_language_of_a_multilingual_tmx(db_path):
     assert db.translate_unit('Guten Tag', 'de', 'fr')[0]['target'] == 'Bonjour'
 
 
+def test_import_store_reads_a_tmx_1_1_tuvs_lang(db_path):
+    # TMX 1.1 and 1.2 name a tuv's language in lang, not xml:lang.
+    store = tmx.tmxfile.parsestring(
+        TMX_HEADER.replace(b'version="1.4"', b'version="1.1"')
+        + b'<tu><tuv lang="de"><seg>Offne es</seg></tuv>'
+        + b'<tuv lang="en"><seg>'
+        + SHORT.encode()
+        + b'</seg></tuv>'
+        + b'<tuv lang="fr"><seg>Ouvre-le</seg></tuv></tu></body></tmx>'
+    )
+
+    db = tmdb.TMDB(db_path)
+    db.import_store(store, '/home/user/memory.tmx', 'en', 'af')
+
+    assert db.translate_unit(SHORT, 'en', 'de')[0]['target'] == 'Offne es'
+    assert db.translate_unit(SHORT, 'en', 'fr')[0]['target'] == 'Ouvre-le'
+    assert db.translate_unit(SHORT, 'en', 'af') == []
+
+
 def test_import_store_finds_a_tmx_source_whatever_its_tags_case(db_path):
     store = tmx.tmxfile.parsestring(
         TMX_HEADER.replace(b'srclang="en"', b'srclang="EN_us"')
