@@ -687,6 +687,7 @@ def test_get_state_dir_on_linux_is_under_xdg_state_home(monkeypatch, tmp_path):
     assert (tmp_path / 'virtaal').is_dir()
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX home paths')
 def test_get_state_dir_on_linux_defaults_to_local_state(monkeypatch, tmp_path):
     _on_linux(monkeypatch)
     monkeypatch.delenv('XDG_STATE_HOME', raising=False)
@@ -695,6 +696,7 @@ def test_get_state_dir_on_linux_defaults_to_local_state(monkeypatch, tmp_path):
     assert pan_app.get_state_dir() == os.path.join(str(tmp_path), '.local', 'state', 'virtaal')
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX home paths')
 def test_get_state_dir_on_mac_is_application_support(monkeypatch, tmp_path):
     monkeypatch.setattr(pan_app.platform, 'is_windows', False)
     monkeypatch.setattr(pan_app.platform, 'is_mac', True)

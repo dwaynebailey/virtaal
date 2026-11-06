@@ -131,6 +131,7 @@ def test_install_signal_handlers_does_nothing_on_windows(monkeypatch):
     v._install_signal_handlers()  # must not raise
 
 
+@pytest.mark.skipif(not hasattr(signal, 'SIGHUP'), reason='no SIGHUP on Windows')
 def test_install_signal_handlers_registers_sigterm_sighup_and_sigint(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', False)
     registered = []
@@ -147,6 +148,7 @@ def test_install_signal_handlers_registers_sigterm_sighup_and_sigint(monkeypatch
     assert [sig for sig, handler in registered] == [signal.SIGTERM, signal.SIGHUP, signal.SIGINT]
 
 
+@pytest.mark.skipif(not hasattr(signal, 'SIGHUP'), reason='no SIGHUP on Windows')
 def test_signal_handler_forces_a_quit_and_removes_its_own_source(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', False)
     handlers = []
