@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 06:09+0000\n"
+"POT-Creation-Date: 2026-11-06 06:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1417,6 +1417,14 @@ msgstr ""
 
 #: virtaal/plugins/lookup/models/weblookup.py
 msgid "The URL must start with http:// or https://."
+msgstr ""
+
+#. l10n: Keep %(percent)s, %(escaped)s and %(query)s as they are.
+#: virtaal/plugins/lookup/models/weblookup.py
+#, python-format
+msgid ""
+"Write a literal %(percent)s as %(escaped)s, and use %(query)s for the "
+"selected text."
 msgstr ""
 
 #. l10n: Keep %(query)s as it is: the URL's place for the selected text.

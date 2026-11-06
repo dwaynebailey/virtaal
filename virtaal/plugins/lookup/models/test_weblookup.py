@@ -169,6 +169,35 @@ def test_add_dialog_accepts_an_http_or_https_url_with_the_query(url):
     assert _url_state(url) == (True, '')
 
 
+@pytest.mark.parametrize(
+    'url',
+    [
+        'https://example.com/?q=%(query)s&discount=50%',
+        'https://example.com/?q=%(text)s',
+        'https://example.com/?q=%s',
+        'https://example.com/%zz/%(query)s',
+    ],
+)
+def test_add_dialog_refuses_a_percent_that_is_not_a_placeholder_or_escape(url):
+    # #4353
+    ok, note = _url_state(url)
+
+    assert not ok
+    assert '%25' in note
+
+
+@pytest.mark.parametrize(
+    'url',
+    [
+        'https://example.com/?q=%(query)s&lang=%(srclang)s-%(tgtlang)s',
+        'https://example.com/a%20b/?q=%(query)s&x=100%%',
+        'https://example.com/?q=%(query)s&in=%(querylang)s&out=%(nonquerylang)s',
+    ],
+)
+def test_add_dialog_accepts_placeholders_and_url_escapes(url):
+    assert _url_state(url) == (True, '')
+
+
 def test_add_dialog_warns_but_allows_a_url_without_the_query():
     ok, note = _url_state('https://example.com/')
 

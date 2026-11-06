@@ -11,6 +11,8 @@ from os import path
 from urllib import parse
 
 _PLACEHOLDER_RE = re.compile(r'%%|%\((query|querylang|nonquerylang|srclang|tgtlang)\)s')
+# What a % in a look-up URL can start: a placeholder, %% or a URL escape such as %20.
+_VALID_PERCENT_RE = re.compile(_PLACEHOLDER_RE.pattern + r'|%[0-9A-Fa-f]{2}')
 
 
 def _fill_url(url, values):
@@ -460,6 +462,11 @@ class WebLookupAddDialog:
             if any(scheme.startswith(url.lower()) for scheme in schemes):
                 return False, ''
             return False, _('The URL must start with http:// or https://.')
+        if '%' in _VALID_PERCENT_RE.sub('', url):
+            return False, _(
+                # l10n: Keep %(percent)s, %(escaped)s and %(query)s as they are.
+                'Write a literal %(percent)s as %(escaped)s, and use %(query)s for the selected text.'
+            ) % {'percent': '%', 'escaped': '%25', 'query': '%(query)s'}
         if '%(query)s' not in url:
             # l10n: Keep %(query)s as it is: the URL's place for the selected text.
             return True, _('Without %(query)s the look-up always opens the same page.') % {
