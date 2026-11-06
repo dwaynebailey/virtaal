@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 06:06+0000\n"
+"POT-Creation-Date: 2026-11-06 06:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1413,6 +1413,16 @@ msgstr ""
 #. l10n: Whether the selected text should be surrounded by "quotes"
 #: virtaal/plugins/lookup/models/weblookup.py
 msgid "Quote Query"
+msgstr ""
+
+#: virtaal/plugins/lookup/models/weblookup.py
+msgid "The URL must start with http:// or https://."
+msgstr ""
+
+#. l10n: Keep %(query)s as it is: the URL's place for the selected text.
+#: virtaal/plugins/lookup/models/weblookup.py
+#, python-format
+msgid "Without %(query)s the look-up always opens the same page."
 msgstr ""
 
 #. l10n: "virtaal-" is a literal prefix - leave it untranslated

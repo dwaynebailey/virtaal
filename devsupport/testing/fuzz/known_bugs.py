@@ -32,7 +32,6 @@ STRIPPED = [
 DIALOG_INI = [
     'addlang-name',
     'lookup-name',
-    'lookup-url',
     'translator-name',
     'translator-email',
     'translator-team',
@@ -64,7 +63,7 @@ KNOWN_BUGS = [
     # Fields whose dialog refuses a blank value.
     dict(
         issue=4346,
-        sweep=['addlang-name', 'lookup-name', 'lookup-url'],
+        sweep=['addlang-name', 'lookup-name'],
         kind='config-roundtrip',
         match='',
         cases=STRIPPED,

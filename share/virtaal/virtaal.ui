@@ -2909,6 +2909,20 @@ If you are translating from English to French then French would be your translat
                     <property name="top_attach">1</property>
                   </packing>
                 </child>
+                <child>
+                  <object class="GtkLabel" id="lbl_url_error">
+                    <property name="can_focus">False</property>
+                    <property name="no_show_all">True</property>
+                    <property name="xalign">0</property>
+                    <property name="wrap">True</property>
+                    <property name="margin-start">2</property>
+                    <property name="margin-end">2</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="top_attach">3</property>
+                  </packing>
+                </child>
               </object>
               <packing>
                 <property name="expand">False</property>

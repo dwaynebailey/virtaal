@@ -138,6 +138,44 @@ def test_add_dialog_needs_a_url_with_text(monkeypatch, url, ok):
     assert seen['ok'] is ok
 
 
+def _url_state(url):
+    dialog = WebLookupAddDialog(parent=None)
+    dialog.ent_url_name.set_text('My Site')
+    dialog.ent_url.set_text(url)
+    note = dialog.lbl_url_error.get_text() if dialog.lbl_url_error.get_visible() else ''
+    return dialog.btn_url_ok.get_sensitive(), note
+
+
+@pytest.mark.parametrize(
+    'url', ['example.com/?q=%(query)s', 'ftp://example.com/%(query)s', '--help', 'file:///etc']
+)
+def test_add_dialog_refuses_a_url_without_http_or_https(url):
+    # Anything else is handed to the system opener as a file name or option (#4357).
+    ok, note = _url_state(url)
+
+    assert not ok
+    assert 'http://' in note
+
+
+@pytest.mark.parametrize('url', ['h', 'HTTP', 'https:/'])
+def test_add_dialog_says_nothing_while_the_scheme_is_typed(url):
+    assert _url_state(url) == (False, '')
+
+
+@pytest.mark.parametrize(
+    'url', ['HTTPS://example.com/?q=%(query)s', 'http://example.com/%(query)s']
+)
+def test_add_dialog_accepts_an_http_or_https_url_with_the_query(url):
+    assert _url_state(url) == (True, '')
+
+
+def test_add_dialog_warns_but_allows_a_url_without_the_query():
+    ok, note = _url_state('https://example.com/')
+
+    assert ok
+    assert '%(query)s' in note
+
+
 def test_add_dialog_saves_the_name_and_url_trimmed(monkeypatch):
     monkeypatch.setattr(weblookup.GLib, 'idle_add', lambda func, *args: func(*args))
     dialog = WebLookupAddDialog(parent=None)

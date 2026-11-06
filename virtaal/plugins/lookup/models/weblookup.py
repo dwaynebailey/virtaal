@@ -393,6 +393,7 @@ class WebLookupAddDialog:
             'ent_url_name',
             'ent_url',
             'lbl_url_name_error',
+            'lbl_url_error',
         )
 
         for name in widget_names:
@@ -440,11 +441,31 @@ class WebLookupAddDialog:
         error = self._name_error(_slugify(self.ent_url_name.get_text()))
         self.lbl_url_name_error.set_text(error)
         self.lbl_url_name_error.set_visible(bool(error))
+        url = self.ent_url.get_text().strip()
+        url_ok, note = self._check_url(url)
+        self.lbl_url_error.set_text(note)
+        self.lbl_url_error.set_visible(bool(note))
         self.btn_url_ok.set_sensitive(
-            bool(self.ent_url_name.get_text().strip())
-            and bool(self.ent_url.get_text().strip())
-            and not error
+            bool(self.ent_url_name.get_text().strip()) and url_ok and not error
         )
+
+    @staticmethod
+    def _check_url(url):
+        """Whether the URL can be added, and what to tell the user about it."""
+        if not url:
+            return False, ''
+        schemes = ('http://', 'https://')
+        if not url.lower().startswith(schemes):
+            # Nothing to say yet while the scheme is being typed.
+            if any(scheme.startswith(url.lower()) for scheme in schemes):
+                return False, ''
+            return False, _('The URL must start with http:// or https://.')
+        if '%(query)s' not in url:
+            # l10n: Keep %(query)s as it is: the URL's place for the selected text.
+            return True, _('Without %(query)s the look-up always opens the same page.') % {
+                'query': '%(query)s'
+            }
+        return True, ''
 
     def _name_error(self, url_id):
         if url_id.startswith(BUILTIN_PREFIX):
