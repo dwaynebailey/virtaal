@@ -232,6 +232,28 @@ class TestResume(RecoveryScaffolding):
         assert _pump(lambda: view.targets[0].get_cursor_position() == 4)
         assert self._session()['resume_attempts'] == 1
 
+    def test_a_refocus_after_the_resume_puts_the_text_cursor_back(self):
+        self._orphan(self._po(), position=_at(1, 'Close', target_index=0, text_offset=4))
+        self._resume()
+        view = self.unit_controller.view
+        assert _pump(lambda: view.targets[0].get_cursor_position() == 4)
+
+        # A plug-in refreshing the unit refocuses it at the start.
+        view.focus_text_view(view.targets[0])
+
+        assert _pump(lambda: view.targets[0].get_cursor_position() == 4)
+
+    def test_after_a_key_press_a_refocus_is_left_alone(self):
+        self._orphan(self._po(), position=_at(1, 'Close', target_index=0, text_offset=4))
+        self._resume()
+        view = self.unit_controller.view
+        assert _pump(lambda: view.targets[0].get_cursor_position() == 4)
+
+        self.recovery._on_user_input()
+        view.focus_text_view(view.targets[0])
+
+        assert not _pump(lambda: view.targets[0].get_cursor_position() == 4, seconds=0.5)
+
     def test_the_resumed_slot_becomes_this_processs_slot(self):
         path = self._po()
         orphan = self._orphan(path)

@@ -36,6 +36,9 @@ MAX_UNIT_STATS_UPDATES = 100
 STABLE_SECONDS = 5
 # Automatic resumes allowed in a row before the guard stops them.
 MAX_RESUME_ATTEMPTS = 2
+# Until the user types or clicks, the text cursor is put back for this
+# long after a resume.
+TEXT_CURSOR_HOLD_SECONDS = 15
 
 
 _RECORD_KEYS = ('unit_index', 'unit_id', 'source_sha1', 'fields')
@@ -75,6 +78,8 @@ class RecoveryController:
         self._sync_id = None
         self._buffers = weakref.WeakSet()
         self._unit_controller = None
+        self._text_cursor = None
+        self._watching_editor = False
         # Whether the document's units can be journalled and replayed.
         self._replayable = False
         self._baseline_ok = True
@@ -302,33 +307,63 @@ class RecoveryController:
             if not isinstance(index, int) or not 0 <= index < len(store):
                 return
         self.store_controller.cursor.force_index(index)
-        unit = store[index]
-        target_n = position.get('target_index') or 0
-        offset = position.get('text_offset') or 0
-        attempts = [0]
+        self._text_cursor = {
+            'unit': store[index],
+            'target_n': position.get('target_index') or 0,
+            'offset': position.get('text_offset') or 0,
+            'until': time.monotonic() + TEXT_CURSOR_HOLD_SECONDS,
+        }
+        self._watch_editor()
+        GLib.timeout_add(50, self._place_text_cursor)
 
-        def place_text_cursor():
-            attempts[0] += 1
-            uc = self._unit_controller
-            if self.store_controller.store is not store:
-                return False
-            view = uc and uc.view
-            treeview = self.store_controller.view._treeview
-            ready = (
-                view is not None
-                and uc.current_unit is unit
-                and view.targets
-                and not getattr(treeview, '_waiting_for_row_change', 0)
-            )
-            if not ready:
-                return attempts[0] < 100
-            n = max(0, min(target_n, len(view.targets) - 1))
-            view.focused_target_n = n
-            textbox = view.targets[n]
-            textbox.place_cursor(max(0, min(offset, textbox.buffer.get_char_count())))
+    def _watch_editor(self):
+        """Refocusing the editor (a plug-in loading after the resume
+        refreshes the unit) puts the text cursor back at the start."""
+        if self._watching_editor or self._unit_controller is None:
+            return
+        self._watching_editor = True
+        self._unit_controller.view.connect('target-focused', self._on_target_focused)
+        window = self.main_controller.view.main_window
+        window.connect('key-press-event', self._on_user_input)
+        # Before the clicked widget handles it.
+        self._clicks = Gtk.GestureMultiPress(widget=window)
+        self._clicks.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        self._clicks.connect('pressed', self._on_user_input)
+
+    def _on_target_focused(self, view, target_n):
+        if self._text_cursor is not None:
+            GLib.timeout_add(20, self._place_text_cursor)
+
+    def _on_user_input(self, *_args):
+        self._text_cursor = None
+        return False
+
+    def _place_text_cursor(self):
+        """Put the text cursor where it was, once the editor is ready.
+        Returns True to be tried again."""
+        wanted = self._text_cursor
+        if wanted is None or time.monotonic() > wanted['until']:
+            self._text_cursor = None
             return False
-
-        GLib.timeout_add(50, place_text_cursor)
+        uc = self._unit_controller
+        view = uc and uc.view
+        if view is None or uc.current_unit is not wanted['unit']:
+            if self.store_controller.cursor is None or (
+                self.store_controller.cursor.deref() is not wanted['unit']
+            ):
+                # Moved on.
+                self._text_cursor = None
+                return False
+            return True
+        if not view.targets or self.store_controller.view._treeview._waiting_for_row_change:
+            return True
+        n = max(0, min(wanted['target_n'], len(view.targets) - 1))
+        textbox = view.targets[n]
+        offset = max(0, min(wanted['offset'], textbox.buffer.get_char_count()))
+        if view.focused_target_n != n or textbox.get_cursor_position() != offset:
+            view.focused_target_n = n
+            textbox.place_cursor(offset)
+        return False
 
     # SLOT UPKEEP #
     @_guarded
@@ -473,6 +508,7 @@ class RecoveryController:
 
     # UNIT CHANGES #
     def _on_unit_modified(self, unit_controller, unit):
+        self._text_cursor = None
         self.touch()
 
     @_guarded
