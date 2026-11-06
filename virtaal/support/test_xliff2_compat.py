@@ -63,6 +63,15 @@ def test_is_xliff2_reads_the_version_or_the_namespace():
     assert not xliff2_compat.is_xliff2(b'<other version="2.0"/>')
 
 
+def test_an_its_version_on_xliff1_is_not_xliff2():
+    # Okapi and other ITS 2.0 tools mark XLIFF 1.2 this way.
+    head = (
+        b'<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2"'
+        b' xmlns:its="http://www.w3.org/2005/11/its" its:version="2.0">'
+    )
+    assert not xliff2_compat.is_xliff2(head)
+
+
 def test_segment_states_read_as_virtaals_states(tmp_path):
     states = [u.get_state_n() for u in _store(tmp_path).units]
 
