@@ -7,7 +7,8 @@
 
 """translate-toolkit's factory opens Virtaal's read-only Trados readers:
 .sdltm translation memories, .sdltb termbases and MultiTerm XML (.xml
-whose content is a MultiTerm export). The factory can only name classes
+whose content is a MultiTerm export), and Microsoft's UI strings
+glossaries (.csv, or a .zip of them). The factory can only name classes
 inside translate.storage, so its getclass() is wrapped.
 
 translate-toolkit reads a Trados Workbench .txt export but keeps its RTF
@@ -20,6 +21,7 @@ import re
 
 from translate.storage import factory
 
+from virtaal.support import ms_glossary
 from virtaal.support.multiterm import MultiTermXmlFile, SdltbFile, is_multiterm_xml
 from virtaal.support.sdltm import SdltmFile
 
@@ -31,6 +33,7 @@ _CLASSES = {"sdltm": SdltmFile, "sdltb": SdltbFile}
 TM_IMPORT_FORMATS = [
     (SdltmFile.Name, SdltmFile.Extensions),
     (MultiTermXmlFile.Name, MultiTermXmlFile.Extensions),
+    (ms_glossary.MicrosoftGlossaryFile.Name, ms_glossary.MicrosoftGlossaryFile.Extensions),
 ]
 TERMINOLOGY_FORMATS = [
     (MultiTermXmlFile.Name, MultiTermXmlFile.Extensions),
@@ -68,6 +71,10 @@ def _trados_class(storefile, ignore):
         return _CLASSES[ext]
     if ext == "xml" and is_multiterm_xml(_head(storefile)):
         return MultiTermXmlFile
+    if ext == "csv" and ms_glossary.is_glossary_csv(_head(storefile, ms_glossary.HEAD_SIZE)):
+        return ms_glossary.MicrosoftGlossaryFile
+    if ext == "zip" and ms_glossary.is_glossary_zip(storefile):
+        return ms_glossary.MicrosoftGlossaryFile
     return None
 
 

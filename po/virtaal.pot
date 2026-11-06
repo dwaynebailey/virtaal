@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 06:36+0000\n"
+"POT-Creation-Date: 2026-11-06 06:39+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -528,6 +528,10 @@ msgstr ""
 
 #: devsupport/tmp_strings.py
 msgid "XLIFF Translation File"
+msgstr ""
+
+#: devsupport/tmp_strings.py
+msgid "Microsoft UI Strings Glossary"
 msgstr ""
 
 #: devsupport/tmp_strings.py
@@ -1904,6 +1908,12 @@ msgstr[1] ""
 
 #: virtaal/plugins/tm/tmview.py
 msgid "Import into Translation Memory"
+msgstr ""
+
+#. l10n: A link in the Import into Translation Memory file chooser to the
+#. page where Microsoft offers its translations of its software for download
+#: virtaal/plugins/tm/tmview.py
+msgid "Get Microsoft's UI strings glossaries"
 msgstr ""
 
 #: virtaal/plugins/tm/tmview.py

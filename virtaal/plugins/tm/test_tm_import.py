@@ -214,9 +214,14 @@ def test_the_chooser_opens_several_translation_files_from_the_last_folder(tmp_pa
         assert 'TMX Translation Memory' in names
         assert 'Trados Studio Translation Memory' in names
         assert 'MultiTerm XML Termbase' in names
+        assert 'Microsoft UI Strings Glossary' in names
         assert names[-1] == 'All Files'
         patterns = chooser.list_filters()[0].to_gvariant().unpack()[1]
         assert (0, '*.sdltm') in patterns
+        assert (0, '*.zip') in patterns
+        link = chooser.get_extra_widget()
+        assert link.get_label() == "Get Microsoft's UI strings glossaries"
+        assert link.get_uri() == 'https://my.visualstudio.com/downloads?pid=6822'
         assert folders == [str(tmp_path)]
         accept = chooser.get_widget_for_response(Gtk.ResponseType.ACCEPT)
         assert accept.get_use_underline()
