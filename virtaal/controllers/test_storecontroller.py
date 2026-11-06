@@ -9,12 +9,14 @@ import io
 import os
 import sys
 from types import SimpleNamespace
+from zipfile import ZipFile
 
 import pytest
 
 from virtaal.common import GObjectWrapper
 from virtaal.controllers.storecontroller import StoreController
 from virtaal.support.bundleprojstore import BundleProjectStore
+from virtaal.support.project import Project
 
 
 def _fake_bundle(zip_filename):
@@ -644,29 +646,51 @@ def test_save_file_project_opens_the_real_file_in_binary_mode(tmp_path):
     assert converted.closed
 
 
-def test_save_file_project_saves_the_bundle_under_the_given_name(tmp_path):
-    real_file = tmp_path / 'source.po'
-    real_file.write_bytes(b'msgid "a"\nmsgstr ""\n')
-    saved = []
+@pytest.mark.parametrize('writable', [True, False])
+def test_save_file_project_save_as_leaves_the_open_bundle_alone(tmp_path, monkeypatch, writable):
+    po = b'msgid "cat"\nmsgstr "kat"\n'
+    original = str(tmp_path / 'project.zip')
+    bundle = BundleProjectStore(original)
+    bundle.append_file(io.BytesIO(po), 'trans/af.po', ftype='trans')
+    bundle.save()
+    bundle.close()
+    with open(original, 'rb') as f:
+        data = f.read()
+    if not writable:
+        real_access = os.access
+        monkeypatch.setattr(
+            'virtaal.support.bundleprojstore.os.access',
+            lambda name, mode: False if name == original else real_access(name, mode),
+        )
     controller = _controller()
-    controller.project = SimpleNamespace(
-        get_proj_filename=lambda fname: 'trans/source.po',
-        update_file=lambda proj_fname, infile: None,
-        convert_forward=lambda *a, **k: (io.BytesIO(), 'targets/source.po'),
-        save=lambda filename=None: saved.append(filename),
-    )
-    controller.real_filename = str(real_file)
+    controller.project = Project(BundleProjectStore(original))
+    # translate-toolkit has no converter to make a target document (#4706).
+    controller.project.convert_forward = lambda *a, **k: (io.BytesIO(), None)
+    with controller.project.get_file('trans/af.po') as transfile:
+        controller.real_filename = transfile.name
+
+    def save_store():
+        with open(controller.real_filename, 'wb') as f:
+            f.write(po.replace(b'kat', b'katjie'))
+
+    controller.store = SimpleNamespace(save_file=save_store)
     controller._unit_controller = SimpleNamespace(prepare_for_save=lambda: None)
-    controller.store = SimpleNamespace(save_file=lambda: None)
     controller.main_controller = SimpleNamespace(
         undo_controller=SimpleNamespace(model=SimpleNamespace(mark_clean=lambda: None)),
         set_saveable=lambda v: None,
         view=SimpleNamespace(hide_read_only_notice=lambda: None),
     )
+    copy = str(tmp_path / 'copy.zip')
+    try:
+        controller.save_file(copy)
 
-    controller.save_file('copy.zip')
-
-    assert saved == ['copy.zip']
+        assert controller.project.store.zip.filename == copy
+        with ZipFile(copy) as archive:
+            assert archive.read('trans/af.po') == po.replace(b'kat', b'katjie')
+    finally:
+        controller.project.store.close()
+    with open(original, 'rb') as f:
+        assert f.read() == data
 
 
 # binary_export() #

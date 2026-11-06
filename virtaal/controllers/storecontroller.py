@@ -476,13 +476,16 @@ class StoreController(BaseController):
         else:
             # self.store is a temporary copy; filename names the bundle.
             self.store.save_file()
+            if filename:
+                # Updating writes to the open bundle, so move to the new one first.
+                self.project.save(filename)
 
             proj_fname = self.project.get_proj_filename(self.real_filename)
             with open(self.real_filename, 'rb') as infile:
                 self.project.update_file(proj_fname, infile)
             outputfile, _fname = self.project.convert_forward(proj_fname, overwrite_output=True)
             outputfile.close()
-            self.project.save(filename)
+            self.project.save()
         self.set_modified(False)
         # reaching here means the write succeeded, so any stale notice goes
         self.main_controller.view.hide_read_only_notice()

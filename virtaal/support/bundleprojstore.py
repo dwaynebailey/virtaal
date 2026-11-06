@@ -188,10 +188,9 @@ class BundleProjectStore(ProjectStore):
         """Save all project files to the bundle zip file."""
         if filename and os.path.abspath(filename) == os.path.abspath(self.zip.filename):
             filename = None
-        if self.read_only:
-            if not filename:
+        if not filename:
+            if self.read_only:
                 raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), self.zip.filename)
-        else:
             self._update_from_tempfiles()
         newzip = ZipFile(filename, "w") if filename else self._create_temp_zipfile()
 
