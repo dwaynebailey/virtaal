@@ -147,6 +147,25 @@ def test_trailing_punctuation_is_not_part_of_a_url():
 
 
 @pytest.mark.parametrize(
+    ('text', 'expected', 'url'),
+    [
+        # translate-toolkit's URL needs a space, an end or a bracket after
+        # a bare host: the full stop made "https:" text and the rest a path.
+        ('See https://example.org.', 'See ' + URL + '.', 'https://example.org'),
+        ('Is it https://example.org?', 'Is it ' + URL + '?', 'https://example.org'),
+        ('Read https://example.org: it helps', 'Read ' + URL + ': it helps', 'https://example.org'),
+        ('See www.example.org.', 'See ' + URL + '.', 'www.example.org'),
+        ('See https://example.org...', 'See ' + URL + '…', 'https://example.org'),
+    ],
+)
+def test_a_url_ending_a_sentence_is_whole_with_the_punctuation_outside(text, expected, url):
+    abstract_text, found = abstract(text)
+
+    assert abstract_text == expected
+    assert [(p.marker, p.raw) for p in found] == [(URL, url)]
+
+
+@pytest.mark.parametrize(
     ('text', 'expected', 'found'),
     [
         ('_Open', 'Open', (0, '_')),

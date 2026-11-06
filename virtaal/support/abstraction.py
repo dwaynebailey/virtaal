@@ -40,6 +40,26 @@ FILE = '\ue008'
 NUMBER = '\ue009'
 OPTION = '\ue00a'
 
+
+class _UrlPlaceable(general.UrlPlaceable):
+    """translate-toolkit's URL, which may also end right before a
+    sentence's punctuation: without that, "https://example.org." is
+    "https:" and a file path."""
+
+    regex = re.compile(
+        r"""
+    ((((news|nttp|file|https?|ftp|irc)://)
+    |((www|ftp)[-A-Za-z0-9]*\.))
+    ([-A-Za-z0-9]+(\.[-A-Za-z0-9]+)*)
+    |(\d{1,3}(\.\d{1,3}){3,3}))
+    (:[0-9]{1,5})?
+    (/[-A-Za-z0-9_\$\.\+\!\*\(\),;:@&=\?/~\#\%]*)?
+    (?=[.,;:!?]*($|\s|([]'}>\),\"])))
+    """,
+        re.VERBOSE,
+    )
+
+
 # Fixed, and not the user's placeable settings, so stored abstracts don't
 # drift between users and sessions. In translate-toolkit's parser order.
 _CLASSES = (
@@ -49,7 +69,7 @@ _CLASSES = (
     (general.JavaMessageFormatPlaceable, VARIABLE),
     (general.FormattingPlaceable, VARIABLE),
     (general.QtFormattingPlaceable, VARIABLE),
-    (general.UrlPlaceable, URL),
+    (_UrlPlaceable, URL),
     (general.FilePlaceable, FILE),
     (general.EmailPlaceable, EMAIL),
     (general.OptionPlaceable, OPTION),
