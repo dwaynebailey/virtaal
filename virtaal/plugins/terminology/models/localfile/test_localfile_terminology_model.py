@@ -265,6 +265,25 @@ def test_load_config_falls_back_extendfile_to_the_default_when_nothing_exists(
     assert model.config['extendfile'] == TerminologyModel.default_config['extendfile']
 
 
+def test_load_config_never_picks_a_read_only_termbase_to_extend(monkeypatch, tmp_path):
+    real_file = tmp_path / 'real.po'
+    real_file.write_text('')
+    model = _make_model({'files': f'{MILI},{real_file}', 'extendfile': MILI}, monkeypatch)
+
+    model.load_config()
+
+    assert model.config['extendfile'] == str(real_file)
+
+
+def test_load_config_falls_back_to_the_default_when_only_read_only_termbases_exist(monkeypatch):
+    model = _make_model({'files': MILI, 'extendfile': ''}, monkeypatch)
+
+    model.load_config()
+
+    assert model.config['extendfile'] == TerminologyModel.default_config['extendfile']
+    assert model.config['files'] == [MILI, model.config['extendfile']]
+
+
 def test_load_config_always_includes_extendfile_in_files(monkeypatch, tmp_path):
     real_file = tmp_path / 'real.po'
     real_file.write_text('')

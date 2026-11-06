@@ -442,7 +442,8 @@ without Trados:
   languages: Virtaal suggests its terms for the current language pair, from the
   original's language to the translation's. Each term's other translations and
   its fields, such as a definition, are kept with it. Virtaal only reads these
-  files, so it can't add terms to them.
+  files, so it can't add terms to them: they can't be picked as Extendable, and
+  Add Term doesn't offer them.
 
 Reading a .sdltb termbase needs the access-parser Python module. Without it,
 export the termbase from MultiTerm as MultiTerm XML and add that file instead.

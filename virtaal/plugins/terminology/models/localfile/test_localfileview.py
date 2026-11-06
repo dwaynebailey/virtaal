@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -666,6 +667,49 @@ def test_on_toggle_marks_only_the_toggled_row_as_the_extend_file():
     assert [(row[0], row[1]) for row in dialog.lst_files] == [('a.po', False), ('b.po', True)]
     assert dialog.term_model.config['extendfile'] == 'b.po'
     assert saved == [True]
+
+
+MILI = os.path.join('devsupport', 'testfiles', 'trados', 'kaur2k-termconv', 'mili_1.xml')
+
+
+def test_on_toggle_refuses_a_read_only_termbase():
+    dialog = _dialog_with_files([MILI, 'b.po'], extendfile='b.po')
+    dialog.term_model = SimpleNamespace(
+        config={'extendfile': 'b.po'}, save_config=lambda: pytest.fail('nothing to save')
+    )
+
+    dialog._on_toggle(None, '0')
+
+    assert [row[1] for row in dialog.lst_files] == [False, True]
+    assert dialog.term_model.config['extendfile'] == 'b.po'
+
+
+def test_a_read_only_termbase_has_no_extendable_button():
+    dialog = _dialog_with_files([MILI, 'b.po'])
+    cell = Gtk.CellRendererToggle()
+
+    states = []
+    for row in dialog.lst_files:
+        dialog._extendable_cell_data(None, cell, dialog.lst_files, row.iter)
+        states.append((cell.props.activatable, cell.props.visible))
+
+    assert states == [(False, False), (True, True)]
+
+
+def test_init_treeview_defaults_to_the_first_file_add_term_can_save_to(
+    monkeypatch, private_ui_builders
+):
+    monkeypatch.setattr(FileSelectDialog, '_init_add_chooser', lambda self: None)
+    model = SimpleNamespace(
+        controller=None,
+        config={'files': [MILI, 'b.po'], 'extendfile': ''},
+        save_config=lambda: None,
+    )
+
+    dialog = FileSelectDialog(model=model)
+
+    assert [row[1] for row in dialog.lst_files] == [False, True]
+    assert model.config['extendfile'] == 'b.po'
 
 
 # TermAddDialog.add_term_unit() #

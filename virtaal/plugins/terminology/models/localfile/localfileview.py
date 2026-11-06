@@ -17,6 +17,8 @@ from virtaal.views.baseview import BaseView
 from virtaal.views.theme import current_theme, set_widget_bg_color
 from virtaal.views.widgets.wordatcursor import WordAtCursorSelector
 
+from .extendable import is_extendable
+
 
 class LocalFileView:
     """
@@ -187,6 +189,7 @@ class FileSelectDialog:
         col = Gtk.TreeViewColumn(_('Extendable'))
         col.pack_start(cell, True)
         col.add_attribute(cell, 'active', self.COL_EXTEND)
+        col.set_cell_data_func(cell, self._extendable_cell_data)
         col.set_expand(False)
         col.set_min_width(90)  # wide enough for the header label itself
         self.tvw_termfiles.append_column(col)
@@ -196,16 +199,25 @@ class FileSelectDialog:
         for f in files:
             self.lst_files.append([f, f == extend_file])
 
-        # If there was no extend file, select the first one
+        # If there was no extend file, select the first one Add Term can save to.
         for row in self.lst_files:
             if row[self.COL_EXTEND]:
                 break
         else:
-            itr = self.lst_files.get_iter_first()
-            if itr and self.lst_files.iter_is_valid(itr):
-                self.lst_files.set_value(itr, self.COL_EXTEND, True)
-                self.term_model.config['extendfile'] = self.lst_files.get_value(itr, self.COL_FILE)
+            row = self._first_extendable_row()
+            if row is not None:
+                row[self.COL_EXTEND] = True
+                self.term_model.config['extendfile'] = row[self.COL_FILE]
                 self.term_model.save_config()
+
+    def _first_extendable_row(self):
+        return next((row for row in self.lst_files if is_extendable(row[self.COL_FILE])), None)
+
+    def _extendable_cell_data(self, column, cell, model, itr, data=None):
+        # A read-only termbase can't be the file Add Term saves to.
+        extendable = is_extendable(model.get_value(itr, self.COL_FILE))
+        cell.set_property('activatable', extendable)
+        cell.set_property('visible', extendable)
 
     def _init_add_chooser(self):
         # The following code was mostly copied from virtaal.views.MainView._create_dialogs()
@@ -326,10 +338,10 @@ class FileSelectDialog:
 
         if extend:
             self.term_model.config['extendfile'] = ''
-            itr = model.get_iter_first()
-            if itr and model.iter_is_valid(itr):
-                model.set_value(itr, self.COL_EXTEND, True)
-                self.term_model.config['extendfile'] = model.get_value(itr, self.COL_FILE)
+            row = self._first_extendable_row()
+            if row is not None:
+                row[self.COL_EXTEND] = True
+                self.term_model.config['extendfile'] = row[self.COL_FILE]
 
         self.term_model.save_config()
         self.term_model.load_files()
@@ -350,6 +362,8 @@ class FileSelectDialog:
 
     def _on_toggle(self, renderer, path):
         toggled_file = self.lst_files.get_value(self.lst_files.get_iter(path), self.COL_FILE)
+        if not is_extendable(toggled_file):
+            return
 
         itr = self.lst_files.get_iter_first()
         while itr is not None and self.lst_files.iter_is_valid(itr):
@@ -467,13 +481,15 @@ class TermAddDialog:
         select_index = -1
         i = 0
         for f in self.term_model.config['files']:
+            if not is_extendable(f):
+                continue
             if f == extendfile:
                 select_index = i
             self.lst_termfiles.append([f])
             i += 1
 
-        if select_index >= 0:
-            self.cmb_termfile.set_active(select_index)
+        if len(self.lst_termfiles):
+            self.cmb_termfile.set_active(max(select_index, 0))
 
     def run(self, parent=None):
         self.reset()

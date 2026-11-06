@@ -17,6 +17,7 @@ from virtaal.plugins.terminology.models.basetermmodel import BaseTerminologyMode
 from virtaal.support import trados_compat  # noqa: F401 - applies its patch on import
 from virtaal.support.multiterm import MissingReaderError
 
+from .extendable import is_extendable
 from .localfileview import LocalFileView
 
 
@@ -137,11 +138,11 @@ class TerminologyModel(BaseTerminologyModel):
                 conffiles.append(filename)
         self.config['files'] = conffiles
 
-        if not os.path.exists(self.config['extendfile']) and len(self.config['files']) > 0:
-            self.config['extendfile'] = self.config['files'][0]
-
-        if not os.path.exists(self.config['extendfile']):
-            self.config['extendfile'] = self.default_config['extendfile']
+        extendfile = self.config['extendfile']
+        if not (os.path.exists(extendfile) and is_extendable(extendfile)):
+            extendable = [f for f in self.config['files'] if is_extendable(f)]
+            extendfile = extendable[0] if extendable else self.default_config['extendfile']
+        self.config['extendfile'] = extendfile
 
         if self.config['extendfile'] not in self.config['files']:
             self.config['files'].append(self.config['extendfile'])
