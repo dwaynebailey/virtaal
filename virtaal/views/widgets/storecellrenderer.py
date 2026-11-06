@@ -188,6 +188,9 @@ class StoreCellRenderer(Gtk.CellRenderer):
     ROW_PADDING = 10
     """The number of pixels between rows."""
 
+    LAYOUT_CACHE_SIZE = 100
+    """Rows whose text layouts are kept for measuring and drawing again."""
+
     VIEWPORT_ROW_BUFFER = 25
     """Rows within this many positions of the visible range still get
     an exact Pango measurement - a margin against get_visible_range()
@@ -215,6 +218,9 @@ class StoreCellRenderer(Gtk.CellRenderer):
         self._index_cache = None
         # font description string -> (char_width, line_height).
         self._metrics_cache = {}
+        # (width, direction, (markup, font, language) of source and
+        # target) -> their layouts, least recently used first.
+        self._layout_cache = {}
 
     # ACCESSORS #
     def _get_unit(self):
@@ -500,6 +506,13 @@ class StoreCellRenderer(Gtk.CellRenderer):
     # METHODS #
     def _get_pango_layout(self, widget, text, width, font_description):
         '''Gets the Pango layout used in the cell in a TreeView widget.'''
+        # A plural unit shows its first form only.
+        return self._layout_for_markup(
+            widget, markup.markuptext(text or ""), width, font_description
+        )
+
+    @staticmethod
+    def _layout_for_markup(widget, text_markup, width, font_description):
         # We can't use widget.get_pango_context() because we'll end up
         # overwriting the language and font settings if we don't have a
         # new one
@@ -507,9 +520,7 @@ class StoreCellRenderer(Gtk.CellRenderer):
         layout.set_font_description(font_description)
         layout.set_wrap(Pango.WrapMode.WORD_CHAR)
         layout.set_width(width * Pango.SCALE)
-        # A plural unit shows its first form only.
-        text = text or ""
-        layout.set_markup(markup.markuptext(text))
+        layout.set_markup(text_markup)
         return layout
 
     def compute_cell_height(self, widget, width):
@@ -537,31 +548,45 @@ class StoreCellRenderer(Gtk.CellRenderer):
         return self._compute_exact_height(widget, width)
 
     def _compute_exact_height(self, widget, width):
+        """Lay out the row's source and target, reusing earlier layouts
+        of the same text: rows are measured and drawn again and again."""
         lang_controller = self.view.controller.main_controller.lang_controller
         srclang = lang_controller.source_lang.code
         tgtlang = lang_controller.target_lang.code
-        self.source_layout = self._get_pango_layout(
-            widget,
-            self._row_source(),
-            self._column_width(width),
-            rendering.get_source_font_description(),
+        width = self._column_width(width)
+        rtl = widget.get_direction() == Gtk.TextDirection.RTL
+        sides = (
+            (
+                markup.markuptext(self._row_source() or ""),
+                rendering.get_source_font_description(),
+                srclang,
+            ),
+            (
+                markup.markuptext(self._row_target() or ""),
+                rendering.get_target_font_description(),
+                tgtlang,
+            ),
         )
-        self.source_layout.get_context().set_language(rendering.get_language(srclang))
-        self.target_layout = self._get_pango_layout(
-            widget,
-            self._row_target(),
-            self._column_width(width),
-            rendering.get_target_font_description(),
-        )
-        self.target_layout.get_context().set_language(rendering.get_language(tgtlang))
-        # This makes no sense, but has the desired effect to align things correctly for
-        # both LTR and RTL languages:
-        if widget.get_direction() == Gtk.TextDirection.RTL:
-            self.source_layout.set_alignment(Pango.Alignment.RIGHT)
-            self.target_layout.set_alignment(Pango.Alignment.RIGHT)
+        key = (width, rtl) + tuple((text, font.to_string(), lang) for text, font, lang in sides)
+        cached = self._layout_cache.pop(key, None)
+        if cached is None:
+            cached = tuple(self._row_layout(widget, width, rtl, *side) for side in sides)
+            while len(self._layout_cache) >= self.LAYOUT_CACHE_SIZE:
+                del self._layout_cache[next(iter(self._layout_cache))]
+        self._layout_cache[key] = cached
+        self.source_layout, self.target_layout = cached
         _layout_width, source_height = self.source_layout.get_pixel_size()
         _layout_width, target_height = self.target_layout.get_pixel_size()
         return max(source_height, target_height) + self.ROW_PADDING
+
+    def _row_layout(self, widget, width, rtl, text_markup, font_description, lang):
+        layout = self._layout_for_markup(widget, text_markup, width, font_description)
+        layout.get_context().set_language(rendering.get_language(lang))
+        # This makes no sense, but has the desired effect to align things correctly for
+        # both LTR and RTL languages:
+        if rtl:
+            layout.set_alignment(Pango.Alignment.RIGHT)
+        return layout
 
     def _row_source(self):
         return row_text(self.unit.source, lambda: self.unit.rich_source)

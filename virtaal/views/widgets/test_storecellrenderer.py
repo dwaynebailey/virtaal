@@ -385,6 +385,63 @@ def test_compute_cell_height_right_aligns_for_rtl():
     textview.set_direction(Gtk.TextDirection.NONE)
 
 
+def _count_layouts(monkeypatch):
+    made = []
+    real = StoreCellRenderer._layout_for_markup
+
+    def counting(widget, text_markup, width, font_description):
+        made.append(text_markup)
+        return real(widget, text_markup, width, font_description)
+
+    monkeypatch.setattr(StoreCellRenderer, '_layout_for_markup', staticmethod(counting))
+    return made
+
+
+def test_measuring_a_row_again_reuses_its_layouts(monkeypatch):
+    # Laying out a unit of thousands of lines takes a while, and a row
+    # is measured and drawn again and again (#4606).
+    made = _count_layouts(monkeypatch)
+    renderer = _renderer_for_unit('line\n' * 1000, 'lyn\n' * 1000)
+    textview = Gtk.TextView()
+
+    first = renderer.compute_cell_height(textview, 200)
+    layouts = (renderer.source_layout, renderer.target_layout)
+    again = renderer.compute_cell_height(textview, 200)
+
+    assert len(made) == 2
+    assert again == first
+    assert (renderer.source_layout, renderer.target_layout) == layouts
+
+
+def test_a_rows_layouts_follow_its_text_width_and_direction(monkeypatch):
+    made = _count_layouts(monkeypatch)
+    renderer = _renderer_for_unit('source', 'target')
+    textview = Gtk.TextView()
+    renderer.compute_cell_height(textview, 200)
+
+    renderer.unit.target = 'changed'
+    renderer.compute_cell_height(textview, 200)
+    renderer.compute_cell_height(textview, 300)
+    textview.set_direction(Gtk.TextDirection.RTL)
+    renderer.compute_cell_height(textview, 300)
+    textview.set_direction(Gtk.TextDirection.NONE)
+
+    assert len(made) == 8
+    assert renderer.target_layout.get_text() == 'changed'
+    assert renderer.target_layout.get_alignment() == Pango.Alignment.RIGHT
+
+
+def test_the_row_layouts_kept_are_bounded():
+    renderer = _renderer_for_unit('source', 'target')
+    textview = Gtk.TextView()
+
+    for n in range(renderer.LAYOUT_CACHE_SIZE + 10):
+        renderer.unit.source = 'source %d' % n
+        renderer.compute_cell_height(textview, 200)
+
+    assert len(renderer._layout_cache) == renderer.LAYOUT_CACHE_SIZE
+
+
 # _row_needs_exact_height() / _unit_index() - the estimate/exact split #
 
 
