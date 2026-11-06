@@ -94,10 +94,10 @@ class StoreModel(BaseModel):
     __gtype_name__ = "StoreModel"
 
     # INITIALIZERS #
-    def __init__(self, fileobj, controller):
+    def __init__(self, fileobj, controller, fill_stats_cache=True):
         super().__init__()
         self.controller = controller
-        self.load_file(fileobj)
+        self.load_file(fileobj, fill_stats_cache)
 
     # SPECIAL METHODS #
     def __getitem__(self, index):
@@ -168,6 +168,16 @@ class StoreModel(BaseModel):
         """Get a specific unit by index."""
         return self._trans_store.units[self._valid_units[index]]
 
+    peek_unit = get_unit
+
+    def index_of(self, unit):
+        """The index of C{unit} itself (not an equal one), or C{None}."""
+        return next((i for i, u in enumerate(self.get_units()) if u is unit), None)
+
+    def file_parts(self):
+        """(file name, units) of each file."""
+        return [(self.get_filename(), self.get_units())]
+
     def get_units(self):
         """Return the current store's (filtered) units."""
         return [self._trans_store.units[i] for i in self._valid_units]
@@ -203,7 +213,7 @@ class StoreModel(BaseModel):
         return totals
 
     # METHODS #
-    def load_file(self, fileobj):
+    def load_file(self, fileobj, fill_stats_cache=True):
         # Adapted from Document.__init__()
         filename = fileobj
         if isinstance(filename, str):
@@ -236,7 +246,8 @@ class StoreModel(BaseModel):
         # Indices of units that may differ from the file on disk.
         self._edited_units = set()
         self.update_stats()
-        self._fill_stats_cache()
+        if fill_stats_cache:
+            self._fill_stats_cache()
         self.nplurals = self._compute_nplurals(self._trans_store)
 
     def save_file(self, filename=None):
