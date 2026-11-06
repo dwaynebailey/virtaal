@@ -637,6 +637,7 @@ def test_on_store_loaded_disables_binary_export_for_a_non_po_file(monkeypatch):
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
         is_stream=lambda: False,
+        opened_folder=lambda: None,
         can_binary_export=lambda: False,
         project=None,
         store=SimpleNamespace(filename='/tmp/document.odt'),
@@ -662,6 +663,7 @@ def test_on_store_loaded_enables_binary_export_for_a_compressed_po_file(monkeypa
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
         is_stream=lambda: False,
+        opened_folder=lambda: None,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/translations/af.po.gz'),
@@ -690,6 +692,7 @@ def test_on_store_loaded_disables_binary_export_for_a_file_opened_after_a_po_fil
         view._on_store_loaded(
             SimpleNamespace(
                 is_stream=lambda: False,
+                opened_folder=lambda: None,
                 can_binary_export=lambda is_po=is_po: is_po,
                 project=None,
                 store=SimpleNamespace(filename='/tmp/' + filename),
@@ -710,6 +713,7 @@ def test_on_store_loaded_adds_the_bundle_filename_for_a_project(monkeypatch):
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
         is_stream=lambda: False,
+        opened_folder=lambda: None,
         can_binary_export=lambda: False,
         project=True,
         get_bundle_filename=lambda: '/tmp/bundle.zip',
@@ -740,6 +744,7 @@ def test_on_store_loaded_adds_the_store_filename_even_with_a_stale_uri_set(monke
     view._uri = 'file:///tmp/stale-from-an-earlier-open.po'
     store_controller = SimpleNamespace(
         is_stream=lambda: False,
+        opened_folder=lambda: None,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/dropped.po'),
@@ -764,6 +769,7 @@ def test_on_store_loaded_adds_an_extra_leading_slash_on_windows(monkeypatch):
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
         is_stream=lambda: False,
+        opened_folder=lambda: None,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/opened.po'),
@@ -806,7 +812,9 @@ def test_on_store_saved_adds_the_current_store_filename(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', False)
     view = MainView.__new__(MainView)
     store_controller = SimpleNamespace(
-        project=None, store=SimpleNamespace(filename='/tmp/save-as-target.po')
+        project=None,
+        opened_folder=lambda: None,
+        store=SimpleNamespace(filename='/tmp/save-as-target.po'),
     )
 
     view._on_store_saved(store_controller)
@@ -825,7 +833,9 @@ def test_on_store_saved_adds_an_extra_leading_slash_on_windows(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', True)
     view = MainView.__new__(MainView)
     store_controller = SimpleNamespace(
-        project=None, store=SimpleNamespace(filename='/tmp/save-as-target.po')
+        project=None,
+        opened_folder=lambda: None,
+        store=SimpleNamespace(filename='/tmp/save-as-target.po'),
     )
 
     view._on_store_saved(store_controller)
@@ -844,7 +854,9 @@ def test_on_store_saved_notes_the_store_filename_on_mac(monkeypatch):
     monkeypatch.setattr(mainview, '_note_recent_document', lambda path: noted.append(path))
     view = MainView.__new__(MainView)
     store_controller = SimpleNamespace(
-        project=None, store=SimpleNamespace(filename='/tmp/save-as-target.po')
+        project=None,
+        opened_folder=lambda: None,
+        store=SimpleNamespace(filename='/tmp/save-as-target.po'),
     )
 
     view._on_store_saved(store_controller)
@@ -2004,6 +2016,7 @@ def test_on_store_loaded_notes_the_bundle_filename_on_mac(monkeypatch):
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
         is_stream=lambda: False,
+        opened_folder=lambda: None,
         can_binary_export=lambda: False,
         project=True,
         get_bundle_filename=lambda: '/tmp/bundle.zip',
@@ -2034,6 +2047,7 @@ def test_on_store_loaded_notes_the_store_filename_even_with_a_dropped_uri_set(mo
     view._uri = 'file:///tmp/stale-from-an-earlier-open.po'
     store_controller = SimpleNamespace(
         is_stream=lambda: False,
+        opened_folder=lambda: None,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/dropped.po'),
@@ -2058,6 +2072,7 @@ def test_on_store_loaded_notes_the_plain_filename_on_mac(monkeypatch):
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
         is_stream=lambda: False,
+        opened_folder=lambda: None,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/opened.po'),
@@ -2081,6 +2096,7 @@ def test_on_store_loaded_skips_noting_a_document_off_mac(monkeypatch):
     view.status_bar = _FakeSensitiveWidget()
     store_controller = SimpleNamespace(
         is_stream=lambda: False,
+        opened_folder=lambda: None,
         can_binary_export=lambda: True,
         project=None,
         store=SimpleNamespace(filename='/tmp/opened.po'),
@@ -3573,3 +3589,79 @@ def test_show_restored_notice_with_nothing_shows_nothing():
     view.show_restored_notice(0, 0)
 
     assert vbox.packed == []
+
+
+# Folders #
+
+
+def test_open_recent_item_opens_a_folder_as_several_files(tmp_path):
+    opened = []
+    view = SimpleNamespace(controller=SimpleNamespace(open_files=opened.append))
+
+    MainView._open_recent_item(view, _FakeRecentInfo('file://' + str(tmp_path)))
+
+    assert opened == [[str(tmp_path)]]
+
+
+def test_open_folder_opens_the_chosen_folder(tmp_path):
+    opened = []
+    view = SimpleNamespace(
+        folder_chooser=object(),
+        show_open_dialog=lambda chooser: (str(tmp_path), 'file://' + str(tmp_path)),
+        controller=SimpleNamespace(open_files=lambda paths: opened.append(paths) or True),
+    )
+
+    assert MainView.open_folder(view)
+    assert opened == [[str(tmp_path)]]
+
+
+def test_open_folder_cancelled_opens_nothing():
+    view = SimpleNamespace(
+        folder_chooser=object(),
+        show_open_dialog=lambda chooser: (),
+        controller=SimpleNamespace(open_files=lambda paths: pytest.fail('nothing chosen')),
+    )
+
+    assert not MainView.open_folder(view)
+
+
+def test_on_store_loaded_adds_an_opened_folder_to_recent_files(monkeypatch, tmp_path):
+    from virtaal.views import recent
+
+    added = []
+    monkeypatch.setattr(recent, 'add_folder', added.append)
+    monkeypatch.setattr(
+        recent, 'rm', SimpleNamespace(add_item=lambda uri: pytest.fail('not as a file'))
+    )
+    monkeypatch.setattr(mainview, '_note_recent_document', lambda path: None)
+    view = MainView.__new__(MainView)
+    view.gui = SimpleNamespace(get_object=lambda name: _FakeSensitiveWidget())
+    view.status_bar = _FakeSensitiveWidget()
+    store_controller = SimpleNamespace(
+        is_stream=lambda: True,
+        opened_folder=lambda: str(tmp_path),
+        can_binary_export=lambda: False,
+        project=None,
+        store=SimpleNamespace(filename=str(tmp_path / 'af.po')),
+    )
+
+    view._on_store_loaded(store_controller)
+
+    prefix = 'file:///' if platform.is_windows else 'file://'
+    assert added == [prefix + os.path.abspath(str(tmp_path))]
+
+
+def test_recent_add_folder_names_it_as_virtaal_s(tmp_path):
+    from virtaal.views import recent
+
+    calls = []
+    original = recent.rm
+    recent.rm = SimpleNamespace(add_full=lambda uri, data: calls.append((uri, data)))
+    try:
+        recent.add_folder('file://' + str(tmp_path))
+    finally:
+        recent.rm = original
+
+    ((uri, data),) = calls
+    assert data.mime_type == 'inode/directory'
+    assert data.app_name == 'Virtaal'

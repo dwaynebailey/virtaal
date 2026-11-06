@@ -25,6 +25,17 @@ for app in ("virtaal", "Virtaal", "poedit", "kbabel", "lokalize", "gtranslator")
 
 rm = Gtk.RecentManager.get_default()
 
+
+def add_folder(uri):
+    """Add a folder opened as one list of units. Named as Virtaal's own,
+    which rf accepts on every platform."""
+    data = Gtk.RecentData()
+    data.mime_type = 'inode/directory'
+    data.app_name = 'Virtaal'
+    data.app_exec = 'virtaal %u'
+    rm.add_full(uri, data)
+
+
 rc = Gtk.RecentChooserMenu()
 # For now we don't handle non-local files yet
 rc.set_local_only(True)

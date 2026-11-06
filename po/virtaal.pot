@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 08:56+0000\n"
+"POT-Creation-Date: 2026-11-06 09:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,6 +105,10 @@ msgstr ""
 
 #: share/virtaal/virtaal.ui
 msgid "_File"
+msgstr ""
+
+#: share/virtaal/virtaal.ui
+msgid "Open _Folder…"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -2404,6 +2408,10 @@ msgstr ""
 
 #: virtaal/views/mainview.py
 msgid "Choose a Translation File"
+msgstr ""
+
+#: virtaal/views/mainview.py
+msgid "Choose a Folder of Translation Files"
 msgstr ""
 
 #: virtaal/views/mainview.py

@@ -346,6 +346,7 @@ class MainView(BaseView):
     def _connect_menu_signals(self):
         # File menu signals
         self.gui.get_object('mnu_open').connect('activate', self._on_file_open)
+        self.gui.get_object('mnu_open_folder').connect('activate', self._on_folder_open)
         self.gui.get_object('mnu_save').connect('activate', self._on_file_save)
         self.gui.get_object('mnu_saveas').connect('activate', self._on_file_saveas)
         self.gui.get_object('mnu_close').connect('activate', self._on_file_close)
@@ -564,6 +565,17 @@ class MainView(BaseView):
         )
         add_translation_file_filters(chooser)
         chooser.set_select_multiple(True)
+        return chooser
+
+    @cached_property
+    def folder_chooser(self):
+        chooser = Gtk.FileChooserNative.new(
+            _('Choose a Folder of Translation Files'),
+            self.main_window,
+            Gtk.FileChooserAction.SELECT_FOLDER,
+            None,
+            None,
+        )
         return chooser
 
     @cached_property
@@ -1752,6 +1764,16 @@ class MainView(BaseView):
     def _on_file_open(self, _widget):
         self.open_file()
 
+    def _on_folder_open(self, _widget):
+        self.open_folder()
+
+    def open_folder(self):
+        """Ask for a folder, and open the translation files in it."""
+        chosen = self.show_open_dialog(chooser=self.folder_chooser)
+        if not chosen:
+            return False
+        return self.controller.open_files([chosen[0]])
+
     def _on_file_save(self, widget=None):
         self.controller.save_file()
 
@@ -1839,6 +1861,9 @@ class MainView(BaseView):
         if item.exists():
             # For now we only handle local files, and limited the recent
             # manager to only give us those anyway, so we can get the filename
+            if os.path.isdir(item.get_uri_display()):
+                self.controller.open_files([item.get_uri_display()])
+                return
             self._uri = item.get_uri()
             self.controller.open_file(item.get_uri_display(), uri=item.get_uri())
 
@@ -1935,12 +1960,16 @@ class MainView(BaseView):
             if platform.is_mac:
                 _note_recent_document(path)
         else:
-            path = os.path.abspath(store_controller.store.filename)
+            folder = store_controller.opened_folder()
+            path = os.path.abspath(folder or store_controller.store.filename)
             if platform.is_windows:
                 url = 'file:///' + path
             else:
                 url = 'file://' + path
-            recent.rm.add_item(url)
+            if folder:
+                recent.add_folder(url)
+            else:
+                recent.rm.add_item(url)
             if platform.is_mac:
                 _note_recent_document(path)
 

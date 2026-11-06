@@ -203,6 +203,8 @@ class MainController(BaseController):
         # actually stops the recursion.
         if self._opening_file:
             return None
+        if filename and os.path.isdir(_strip_file_uri(filename)):
+            return self.open_files([filename])
         self._opening_file = True
         try:
             return self._open_file(filename, uri, forget_dir)
