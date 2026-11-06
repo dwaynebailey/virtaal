@@ -486,6 +486,9 @@ tmdb.TMDB(sys.argv[1])
 """
 
 
+# Two fresh interpreters importing translate-toolkit can take most of
+# the default 30 s on a slow Windows runner.
+@pytest.mark.timeout(150)
 def test_two_processes_migrate_the_same_file_at_once(db_path, old_tmdb):
     _v0_file(old_tmdb, db_path, *((f'Unit {n}', f'Eenheid {n}') for n in range(200)))
     root = Path(__file__).resolve().parents[2]
