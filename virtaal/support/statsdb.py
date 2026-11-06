@@ -129,7 +129,7 @@ class Record(UserDict):
         if record_values is None:
             record_values = (0 for _i in record_keys)
         self.record_keys = record_keys
-        self.data = dict(zip(record_keys, record_values))
+        self.data = dict(zip(record_keys, record_values, strict=True))
         self._compute_derived_values = compute_derived_values
         self._compute_derived_values(self)
 

@@ -60,7 +60,7 @@ def test_versions_compare_numerically_not_as_text(minimum_macos, tmp_path, monke
         path = tmp_path / name
         path.write_bytes(b"\xcf\xfa\xed\xfe" + b"\0" * 8)
         files.append(path)
-    versions = dict(zip(files, ("9.0", "26.0", "14.4")))
+    versions = dict(zip(files, ("9.0", "26.0", "14.4"), strict=True))
     monkeypatch.setattr(minimum_macos, "binary_minimum", versions.get)
     (tmp_path / "notes.txt").write_text("not a binary")
 

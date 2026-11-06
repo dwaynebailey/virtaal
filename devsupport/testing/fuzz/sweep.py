@@ -321,7 +321,9 @@ class Sweep:
                     # Time for the TM query, terminology and quality checks.
                     yield from self.settle(25)
                     strings = getattr(units[index].source, 'strings', [str(units[index].source)])
-                    for textbox, expected in zip(self.mc.unit_controller.view.sources, strings):
+                    for textbox, expected in zip(
+                        self.mc.unit_controller.view.sources, strings, strict=False
+                    ):
                         if textbox.get_text() != str(expected):
                             self.rec.problem(
                                 'display-mismatch',

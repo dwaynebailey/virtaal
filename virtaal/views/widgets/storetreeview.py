@@ -166,7 +166,7 @@ class StoreTreeView(Gtk.TreeView):
         """Rows that showed C{old_units} now show C{new_units}, with the
         same text: carry over which heights are still estimates."""
         estimated = self._estimated_unit_ids
-        for old, new in zip(old_units, new_units):
+        for old, new in zip(old_units, new_units, strict=False):
             if id(old) in estimated:
                 estimated.discard(id(old))
                 estimated.add(id(new))

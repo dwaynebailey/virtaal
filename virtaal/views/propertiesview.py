@@ -249,7 +249,7 @@ class PropertiesView(BaseView, GObjectWrapper):
         total_strings = sum(strings for (_desc, strings, _words) in statistics)
 
         for (_desc, strings, words), (_saved_desc, saved_strings, saved_words) in zip(
-            statistics, saved_statistics
+            statistics, saved_statistics, strict=True
         ):
             for vbox_name, value, saved_value, total in (
                 ('vbox_word_live_stats', words, saved_words, total_words),

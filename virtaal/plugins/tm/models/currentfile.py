@@ -52,7 +52,7 @@ class _UnitMatcher(_matcher):
         self._usable = []
         start = len(self.candidates.units)
         super().extendtm(units, store=store, sort=False)
-        for candidate, unit in zip(self.candidates.units[start:], self._usable):
+        for candidate, unit in zip(self.candidates.units[start:], self._usable, strict=True):
             candidate.unit_key = (unit.source, unit.target)
             candidate.unit_refs = [weakref.ref(unit)]
             candidate.unit_ref = candidate.unit_refs[0]
@@ -86,7 +86,7 @@ class _UnitMatcher(_matcher):
 
     def buildunits(self, candidates):
         units = super().buildunits(candidates)
-        for unit, (_score, candidate) in zip(units, candidates):
+        for unit, (_score, candidate) in zip(units, candidates, strict=True):
             unit.unit_ref = getattr(candidate, 'unit_ref', None)
         return units
 

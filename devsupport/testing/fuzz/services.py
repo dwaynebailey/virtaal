@@ -343,7 +343,7 @@ def _run_localtm(sweep, name):
     path = query_file(sweep.args.workdir, len(CORPUS) + 1)
     store = factory.getobject(path)
     units = [u for u in store.units if not u.isheader()]
-    for unit, (_, _, value) in zip(units, CORPUS):
+    for unit, (_, _, value) in zip(units, CORPUS, strict=False):
         unit.target = value
     seeded = path.replace('.po', '-tm.po')
     store.savefile(seeded)

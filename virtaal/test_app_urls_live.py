@@ -79,7 +79,11 @@ def test_every_link_virtaal_shows_works():
     assert urls
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         problems = dict(
-            zip(urls, pool.map(lambda u: check_url(u, 'url', fetch_status, time.sleep), urls))
+            zip(
+                urls,
+                pool.map(lambda u: check_url(u, 'url', fetch_status, time.sleep), urls),
+                strict=True,
+            )
         )
     for url, problem in problems.items():
         print('%s: %s (%s)' % (problem[0] if problem else 'ok', url, urls[url]))

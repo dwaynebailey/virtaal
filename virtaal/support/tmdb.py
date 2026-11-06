@@ -1062,7 +1062,7 @@ def unit_translations(unit, source_lang=None, target_lang=None):
     if not source_lang:
         raise LanguageError("undefined source language")
     translations = []
-    for i, (lang, text) in enumerate(zip(langs, texts)):
+    for i, (lang, text) in enumerate(zip(langs, texts, strict=True)):
         if i == source_index or not text:
             continue
         if not (lang or target_lang):

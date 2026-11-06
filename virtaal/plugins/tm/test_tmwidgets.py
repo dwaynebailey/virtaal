@@ -459,7 +459,7 @@ def _drawn_pixels(renderer, widget):
     blank = render({'source': '', 'target': '', 'query_str': '', 'quality': 0})
     drawn = render(matchdata)
     renderer.matchdata = matchdata
-    return sum(1 for a, b in zip(drawn, blank) if a != b)
+    return sum(1 for a, b in zip(drawn, blank, strict=True) if a != b)
 
 
 @pytest.mark.parametrize('direction', [Gtk.TextDirection.LTR, Gtk.TextDirection.RTL])

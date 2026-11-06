@@ -363,7 +363,9 @@ class AutoCompletor:
         if len(typed) > 1 and typed.isupper():
             return candidate.upper()
         cased = (
-            ''.join(t if t.lower() == c.lower() else c for t, c in zip(typed, candidate))
+            ''.join(
+                t if t.lower() == c.lower() else c for t, c in zip(typed, candidate, strict=False)
+            )
             + candidate[len(typed) :]
         )
         if at_start and cased[:1].islower():

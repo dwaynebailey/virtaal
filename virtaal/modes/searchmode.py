@@ -355,7 +355,7 @@ class SearchMode(BaseMode):
     def _on_file_loaded(self, model, number, peek):
         """Matches in a file just read move from its stand-in units to
         its real ones."""
-        real = dict(zip(map(id, peek), model.segments[number].units()))
+        real = dict(zip(map(id, peek), model.segments[number].units(), strict=False))
         for match in self.matches:
             unit = real.get(id(match.unit))
             if unit is not None:

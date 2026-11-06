@@ -98,7 +98,7 @@ def main():
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(urls) or 1) as pool:
         problems = pool.map(lambda u: check_url(*u, fetch_status, time.sleep), urls)
     errors = 0
-    for (url, _kind), problem in zip(urls, problems):
+    for (url, _kind), problem in zip(urls, problems, strict=True):
         if problem:
             report(*problem)
             errors += problem[0] == 'error'

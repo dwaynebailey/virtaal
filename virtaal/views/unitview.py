@@ -637,7 +637,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         for i in range(len(self.targets), self.MAX_TARGETS):
             self._add_target_textbox(i)
 
-        for target, next_target in zip(self.targets, self.targets[1:] + [None]):
+        for target, next_target in zip(self.targets, self.targets[1:] + [None], strict=True):
             target.connect('key-pressed', self._on_target_key_pressed, next_target)
 
         self.emit('targets-created', self.targets)

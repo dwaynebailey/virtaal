@@ -334,7 +334,7 @@ def test_divider_ys_leave_out_those_too_close_together():
     ys = ribbon._divider_ys(100)
 
     assert len(ys) == 9
-    assert all(b - a >= 10 for a, b in zip(ys, ys[1:]))
+    assert all(b - a >= 10 for a, b in zip(ys, ys[1:], strict=False))
 
 
 def test_refresh_marks_shows_only_the_files_chosen():

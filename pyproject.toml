@@ -161,9 +161,6 @@ ignore = [
     # %-format -> f-string: each call needs checking (escaping,
     # argument shape), not a mechanical rename.
     "UP031",
-    # zip() without strict=: whether unequal lengths should raise is
-    # per-site judgement.
-    "B905",
     # Imports after gi.require_version(), which has to run first.
     "E402",
 ]

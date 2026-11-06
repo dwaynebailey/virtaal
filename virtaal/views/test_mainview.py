@@ -3429,7 +3429,7 @@ def _run_translator_dialog(monkeypatch, response, typed=None, **details):
         seen['texts'] = [e.get_text() for e in entries]
         seen['focus'] = next(i for i, e in enumerate(entries) if e.is_focus())
         seen['shown'] = dialog.get_visible()
-        for entry, text in zip(entries, typed or []):
+        for entry, text in zip(entries, typed or [], strict=False):
             if text is not None:
                 entry.set_text(text)
         return response
