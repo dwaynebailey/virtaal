@@ -191,8 +191,6 @@ max-statements = 60
 # drag the real coverage figure down instead of reflecting it.
 omit = [
     "virtaal/plugins/_helloworld.py",
-    "virtaal/plugins/_ipython_console/__init__.py",
-    "virtaal/plugins/_ipython_console/ipython_view.py",
     "virtaal/plugins/_python_console.py",
     "virtaal/plugins/tm/models/_dummytm.py",
     # Skipped outside live-services.yml.

@@ -9,8 +9,8 @@
 # it instead (locale.py, openmailto.py, sorted_set.py,
 # simplegeneric.py all still append it underneath their own, so they
 # pass), the file is wholesale vendored code with no Virtaal copyright
-# to state at all (ipython_view.py, selector.py, statsdb.py, tmdb.py,
-# tmserver.py, translate_compat.py, wsgi.py, bundleprojstore.py,
+# to state at all (selector.py, statsdb.py, tmdb.py, tmserver.py,
+# translate_compat.py, wsgi.py, bundleprojstore.py,
 # project.py, projstore.py, test_bundleprojstore.py), or its own descriptive
 # comment starts with a bare "#" too, tripping the heuristic below
 # (docs/conf.py).
@@ -33,7 +33,6 @@ virtaal/support/libi18n/locale.py
 virtaal/support/openmailto.py
 virtaal/support/sorted_set.py
 virtaal/support/simplegeneric.py
-virtaal/plugins/_ipython_console/ipython_view.py
 virtaal/support/selector.py
 virtaal/support/statsdb.py
 virtaal/support/tmdb.py

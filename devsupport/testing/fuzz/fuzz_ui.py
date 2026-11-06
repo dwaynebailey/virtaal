@@ -105,7 +105,7 @@ def prepare_home(root):
             '[language]\nsourcelang = en\ntargetlang = af\n'
             '[translator]\nname = Fuzz Tester\nemail = fuzz@example.org\nteam = af@example.org\n'
             '[plugin_state]\nspellchecker = disabled\nautocorrector = disabled\n'
-            '_ipython_console = disabled\n_python_console = disabled\n'
+            '_python_console = disabled\n'
         )
     with open(os.path.join(conf, 'plugins.ini'), 'w', encoding='utf-8') as f:
         f.write(

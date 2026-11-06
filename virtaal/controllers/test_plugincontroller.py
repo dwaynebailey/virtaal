@@ -51,7 +51,7 @@ def test_get_plugin_class_stays_quiet_when_a_candidate_location_is_missing(monke
 
 
 def test_get_plugin_class_logs_a_plugins_own_missing_dependency(monkeypatch, caplog):
-    # e.g. _ipython_console needing the optional ipython package - a
+    # e.g. a plug-in needing an optional package - a
     # real, existing plugin module whose own internal import fails,
     # not "no such plugin".
     pc = _make_controller()
