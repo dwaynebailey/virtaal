@@ -1216,6 +1216,7 @@ def test_a_v1_file_gains_the_markup_columns_and_keeps_its_abstracts(db_path, mon
     with monkeypatch.context() as patch:
         patch.setattr(tmdb, 'SCHEMA_VERSION', 1)
         patch.delitem(tmdb.MIGRATIONS, 2)
+        patch.delitem(tmdb.MIGRATIONS, 3)
         db = tmdb.TMDB(db_path)
         db.cursor.execute(
             "INSERT INTO sources (text, context, lang, length, abstract) "
@@ -1317,6 +1318,106 @@ def test_codes_dont_count_against_a_matchs_score(db_path, tagged_tm):
     assert ('target_markup' in exact[0]) is tagged_tm
     if tagged_tm:
         assert (exact[0]['source_markup'], exact[0]['target_markup']) == TAGGED_MARKUP
+
+
+# Native code (ph, bpt, ept, it text) left out of matching.
+
+BOLD_TMX = (
+    '<tu><tuv xml:lang="en"><seg><bpt i="1">&lt;b&gt;</bpt>Save<ept i="1">&lt;/b&gt;</ept> '
+    'the file</seg></tuv><tuv xml:lang="af"><seg><bpt i="1">&lt;b&gt;</bpt>Stoor'
+    '<ept i="1">&lt;/b&gt;</ept> die lêer</seg></tuv></tu>'
+)
+BOLD = '<b>Save</b> the file'
+BOLD_MARKUP = (
+    '<bpt id="1">&lt;b&gt;</bpt>Save<ept id="1">&lt;/b&gt;</ept> the file',
+    '<bpt id="1">&lt;b&gt;</bpt>Stoor<ept id="1">&lt;/b&gt;</ept> die lêer',
+)
+
+
+def _qualities(db, unit_source, plain=None):
+    return [m['quality'] for m in db.translate_unit(unit_source, 'en', 'af', plain)]
+
+
+def test_a_tagged_query_matches_an_entry_on_its_text_without_native_code(db_path):
+    db = tmdb.TMDB(db_path)
+    db.import_store(_tmx(BOLD_TMX.encode('utf-8')), '/x/bold.tmx', 'en', 'af')
+
+    # An XLIFF <g>Save</g> the file, with and without its plain source.
+    assert _qualities(db, 'Save the file') == []
+    assert _qualities(db, 'Save the file', 'Save the file') == [100]
+    assert _qualities(db, 'Save the files', 'Save the files') == [93]
+    # An XLIFF unit with the same bpt/ept codes.
+    assert _qualities(db, BOLD, 'Save the file') == [100]
+
+
+def test_an_untagged_query_matches_an_entry_with_codes_as_before(db_path):
+    db = tmdb.TMDB(db_path)
+    db.import_store(_tmx(BOLD_TMX.encode('utf-8')), '/x/bold.tmx', 'en', 'af')
+
+    # A PO unit holding the HTML as text.
+    (match,) = db.translate_unit(BOLD, 'en', 'af')
+
+    assert (match['quality'], match['target']) == (100, '<b>Stoor</b> die lêer')
+
+
+@pytest.mark.parametrize('source', [BOLD, 'Save the file'])
+def test_a_tagged_query_matches_an_entry_without_codes_either_way(db_path, source):
+    db = tmdb.TMDB(db_path)
+    db.sync_store(PO, [_unit(source, 'Stoor die lêer', 'k1')], 'en', 'af')
+
+    assert _qualities(db, BOLD, 'Save the file') == [100]
+
+
+@pytest.mark.parametrize('abstract', [True, False])
+def test_a_long_native_code_doesnt_keep_an_entry_out_of_the_candidates(db_path, abstract):
+    image = b'&lt;img src="images/screenshots/main-window.png" alt="Main window"/&gt;'
+    db = tmdb.TMDB(db_path, abstract=abstract)
+    db.import_store(
+        _tmx(
+            b'<tu>'
+            + _tuv(b'en', b'Open it<ph x="1">%s</ph>' % image)
+            + _tuv(b'af', b'Maak dit oop<ph x="1">%s</ph>' % image)
+            + b'</tu>'
+        ),
+        '/x/image.tmx',
+        'en',
+        'af',
+    )
+
+    assert db.cursor.execute('SELECT plain_length FROM targets').fetchall() == [(7,)]
+    assert _qualities(db, SHORT, SHORT) == [100]
+
+
+def test_a_v2_file_gets_its_plain_lengths_from_its_markup(db_path, monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr(tmdb, 'SCHEMA_VERSION', 2)
+        patch.delitem(tmdb.MIGRATIONS, 3)
+        db = tmdb.TMDB(db_path)
+        db.cursor.execute(
+            "INSERT INTO sources (text, context, lang, length, abstract) "
+            "VALUES (?, '', 'en', ?, ?)",
+            (BOLD, len(BOLD), tmdb._abstract(BOLD)),
+        )
+        db.cursor.execute(
+            "INSERT INTO targets (sid, text, lang, abstract, source_markup, target_markup) "
+            "VALUES (1, '<b>Stoor</b> die lêer', 'af', 'S', ?, ?)",
+            BOLD_MARKUP,
+        )
+        db.cursor.execute(
+            "INSERT INTO targets (sid, text, lang, abstract) VALUES (1, 'Stoor dit', 'af', 'S')"
+        )
+        db.connection.commit()
+        _close(db_path)
+
+    db = tmdb.TMDB(db_path)
+
+    assert db._user_version() == tmdb.SCHEMA_VERSION == 3
+    assert db.cursor.execute('SELECT text, plain_length FROM targets ORDER BY tid').fetchall() == [
+        ('<b>Stoor</b> die lêer', len('Save the file')),
+        ('Stoor dit', None),
+    ]
+    assert _abstracts(db, 'targets') == [('<b>Stoor</b> die lêer', 'S'), ('Stoor dit', 'S')]
+    assert _qualities(db, 'Save the file', 'Save the file') == [100]
 
 
 def test_export_writes_inline_codes_as_tmx_codes(db_path):

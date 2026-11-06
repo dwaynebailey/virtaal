@@ -109,7 +109,9 @@ class TMServer:
 
     def translate_unit(self, slang, tlang, uid):
         response.content_type = "text/plain"
-        candidates = self.tmdb.translate_unit(uid, slang, tlang)
+        # A unit with inline codes sends its source without their native code.
+        plain = request.query.getunicode("plain")
+        candidates = self.tmdb.translate_unit(uid, slang, tlang, plain)
         logger.debug("candidates: %s", candidates)
         body = json.dumps(candidates, indent=4)
         callback = request.query.callback

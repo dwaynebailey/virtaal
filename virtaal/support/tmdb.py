@@ -55,10 +55,10 @@ from virtaal.support.tmx_compat import tuv_lang
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 """PRAGMA user_version of the schema below; 0 is a file an older Virtaal made."""
 
-SCHEMA_ABSTRACTION = {1: 1, 2: 1}
+SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1}
 """The abstraction algorithm whose abstracts each schema version stores.
 A new algorithm needs a new schema version, whose migration clears the
 abstracts for the backfill to recompute, so that one file never mixes
@@ -141,10 +141,28 @@ SCHEMA_V2 = (
     "ALTER TABLE targets ADD COLUMN target_markup VARCHAR DEFAULT NULL",
 )
 
-MIGRATIONS = {1: SCHEMA_V0 + SCHEMA_V1, 2: SCHEMA_V2}
-"""The statements bringing a file up to each schema version from the one
-before. A later version that changes only the abstraction algorithm
-migrates with CLEAR_ABSTRACTS."""
+
+def _fill_plain_lengths(cursor):
+    rows = cursor.execute(
+        "SELECT tid, source_markup FROM targets WHERE source_markup IS NOT NULL"
+    ).fetchall()
+    cursor.executemany(
+        "UPDATE targets SET plain_length = ? WHERE tid = ?",
+        [(_plain_length(markup), tid) for tid, markup in rows],
+    )
+
+
+# The length of a target's source without the native code of its inline
+# codes (inlinecodes.plain_text), for a target with markup; NULL otherwise.
+SCHEMA_V3 = (
+    "ALTER TABLE targets ADD COLUMN plain_length INTEGER DEFAULT NULL",
+    _fill_plain_lengths,
+)
+
+MIGRATIONS = {1: SCHEMA_V0 + SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3}
+"""The statements, or functions of a cursor, bringing a file up to each
+schema version from the one before. A later version that changes only
+the abstraction algorithm migrates with CLEAR_ABSTRACTS."""
 
 # Only a process whose schema version is the file's writes an abstract:
 # an older one leaves NULL for the newer one to fill. Read in the same
@@ -242,7 +260,10 @@ class TMDB:
             return
         for step in range(version + 1, SCHEMA_VERSION + 1):
             for statement in MIGRATIONS[step]:
-                self.cursor.execute(statement)
+                if callable(statement):
+                    statement(self.cursor)
+                else:
+                    self.cursor.execute(statement)
         self._file_under_legacy()
         self.cursor.execute("PRAGMA user_version = %d" % SCHEMA_VERSION)
         self.connection.commit()
@@ -508,10 +529,12 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             )
             (sid,) = self.cursor.fetchone()
         source_markup, target_markup = _markup(unit)
+        plain_length = _plain_length(source_markup)
         try:
             self.cursor.execute(
-                "INSERT INTO targets (sid, text, lang, time, abstract, source_markup, target_markup) "
-                "VALUES (?, ?, ?, ?, %s, ?, ?)" % _ABSTRACT_IF_CURRENT,
+                "INSERT INTO targets "
+                "(sid, text, lang, time, abstract, source_markup, target_markup, plain_length) "
+                "VALUES (?, ?, ?, ?, %s, ?, ?, ?)" % _ABSTRACT_IF_CURRENT,
                 (
                     sid,
                     unit["target"],
@@ -521,6 +544,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                     _abstract(unit["target"]),
                     source_markup,
                     target_markup,
+                    plain_length,
                 ),
             )
             return self.cursor.lastrowid
@@ -533,9 +557,18 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             if source_markup is not None:
                 # The latest codes; plain text keeps those it has.
                 self.cursor.execute(
-                    "UPDATE targets SET source_markup = ?, target_markup = ? WHERE tid = ? "
-                    "AND (source_markup IS NOT ? OR target_markup IS NOT ?)",
-                    (source_markup, target_markup, tid, source_markup, target_markup),
+                    "UPDATE targets SET source_markup = ?, target_markup = ?, plain_length = ? "
+                    "WHERE tid = ? AND (source_markup IS NOT ? OR target_markup IS NOT ? "
+                    "OR plain_length IS NOT ?)",
+                    (
+                        source_markup,
+                        target_markup,
+                        plain_length,
+                        tid,
+                        source_markup,
+                        target_markup,
+                        plain_length,
+                    ),
                 )
             return tid
 
@@ -911,24 +944,35 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             raise
         return deleted
 
-    def translate_unit(self, unit_source, source_langs, target_langs):
+    def translate_unit(self, unit_source, source_langs, target_langs, plain=None):
         """Return TM suggestions for unit_source.
 
         Each has the quality its target gets once rebuilt with
         unit_source's placeables (see abstraction.adapt), so a source that
         differs only in placeables or accelerator is found and kept however
-        low its raw quality, which is given as raw_quality."""
+        low its raw quality, which is given as raw_quality.
+
+        plain, for a unit of a format with inline codes, is its source
+        without their native code (inlinecodes.plain_source). It is matched
+        against an entry with codes on the entry's texts without theirs,
+        and against an entry without codes as unit_source is too, keeping
+        the better score."""
         source_in, source_params = _language_match("s.lang", source_langs)
         target_in, target_params = _language_match("t.lang", target_langs)
         langs_in = "%s AND %s" % (source_in, target_in)
         lang_params = (*source_params, *target_params)
 
-        windows = [(len(unit_source), "s.length")]
-        query_abstract = unit_source
-        if self.abstract:
-            query_abstract = _abstract(unit_source)
-            # Either window: abstraction may only add candidates.
-            windows.append((len(query_abstract), "length(COALESCE(s.abstract, s.text))"))
+        queries = [(unit_source, self._query_abstract(unit_source), "s.length")]
+        if plain is not None:
+            queries.append(
+                (plain, self._query_abstract(plain), "COALESCE(t.plain_length, s.length)")
+            )
+        windows = []
+        for text, query_abstract, column in queries:
+            windows.append((len(text), column))
+            if self.abstract:
+                # Either window: abstraction may only add candidates.
+                windows.append((len(query_abstract), "length(COALESCE(s.abstract, s.text))"))
         window_sql = " OR ".join("%s BETWEEN ? AND ?" % column for _length, column in windows)
         window_params = []
         for length, _column in windows:
@@ -937,9 +981,9 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                 max_levenshtein_length(length, self.min_similarity, self.max_length),
             ]
 
-        # split source into words, remove punctuation and special
-        # chars, keep words that are at least 3 chars long
-        unit_words = STRIP_REGEXP.sub(" ", query_abstract).split()
+        # split source into words (the plain source's, if given), remove
+        # punctuation and special chars, keep words at least 3 chars long
+        unit_words = STRIP_REGEXP.sub(" ", queries[-1][1]).split()
         unit_words = list(filter(lambda word: len(word) > 2, unit_words))
 
         columns = "s.text, t.text, s.context, s.abstract, t.source_markup, t.target_markup"
@@ -960,52 +1004,61 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
 
         results = []
         for row in self.cursor.fetchall():
-            source, target, context, source_abstract = row[:4]
-            if not self.abstract:
-                quality = self.comparer.similarity(unit_source, source, self.min_similarity)
-                if quality >= self.min_similarity:
-                    results.append(
-                        _with_markup(
-                            {
-                                "source": source,
-                                "target": target,
-                                "context": context,
-                                "quality": quality,
-                            },
-                            row,
-                        )
-                    )
+            scores = [self._score(*texts) for texts in _match_texts(queries, row)]
+            scores = [score for score in scores if score is not None]
+            if not scores:
                 continue
-            raw_quality = self.comparer.similarity(unit_source, source, self.min_similarity)
-            if raw_quality < self.min_similarity:
-                if source_abstract is None:
-                    source_abstract = _abstract(source)
-                # Penalties only lower it: an upper bound on the quality.
-                bound = self.comparer.similarity(
-                    query_abstract, source_abstract, self.min_similarity
-                )
-                if round(bound) < self.min_similarity:
-                    continue
-                # Cut short below the minimum: worked out in full.
-                raw_quality = self.comparer.similarity(unit_source, source, 0)
-            adapted = adapt(unit_source, source, target, raw_quality)
-            if adapted.quality >= self.min_similarity:
-                results.append(
-                    _with_markup(
-                        {
-                            "source": source,
-                            "target": target,
-                            "context": context,
-                            "quality": adapted.quality,
-                            "raw_quality": adapted.raw_quality,
-                        },
-                        row,
-                    )
-                )
+            quality, raw_quality = max(scores)
+            match = {"source": row[0], "target": row[1], "context": row[2], "quality": quality}
+            if self.abstract:
+                match["raw_quality"] = raw_quality
+            results.append(_with_markup(match, row))
         results.sort(key=operator.itemgetter("quality"), reverse=True)
         results = results[: self.max_candidates]
         logger.debug("results: %s", results)
         return results
+
+    def _query_abstract(self, text):
+        return _abstract(text) if self.abstract else text
+
+    def _score(self, query, query_abstract, source, target, source_abstract):
+        """(quality, raw quality) of the entry source with target for
+        query, or None below the minimum."""
+        raw_quality = self.comparer.similarity(query, source, self.min_similarity)
+        if not self.abstract:
+            return (raw_quality, raw_quality) if raw_quality >= self.min_similarity else None
+        if raw_quality < self.min_similarity:
+            if source_abstract is None:
+                source_abstract = _abstract(source)
+            # Penalties only lower it: an upper bound on the quality.
+            bound = self.comparer.similarity(query_abstract, source_abstract, self.min_similarity)
+            if round(bound) < self.min_similarity:
+                return None
+            # Cut short below the minimum: worked out in full.
+            raw_quality = self.comparer.similarity(query, source, 0)
+        adapted = adapt(query, source, target, raw_quality)
+        if adapted.quality < self.min_similarity:
+            return None
+        return adapted.quality, adapted.raw_quality
+
+
+def _match_texts(queries, row):
+    """(query, its abstract, source, target, source abstract) to score for
+    each of the queries that applies to the entry in row."""
+    source, target, _context, source_abstract, source_markup, target_markup = row[:6]
+    (text, query_abstract, _column), *coded = queries
+    if not coded:
+        return [(text, query_abstract, source, target, source_abstract)]
+    plain, plain_abstract, _column = coded[0]
+    plain_source = inlinecodes.plain_text(source_markup) if source_markup is not None else None
+    plain_target = inlinecodes.plain_text(target_markup) if target_markup is not None else None
+    if plain_source is not None and plain_target is not None:
+        return [(plain, plain_abstract, plain_source, plain_target, None)]
+    # Without codes, it may hold the native code as text.
+    texts = [(text, query_abstract, source, target, source_abstract)]
+    if plain != text:
+        texts.append((plain, plain_abstract, source, target, source_abstract))
+    return texts
 
 
 def _with_markup(match, row):
@@ -1023,6 +1076,13 @@ def _write_codes(unit, source_markup, target_markup):
     numbers = {}
     for seg, markup in zip(segs, (source_markup, target_markup), strict=True):
         inlinecodes.write_tmx(seg, markup, numbers)
+
+
+def _plain_length(source_markup):
+    if source_markup is None:
+        return None
+    plain = inlinecodes.plain_text(source_markup)
+    return len(plain) if plain is not None else None
 
 
 def _markup(unit):

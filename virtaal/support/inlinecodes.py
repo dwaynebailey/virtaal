@@ -7,10 +7,13 @@
 
 """XLIFF and TMX inline codes as the translation memory keeps them.
 
-The local TM matches on a unit's plain text, as translate-toolkit gives
-it, and keeps the unit's source and target with their inline codes beside
-it, written as XLIFF 1.2 inline markup: C{g}, C{x}, C{bx}, C{ex}, C{ph},
-C{bpt}, C{ept} and C{it}, with their ids. A match picked for a unit with
+The local TM keeps a unit's text as translate-toolkit gives it, and its
+source and target with their inline codes beside it, written as XLIFF 1.2
+inline markup: C{g}, C{x}, C{bx}, C{ex}, C{ph}, C{bpt}, C{ept} and C{it},
+with their ids. A unit with codes is matched against an entry with codes
+on both texts without the native code that C{ph}, C{bpt}, C{ept} and
+C{it} hold (L{plain_text}), so that a TMX C{<bpt>&lt;b&gt;</bpt>} costs
+nothing against an XLIFF C{<g>}. A match picked for a unit with
 codes is rebuilt with the unit's own codes, mapped by kind and order with
 L{abstraction.rebuild}.
 
@@ -197,6 +200,25 @@ def checked(markup, text):
     if _flat(''.join(node.itertext())) != _flat(text or ''):
         return None
     return markup
+
+
+def _plain(node):
+    out = [node.text or '']
+    for child in node:
+        if _local(child.tag) not in _NATIVE:
+            out.append(_plain(child))
+        out.append(child.tail or '')
+    return ''.join(out)
+
+
+@functools.lru_cache(maxsize=1024)
+def plain_text(markup):
+    """markup's text without the native code that ph, bpt, ept and it
+    hold, or None if it isn't markup of the kept codes."""
+    node = _parse(markup) if markup and isinstance(markup, str) else None
+    if node is None or not _well_formed(node):
+        return None
+    return _plain(node)
 
 
 def pair(source_elem, target_elem):

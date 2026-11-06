@@ -117,6 +117,22 @@ def test_only_markup_of_kept_codes_holding_the_text_is_accepted(markup, text, ex
     assert (inlinecodes.checked(markup, text) is not None) is expected
 
 
+@pytest.mark.parametrize(
+    'markup, plain',
+    [
+        (ALL_CODES, 'Click here  now or x  bold  & 5'),
+        ('<bpt id="1">&lt;b&gt;</bpt>Save<ept id="1">&lt;/b&gt;</ept> it', 'Save it'),
+        ('<g id="1">Save</g> it', 'Save it'),
+        ('Save it', 'Save it'),
+        ('Save <b>it</b>', None),
+        ('Save <g id="1">it', None),
+        (None, None),
+    ],
+)
+def test_plain_text_leaves_out_the_native_code(markup, plain):
+    assert inlinecodes.plain_text(markup) == plain
+
+
 def _rebuilt(source_markup, target_markup, unit_source):
     rich = inlinecodes.rebuild(source_markup, target_markup, _rich_source(unit_source))
     return None if rich is None else inlinecodes.from_elem(rich, force=True)

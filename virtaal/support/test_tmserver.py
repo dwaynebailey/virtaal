@@ -113,6 +113,32 @@ def test_translate_unit_still_matches_an_ascii_source(tmp_path):
     assert matches[0]['quality'] == 100.0
 
 
+def test_translate_unit_matches_a_tagged_units_plain_source(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    app.tmdb.add_dict(
+        {
+            'source': '<b>Save</b> the file',
+            'target': '<b>Stoor</b> die lêer',
+            'context': '',
+            'source_markup': '<bpt id="1">&lt;b&gt;</bpt>Save<ept id="1">&lt;/b&gt;</ept> the file',
+            'target_markup': '<bpt id="1">&lt;b&gt;</bpt>Stoor<ept id="1">&lt;/b&gt;</ept> die lêer',
+        },
+        'en',
+        'af',
+    )
+    url = 'http://127.0.0.1:%d/en/af/unit/%s?plain=%s' % (
+        port,
+        quote('Save the fïle', safe=''),
+        quote('Save the fïle', safe=''),
+    )
+
+    with urllib.request.urlopen(url, timeout=5) as resp:
+        (match,) = json.loads(resp.read().decode('utf-8'))
+
+    assert match['quality'] == 92
+    assert _translate(port, 'Save the fïle', 'en', 'af') == []
+
+
 def test_translate_unit_matches_a_source_containing_a_newline(tmp_path):
     # #4333: a multi-line source used to get HTTP 404 and no suggestions.
     app, port = _start_server(tmp_path / 'tm.db')
