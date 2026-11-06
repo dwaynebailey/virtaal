@@ -377,7 +377,7 @@ def _tables(path):
 
 
 def test_a_database_another_process_is_writing_to_is_opened(tmp_path, fresh_caches, monkeypatch):
-    scale_lock_waits(monkeypatch)
+    scale_lock_waits(monkeypatch, factor=10)
     path = _database_of_another_process(tmp_path)
     with OtherProcess(path, seconds=0.15):
         stats = statsdb.StatsCache(path).filestatestats(_po_file(tmp_path))
@@ -388,7 +388,7 @@ def test_a_database_another_process_is_writing_to_is_opened(tmp_path, fresh_cach
 
 
 def test_a_file_is_cached_while_another_process_writes(tmp_path, fresh_caches, monkeypatch):
-    scale_lock_waits(monkeypatch)
+    scale_lock_waits(monkeypatch, factor=10)
     path = str(tmp_path / "stats.db")
     cache = statsdb.StatsCache(path)
     with OtherProcess(path, seconds=0.15):

@@ -164,7 +164,7 @@ def test_without_fts3_the_database_falls_back_to_plain_search(db_path, monkeypat
 
 
 def test_a_database_another_process_is_writing_to_is_opened(db_path, monkeypatch):
-    scale_lock_waits(monkeypatch)
+    scale_lock_waits(monkeypatch, factor=10)
     with OtherProcess(db_path, seconds=0.15):
         db = tmdb.TMDB(db_path)
 
@@ -174,7 +174,7 @@ def test_a_database_another_process_is_writing_to_is_opened(db_path, monkeypatch
 
 
 def test_a_unit_is_added_while_another_process_writes(db_path, monkeypatch):
-    scale_lock_waits(monkeypatch)
+    scale_lock_waits(monkeypatch, factor=10)
     db = tmdb.TMDB(db_path)
     with OtherProcess(db_path, seconds=0.15):
         db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
