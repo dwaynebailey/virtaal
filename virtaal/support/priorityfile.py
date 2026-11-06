@@ -78,7 +78,14 @@ def parse(data, path=''):
     isn't a format 1 file."""
     if not isinstance(data, dict) or data.get('format') != FORMAT:
         raise ValueError('not a format %d priority file' % FORMAT)
-    priorities = data.get('priorities')
+    levels = _parse_levels(data.get('priorities'))
+    ids = [level.id for level in levels]
+    if len(set(ids)) != len(ids):
+        raise ValueError('two priorities share an id')
+    return PriorityFile(path, levels, _parse_domains(data.get('domains') or {}, ids))
+
+
+def _parse_levels(priorities):
     if not isinstance(priorities, list) or not priorities:
         raise ValueError('no priorities')
     levels = []
@@ -94,10 +101,10 @@ def parse(data, path=''):
         if not isinstance(description, str):
             raise ValueError('priority %r: description is not a string' % (priority,))
         levels.append(Level(_level_id(priority.get('id')), name, description, order))
-    ids = [level.id for level in levels]
-    if len(set(ids)) != len(ids):
-        raise ValueError('two priorities share an id')
-    domains = data.get('domains') or {}
+    return levels
+
+
+def _parse_domains(domains, ids):
     if not isinstance(domains, dict):
         raise ValueError('domains is not a mapping')
     parsed = {}
@@ -114,7 +121,7 @@ def parse(data, path=''):
                     'domain %s, priority %s: not a list of strings' % (domain, level_id)
                 )
             parsed[str(domain)][level_id] = frozenset(keys)
-    return PriorityFile(path, levels, parsed)
+    return parsed
 
 
 def load(path):
