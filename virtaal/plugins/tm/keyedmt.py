@@ -136,26 +136,8 @@ class KeyedMTModel(BaseTMModel):
         self._start()
 
     def query(self, tmcontroller, unit):
-        if self._stopped or not self.hold_until_languages_known(tmcontroller, unit):
-            return
-        if self._waiting():
-            return
-        if not self._has_languages():
-            # The language list never came: ask again.
-            self._fetch_languages()
-            self.hold_until_languages_known(tmcontroller, unit)
-            return
-        if not self.source_lang or not self.target_lang:
-            return
-        pair = self._language_pair()
+        pair = self._query_pair(tmcontroller, unit)
         if not pair:
-            if pair is None:
-                logging.debug(
-                    '%s: language pair not supported: %s => %s',
-                    self.service_name,
-                    self.source_lang,
-                    self.target_lang,
-                )
             return
 
         query_str = unit.source
@@ -180,6 +162,30 @@ class KeyedMTModel(BaseTMModel):
             lambda request, value: done(request, value, self.got_translation),
             lambda request, value: done(request, value, self.got_error),
         )
+
+    def _query_pair(self, tmcontroller, unit):
+        """The service's language pair to query unit with, or a false
+        value while it can't be queried."""
+        if self._stopped or not self.hold_until_languages_known(tmcontroller, unit):
+            return None
+        if self._waiting():
+            return None
+        if not self._has_languages():
+            # The language list never came: ask again.
+            self._fetch_languages()
+            self.hold_until_languages_known(tmcontroller, unit)
+            return None
+        if not self.source_lang or not self.target_lang:
+            return None
+        pair = self._language_pair()
+        if pair is None:
+            logging.debug(
+                '%s: language pair not supported: %s => %s',
+                self.service_name,
+                self.source_lang,
+                self.target_lang,
+            )
+        return pair
 
     def has_cached(self, query_str):
         # Also true where nothing would be sent.

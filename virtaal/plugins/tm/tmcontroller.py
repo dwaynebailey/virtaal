@@ -178,37 +178,14 @@ class TMController(BaseController):
         query_str = forceunicode(query_str)
         if query_str != self.current_query or not matches:
             return
-        # Perform some sanity checks on matches first
-        for match in matches:
-            if not isinstance(match.get('quality', 0), int):
-                match['quality'] = int(match['quality'] or 0)
-            if 'tmsource' not in match or match['tmsource'] is None:
-                match['tmsource'] = tmmodel.display_name
-            match['query_str'] = query_str
+        self._tidy_matches(tmmodel, query_str, matches)
         if self.abstract_placeables:
             accel_markers = self._accel_markers()
             matches = [self._adapt(query_str, match, accel_markers) for match in matches]
 
         anything_new = False
         for match in matches:
-            curr_targets = [normalize(m['target']) for m in self.matches]
-            if normalize(match['target']) not in curr_targets:
-                # Let's insert at the end to prioritise existing matches over
-                # new ones. We rely on the guarantee of sort stability. This
-                # way an existing 100% will be above a new 100%.
-                self.matches.append(match)
-                anything_new = True
-            else:
-                norm_match_target = normalize(match['target'])
-                prevmatch = [
-                    m for m in self.matches if normalize(m['target']) == norm_match_target
-                ][0]
-                if 'quality' not in prevmatch or not prevmatch['quality']:
-                    # Matches without quality are assumed to be less appropriate
-                    # (ie. MT matches) than matches with an associated quality.
-                    self.matches.remove(prevmatch)
-                    self.matches.append(match)
-                    anything_new = True
+            anything_new = self._add_match(match) or anything_new
         if not anything_new:
             return
         self.matches.sort(key=lambda x: 'quality' in x and x['quality'] or 0, reverse=True)
@@ -217,6 +194,37 @@ class TMController(BaseController):
         # Only call display_matches if necessary:
         if self.matches:
             self.view.display_matches(self.matches)
+
+    @staticmethod
+    def _tidy_matches(tmmodel, query_str, matches):
+        """Give every match an int quality, a TM source and the query."""
+        for match in matches:
+            if not isinstance(match.get('quality', 0), int):
+                match['quality'] = int(match['quality'] or 0)
+            if 'tmsource' not in match or match['tmsource'] is None:
+                match['tmsource'] = tmmodel.display_name
+            match['query_str'] = query_str
+
+    def _add_match(self, match):
+        """Add match unless one with its target is already there, which
+        it replaces if that one has no quality. True if added."""
+        norm_match_target = normalize(match['target'])
+        prevmatch = next(
+            (m for m in self.matches if normalize(m['target']) == norm_match_target), None
+        )
+        if prevmatch is None:
+            # Let's insert at the end to prioritise existing matches over
+            # new ones. We rely on the guarantee of sort stability. This
+            # way an existing 100% will be above a new 100%.
+            self.matches.append(match)
+            return True
+        if 'quality' not in prevmatch or not prevmatch['quality']:
+            # Matches without quality are assumed to be less appropriate
+            # (ie. MT matches) than matches with an associated quality.
+            self.matches.remove(prevmatch)
+            self.matches.append(match)
+            return True
+        return False
 
     def _accel_markers(self):
         checks_controller = getattr(
@@ -403,22 +411,26 @@ class TMController(BaseController):
         self._start_query = start_query
         kind = self._arrival if getattr(self, '_arrival_pending', False) else None
         # The wait now, and the wait from when a key or button is let go.
-        self._release_wait = None
-        if kind == 'commit':
-            wait = 0
-        elif kind == 'step':
+        wait, self._release_wait = self._query_waits(kind)
+        self._arm(wait)
+
+    def _query_waits(self, kind):
+        """The wait before querying for a unit reached as kind, and the
+        wait from when a key or button is let go (None: no wait)."""
+        waits = {
+            'commit': (0, None),
             # A tap can't be told from the start of a held key until it is
             # let go, or would have repeated.
-            wait, self._release_wait = self.burst_threshold, self.tap_grace
-        elif kind == 'burst':
-            wait, self._release_wait = self.QUERY_DELAY, self.QUERY_DELAY
-        elif kind in ('click', 'jump'):
-            wait, self._release_wait = self.QUERY_DELAY, 0
-        elif kind is None and getattr(self, '_rested', False) and self._answers_ready(self.unit):
-            wait = 0
-        else:
-            wait = self.QUERY_DELAY
-        self._arm(wait)
+            'step': (self.burst_threshold, self.tap_grace),
+            'burst': (self.QUERY_DELAY, self.QUERY_DELAY),
+            'click': (self.QUERY_DELAY, 0),
+            'jump': (self.QUERY_DELAY, 0),
+        }
+        if kind in waits:
+            return waits[kind]
+        if kind is None and getattr(self, '_rested', False) and self._answers_ready(self.unit):
+            return 0, None
+        return self.QUERY_DELAY, None
 
     def _arm(self, wait):
         if wait:

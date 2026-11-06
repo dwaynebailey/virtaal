@@ -64,17 +64,13 @@ class PythonConsole(Gtk.ScrolledWindow):
         elif event.keyval == Gdk.KEY_Return:
             return self.__on_key_return(view)
 
-        elif event.keyval == Gdk.KEY_KP_Down or event.keyval == Gdk.KEY_Down:
+        elif event.keyval in (Gdk.KEY_KP_Down, Gdk.KEY_Down):
             return self.__on_key_history_down(view)
 
-        elif event.keyval == Gdk.KEY_KP_Up or event.keyval == Gdk.KEY_Up:
+        elif event.keyval in (Gdk.KEY_KP_Up, Gdk.KEY_Up):
             return self.__on_key_history_up(view)
 
-        elif (
-            event.keyval == Gdk.KEY_KP_Left
-            or event.keyval == Gdk.KEY_Left
-            or event.keyval == Gdk.KEY_BackSpace
-        ):
+        elif event.keyval in (Gdk.KEY_KP_Left, Gdk.KEY_Left, Gdk.KEY_BackSpace):
             return self.__on_key_left_or_backspace(view)
 
         elif event.keyval == Gdk.KEY_Home:

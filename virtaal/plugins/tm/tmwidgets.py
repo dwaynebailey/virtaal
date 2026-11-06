@@ -12,6 +12,65 @@ from virtaal.support.libi18n.numbers import format_percent
 from virtaal.views import markup, rendering
 
 
+def _above_origin(widget, origin):
+    """The origin of what the popup goes above: the source text, not
+    just the target, which sits right below it."""
+    # selector_textbox already references the target's source.
+    source_textbox = getattr(widget, 'selector_textbox', None)
+    if source_textbox is None or source_textbox is widget:
+        return origin
+    above_gdkwin = source_textbox.get_window(Gtk.TextWindowType.WIDGET)
+    if above_gdkwin is None:
+        return origin
+    return above_gdkwin.get_origin()
+
+
+def _below_y(widget, origin, widget_alloc):
+    """The top of a popup below widget and its shown below_widgets."""
+    below_y = origin.y + widget_alloc.height + 2
+    for below_widget in getattr(widget, 'below_widgets', ()):
+        if not below_widget.get_mapped():
+            continue
+        below_bottom = below_widget.translate_coordinates(
+            widget, 0, below_widget.get_allocated_height()
+        )
+        if below_bottom is not None:
+            below_y = max(below_y, origin.y + below_bottom[1] + 2)
+    return below_y
+
+
+def _bounds(widget, gdkwin):
+    """The window's own frame, not the monitor - the window doesn't
+    necessarily fill it - or else the monitor's workarea."""
+    toplevel_window = widget.get_toplevel().get_window()
+    if toplevel_window is not None:
+        geom = toplevel_window.get_frame_extents()
+        if geom is not None:
+            return geom
+    monitor = Gdk.Display.get_default().get_monitor_at_window(gdkwin)
+    if monitor:
+        return monitor.get_workarea()
+    return None
+
+
+def _place_vertically(geom, height, min_height, below_y, above_bottom):
+    """The popup's y and height: below by default, flipped above when
+    below doesn't fit."""
+    room_below = geom.y + geom.height - below_y
+    room_above = above_bottom - geom.y
+    if height <= room_below:
+        return below_y, height
+    if height <= room_above:
+        return above_bottom - height, height
+    if max(room_below, room_above) >= min(height, min_height):
+        # Fits neither side: shrink into the roomier one (the
+        # matches scroll) rather than clamp it over the unit.
+        if room_above > room_below:
+            return geom.y, room_above
+        return below_y, room_below
+    return max(geom.y, min(below_y, geom.y + geom.height - height)), height
+
+
 class TMWindow(Gtk.Window):
     """Constructs the main TM window and all its children."""
 
@@ -118,65 +177,15 @@ class TMWindow(Gtk.Window):
         shadow_border = self.scrolled_window.get_style_context().get_border(Gtk.StateFlags.NORMAL)
         height = min(self.rows_height(), self.MAX_HEIGHT) + shadow_border.top + shadow_border.bottom
 
-        # Anchor below by default; flip above the source text (not just
-        # the target, which sits right below it) when below doesn't fit.
-        # selector_textbox already references the target's source.
-        above_anchor = widget
-        source_textbox = getattr(widget, 'selector_textbox', None)
-        if source_textbox is not None and source_textbox is not widget:
-            above_anchor = source_textbox
-        above_origin = origin
-        if above_anchor is not widget:
-            above_gdkwin = above_anchor.get_window(Gtk.TextWindowType.WIDGET)
-            if above_gdkwin is not None:
-                above_origin = above_gdkwin.get_origin()
-
-        # Bound against the window's own frame, not the monitor - the
-        # window doesn't necessarily fill it. Fall back to the monitor's
-        # workarea if the frame isn't available.
-        below_y = origin.y + widget_alloc.height + 2
-        for below_widget in getattr(widget, 'below_widgets', ()):
-            if not below_widget.get_mapped():
-                continue
-            below_bottom = below_widget.translate_coordinates(
-                widget, 0, below_widget.get_allocated_height()
-            )
-            if below_bottom is not None:
-                below_y = max(below_y, origin.y + below_bottom[1] + 2)
-        above_bottom = above_origin.y - 2
+        below_y = _below_y(widget, origin, widget_alloc)
+        above_bottom = _above_origin(widget, origin).y - 2
         y = below_y
 
-        geom = None
-        toplevel_window = widget.get_toplevel().get_window()
-        if toplevel_window is not None:
-            geom = toplevel_window.get_frame_extents()
-        if geom is None:
-            monitor = Gdk.Display.get_default().get_monitor_at_window(gdkwin)
-            if monitor:
-                geom = monitor.get_workarea()
-
+        geom = _bounds(widget, gdkwin)
         if geom is not None:
             x = max(geom.x, min(x, geom.x + geom.width - width))
-            room_below = geom.y + geom.height - below_y
-            room_above = above_bottom - geom.y
-            min_height = min(height, self.MIN_HEIGHT)
-            if height <= room_below:
-                y = below_y
-            elif height <= room_above:
-                y = above_bottom - height
-            elif max(room_below, room_above) >= min_height:
-                # Fits neither side: shrink into the roomier one (the
-                # matches scroll) rather than clamp it over the unit.
-                if room_above > room_below:
-                    height = room_above
-                    y = geom.y
-                else:
-                    height = room_below
-                    y = below_y
-            else:
-                y = max(geom.y, min(below_y, geom.y + geom.height - height))
+            y, height = _place_vertically(geom, height, self.MIN_HEIGHT, below_y, above_bottom)
 
-        # logging.debug('TMWindow.update_geometry(%dx%d +%d+%d)' % (width, height, x, y))
         self.move(x, y)
         self.resize(width, height)
         self.scrolled_window.set_size_request(width, height)

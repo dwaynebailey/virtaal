@@ -298,92 +298,93 @@ class Plugin(BasePlugin):
         self.autocorr = AutoCorrector(self.main_controller, acorpath=autocorrect_root_dir())
         self._autocorr_tried = set()
 
-        def on_cursor_change(cursor):
-            def add_widgets():
-                self.autocorr.clear_widgets()
-                for target in self.main_controller.unit_controller.view.targets:
-                    self.autocorr.add_widget(target)
-                return False
-
-            GLib.idle_add(add_widgets)
-
-        def maybe_download(lang):
-            # Nothing local covered it (load_dictionary() always
-            # replaces correctiondict, so this reflects lang's own
-            # outcome) - try once per language per run.
-            if not lang or self.autocorr.correctiondict or lang in self._autocorr_tried:
-                return
-            self._autocorr_tried.add(lang)
-
-            def reload():
-                self.autocorr.load_dictionary(lang, force=True)
-                on_cursor_change(None)
-
-            def start_known(entry):
-                from virtaal.support.autocorrect_downloader import AutocorrectDownloader
-
-                def on_done(success):
-                    if success:
-                        pan_app.settings.installed_assets[
-                            installed_asset_key('autocorrect', lang)
-                        ] = entry_shas(entry)
-                    reload()
-
-                AutocorrectDownloader(lang, on_done=on_done).start_with_known_files(
-                    entry['folder'], [f['name'] for f in entry['files']]
-                )
-
-            def start_live():
-                from virtaal.support.autocorrect_downloader import AutocorrectDownloader
-
-                AutocorrectDownloader(lang, on_done=lambda success: reload()).start()
-
-            def after_manifest_fresh():
-                manifest = self._get_asset_manifest()
-                entry = manifest.get('autocorrect', lang)
-                if entry is None:
-                    if not manifest.has_data():
-                        return start_live()
-                    return  # manifest is authoritative - genuinely nothing for this locale
-                key = installed_asset_key('autocorrect', lang)
-                if (
-                    pan_app.settings.installed_assets.get(key) == entry_shas(entry)
-                    and not self.autocorr.unreadable
-                ):
-                    return  # already installed and unchanged
-                self._schedule_after_idle_lull(lambda: start_known(entry))
-
-            self._get_asset_manifest().ensure_fresh(on_done=after_manifest_fresh)
-
-        def on_store_loaded(storecontroller):
-            lang = self.main_controller.lang_controller.target_lang.code
-            self.autocorr.load_dictionary(lang=lang)
-            maybe_download(lang)
-
-            if getattr(self, '_cursor_changed_id', None):
-                self.store_cursor.disconnect(self._cursor_changed_id)
-            self.store_cursor = storecontroller.cursor
-            self._cursor_changed_id = self.store_cursor.connect('cursor-changed', on_cursor_change)
-            on_cursor_change(self.store_cursor)
-
-        def on_target_lang_changed(lang_controller, lang):
-            self.autocorr.load_dictionary(lang)
-            maybe_download(lang)
-            # If the previous language didn't have a correction list, we might
-            # have never attached, so let's make sure we attach.
-            on_cursor_change(None)
-
         self._store_loaded_id = self.main_controller.store_controller.connect(
-            'store-loaded', on_store_loaded
+            'store-loaded', self._on_store_loaded
         )
 
         if self.main_controller.store_controller.get_store():
             # Connect to already loaded store. This happens when the plug-in is enabled after loading a store.
-            on_store_loaded(self.main_controller.store_controller)
+            self._on_store_loaded(self.main_controller.store_controller)
 
         self._target_lang_changed_id = self.main_controller.lang_controller.connect(
-            'target-lang-changed', on_target_lang_changed
+            'target-lang-changed', self._on_target_lang_changed
         )
+
+    def _on_cursor_change(self, cursor):
+        def add_widgets():
+            self.autocorr.clear_widgets()
+            for target in self.main_controller.unit_controller.view.targets:
+                self.autocorr.add_widget(target)
+            return False
+
+        GLib.idle_add(add_widgets)
+
+    def _on_store_loaded(self, storecontroller):
+        lang = self.main_controller.lang_controller.target_lang.code
+        self.autocorr.load_dictionary(lang=lang)
+        self._maybe_download(lang)
+
+        if getattr(self, '_cursor_changed_id', None):
+            self.store_cursor.disconnect(self._cursor_changed_id)
+        self.store_cursor = storecontroller.cursor
+        self._cursor_changed_id = self.store_cursor.connect(
+            'cursor-changed', self._on_cursor_change
+        )
+        self._on_cursor_change(self.store_cursor)
+
+    def _on_target_lang_changed(self, lang_controller, lang):
+        self.autocorr.load_dictionary(lang)
+        self._maybe_download(lang)
+        # If the previous language didn't have a correction list, we might
+        # have never attached, so let's make sure we attach.
+        self._on_cursor_change(None)
+
+    def _maybe_download(self, lang):
+        # Nothing local covered it (load_dictionary() always
+        # replaces correctiondict, so this reflects lang's own
+        # outcome) - try once per language per run.
+        if not lang or self.autocorr.correctiondict or lang in self._autocorr_tried:
+            return
+        self._autocorr_tried.add(lang)
+        self._get_asset_manifest().ensure_fresh(on_done=lambda: self._after_manifest_fresh(lang))
+
+    def _after_manifest_fresh(self, lang):
+        manifest = self._get_asset_manifest()
+        entry = manifest.get('autocorrect', lang)
+        if entry is None:
+            if not manifest.has_data():
+                self._download_live(lang)
+            return  # manifest is authoritative - genuinely nothing for this locale
+        key = installed_asset_key('autocorrect', lang)
+        if (
+            pan_app.settings.installed_assets.get(key) == entry_shas(entry)
+            and not self.autocorr.unreadable
+        ):
+            return  # already installed and unchanged
+        self._schedule_after_idle_lull(lambda: self._download_known(lang, entry))
+
+    def _reload(self, lang):
+        self.autocorr.load_dictionary(lang, force=True)
+        self._on_cursor_change(None)
+
+    def _download_known(self, lang, entry):
+        from virtaal.support.autocorrect_downloader import AutocorrectDownloader
+
+        def on_done(success):
+            if success:
+                pan_app.settings.installed_assets[installed_asset_key('autocorrect', lang)] = (
+                    entry_shas(entry)
+                )
+            self._reload(lang)
+
+        AutocorrectDownloader(lang, on_done=on_done).start_with_known_files(
+            entry['folder'], [f['name'] for f in entry['files']]
+        )
+
+    def _download_live(self, lang):
+        from virtaal.support.autocorrect_downloader import AutocorrectDownloader
+
+        AutocorrectDownloader(lang, on_done=lambda success: self._reload(lang)).start()
 
     def destroy(self):
         """Remove all signal-connections."""

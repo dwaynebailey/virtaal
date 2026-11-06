@@ -24,6 +24,14 @@ from virtaal.common.platform import platform
 from virtaal.controllers.baseplugin import BasePlugin
 from virtaal.support import tmdb
 
+# (Poedit's name, Settings section, Virtaal's name) of the settings
+# brought over from Poedit.
+_POEDIT_SETTINGS = (
+    ('last_file_path', 'general', 'lastdir'),
+    ('translator_name', 'translator', 'name'),
+    ('translator_email', 'translator', 'email'),
+)
+
 
 class Plugin(BasePlugin):
     description = _('Migrate settings from KBabel, Lokalize and/or Poedit to Virtaal')
@@ -156,48 +164,50 @@ class Plugin(BasePlugin):
 
     def poedit_settings_import(self):
         """Attempt to import the settings from Poedit."""
+        get_setting = self._poedit_setting_reader()
+        if get_setting is None:
+            return
+        found = False
+        for poedit_name, section, name in _POEDIT_SETTINGS:
+            value = get_setting(poedit_name)
+            if value:
+                getattr(pan_app.settings, section)[name] = value
+                found = True
+        if found:
+            pan_app.settings.write()
+            self.migrated.append(_("Poedit settings"))
+
+    def _poedit_setting_reader(self):
+        """A function giving a Poedit setting's value by name, from its
+        config file or the Windows registry; None without either."""
         if platform.is_mac:
             config_filename = path.join(self.poedit_dir, 'net.poedit.Poedit.cfg')
         else:
             config_filename = path.join(self.poedit_dir, 'config')
-        if not path.exists(config_filename):
-            # winreg (no underscore) is the Python 3 name; the Python 2
-            # name was _winreg.
-            try:
-                import winreg
-            except Exception:
-                return
-
-            def get_thing(item):
-                try:
-                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Vaclav Slavik\Poedit")
-                    return winreg.QueryValueEx(key, item)[0]
-                except OSError:
-                    return None
-
-        else:
+        if path.exists(config_filename):
             self.poedit_config = ConfigParser.ConfigParser()
             with open(config_filename, encoding='utf-8') as poedit_config_file:
                 contents = StringIO('[poedit_headerless_file]\n' + poedit_config_file.read())
             self.poedit_config.read_file(contents)
+            return lambda item: self.poedit_config.get(
+                'poedit_headerless_file', item, fallback=None
+            )
 
-            def get_thing(item):
-                return self.poedit_config.get('poedit_headerless_file', item, fallback=None)
+        # winreg (no underscore) is the Python 3 name; the Python 2
+        # name was _winreg.
+        try:
+            import winreg
+        except Exception:
+            return None
 
-        lastdir = get_thing('last_file_path')
-        name = get_thing('translator_name')
-        translator_email = get_thing('translator_email')
+        def get_registry_setting(item):
+            try:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Vaclav Slavik\Poedit")
+                return winreg.QueryValueEx(key, item)[0]
+            except OSError:
+                return None
 
-        if lastdir:
-            pan_app.settings.general['lastdir'] = lastdir
-        if name:
-            pan_app.settings.translator['name'] = name
-        if translator_email:
-            pan_app.settings.translator['email'] = translator_email
-
-        if lastdir or name or translator_email:
-            pan_app.settings.write()
-            self.migrated.append(_("Poedit settings"))
+        return get_registry_setting
 
     # poedit_tm_import() and kbabel_tm_import() used to live here: both
     # imported Poedit's/KBabel's Translation Memory out of Berkeley DB

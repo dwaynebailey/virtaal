@@ -399,6 +399,20 @@ class AutoCompletor:
     def _isword(self, char):
         return not self.wordsep_re.match(char)
 
+    def _completion(self, prefix, postfix, text):
+        """(completed word, the part of it to add) for text just typed
+        between prefix and postfix."""
+        completed_word, word_postfix = self.autocomplete_fast(prefix, prefix + postfix)
+        if completed_word:
+            return completed_word, word_postfix
+        if self.wordsep_re.match(text):
+            return None, ''
+        lastword = self.wordsep_re.split(prefix)[-1]
+        if len(lastword) < self.comp_len:
+            return None, ''
+        before = prefix[: len(prefix) - len(lastword)]
+        return self.autocomplete(lastword, before + ' ' + postfix, self.at_start(before))
+
     def _on_insert_text(self, textbox, text, offset, elem):
         if not isinstance(text, str) or text.isspace():
             return
@@ -419,18 +433,7 @@ class AutoCompletor:
         if not self.wordsep_re.match(right_lim):
             return
 
-        completed_word, word_postfix = self.autocomplete_fast(prefix, prefix + postfix)
-        if not completed_word:
-            if self.wordsep_re.match(text):
-                return
-            lastword = self.wordsep_re.split(prefix)[-1]
-            if len(lastword) < self.comp_len:
-                return
-            before = prefix[: len(prefix) - len(lastword)]
-            completed_word, word_postfix = self.autocomplete(
-                lastword, before + ' ' + postfix, self.at_start(before)
-            )
-
+        completed_word, word_postfix = self._completion(prefix, postfix, text)
         if completed_word and word_postfix:
             # Updating of the buffer is deferred until after this signal
             # and its side effects are taken care of. We abuse

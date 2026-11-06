@@ -160,7 +160,10 @@ class LookupModel(BaseLookupModel):
             if not meanings:
                 return []
             return [self._create_synonym_item(meanings, textbox)]
+        return self._create_state_items(locale_code)
 
+    def _create_state_items(self, locale_code):
+        """Menu items for a locale without a parsed thesaurus."""
         if locale_code in self._parsing:
             return [self._create_status_item(_('Loading thesaurus…'))]
 
