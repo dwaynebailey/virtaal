@@ -234,6 +234,72 @@ def test_set_unit_adds_variables_the_parsers_leave_out_in_source_order():
     ]
 
 
+def _languages_ac(target, source='en'):
+    main_controller = SimpleNamespace(
+        placeables_controller=SimpleNamespace(parsers=list(general.parsers)),
+        lang_controller=SimpleNamespace(
+            source_lang=SimpleNamespace(code=source), target_lang=SimpleNamespace(code=target)
+        ),
+    )
+    return AutoCompletor(main_controller=main_controller, comp_len=1)
+
+
+@pytest.mark.parametrize(
+    'target, expected',
+    [
+        ('af', ['1\xa0234,5', '2026', '0,25']),
+        ('de', ['1.234,5', '2026', '0,25']),
+        ('hi', ['1,234.5', '2026', '0.25']),
+        ('bn_IN', ['১,২৩৪.৫', '২০২৬', '০.২৫']),
+        ('ar_EG', ['١٬٢٣٤٫٥', '٢٠٢٦', '٠٫٢٥']),
+    ],
+)
+def test_set_unit_offers_source_numbers_in_the_target_languages_form(target, expected):
+    ac = _languages_ac(target)
+
+    ac.set_unit(_unit('Copy 1,234.5 files in 2026 at 0.25'))
+
+    assert ac._fast_candidates == expected
+
+
+@pytest.mark.parametrize(
+    'source',
+    [
+        'Version 1.2.3',
+        'Version v2.50',
+        'On 2026-11-05',
+        'At 12:30',
+        'Bug #4321',
+        'Port 08080',
+        'Built for x86_64',
+        'Path /usr/lib/1234',
+        'Item 1234-5',
+        'Code A1234',
+    ],
+)
+def test_set_unit_leaves_versions_codes_dates_and_ids_as_they_are(source):
+    ac = _languages_ac('bn_IN')
+
+    ac.set_unit(_unit(source))
+
+    assert all(not re.search('[০-৯]', c) for c in ac._fast_candidates), ac._fast_candidates
+
+
+def test_set_unit_offers_numbers_as_they_are_without_languages():
+    ac = _parsing_ac(general.NumberPlaceable.parse)
+
+    ac.set_unit(_unit('Copy 1,234.5 files'))
+
+    assert ac._fast_candidates == ['1,234.5']
+
+
+def test_autocomplete_fast_offers_a_native_digit_number_for_a_latin_digit():
+    ac = _languages_ac('bn_IN')
+    ac.set_unit(_unit('Copy 1,234.5 files'))
+
+    assert ac.autocomplete_fast('1') == ('১,২৩৪.৫', ',২৩৪.৫')
+
+
 def test_set_unit_offers_term_translations_not_the_term_itself():
     ac = _parsing_ac(_term_parser('Cancel', 'Kanselleer', 'Staak'))
 

@@ -17,6 +17,7 @@ from translate.storage.placeables import parse as parse_placeables
 from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.controllers.baseplugin import BasePlugin
+from virtaal.support.libi18n.numbers import localise_number
 from virtaal.views.widgets.textbox import TextBox
 
 
@@ -259,6 +260,7 @@ class AutoCompletor:
         parsers = getattr(placeables_controller, 'parsers', None)
         if not parsers:
             return []
+        languages = self._languages()
         candidates = []
         for text in sources:
             tree = parse_placeables(text, parsers)
@@ -267,6 +269,9 @@ class AutoCompletor:
                 if isinstance(node, TerminologyPlaceable):
                     offset = tree.elem_offset(node)
                     found.extend((offset, t) for t in node.translations)
+                elif isinstance(node, general.NumberPlaceable):
+                    offset = tree.elem_offset(node)
+                    found.append((offset, self._number(text, offset, str(node), languages)))
                 elif type(node) is not StringElem and not isinstance(
                     node, general.PunctuationPlaceable
                 ):
@@ -283,6 +288,33 @@ class AutoCompletor:
             for c in candidates
             if len(c) > self.FAST_COMPLETION_LENGTH or (len(c) > 1 and self._is_sigil(c[0]))
         ]
+
+    def _languages(self):
+        lang_controller = getattr(self.main_controller, 'lang_controller', None)
+        source = getattr(lang_controller, 'source_lang', None)
+        target = getattr(lang_controller, 'target_lang', None)
+        if source is None or target is None:
+            return None
+        return source.code, target.code
+
+    @staticmethod
+    def _number(text, start, number, languages):
+        """number, found at start in text, in the target language's form,
+        unless it is part of a version, code, date or time or has no
+        target language."""
+        end = start + len(number)
+        before = text[start - 1] if start else ''
+        after = text[end : end + 2]
+        if (
+            languages is None
+            or before.isalnum()
+            or before in '_.#/\\:'
+            or after[:1].isalnum()
+            or after[:1] == '_'
+            or (after[:1] in '.,-/:' and after[1:].isdecimal())
+        ):
+            return number
+        return localise_number(number, *languages) or number
 
     def _ordered_fast_candidates(self, target):
         if not target:
