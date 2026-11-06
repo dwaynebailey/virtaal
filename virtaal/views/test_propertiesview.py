@@ -12,16 +12,12 @@ import pytest
 from gi.repository import Gtk
 
 from virtaal.support import statsdb
-from virtaal.views import baseview
 from virtaal.views.propertiesview import PropertiesView, _nice_percentage, _statistics
 
-
-@pytest.fixture(autouse=True)
-def _fresh_builder_cache(monkeypatch):
-    # PropertiesView._get_widgets() loads real widgets from virtaal.ui -
-    # a cached builder would hand back objects already used/mutated by
-    # a previous test.
-    monkeypatch.setattr(baseview, '_builders', {})
+# PropertiesView._get_widgets() loads real widgets from virtaal.ui -
+# a cached builder would hand back objects already used/mutated by
+# a previous test.
+pytestmark = pytest.mark.usefixtures('private_ui_builders')
 
 
 @pytest.fixture(autouse=True)

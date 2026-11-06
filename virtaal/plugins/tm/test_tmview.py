@@ -13,6 +13,9 @@ from gi.repository import Gdk, GLib, GObject, Gtk
 from virtaal.common import GObjectWrapper
 from virtaal.plugins.tm.tmview import TMView
 
+# Each test's own virtaal.ui windows are destroyed after it.
+pytestmark = pytest.mark.usefixtures('destroy_ui_windows')
+
 
 class _FakeTreeview:
     def __init__(self):

@@ -11,22 +11,19 @@ import pytest
 from gi.repository import Gtk
 
 from virtaal.models.langmodel import LanguageModel
-from virtaal.views import baseview, langview
+from virtaal.views import langview
 from virtaal.views.langview import LanguageView
 from virtaal.views.widgets.langadddialog import LanguageAddDialog
 from virtaal.views.widgets.langselectdialog import LanguageSelectDialog
 from virtaal.views.widgets.popupmenubutton import PopupMenuButton
 
-
-@pytest.fixture(autouse=True)
-def _fresh_builder_cache(monkeypatch):
-    # _create_dialogs() loads real widgets from virtaal.ui - a cached
-    # builder would hand back the very same btn_add object (with every
-    # previous test's own 'clicked' handler still connected to it)
-    # across tests, so emitting 'clicked' here would also re-run a
-    # stale handler bound to a different test's view, real add_dialog
-    # included - whose real, unmocked run() blocks on a modal dialog.
-    monkeypatch.setattr(baseview, '_builders', {})
+# _create_dialogs() loads real widgets from virtaal.ui - a cached
+# builder would hand back the very same btn_add object (with every
+# previous test's own 'clicked' handler still connected to it)
+# across tests, so emitting 'clicked' here would also re-run a
+# stale handler bound to a different test's view, real add_dialog
+# included - whose real, unmocked run() blocks on a modal dialog.
+pytestmark = pytest.mark.usefixtures('private_ui_builders')
 
 
 def _fake_lang(name, code=None):

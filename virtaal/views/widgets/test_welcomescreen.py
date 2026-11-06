@@ -11,6 +11,9 @@ from gi.repository import Gtk
 from virtaal.views.widgets import welcomescreen
 from virtaal.views.widgets.welcomescreen import WelcomeScreen
 
+# Each test's own virtaal.ui windows are destroyed after it.
+pytestmark = pytest.mark.usefixtures('destroy_ui_windows')
+
 BUTTON_NAMES = (
     'open',
     'recent1',

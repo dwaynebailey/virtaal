@@ -10,16 +10,12 @@ from types import SimpleNamespace
 import pytest
 from gi.repository import Gdk, Gtk
 
-from virtaal.views import baseview
 from virtaal.views.widgets import langselectdialog
 from virtaal.views.widgets.langselectdialog import LanguageSelectDialog
 
-
-@pytest.fixture(autouse=True)
-def _fresh_builder_cache(monkeypatch):
-    # A cached builder hands every test the same treeviews, with earlier
-    # tests' row-activated handlers still connected.
-    monkeypatch.setattr(baseview, '_builders', {})
+# A cached builder hands every test the same treeviews, with earlier
+# tests' row-activated handlers still connected.
+pytestmark = pytest.mark.usefixtures('private_ui_builders')
 
 
 def test_treeview_scrolled_windows_are_not_focusable():

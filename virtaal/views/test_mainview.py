@@ -33,6 +33,9 @@ from virtaal.common.platform import platform
 from virtaal.views import mainview
 from virtaal.views.mainview import MainView
 
+# Each test's own virtaal.ui windows are destroyed after it.
+pytestmark = pytest.mark.usefixtures('destroy_ui_windows')
+
 
 class _FakeChooser:
     """Stands in for a GtkFileChooserNative without opening a real
