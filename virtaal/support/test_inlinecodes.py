@@ -241,6 +241,21 @@ def test_a_dropped_code_is_left_out():
     )
 
 
+@pytest.mark.parametrize(
+    ('other', 'expected'),
+    [
+        ('A <g id="1">b</g>', True),
+        ('A <x id="2"/> <g id="3">b</g>', False),
+        ('A <x id="1"/>', False),
+        ('A b', False),
+    ],
+)
+def test_trees_share_codes_of_the_same_kind_and_id(other, expected):
+    elem = _rich_source('Click <g id="1">here</g>')
+
+    assert inlinecodes.shares_codes(elem, _rich_source(other)) is expected
+
+
 def test_markup_is_written_to_tmx_with_tmx_codes():
     seg = etree.Element('seg')
     numbers = {}

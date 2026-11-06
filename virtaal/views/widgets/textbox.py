@@ -475,7 +475,14 @@ class TextBox(Gtk.TextView):
         if candidates:
             self._show_insert_candidates(candidates)
             return False
+        self.insert_elem(elem.translate())
+        return True
 
+    def insert_elem(self, translation):
+        """Insert C{translation}, text or a rich tree, at the cursor, over
+        the selection if any, as one undo entry."""
+        if self.suggestion_is_visible():
+            self.suggestion = None
         # Group the selection-delete with whatever follows into one undo entry.
         recording = self.undo_controller and not self.undo_controller.model.recording
         if recording:
@@ -489,7 +496,6 @@ class TextBox(Gtk.TextView):
             Gtk.main_iteration()
 
         cursor_pos = self.buffer.props.cursor_position
-        translation = elem.translate()
         if isinstance(translation, StringElem):
             self.add_default_gui_info(translation)
             insert_offset = self.elem.gui_info.gui_to_tree_index(cursor_pos)
@@ -510,7 +516,6 @@ class TextBox(Gtk.TextView):
             self.undo_controller.record_stop()
         self.refresh_cursor_pos = cursor_pos
         self.refresh(update=True)
-        return True
 
     def insert_text(self, text):
         """Insert plain C{text} at the cursor, over the selection if any, as

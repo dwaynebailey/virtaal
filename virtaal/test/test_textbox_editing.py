@@ -32,6 +32,16 @@ PLACEABLES_XLIFF = "devsupport/testfiles/placeables.xliff"
 EDITS_AT_EVERY_POSITION = "devsupport/testfiles/textbox-edits-at-every-position.json"
 
 _ONE_UNIT_PO = 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\nmsgid "Coffee"\nmsgstr "%s"\n'
+BEGUN_G_XLIFF = """<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+<file original="test" source-language="en" target-language="af" datatype="plaintext">
+<body><trans-unit id="1">
+<source>Click <g id="1">here</g></source>
+<target>Klik .</target>
+</trans-unit></body>
+</file>
+</xliff>
+"""
 
 # Text GTK lays out as clusters of several code points.
 CLUSTER_TEXTS = [
@@ -434,6 +444,47 @@ class TestTextBoxEditing(TestScaffolding):
         )
 
         assert editor.text == 'Klik hier en gaan voort.'
+
+    # The TM menu's Insert gives a tagged match the unit's codes too.
+
+    def _insert_tagged(self, monkeypatch, editor, target_markup):
+        self._tm_controller(monkeypatch).insert_match(
+            {
+                'target': 'hier',
+                'source_markup': 'Click <g id="7">here</g> to go on.',
+                'target_markup': target_markup,
+            }
+        )
+        editor.run_idle()
+        editor.check()
+
+    def test_insert_match_gives_a_tagged_match_the_units_codes(self, monkeypatch, tmp_path):
+        path = tmp_path / 'begun.xlf'
+        path.write_text(BEGUN_G_XLIFF, encoding='utf-8')
+        editor = self._editor(str(path), 0)
+        unit = self.unit_controller.current_unit
+        editor.place(5)
+
+        self._insert_tagged(monkeypatch, editor, '<g id="7">hier</g>')
+
+        assert editor.text == 'Klik hier.'
+        assert [(g.id, str(g)) for g in self._g(editor)] == [('1', 'hier')]
+        assert inlinecodes.from_elem(unit.rich_target[0]) == 'Klik <g id="1">hier</g>.'
+        assert unit._modified
+
+        editor.undo()
+
+        assert editor.text == 'Klik .'
+        assert not self.undo_controller.model.can_undo()
+
+    def test_insert_match_takes_the_text_if_the_target_has_the_codes(self, monkeypatch):
+        editor = self._editor(PLACEABLES_XLIFF, 0)
+        editor.place(0)
+
+        self._insert_tagged(monkeypatch, editor, '<g id="7">hier</g>')
+
+        assert editor.text == 'hierClick here to continue.'
+        assert [str(g) for g in self._g(editor)] == ['here']
 
     def test_deleting_an_x_can_be_undone(self):
         # "A line break<x/>after it.": X has a widget and no text.

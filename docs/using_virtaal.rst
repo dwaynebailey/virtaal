@@ -219,7 +219,9 @@ segment with tags matches the same text without them; text inside a tag, such
 as the ``<b>`` a TMX file can hold, does count. Picking such a suggestion for a
 segment with tags puts the segment's own tags into the translation, the first
 of each kind for the first, when both originals have the same number of each
-kind; otherwise only the text goes in.
+kind; otherwise only the text goes in. :guilabel:`Insert at Cursor` in the
+suggestion's context menu does the same, unless your translation already has
+those tags.
 
 Machine translation keeps your placeables too: Virtaal asks the service to
 leave them untranslated and puts your own placeables in its suggestion. Should

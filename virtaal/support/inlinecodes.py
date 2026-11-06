@@ -434,6 +434,22 @@ def rebuild(source_markup, target_markup, unit_source):
     return _build(result.text, codes)
 
 
+def _codes(elem):
+    if elem is None:
+        return set()
+    return {
+        (tag, getattr(sub, 'id', None))
+        for sub in elem.depth_first()
+        if (tag := _code_tag(sub)) is not None
+    }
+
+
+def shares_codes(elem, other):
+    """Whether the rich trees elem and other hold a code of the same kind
+    and id."""
+    return bool(_codes(elem) & _codes(other))
+
+
 # TMX export
 
 
