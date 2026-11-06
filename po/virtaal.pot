@@ -1276,6 +1276,12 @@ msgstr ""
 msgid "Replace _All"
 msgstr ""
 
+#. l10n: %s is the reason, in English, such as "missing ), unterminated subpattern"
+#: virtaal/modes/searchmode.py
+#, python-format
+msgid "Invalid regular expression: %s"
+msgstr ""
+
 #: virtaal/modes/workflowmode.py
 msgid "Workflow"
 msgstr ""

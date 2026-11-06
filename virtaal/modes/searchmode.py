@@ -275,13 +275,17 @@ class SearchMode(BaseMode):
             useregexp=self.chk_regex.get_active(),
             max_matches=self.MAX_RESULTS,
         )
+        error = None
         try:
             self.filter = GrepFilter(searchstring=self.ent_search.get_text(), **filter_args)
             self.matches, indexes = self.filter.getmatches(store_units)
-        except (re.error, OverflowError):
+        except (re.error, OverflowError) as e:
             # An invalid or unfinished regular expression matches nothing.
             self.filter = GrepFilter(searchstring='', **filter_args)
             self.matches, indexes = [], []
+            # l10n: %s is the reason, in English, such as "missing ), unterminated subpattern"
+            error = _('Invalid regular expression: %s') % e
+        self.ent_search.set_tooltip_text(error)
         self.matchcursor = Cursor(self.matches, range(len(self.matches)))
 
         self._match_text_cache = {}

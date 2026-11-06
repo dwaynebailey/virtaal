@@ -1730,7 +1730,8 @@ def _search_mode_for(text, regex):
     store = pypo.pofile.parsestring(b'msgid "Open file"\nmsgstr "Maak oop"\n')
     mode = SearchMode.__new__(SearchMode)
     mode.MAX_RESULTS = 200
-    mode.ent_search = SimpleNamespace(get_text=lambda: text)
+    mode.tooltips = []
+    mode.ent_search = SimpleNamespace(get_text=lambda: text, set_tooltip_text=mode.tooltips.append)
     mode.chk_casesensitive = SimpleNamespace(get_active=lambda: False)
     mode.chk_regex = SimpleNamespace(get_active=lambda: regex)
     mode.storecursor = SimpleNamespace(model=_FakeStoreModel(store.units), index=0, indices=None)
@@ -1757,6 +1758,20 @@ def test_update_search_treats_an_invalid_regular_expression_as_no_matches(monkey
     assert mode.backgrounds == [searchmode.current_theme['warning_bg']]
 
 
+def test_update_search_says_why_a_regular_expression_is_invalid(monkeypatch):
+    # #4356
+    from virtaal.modes import searchmode
+
+    monkeypatch.setattr(searchmode.GLib, 'idle_add', lambda *a: None)
+    mode = _search_mode_for('fi(le', regex=True)
+
+    mode.update_search()
+
+    assert mode.tooltips == [
+        'Invalid regular expression: missing ), unterminated subpattern at position 2'
+    ]
+
+
 def test_update_search_finds_a_valid_regular_expression(monkeypatch):
     from virtaal.modes import searchmode
 
@@ -1767,6 +1782,7 @@ def test_update_search_finds_a_valid_regular_expression(monkeypatch):
 
     assert mode.storecursor.indices == [0]
     assert mode.backgrounds == ['base']
+    assert mode.tooltips == [None]
 
 
 # refresh after undo/redo (#4384) #
