@@ -193,9 +193,33 @@ def test_set_unit_offers_the_sources_placeables_as_fast_candidates():
 def test_set_unit_leaves_out_punctuation_and_too_short_placeables():
     ac = _parsing_ac(*general.parsers)
 
-    ac.set_unit(_unit('Delete %s files… 42'))
+    ac.set_unit(_unit('Delete files… 4'))
 
     assert ac._fast_candidates == []
+
+
+def test_set_unit_keeps_two_character_placeables_that_start_with_a_sigil():
+    ac = _parsing_ac(*general.parsers)
+
+    ac.set_unit(_unit('Delete %s files… 42'))
+
+    assert ac._fast_candidates == ['%s', '42']
+
+
+def test_set_unit_adds_variables_the_parsers_leave_out_in_source_order():
+    ac = _parsing_ac(*general.parsers)
+
+    ac.set_unit(_unit('{user} sent %1$s to ${dir} and $HOME in {{ count }}, %{n} {0}'))
+
+    assert ac._fast_candidates == [
+        '{user}',
+        '%1$s',
+        '${dir}',
+        '$HOME',
+        '{{ count }}',
+        '%{n}',
+        '{0}',
+    ]
 
 
 def test_set_unit_offers_term_translations_not_the_term_itself():
@@ -243,6 +267,48 @@ def test_autocomplete_fast_needs_the_fast_completion_length():
     ac.set_unit(_unit('Cancel'))
 
     assert ac.autocomplete_fast('K') == (None, '')
+
+
+@pytest.mark.parametrize(
+    'source, typed, expected',
+    [
+        ('Delete %s now', 'Vee %', ('%s', 's')),
+        ('Hello $name', 'Hallo $', ('$name', 'name')),
+        ('Hello {name}', 'Hallo {', ('{name}', 'name}')),
+        ('Press <b>', 'Druk <', ('<b>', 'b>')),
+        ('Tom &amp; Jerry', 'Tom &', ('&amp;', 'amp;')),
+        ('In 2026', 'In 2', ('2026', '026')),
+    ],
+)
+def test_autocomplete_fast_completes_a_sigil_from_one_character(source, typed, expected):
+    ac = _parsing_ac(*general.parsers)
+    ac.set_unit(_unit(source))
+
+    assert ac.autocomplete_fast(typed) == expected
+
+
+def test_autocomplete_fast_offers_placeables_missing_from_the_target_first():
+    ac = _parsing_ac(*general.parsers)
+    ac.set_unit(_unit('Copy %s to %d of %u'))
+
+    assert ac.autocomplete_fast('%', '%') == ('%s', 's')
+    assert ac.autocomplete_fast('Kopieer %s na %', 'Kopieer %s na %') == ('%d', 'd')
+    assert ac.autocomplete_fast('%d %s %', '%d %s %') == ('%u', 'u')
+
+
+def test_autocomplete_fast_offers_a_repeated_placeable_until_the_target_has_each():
+    ac = _parsing_ac(*general.parsers)
+    ac.set_unit(_unit('%s and %s or %d'))
+
+    assert ac.autocomplete_fast('%s %', '%s %') == ('%s', 's')
+    assert ac.autocomplete_fast('%s %s %', '%s %s %') == ('%d', 'd')
+
+
+def test_autocomplete_fast_still_offers_placeables_already_in_the_target():
+    ac = _parsing_ac(*general.parsers)
+    ac.set_unit(_unit('Delete %s'))
+
+    assert ac.autocomplete_fast('%s %', '%s %') == ('%s', 's')
 
 
 def test_autocomplete_fast_does_not_complete_from_the_middle_of_a_word():
@@ -568,6 +634,23 @@ def test_on_insert_text_suggests_a_placeable_after_a_separator_character(monkeyp
 
     scheduled[0]()
     assert textbox.suggestion == {'text': 'b>', 'offset': 2}
+
+
+def test_on_insert_text_suggests_the_missing_placeable_after_one_sigil(monkeypatch):
+    ac = _parsing_ac(*general.parsers)
+    ac.set_unit(_unit('Copy %s to %d'))
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append(f),
+    )
+    textbox, _ = _insert_text_box(prefix='%', suffix=' %s', buffer_text='%d %s')
+    ac._textbox_insert_ids = {textbox: 'sigid'}
+
+    ac._on_insert_text(textbox, text='%', offset=0, elem=None)
+
+    scheduled[0]()
+    assert textbox.suggestion == {'text': 'd', 'offset': 1}
 
 
 def test_on_insert_text_ignores_a_space_even_with_fast_candidates():

@@ -9,7 +9,7 @@
 
 import re
 import unicodedata
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from gi.repository import GLib
 from translate.storage.placeables import StringElem, general
@@ -46,10 +46,15 @@ class AutoCompletor:
 
     wordsep_re = re.compile(r'[^\w%s]+' % _combining_marks())
 
+    # Variables the placeables parsers leave out: {name}, {{ name }},
+    # ${name}, $name and %{name}.
+    variable_re = re.compile(r'\{\{ ?\w+ ?\}\}|[$%]?\{\w+\}|\$[A-Za-z_]\w*')
+
     DEFAULT_COMPLETION_LENGTH = 4  # The default minimum length of a word that may
     # be auto-completed.
     FAST_COMPLETION_LENGTH = 2  # The minimum typed length that completes a
     # placeable or term translation from the current unit's source.
+    SIGILS = '%${<&'  # These and digits complete a placeable from one character.
 
     def __init__(self, main_controller, word_list=None, comp_len=DEFAULT_COMPLETION_LENGTH):
         """Constructor.
@@ -90,15 +95,17 @@ class AutoCompletor:
                 return w, w[len(word) :]
         return None, ''
 
-    def autocomplete_fast(self, prefix):
+    def autocomplete_fast(self, prefix, target=''):
         """Complete the end of C{prefix} to one of the current unit's
         placeables or term translations, which may contain spaces and
-        punctuation."""
-        for candidate in self._fast_candidates:
+        punctuation. Those not yet in C{target} as often as in the source
+        come first, each group in source order."""
+        for candidate in self._ordered_fast_candidates(target):
             first = max(0, len(prefix) - len(candidate) + 1)
-            last = len(prefix) - self.FAST_COMPLETION_LENGTH
-            for start in range(first, last + 1):
+            for start in range(first, len(prefix)):
                 typed = prefix[start:]
+                if len(typed) < self.FAST_COMPLETION_LENGTH and not self._is_sigil(typed[0]):
+                    continue
                 if not candidate.startswith(typed):
                     continue
                 # Don't complete "ab" in "tab" to "about".
@@ -117,6 +124,7 @@ class AutoCompletor:
         self._word_list = []
         self._word_freq = defaultdict(lambda: 0)
         self._fast_candidates = []
+        self._source_counts = Counter()
 
     def isusable(self, word):
         """Returns a value indicating if the given word should be kept as a
@@ -134,7 +142,9 @@ class AutoCompletor:
         for text in sources + self._strings(unit.target):
             self.add_words(self.wordsep_re.split(text), update=False)
         self._update_word_list()
-        self._fast_candidates = self._placeable_candidates(sources)
+        candidates = self._placeable_candidates(sources)
+        self._source_counts = Counter(candidates)
+        self._fast_candidates = list(dict.fromkeys(candidates))
 
     def remove_widget(self, widget):
         """Remove a widget (currently only L{TextBox}s are accepted) from
@@ -166,6 +176,9 @@ class AutoCompletor:
         self._textbox_insert_ids[textbox] = handler_id
         self.widgets.add(textbox)
 
+    def _is_sigil(self, char):
+        return char in self.SIGILS or char.isdecimal()
+
     def _isword(self, char):
         return not self.wordsep_re.match(char)
 
@@ -189,7 +202,7 @@ class AutoCompletor:
         if not self.wordsep_re.match(right_lim):
             return
 
-        completed_word, word_postfix = self.autocomplete_fast(prefix)
+        completed_word, word_postfix = self.autocomplete_fast(prefix, prefix + postfix)
         if not completed_word:
             if self.wordsep_re.match(text):
                 return
@@ -227,15 +240,39 @@ class AutoCompletor:
             return []
         candidates = []
         for text in sources:
-            for node in parse_placeables(text, parsers).depth_first():
+            tree = parse_placeables(text, parsers)
+            found = []
+            for node in tree.depth_first():
                 if isinstance(node, TerminologyPlaceable):
-                    candidates.extend(node.translations)
+                    offset = tree.elem_offset(node)
+                    found.extend((offset, t) for t in node.translations)
                 elif type(node) is not StringElem and not isinstance(
                     node, general.PunctuationPlaceable
                 ):
-                    candidates.append(str(node))
-        candidates = [c for c in candidates if len(c) > self.FAST_COMPLETION_LENGTH]
-        return list(dict.fromkeys(candidates))
+                    found.append((tree.elem_offset(node), str(node)))
+            for match in self.variable_re.finditer(text):
+                start, end = match.span()
+                inside = [f for f in found if start <= f[0] and f[0] + len(f[1]) <= end]
+                if any(f[0] < end and start < f[0] + len(f[1]) for f in found if f not in inside):
+                    continue  # Part of a placeable, like the $s of %1$s.
+                found = [f for f in found if f not in inside] + [(start, match.group())]
+            candidates.extend(t for _offset, t in sorted(found, key=lambda f: f[0]))
+        return [
+            c
+            for c in candidates
+            if len(c) > self.FAST_COMPLETION_LENGTH or (len(c) > 1 and self._is_sigil(c[0]))
+        ]
+
+    def _ordered_fast_candidates(self, target):
+        if not target:
+            return self._fast_candidates
+        missing, present = [], []
+        for candidate in self._fast_candidates:
+            if target.count(candidate) >= self._source_counts[candidate]:
+                present.append(candidate)
+            else:
+                missing.append(candidate)
+        return missing + present
 
     def _remove_textbox(self, textbox):
         """Remove the given L{TextBox} from the list of widgets to do
