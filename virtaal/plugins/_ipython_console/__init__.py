@@ -1,9 +1,12 @@
 from gi.repository import Gdk, Gtk, Pango
 
-from virtaal.controllers.baseplugin import BasePlugin
+from virtaal.controllers.baseplugin import BasePlugin, PluginUnsupported
 from virtaal.views.rendering import set_widget_font
 
-from .ipython_view import IPythonView
+try:
+    from .ipython_view import IPythonView
+except ImportError:
+    IPythonView = None
 
 
 class IPythonWindow(Gtk.Window):
@@ -35,6 +38,8 @@ class Plugin(BasePlugin):
 
     # INITIALIZERS #
     def __init__(self, internal_name, main_controller):
+        if IPythonView is None:
+            raise PluginUnsupported("IPython isn't installed")
         self.internal_name = internal_name
         self.main_controller = main_controller
 
