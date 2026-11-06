@@ -23,7 +23,7 @@ from packaging.requirements import Requirement
 
 # GTK bindings are system prerequisites, not declared dependencies.
 ROOTS = [
-    "virtaal[spellcheck]",
+    "virtaal[spellcheck,termbase]",
     "PyGObject",
     "pycairo",
     "pyinstaller",
