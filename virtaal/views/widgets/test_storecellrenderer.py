@@ -10,8 +10,10 @@ from types import SimpleNamespace
 import cairo
 import pytest
 from gi.repository import Gdk, Gtk, Pango
+from translate.storage import xliff
 from translate.storage.placeables import StringElem
 
+from virtaal.support import sdlxliff_compat  # noqa: F401 - one unit per segment
 from virtaal.views import rendering
 from virtaal.views.placeablesguiinfo import NewlineGUI
 from virtaal.views.widgets import storecellrenderer
@@ -1366,3 +1368,31 @@ def test_compute_optimal_height_keeps_an_unknown_width_inside_the_editor_grid(wi
     compute_optimal_height(grid, width)
 
     assert requested and all(int(w) >= -1 for w in requested)
+
+
+def _trados_unit(source, target):
+    data = (
+        '<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2"'
+        ' xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0" version="1.2">'
+        '<file original="f" datatype="x-sdlfilterframework2" source-language="en"'
+        ' target-language="af"><body><trans-unit id="u1"><source>All</source>'
+        f'<seg-source><mrk mtype="seg" mid="1">{source}</mrk></seg-source>'
+        f'<target><mrk mtype="seg" mid="1">{target}</mrk></target>'
+        '</trans-unit></body></file></xliff>'
+    )
+    return xliff.xlifffile.parsestring(data.encode('utf-8')).units[0]
+
+
+def test_row_text_shows_a_tag_only_segment_as_its_tags():
+    comment = '<mrk mtype="x-sdl-comment" sdl:cid="a"><x id="5"/></mrk>'
+    unit = _trados_unit(comment, '<g id="2"/><x id="5"/>')
+
+    assert storecellrenderer.row_text(unit.source, lambda: unit.rich_source) == '[5]'
+    assert storecellrenderer.row_text(unit.target, lambda: unit.rich_target) == '<2|>[5]'
+
+
+def test_row_text_is_the_plain_text_when_there_is_any():
+    unit = _trados_unit('Open <x id="5"/>', '')
+
+    assert storecellrenderer.row_text(unit.source, lambda: unit.rich_source) == 'Open '
+    assert storecellrenderer.row_text(unit.target, lambda: unit.rich_target) == ''

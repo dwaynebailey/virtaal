@@ -17,6 +17,29 @@ from virtaal.views.theme import current_theme, str_to_rgba, unit_style
 from .storetreemodel import StoreTreeModel
 from .wayland import is_wayland
 
+# How the editor shows a placeable that has no text of its own.
+_EMPTY_PLACEABLE_LABELS = {
+    'X': '[{id}]',
+    'Bx': '((',
+    'Ex': '))',
+    'G': '<{id}|>',
+}
+
+
+def row_text(text, rich):
+    """C{text} for a row; for text that is only tags (a Trados segment
+    of an <x/>), the tags of C{rich()} as the editor shows them."""
+    if text:
+        return text
+    parts = []
+    for leaf in rich()[0].flatten():
+        label = _EMPTY_PLACEABLE_LABELS.get(type(leaf).__name__)
+        if str(leaf) or label is None:
+            parts.append(str(leaf))
+        else:
+            parts.append(label.format(id=leaf.id or ''))
+    return ''.join(parts)
+
 
 @functools.singledispatch
 def compute_optimal_height(widget, width):
@@ -497,13 +520,13 @@ class StoreCellRenderer(Gtk.CellRenderer):
             treeview.mark_row_estimated(self.unit)
             source_height = self._estimate_text_height(
                 widget,
-                self.unit.source,
+                self._row_source(),
                 self._column_width(width),
                 rendering.get_source_font_description(),
             )
             target_height = self._estimate_text_height(
                 widget,
-                self.unit.target,
+                self._row_target(),
                 self._column_width(width),
                 rendering.get_target_font_description(),
             )
@@ -518,14 +541,14 @@ class StoreCellRenderer(Gtk.CellRenderer):
         tgtlang = lang_controller.target_lang.code
         self.source_layout = self._get_pango_layout(
             widget,
-            self.unit.source,
+            self._row_source(),
             self._column_width(width),
             rendering.get_source_font_description(),
         )
         self.source_layout.get_context().set_language(rendering.get_language(srclang))
         self.target_layout = self._get_pango_layout(
             widget,
-            self.unit.target,
+            self._row_target(),
             self._column_width(width),
             rendering.get_target_font_description(),
         )
@@ -538,6 +561,12 @@ class StoreCellRenderer(Gtk.CellRenderer):
         _layout_width, source_height = self.source_layout.get_pixel_size()
         _layout_width, target_height = self.target_layout.get_pixel_size()
         return max(source_height, target_height) + self.ROW_PADDING
+
+    def _row_source(self):
+        return row_text(self.unit.source, lambda: self.unit.rich_source)
+
+    def _row_target(self):
+        return row_text(self.unit.target, lambda: self.unit.rich_target)
 
     @staticmethod
     def _column_width(width):
