@@ -1030,6 +1030,82 @@ def test_settings_write_creates_the_config_directory_if_missing(tmp_path):
     assert new_path.is_file()
 
 
+def test_settings_write_round_trips_every_section(tmp_path):
+    path = tmp_path / 'virtaal.ini'
+    path.write_text('')
+    settings = pan_app.Settings(str(path))
+    settings.translator['name'] = 'Ann'
+    settings.general['lastdir'] = '/tmp/work'
+    settings.language['sourcelang'] = 'af'
+    settings.placeable_state['fileplaceable'] = 'enabled'
+    settings.plugin_state['autocorrector'] = 'disabled'
+    settings.undo['depth'] = 50
+    settings.installed_assets['autocorrect.af'] = 'abc'
+
+    settings.write()
+    again = pan_app.Settings(str(path))
+
+    assert again.translator['name'] == 'Ann'
+    assert again.general['lastdir'] == '/tmp/work'
+    assert again.language['sourcelang'] == 'af'
+    assert again.placeable_state['fileplaceable'] == 'enabled'
+    assert again.plugin_state['autocorrector'] == 'disabled'
+    assert again.undo['depth'] == '50'
+    assert again.installed_assets == {'autocorrect.af': 'abc'}
+
+
+def test_settings_write_leaves_the_default_font_out_of_the_file(tmp_path):
+    path = tmp_path / 'virtaal.ini'
+    path.write_text('')
+    settings = pan_app.Settings(str(path))
+    settings.language['targetfont'] = 'Serif 12'
+
+    settings.write()
+
+    assert pan_app.load_config(str(path), 'language')['sourcefont'] == ''
+    assert pan_app.load_config(str(path), 'language')['targetfont'] == 'Serif 12'
+    assert settings.language['sourcefont'] == pan_app.defaultfont
+    assert settings.language['targetfont'] == 'Serif 12'
+
+
+def test_settings_reads_an_empty_font_as_the_default_font(tmp_path):
+    path = tmp_path / 'virtaal.ini'
+    path.write_text('[language]\nsourcefont =\ntargetfont = Serif 12\n')
+
+    settings = pan_app.Settings(str(path))
+
+    assert settings.language['sourcefont'] == pan_app.defaultfont
+    assert settings.language['targetfont'] == 'Serif 12'
+
+
+def test_settings_keeps_sections_and_keys_it_does_not_know(tmp_path):
+    path = tmp_path / 'virtaal.ini'
+    path.write_text('[general]\nsomething = 1\n[elsewhere]\nkey = value\n')
+
+    settings = pan_app.Settings(str(path))
+    settings.write()
+
+    assert settings.general['something'] == '1'
+    assert not hasattr(settings, 'elsewhere')
+    assert pan_app.load_config(str(path), 'elsewhere') == {'key': 'value'}
+    assert pan_app.load_config(str(path), 'general')['something'] == '1'
+
+
+def test_settings_resets_a_bad_language_to_the_value_before_reading(tmp_path, monkeypatch):
+    monkeypatch.setattr(pan_app, 'get_locale_lang', lambda: 'zu')
+    path = tmp_path / 'virtaal.ini'
+    path.write_text('[language]\nsourcelang = not a code\ntargetlang = not a code\n')
+
+    settings = pan_app.Settings(str(path))
+
+    assert settings.language['sourcelang'] == 'en'
+    assert settings.language['targetlang'] == 'zu'
+    # Re-reading resets to what the previous read left, not the class default.
+    settings.language['sourcelang'] = 'af'
+    settings.read()
+    assert settings.language['sourcelang'] == 'af'
+
+
 # save_config() #
 
 
