@@ -841,6 +841,20 @@ class StatsCache:
         except OSError:
             return False
 
+    def has_checks(self, filename, checker):
+        """Whether the cache has C{checker}'s failures for the file as it
+        is on disk now."""
+        if not self.is_cached(filename):
+            return False
+        configid = self._getstoredcheckerconfig(checker)
+        if not configid:
+            return False
+        self.cur.execute(
+            """SELECT 1 FROM uniterrors WHERE fileid=? AND configid=? LIMIT 1;""",
+            (self._getfileid(filename), configid),
+        )
+        return self.cur.fetchone() is not None
+
     def file_units(self, filename, store=None):
         """(unitindex, unitid, source, target, state, e_state) of each
         translatable unit, in file order."""

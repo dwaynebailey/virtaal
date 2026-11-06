@@ -39,6 +39,10 @@ class QualityCheckMode(BaseMode):
         # a way to map menuitems to their check names, and signal ids:
         self._menuitem_checks = {}
         self.store_filename = None
+        # Some files are still being checked in the background.
+        self.pending = False
+        # The units listed for the checks selected.
+        self.listed = []
 
     # METHODS #
     def _prepare_stats(self, keep_selected=False, recheck=True):
@@ -52,6 +56,7 @@ class QualityCheckMode(BaseMode):
                 checker=self.main_controller.checks_controller.get_checker()
             )
         self.stats = self.store_controller.get_store_checks()
+        self.pending = bool(getattr(self.store_controller.store, 'checks_pending', 0))
         if not keep_selected:
             # A currently selected check might disappear if the style changes:
             self.filter_checks = [check for check in self.filter_checks if check in self.stats]
@@ -103,7 +108,8 @@ class QualityCheckMode(BaseMode):
         indices = set()
         for check in self.filter_checks:
             indices.update(self.stats.get(check, []))
-        self.storecursor.indices = sorted(indices)
+        self.listed = sorted(indices)
+        self.storecursor.indices = self.listed
 
     def _add_widgets(self):
         # Destroy the previous popup button and its menu now rather
@@ -169,7 +175,10 @@ class QualityCheckMode(BaseMode):
     def _update_button_label(self):
         check_labels = [mi.get_child().get_label() for mi in self.btn_popup.menu if mi.get_active()]
         btn_label = ''
-        if not check_labels:
+        if not check_labels and self.pending:
+            # l10n: On the button for selecting quality checks, while files are still being checked
+            btn_label = _('Checking files…')
+        elif not check_labels:
             # l10n: This is the button where the user can select units by failing quality checks
             btn_label = _('Select Checks')
         elif len(check_labels) == len(self.checks_names):
@@ -196,9 +205,17 @@ class QualityCheckMode(BaseMode):
 
     def _refresh_counts(self, recheck):
         # The units under review stay until the selection changes.
+        was_pending = self.pending
         self._prepare_stats(keep_selected=True, recheck=recheck)
         self._create_menu_entries(self.btn_popup.menu)
         self._update_button_label()
+        if was_pending and not self.pending and self.filter_checks:
+            # The files just checked add their failures.
+            indices = set(self.listed)
+            for check in self.filter_checks:
+                indices.update(self.stats.get(check, []))
+            self.listed = sorted(indices)
+            self.storecursor.set_indices(self.listed, keep_current=True)
 
     def _on_check_menuitem_toggled(self, checkmenuitem):
         self.filter_checks = []

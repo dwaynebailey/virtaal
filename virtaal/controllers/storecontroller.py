@@ -37,7 +37,7 @@ class StoreController(BaseController):
     fileset = None
     # The target language the user had, when the files opened aren't in it.
     stream_language_replaced = None
-    _file_loaded_id = None
+    _stream_handlers = None
 
     arrival = None
     """How the cursor is being moved, while it is: 'commit' (Enter and the
@@ -311,7 +311,11 @@ class StoreController(BaseController):
         self.stream_language_replaced = replaced
         self.fileset = fileset
         self.store = store
-        self._file_loaded_id = (store, store.connect('file-loaded', self._on_file_loaded))
+        self._stream_handlers = (
+            store,
+            store.connect('file-loaded', self._on_file_loaded),
+            store.connect('checks-filled', self._on_checks_filled),
+        )
         self._modified = False
         self.main_controller.set_force_saveas(False)
         self.main_controller.set_saveable(False)
@@ -336,10 +340,11 @@ class StoreController(BaseController):
             self.main_controller.view.refresh_title()
 
     def _forget_stream(self):
-        if self._file_loaded_id is not None:
-            stream, handler = self._file_loaded_id
-            stream.disconnect(handler)
-            self._file_loaded_id = None
+        if self._stream_handlers is not None:
+            stream, *handlers = self._stream_handlers
+            for handler in handlers:
+                stream.disconnect(handler)
+            self._stream_handlers = None
         self.fileset = None
         self.all_files = None
         self.stream_language = None
@@ -348,6 +353,12 @@ class StoreController(BaseController):
 
     def _on_file_loaded(self, store, number, peek):
         self.view.file_loaded(store.segments[number], peek)
+
+    def _on_checks_filled(self, store):
+        if store is not self.store or store.checks is None:
+            return
+        store.update_checks()
+        self.emit('checks-changed')
 
     def open_file(self, filename, uri='', forget_dir=False):
         extension = filename.split(os.extsep)[-1]

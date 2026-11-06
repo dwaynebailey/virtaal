@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import json
 import logging
 import os
 import runpy
@@ -13,12 +14,14 @@ import time
 
 import pytest
 from gi.repository import GLib
+from translate.filters import checks
 from translate.storage import factory
 
 from virtaal.support import statsdb, statsworker
 
-# conftest.py replaces it for every other test.
+# conftest.py replaces them for every other test.
 fill_in_background = statsworker.fill_in_background
+check_in_background = statsworker.check_in_background
 
 PO = (
     'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
@@ -191,3 +194,125 @@ def test_the_child_process_exits_with_an_error_for_a_missing_file(tmp_path, monk
         _run_child(monkeypatch, str(tmp_path / 'child.db'), str(tmp_path / 'missing.po'))
 
     assert exit_info.value.code == 1
+
+
+# check_in_background() #
+
+
+def _checker():
+    checker = checks.StandardChecker()
+    checker.config.updatetargetlanguage('af')
+    return checker
+
+
+def _wait_for_checks():
+    deadline = time.monotonic() + 60
+    while statsworker.checking() and time.monotonic() < deadline:
+        GLib.MainContext.default().iteration(False)
+        time.sleep(0.01)
+
+
+def test_check_in_background_caches_each_files_failures(tmp_path):
+    path = _po(tmp_path)
+    (tmp_path / 'b.po').write_text(PO.replace('"Hallo"', '"hallo."'), encoding='utf-8')
+    other = str(tmp_path / 'b.po')
+    checker = _checker()
+    done = []
+
+    assert check_in_background([path, other], checker, done.append)
+    _wait_for_checks()
+
+    assert done == [True]
+    cache = statsdb.StatsCache()
+    assert cache.has_checks(path, checker)
+    assert cache.has_checks(other, checker)
+    assert cache.filechecks(other, checker)['check-endpunc'] == [1]
+
+
+def test_has_checks_is_false_until_the_file_is_checked(tmp_path):
+    path = _po(tmp_path)
+    checker = _checker()
+    cache = statsdb.StatsCache()
+
+    assert not cache.has_checks(path, checker)
+    cache.filestatestats(path)
+    assert not cache.has_checks(path, checker)
+    cache.filechecks(path, checker)
+    assert cache.has_checks(path, checker)
+
+
+def test_a_failed_check_reports_it(tmp_path):
+    done = []
+
+    check_in_background([str(tmp_path / 'missing.po')], _checker(), done.append)
+    _wait_for_checks()
+
+    assert done == [False]
+
+
+class _Proc:
+    def __init__(self, *args, **kwargs):
+        self.terminated = False
+        _Proc.started.append(self)
+
+    def poll(self):
+        return None
+
+    def terminate(self):
+        self.terminated = True
+
+    def wait(self):
+        return 0
+
+
+@pytest.fixture
+def fake_child(monkeypatch):
+    _Proc.started = []
+    monkeypatch.setattr(statsworker.subprocess, 'Popen', _Proc)
+    monkeypatch.setattr(statsworker, '_checking', None)
+    yield _Proc.started
+    statsworker.stop_checking()
+
+
+def test_checking_the_same_files_again_keeps_the_child(tmp_path, fake_child):
+    path = _po(tmp_path)
+    first, second = [], []
+
+    check_in_background([path], _checker(), first.append)
+    check_in_background([path], _checker(), second.append)
+
+    assert len(fake_child) == 1
+    assert statsworker._checking.done == second.append
+
+
+def test_checking_other_files_replaces_the_child(tmp_path, fake_child):
+    check_in_background([_po(tmp_path, 'one.po')], _checker(), print)
+    check_in_background([_po(tmp_path, 'two.po')], _checker(), print)
+
+    assert len(fake_child) == 2
+    assert fake_child[0].terminated
+    assert statsworker._checking is fake_child[1]
+
+
+def test_no_child_checks_with_a_checker_it_cant_build(tmp_path, fake_child):
+    class Custom(checks.StandardChecker):
+        pass
+
+    assert check_in_background([_po(tmp_path)], Custom(), print) is False
+    assert fake_child == []
+
+
+def test_the_child_process_checks_the_files_listed(tmp_path, monkeypatch):
+    from virtaal.support import checkerspec
+
+    path = _po(tmp_path)
+    listfile = tmp_path / 'files.txt'
+    listfile.write_text(path, encoding='utf-8')
+    statsfile = str(tmp_path / 'child.db')
+    spec = checkerspec.describe(_checker())
+
+    with pytest.raises(SystemExit) as exit_info:
+        _run_child(monkeypatch, statsfile, '--checks', json.dumps(spec), str(listfile))
+
+    assert exit_info.value.code == 0
+    assert statsdb.StatsCache(statsfile).has_checks(path, _checker())

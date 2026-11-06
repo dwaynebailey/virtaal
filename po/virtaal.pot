@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 11:33+0000\n"
+"POT-Creation-Date: 2026-11-06 11:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1262,6 +1262,11 @@ msgstr ""
 
 #: virtaal/modes/qualitycheckmode.py
 msgid "Quality Checks"
+msgstr ""
+
+#. l10n: On the button for selecting quality checks, while files are still being checked
+#: virtaal/modes/qualitycheckmode.py
+msgid "Checking files…"
 msgstr ""
 
 #. l10n: This is the button where the user can select units by failing quality checks

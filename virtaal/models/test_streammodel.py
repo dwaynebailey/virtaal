@@ -15,7 +15,7 @@ from translate.storage import factory
 from virtaal.models.fileset import FileSet
 from virtaal.models.langmodel import LanguageModel
 from virtaal.models.streammodel import PeekUnit, StreamModel
-from virtaal.support import statsworker
+from virtaal.support import statsdb, statsworker
 
 
 class _FakeController:
@@ -115,6 +115,69 @@ def test_checks_are_in_stream_indices(stream):
 
     assert found['check-endpunc'] == [4]
     assert found['check-startcaps'] == [4]
+
+
+def _checker():
+    checker = checks.StandardChecker()
+    checker.config.updatetargetlanguage('af')
+    return checker
+
+
+def _check_later(monkeypatch):
+    """check_in_background() that records what it was asked to check."""
+    asked = []
+
+    def check_in_background(filenames, checker, done):
+        asked.append((filenames, done))
+        return True
+
+    monkeypatch.setattr(statsworker, 'check_in_background', check_in_background)
+    return asked
+
+
+def test_checks_of_files_not_read_yet_are_left_to_a_child(stream, tmp_path, monkeypatch):
+    asked = _check_later(monkeypatch)
+    _po(tmp_path / 'c.po', [('Six.', 'ses')])
+    stream.load_segment(1)
+
+    found = stream.update_checks(_checker())
+
+    assert [paths for paths, _done in asked] == [[str(tmp_path / 'c.po')]]
+    assert stream.checks_pending == 1
+    assert 5 not in found.get('check-endpunc', [])
+
+
+def test_the_files_a_child_checked_join_the_stream_checks(stream, tmp_path, monkeypatch):
+    asked = _check_later(monkeypatch)
+    path = _po(tmp_path / 'c.po', [('Six.', 'ses')])
+    stream.load_segment(1)
+    checker = _checker()
+    stream.update_checks(checker)
+    filled = []
+    stream.connect('checks-filled', lambda model: filled.append(model.checks_pending))
+
+    # What the child does.
+    statsdb.StatsCache().filechecks(path, checker)
+    asked[0][1](True)
+    found = stream.update_checks()
+
+    assert filled == [0]
+    assert len(asked) == 1
+    assert found['check-endpunc'] == [5]
+    assert stream.checks_pending == 0
+
+
+def test_files_a_child_couldnt_check_are_checked_here(stream, tmp_path, monkeypatch):
+    asked = _check_later(monkeypatch)
+    _po(tmp_path / 'c.po', [('Six.', 'ses')])
+    stream.load_segment(1)
+    stream.update_checks(_checker())
+
+    asked[0][1](False)
+    found = stream.update_checks()
+
+    assert len(asked) == 1
+    assert found['check-endpunc'] == [5]
 
 
 def test_save_writes_only_the_modified_files(stream, tmp_path):

@@ -7,19 +7,25 @@
 
 """Unit state lists from a store in memory, and filling the stats cache
 in a child process so that opening or saving a file doesn't wait for it.
+Quality checks of files not open run in a child process too.
 
 A child process, not a thread: the fill holds the GIL long enough to
 make opening a large file twice as slow."""
 
+import json
 import logging
+import os
 import subprocess
 import sys
+import tempfile
 
 from virtaal.support import statsdb
 
 _running = None
 # One fill at a time: SQLite allows a single writer.
 _queued = []
+# The child checking files, if one is.
+_checking = None
 
 
 def state_lists(store):
@@ -107,6 +113,93 @@ def _finish(proc):
     _start_next()
 
 
+def check_in_background(filenames, checker, done):
+    """Cache C{checker}'s failures for each file on disk in a child
+    process, then call C{done(succeeded)} from the main loop. Starts
+    nothing and returns False for a checker a child can't build.
+    Replaces a child checking other files, or with another checker."""
+    global _checking
+    from virtaal.support import checkerspec, helperprocess
+
+    spec = checkerspec.describe(checker)
+    statsdb.StatsCache()  # Sets the default stats file.
+    if spec is None or statsdb.StatsCache.defaultfile in statsdb.StatsCache.unusable_files:
+        return False
+    key = (json.dumps(spec, sort_keys=True), tuple(filenames))
+    if _checking is not None and _checking.key == key:
+        _checking.done = done
+        return True
+    stop_checking()
+    with tempfile.NamedTemporaryFile('w', encoding='utf-8', suffix='.txt', delete=False) as f:
+        f.write('\n'.join(filenames))
+    proc = subprocess.Popen(
+        helperprocess.command(__name__)
+        + [statsdb.StatsCache.defaultfile, '--checks', key[0], f.name],
+        env=helperprocess.env(),
+    )
+    proc.key = key
+    proc.done = done
+    proc.listfile = f.name
+    _checking = proc
+    from gi.repository import GLib
+
+    GLib.timeout_add(200, _poll_checking, proc)
+    return True
+
+
+def checking():
+    """Whether a child is checking files."""
+    return _checking is not None
+
+
+def stop_checking():
+    global _checking
+    proc, _checking = _checking, None
+    if proc is None:
+        return
+    proc.terminate()
+    proc.wait()
+    _remove(proc.listfile)
+
+
+def _remove(path):
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def _poll_checking(proc):
+    global _checking
+    if proc is not _checking:
+        return False
+    if proc.poll() is None:
+        return True
+    _checking = None
+    _remove(proc.listfile)
+    if proc.returncode:
+        logging.debug('Could not check every file (exit status %s)', proc.returncode)
+    proc.done(proc.returncode == 0)
+    return False
+
+
+def _check_files(statsfile, spec, filenames):
+    """Cache the failures of each file; returns the number that couldn't
+    be checked: all of them for a checker that can't be built the same."""
+    from virtaal.support import checkerspec
+
+    checker = checkerspec.build(spec)
+    if checker is None:
+        return len(filenames)
+    failed = 0
+    for filename in filenames:
+        try:
+            statsdb.StatsCache(statsfile).filechecks(filename, checker)
+        except Exception:
+            failed += 1
+    return failed
+
+
 def _fill_files(statsfile, filenames):
     """Cache each file; returns the number that couldn't be."""
     failed = 0
@@ -119,6 +212,13 @@ def _fill_files(statsfile, filenames):
 
 
 if __name__ == '__main__':
+    if sys.argv[2:3] == ['--checks']:
+        statsfile, _flag, spec, listfile = sys.argv[1:]
+        with open(listfile, encoding='utf-8') as f:
+            names = [line for line in f.read().split('\n') if line]
+        if _check_files(statsfile, json.loads(spec), names):
+            sys.exit(1)
+        sys.exit(0)
     statsfile, filename = sys.argv[1:]
     # "-": one file name per line on stdin.
     if filename == '-':

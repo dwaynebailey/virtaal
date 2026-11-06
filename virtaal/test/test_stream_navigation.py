@@ -13,6 +13,7 @@ from test_scaffolding import TestScaffolding
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.models.streammodel import StreamModel
+from virtaal.support import statsdb, statsworker
 
 
 def _po(path, units):
@@ -47,9 +48,9 @@ class TestStreamNavigation(TestScaffolding):
         monkeypatch.setattr(StreamModel, 'PREFETCH_UNITS', 0)
         self.monkeypatch = monkeypatch
         self.dir = tmp_path
-        _po(tmp_path / 'a.po', [('One', ''), ('Two', 'Twee')])
+        _po(tmp_path / 'a.po', [('One.', 'Een'), ('Two', 'Twee')])
         _po(tmp_path / 'b.po', [('Three', 'Drie'), ('Four', 'Vier')])
-        _po(tmp_path / 'c.po', [('Five', ''), ('Six', '')])
+        _po(tmp_path / 'c.po', [('Five.', 'Vyf'), ('Six', '')])
         self.store_controller.close_file()
         yield
         self.store_controller.set_modified(False)
@@ -193,4 +194,33 @@ class TestStreamNavigation(TestScaffolding):
         mode = self._search('i')
 
         assert sc.cursor.indices == [4, 5]
-        assert [match.unit.source for match in mode.matches] == ['Five', 'Six']
+        assert [match.unit.source for match in mode.matches] == ['Five.', 'Six']
+
+    def test_quality_checks_leave_files_not_read_yet_to_a_child(self):
+        asked = []
+        self.monkeypatch.setattr(
+            statsworker,
+            'check_in_background',
+            lambda filenames, checker, done: asked.append((filenames, done)) or True,
+        )
+        self._open()
+        sc = self.store_controller
+        mode = self.mode_controller.modes['QualityCheck']
+        self.mode_controller.select_mode(mode)
+
+        assert [len(paths) for paths, _done in asked] == [2]
+        assert mode.btn_popup.get_label() == 'Checking files…'
+        assert mode.stats['check-endpunc'] == [0]
+        mode.filter_checks = ['check-endpunc']
+        mode.update_indices()
+        assert sc.cursor.indices == [0]
+
+        checker = self.checks_controller.get_checker()
+        for path in asked[0][0]:
+            statsdb.StatsCache().filechecks(path, checker)
+        asked[0][1](True)
+        _drain()
+
+        assert mode.stats['check-endpunc'] == [0, 4]
+        assert sc.cursor.indices == [0, 4]
+        assert mode.btn_popup.get_label() != 'Checking files…'

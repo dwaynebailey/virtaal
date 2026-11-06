@@ -141,6 +141,8 @@ class StreamModel(BaseModel):
     __gsignals__ = {
         # A file was read: (segment number, its PeekUnits now replaced).
         'file-loaded': (GObject.SignalFlags.RUN_FIRST, None, (int, object)),
+        # The files whose checks were left out are checked.
+        'checks-filled': (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
     # Read the next or previous file once the cursor is this close to it.
@@ -159,6 +161,11 @@ class StreamModel(BaseModel):
         self.generation = 0
         self._checker = None
         self.checks = None
+        # Files whose checks are left out of self.checks while a child
+        # process checks them.
+        self.checks_pending = 0
+        # A child couldn't check them: check here, as for a read file.
+        self._check_here = False
         self.stats = None
         # Stream indices that may differ from the files on disk.
         self._edited_units = set()
@@ -427,9 +434,10 @@ class StreamModel(BaseModel):
                 model._checker = checker
         statsworker.wait()
         cache = statsdb.StatsCache()
+        pending = self._check_unread_in_background(cache, checker)
         checks = {}
         for segment in self.segments:
-            if not os.path.isfile(segment.path):
+            if not os.path.isfile(segment.path) or segment.path in pending:
                 continue
             store = segment.model._trans_store if segment.loaded else None
             errors = cache.filechecks(segment.path, checker, store)
@@ -440,6 +448,33 @@ class StreamModel(BaseModel):
             self._recheck_unit(checks, index)
         self.checks = checks
         return checks
+
+    def _check_unread_in_background(self, cache, checker):
+        """Start checking, in a child process, the files not read yet
+        whose checks aren't cached. Returns their paths."""
+        unread = [
+            segment.path
+            for segment in self.segments
+            if not segment.loaded
+            and os.path.isfile(segment.path)
+            and not cache.has_checks(segment.path, checker)
+        ]
+        if self._check_here or not unread:
+            self.checks_pending = 0
+            return set()
+        from virtaal.support import statsworker
+
+        if not statsworker.check_in_background(unread, checker, self._on_checked):
+            self.checks_pending = 0
+            return set()
+        self.checks_pending = len(unread)
+        return set(unread)
+
+    def _on_checked(self, succeeded):
+        if not succeeded:
+            self._check_here = True
+        self.checks_pending = 0
+        self.emit('checks-filled')
 
     # SAVING #
     def save_file(self, filename=None):

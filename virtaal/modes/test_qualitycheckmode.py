@@ -18,6 +18,8 @@ def _mode(**overrides):
     mode = QualityCheckMode.__new__(QualityCheckMode)
     mode.filter_checks = []
     mode._menuitem_checks = {}
+    mode.pending = False
+    mode.listed = []
     for name, value in overrides.items():
         setattr(mode, name, value)
     return mode
@@ -30,6 +32,7 @@ def test_prepare_stats_names_every_non_meta_check_with_failures():
     mode = _mode(
         store_controller=SimpleNamespace(
             update_store_checks=lambda checker: None,
+            store=None,
             get_store_checks=lambda: {
                 'total': [0, 1, 2],
                 'translated': [0],
@@ -58,6 +61,7 @@ def test_prepare_stats_drops_a_filter_check_that_disappeared():
         filter_checks=['brackets', 'printf'],
         store_controller=SimpleNamespace(
             update_store_checks=lambda checker: None,
+            store=None,
             get_store_checks=lambda: {'total': [], 'brackets': [1]},
             cursor=SimpleNamespace(),
         ),
@@ -76,6 +80,7 @@ def test_prepare_stats_can_keep_a_selected_check_with_no_failures_left():
         filter_checks=['brackets'],
         store_controller=SimpleNamespace(
             update_store_checks=lambda checker: None,
+            store=None,
             get_store_checks=lambda: {'total': [0], 'printf': [0]},
             cursor=SimpleNamespace(),
         ),
@@ -263,6 +268,7 @@ def test_on_store_saved_refreshes_the_menu_but_keeps_the_units_under_review():
         btn_popup=btn,
         store_controller=SimpleNamespace(
             update_store_checks=lambda checker: None,
+            store=None,
             get_store_checks=lambda: {'total': [0, 1, 2]},  # every failure fixed
             cursor=cursor,
         ),
@@ -293,6 +299,7 @@ def test_on_checks_changed_uses_the_stores_checks_without_rebuilding_them():
         btn_popup=btn,
         store_controller=SimpleNamespace(
             update_store_checks=lambda checker: pytest.fail('rebuilt the checks'),
+            store=None,
             get_store_checks=lambda: {'brackets': [2]},
             cursor=cursor,
         ),
