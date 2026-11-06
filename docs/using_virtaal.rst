@@ -64,11 +64,19 @@ Auto-completion
 ---------------
 Virtaal will save you some time by trying to complete some long words for you.
 Users of OpenOffice.org will already love this feature. Suggestions only come
-from the segment you are translating: long words in its source and target, and
-after just two letters, the source's placeables (such as numbers, URLs and
-XML tags) and translations of its terminology. You will see the
-auto-completion suggesting a possible word, and the suggestion can be accepted
-by pressing :kbd:`Tab`. If the suggestion is not what you want, you can simply
+from the segment you are translating: long words in its source and target,
+including what you have typed so far, and after just two letters, the source's
+placeables (such as numbers, URLs and XML tags) and translations of its
+terminology. Typing ``%``, ``$``, ``{``, ``<``, ``&`` or a digit suggests a
+placeable straight away, starting with those you haven't used yet.
+
+Case doesn't matter while you type: names keep their own case, and other words
+start with a capital at the start of a sentence. Numbers are suggested with
+your language's decimal and group separators and digits, and typing a digit in
+either script finds them. A name in capitals or CamelCase is suggested the way
+you last wrote it in this file, in Latin letters or in your own script. You
+will see the auto-completion suggesting a possible word, and the suggestion can
+be accepted by pressing :kbd:`Tab`. If the suggestion is not what you want, you can simply
 continue typing the word you had in mind. If you accepted a suggestion that you
 don't want, you can simply undo normally with :kbd:`Ctrl+Z`.
 

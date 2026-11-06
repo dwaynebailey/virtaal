@@ -84,6 +84,11 @@ words in the current segment's source and target. Only basic word segmentation
 is used. Feel free to contribute something more advanced as needed for your
 language.
 
+Numbers from the source are suggested with the separators CLDR gives your
+language, in the digits of its default numbering system in CLDR. If
+translations into your language use other digits than CLDR's default (Latin
+digits where CLDR has native ones, or the other way round), let us know.
+
 .. _localising_virtaal#search:
 
 Search
