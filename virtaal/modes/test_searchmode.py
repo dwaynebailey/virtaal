@@ -1223,7 +1223,9 @@ def _update_search_mode(units, search_text, index=0):
     mode.chk_casesensitive = Gtk.CheckButton()
     mode.chk_regex = Gtk.CheckButton()
     mode.select_first_match = True
-    mode.storecursor = SimpleNamespace(model=_FakeStoreModel(units), indices=None, index=index)
+    mode.storecursor = SimpleNamespace(
+        model=_FakeStoreModel(units), indices=None, index=index, in_scope=lambda i: True
+    )
     mode._highlight_matches = lambda: None
     mode._search_bg_provider = None
     mode.default_base = '#ffffff'
@@ -1734,7 +1736,9 @@ def _search_mode_for(text, regex):
     mode.ent_search = SimpleNamespace(get_text=lambda: text, set_tooltip_text=mode.tooltips.append)
     mode.chk_casesensitive = SimpleNamespace(get_active=lambda: False)
     mode.chk_regex = SimpleNamespace(get_active=lambda: regex)
-    mode.storecursor = SimpleNamespace(model=_FakeStoreModel(store.units), index=0, indices=None)
+    mode.storecursor = SimpleNamespace(
+        model=_FakeStoreModel(store.units), index=0, indices=None, in_scope=lambda i: True
+    )
     mode.default_base = 'base'
     mode.backgrounds = []
     mode._set_search_bg = mode.backgrounds.append

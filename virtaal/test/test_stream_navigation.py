@@ -12,6 +12,7 @@ from gi.repository import GLib
 from test_scaffolding import TestScaffolding
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
+from virtaal.models.streammodel import StreamModel
 
 
 def _po(path, units):
@@ -42,6 +43,9 @@ class TestStreamNavigation(TestScaffolding):
             'get_translator_details',
             lambda *args: ('Tester', 'tester@example.org', 'Afrikaans'),
         )
+        # Read a file only once the cursor reaches it.
+        monkeypatch.setattr(StreamModel, 'PREFETCH_UNITS', 0)
+        self.monkeypatch = monkeypatch
         self.dir = tmp_path
         _po(tmp_path / 'a.po', [('One', ''), ('Two', 'Twee')])
         _po(tmp_path / 'b.po', [('Three', 'Drie'), ('Four', 'Vier')])
@@ -49,6 +53,7 @@ class TestStreamNavigation(TestScaffolding):
         self.store_controller.close_file()
         yield
         self.store_controller.set_modified(False)
+        self.mode_controller.select_default_mode()
         self.store_controller.close_file()
 
     def _item(self, name):
@@ -110,3 +115,82 @@ class TestStreamNavigation(TestScaffolding):
 
         self.store_controller.close_file()
         assert not self._item('mnu_next_file').get_sensitive()
+
+    def test_units_stop_at_the_ends_of_the_stream(self):
+        self._open()
+        cursor = self.store_controller.cursor
+        cursor.index = 5
+        _drain()
+
+        cursor.move(1)
+        assert cursor.index == 5
+        cursor.index = 0
+        cursor.move(-1)
+        assert cursor.index == 0
+
+    def _search(self, text, enter=True):
+        mode = self.mode_controller.modes['Search']
+        # Set by the search box's first style-set, which needs a window.
+        mode.default_base = '#ffffff'
+        select_match = mode.select_match
+
+        def select_unit_only(match):
+            try:
+                select_match(match)
+            except IndexError:
+                # Its text boxes: the editor is only laid out in a window.
+                pass
+
+        self.monkeypatch.setattr(mode, 'select_match', select_unit_only)
+        # Left from an earlier test, it would search on selecting the mode.
+        mode.ent_search.set_text('')
+        self.mode_controller.select_mode(mode)
+        mode.ent_search.set_text(text)
+        if enter:
+            mode._on_entry_activate(mode.ent_search)
+        else:
+            mode._cancel_search_timeout()
+            mode.update_search()
+        _drain()
+        return mode
+
+    def test_search_finds_a_unit_in_a_file_not_read_yet(self):
+        self._open()
+        sc = self.store_controller
+        assert not sc.store.segments[2].loaded
+
+        mode = self._search('Six')
+
+        assert sc.cursor.index == 5
+        assert sc.store.segments[2].loaded
+        unit = sc.store.segments[2].model.get_unit(1)
+        assert sc.cursor.deref() is unit
+        assert [match.unit for match in mode.matches] == [unit]
+
+    def test_search_wraps_between_the_first_and_last_file(self):
+        self._open()
+        sc = self.store_controller
+        mode = self._search('i', enter=False)
+        # In Drie, Vier, Five and Six.
+        assert sc.cursor.indices == [2, 3, 4, 5]
+        assert sc.cursor.index == 2
+        assert not sc.store.segments[2].loaded
+
+        mode._move_match(-1)
+        _drain()
+        assert sc.cursor.index == 5
+
+        mode._move_match(1)
+        _drain()
+        assert sc.cursor.index == 2
+
+    def test_search_stays_within_the_files_chosen(self):
+        self._open()
+        sc = self.store_controller
+        sc.cursor.set_scope([(0, 2), (4, 6)])
+        _drain()
+
+        mode = self._search('i')
+
+        assert sc.cursor.indices == [4, 5]
+        assert [match.unit.source for match in mode.matches] == ['Five', 'Six']

@@ -34,6 +34,10 @@ class SearchMode(BaseMode):
     MAX_RESULTS = 200000
     SEARCH_DELAY = 500
 
+    # id(match) -> the store index of its unit.
+    _match_indices = {}
+    _file_loaded = None
+
     # INITIALIZERS #
     def __init__(self, controller):
         """Constructor.
@@ -177,6 +181,7 @@ class SearchMode(BaseMode):
             unitcont.disconnect(self._unit_modified_id)
         self._unit_modified_id = unitcont.connect('unit-modified', self._on_unit_modified)
         self._connect_undo_redo()
+        self._connect_file_loaded(self.storecursor.model)
         if not self.ent_search.get_text():
             self.storecursor.indices = self.storecursor.model.stats['total']
         else:
@@ -201,7 +206,7 @@ class SearchMode(BaseMode):
             'select_match: unit=%r part=%s part_n=%d'
             % (getattr(match.unit, 'source', match.unit), match.part, match.part_n)
         )
-        main_controller.select_unit(match.unit)
+        self.select_match_unit(match)
         view = main_controller.unit_controller.view
 
         # TODO: 'notes' and 'locations' parts, once update_search() searches them.
@@ -253,7 +258,7 @@ class SearchMode(BaseMode):
                 rstring = rstring[: match.start] + replace_str + rstring[match.end :]
                 match.unit.target = rstring
         else:
-            main_controller.select_unit(match.unit)
+            self.select_match_unit(match)
             main_controller.undo_controller.push_current_text(
                 unit_controller.view.targets[match.part_n]
             )
@@ -261,6 +266,60 @@ class SearchMode(BaseMode):
             unit_controller.set_unit_target(
                 match.part_n, rstring[: match.start] + replace_str + rstring[match.end :]
             )
+
+    def select_match_unit(self, match):
+        index = self._match_indices.get(id(match))
+        if index is None:
+            self.controller.main_controller.select_unit(match.unit)
+        elif self.storecursor.index != index:
+            # By index: a file not read yet has stand-ins for its units.
+            self.storecursor.index = index
+
+    def _set_matches(self, matches, indexes, units):
+        """Keep the matches in units the cursor may go to, each with its
+        unit's index. Returns the indexes of the units kept."""
+        self.matches = []
+        self._match_indices = {}
+        kept = []
+        pos = 0
+        for match in matches:
+            while units[indexes[pos]] is not match.unit:
+                pos += 1
+            index = indexes[pos]
+            if not self.storecursor.in_scope(index):
+                continue
+            self.matches.append(match)
+            self._match_indices[id(match)] = index
+            if not kept or kept[-1] != index:
+                kept.append(index)
+        self.matchcursor = Cursor(self.matches, range(len(self.matches)))
+        self._match_text_cache = {}
+        for match in self.matches:
+            self._match_text_cache.setdefault(self._match_key(match), match.get_getter()())
+        return kept
+
+    def _connect_file_loaded(self, model):
+        self._disconnect_file_loaded()
+        if hasattr(model, 'segments'):
+            self._file_loaded = (model, model.connect('file-loaded', self._on_file_loaded))
+
+    def _disconnect_file_loaded(self):
+        if self._file_loaded is not None:
+            model, handler = self._file_loaded
+            model.disconnect(handler)
+            self._file_loaded = None
+
+    def _on_file_loaded(self, model, number, peek):
+        """Matches in a file just read move from its stand-in units to
+        its real ones."""
+        real = dict(zip(map(id, peek), model.segments[number].units()))
+        for match in self.matches:
+            unit = real.get(id(match.unit))
+            if unit is not None:
+                text = self._match_text_cache.pop(self._match_key(match), None)
+                match.unit = unit
+                if text is not None:
+                    self._match_text_cache[self._match_key(match)] = text
 
     def update_search(self):
         self._search_timeout = 0
@@ -278,19 +337,15 @@ class SearchMode(BaseMode):
         error = None
         try:
             self.filter = GrepFilter(searchstring=self.ent_search.get_text(), **filter_args)
-            self.matches, indexes = self.filter.getmatches(store_units)
+            matches, indexes = self.filter.getmatches(store_units)
         except (re.error, OverflowError) as e:
             # An invalid or unfinished regular expression matches nothing.
             self.filter = GrepFilter(searchstring='', **filter_args)
-            self.matches, indexes = [], []
+            matches, indexes = [], []
             # l10n: %s is the reason, in English, such as "missing ), unterminated subpattern"
             error = _('Invalid regular expression: %s') % e
         self.ent_search.set_tooltip_text(error)
-        self.matchcursor = Cursor(self.matches, range(len(self.matches)))
-
-        self._match_text_cache = {}
-        for match in self.matches:
-            self._match_text_cache.setdefault(self._match_key(match), match.get_getter()())
+        indexes = self._set_matches(matches, indexes, store_units)
 
         logging.debug('Search text: %s (%d matches)' % (self.ent_search.get_text(), len(indexes)))
 
@@ -300,9 +355,9 @@ class SearchMode(BaseMode):
             self.storecursor.indices = indexes
             # Select initial match for in the current unit.
             match_index = 0
-            selected_unit = self.storecursor.model[self.storecursor.index]
+            current = self.storecursor.index
             for match in self.matches:
-                if match.unit is selected_unit:
+                if self._match_indices[id(match)] == current:
                     break
                 match_index += 1
             self.matchcursor.index = match_index
@@ -343,9 +398,11 @@ class SearchMode(BaseMode):
             self.controller.main_controller.unit_controller.disconnect(self._unit_modified_id)
             self._unit_modified_id = 0
         self._disconnect_undo_redo()
+        self._disconnect_file_loaded()
 
         self.matches = []
         self._match_text_cache = {}
+        self._match_indices = {}
 
     def _add_widgets(self):
         table = self.controller.view.mode_box
@@ -756,19 +813,16 @@ class SearchMode(BaseMode):
     def _refresh_results(self):
         """Re-run the search over the file without moving the cursor."""
         self._search_timeout = 0
+        units = self.storecursor.model.get_units()
         try:
-            self.matches, indexes = self.filter.getmatches(self.storecursor.model.get_units())
+            matches, indexes = self.filter.getmatches(units)
         except (re.error, OverflowError):
-            self.matches, indexes = [], []
-        self.matchcursor = Cursor(self.matches, range(len(self.matches)))
-        self._match_text_cache = {}
-        for match in self.matches:
-            self._match_text_cache.setdefault(self._match_key(match), match.get_getter()())
+            matches, indexes = [], []
+        indexes = self._set_matches(matches, indexes, units)
 
         # Stay on the unit undo loaded, even if it no longer matches: pin
         # the cursor to it before the results change.
         current = self.controller.main_controller.unit_controller.current_unit
-        units = self.storecursor.model.get_units()
         index = next((i for i, unit in enumerate(units) if unit is current), -1)
         if index >= 0:
             self.storecursor.force_index(index)
