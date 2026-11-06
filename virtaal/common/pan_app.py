@@ -155,6 +155,21 @@ def get_config_dir():
     return confdir
 
 
+def get_state_dir():
+    """The directory for machine-local state that should outlive a
+    restart but isn't a setting: the platform's per-user state or local
+    data directory, never a roaming one."""
+    if platform.is_windows:
+        statedir = os.path.join(os.environ['LOCALAPPDATA'], 'Virtaal')
+    elif platform.is_mac:
+        statedir = os.path.expanduser('~/Library/Application Support/Virtaal')
+    else:
+        base = os.environ.get('XDG_STATE_HOME') or os.path.expanduser('~/.local/state')
+        statedir = os.path.join(base, 'virtaal')
+    os.makedirs(statedir, exist_ok=True)
+    return statedir
+
+
 def _build_launch_marker(timestamp):
     """The separator line written to a frozen build's log at each
     launch - a single file can span several runs, so this both marks

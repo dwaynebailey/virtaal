@@ -54,14 +54,18 @@ from _pytest import runner
 
 
 def _use_a_scratch_home():
-    """Point the home and config dirs at a scratch directory for the
+    """Point the home, config and state dirs at a scratch directory for the
     whole session, so the suite never reads or writes the developer's
     own Virtaal config, spelling dictionaries or recent files (#4082).
     It has to happen before pan_app is imported: pan_app loads its
     settings from get_config_dir() at import."""
     home = tempfile.mkdtemp(prefix="virtaal-test-home-")
     atexit.register(shutil.rmtree, home, ignore_errors=True)
-    os.environ.update(dict.fromkeys(("HOME", "APPDATA", "XDG_CONFIG_HOME"), home))
+    os.environ.update(
+        dict.fromkeys(
+            ("HOME", "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_STATE_HOME"), home
+        )
+    )
 
 
 _use_a_scratch_home()

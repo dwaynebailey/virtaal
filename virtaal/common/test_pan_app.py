@@ -671,6 +671,56 @@ def test_get_config_dir_in_flatpak_is_under_xdg_config_home(monkeypatch, tmp_pat
     assert os.path.isdir(confdir)
 
 
+# get_state_dir() #
+
+
+def _on_linux(monkeypatch):
+    monkeypatch.setattr(pan_app.platform, 'is_windows', False)
+    monkeypatch.setattr(pan_app.platform, 'is_mac', False)
+
+
+def test_get_state_dir_on_linux_is_under_xdg_state_home(monkeypatch, tmp_path):
+    _on_linux(monkeypatch)
+    monkeypatch.setenv('XDG_STATE_HOME', str(tmp_path))
+
+    assert pan_app.get_state_dir() == os.path.join(str(tmp_path), 'virtaal')
+    assert (tmp_path / 'virtaal').is_dir()
+
+
+def test_get_state_dir_on_linux_defaults_to_local_state(monkeypatch, tmp_path):
+    _on_linux(monkeypatch)
+    monkeypatch.delenv('XDG_STATE_HOME', raising=False)
+    monkeypatch.setenv('HOME', str(tmp_path))
+
+    assert pan_app.get_state_dir() == os.path.join(str(tmp_path), '.local', 'state', 'virtaal')
+
+
+def test_get_state_dir_on_mac_is_application_support(monkeypatch, tmp_path):
+    monkeypatch.setattr(pan_app.platform, 'is_windows', False)
+    monkeypatch.setattr(pan_app.platform, 'is_mac', True)
+    monkeypatch.setenv('HOME', str(tmp_path))
+
+    assert pan_app.get_state_dir() == os.path.join(
+        str(tmp_path), 'Library', 'Application Support', 'Virtaal'
+    )
+
+
+def test_get_state_dir_on_windows_is_local_not_roaming(monkeypatch, tmp_path):
+    monkeypatch.setattr(pan_app.platform, 'is_windows', True)
+    monkeypatch.setenv('LOCALAPPDATA', str(tmp_path / 'Local'))
+    monkeypatch.setenv('APPDATA', str(tmp_path / 'Roaming'))
+
+    assert pan_app.get_state_dir() == os.path.join(str(tmp_path), 'Local', 'Virtaal')
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='real home from the pwd module')
+def test_the_suite_never_uses_the_real_state_dir():
+    import pwd
+
+    real_home = pwd.getpwuid(os.getuid()).pw_dir + os.sep
+    assert not pan_app.get_state_dir().startswith(real_home)
+
+
 # _repo_root() #
 
 
