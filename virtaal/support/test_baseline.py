@@ -60,6 +60,18 @@ def test_a_sidecar_for_another_path_is_ignored(tmp_path):
     path = baseline.sidecar_path(target)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
-        json.dump({'format': baseline.FORMAT, 'target': 'elsewhere'}, f)
+        json.dump({'format': baseline.FORMAT, 'target': 'elsewhere', 'units': {}}, f)
 
     assert baseline.load(target) is None
+
+
+def test_entry_keeps_review_details_only_while_fuzzy():
+    fuzzy = baseline.entry('New', 'Nuut', baseline.FUZZY, 'Old', True)
+    done = baseline.entry('New', 'Nuut', baseline.TRANSLATED, 'Old', True)
+
+    assert fuzzy['previous_source'] == 'Old'
+    assert fuzzy['outside'] is True
+    assert 'previous_source' not in done
+    assert 'outside' not in done
+    assert done['source_hash'] == baseline.text_hash('New')
+    assert baseline.entry('New', '', baseline.UNTRANSLATED)['target_hash'] is None

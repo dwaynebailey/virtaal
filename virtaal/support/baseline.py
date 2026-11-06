@@ -5,13 +5,20 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""Per-user records about monolingual translation files, kept in this
-user's state directory (never in the project): one JSON file per
-target, named by a hash of the target's absolute path.
+"""What a monolingual translation file and its template looked like when
+last seen in sync, so that outside changes show on the next open.
 
-  {"format": 1, "target": <path>, "template": <path>, "chosen": <bool>}
+One JSON file per target, in this user's state directory (never in the
+project), named by a hash of the target's absolute path:
 
-"chosen" marks a template the user picked."""
+  {"format": 1, "target": <path>, "template": <path>, "chosen": <bool>,
+   "units": {<key>: {"source": <text>, "source_hash": <hash>,
+                     "target_hash": <hash or null>, "state": <state>,
+                     "previous_source": <text>, "outside": <bool>}}}
+
+"state" is "translated", "fuzzy" or "untranslated". "previous_source"
+(the source the translation was made for) and "outside" (the target
+changed outside Virtaal) are kept while the unit needs review."""
 
 import hashlib
 import json
@@ -20,6 +27,16 @@ import os
 
 FORMAT = 1
 DIRECTORY = 'monolingual'
+
+TRANSLATED = 'translated'
+FUZZY = 'fuzzy'
+UNTRANSLATED = 'untranslated'
+
+
+def text_hash(text):
+    if text is None:
+        return None
+    return hashlib.sha256(str(text).encode('utf-8')).hexdigest()[:16]
 
 
 def _key(path):
@@ -48,6 +65,7 @@ def load(target):
         not isinstance(data, dict)
         or data.get('format') != FORMAT
         or data.get('target') != _key(target)
+        or not isinstance(data.get('units'), dict)
     ):
         return None
     return data
@@ -74,6 +92,20 @@ def remembered_template(target):
 
 
 def remember_template(target, template):
-    data = load(target) or {}
+    data = load(target) or {'units': {}}
     data.update(template=os.path.abspath(template), chosen=True)
     save(target, data)
+
+
+def entry(source, target, state, previous_source=None, outside=False):
+    found = {
+        'source': source,
+        'source_hash': text_hash(source),
+        'target_hash': text_hash(target) if target else None,
+        'state': state,
+    }
+    if state == FUZZY and previous_source is not None:
+        found['previous_source'] = previous_source
+    if state == FUZZY and outside:
+        found['outside'] = True
+    return found

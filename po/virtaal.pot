@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 15:39+0000\n"
+"POT-Creation-Date: 2026-11-06 15:40+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1219,6 +1219,17 @@ msgstr ""
 #: virtaal/main.py
 #, python-format
 msgid "Some settings were invalid and were reset to their defaults: %s"
+msgstr ""
+
+#. l10n: Shown below a translation whose source text changed
+#. since it was translated; %s is the source text it had.
+#: virtaal/models/monolingual.py
+#, python-format
+msgid "Previous source: %s"
+msgstr ""
+
+#: virtaal/models/monolingual.py
+msgid "Translation changed outside Virtaal"
 msgstr ""
 
 #: virtaal/models/storemodel.py

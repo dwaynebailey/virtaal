@@ -5,9 +5,12 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import os
+
 import pytest
 
 from virtaal.models.monolingual import MonolingualPair
+from virtaal.support import baseline
 from virtaal.support.converters import FluentConverter
 
 EN = """\
@@ -86,6 +89,7 @@ def test_round_trip_open_edit_save_reopen(project):
         'greeting': ('Goeie dag, {0}!', 'translated'),
         'quit': ('', 'untranslated'),
     }
+    assert again.reviews == {}
 
 
 def test_save_as_writes_the_new_file_in_the_same_format(project):
@@ -98,6 +102,146 @@ def test_save_as_writes_the_new_file_in_the_same_format(project):
     )
     assert pair.store.filename == str(project / 'copy.properties')
     assert (project / 'af.properties').read_text(encoding='utf-8') == AF
+
+
+def test_the_baseline_is_kept_outside_the_project(project):
+    _open(project)
+
+    path = baseline.sidecar_path(str(project / 'af.properties'))
+    assert os.path.isfile(path)
+    assert not path.startswith(str(project))
+    assert set(baseline.load(str(project / 'af.properties'))['units']) == {
+        'app.title',
+        'greeting',
+        'quit',
+    }
+
+
+def test_a_changed_source_needs_review_and_shows_the_old_source(project):
+    _open(project)
+    (project / 'en.properties').write_text(
+        EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
+    )
+
+    pair = _open(project)
+
+    unit = _units(pair)['greeting']
+    assert unit.isfuzzy()
+    assert unit.target == 'Hallo, {0}!'
+    assert 'Previous source: Hello, {0}!' in unit.getnotes('translator')
+    assert not _units(pair)['app.title'].isfuzzy()
+
+
+def test_a_review_still_shows_on_the_next_open(project):
+    _open(project)
+    (project / 'en.properties').write_text(
+        EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
+    )
+    _open(project)
+
+    unit = _units(_open(project))['greeting']
+
+    assert unit.isfuzzy()
+    assert 'Previous source: Hello, {0}!' in unit.getnotes('translator')
+
+
+def test_a_reviewed_unit_is_settled_by_saving(project):
+    _open(project)
+    (project / 'en.properties').write_text(
+        EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
+    )
+    pair = _open(project)
+    unit = _units(pair)['greeting']
+    unit.target = 'Hallo daar, {0}!'
+    unit.markfuzzy(False)
+    pair.save()
+
+    unit = _units(_open(project))['greeting']
+
+    assert not unit.isfuzzy()
+    assert not unit.getnotes('translator')
+
+
+def test_a_unit_left_for_review_stays_fuzzy_after_saving(project):
+    _open(project)
+    (project / 'en.properties').write_text(
+        EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
+    )
+    _open(project).save()
+
+    unit = _units(_open(project))['greeting']
+
+    assert unit.isfuzzy()
+    assert 'Previous source: Hello, {0}!' in unit.getnotes('translator')
+    assert 'greeting=Hallo, {0}!' in (project / 'af.properties').read_text(encoding='utf-8')
+
+
+def test_a_new_key_is_untranslated_and_a_removed_one_dropped(project):
+    _open(project)
+    (project / 'en.properties').write_text(
+        EN.replace('quit=Quit\n', 'help=Help\n'), encoding='utf-8'
+    )
+
+    pair = _open(project)
+    units = _units(pair)
+    pair.save()
+
+    assert 'quit' not in units
+    assert units['help'].target == ''
+    assert not units['help'].isfuzzy()
+    assert 'quit' not in baseline.load(str(project / 'af.properties'))['units']
+
+
+def test_a_target_changed_outside_is_taken_and_flagged(project):
+    _open(project)
+    (project / 'af.properties').write_text(
+        AF.replace('Hallo, {0}!', 'Goeie môre, {0}!'), encoding='utf-8'
+    )
+
+    unit = _units(_open(project))['greeting']
+
+    assert unit.target == 'Goeie môre, {0}!'
+    assert unit.isfuzzy()
+    assert 'Translation changed outside Virtaal' in unit.getnotes('translator')
+
+
+def test_a_translation_added_outside_with_a_new_key_is_flagged(project):
+    _open(project)
+    (project / 'en.properties').write_text(EN + 'help=Help\n', encoding='utf-8')
+    (project / 'af.properties').write_text(AF + 'help=Hulp\n', encoding='utf-8')
+
+    unit = _units(_open(project))['help']
+
+    assert unit.target == 'Hulp'
+    assert unit.isfuzzy()
+
+
+def test_a_renamed_key_with_the_same_source_keeps_its_translation(project):
+    _open(project)
+    (project / 'en.properties').write_text(
+        EN.replace('app.title=', 'window.title='), encoding='utf-8'
+    )
+
+    pair = _open(project)
+
+    assert _units(pair)['window.title'].target == 'Lêerbestuurder'
+    assert pair.carried == 1
+    # Until saved, the file still has the old key, so it carries over again.
+    assert _units(_open(project))['window.title'].target == 'Lêerbestuurder'
+    pair.save()
+    text = (project / 'af.properties').read_text(encoding='utf-8')
+    assert 'window.title=Lêerbestuurder' in text
+    assert 'app.title' not in text
+
+
+def test_no_baseline_means_nothing_is_flagged(project):
+    (project / 'en.properties').write_text(
+        EN.replace('Hello, {0}!', 'Hello there, {0}!'), encoding='utf-8'
+    )
+
+    pair = _open(project)
+
+    assert not any(unit.isfuzzy() for unit in _units(pair).values())
 
 
 @pytest.mark.skipif(
@@ -125,6 +269,7 @@ def test_a_fluent_pair_round_trips(tmp_path):
         'app-title': 'Lêerbestuurder',
         'quit': 'Verlaat',
     }
+    assert again.reviews == {}
 
 
 def test_not_a_monolingual_file(tmp_path):

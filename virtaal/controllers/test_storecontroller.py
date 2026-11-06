@@ -1142,11 +1142,7 @@ def test_open_file_refuses_a_monolingual_file_without_a_template(monkeypatch, tm
         controller.open_file(str(target))
 
 
-def test_open_file_pairs_a_monolingual_file_and_writes_nothing(tmp_path):
-    from virtaal.support.templatefinder import find_template
-
-    (tmp_path / 'en.properties').write_text('a=Open\n', encoding='utf-8')
-    (tmp_path / 'af.properties').write_text('a=Oop\n', encoding='utf-8')
+def _pair_controller():
     controller = _controller()
     controller.main_controller = SimpleNamespace(
         set_force_saveas=lambda value: None,
@@ -1155,7 +1151,21 @@ def test_open_file_pairs_a_monolingual_file_and_writes_nothing(tmp_path):
     )
     controller._view = SimpleNamespace(load_store=lambda store: None, show=lambda: None)
     controller._stream_handlers = None
-    target = str(tmp_path / 'af.properties')
+    return controller
+
+
+def _write_pair(tmp_path, english):
+    (tmp_path / 'en.properties').write_text(english, encoding='utf-8')
+    if not (tmp_path / 'af.properties').exists():
+        (tmp_path / 'af.properties').write_text('a=Oop\n', encoding='utf-8')
+    return str(tmp_path / 'af.properties')
+
+
+def test_open_file_pairs_a_monolingual_file_and_writes_nothing(tmp_path):
+    from virtaal.support.templatefinder import find_template
+
+    target = _write_pair(tmp_path, 'a=Open\n')
+    controller = _pair_controller()
     before = sorted(p.name for p in tmp_path.iterdir())
 
     controller.open_file(target, template=find_template(target))
@@ -1163,3 +1173,17 @@ def test_open_file_pairs_a_monolingual_file_and_writes_nothing(tmp_path):
     assert [(u.source, u.target) for u in controller.store.get_units()] == [('Open', 'Oop')]
     assert controller._modified is False
     assert sorted(p.name for p in tmp_path.iterdir()) == before
+
+
+def test_a_translation_carried_to_a_renamed_key_leaves_the_file_unsaved(tmp_path):
+    from virtaal.support.templatefinder import find_template
+
+    target = _write_pair(tmp_path, 'a=Open\n')
+    _pair_controller().open_file(target, template=find_template(target))
+    _write_pair(tmp_path, 'b=Open\n')
+    controller = _pair_controller()
+
+    controller.open_file(target, template=find_template(target))
+
+    assert [(u.source, u.target) for u in controller.store.get_units()] == [('Open', 'Oop')]
+    assert controller._modified is True
