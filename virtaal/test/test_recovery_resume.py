@@ -656,3 +656,109 @@ class TestEndSession(UnsavedScaffolding):
         self.recovery.end_session('signal')
 
         assert self._session()['end_reason'] is None
+
+
+PO_B = '''msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\\n"
+
+msgid "New"
+msgstr ""
+
+msgid "Print"
+msgstr "Druk"
+'''
+
+
+class TestStream(UnsavedScaffolding):
+    """Several files open as one list: a document per modified file."""
+
+    def _open_stream(self):
+        self._po('a.po')
+        self._po('b.po', PO_B)
+        self.store_controller.open_files([str(self.tmp_path)])
+        return [str(self.tmp_path / 'a.po'), str(self.tmp_path / 'b.po')]
+
+    def _resume_stream(self):
+        target = self.recovery.choose_startup_file('')
+        if target:
+            self.store_controller.open_files([target] if isinstance(target, str) else target)
+            self.unit_controller.load_unit(self.store_controller.store[0])
+        self.recovery.startup_file_opened(bool(target))
+        if target:
+            self._settle()
+            cursor = self.store_controller.cursor
+            self.unit_controller.load_unit(self.store_controller.store[cursor.index])
+        return target
+
+    def test_the_slot_names_the_paths_and_has_no_document_until_an_edit(self):
+        self._open_stream()
+
+        session = self._session()
+        assert session['stream'] == {'paths': [str(self.tmp_path)]}
+        assert session['documents'] == {}
+
+    def test_each_edited_file_gets_its_own_journal(self):
+        a, b = self._open_stream()
+        self._type(0, 'Oop')
+        self._type(4, 'Nuut')
+        self._edit_at(5)
+        self.recovery._write()
+
+        docs = self._session()['documents']
+        assert sorted(doc['open_path'] for doc in docs.values()) == [a, b]
+        for doc_id, doc in docs.items():
+            [record] = self.recovery.slot.journal(doc_id).records()
+            assert record['unit_index'] == 0
+            assert record['fields']['targets'] == (['Oop'] if doc['open_path'] == a else ['Nuut'])
+
+    def test_the_position_names_the_file(self):
+        _a, b = self._open_stream()
+        self._edit_at(5)
+
+        self.recovery._write()
+
+        position = self._session()['position']
+        assert (position['path'], position['unit_index'], position['unit_id']) == (b, 1, 'Print')
+
+    def test_saving_drops_the_documents(self):
+        self._open_stream()
+        self._type(4, 'Nuut')
+        self._edit_at(5)
+
+        self.store_controller.save_file()
+
+        assert self._session()['documents'] == {}
+
+    def test_a_crash_resumes_at_the_file_and_unit_with_every_files_work(self):
+        self._open_stream()
+        self._type(0, 'Oop')
+        self._type(4, 'Nuut')
+        self._edit_at(5)
+        self._crash()
+
+        assert self._resume_stream() == str(self.tmp_path)
+        [(kind, count, on_recover, _discard)] = self.notices
+        assert (kind, count) == ('recover', 2)
+        assert self.store_controller.cursor.index == 5
+
+        on_recover()
+
+        store = self.store_controller.store
+        assert [str(store[i].target) for i in (0, 4)] == ['Oop', 'Nuut']
+        assert sorted(e.display_name for e in store.modified_entries()) == ['a.po', 'b.po']
+        assert self.store_controller.is_modified()
+
+    def test_a_signal_end_restores_the_draft_in_its_own_file(self):
+        self._open_stream()
+        self._type(4, 'Nuut')
+        self.recovery.end_session('signal')
+        self.main_controller.emit('quit')
+        self.recovery._ending = False
+        self.store_controller.close_file()
+
+        self._resume_stream()
+
+        assert self.notices == [('restored', 1, 0)]
+        assert str(self.store_controller.store[4].target) == 'Nuut'
+        assert self.store_controller.cursor.index == 4

@@ -44,6 +44,36 @@ TEXT_CURSOR_HOLD_SECONDS = 15
 _RECORD_KEYS = ('unit_index', 'unit_id', 'source_sha1', 'fields')
 
 
+def _stream_document(path):
+    """The slot's id for one file of several open together."""
+    import hashlib
+
+    return 'f' + hashlib.sha1(path.encode('utf-8')).hexdigest()[:16]
+
+
+def _slot_target(slot):
+    """What a slot reopens: a path, a list of paths, or None."""
+    stream = slot.data.get('stream')
+    if isinstance(stream, dict):
+        paths = stream.get('paths')
+        if isinstance(paths, list) and paths and all(isinstance(p, str) for p in paths):
+            return paths
+        return None
+    doc = slot.document(DOCUMENT)
+    return doc.get('open_path') if doc else None
+
+
+def _as_paths(target):
+    return [os.path.abspath(p) for p in (target if isinstance(target, list) else [target])]
+
+
+def _startup_target(target):
+    """A slot's target as Virtaal's start-up takes it."""
+    if isinstance(target, list) and len(target) == 1:
+        return target[0]
+    return target
+
+
 def _guarded(method):
     """Recovery must never get in the way of editing: log and carry on."""
 
@@ -85,8 +115,9 @@ class RecoveryController:
         # Whether the document's units can be journalled and replayed.
         self._replayable = False
         self._baseline_ok = True
-        # While the crash notice waits: the last journal seq it covers,
-        # and the units edited since.
+        # While the crash notice waits: the last journal seq it covers in
+        # each document, and the units edited since as (document, unit
+        # index in its file).
         self._pending_upto = None
         self._touched = set()
         # Recently selected units with their indices: unit-done comes
@@ -104,17 +135,18 @@ class RecoveryController:
     # START-UP #
     @_guarded
     def choose_startup_file(self, startupfile, wanted=None):
-        """The file to open at start-up: an orphaned slot's file when
-        there is one to resume, otherwise startupfile. With a start-up
-        file (wanted: its path), only a slot for that file resumes."""
+        """The file to open at start-up: an orphaned slot's file, or its
+        list of paths, when there is one to resume, otherwise
+        startupfile. With a start-up file (wanted: its path, or a list of
+        paths), only a slot for the same paths resumes."""
         orphans = recovery.find_orphans(self._root)
-        wanted = os.path.abspath(wanted or startupfile) if startupfile else None
+        wanted = _as_paths(wanted or startupfile) if startupfile else None
         chosen = None
         for slot in orphans:
-            doc = slot.document(DOCUMENT)
-            if not doc or not doc.get('open_path'):
+            target = _slot_target(slot)
+            if not target:
                 continue
-            if wanted is None or os.path.abspath(doc['open_path']) == wanted:
+            if wanted is None or _as_paths(target) == wanted:
                 chosen = slot
                 break
         for slot in orphans:
@@ -123,13 +155,18 @@ class RecoveryController:
         if chosen is None:
             return startupfile
 
-        path = chosen.document(DOCUMENT)['open_path']
+        paths = _slot_target(chosen)
+        target = _startup_target(paths)
         if chosen.data['resume_attempts'] >= MAX_RESUME_ATTEMPTS:
-            self._blocked = (chosen.path, path)
+            self._blocked = (chosen.path, target)
             chosen.close()
             return startupfile
-        if not os.path.isfile(path):
-            self._missing = path
+        if isinstance(paths, list):
+            missing = [p for p in paths if not os.path.exists(p)]
+        else:
+            missing = [] if os.path.isfile(paths) else [paths]
+        if missing:
+            self._missing = missing[0]
             if chosen.has_unsaved_work():
                 chosen.close()
             else:
@@ -138,13 +175,13 @@ class RecoveryController:
         chosen.data['resume_attempts'] += 1
         chosen.write()
         self._resume = chosen
-        return path
+        return target
 
     def show_startup_notices(self):
         view = self.main_controller.view
         if self._blocked:
-            _path, filename = self._blocked
-            view.show_resume_blocked_notice(filename, self.reopen_blocked)
+            _path, target = self._blocked
+            view.show_resume_blocked_notice(_as_paths(target)[0], self.reopen_blocked)
         if self._missing:
             view.show_startup_open_failure_notice(self._missing)
 
@@ -177,15 +214,20 @@ class RecoveryController:
             if slot is not chosen:
                 slot.close()
         if chosen is None:
-            self.main_controller.open_file(filename)
+            if isinstance(filename, list) or os.path.isdir(filename):
+                self.main_controller.open_files(_as_paths(filename))
+            else:
+                self.main_controller.open_file(filename)
             return
         chosen.data['resume_attempts'] = 1
         chosen.write()
         self._resume = chosen
-        self.startup_file_opened(self._open_to_resume(chosen.document(DOCUMENT)['open_path']))
+        self.startup_file_opened(self._open_to_resume(_startup_target(_slot_target(chosen))))
 
     def _open_to_resume(self, path):
         sc = self.store_controller
+        if isinstance(path, list) or os.path.isdir(path):
+            return self.main_controller.open_files(_as_paths(path))
         if sc.store is not None and sc.opened_filename == path and not sc.is_modified():
             # The start-up file, opened as given: read it again unasked.
             sc.open_file(path)
@@ -198,28 +240,42 @@ class RecoveryController:
         when = slot.updated_at
         end_reason = slot.data.get('end_reason')
         position = slot.data.get('position')
-        doc = slot.document(DOCUMENT)
-        records = []
-        if self._replayable:
-            journal = slot.journal(DOCUMENT)
-            draft = doc.get('draft')
-            if draft and draft.get('after_seq', 0) >= journal.seq:
-                journal.append({key: draft.get(key) for key in _RECORD_KEYS})
-            records = journal.records()
-            self._baseline_ok = recovery.baseline_matches(doc['baseline'])
-        doc['draft'] = None
+        stream = self.store_controller.is_stream()
+        by_doc = {}
+        unplaced = 0
+        for doc_id, doc in slot.data['documents'].items():
+            if self._replayable or (stream and doc.get('baseline', {}).get('kind') == 'disk'):
+                journal = slot.journal(doc_id)
+                draft = doc.get('draft')
+                if draft and draft.get('after_seq', 0) >= journal.seq:
+                    journal.append({key: draft.get(key) for key in _RECORD_KEYS})
+                records = journal.records()
+                baseline_ok = recovery.baseline_matches(doc['baseline'])
+                if stream and not baseline_ok:
+                    # Changed since: there is no Save As to keep both.
+                    unplaced += len(recovery.latest_per_unit(records))
+                elif records:
+                    by_doc[doc_id] = records
+                if not stream:
+                    self._baseline_ok = baseline_ok
+            doc['draft'] = None
         slot.data['end_reason'] = None
         slot.write()
-        if records:
+        if by_doc:
             if end_reason or not ASK_BEFORE_REAPPLYING_AFTER_A_CRASH:
-                changed, unplaced = self._apply(records)
-                self.main_controller.view.show_restored_notice(len(changed), unplaced)
+                changed, not_placed = self._apply(by_doc)
+                self.main_controller.view.show_restored_notice(len(changed), unplaced + not_placed)
             else:
-                self._pending_upto = records[-1]['seq']
+                self._pending_upto = {
+                    doc_id: records[-1]['seq'] for doc_id, records in by_doc.items()
+                }
                 self._touched = set()
+                count = sum(len(recovery.latest_per_unit(r)) for r in by_doc.values())
                 self.main_controller.view.show_recovery_notice(
-                    len(recovery.latest_per_unit(records)), when, self.recover, self.discard
+                    count, when, self.recover, self.discard
                 )
+        elif unplaced:
+            self.main_controller.view.show_restored_notice(0, unplaced)
         if position:
             self._restore_position(position)
         GLib.timeout_add_seconds(STABLE_SECONDS, self._on_stable, slot)
@@ -231,15 +287,20 @@ class RecoveryController:
         units edited since."""
         if self._pending_upto is None:
             return
-        upto, self._pending_upto = self._pending_upto, None
+        pending, self._pending_upto = self._pending_upto, None
         self.main_controller.view.hide_recovery_notice()
         skip = set(self._touched)
         self._touched = set()
         current = self._unit_controller and self._unit_controller.current_unit
         if current is not None and getattr(current, '_modified', False):
-            skip.add(self._index_of(current))
-        records = [r for r in self.slot.journal(DOCUMENT).records() if r['seq'] <= upto]
-        changed, unplaced = self._apply(records, skip)
+            index = self._index_of(current)
+            if index is not None:
+                skip.add(self._document_of(index))
+        by_doc = {
+            doc_id: [r for r in self.slot.journal(doc_id).records() if r['seq'] <= upto]
+            for doc_id, upto in pending.items()
+        }
+        changed, unplaced = self._apply(by_doc, skip)
         if unplaced:
             self.main_controller.view.show_restored_notice(len(changed), unplaced)
 
@@ -249,18 +310,32 @@ class RecoveryController:
         and later edits stay."""
         if self._pending_upto is None:
             return
-        upto, self._pending_upto = self._pending_upto, None
+        pending, self._pending_upto = self._pending_upto, None
         self._touched = set()
         self.main_controller.view.hide_recovery_notice()
-        journal = self.slot.journal(DOCUMENT)
-        journal.rewrite([r for r in journal.records() if r['seq'] > upto])
+        for doc_id, upto in pending.items():
+            journal = self.slot.journal(doc_id)
+            journal.rewrite([r for r in journal.records() if r['seq'] > upto])
 
-    def _apply(self, records, skip=()):
-        """Replay records into the open store, with no unit-done: the
-        units are restored, not newly translated."""
+    def _apply(self, by_doc, skip=()):
+        """Replay each document's records into the open store, with no
+        unit-done: the units are restored, not newly translated. skip
+        holds (document, unit index in its file) pairs."""
         sc = self.store_controller
         store = sc.store
-        changed, unplaced = recovery.replay(store, records, skip)
+        changed = []
+        unplaced = 0
+        for doc_id, records in by_doc.items():
+            units, offset = self._document_units(doc_id)
+            if units is None:
+                unplaced += len(recovery.latest_per_unit(records))
+                continue
+            local_skip = {index for doc, index in skip if doc == doc_id}
+            doc_changed, doc_unplaced = recovery.replay(units, records, local_skip)
+            unplaced += doc_unplaced
+            changed += [offset + index for index in doc_changed]
+            if doc_changed and sc.is_stream():
+                store.mark_modified(offset)
         if not changed:
             return changed, unplaced
         if len(changed) > MAX_UNIT_STATS_UPDATES:
@@ -301,13 +376,59 @@ class RecoveryController:
             self._write_guarded(reset_attempts=True)
         return False
 
+    def _document_units(self, doc_id):
+        """(the units doc_id's records index, their first store index),
+        or (None, 0)."""
+        sc = self.store_controller
+        if not sc.is_stream():
+            return sc.store, 0
+        doc = self.slot.document(doc_id)
+        return self._file_units(doc and doc.get('open_path'))
+
+    def _file_units(self, path):
+        store = self.store_controller.store
+        for number, segment in enumerate(store.segments):
+            if segment.path == path:
+                return store.load_segment(number).model, segment.offset
+        return None, 0
+
+    def _document_of(self, index, create=False):
+        """(document, unit index in its file) for a store index. With
+        several files open, create makes the file's document."""
+        sc = self.store_controller
+        if not sc.is_stream():
+            return DOCUMENT, index
+        segment, local = sc.store.locate(index)
+        doc_id = _stream_document(segment.path)
+        if create and self.slot.document(doc_id) is None:
+            self.slot.set_document(
+                doc_id,
+                {
+                    'open_path': segment.path,
+                    'target_path': segment.path,
+                    'baseline': recovery.disk_baseline(segment.path),
+                    'force_saveas': False,
+                    'is_bundle': False,
+                    'format': segment.model.get_store_type(),
+                    'draft': None,
+                },
+            )
+            self.slot.journal(doc_id).truncate()
+        return doc_id, local
+
     def _restore_position(self, position):
         store = self.store_controller.store
-        index = recovery.locate(store, position, {})
+        units, offset = store, 0
+        if self.store_controller.is_stream():
+            units, offset = self._file_units(position.get('path'))
+            if units is None:
+                return
+        index = recovery.locate(units, position, {})
         if index is None:
             index = position.get('unit_index')
-            if not isinstance(index, int) or not 0 <= index < len(store):
+            if not isinstance(index, int) or not 0 <= index < len(units):
                 return
+        index += offset
         self._text_cursor = {
             'unit': store[index],
             'target_n': position.get('target_index') or 0,
@@ -387,12 +508,15 @@ class RecoveryController:
     # SLOT UPKEEP #
     @_guarded
     def _on_store_loaded(self, store_controller):
+        if store_controller.is_stream():
+            self._on_stream_loaded(store_controller.opened_paths)
+            return
         path = store_controller.opened_filename
         resume = self._resume
         if resume is not None:
             self._resume = None
             doc = resume.document(DOCUMENT)
-            if path and os.path.abspath(doc['open_path']) == path:
+            if path and doc and os.path.abspath(doc['open_path']) == path:
                 self._drop_slot()
                 self.slot = resume
                 self._replayable = doc.get('baseline', {}).get('kind') == 'disk'
@@ -412,6 +536,33 @@ class RecoveryController:
             return
         self.slot = recovery.Slot.create(self._root)
         self._new_document(path)
+        self._track_cursor()
+        self._write()
+
+    def _on_stream_loaded(self, paths):
+        resume = self._resume
+        if resume is not None:
+            self._resume = None
+            target = _slot_target(resume)
+            if isinstance(target, list) and _as_paths(target) == paths:
+                self._drop_slot()
+                self.slot = resume
+                self._replayable = False
+                self._adopted = True
+                self._track_cursor()
+                return
+            resume.close()
+        if not (self.slot and self.slot.data.get('stream', {}).get('paths') == paths):
+            self._drop_slot()
+            self.slot = recovery.Slot.create(self._root)
+            self.slot.data['stream'] = {'paths': paths}
+        # Opened or reverted: every file as read.
+        self._selecting = False
+        self._replayable = False
+        self._baseline_ok = True
+        self._end_pending()
+        for doc_id in list(self.slot.data['documents']):
+            self.slot.remove_document(doc_id)
         self._track_cursor()
         self._write()
 
@@ -446,6 +597,9 @@ class RecoveryController:
 
     @_guarded
     def _on_store_saved(self, store_controller):
+        if self.slot is not None and store_controller.is_stream():
+            self._on_stream_saved()
+            return
         doc = self.slot and self.slot.document(DOCUMENT)
         if not doc:
             return
@@ -464,14 +618,30 @@ class RecoveryController:
             if self._pending_upto is None:
                 journal.truncate()
             else:
-                upto = self._pending_upto
-                journal.rewrite(
-                    [
-                        r
-                        for r in journal.records()
-                        if r['seq'] <= upto and r.get('unit_index') not in self._touched
-                    ]
-                )
+                journal.rewrite(self._still_pending(DOCUMENT, self._pending_upto.get(DOCUMENT)))
+        self._write()
+
+    def _still_pending(self, doc_id, upto):
+        """The records the crash notice still offers, once saved."""
+        if upto is None:
+            return []
+        return [
+            r
+            for r in self.slot.journal(doc_id).records()
+            if r['seq'] <= upto and (doc_id, r.get('unit_index')) not in self._touched
+        ]
+
+    def _on_stream_saved(self):
+        # Every modified file was written: each is its own new baseline.
+        for doc_id in list(self.slot.data['documents']):
+            upto = (self._pending_upto or {}).get(doc_id)
+            if upto is None:
+                self.slot.remove_document(doc_id)
+                continue
+            doc = self.slot.document(doc_id)
+            doc['baseline'] = recovery.disk_baseline(doc['open_path'])
+            doc['draft'] = None
+            self.slot.journal(doc_id).rewrite(self._still_pending(doc_id, upto))
         self._write()
 
     @_guarded
@@ -533,7 +703,7 @@ class RecoveryController:
 
     @_guarded
     def _on_unit_done(self, unit_controller, unit, modified):
-        if not modified or self.slot is None or not self._replayable:
+        if not modified or self.slot is None or not self._journals():
             return
         sc = self.store_controller
         if sc.store is None:
@@ -541,13 +711,18 @@ class RecoveryController:
         index = self._index_of(unit)
         if index is None:
             return
-        record = dict(recovery.unit_key(unit, index), fields=recovery.unit_fields(unit))
-        self.slot.journal(DOCUMENT).append(record)
+        doc_id, local = self._document_of(index, create=True)
+        record = dict(recovery.unit_key(unit, local), fields=recovery.unit_fields(unit))
+        self.slot.journal(doc_id).append(record)
         if self._pending_upto is not None:
-            self._touched.add(index)
+            self._touched.add((doc_id, local))
         if self._sync_id is None:
             self._sync_id = GLib.timeout_add(SYNC_MS, self._on_sync, priority=GLib.PRIORITY_LOW)
         self.touch()
+
+    def _journals(self):
+        """Whether unit changes are journalled for replay."""
+        return self._replayable or self.store_controller.is_stream()
 
     def _on_sync(self):
         self._sync_id = None
@@ -570,17 +745,19 @@ class RecoveryController:
         return sc._unit_index(unit)
 
     def _draft(self):
-        """The unit being edited, if it has changes no journal line has."""
+        """(document, draft) for the unit being edited, if it has changes
+        no journal line has."""
         unit = self._unit_controller and self._unit_controller.current_unit
         if unit is None or not getattr(unit, '_modified', False):
             return None
         index = self._index_of(unit)
         if index is None:
             return None
+        doc_id, local = self._document_of(index, create=True)
         state = getattr(unit, '_current_state', None)
-        draft = dict(recovery.unit_key(unit, index), fields=recovery.unit_fields(unit, state))
-        draft['after_seq'] = self.slot.journal(DOCUMENT).seq
-        return draft
+        draft = dict(recovery.unit_key(unit, local), fields=recovery.unit_fields(unit, state))
+        draft['after_seq'] = self.slot.journal(doc_id).seq
+        return doc_id, draft
 
     # POSITION #
     def _on_controller_registered(self, main_controller, controller):
@@ -655,7 +832,10 @@ class RecoveryController:
             return None
         index = cursor.index
         unit = sc.store[index]
-        position = dict(recovery.unit_key(unit, index), document=DOCUMENT)
+        doc_id, local = self._document_of(index)
+        position = dict(recovery.unit_key(unit, local), document=doc_id)
+        if sc.is_stream():
+            position['path'] = sc.store.locate(index)[0].path
         position['target_index'] = 0
         position['text_offset'] = 0
         view = self._unit_controller and self._unit_controller.view
@@ -679,7 +859,11 @@ class RecoveryController:
         position = None if self._selecting else self._position()
         if position is not None:
             self.slot.data['position'] = position
-        doc = self.slot.document(DOCUMENT)
-        if doc is not None and self._replayable:
-            doc['draft'] = self._draft()
+        if self._journals():
+            for doc in self.slot.data['documents'].values():
+                doc['draft'] = None
+            draft = self._draft()
+            if draft is not None:
+                doc_id, record = draft
+                self.slot.document(doc_id)['draft'] = record
         self.slot.write()
