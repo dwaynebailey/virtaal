@@ -414,6 +414,21 @@ def test_a_missing_target_is_the_sources_layout_with_empty_segments():
     assert [u.target for u in store.units[:3]] == ['', '', 'Drei.']
 
 
+@pytest.mark.parametrize('has_target', [True, False])
+def test_editing_a_segment_keeps_the_seg_source_as_it_was(has_target):
+    # Word exports wrap a paragraph's segments in <g>, and other exports
+    # indent them with tabs; Trados compares <seg-source> as it is.
+    seg_source = '\t<g id="2">' + _mrk(1, 'One.') + ' ' + _mrk(2, 'Two.') + '</g>\n\t'
+    target = '\t<g id="2">' + _mrk(1) + ' ' + _mrk(2) + '</g>\n\t' if has_target else None
+    store = _split(seg_source, target)
+
+    store.units[1].target = 'Zwei.'
+
+    saved = bytes(store)
+    assert f'<seg-source>{seg_source}</seg-source>'.encode() in saved
+    assert ('<g id="2">' + _mrk(1) + ' ' + _mrk(2, 'Zwei.') + '</g>\n\t</target>').encode() in saved
+
+
 def test_a_state_change_adds_a_missing_segment_definition():
     unit = _split(_mrk(1, 'One.') + _mrk(2, 'Two.'), _mrk(1) + _mrk(2, 'Zwei.')).units[1]
 
