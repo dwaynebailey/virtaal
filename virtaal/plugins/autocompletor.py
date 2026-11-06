@@ -7,6 +7,7 @@
 
 """Contains the AutoCompletor class."""
 
+import itertools
 import re
 import unicodedata
 from collections import Counter, defaultdict
@@ -99,9 +100,12 @@ class AutoCompletor:
         if update:
             self._update_word_list()
 
-    def autocomplete(self, word):
+    def autocomplete(self, word, target=''):
+        """Complete word to one of the current unit's words, or else to a
+        long word typed elsewhere in C{target}."""
         folded = self.fold(word)
-        for w in self._word_list:
+        typed = [w for w in self.wordsep_re.split(target) if self.isusable(w)]
+        for w in itertools.chain(self._word_list, typed):
             if self.fold(w).startswith(folded):
                 return w, w[len(word) :]
         return None, ''
@@ -230,7 +234,8 @@ class AutoCompletor:
             lastword = self.wordsep_re.split(prefix)[-1]
             if len(lastword) < self.comp_len:
                 return
-            completed_word, word_postfix = self.autocomplete(lastword)
+            target = prefix[: len(prefix) - len(lastword)] + ' ' + postfix
+            completed_word, word_postfix = self.autocomplete(lastword, target)
 
         if completed_word and word_postfix:
             # Updating of the buffer is deferred until after this signal

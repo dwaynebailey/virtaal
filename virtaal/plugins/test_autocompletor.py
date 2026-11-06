@@ -455,6 +455,26 @@ def test_autocomplete_returns_none_and_empty_suffix_for_no_match():
     assert suffix == ''
 
 
+def test_autocomplete_offers_a_long_word_typed_elsewhere_in_the_target():
+    ac = _ac(comp_len=4)
+    ac.set_unit(_unit('Open it', ''))
+
+    assert ac.autocomplete('Hels', 'Ek woon in Helsinki en ') == ('Helsinki', 'inki')
+
+
+def test_autocomplete_prefers_the_units_words_to_typed_ones():
+    ac = _ac(comp_len=1)
+    ac.set_unit(_unit('Helsinki', ''))
+
+    assert ac.autocomplete('Hel', 'Hello ') == ('Helsinki', 'sinki')
+
+
+def test_autocomplete_keeps_the_usable_word_rule_for_typed_words():
+    ac = _ac(comp_len=4)
+
+    assert ac.autocomplete('Hel', 'Hello ') == (None, '')
+
+
 # clear_words() #
 
 
@@ -775,6 +795,37 @@ def test_on_insert_text_suggests_replacing_digits_typed_in_another_script(monkey
 
     scheduled[0]()
     assert textbox.suggestion == {'text': '২৩৪', 'offset': 1, 'replace': '১'}
+
+
+def test_on_insert_text_suggests_a_word_typed_earlier_in_the_target(monkeypatch):
+    ac = _ac(comp_len=4)
+    ac.set_unit(_unit('Hello', ''))
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append(f),
+    )
+    textbox, _ = _insert_text_box(
+        prefix='die vertaling en vert', suffix='', buffer_text='die vertaling en vertaling'
+    )
+    ac._textbox_insert_ids = {textbox: 'sigid'}
+
+    ac._on_insert_text(textbox, text='a', offset=21, elem=None)
+
+    scheduled[0]()
+    assert textbox.suggestion['text'] == 'ling'
+
+
+def test_on_insert_text_does_not_complete_the_typed_word_to_itself(monkeypatch):
+    ac = _ac(comp_len=4)
+    ac.set_unit(_unit('Hello', ''))
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda *a, **k: pytest.fail('must not suggest the word being typed'),
+    )
+    textbox, _ = _insert_text_box(prefix='Vertalin', suffix='')
+
+    ac._on_insert_text(textbox, text='g', offset=8, elem=None)
 
 
 def test_on_insert_text_ignores_a_space_even_with_fast_candidates():
