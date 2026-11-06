@@ -37,7 +37,8 @@ class _UnitMatcher(_matcher):
             return False
         if len(source) < 2:
             return False
-        candidate = self._shared.get((source, target))
+        key = (source, target)
+        candidate = self._shared.get(key)
         if candidate is not None:
             refs = [ref for ref in candidate.unit_refs if ref() is not None]
             if not any(ref() is unit for ref in refs):
@@ -46,21 +47,25 @@ class _UnitMatcher(_matcher):
             candidate.unit_refs = refs
             candidate.unit_ref = refs[0]
             return False
-        self._usable.append(unit)
-        return True
+        # Units of the same extendtm() call share a candidate too.
+        owners = self._batch.setdefault(key, [])
+        owners.append(unit)
+        return len(owners) == 1
 
     def extendtm(self, units, store=None, sort=True):
         # Upstream appends one candidate per usable unit, in order.
-        self._usable = []
+        self._batch = {}
         start = len(self.candidates.units)
         super().extendtm(units, store=store, sort=False)
-        for candidate, unit in zip(self.candidates.units[start:], self._usable, strict=True):
-            candidate.unit_key = (unit.source, unit.target)
-            candidate.unit_refs = [weakref.ref(unit)]
+        new = self.candidates.units[start:]
+        for candidate, (key, owners) in zip(new, self._batch.items(), strict=True):
+            candidate.unit_key = key
+            candidate.unit_refs = [weakref.ref(unit) for unit in owners]
             candidate.unit_ref = candidate.unit_refs[0]
-            self._shared[candidate.unit_key] = candidate
-            self._by_unit[id(unit)] = candidate
-        self._usable = []
+            self._shared[key] = candidate
+            for unit in owners:
+                self._by_unit[id(unit)] = candidate
+        self._batch = {}
         if sort:
             self.candidates.units.sort(key=match.sourcelen, reverse=self.sort_reverse)
 

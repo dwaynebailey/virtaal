@@ -564,3 +564,11 @@ def test_editing_a_unit_finds_its_candidate_without_a_scan():
 
     assert _CountingList.iterations == 0
     assert ('Nuwe bron', 100) in _offered(model, emitted, store.units[-1])
+
+
+def test_units_with_the_same_translation_share_one_candidate():
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', 'Maak oop'), (None, 'Open', '')])
+    model, emitted = _model_for(store)
+
+    assert len(model.matcher.candidates.units) == 1
+    assert _offered(model, emitted, store.units[2]) == [('Maak oop', 100)]
