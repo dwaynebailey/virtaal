@@ -99,11 +99,32 @@ class FakeUnitController:
 
 
 class FakeCursor:
-    def __init__(self):
+    def __init__(self, scope=None):
         self.forced = []
+        self.scope = scope
+        self.handlers = []
 
     def force_index(self, index):
         self.forced.append(index)
+
+    def in_scope(self, index):
+        return any(start <= index < end for start, end in self.scope)
+
+    def connect(self, _signal, handler):
+        self.handlers.append(handler)
+        return len(self.handlers)
+
+    def disconnect(self, _handler_id):
+        pass
+
+
+class FakeStream(FakeStore):
+    def __init__(self, units, starts):
+        super().__init__(units)
+        self._starts = starts
+
+    def file_offsets(self):
+        return [(start, None) for start in self._starts]
 
 
 def make_ribbon(
@@ -113,9 +134,11 @@ def make_ribbon(
     units=None,
     raise_no_store=False,
     raise_attribute_error=False,
+    starts=None,
 ):
+    store = FakeStore(units or []) if starts is None else FakeStream(units or [], starts)
     store_controller = FakeStoreController(
-        stats, checks, cursor, FakeStore(units or []), raise_no_store, raise_attribute_error
+        stats, checks, cursor, store, raise_no_store, raise_attribute_error
     )
     main_controller = FakeMainController(store_controller)
     scrolled_window = Gtk.ScrolledWindow()
@@ -280,3 +303,69 @@ def test_jump_to_y_noop_without_cursor():
     ribbon.get_allocation = lambda: SimpleNamespace(height=100)
 
     ribbon._jump_to_y(50)  # must not raise despite cursor being None
+
+
+# Several files #
+
+
+def _stream_ribbon(cursor=None):
+    stats = {'total': list(range(6))}
+    units = [FakeUnit(StateEnum.EMPTY) for _ in range(6)]
+    return make_ribbon(stats, {}, cursor=cursor, units=units, starts=[0, 2, 5])[0]
+
+
+def test_refresh_marks_numbers_each_units_file():
+    ribbon = _stream_ribbon()
+
+    assert [mark[0] for mark in ribbon._marks] == [0, 0, 1, 1, 1, 2]
+
+
+def test_divider_ys_are_where_each_later_file_starts():
+    ribbon = _stream_ribbon()
+
+    assert ribbon._divider_ys(60) == [20, 50]
+
+
+def test_divider_ys_leave_out_those_too_close_together():
+    stats = {'total': list(range(100))}
+    units = [FakeUnit(StateEnum.EMPTY) for _ in range(100)]
+    ribbon = make_ribbon(stats, {}, units=units, starts=list(range(100)))[0]
+
+    ys = ribbon._divider_ys(100)
+
+    assert len(ys) == 9
+    assert all(b - a >= 10 for a, b in zip(ys, ys[1:]))
+
+
+def test_refresh_marks_shows_only_the_files_chosen():
+    cursor = FakeCursor(scope=[(0, 2), (5, 6)])
+    ribbon = _stream_ribbon(cursor)
+
+    assert [(mark[0], mark[1]) for mark in ribbon._marks] == [(0, 0), (0, 1), (2, 5)]
+    assert ribbon._divider_ys(30) == [20]
+
+
+def test_choosing_other_files_refreshes_the_marks():
+    cursor = FakeCursor()
+    ribbon = _stream_ribbon(cursor)
+    assert len(ribbon._marks) == 6
+
+    cursor.scope = [(2, 5)]
+    for handler in cursor.handlers:
+        handler(cursor)
+
+    assert [mark[1] for mark in ribbon._marks] == [2, 3, 4]
+
+
+def test_mark_position_maps_a_row_to_its_units_mark():
+    cursor = FakeCursor(scope=[(0, 2), (5, 6)])
+    ribbon = _stream_ribbon(cursor)
+    # The list shows rows for units 0, 1 and 5 only.
+    rows = [0, 1, 5]
+    treeview = SimpleNamespace(
+        get_model=lambda: SimpleNamespace(path_to_store_index=lambda path: rows[path[0]])
+    )
+
+    position = ribbon._mark_position(treeview, Gtk.TreePath.new_from_indices([2]))
+
+    assert position == 2

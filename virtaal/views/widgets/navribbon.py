@@ -6,8 +6,11 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """A vertical strip beside the unit list showing, for the whole open
-file, which units are untranslated, fuzzy, failing a check, or in a
-post-translation workflow state - a Meld-style diff-overview map."""
+file or files, which units are untranslated, fuzzy, failing a check, or
+in a post-translation workflow state - a Meld-style diff-overview map.
+A line marks where each file starts."""
+
+from bisect import bisect_left
 
 import cairo
 from gi.repository import Gdk, Gtk
@@ -19,6 +22,9 @@ WIDTH = 10
 # Below this, per-unit marks would be too thin to read reliably, so
 # adjacent units get binned into one mark instead (see _on_draw()).
 MIN_MARK_HEIGHT = 2
+DIVIDER_WIDTH = 2
+# Many small files would otherwise stripe the whole ribbon.
+MIN_DIVIDER_GAP = 10
 
 # A unit failing a quality check isn't itself a workflow state (a unit
 # can be translated *and* fail a check), so it gets its own pseudo-key
@@ -58,11 +64,14 @@ class NavRibbon(Gtk.DrawingArea):
         super().__init__()
         self.main_controller = main_controller
         self.scrolled_window = scrolled_window
-        # Ordered (file_id, unit_index, state_key) rather than a bare
-        # (unit_index, state_key) - file_id is always 0 today, kept so
-        # future multi-file support only needs to populate it, not
-        # change this widget's rendering logic.
+        # Ordered (file_id, unit_index, state_key): file_id is the
+        # file's number when several files are open, else 0.
         self._marks = []
+        # Each mark's unit_index, for finding a unit's mark.
+        self._mark_indices = []
+        self._bound_cursor = None
+        self._cursor_handler_id = None
+        self._scope = None
         self._bound_store_controller = None
         self._store_handler_ids = []
         self._bound_unit_controller = None
@@ -118,10 +127,29 @@ class NavRibbon(Gtk.DrawingArea):
         self._on_store_changed(store_controller)
 
     def _on_store_changed(self, _store_controller):
+        self._bind_cursor(getattr(self.main_controller.store_controller, 'cursor', None))
         self._refresh_marks()
         self._marks_surface = None
         self.queue_draw()
         self._maybe_bind_unit_controller()
+
+    def _bind_cursor(self, cursor):
+        if cursor is self._bound_cursor:
+            return
+        if self._bound_cursor is not None:
+            self._bound_cursor.disconnect(self._cursor_handler_id)
+        self._bound_cursor = cursor
+        self._cursor_handler_id = None
+        if cursor is not None:
+            self._cursor_handler_id = cursor.connect('indices-changed', self._on_indices_changed)
+
+    def _on_indices_changed(self, cursor):
+        # Only the files chosen in the files panel change the marks.
+        if cursor.scope == self._scope:
+            return
+        self._refresh_marks()
+        self._marks_surface = None
+        self.queue_draw()
 
     def _maybe_bind_unit_controller(self):
         # UnitController is constructed once, before the first file ever
@@ -157,16 +185,21 @@ class NavRibbon(Gtk.DrawingArea):
 
     def _refresh_marks(self):
         self._marks = []
+        self._mark_indices = []
         store_controller = self.main_controller.store_controller
         try:
             stats = store_controller.get_store_stats()
-            units = store_controller.get_store().get_units()
+            store = store_controller.get_store()
+            units = store.get_units()
         except (AttributeError, ValueError):
             # AttributeError: 'controller-registered' fires from inside
             # StoreController.__init__(), synchronously, before that
             # constructor reaches its own "self.store = None" - a brand
             # new controller has no store yet either way.
             return
+        cursor = getattr(store_controller, 'cursor', None)
+        self._scope = getattr(cursor, 'scope', None)
+        starts = [offset for offset, _entry in getattr(store, 'file_offsets', list)()]
         try:
             # store.checks isn't computed until QualityCheckMode first
             # runs (mode selection or a save) - get_store_checks()
@@ -187,12 +220,18 @@ class NavRibbon(Gtk.DrawingArea):
         # unlike stats/checks, translated/fuzzy/workflow state doesn't
         # wait for a save to be accurate, so a click away from a unit
         # (_on_unit_done) is enough to refresh its mark's colour.
+        file_id = 0
         for index in stats['total']:
+            if self._scope is not None and not cursor.in_scope(index):
+                continue
+            while file_id + 1 < len(starts) and index >= starts[file_id + 1]:
+                file_id += 1
             if index in failing:
                 key = CHECK_FAILURE
             else:
                 key = units[index].get_state_n()
-            self._marks.append((0, index, key))  # file_id: always 0 today
+            self._marks.append((file_id, index, key))
+            self._mark_indices.append(index)
 
     # DRAWING #
 
@@ -218,13 +257,8 @@ class NavRibbon(Gtk.DrawingArea):
 
         if height >= total * MIN_MARK_HEIGHT:
             mark_height = height / total
-            prev_file_id = self._marks[0][0]
-            for i, (file_id, _unit_index, state_key) in enumerate(self._marks):
-                y = i * mark_height
-                self._paint_mark(cr, width, y, mark_height, state_key)
-                if file_id != prev_file_id:
-                    self._paint_divider(cr, width, y)
-                prev_file_id = file_id
+            for i, (_file_id, _unit_index, state_key) in enumerate(self._marks):
+                self._paint_mark(cr, width, i * mark_height, mark_height, state_key)
         else:
             bin_count = max(1, int(height // MIN_MARK_HEIGHT))
             bin_height = height / bin_count
@@ -234,8 +268,27 @@ class NavRibbon(Gtk.DrawingArea):
                 bin_marks = self._marks[start:end]
                 state_key = min((mark[2] for mark in bin_marks), key=lambda key: _SEVERITY[key])
                 self._paint_mark(cr, width, b * bin_height, bin_height, state_key)
+        # Over the marks, so a bin holding two files' units can't hide it.
+        for y in self._divider_ys(height):
+            self._paint_divider(cr, width, y)
 
         return surface
+
+    def _divider_ys(self, height):
+        """Where each file after the first starts, in pixels down the
+        ribbon, leaving out those closer than MIN_DIVIDER_GAP to the
+        one above."""
+        total = len(self._marks)
+        ys = []
+        last = 0
+        for i in range(1, total):
+            if self._marks[i][0] == self._marks[i - 1][0]:
+                continue
+            y = i * height / total
+            if y - last >= MIN_DIVIDER_GAP:
+                ys.append(y)
+                last = y
+        return ys
 
     def _paint_mark(self, cr, width, y, mark_height, state_key):
         rgba = str_to_rgba(current_theme[_THEME_KEYS[state_key]])
@@ -244,12 +297,11 @@ class NavRibbon(Gtk.DrawingArea):
         cr.fill()
 
     def _paint_divider(self, cr, width, y):
-        rgba = str_to_rgba(current_theme['subtle_fg'])
+        # The line the unit list draws above each file's name.
+        rgba = str_to_rgba(current_theme['context_gap'])
         cr.set_source_rgba(rgba.red, rgba.green, rgba.blue, rgba.alpha)
-        cr.set_line_width(1)
-        cr.move_to(0, y)
-        cr.line_to(width, y)
-        cr.stroke()
+        cr.rectangle(0, round(y) - DIVIDER_WIDTH // 2, width, DIVIDER_WIDTH)
+        cr.fill()
 
     def _paint_viewport(self, cr, width, height):
         total = len(self._marks)
@@ -268,17 +320,27 @@ class NavRibbon(Gtk.DrawingArea):
         visible = treeview.get_visible_range()
         if visible is None:
             return
-        start_index = visible[0].get_indices()[0]
-        end_index = visible[1].get_indices()[0]
+        start = self._mark_position(treeview, visible[0])
+        end = self._mark_position(treeview, visible[1])
 
         mark_height = height / total
-        box_y = start_index * mark_height
-        box_height = max((end_index - start_index + 1) * mark_height, 2)
+        box_y = start * mark_height
+        box_height = max((end - start + 1) * mark_height, 2)
 
         rgba = str_to_rgba(current_theme['ribbon_viewport_bg'])
         cr.set_source_rgba(rgba.red, rgba.green, rgba.blue, rgba.alpha)
         cr.rectangle(0, box_y, width, box_height)
         cr.fill()
+
+    def _mark_position(self, treeview, path):
+        """The position in the marks of the unit at the treeview's C{path}:
+        the list can show fewer rows than there are units."""
+        row = path.get_indices()[0]
+        model = treeview.get_model()
+        to_index = getattr(model, 'path_to_store_index', None)
+        index = to_index(path) if to_index is not None else row
+        position = bisect_left(self._mark_indices, index)
+        return min(position, len(self._marks) - 1)
 
     # INTERACTION #
 
