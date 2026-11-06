@@ -5,6 +5,11 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import os
+import xml.etree.ElementTree as ET
+
+from gi.repository import Gtk
+
 from virtaal.views.widgets.aboutdialog import AboutDialog
 
 
@@ -57,3 +62,15 @@ def test_the_program_name_is_virtaal_not_the_executable(monkeypatch):
     finally:
         dialog.destroy()
         parent.destroy()
+
+
+def test_metainfo_describes_virtaal_as_the_about_dialog_does():
+    # One message for both; the metainfo's lacked its subject (#4548).
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    metainfo = ET.parse(
+        os.path.join(root, 'share', 'metainfo', 'io.github.translate.Virtaal.metainfo.xml.in')
+    )
+    paragraphs = [' '.join(p.text.split()) for p in metainfo.iterfind('description/p')]
+    dialog = AboutDialog(Gtk.Window())
+
+    assert dialog.get_comments().split('\n\n')[1] in paragraphs

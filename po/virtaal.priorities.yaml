@@ -509,7 +509,6 @@ domains:
     - The correct use of capital letters are important in many languages. Translate this message with careful attention to write "Virtaal" with a capital letter.
     - The e-mail address stored in the file header
     - 'The following items were migrated:'
-    - The initial focus is on software translation (localization or l10n), but is definitely meant to be useful as a general purpose tool for Computer Aided Translation (CAT).
     - The initial focus is on software translation (localization or l10n), but we definitely intend it to be useful as a general purpose tool for Computer Aided Translation (CAT).
     - The name stored in the file header
     - The team information stored in the file header. This can be an e-mail address or a URL, for example.

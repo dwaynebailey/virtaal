@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 06:11+0000\n"
+"POT-Creation-Date: 2026-11-06 06:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -594,10 +594,11 @@ msgid ""
 msgstr ""
 
 #: share/metainfo/io.github.translate.Virtaal.metainfo.xml.in
+#: virtaal/views/widgets/aboutdialog.py
 msgid ""
-"The initial focus is on software translation (localization or l10n), but is "
-"definitely meant to be useful as a general purpose tool for Computer Aided "
-"Translation (CAT)."
+"The initial focus is on software translation (localization or l10n), but we "
+"definitely intend it to be useful as a general purpose tool for Computer "
+"Aided Translation (CAT)."
 msgstr ""
 
 #: share/metainfo/io.github.translate.Virtaal.metainfo.xml.in
@@ -2629,13 +2630,6 @@ msgstr ""
 #. additionally transliterate the name and to add a translation of "For Language", which is what the name means.
 #: virtaal/views/widgets/aboutdialog.py
 msgid "Virtaal is a program for doing translation."
-msgstr ""
-
-#: virtaal/views/widgets/aboutdialog.py
-msgid ""
-"The initial focus is on software translation (localization or l10n), but we "
-"definitely intend it to be useful as a general purpose tool for Computer "
-"Aided Translation (CAT)."
 msgstr ""
 
 #: virtaal/views/widgets/aboutdialog.py
