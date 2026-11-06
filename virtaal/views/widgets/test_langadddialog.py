@@ -50,12 +50,20 @@ def test_nplurals_setter_accepts_a_value():
     assert dialog.sbtn_nplurals.get_value() == 3
 
 
-def _dialog_with_langcode(code, name='Mmoqish'):
+def _add_plural_fields(dialog, nplurals=2, plural=''):
+    dialog.sbtn_nplurals = Gtk.SpinButton.new_with_range(1, 10, 1)
+    dialog.sbtn_nplurals.set_value(nplurals)
+    dialog.ent_plural = Gtk.Entry()
+    dialog.ent_plural.set_text(plural)
+
+
+def _dialog_with_langcode(code, name='Mmoqish', nplurals=2, plural=''):
     dialog = LanguageAddDialog.__new__(LanguageAddDialog)
     dialog.ent_langname = Gtk.Entry()
     dialog.ent_langname.set_text(name)
     dialog.ent_langcode = Gtk.Entry()
     dialog.ent_langcode.set_text(code)
+    _add_plural_fields(dialog, nplurals, plural)
     return dialog
 
 
@@ -117,6 +125,37 @@ def test_check_input_sanity_accepts_an_existing_language_being_edited():
     assert dialog.check_input_sanity() == ''
 
 
+@pytest.mark.parametrize(
+    'nplurals, plural',
+    [
+        (2, '('),
+        (2, 'n !='),
+        (2, '%'),
+        (3, 'nplurals=3; plural=n'),
+        (2, 'n'),  # forms 2 and up: msgfmt rejects the file
+        (3, '(n != 1)'),  # form 2 never used
+    ],
+)
+@pytest.mark.parametrize('editing', [False, True])
+def test_check_input_sanity_rejects_an_invalid_plural_equation(nplurals, plural, editing):
+    # #4354: these went into langs.ini and PO headers.
+    LanguageModel('en')
+    dialog = _dialog_with_langcode('af' if editing else 'qmm', nplurals=nplurals, plural=plural)
+    dialog._editing = editing
+
+    assert dialog.check_input_sanity() != ''
+
+
+@pytest.mark.parametrize(
+    'nplurals, plural',
+    [(2, ''), (2, '(n != 1)'), (1, '0'), (3, 'n%10==1 && n%100!=11 ? 0 : n%10>=2 ? 1 : 2')],
+)
+def test_check_input_sanity_accepts_a_valid_or_empty_plural_equation(nplurals, plural):
+    dialog = _dialog_with_langcode('qmm', nplurals=nplurals, plural=plural)
+
+    assert dialog.check_input_sanity() == ''
+
+
 class _FakeDialog:
     def __init__(self):
         self.calls = []
@@ -143,6 +182,7 @@ def _dialog_with_ok_button(code=''):
     dialog.ent_langname.set_text('Mmoqish')
     dialog.ent_langcode = Gtk.Entry()
     dialog.ent_langcode.set_text(code)
+    _add_plural_fields(dialog)
     dialog.btn_add_ok = Gtk.Button()
     dialog._update_ok_sensitivity()
     return dialog
@@ -164,6 +204,17 @@ def test_ok_button_becomes_sensitive_once_the_langcode_is_valid():
     assert dialog.btn_add_ok.get_tooltip_text() is None
 
 
+def test_ok_button_follows_the_plural_fields():
+    dialog = LanguageAddDialog()
+    dialog.langname, dialog.langcode, dialog.nplurals = 'Mmoqish', 'qmm', 3
+
+    dialog.plural = '(n != 1)'
+    assert dialog.btn_add_ok.get_sensitive() is False
+
+    dialog.nplurals = 2
+    assert dialog.btn_add_ok.get_sensitive() is True
+
+
 def test_insensitive_ok_button_says_why():
     dialog = _dialog_with_ok_button('e')
 
@@ -180,6 +231,7 @@ def test_run_shows_before_presenting():
     dialog.btn_add_ok = Gtk.Button()
     dialog.ent_langname = Gtk.Entry()
     dialog.ent_langcode = Gtk.Entry()
+    _add_plural_fields(dialog)
 
     dialog.run()
 

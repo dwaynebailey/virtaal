@@ -10,7 +10,7 @@ import re
 from gi.repository import GLib, Gtk
 from translate.lang import data
 
-from virtaal.models.langmodel import LanguageModel
+from virtaal.models.langmodel import LanguageModel, plural_forms
 from virtaal.views.baseview import BaseView
 
 
@@ -37,6 +37,8 @@ class LanguageAddDialog:
 
         self.ent_langname.connect('changed', self._on_input_changed)
         self.ent_langcode.connect('changed', self._on_input_changed)
+        self.ent_plural.connect('changed', self._on_input_changed)
+        self.sbtn_nplurals.connect('value-changed', self._on_input_changed)
         self._update_ok_sensitivity()
 
     def _get_widgets(self):
@@ -119,9 +121,13 @@ class LanguageAddDialog:
                 entry.set_sensitive(True)
 
     def check_input_sanity(self):
-        if self._editing:
-            return ''
+        if not self._editing:
+            error = self._check_name_and_code()
+            if error:
+                return error
+        return self._check_plural()
 
+    def _check_name_and_code(self):
         if not self.langname.strip():
             return _('Enter a language name.')
 
@@ -142,6 +148,16 @@ class LanguageAddDialog:
         if data.normalize_code(code) in {data.normalize_code(c) for c in LanguageModel.languages}:
             return _('Language code %s is already used.') % code
 
+        return ''
+
+    def _check_plural(self):
+        if not self.plural.strip():
+            return ''
+        forms = plural_forms(self.plural)
+        if forms is None:
+            return _('The plural expression is not valid.')
+        if forms != set(range(self.nplurals)):
+            return _('The plural expression does not match the number of plurals.')
         return ''
 
     # EVENT HANDLERS #

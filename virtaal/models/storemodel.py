@@ -21,7 +21,7 @@ from virtaal.support import (
 )
 
 from .basemodel import BaseModel
-from .langmodel import LanguageModel, same_language
+from .langmodel import LanguageModel, plural_forms, same_language
 
 
 def fix_indexes(stats, valid_units=None):
@@ -64,23 +64,15 @@ def _update_contributor(store, name, email=None):
         del header.addnote
 
 
-# Every n%10 and n%100 case; Breton's fourth form needs a multiple of a million.
-_PLURAL_SAMPLES = (*range(200), *(m * 10**k for k in range(3, 10) for m in range(1, 10)))
-
-
 @functools.cache
 def _usable_plural(nplurals, plural):
     """Whether gettext can read this plural equation and it gives exactly
-    the forms 0 to nplurals - 1. One entered in Add Missing Language or
-    Edit Translation Language isn't checked (#4351)."""
-    import gettext
-
+    the forms 0 to nplurals - 1."""
     try:
-        forms = {gettext.c2py(plural)(n) for n in _PLURAL_SAMPLES}
         expected = set(range(int(nplurals)))
-    except (TypeError, ValueError, ZeroDivisionError):
-        forms, expected = None, set()
-    if forms != expected:
+    except (TypeError, ValueError):
+        expected = None
+    if expected is None or plural_forms(plural) != expected:
         import logging
 
         logging.warning(

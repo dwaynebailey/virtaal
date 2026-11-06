@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import functools
 import logging
 
 from translate.lang import data
@@ -16,6 +17,20 @@ from virtaal.support.translate_compat import tr_lang
 from .basemodel import BaseModel
 
 gettext_lang = tr_lang(ui_language)
+
+# Every n%10 and n%100 case; Breton's fourth form needs a multiple of a million.
+_PLURAL_SAMPLES = (*range(200), *(m * 10**k for k in range(3, 10) for m in range(1, 10)))
+
+
+@functools.cache
+def plural_forms(plural):
+    """The forms a plural equation gives, or None if gettext can't read it."""
+    import gettext
+
+    try:
+        return frozenset(gettext.c2py(plural)(n) for n in _PLURAL_SAMPLES)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
 
 
 def same_language(code, langcode):

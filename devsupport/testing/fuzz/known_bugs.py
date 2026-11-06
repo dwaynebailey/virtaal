@@ -31,7 +31,6 @@ STRIPPED = [
 ]
 DIALOG_INI = [
     'addlang-name',
-    'addlang-plural',
     'lookup-name',
     'lookup-url',
     'translator-name',
@@ -72,10 +71,18 @@ KNOWN_BUGS = [
     ),
     dict(
         issue=4346,
-        sweep=['addlang-plural', 'translator-name', 'translator-email', 'translator-team'],
+        sweep=['translator-name', 'translator-email', 'translator-team'],
         kind='config-roundtrip',
         match='',
         cases=STRIPPED + BLANK[1:],
+    ),
+    # A plural expression that isn't blank is refused unless it is one.
+    dict(
+        issue=4346,
+        sweep='addlang-plural',
+        kind='config-roundtrip',
+        match='',
+        cases=BLANK[1:],
     ),
     # 5-15 s depending on the runner, so not required.
     dict(
