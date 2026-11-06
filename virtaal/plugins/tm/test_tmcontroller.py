@@ -117,6 +117,36 @@ def test_accept_response_scores_a_match_with_other_codes_99(unit_source, source_
     assert _tagged_response(unit_source, match) == quality
 
 
+@pytest.mark.parametrize(
+    ('unit_source', 'quality'),
+    [
+        # A TMX <b> holds its native code as text; an XLIFF <g> doesn't.
+        ('<g id="1">Save</g> %s files', 99),
+        ('<bpt id="1">&lt;b&gt;</bpt>Save<ept id="1">&lt;/b&gt;</ept> %s files', 99),
+        # No codes: 99 for the codes it lacks.
+        ('Save %s files', 99),
+    ],
+)
+def test_accept_response_scores_a_match_with_codes_without_their_native_code(unit_source, quality):
+    unit = xliff.xlifffile.parsestring((_XLIFF % unit_source).encode('utf-8')).units[0]
+    controller = _make_controller(current_query=unit.source)
+    controller.abstract_placeables = True
+    controller._queried_unit = unit
+    controller._accel_markers = lambda: ()
+    match = {
+        'source': '<b>Save</b> %d files',
+        'target': '<b>Stoor</b> %d lêers',
+        'quality': 99,
+        'raw_quality': 92,
+        'source_markup': '<bpt id="1">&lt;b&gt;</bpt>Save<ept id="1">&lt;/b&gt;</ept> %d files',
+        'target_markup': '<bpt id="1">&lt;b&gt;</bpt>Stoor<ept id="1">&lt;/b&gt;</ept> %d lêers',
+    }
+
+    controller.accept_response(_tmmodel(), unit.source, [match])
+
+    assert controller.matches[0]['quality'] == quality
+
+
 def test_accept_response_leaves_a_match_without_markup_at_100():
     assert _tagged_response('Click <g id="1">here</g>', {}) == 100
 

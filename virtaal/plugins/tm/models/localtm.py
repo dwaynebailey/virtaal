@@ -46,6 +46,8 @@ class TMModel(remotetm.TMModel):
     # without __init__ has no server to wait for.
     _server_ready = True
     _wait_id = None
+    # The plain source (inlinecodes.plain_source) of each query to send.
+    _plains = {}
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
@@ -175,6 +177,30 @@ class TMModel(remotetm.TMModel):
             send()
         else:
             self._waiting.append(send)
+
+    def query(self, tmcontroller, unit):
+        self._note_plain(unit)
+        super().query(tmcontroller, unit)
+
+    def prefetch(self, unit):
+        self._note_plain(unit)
+        super().prefetch(unit)
+
+    def _note_plain(self, unit):
+        """Keep unit's source without its codes' native code for its query."""
+        plain = inlinecodes.plain_source(unit)
+        if plain is not None:
+            self._plains = {**self._plains, unit.source: plain}
+
+    def _send(self, query_str):
+        params = self._params()
+        plain = self._plains.get(query_str)
+        if plain is not None:
+            self._plains = {k: v for k, v in self._plains.items() if k != query_str}
+            params['plain'] = plain
+        return self.tmclient.translate_unit(
+            query_str, self.source_lang, self.target_lang, self._handle_matches, params
+        )
 
     def configure(self, parent):
         from ..localtmdialog import LocalTMDialog

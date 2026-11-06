@@ -24,6 +24,19 @@ def _needs_suggestions(unit):
     return not unit.istranslated() and not sdlxliff_compat.is_locked(unit)
 
 
+def _plain_texts(unit, match):
+    """(query, source, target) of a match with inline codes for unit, of
+    a format with codes, without the codes' native code; else None."""
+    if unit is None or not match.get('source_markup') or not match.get('target_markup'):
+        return None
+    query = inlinecodes.plain_source(unit)
+    source = inlinecodes.plain_text(match['source_markup'])
+    target = inlinecodes.plain_text(match['target_markup'])
+    if None in (query, source, target):
+        return None
+    return query, source, target
+
+
 class TMController(BaseController):
     """The logic-filled glue between the TM view and -model."""
 
@@ -179,10 +192,10 @@ class TMController(BaseController):
         if query_str != self.current_query or not matches:
             return
         self._tidy_matches(tmmodel, query_str, matches)
+        unit = getattr(self, '_queried_unit', None)
         if self.abstract_placeables:
             accel_markers = self._accel_markers()
-            matches = [self._adapt(query_str, match, accel_markers) for match in matches]
-        unit = getattr(self, '_queried_unit', None)
+            matches = [self._adapt(query_str, match, accel_markers, unit) for match in matches]
         matches = [self._cap_for_codes(unit, match) for match in matches]
 
         anything_new = False
@@ -236,16 +249,22 @@ class TMController(BaseController):
         return tuple(getattr(getattr(checker, 'config', None), 'accelmarkers', None) or ())
 
     @staticmethod
-    def _adapt(query_str, match, accel_markers):
+    def _adapt(query_str, match, accel_markers, unit=None):
         """match, or a copy with its target rebuilt with the current unit's
         placeables and accelerator, and its quality rescored. Machine
-        translations (no quality) are left alone."""
+        translations (no quality) are left alone. A match with inline
+        codes for unit, with codes too, is scored on their texts without
+        the codes' native code, as the local TM scores it."""
         if not match.get('quality') or match.get('source') is None or not match.get('target'):
             return match
         source, target = forceunicode(match['source']), forceunicode(match['target'])
         # The local TM scored it on the abstracts already.
         raw_quality = match.get('raw_quality', match['quality'])
         adapted = abstraction.adapt(query_str, source, target, raw_quality, accel_markers)
+        plain = _plain_texts(unit, match)
+        if plain is not None:
+            quality = abstraction.adapt(*plain, raw_quality, accel_markers).quality
+            adapted = adapted._replace(quality=quality)
         if adapted.target == target and adapted.quality == match['quality']:
             return match
         logging.debug(

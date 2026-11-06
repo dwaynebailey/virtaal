@@ -395,6 +395,45 @@ def test_push_store_sends_an_xliff_units_inline_codes(tmp_path):
     ]
 
 
+def _querying_model():
+    model = _pushing_model()
+    model.checker = None
+    model.queries = []
+
+    def translate_unit(query_str, source_lang, target_lang, callback, params):
+        model.queries.append((query_str, params))
+        return SimpleNamespace(connect=lambda *a: None)
+
+    model.tmclient = SimpleNamespace(translate_unit=translate_unit)
+    return model
+
+
+TAGGED_XLIFF = (
+    b'<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">'
+    b'<file original="a" source-language="en" target-language="af" datatype="plaintext"><body>'
+    b'<trans-unit id="1"><source><bpt id="1">&lt;b&gt;</bpt>Save<ept id="1">&lt;/b&gt;</ept>'
+    b'</source></trans-unit>'
+    b'<trans-unit id="2"><source>Close</source></trans-unit>'
+    b'</body></file></xliff>'
+)
+
+
+def test_a_query_sends_a_tagged_units_plain_source():
+    model = _querying_model()
+    bold, close = xliff.xlifffile.parsestring(TAGGED_XLIFF).units
+
+    model.query(None, bold)
+    model.prefetch(close)
+    model.query(None, pypo.pounit('<b>Open</b>'))
+
+    assert model.queries == [
+        ('<b>Save</b>', {'plain': 'Save'}),
+        ('Close', {'plain': 'Close'}),
+        ('<b>Open</b>', {}),
+    ]
+    assert model._plains == {}
+
+
 def test_push_store_sends_each_file_of_several_under_its_own_key(tmp_path):
     model = _pushing_model()
     units = pypo.pofile.parsestring(PO).units

@@ -133,6 +133,25 @@ def test_plain_text_leaves_out_the_native_code(markup, plain):
     assert inlinecodes.plain_text(markup) == plain
 
 
+@pytest.mark.parametrize(
+    'unit, plain',
+    [
+        (_xliff_unit('<bpt id="1">&lt;b&gt;</bpt>Save<ept id="1">&lt;/b&gt;</ept>'), 'Save'),
+        (_xliff_unit('<g id="1">Save</g>'), 'Save'),
+        (_xliff_unit('Save &lt;b&gt;'), 'Save <b>'),
+        (
+            tmx.tmxfile.parsestring(
+                (TMX % ('<ph x="1">&lt;br/&gt;</ph>Save', 'Stoor')).encode('utf-8')
+            ).units[0],
+            'Save',
+        ),
+        (po.pounit('Save <b>it</b>'), None),
+    ],
+)
+def test_a_units_plain_source_is_for_formats_with_codes(unit, plain):
+    assert inlinecodes.plain_source(unit) == plain
+
+
 def _rebuilt(source_markup, target_markup, unit_source):
     rich = inlinecodes.rebuild(source_markup, target_markup, _rich_source(unit_source))
     return None if rich is None else inlinecodes.from_elem(rich, force=True)

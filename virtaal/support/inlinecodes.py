@@ -221,6 +221,16 @@ def plain_text(markup):
     return _plain(node)
 
 
+def plain_source(unit):
+    """The source of unit, of a format with inline codes, without the
+    native code of its codes; None for a unit of another format."""
+    if not holds_codes(unit):
+        return None
+    markup = unit_markup(unit)[0]
+    text = plain_text(markup) if markup is not None else None
+    return text if text is not None else unit.source
+
+
 def pair(source_elem, target_elem):
     """(source markup, target markup) for a unit's rich source and target
     strings, or (None, None) if neither holds a code."""
