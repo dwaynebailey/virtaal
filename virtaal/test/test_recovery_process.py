@@ -50,6 +50,8 @@ msgstr ""
 DRIVER = textwrap.dedent(
     r'''
     import json, os, signal, sys, time
+    import gi
+    gi.require_version('Gtk', '3.0')
     from gi.repository import GLib, Gtk
     from virtaal.common import pan_app
 
