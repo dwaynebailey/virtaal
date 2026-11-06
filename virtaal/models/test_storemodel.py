@@ -736,3 +736,54 @@ def test_get_plural_problem_ignores_a_file_without_plural_forms(tmp_path):
     path.write_bytes(_OLD_PO)
 
     assert StoreModel(str(path), _FakeController()).get_plural_problem() is None
+
+
+def test_saving_puts_added_header_fields_in_gettext_order(tmp_path, monkeypatch):
+    from virtaal.common import pan_app
+
+    monkeypatch.setattr(pan_app.settings, 'write', lambda: None)
+    monkeypatch.setattr(pan_app.settings, 'translator', {})
+    path = tmp_path / "order.po"
+    path.write_bytes(
+        b'msgid ""\nmsgstr ""\n"MIME-Version: 1.0\\n"\n'
+        b'"Content-Type: text/plain; charset=UTF-8\\n"\n'
+        b'"Content-Transfer-Encoding: 8bit\\n"\n"Language: de\\n"\n'
+        b'\nmsgid "Hello"\nmsgstr "Hallo"\n'
+    )
+    controller = _SavingController("de")
+    controller.main_controller.get_translator_details = lambda: ("Ann", "ann@example.org", "German")
+    model = StoreModel(str(path), controller)
+
+    model.save_file()
+
+    header = StoreModel(str(path), _FakeController())._trans_store.parseheader()
+    assert list(header) == [
+        "PO-Revision-Date",
+        "Last-Translator",
+        "Language-Team",
+        "MIME-Version",
+        "Content-Type",
+        "Content-Transfer-Encoding",
+        "Language",
+        "Plural-Forms",
+        "X-Generator",
+    ]
+
+
+def test_saving_keeps_the_order_of_existing_header_fields(tmp_path, monkeypatch):
+    header = _save_po(
+        tmp_path,
+        monkeypatch,
+        b'"X-Generator: Other\\n"\n"Language: de\\n"\n"Plural-Forms: nplurals=2; plural=(n != 1);\\n"\n'
+        b'"PO-Revision-Date: 2020-01-01 00:00+0000\\n"\n',
+        "de",
+    )
+
+    assert list(header) == [
+        "Content-Type",
+        "X-Generator",
+        "Language",
+        "Plural-Forms",
+        "PO-Revision-Date",
+        "Content-Transfer-Encoding",
+    ]

@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import contextlib
 import functools
 import os
 
@@ -63,6 +64,57 @@ def _update_contributor(store, name, email=None):
         store.updatecontributor(name, email)
     finally:
         del header.addnote
+
+
+# The order gettext's msginit writes header fields in.
+_GETTEXT_HEADER_ORDER = (
+    "Project-Id-Version",
+    "Report-Msgid-Bugs-To",
+    "POT-Creation-Date",
+    "PO-Revision-Date",
+    "Last-Translator",
+    "Language-Team",
+    "Language",
+    "MIME-Version",
+    "Content-Type",
+    "Content-Transfer-Encoding",
+    "Plural-Forms",
+)
+
+
+def _gettext_position(keys, key):
+    """Where in the header field list C{keys} gettext puts C{key}: after the
+    last field it puts before C{key}, else before the first it puts after."""
+    if key not in _GETTEXT_HEADER_ORDER:
+        return len(keys)
+    rank = _GETTEXT_HEADER_ORDER.index(key)
+    ranks = [
+        (n, _GETTEXT_HEADER_ORDER.index(k))
+        for n, k in enumerate(keys)
+        if k in _GETTEXT_HEADER_ORDER
+    ]
+    earlier = [n for n, r in ranks if r < rank]
+    if earlier:
+        return max(earlier) + 1
+    later = [n for n, r in ranks if r > rank]
+    return min(later) if later else 0
+
+
+@contextlib.contextmanager
+def _added_fields_in_gettext_order(store):
+    """Header fields added inside this block go where gettext puts them;
+    translate-toolkit appends them. Existing fields don't move."""
+    before = list(store.parseheader()) if store.header() else None
+    yield
+    if before is None:
+        return
+    items = store.parseheader()
+    keys = [key for key in before if key in items]
+    for key in items:
+        if key not in keys:
+            keys.insert(_gettext_position(keys, key), key)
+    if keys != list(items):
+        store.header().target = "".join(f"{key}: {items[key]}\n" for key in keys)
 
 
 @functools.cache
@@ -147,19 +199,22 @@ class StoreModel(BaseModel):
         old_langcode = self._trans_store.gettargetlanguage()
         if same_language(old_langcode, langcode):
             return False
-        self._trans_store.settargetlanguage(langcode)
         from translate.storage.poheader import poheader
 
-        lang = LanguageModel(langcode)
-        # Plural forms declared without a language are taken to be this one's.
-        if (
-            isinstance(self._trans_store, poheader)
-            and lang.plural
-            and (old_langcode or self.get_declared_nplurals() is None)
-            and _usable_plural(lang.nplurals, lang.plural)
-        ):
-            self._trans_store.updateheaderplural(lang.nplurals, lang.plural)
-            self.nplurals = self._compute_nplurals(self._trans_store)
+        if not isinstance(self._trans_store, poheader):
+            self._trans_store.settargetlanguage(langcode)
+            return True
+        with _added_fields_in_gettext_order(self._trans_store):
+            self._trans_store.settargetlanguage(langcode)
+            lang = LanguageModel(langcode)
+            # Plural forms declared without a language are taken to be this one's.
+            if (
+                lang.plural
+                and (old_langcode or self.get_declared_nplurals() is None)
+                and _usable_plural(lang.nplurals, lang.plural)
+            ):
+                self._trans_store.updateheaderplural(lang.nplurals, lang.plural)
+                self.nplurals = self._compute_nplurals(self._trans_store)
         return True
 
     def get_store_type(self):
@@ -524,13 +579,14 @@ class StoreModel(BaseModel):
             project_code = self.controller.main_controller.checks_controller.code
             if project_code:
                 header_updates["X-Project-Style"] = project_code
-            self._trans_store.updateheader(add=True, **header_updates)
+            with _added_fields_in_gettext_order(self._trans_store):
+                self._trans_store.updateheader(add=True, **header_updates)
 
-            # A file's own plural forms stay: its msgstr order follows them.
-            if (
-                target_lang.plural
-                and self.get_declared_nplurals() is None
-                and _usable_plural(target_lang.nplurals, target_lang.plural)
-            ):
-                self._trans_store.updateheaderplural(target_lang.nplurals, target_lang.plural)
-                self.nplurals = self._compute_nplurals(self._trans_store)
+                # A file's own plural forms stay: its msgstr order follows them.
+                if (
+                    target_lang.plural
+                    and self.get_declared_nplurals() is None
+                    and _usable_plural(target_lang.nplurals, target_lang.plural)
+                ):
+                    self._trans_store.updateheaderplural(target_lang.nplurals, target_lang.plural)
+                    self.nplurals = self._compute_nplurals(self._trans_store)
