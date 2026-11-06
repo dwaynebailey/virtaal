@@ -10,7 +10,10 @@ with the singular source, so msgstr[1] "%(num)s projekter" for msgid_plural
 "%(num)s projects" reported an added variable and brackets (#3279). Here
 msgstr[0] is checked against msgid and the other forms against
 msgid_plural, as msgfmt does; a translation with one form stands for
-every number, so it is checked against msgid_plural."""
+every number, so it is checked against msgid_plural.
+
+A plural is only unchanged when every form is: a singular left the same
+as msgid next to a translated plural is not flagged (#3328)."""
 
 from translate.filters.checks import FilterFailure, TranslationChecker
 from translate.lang import data
@@ -35,14 +38,17 @@ def run_test(self, test, unit):
     if sources is None:
         return _run_test(self, test, unit)
     messages = []
-    result = True
+    failed = 0
     for source, form in zip(sources, forms, strict=True):
         try:
             if not test(source, str(form)):
-                result = False
+                failed += 1
         except FilterFailure as e:
-            result = False
+            failed += 1
             messages += [m for m in e.messages if m not in messages]
+    if getattr(test, '__name__', None) == 'unchanged' and failed < len(forms):
+        return True
+    result = not failed
     if not result and messages:
         raise FilterFailure(messages)
     return result

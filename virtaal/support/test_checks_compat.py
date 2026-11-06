@@ -44,16 +44,45 @@ def test_a_plural_form_missing_a_variable_still_fails(checker):
     assert 'printf' in checker.run_filters(unit)
 
 
-def test_msgstr1_is_unchanged_against_msgid_plural(checker):
+def test_a_plural_with_only_msgstr1_unchanged_is_not_unchanged(checker):
     unit = _unit(
         'msgid "Open file"\nmsgid_plural "Open files"\n'
         'msgstr[0] "Maak leer oop"\nmsgstr[1] "Open files"\n'
     )
 
-    assert checker.run_filters(unit)['unchanged'] == 'Consider translating'
+    assert 'unchanged' not in checker.run_filters(unit)
 
 
 def test_a_translation_with_one_form_is_checked_against_msgid_plural(checker):
     unit = _unit('msgid "One file"\nmsgid_plural "%(num)s files"\nmsgstr[0] "%(num)s leers"\n')
 
     assert checker.run_filters(unit) == {}
+
+
+def test_a_plural_with_only_its_singular_unchanged_is_not_unchanged(checker):
+    # #3328's own example.
+    unit = _unit(
+        'msgid "%{text} %{files}"\nmsgid_plural "%{text} %{files} files"\n'
+        'msgstr[0] "%{text} %{files}"\nmsgstr[1] "%{text} %{files} filer"\n'
+    )
+
+    assert 'unchanged' not in checker.run_filters(unit)
+
+
+def test_a_plural_with_every_form_unchanged_is_unchanged(checker):
+    unit = _unit(
+        'msgid "Open file"\nmsgid_plural "Open files"\n'
+        'msgstr[0] "Open file"\nmsgstr[1] "Open files"\n'
+    )
+
+    assert checker.run_filters(unit)['unchanged'] == 'Consider translating'
+
+
+@pytest.mark.parametrize(
+    'target, unchanged',
+    [('Open files', True), ('Open file', False), ('Maak leers oop', False)],
+)
+def test_a_one_form_translation_is_unchanged_against_msgid_plural(checker, target, unchanged):
+    unit = _unit(f'msgid "Open file"\nmsgid_plural "Open files"\nmsgstr[0] "{target}"\n')
+
+    assert ('unchanged' in checker.run_filters(unit)) is unchanged
