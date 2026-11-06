@@ -12,7 +12,7 @@ import zipfile
 
 import pytest
 from test_scaffolding import TestScaffolding
-from translate.storage import factory, workflow
+from translate.storage import factory, lisa, workflow
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.models.langmodel import LanguageModel
@@ -135,6 +135,10 @@ class TestStoreOpenSave(TestScaffolding):
 
         assert _target_state(str(path), 'Open') == workflow.StateEnum.NEEDS_WORK
 
+    @pytest.mark.skipif(
+        not hasattr(lisa, 'MultilingualLISAunit'),
+        reason='translate-toolkit before 3.18 finds a tuv by position, not language',
+    )
     def test_a_tmx_is_read_and_saved_in_the_target_language(self, tmp_path, monkeypatch):
         # A TMX names no target language; it holds one per tuv.
         monkeypatch.setattr(self.lang_controller, '_target_lang', LanguageModel('af'))
