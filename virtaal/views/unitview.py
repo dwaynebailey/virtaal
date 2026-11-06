@@ -7,6 +7,7 @@
 
 import logging
 import re
+from typing import NamedTuple
 
 from gi.repository import Gdk, GLib, GObject, Gtk
 from gi.repository.GObject import TYPE_PYOBJECT
@@ -65,6 +66,15 @@ def _clipboard_widgets(widgets):
     if isinstance(focus, (Gtk.Editable, Gtk.TextView)):
         return None, focus
     return None, None
+
+
+class Copied(NamedTuple):
+    """Text copied from a unit's text box."""
+
+    unit: object
+    source: str
+    """The source form the text goes with."""
+    text: str
 
 
 def _programmer_notes(unit):
@@ -210,6 +220,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         tbl_editor.set_margin_end(rendering.UNIT_MARGIN)
         self._setup_menus()
         self.unit = None
+        self.copied = None
+        self._copying = False
 
     def _setup_menus(self):
         maingui = self.controller.main_controller.view.gui
@@ -290,31 +302,64 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
     def _on_cut(self, menuitem):
         focused, other = _clipboard_widgets(self.targets)
-        if other is not None:
-            other.emit('cut-clipboard')
-        elif focused is not None:
-            clipboard = Gtk.Clipboard.get(selection=Gdk.SELECTION_CLIPBOARD)
-            focused.get_buffer().cut_clipboard(clipboard, True)
+        widget = focused if other is None else other
+        if widget is not None:
+            widget.emit('cut-clipboard')
 
     def _on_copy(self, menuitem):
         focused, other = _clipboard_widgets(self.targets + self.sources)
         if other is not None:
             other.emit('copy-clipboard')
         elif focused is not None:
-            clipboard = Gtk.Clipboard.get(selection=Gdk.SELECTION_CLIPBOARD)
             if focused.get_buffer().get_has_selection():
-                focused.get_buffer().copy_clipboard(clipboard)
+                focused.emit('copy-clipboard')
             else:
                 # Nothing selected: copy the source.
-                clipboard.set_text(focused.selector_textbox.get_text(), -1)
+                text = focused.selector_textbox.get_text()
+                Gtk.Clipboard.get(selection=Gdk.SELECTION_CLIPBOARD).set_text(text, -1)
+                self._record_copy(focused.selector_textbox, text)
 
     def _on_paste(self, menuitem):
         focused, other = _clipboard_widgets(self.targets)
-        if other is not None:
-            other.emit('paste-clipboard')
-        elif focused is not None:
-            clipboard = Gtk.Clipboard.get(selection=Gdk.SELECTION_CLIPBOARD)
-            focused.get_buffer().paste_clipboard(clipboard, None, True)
+        widget = focused if other is None else other
+        if widget is not None:
+            widget.emit('paste-clipboard')
+
+    def _on_textbox_copying(self, textbox):
+        # With nothing selected, GTK leaves the clipboard as it was.
+        self._copying = textbox.get_buffer().get_has_selection()
+
+    def _on_textbox_copied(self, textbox):
+        if self._copying:
+            self._copying = False
+            self._record_copy(textbox, self.clipboard_text())
+
+    def _record_copy(self, textbox, text):
+        if self.unit is None or not text:
+            self.copied = None
+        else:
+            self.copied = Copied(self.unit, self.source_text(textbox), text)
+
+    def source_text(self, textbox):
+        """The form of the unit's source that C{textbox}'s text goes with."""
+        if textbox in self.sources:
+            index = self.sources.index(textbox)
+        else:
+            index = textbox.selector_textboxes.index(textbox.selector_textbox)
+        forms = getattr(self.unit.source, 'strings', None) or [self.unit.source]
+        return str(forms[min(index, len(forms) - 1)])
+
+    def clipboard_text(self):
+        """The clipboard's text, or None."""
+        return Gtk.Clipboard.get(selection=Gdk.SELECTION_CLIPBOARD).wait_for_text()
+
+    def paste_instead(self, target_num, text):
+        """Paste C{text} into target C{target_num} in place of the
+        clipboard's text, from a C{paste-start} handler."""
+        textbox = self.targets[target_num]
+        if textbox.get_editable():
+            textbox.stop_emission_by_name('paste-clipboard')
+            textbox.insert_text(text)
 
     def _on_next_placeable(self, *args):
         if not dialog_active(self.targets[self.focused_target_n]):
@@ -340,6 +385,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         return sdlxliff_compat.is_locked(self.unit)
 
     def _on_store_closed(self, *args):
+        self.copied = None
         self.mnu_next.set_sensitive(False)
         self.mnu_prev.set_sensitive(False)
         self.mnu_transfer.set_sensitive(False)
@@ -720,6 +766,9 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         textbox.connect('focus-in-event', self._on_textbox_focused)
         textbox.connect('focus-out-event', self._on_textbox_unfocused)
         textbox.connect('populate-popup', self._on_populate_popup)
+        for signal in ('copy-clipboard', 'cut-clipboard'):
+            textbox.connect(signal, self._on_textbox_copying)
+            textbox.connect_after(signal, self._on_textbox_copied)
         textbox.get_buffer().connect(
             'notify::has-selection', lambda *args: self._update_edit_menu_sensitivity()
         )

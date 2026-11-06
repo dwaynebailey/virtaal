@@ -152,6 +152,12 @@ can replace your translation with the original text by pressing
 the original text without changing it, press :kbd:`Ctrl+C` with nothing
 selected and paste it with :kbd:`Ctrl+V`.
 
+Text copied from one string and pasted into another takes the other string's
+placeables: "Maak %s oop", copied from the translation of "Open %s", pastes into
+the translation of "Open %d" as "Maak %d oop". This happens only when both
+originals have the same number of each kind of placeable; otherwise the text is
+pasted as it is.
+
 For some languages, you will see how Virtaal automatically changes the
 punctuation marks to fit the conventions of your language. This could involve
 quotation or other punctuation marks, or the spacing between certain elements.

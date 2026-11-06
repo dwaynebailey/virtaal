@@ -338,3 +338,29 @@ def test_import_needs_no_gtk():
 
 def test_the_version_is_one():
     assert abstraction.ABSTRACTION_VERSION == 1
+
+
+@pytest.mark.parametrize(
+    ('text', 'from_source', 'to_source', 'expected'),
+    [
+        ('Maak %s oop', 'Open %s', 'Open %d', 'Maak %d oop'),
+        # In the translation's order.
+        (
+            '%(count)d lêers in %(dir)s',
+            '%(dir)s has %(count)d files',
+            '%(folder)s has %(n)d files',
+            '%(n)d lêers in %(folder)s',
+        ),
+        ('Klik <b>hier</b>', 'Click <b>here</b>', 'Click <i>here</i>', 'Klik <i>hier</i>'),
+        # Nothing to change.
+        ('Maak %s oop', 'Open %s', 'Open %s now', None),
+        ('Maak oop', 'Open %s', 'Open %d', None),
+        # Not one to one.
+        ('Maak %s oop', 'Open %s', 'Open %d of %s', None),
+        ('Maak %s oop', 'Open %s', 'Open it', None),
+        # A placeable the source doesn't have.
+        ('Maak %s en %d oop', 'Open %s', 'Open %d', None),
+    ],
+)
+def test_transfer(text, from_source, to_source, expected):
+    assert abstraction.transfer(text, from_source, to_source) == expected

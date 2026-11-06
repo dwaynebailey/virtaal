@@ -321,6 +321,22 @@ def rebuild(target, source_placeables, query_placeables, query_accelerator=None,
     return Rebuilt(''.join(out), rebuilt, unresolved, new_marker is not None)
 
 
+def transfer(text, from_source, to_source):
+    """text, which goes with from_source, given to_source's placeables in
+    place of from_source's ("Maak %s oop" from "Open %s" to "Open %d" is
+    "Maak %d oop"). None unless that changes text and maps cleanly: both
+    sources have as many placeables of each class, and each of text's
+    has its counterpart."""
+    from_placeables = placeables(from_source)
+    to_placeables = placeables(to_source)
+    if Counter(p.marker for p in from_placeables) != Counter(p.marker for p in to_placeables):
+        return None
+    result = rebuild(text, from_placeables, to_placeables)
+    if result.unresolved or not result.rebuilt:
+        return None
+    return result.text
+
+
 _comparer = LevenshteinComparer(max_len=1000)
 
 

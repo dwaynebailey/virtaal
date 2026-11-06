@@ -256,6 +256,15 @@ class _FakeEditableTextbox:
     def move_elem_selection(self, direction):
         self.move_calls.append(direction)
 
+    def emit(self, signal):
+        # GtkTextView's own handlers for its clipboard signals.
+        if signal == 'cut-clipboard':
+            self.buffer.cut_clipboard(None, True)
+        elif signal == 'copy-clipboard':
+            self.buffer.copy_clipboard(None)
+        elif signal == 'paste-clipboard':
+            self.buffer.paste_clipboard(None, None, True)
+
 
 @pytest.fixture(autouse=True)
 def no_active_dialog(monkeypatch):
@@ -396,6 +405,7 @@ def test_copy_with_nothing_selected_copies_the_source(monkeypatch):
     source = _FakeEditableTextbox(text='%s files copied')
     target = _FakeEditableTextbox(focused=True, has_selection=False, selector_textbox=source)
     view._widgets = {'targets': [target], 'sources': [source]}
+    view.unit = None
 
     view._on_copy(None)
 

@@ -11,6 +11,7 @@ from translate.storage import workflow
 from translate.storage.workflow import UnitState, Workflow
 
 from virtaal.common import GObjectWrapper
+from virtaal.support import abstraction
 
 from .basecontroller import BaseController
 
@@ -66,6 +67,7 @@ class UnitController(BaseController):
         self.view.connect('delete-text', self._unit_delete_text)
         self.view.connect('insert-text', self._unit_insert_text)
         self.view.connect('paste-start', self._unit_paste_start)
+        self.connect('unit-paste-start', self._adapt_pasted_placeables)
         self.view.connect('modified', self._unit_modified)
         self.view.connect('unit-done', self._unit_done)
         self.view.enable_signals()
@@ -175,6 +177,21 @@ class UnitController(BaseController):
 
     def _unit_paste_start(self, unitview, old_text, offsets, target_num):
         self.emit('unit-paste-start', self.current_unit, old_text, offsets, target_num)
+
+    def _adapt_pasted_placeables(self, _controller, unit, _old_text, _offsets, target_num):
+        """Text copied from another unit takes this unit's placeables in
+        place of that unit's ("Maak %s oop" from "Open %s" into "Open %d"
+        pastes "Maak %d oop")."""
+        copied = self.view.copied
+        if copied is None or unit is None or copied.unit is unit:
+            return
+        text = self.view.clipboard_text()
+        if text != copied.text:
+            return
+        source = self.view.source_text(self.view.targets[target_num])
+        adapted = abstraction.transfer(text, copied.source, source)
+        if adapted is not None:
+            self.view.paste_instead(target_num, adapted)
 
     def _unit_modified(self, *args):
         self.emit('unit-modified', self.current_unit)
