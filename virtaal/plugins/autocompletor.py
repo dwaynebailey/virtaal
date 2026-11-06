@@ -38,13 +38,24 @@ def _combining_marks():
     )
 
 
-_SPACES = '\u00a0\u2007\u2009\u202f'
-_FOLD = {ord(c): ' ' for c in _SPACES}
-_FOLD.update(
-    (code, str(unicodedata.decimal(chr(code))))
-    for code in range(0x20000)
-    if unicodedata.decimal(chr(code), None) is not None and not 0x30 <= code <= 0x39
-)
+def _fold_table():
+    """str.translate() table for AutoCompletor.fold()."""
+    table = {ord(c): ' ' for c in '\u00a0\u2007\u2009\u202f'}
+    for code in range(0x20000):
+        char = chr(code)
+        digit = unicodedata.decimal(char, None)
+        if digit is not None and not 0x30 <= code <= 0x39:
+            table[code] = str(digit)
+        elif len(char.lower()) == 1 and char.lower() != char:
+            table[code] = char.lower()
+    return table
+
+
+_FOLD = _fold_table()
+_WORD_CHARS = r'\w' + _combining_marks()
+# What ends a sentence: ., !, ?, … and the Armenian, Arabic, Urdu,
+# Devanagari, Ethiopic, CJK and full-width ones.
+_SENTENCE_ENDS = '.!?…։؟۔।॥።。！？'
 
 
 class AutoCompletor:
@@ -55,7 +66,8 @@ class AutoCompletor:
     nothing from other units is offered.
     """
 
-    wordsep_re = re.compile(r'[^\w%s]+' % _combining_marks())
+    wordsep_re = re.compile(r'[^%s]+' % _WORD_CHARS)
+    word_re = re.compile(r'[%s]+' % _WORD_CHARS)
 
     # Variables the placeables parsers leave out: {name}, {{ name }},
     # ${name}, $name and %{name}.
@@ -100,13 +112,16 @@ class AutoCompletor:
         if update:
             self._update_word_list()
 
-    def autocomplete(self, word, target=''):
+    def autocomplete(self, word, target='', at_start=False):
         """Complete word to one of the current unit's words, or else to a
-        long word typed elsewhere in C{target}."""
+        long word typed elsewhere in C{target}, ignoring case: see
+        L{_cased()}."""
         folded = self.fold(word)
         typed = [w for w in self.wordsep_re.split(target) if self.isusable(w)]
         for w in itertools.chain(self._word_list, typed):
-            if self.fold(w).startswith(folded):
+            if (self._word_folds.get(w) or self.fold(w)).startswith(folded):
+                if w not in self._proper and not self._proper_in(w, target):
+                    w = self._cased(w, word, at_start)
                 return w, w[len(word) :]
         return None, ''
 
@@ -128,13 +143,24 @@ class AutoCompletor:
                 # Don't complete "ab" in "tab" to "about".
                 if start > 0 and self._isword(prefix[start - 1]) and self._isword(candidate[0]):
                     continue
+                if candidate in self._cased_candidates:
+                    candidate = self._cased(candidate, typed, self.at_start(prefix[:start]))
                 return candidate, candidate[len(typed) :]
         return None, ''
 
+    def at_start(self, before):
+        """Whether a word after C{before} in the target starts a sentence:
+        after a full stop or the like, or first in a target whose source
+        starts with a capital."""
+        before = before.rstrip()
+        if before:
+            return before[-1] in _SENTENCE_ENDS
+        return self._capitalised
+
     @staticmethod
     def fold(text):
-        """text as matched: digits of every script as 0-9 and no-break or
-        thin spaces as spaces, one character for one."""
+        """text as matched: in lower case, digits of every script as 0-9 and
+        no-break or thin spaces as spaces, one character for one."""
         return text.translate(_FOLD)
 
     def clear_widgets(self):
@@ -145,8 +171,12 @@ class AutoCompletor:
     def clear_words(self):
         """Remove all registered words; effectively turns off auto-completion."""
         self._word_list = []
+        self._word_folds = {}
         self._word_freq = defaultdict(lambda: 0)
         self._fast_candidates = []
+        self._cased_candidates = set()
+        self._proper = set()
+        self._capitalised = False
         self._folded = {}
         self._source_counts = Counter()
 
@@ -165,10 +195,14 @@ class AutoCompletor:
         sources = self._strings(unit.source)
         for text in sources + self._strings(unit.target):
             self.add_words(self.wordsep_re.split(text), update=False)
+            self._proper.update(self._proper_words(text))
         self._update_word_list()
+        first = next((c for c in ''.join(sources) if c.isalpha()), '')
+        self._capitalised = first.isupper()
         candidates = self._placeable_candidates(sources)
-        self._source_counts = Counter(candidates)
-        self._fast_candidates = list(dict.fromkeys(candidates))
+        self._source_counts = Counter(c for c, _cased in candidates)
+        self._fast_candidates = list(dict.fromkeys(c for c, _cased in candidates))
+        self._cased_candidates = {c for c, cased in candidates if cased and not self._is_name(c)}
         self._folded = {c: self.fold(c) for c in self._fast_candidates}
 
     def remove_widget(self, widget):
@@ -200,6 +234,44 @@ class AutoCompletor:
         handler_id = textbox.connect('text-inserted', self._on_insert_text)
         self._textbox_insert_ids[textbox] = handler_id
         self.widgets.add(textbox)
+
+    @staticmethod
+    def _cased(candidate, typed, at_start):
+        """candidate as completed from typed: in capitals after two typed
+        capitals, otherwise with the case of the typed letters, capitalised
+        at the start of a sentence."""
+        if len(typed) > 1 and typed.isupper():
+            return candidate.upper()
+        cased = (
+            ''.join(t if t.lower() == c.lower() else c for t, c in zip(typed, candidate))
+            + candidate[len(typed) :]
+        )
+        if at_start and cased[:1].islower():
+            cased = cased[0].upper() + cased[1:]
+        return cased
+
+    @staticmethod
+    def _is_name(word):
+        """Whether word is in capitals or CamelCase (NASA, GitHub, iPod)."""
+        return any(c.isupper() for c in word[1:]) or (len(word) > 1 and word.isupper())
+
+    def _proper_in(self, word, text):
+        return word[:1].isupper() and word in self._proper_words(text)
+
+    def _proper_words(self, text):
+        """The words of text whose case is their own: names, and words with
+        a capital other than at the start of a sentence."""
+        proper = set()
+        for match in self.word_re.finditer(text):
+            word = match.group()
+            if not word[:1].isupper():
+                continue
+            before = match.start() - 1
+            while before >= 0 and text[before].isspace():
+                before -= 1
+            if self._is_name(word) or (before >= 0 and text[before] not in _SENTENCE_ENDS):
+                proper.add(word)
+        return proper
 
     def _is_sigil(self, char):
         return char in self.SIGILS or char.isdecimal()
@@ -234,8 +306,10 @@ class AutoCompletor:
             lastword = self.wordsep_re.split(prefix)[-1]
             if len(lastword) < self.comp_len:
                 return
-            target = prefix[: len(prefix) - len(lastword)] + ' ' + postfix
-            completed_word, word_postfix = self.autocomplete(lastword, target)
+            before = prefix[: len(prefix) - len(lastword)]
+            completed_word, word_postfix = self.autocomplete(
+                lastword, before + ' ' + postfix, self.at_start(before)
+            )
 
         if completed_word and word_postfix:
             # Updating of the buffer is deferred until after this signal
@@ -273,24 +347,25 @@ class AutoCompletor:
             for node in tree.depth_first():
                 if isinstance(node, TerminologyPlaceable):
                     offset = tree.elem_offset(node)
-                    found.extend((offset, t) for t in node.translations)
+                    found.extend((offset, t, True) for t in node.translations)
                 elif isinstance(node, general.NumberPlaceable):
                     offset = tree.elem_offset(node)
-                    found.append((offset, self._number(text, offset, str(node), languages)))
+                    number = self._number(text, offset, str(node), languages)
+                    found.append((offset, number, False))
                 elif type(node) is not StringElem and not isinstance(
                     node, general.PunctuationPlaceable
                 ):
-                    found.append((tree.elem_offset(node), str(node)))
+                    found.append((tree.elem_offset(node), str(node), False))
             for match in self.variable_re.finditer(text):
                 start, end = match.span()
                 inside = [f for f in found if start <= f[0] and f[0] + len(f[1]) <= end]
                 if any(f[0] < end and start < f[0] + len(f[1]) for f in found if f not in inside):
                     continue  # Part of a placeable, like the $s of %1$s.
-                found = [f for f in found if f not in inside] + [(start, match.group())]
-            candidates.extend(t for _offset, t in sorted(found, key=lambda f: f[0]))
+                found = [f for f in found if f not in inside] + [(start, match.group(), False)]
+            candidates.extend(f[1:] for f in sorted(found, key=lambda f: f[0]))
         return [
-            c
-            for c in candidates
+            (c, cased)
+            for c, cased in candidates
             if len(c) > self.FAST_COMPLETION_LENGTH or (len(c) > 1 and self._is_sigil(c[0]))
         ]
 
@@ -357,6 +432,7 @@ class AutoCompletor:
         wordlist = list(self._word_freq.items())
         wordlist.sort(key=lambda x: x[1], reverse=True)
         self._word_list = [items[0] for items in wordlist]
+        self._word_folds = {w: self.fold(w) for w in self._word_list}
 
 
 class Plugin(BasePlugin):

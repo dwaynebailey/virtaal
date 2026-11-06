@@ -418,6 +418,29 @@ def test_autocomplete_fast_counts_a_placeable_typed_in_other_digits_as_present()
     assert ac.autocomplete_fast('2026 or 2', '2026 or 2') == ('2027', '027')
 
 
+@pytest.mark.parametrize(
+    'typed, expected',
+    [
+        ('Lees die ka', ('kanselleer', 'nselleer')),
+        ('Ka', ('Kanselleer', 'nselleer')),
+        ('Klaar. ka', ('Kanselleer', 'nselleer')),
+    ],
+)
+def test_autocomplete_fast_completes_a_term_translation_in_the_typed_case(typed, expected):
+    ac = _parsing_ac(_term_parser('cancel', 'Kanselleer'))
+    ac.set_unit(_unit('Then cancel'))
+
+    assert ac.autocomplete_fast(typed) == expected
+
+
+def test_autocomplete_fast_completes_a_placeable_in_its_own_case():
+    ac = _parsing_ac(general.XMLTagPlaceable.parse, general.CamelCasePlaceable.parse)
+    ac.set_unit(_unit('Press <b>GitHub</b>'))
+
+    assert ac.autocomplete_fast('Druk <B') == ('<b>', '>')
+    assert ac.autocomplete_fast('Druk git') == ('GitHub', 'Hub')
+
+
 def test_autocomplete_fast_does_not_complete_from_the_middle_of_a_word():
     ac = _parsing_ac(_term_parser('Cancel', 'Kanselleer'))
     ac.set_unit(_unit('Cancel'))
@@ -473,6 +496,52 @@ def test_autocomplete_keeps_the_usable_word_rule_for_typed_words():
     ac = _ac(comp_len=4)
 
     assert ac.autocomplete('Hel', 'Hello ') == (None, '')
+
+
+@pytest.mark.parametrize(
+    'source, typed, at_start, expected',
+    [
+        # Capitalised only at the start of a sentence: the typed case wins.
+        ('Download the files. Then quit.', 'down', False, ('download', 'load')),
+        ('Download the files.', 'Down', False, ('Download', 'load')),
+        ('download the files', 'down', True, ('Download', 'load')),
+        ('Download the files.', 'DOWN', False, ('DOWNLOAD', 'LOAD')),
+        # A name keeps its own case.
+        ('Visit Helsinki today', 'hel', False, ('Helsinki', 'sinki')),
+        ('Open LibreOffice', 'libre', False, ('LibreOffice', 'Office')),
+        ('Open the WORKSPACE', 'work', True, ('WORKSPACE', 'SPACE')),
+    ],
+)
+def test_autocomplete_ignores_case(source, typed, at_start, expected):
+    ac = _ac(comp_len=1)
+    ac.set_unit(_unit(source))
+
+    assert ac.autocomplete(typed, at_start=at_start) == expected
+
+
+def test_autocomplete_keeps_the_case_of_a_name_typed_in_the_target():
+    ac = _ac(comp_len=4)
+    ac.set_unit(_unit('Open it', ''))
+
+    assert ac.autocomplete('hels', 'Ek woon in Helsinki en ') == ('Helsinki', 'inki')
+
+
+@pytest.mark.parametrize(
+    'before, source, expected',
+    [
+        ('', 'Open it', True),
+        ('', 'open it', False),
+        ('Klaar. ', 'open it', True),
+        ('Klaar! ', 'open it', True),
+        ('समाप्त। ', 'open it', True),
+        ('Klaar, ', 'Open it', False),
+    ],
+)
+def test_at_start(before, source, expected):
+    ac = _ac()
+    ac.set_unit(_unit(source))
+
+    assert ac.at_start(before) is expected
 
 
 # clear_words() #
@@ -826,6 +895,42 @@ def test_on_insert_text_does_not_complete_the_typed_word_to_itself(monkeypatch):
     textbox, _ = _insert_text_box(prefix='Vertalin', suffix='')
 
     ac._on_insert_text(textbox, text='g', offset=8, elem=None)
+
+
+def test_on_insert_text_suggests_replacing_the_typed_case_of_a_name(monkeypatch):
+    ac = _ac(comp_len=1)
+    ac.set_unit(_unit('Visit Helsinki', ''))
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append(f),
+    )
+    textbox, _ = _insert_text_box(prefix='Besoek he', suffix='', buffer_text='Besoek helsinki')
+    ac._textbox_insert_ids = {textbox: 'sigid'}
+
+    ac._on_insert_text(textbox, text='l', offset=9, elem=None)
+
+    scheduled[0]()
+    assert textbox.suggestion == {'text': 'sinki', 'offset': 10, 'replace': 'Hel'}
+
+
+def test_on_insert_text_suggests_a_capital_at_the_start_of_a_sentence(monkeypatch):
+    ac = _ac(comp_len=1)
+    ac.set_unit(_unit('Open it. Download the files.', ''))
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append(f),
+    )
+    textbox, _ = _insert_text_box(
+        prefix='Maak oop. do', suffix='', buffer_text='Maak oop. download'
+    )
+    ac._textbox_insert_ids = {textbox: 'sigid'}
+
+    ac._on_insert_text(textbox, text='w', offset=12, elem=None)
+
+    scheduled[0]()
+    assert textbox.suggestion == {'text': 'nload', 'offset': 13, 'replace': 'Dow'}
 
 
 def test_on_insert_text_ignores_a_space_even_with_fast_candidates():
