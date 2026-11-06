@@ -17,6 +17,7 @@ from translate.storage.lisa import LISAunit
 from translate.storage.workflow import StateEnum
 
 from virtaal.common import GObjectWrapper
+from virtaal.common.pan_app import ngettext
 from virtaal.common.platform import platform
 from virtaal.support import sdlxliff_compat
 
@@ -882,6 +883,21 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         else:
             self._widgets['context_info'].hide()
 
+    def _xml_text_filter(self, text):
+        """Drops the characters an XML-based file can't store, and says so."""
+        filtered = valid_chars_only(text)
+        removed = len(text) - len(filtered)
+        if removed:
+            self.controller.main_controller.view.show_info_notice(
+                ngettext(
+                    "Removed %(count)d character this file format can't store.",
+                    "Removed %(count)d characters this file format can't store.",
+                    removed,
+                )
+                % {'count': removed}
+            )
+        return filtered
+
     def _layout_update_targets(self):
         num_target_widgets = len(self.targets)
 
@@ -907,7 +923,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
         visible_sources = [src for src in self.sources if src.props.visible]
 
-        text_filter = valid_chars_only if isinstance(self.unit, LISAunit) else None
+        text_filter = self._xml_text_filter if isinstance(self.unit, LISAunit) else None
         for textbox in self.targets:
             textbox.text_filter = text_filter
             textbox.set_editable(not self.locked)

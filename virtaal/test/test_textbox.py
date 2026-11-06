@@ -945,6 +945,17 @@ class TestTextBox(TestScaffolding):
         assert unit.target == 'ab'
         assert textbox.buffer.props.cursor_position == 2
 
+    def test_dropping_characters_from_an_xliff_target_says_how_many(self, monkeypatch):
+        # #4355: a paste from Word can carry U+000B line breaks.
+        notices = []
+        monkeypatch.setattr(self.main_controller.view, 'show_info_notice', notices.append)
+        unit, textbox = self._xliff_target()
+
+        textbox.buffer.insert_interactive_at_cursor('a\x0bb\x0c', -1, True)
+        textbox.buffer.insert_interactive_at_cursor('c', -1, True)
+
+        assert notices == ["Removed 2 characters this file format can't store."]
+
     def test_a_lone_control_character_leaves_an_xliff_target_unchanged(self):
         unit, textbox = self._xliff_target()
         textbox.buffer.insert_interactive_at_cursor('a', -1, True)
