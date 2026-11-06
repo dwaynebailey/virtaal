@@ -13,6 +13,7 @@ def checker_classes():
     """{project style code: checker class}; None is the default."""
     from translate.filters import checks
 
+    from virtaal.support import checks_compat  # noqa: F401 - applies its patch on import
     from virtaal.support.qtchecks import QtChecker
 
     return {
