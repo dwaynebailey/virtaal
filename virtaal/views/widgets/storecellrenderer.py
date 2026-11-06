@@ -401,7 +401,7 @@ class StoreCellRenderer(Gtk.CellRenderer):
     def _file_header_height(self, widget):
         if self._file_header() is None:
             return 0
-        font = widget.get_style_context().get_font(Gtk.StateFlags.NORMAL)
+        font = widget.get_style_context().get_property('font', Gtk.StateFlags.NORMAL)
         _char_width, line_height = self._font_metrics(widget, font)
         return line_height // Pango.SCALE + 2 * self.FILE_HEADER_PADDING
 
