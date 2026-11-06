@@ -49,6 +49,7 @@ from virtaal.support import (
     sdlxliff_compat,  # noqa: F401 - applies its patch on import
     shareddb,
     tmx_compat,  # noqa: F401 - applies its patch on import
+    xliff2_compat,  # noqa: F401 - applies its patch on import
 )
 
 logger = logging.getLogger(__name__)
