@@ -14,7 +14,7 @@ from translate.misc.multistring import multistring
 from translate.storage.placeables import StringElem, general
 from translate.storage.placeables.terminology import TerminologyPlaceable
 
-from virtaal.plugins.autocompletor import AutoCompletor, Plugin
+from virtaal.plugins.autocompletor import AutoCompletor, NameForms, Plugin
 from virtaal.views.widgets.textbox import TextBox
 
 
@@ -938,6 +938,134 @@ def test_on_insert_text_ignores_a_space_even_with_fast_candidates():
     ac.set_unit(_unit('Press </b> now'))
 
     ac._on_insert_text(SimpleNamespace(), text=' ', offset=0, elem=None)  # must not raise
+
+
+# NameForms - how this file's translator writes names #
+
+
+def _names(*units):
+    names = NameForms(AutoCompletor.word_re)
+    for _ in names.load(list(units)):
+        pass
+    return names
+
+
+def test_name_forms_default_to_the_name_itself():
+    names = _names(_unit('Open GitHub', ''), _unit('Open it', 'খুলুন'))
+
+    assert names.forms('GitHub') == ['GitHub']
+    assert names.forms('NASA') == ['NASA']
+
+
+def test_name_forms_learn_another_script_from_one_unit():
+    names = _names(
+        _unit('Open GitHub', 'গিটহাব খুলুন'),
+        _unit('Open it', 'এটা খুলুন'),
+    )
+
+    assert names.forms('GitHub') == ['গিটহাব', 'GitHub']
+
+
+def test_name_forms_need_one_word_found_only_with_the_name():
+    names = _names(_unit('Open GitHub', 'গিটহাব খুলুন'))
+
+    assert names.forms('GitHub') == ['GitHub']  # গিটহাব or খুলুন?
+
+
+def test_name_forms_keep_latin_when_the_translator_last_did():
+    names = _names(
+        _unit('Open GitHub', 'গিটহাব খুলুন'),
+        _unit('Open it', 'এটা খুলুন'),
+        _unit('Close GitHub', 'GitHub বন্ধ'),
+    )
+
+    assert names.forms('GitHub') == ['GitHub', 'গিটহাব']
+
+
+def test_name_forms_ignore_untranslated_units():
+    names = _names(_unit('Open NASA', 'নাসা খুলুন'), _unit('Open it', 'খুলুন'), _unit('NASA', ''))
+
+    assert names.forms('NASA') == ['নাসা', 'NASA']
+
+
+def test_name_forms_learn_from_a_unit_edited_in_this_session():
+    open_github = _unit('Open GitHub', 'গিটহাব খুলুন')
+    names = _names(open_github, _unit('Open it', 'এটা খুলুন'))
+
+    names.enter(open_github)
+    open_github.target = 'GitHub খুলুন'
+    names.leave(open_github)
+
+    assert names.forms('GitHub') == ['GitHub']
+
+
+def test_name_forms_count_an_unchanged_visit_as_no_decision():
+    first = _unit('Open GitHub', 'গিটহাব খুলুন')
+    latin = _unit('Close GitHub', 'GitHub বন্ধ')
+    names = _names(latin, first, _unit('Open it', 'এটা খুলুন'))
+
+    names.enter(latin)
+    names.leave(latin)
+
+    assert names.forms('GitHub') == ['গিটহাব', 'GitHub']
+
+
+def test_name_forms_read_a_unit_entered_before_the_load_reached_it():
+    first = _unit('Open GitHub', 'গিটহাব খুলুন')
+    names = NameForms(AutoCompletor.word_re)
+    reader = names.load([_unit('Open it', 'এটা খুলুন'), first])
+    names.enter(first)
+    for _ in reader:
+        pass
+
+    names.leave(first)
+
+    assert names.forms('GitHub') == ['গিটহাব', 'GitHub']
+
+
+def test_set_unit_offers_a_name_in_its_learnt_form_from_its_latin_letters():
+    ac = _parsing_ac(*general.parsers)
+    for _ in ac.names.load([_unit('Open GitHub', 'গিটহাব খুলুন'), _unit('Open it', 'এটা খুলুন')]):
+        pass
+
+    ac.set_unit(_unit('Close GitHub'))
+
+    assert ac._fast_candidates == ['গিটহাব']
+    assert ac.autocomplete_fast('Gi') == ('গিটহাব', 'টহাব')
+    assert ac.autocomplete_fast('গি') == ('গিটহাব', 'টহাব')
+
+
+def test_set_unit_learns_from_the_unit_left():
+    ac = _parsing_ac(*general.parsers)
+    open_github = _unit('Open GitHub', '')
+    for _ in ac.names.load([open_github, _unit('Open it', 'এটা খুলুন')]):
+        pass
+    ac.set_unit(open_github)
+    open_github.target = 'গিটহাব খুলুন'
+
+    ac.set_unit(_unit('Close GitHub'))
+
+    assert ac._fast_candidates == ['গিটহাব']
+
+
+def test_plugin_reads_the_files_names_in_the_background(monkeypatch):
+    scheduled = []
+    monkeypatch.setattr('virtaal.plugins.autocompletor.GLib.idle_add', scheduled.append)
+    monkeypatch.setattr(NameForms, 'CHUNK', 1)
+    plugin = Plugin.__new__(Plugin)
+    plugin.autocomp = AutoCompletor(main_controller=None, comp_len=1)
+    units = [_unit('Open GitHub', 'গিটহাব খুলুন'), _unit('Open it', 'এটা খুলুন')]
+    cursor = SimpleNamespace(connect=lambda *a: 'cursor-sig', deref=lambda: None)
+    storecontroller = SimpleNamespace(
+        cursor=cursor, get_store=lambda: SimpleNamespace(get_units=lambda: units)
+    )
+
+    plugin._on_store_loaded(storecontroller)
+    read = scheduled[1]
+
+    assert [read(), read(), read()] == [True, True, False]
+    assert plugin._names_id is None
+    assert plugin.autocomp.names.forms('GitHub') == ['গিটহাব', 'GitHub']
 
 
 # Plugin - completely untested until now #

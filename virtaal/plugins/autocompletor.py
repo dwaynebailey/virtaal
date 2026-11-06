@@ -58,6 +58,117 @@ _WORD_CHARS = r'\w' + _combining_marks()
 _SENTENCE_ENDS = '.!?…։؟۔।॥።。！？'
 
 
+class NameForms:
+    """How the translator writes the source's names in capitals or
+    CamelCase in this file: kept in Latin letters, or in another script.
+
+    The other script's form of a name is the one word of another script
+    in the target of every unit with the name in its source and not in
+    its target, and in the target of no other unit."""
+
+    name_res = (general.CapsPlaceable.regex, general.CamelCasePlaceable.regex)
+    CHUNK = 2000  # Units read per call of the L{load()} generator.
+
+    def __init__(self, word_re):
+        self.word_re = word_re
+        self.clear()
+
+    def clear(self):
+        self._seq = 0
+        self._counts = Counter()  # Units with each other-script target word.
+        self._units = {}  # id(unit): [seq, names, names kept in Latin, words]
+        self._by_name = defaultdict(set)
+        self._read = set()  # id() of every unit read
+        self._entered = None  # (unit, its target, its words if read) since L{enter()}
+
+    @classmethod
+    def names(cls, texts):
+        return {m.group() for text in texts for regex in cls.name_res for m in regex.finditer(text)}
+
+    def enter(self, unit):
+        """Remember unit's target as it is before editing."""
+        words = self._words(unit) if id(unit) in self._read else None
+        self._entered = (unit, self._target(unit), words)
+
+    def forms(self, name):
+        """name's forms, the preferred one first: as the translator last
+        wrote it in a unit of this file, kept in Latin or another form."""
+        units = [self._units[key] for key in self._by_name.get(name, ())]
+        translated = [u for u in units if u[3] or u[2]]
+        other = [u for u in translated if name not in u[2]]
+        if not other:
+            return [name]
+        common = set.intersection(*(u[3] for u in other))
+        with_name = Counter(w for u in units for w in u[3])
+        forms = [w for w in common if self._counts[w] == with_name[w]]
+        if len(forms) != 1:
+            return [name]
+        if name in max(translated, key=lambda u: u[0])[2]:
+            return [name, forms[0]]
+        return [forms[0], name]
+
+    def leave(self, unit):
+        """Read unit's target again if it changed since L{enter()}."""
+        entered, self._entered = self._entered, None
+        if unit is None or entered is None or entered[0] is not unit:
+            return
+        if entered[2] is not None:
+            if self._target(unit) == entered[1]:
+                return
+            self._counts.subtract(entered[2])
+            self._forget(unit)
+        self._read_unit(unit)
+
+    def load(self, units):
+        """Forget the previous file's units and return a generator that
+        reads these, L{CHUNK} per step, for running from the main loop."""
+        self.clear()
+
+        def read():
+            for start in range(0, len(units), self.CHUNK):
+                for unit in units[start : start + self.CHUNK]:
+                    if id(unit) in self._read:
+                        continue
+                    if self._entered is None or self._entered[0] is not unit:
+                        self._read_unit(unit)
+                yield True
+
+        return read()
+
+    def _forget(self, unit):
+        record = self._units.pop(id(unit), None)
+        if record:
+            for name in record[1]:
+                self._by_name[name].discard(id(unit))
+
+    def _read_unit(self, unit):
+        self._read.add(id(unit))
+        words = self._words(unit)
+        self._counts.update(words)
+        names = self.names(AutoCompletor._strings(unit.source))
+        if not names:
+            return
+        target = self._target(unit)
+        self._seq += 1
+        self._units[id(unit)] = [self._seq, names, {n for n in names if n in target}, words]
+        for name in names:
+            self._by_name[name].add(id(unit))
+
+    @staticmethod
+    def _target(unit):
+        return '\n'.join(AutoCompletor._strings(unit.target))
+
+    def _words(self, unit):
+        """The words of unit's target in another script than Latin."""
+        words = set()
+        for text in AutoCompletor._strings(unit.target):
+            for word in self.word_re.findall(text):
+                letter = next((c for c in word if c.isalpha()), '')
+                if letter and not unicodedata.name(letter, '').startswith('LATIN'):
+                    words.add(word)
+        return words
+
+
 class AutoCompletor:
     """
     Does auto-completion of registered words in registered widgets.
@@ -89,6 +200,8 @@ class AutoCompletor:
             word_list = []
         assert isinstance(word_list, list)
         self.comp_len = comp_len
+        self.names = NameForms(self.word_re)
+        self._unit = None
         self.clear_words()
         self.add_words(word_list)
         self.widgets = set()
@@ -132,20 +245,20 @@ class AutoCompletor:
         come first, each group in source order."""
         folded_prefix = self.fold(prefix)
         for candidate in self._ordered_fast_candidates(target):
-            folded = self._folded[candidate]
-            first = max(0, len(prefix) - len(candidate) + 1)
-            for start in range(first, len(prefix)):
-                typed = prefix[start:]
-                if len(typed) < self.FAST_COMPLETION_LENGTH and not self._is_sigil(typed[0]):
-                    continue
-                if not folded.startswith(folded_prefix[start:]):
-                    continue
-                # Don't complete "ab" in "tab" to "about".
-                if start > 0 and self._isword(prefix[start - 1]) and self._isword(candidate[0]):
-                    continue
-                if candidate in self._cased_candidates:
-                    candidate = self._cased(candidate, typed, self.at_start(prefix[:start]))
-                return candidate, candidate[len(typed) :]
+            for folded in self._folded[candidate]:
+                first = max(0, len(prefix) - min(len(folded), len(candidate)) + 1)
+                for start in range(first, len(prefix)):
+                    typed = prefix[start:]
+                    if len(typed) < self.FAST_COMPLETION_LENGTH and not self._is_sigil(typed[0]):
+                        continue
+                    if not folded.startswith(folded_prefix[start:]):
+                        continue
+                    # Don't complete "ab" in "tab" to "about".
+                    if start > 0 and self._isword(prefix[start - 1]) and self._isword(folded[0]):
+                        continue
+                    if candidate in self._cased_candidates:
+                        candidate = self._cased(candidate, typed, self.at_start(prefix[:start]))
+                    return candidate, candidate[len(typed) :]
         return None, ''
 
     def at_start(self, before):
@@ -189,9 +302,12 @@ class AutoCompletor:
         """Replace all words with those of the given unit: its source and
         target words, plus the placeables and term translations in its
         source for L{autocomplete_fast()}."""
+        self.names.leave(self._unit)
+        self._unit = unit
         self.clear_words()
         if unit is None:
             return
+        self.names.enter(unit)
         sources = self._strings(unit.source)
         for text in sources + self._strings(unit.target):
             self.add_words(self.wordsep_re.split(text), update=False)
@@ -199,11 +315,15 @@ class AutoCompletor:
         self._update_word_list()
         first = next((c for c in ''.join(sources) if c.isalpha()), '')
         self._capitalised = first.isupper()
-        candidates = self._placeable_candidates(sources)
+        names = NameForms.names(sources)
+        candidates = []
+        for text, cased in self._placeable_candidates(sources):
+            forms = self.names.forms(text) if text in names else [text]
+            candidates.append((forms[0], cased))
+            self._folded.setdefault(forms[0], [self.fold(f) for f in forms])
         self._source_counts = Counter(c for c, _cased in candidates)
         self._fast_candidates = list(dict.fromkeys(c for c, _cased in candidates))
         self._cased_candidates = {c for c, cased in candidates if cased and not self._is_name(c)}
-        self._folded = {c: self.fold(c) for c in self._fast_candidates}
 
     def remove_widget(self, widget):
         """Remove a widget (currently only L{TextBox}s are accepted) from
@@ -402,7 +522,7 @@ class AutoCompletor:
         target = self.fold(target)
         missing, present = [], []
         for candidate in self._fast_candidates:
-            if target.count(self._folded[candidate]) >= self._source_counts[candidate]:
+            if target.count(self._folded[candidate][0]) >= self._source_counts[candidate]:
                 present.append(candidate)
             else:
                 missing.append(candidate)
@@ -479,6 +599,8 @@ class Plugin(BasePlugin):
             self.store_cursor.disconnect(self._cursor_changed_id)
         if self._unitview_id:
             self.main_controller.unit_controller.view.disconnect(self._unitview_id)
+        if getattr(self, '_names_id', None):
+            GLib.source_remove(self._names_id)
 
     # EVENT HANDLERS #
     def _on_cursor_change(self, cursor):
@@ -497,3 +619,22 @@ class Plugin(BasePlugin):
             'cursor-changed', self._on_cursor_change
         )
         self._on_cursor_change(self.store_cursor)
+        self._read_names(storecontroller)
+
+    def _read_names(self, storecontroller):
+        """Read the file's names for AutoCompletor.names in the background."""
+        if getattr(self, '_names_id', None):
+            GLib.source_remove(self._names_id)
+        self._names_id = None
+        store = getattr(storecontroller, 'get_store', lambda: None)()
+        if store is None:
+            return
+        reader = self.autocomp.names.load(store.get_units())
+
+        def read():
+            if next(reader, None) is None:
+                self._names_id = None
+                return False
+            return True
+
+        self._names_id = GLib.idle_add(read)
