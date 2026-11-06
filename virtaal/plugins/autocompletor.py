@@ -462,32 +462,39 @@ class AutoCompletor:
         languages = self._languages()
         candidates = []
         for text in sources:
-            tree = parse_placeables(text, parsers)
-            found = []
-            for node in tree.depth_first():
+            found = []  # (start, end, candidate, cased)
+            for node, start in self._with_offsets(parse_placeables(text, parsers)):
+                end = start + len(str(node))
                 if isinstance(node, TerminologyPlaceable):
-                    offset = tree.elem_offset(node)
-                    found.extend((offset, t, True) for t in node.translations)
+                    found.extend((start, end, t, True) for t in node.translations)
                 elif isinstance(node, general.NumberPlaceable):
-                    offset = tree.elem_offset(node)
-                    number = self._number(text, offset, str(node), languages)
-                    found.append((offset, number, False))
+                    number = self._number(text, start, str(node), languages)
+                    found.append((start, end, number, False))
                 elif type(node) is not StringElem and not isinstance(
                     node, general.PunctuationPlaceable
                 ):
-                    found.append((tree.elem_offset(node), str(node), False))
+                    found.append((start, end, str(node), False))
             for match in self.variable_re.finditer(text):
                 start, end = match.span()
-                inside = [f for f in found if start <= f[0] and f[0] + len(f[1]) <= end]
-                if any(f[0] < end and start < f[0] + len(f[1]) for f in found if f not in inside):
+                inside = [f for f in found if start <= f[0] and f[1] <= end]
+                if any(f[0] < end and start < f[1] for f in found if f not in inside):
                     continue  # Part of a placeable, like the $s of %1$s.
-                found = [f for f in found if f not in inside] + [(start, match.group(), False)]
-            candidates.extend(f[1:] for f in sorted(found, key=lambda f: f[0]))
+                found = [f for f in found if f not in inside] + [(start, end, match.group(), False)]
+            candidates.extend(f[2:] for f in sorted(found, key=lambda f: f[0]))
         return [
             (c, cased)
             for c, cased in candidates
             if len(c) > self.FAST_COMPLETION_LENGTH or (len(c) > 1 and self._is_sigil(c[0]))
         ]
+
+    @classmethod
+    def _with_offsets(cls, elem, offset=0):
+        """Every element of the tree elem, depth first, with its offset."""
+        yield elem, offset
+        for sub in elem.sub:
+            if isinstance(sub, StringElem):
+                yield from cls._with_offsets(sub, offset)
+            offset += len(str(sub))
 
     def _languages(self):
         lang_controller = getattr(self.main_controller, 'lang_controller', None)
