@@ -32,10 +32,10 @@ CHECK_FAILURE = 'check_failure'
 _SEVERITY = {
     CHECK_FAILURE: 0,
     StateEnum.REJECTED: 1,
-    StateEnum.NEEDS_WORK: 2,     # fuzzy
-    StateEnum.EMPTY: 3,          # untranslated
+    StateEnum.NEEDS_WORK: 2,  # fuzzy
+    StateEnum.EMPTY: 3,  # untranslated
     StateEnum.NEEDS_REVIEW: 4,
-    StateEnum.UNREVIEWED: 5,     # translated, no further workflow state
+    StateEnum.UNREVIEWED: 5,  # translated, no further workflow state
     StateEnum.FINAL: 6,
 }
 
@@ -232,8 +232,7 @@ class NavRibbon(Gtk.DrawingArea):
                 start = int(b * total / bin_count)
                 end = max(start + 1, int((b + 1) * total / bin_count))
                 bin_marks = self._marks[start:end]
-                state_key = min(
-                    (mark[2] for mark in bin_marks), key=lambda key: _SEVERITY[key])
+                state_key = min((mark[2] for mark in bin_marks), key=lambda key: _SEVERITY[key])
                 self._paint_mark(cr, width, b * bin_height, bin_height, state_key)
 
         return surface

@@ -30,8 +30,15 @@ class FakeStore:
 
 
 class FakeStoreController:
-    def __init__(self, stats=None, checks=None, cursor=None, store=None,
-                 raise_no_store=False, raise_attribute_error=False):
+    def __init__(
+        self,
+        stats=None,
+        checks=None,
+        cursor=None,
+        store=None,
+        raise_no_store=False,
+        raise_attribute_error=False,
+    ):
         self._stats = stats
         self._checks = checks
         self.cursor = cursor
@@ -99,11 +106,17 @@ class FakeCursor:
         self.forced.append(index)
 
 
-def make_ribbon(stats=None, checks=None, cursor=None, units=None, raise_no_store=False,
-                 raise_attribute_error=False):
+def make_ribbon(
+    stats=None,
+    checks=None,
+    cursor=None,
+    units=None,
+    raise_no_store=False,
+    raise_attribute_error=False,
+):
     store_controller = FakeStoreController(
-        stats, checks, cursor, FakeStore(units or []),
-        raise_no_store, raise_attribute_error)
+        stats, checks, cursor, FakeStore(units or []), raise_no_store, raise_attribute_error
+    )
     main_controller = FakeMainController(store_controller)
     scrolled_window = Gtk.ScrolledWindow()
     ribbon = NavRibbon(main_controller, scrolled_window)
