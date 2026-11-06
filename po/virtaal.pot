@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 06:16+0000\n"
+"POT-Creation-Date: 2026-11-06 06:18+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1167,6 +1167,12 @@ msgstr ""
 
 #: virtaal/controllers/unitcontroller.py
 msgid "Reviewed"
+msgstr ""
+
+#. l10n: %s lists the settings by the names they have in the settings files.
+#: virtaal/main.py
+#, python-format
+msgid "Some settings were invalid and were reset to their defaults: %s"
 msgstr ""
 
 #: virtaal/models/storemodel.py

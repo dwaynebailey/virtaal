@@ -363,8 +363,24 @@ def test_check_for_config_recovery_shows_the_notice_when_a_backup_exists(monkeyp
     assert shown == ['/tmp/backup.ini']
 
 
+def test_check_for_config_recovery_lists_the_settings_it_reset(monkeypatch):
+    # #4358
+    monkeypatch.setattr(pan_app.settings, 'config_recovery_backup', '')
+    monkeypatch.setattr(pan_app, 'reset_settings', ['windowwidth', 'min_quality'])
+    v = Virtaal.__new__(Virtaal)
+    shown = []
+    v.main_controller = SimpleNamespace(view=SimpleNamespace(show_info_notice=shown.append))
+
+    v._check_for_config_recovery()
+
+    assert shown == [
+        'Some settings were invalid and were reset to their defaults: windowwidth, min_quality'
+    ]
+
+
 def test_check_for_config_recovery_does_nothing_without_a_backup(monkeypatch):
     monkeypatch.setattr(pan_app.settings, 'config_recovery_backup', '')
+    monkeypatch.setattr(pan_app, 'reset_settings', [])
     v = Virtaal.__new__(Virtaal)
     v.main_controller = SimpleNamespace(
         view=SimpleNamespace(

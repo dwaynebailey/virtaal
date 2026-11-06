@@ -236,6 +236,12 @@ class Virtaal:
         backup_path = pan_app.settings.config_recovery_backup
         if backup_path:
             self.main_controller.view.show_config_recovery_notice(backup_path)
+        elif pan_app.reset_settings:
+            self.main_controller.view.show_info_notice(
+                # l10n: %s lists the settings by the names they have in the settings files.
+                _('Some settings were invalid and were reset to their defaults: %s')
+                % ', '.join(pan_app.reset_settings)
+            )
 
     def _check_for_update(self):
         from virtaal.__version__ import ver

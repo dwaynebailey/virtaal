@@ -1368,6 +1368,27 @@ def test_config_int_logs_the_value_it_replaced(caplog):
     assert "Using 5 for max_matches: 'abc'" in caplog.text
 
 
+def test_config_int_notes_each_setting_it_reset_once(monkeypatch):
+    # Start-up lists them (#4358).
+    monkeypatch.setattr(pan_app, 'reset_settings', [])
+
+    pan_app.config_int('abc', 5, 0, 1000, 'max_matches')
+    pan_app.config_int('7', 5, 0, 1000, 'min_quality')
+    pan_app.config_int('', 5, 0, 1000, 'max_matches')
+
+    assert pan_app.reset_settings == ['max_matches']
+
+
+def test_settings_note_a_language_code_and_font_they_reset(tmp_path, monkeypatch):
+    monkeypatch.setattr(pan_app, 'reset_settings', [])
+    ini = tmp_path / 'virtaal.ini'
+    ini.write_text('[language]\ntargetlang = a|b\nsourcefont = Sans\x01 10\ntargetfont =\n')
+
+    pan_app.Settings(str(ini))
+
+    assert pan_app.reset_settings == ['targetlang', 'sourcefont']
+
+
 # install_saved_ui_language() #
 
 

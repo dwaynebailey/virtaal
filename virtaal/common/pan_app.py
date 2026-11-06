@@ -53,6 +53,16 @@ def _read_ini_recovering(parser, filename):
         return backup_path
 
 
+reset_settings = []
+"""Names of the config values replaced by their defaults, for start-up to
+list them."""
+
+
+def _note_reset(name):
+    if name not in reset_settings:
+        reset_settings.append(name)
+
+
 def config_int(value, default, minimum, maximum, name):
     """value as a whole number from minimum to maximum, or default: a
     hand edit or another tool can leave anything in a config file, and
@@ -73,6 +83,7 @@ def config_int(value, default, minimum, maximum, name):
             minimum,
             maximum,
         )
+        _note_reset(name)
         return default
     return number
 
@@ -513,12 +524,16 @@ class Settings:
                     lang,
                     self.language[lang],
                 )
+                _note_reset(lang)
                 self.language[lang] = language_defaults[lang]
 
         # Make sure we have some kind of font names to work with, and
         # ones GTK's CSS accepts: a newline broke the editor (#4340).
         for font in ('sourcefont', 'targetfont'):
-            if not self.language[font] or re.search(r'[\x00-\x1f\x7f]', self.language[font]):
+            if not self.language[font]:
+                self.language[font] = defaultfont
+            elif re.search(r'[\x00-\x1f\x7f]', self.language[font]):
+                _note_reset(font)
                 self.language[font] = defaultfont
 
     def write(self):
