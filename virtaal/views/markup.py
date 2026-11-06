@@ -190,6 +190,24 @@ def _diff(a, b):
     ]
 
 
+def _replacement_spans(removed, text, delete_attr, add_attr, add_case_attr):
+    """Spans for text replacing removed, an insertion right after a deletion."""
+    len_text = len(text)
+    len_removed = len(removed)
+    # if the new insertion is big enough (will draw attention) or
+    # the removed part is not much bigger than the insertion we
+    # can give a subtle highlighting for mostly case differences:
+    if (len_text > 5 or len_removed < len_text + 2) and removed.lower().endswith(text.lower()):
+        # a more subtle replace highlighting, since only case differs
+        return _pango_spans(add_case_attr, text)
+    # Replacement. We only show the deleted part of the
+    # replacement if it is much longer than the new insertion
+    # and not alphanumeric (to draw attention):
+    if len_text < 3 and len_removed > 2 * len_text and not removed.isalpha():
+        return _pango_spans(delete_attr, removed) + _pango_spans(add_attr, text)
+    return _pango_spans(add_attr, text)
+
+
 def pango_diff(a, b):
     """Highlights the differences between a and b for Pango rendering.
 
@@ -218,25 +236,9 @@ def pango_diff(a, b):
             textdiff += _escape_entities(text)
         elif op == 1:  # insertion
             if removed:
-                # this is part of a substitution, not a plain insertion. We
-                # will format this differently.
-                len_text = len(text)
-                len_removed = len(removed)
-                # if the new insertion is big enough (will draw attention) or
-                # the removed part is not much bigger than the insertion we
-                # can give a subtle highlighting for mostly case differences:
-                if (len_text > 5 or len_removed < len_text + 2) and removed.lower().endswith(
-                    text.lower()
-                ):
-                    # a more subtle replace highlighting, since only case differs
-                    textdiff += _pango_spans(replace_attr_add_case, text)
-                else:
-                    # Replacement. We only show the deleted part of the
-                    # replacement if it is much longer than the new insertion
-                    # and not alphanumeric (to draw attention):
-                    if len_text < 3 and len_removed > 2 * len_text and not removed.isalpha():
-                        textdiff += _pango_spans(delete_attr, removed)
-                    textdiff += _pango_spans(replace_attr_add, text)
+                textdiff += _replacement_spans(
+                    removed, text, delete_attr, replace_attr_add, replace_attr_add_case
+                )
                 removed = ""
             else:
                 # plain insertion

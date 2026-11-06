@@ -39,19 +39,7 @@ def select_backends(
             'enabled': enabled,
             'config': backend_config,
         }
-        # Not every source suits confidential text (#1301).
-        if info.get('online_service'):
-            # l10n: %(service)s is the name of an online service, such as Google or Apertium
-            item['notice'] = _('Sends the text you translate to %(service)s.') % {
-                'service': info['online_service']
-            }
-        elif info.get('downloads_from'):
-            # l10n: %(service)s is the name of a company or site, such as Microsoft
-            item['notice'] = _('Downloads from %(service)s, sending none of your text.') % {
-                'service': info['downloads_from']
-            }
-        if 'notice' in item and info.get('terms_url'):
-            item['link'] = (_('Terms of service'), info['terms_url'])
+        item.update(_privacy_notice(info))
         items.append(item)
 
     def item_enabled(dlg, item):
@@ -69,3 +57,23 @@ def select_backends(
     selectdlg.connect('item-enabled', item_enabled)
     selectdlg.connect('item-disabled', item_disabled)
     selectdlg.run(items=items)
+
+
+def _privacy_notice(info):
+    """The 'notice' and 'link' items for a source: not every source suits
+    confidential text (#1301)."""
+    if info.get('online_service'):
+        # l10n: %(service)s is the name of an online service, such as Google or Apertium
+        notice = _('Sends the text you translate to %(service)s.') % {
+            'service': info['online_service']
+        }
+    elif info.get('downloads_from'):
+        # l10n: %(service)s is the name of a company or site, such as Microsoft
+        notice = _('Downloads from %(service)s, sending none of your text.') % {
+            'service': info['downloads_from']
+        }
+    else:
+        return {}
+    if info.get('terms_url'):
+        return {'notice': notice, 'link': (_('Terms of service'), info['terms_url'])}
+    return {'notice': notice}

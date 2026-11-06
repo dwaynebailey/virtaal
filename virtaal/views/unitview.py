@@ -666,52 +666,46 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         menu.connect('hide', self._on_popup_toggled, False)
 
     def _on_target_key_pressed(self, textbox, event, eventname, next_textbox):
-        if not eventname:
+        actions = {
+            'enter': lambda: self._leave_target(event, next_textbox, 0),
+            # Ctrl+Enter also advances the unit in the workflow.
+            'ctrl-enter': lambda: self._leave_target(event, next_textbox, 1),
+            'ctrl-shift-enter': lambda: self._leave_target(event, next_textbox, -1),
+            'alt-down': lambda: self._insert_placeable_later(textbox),
+            'shift-tab': self._focus_previous_target,
+            'ctrl-tab': lambda: self.controller.main_controller.lang_controller.view.focus(),
+            'ctrl-shift-tab': lambda: self.controller.main_controller.mode_controller.view.focus(),
+        }
+        action = actions.get(eventname)
+        if action is None:
             return False
-        if eventname in ('enter', 'ctrl-enter', 'ctrl-shift-enter'):
-            if next_textbox is not None and next_textbox.get_parent().props.visible:
-                self.focus_text_view(next_textbox)
-            else:
-                if eventname == 'ctrl-enter':
-                    # Ctrl+Enter means additionally advance the unit in the workflow
-                    self.advance_workflow_state(1)
-                elif eventname == 'ctrl-shift-enter':
-                    self.advance_workflow_state(-1)
-                # textbox is the last text view in this unit, so we need to move on
-                # to the next one.
-                self._on_key_press_event(None, event)
+        action()
+        return True
 
-            return True
+    def _leave_target(self, event, next_textbox, workflow_direction):
+        if next_textbox is not None and next_textbox.get_parent().props.visible:
+            self.focus_text_view(next_textbox)
+            return
+        if workflow_direction:
+            self.advance_workflow_state(workflow_direction)
+        # This is the last text view in this unit, so move on to the next unit.
+        self._on_key_press_event(None, event)
 
-        # Alt-Down
-        elif eventname == 'alt-down':
-            # Deferred; skip it if the unit changed in the meantime, or it
-            # would write into whatever unit is now loaded.
-            scheduled_unit = self.unit
+    def _insert_placeable_later(self, textbox):
+        # Deferred; skip it if the unit changed in the meantime, or it
+        # would write into whatever unit is now loaded.
+        scheduled_unit = self.unit
 
-            def do_insert_placeable():
-                if self.unit is scheduled_unit:
-                    self.insert_placeable(textbox)
-                return False
+        def do_insert_placeable():
+            if self.unit is scheduled_unit:
+                self.insert_placeable(textbox)
+            return False
 
-            GLib.idle_add(do_insert_placeable)
-            return True
+        GLib.idle_add(do_insert_placeable)
 
-        # Shift-Tab
-        elif eventname == 'shift-tab':
-            if self.focused_target_n > 0:
-                self.focused_target_n -= 1
-            return True
-        # Ctrl-Tab
-        elif eventname == 'ctrl-tab':
-            self.controller.main_controller.lang_controller.view.focus()
-            return True
-        # Ctrl-Shift-Tab
-        elif eventname == 'ctrl-shift-tab':
-            self.controller.main_controller.mode_controller.view.focus()
-            return True
-
-        return False
+    def _focus_previous_target(self):
+        if self.focused_target_n > 0:
+            self.focused_target_n -= 1
 
     def _create_textbox(
         self, text='', editable=True, role=None, scroll_policy=Gtk.PolicyType.EXTERNAL
@@ -1032,7 +1026,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         self.modified()
 
     def _on_key_press_event(self, _widget, event, *_args):
-        if event.keyval == Gdk.KEY_Return or event.keyval == Gdk.KEY_KP_Enter:
+        if event.keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
             self.finish_editing_and_advance()
             return True
         self.must_advance = False

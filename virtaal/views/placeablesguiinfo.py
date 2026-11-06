@@ -97,56 +97,52 @@ class StringElemGUI:
         if offset < 0 or offset >= self.length():
             return None
 
-        pre_len = self.has_start_widget() and 1 or 0
-
         # First check if offset doesn't point to a widget that does not belong to self.elem
         if offset in (0, self.length() - 1):
-            anchor = self.textbox.buffer.get_iter_at_offset(
-                child_offset + offset
-            ).get_child_anchor()
-            if anchor is not None:
-                widget = anchor.get_widgets()
-
-                if len(widget) > 0:
-                    widget = widget[0]
-
-                    # The list comprehension below is used, in stead of a simple "w in self.widgets",
-                    # because we want to use "is" comparison in stead of __eq__.
-                    if widget is not None and [w for w in self.widgets if w is widget]:
-                        return self.elem
-                    if self.elem.isleaf():
-                        # If there's a widget at {offset}, but it does not belong to this widget or
-                        # any of its children (it's a leaf, so no StringElem children), the widget
-                        # can't be part of the sub-tree with {self.elem} at the root.
-                        return None
+            widget = self._widget_at(child_offset + offset)
+            if widget is not None:
+                if any(w is widget for w in self.widgets):
+                    return self.elem
+                if self.elem.isleaf():
+                    # If there's a widget at {offset}, but it does not belong to this widget or
+                    # any of its children (it's a leaf, so no StringElem children), the widget
+                    # can't be part of the sub-tree with {self.elem} at the root.
+                    return None
 
         if self.elem.isleaf():
             return self.elem
 
-        child_offset += pre_len
-        offset -= pre_len
+        pre_len = self.has_start_widget() and 1 or 0
+        return self._child_elem_at_offset(offset - pre_len, child_offset + pre_len)
 
+    def _widget_at(self, buffer_offset):
+        """The first widget anchored at buffer_offset, if any."""
+        anchor = self.textbox.buffer.get_iter_at_offset(buffer_offset).get_child_anchor()
+        if anchor is None:
+            return None
+        widgets = anchor.get_widgets()
+        return widgets[0] if widgets else None
+
+    def _child_elem_at_offset(self, offset, child_offset):
         childlen = 0  # Length of the children already consumed
         for child in self.elem.sub:
-            if isinstance(child, StringElem):
-                if not hasattr(child, 'gui_info'):
-                    gui_info_class = self.textbox.placeables_controller.get_gui_info(child)
-                    child.gui_info = gui_info_class(elem=child, textbox=self.textbox)
-
-                try:
-                    elem = child.gui_info.elem_at_offset(
-                        offset - childlen, child_offset=child_offset + childlen
-                    )
-                    if elem is not None:
-                        return elem
-                except AttributeError:
-                    pass
-                childlen += child.gui_info.length()
-            else:
+            if not isinstance(child, StringElem):
                 if offset <= len(child):
                     return self.elem
                 childlen += len(child)
-
+                continue
+            if not hasattr(child, 'gui_info'):
+                gui_info_class = self.textbox.placeables_controller.get_gui_info(child)
+                child.gui_info = gui_info_class(elem=child, textbox=self.textbox)
+            try:
+                elem = child.gui_info.elem_at_offset(
+                    offset - childlen, child_offset=child_offset + childlen
+                )
+                if elem is not None:
+                    return elem
+            except AttributeError:
+                pass
+            childlen += child.gui_info.length()
         return None
 
     def get_insert_candidates(self):
