@@ -216,11 +216,12 @@ what the translation memory has.
 Your local translation memory also keeps the inline codes (formatting tags) of
 XLIFF and TMX translations. The tags don't count in the match percentage, so a
 segment with tags matches the same text without them; text inside a tag, such
-as the ``<b>`` a TMX file can hold, does count. The suggestion list shows the
-tags as the editor does. Picking such a suggestion for a segment with tags puts
-the segment's own tags into the translation, the first of each kind for the
-first, when both originals have the same number of each kind; otherwise only
-the text goes in. :guilabel:`Insert at Cursor` in the
+as the ``<b>`` a TMX file can hold, does count. Suggestions from the file you
+are translating have their tags too. The suggestion list shows the tags as the
+editor does. Picking such a suggestion for a segment with tags puts the
+segment's own tags into the translation, the first of each kind for the first,
+when both originals have the same number of each kind; otherwise only the text
+goes in. :guilabel:`Insert at Cursor` in the
 suggestion's context menu does the same, unless your translation already has
 those tags.
 

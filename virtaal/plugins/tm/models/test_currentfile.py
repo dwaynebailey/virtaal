@@ -669,3 +669,46 @@ def test_an_edited_unit_goes_where_sorting_would_put_it():
 
     units = model.matcher.candidates.units
     assert units == sorted(units, key=lambda c: len(c.source))
+
+
+# XLIFF inline codes (#4708)
+
+_TAGGED_XLIFF = """<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+<file original="a" source-language="en" target-language="af" datatype="plaintext"><body>
+<trans-unit id="1" approved="yes"><source>Click <g id="1">here</g></source>
+<target>Klik <g id="1">hier</g></target></trans-unit>
+<trans-unit id="2"><source>Click <g id="5">here</g></source></trans-unit>
+</body></file></xliff>"""
+
+
+def _tagged_matches():
+    from translate.storage import xliff
+
+    store = xliff.xlifffile.parsestring(_TAGGED_XLIFF.encode('utf-8'))
+    model, _emitted = _model_for(store)
+    found = []
+    model.emit = lambda signal, query_str, matches: found.extend(matches)
+    model.query(None, store.units[1])
+    return found
+
+
+def test_query_gives_an_xliff_units_inline_markup():
+    [match] = _tagged_matches()
+
+    assert (match['source_markup'], match['target_markup']) == (
+        'Click <g id="1">here</g>',
+        'Klik <g id="1">hier</g>',
+    )
+
+
+def test_query_gives_no_markup_for_a_po_unit():
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', '')])
+    model, _emitted = _model_for(store)
+    found = []
+    model.emit = lambda signal, query_str, matches: found.extend(matches)
+
+    model.query(None, store.units[1])
+
+    assert [m['target'] for m in found] == ['Maak oop']
+    assert 'source_markup' not in found[0]

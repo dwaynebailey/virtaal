@@ -16,6 +16,7 @@ from translate.misc.multistring import multistring
 from translate.search import match
 
 from virtaal.common import pan_app
+from virtaal.support import inlinecodes
 from virtaal.support.match_compat import matcher as _matcher
 
 from .basetmmodel import BaseTMModel
@@ -110,6 +111,17 @@ class _UnitMatcher(_matcher):
         for unit, (_score, candidate) in zip(units, candidates, strict=True):
             unit.unit_ref = getattr(candidate, 'unit_ref', None)
         return units
+
+
+def _add_markup(match_data, unit):
+    """Give match_data the inline markup of unit, an XLIFF or TMX unit
+    with inline codes."""
+    if unit is None:
+        return
+    source_markup, target_markup = inlinecodes.unit_markup(unit)
+    if source_markup is not None:
+        match_data['source_markup'] = source_markup
+        match_data['target_markup'] = target_markup
 
 
 def _offered_to(unit, ref):
@@ -270,7 +282,9 @@ class TMModel(BaseTMModel):
             m = match.unit2dict(candidate)
             # l10n: Try to keep this as short as possible.
             m['tmsource'] = _('This file')
-            found.append((m, getattr(candidate, 'unit_ref', None)))
+            ref = getattr(candidate, 'unit_ref', None)
+            _add_markup(m, ref() if ref is not None else None)
+            found.append((m, ref))
         return found
 
     @staticmethod
