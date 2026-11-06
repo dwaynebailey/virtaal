@@ -385,39 +385,19 @@ class TMView(BaseView, GObjectWrapper):
         from virtaal.views.mainview import add_translation_file_filters
 
         mainview = self.controller.main_controller.view
-        chooser = Gtk.FileChooserDialog(
-            title=_('Import into Translation Memory'),
-            transient_for=mainview.main_window,
-            modal=True,
-            action=Gtk.FileChooserAction.OPEN,
+        chooser = Gtk.FileChooserNative.new(
+            _('Import into Translation Memory'),
+            mainview.main_window,
+            Gtk.FileChooserAction.OPEN,
+            None,
+            None,
         )
-        chooser.add_buttons(
-            _gtk_text('_Cancel'),
-            Gtk.ResponseType.CANCEL,
-            _gtk_text('_Open'),
-            Gtk.ResponseType.ACCEPT,
-        )
-        chooser.set_default_response(Gtk.ResponseType.ACCEPT)
         chooser.set_select_multiple(True)
         add_translation_file_filters(chooser, TM_IMPORT_FORMATS)
-        chooser.set_extra_widget(self._glossary_link())
         last_dir = pan_app.settings.general["lastdir"] or ""
         if os.path.isdir(last_dir):
             chooser.set_current_folder(last_dir)
         return chooser
-
-    @staticmethod
-    def _glossary_link():
-        from virtaal.support import ms_glossary, openmailto
-
-        link = Gtk.LinkButton.new_with_label(
-            ms_glossary.DOWNLOAD_URL,
-            # l10n: A link in the Import into Translation Memory file chooser to the
-            # page where Microsoft offers its translations of its software for download
-            _("Get Microsoft's UI strings glossaries"),
-        )
-        link.connect('activate-link', lambda button: openmailto.open(button.get_uri()) or True)
-        return link
 
     def choose_import_files(self):
         """The files the user picks to import, or an empty list."""

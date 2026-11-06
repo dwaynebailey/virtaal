@@ -198,13 +198,14 @@ def test_the_chooser_opens_several_translation_files_from_the_last_folder(tmp_pa
     # The folder only reads back once the dialog is shown.
     folders = []
     monkeypatch.setattr(
-        Gtk.FileChooserDialog, 'set_current_folder', lambda self, folder: folders.append(folder)
+        Gtk.FileChooserNative, 'set_current_folder', lambda self, folder: folders.append(folder)
     )
     view, mainview = _tmview()
 
     chooser = view._build_import_chooser()
     try:
-        assert isinstance(chooser, Gtk.FileChooserDialog)
+        # Native, like File > Open: the real Windows and macOS picker.
+        assert isinstance(chooser, Gtk.FileChooserNative)
         assert chooser.get_title() == 'Import into Translation Memory'
         assert chooser.get_action() == Gtk.FileChooserAction.OPEN
         assert chooser.get_select_multiple()
@@ -219,12 +220,7 @@ def test_the_chooser_opens_several_translation_files_from_the_last_folder(tmp_pa
         patterns = chooser.list_filters()[0].to_gvariant().unpack()[1]
         assert (0, '*.sdltm') in patterns
         assert (0, '*.zip') in patterns
-        link = chooser.get_extra_widget()
-        assert link.get_label() == "Get Microsoft's UI strings glossaries"
-        assert link.get_uri() == 'https://my.visualstudio.com/downloads?pid=6822'
         assert folders == [str(tmp_path)]
-        accept = chooser.get_widget_for_response(Gtk.ResponseType.ACCEPT)
-        assert accept.get_use_underline()
     finally:
         chooser.destroy()
 

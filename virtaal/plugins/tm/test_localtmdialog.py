@@ -127,6 +127,19 @@ def _select(dialog, name):
     raise AssertionError(name)
 
 
+def test_the_window_links_to_microsofts_ui_strings_glossaries(tm):
+    _app, model, pump = tm
+    dialog = _open(model, pump)
+    try:
+        link = dialog.glossary_link
+        assert link.get_label() == "Get Microsoft's UI strings glossaries"
+        assert link.get_uri() == 'https://my.visualstudio.com/downloads?pid=6822'
+        assert link.get_parent() is dialog.dialog.get_content_area()
+        assert link.get_visible()
+    finally:
+        dialog.dialog.destroy()
+
+
 def test_the_list_shows_each_file_per_language_pair(tm, tmp_path):
     app, model, pump = tm
     saved = _seed(app, tmp_path)

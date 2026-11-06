@@ -58,6 +58,20 @@ def _date(timestamp):
     return time.strftime('%Y-%m-%d', time.localtime(timestamp))
 
 
+def glossary_link():
+    from virtaal.support import ms_glossary, openmailto
+
+    link = Gtk.LinkButton.new_with_label(
+        ms_glossary.DOWNLOAD_URL,
+        # l10n: A link in the Local Translation Memory window to the page where
+        # Microsoft offers its translations of its software for download, to
+        # import with File > Import into Translation Memory
+        _("Get Microsoft's UI strings glossaries"),
+    )
+    link.connect('activate-link', lambda button: openmailto.open(button.get_uri()) or True)
+    return link
+
+
 class LocalTMDialog:
     """Lists what each file added to the local TM C{model}, per language
     pair, and removes or exports it."""
@@ -94,6 +108,9 @@ class LocalTMDialog:
         content = self.dialog.get_content_area()
         content.set_border_width(6)
         content.pack_start(scrolled, True, True, 0)
+        self.glossary_link = glossary_link()
+        self.glossary_link.set_halign(Gtk.Align.START)
+        content.pack_start(self.glossary_link, False, False, 0)
         self._update_buttons()
 
     def _add_columns(self):
