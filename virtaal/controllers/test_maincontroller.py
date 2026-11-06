@@ -370,6 +370,23 @@ def test_close_file_does_not_close_when_the_user_cancels_the_save_prompt():
     assert calls == []
 
 
+def test_closing_several_files_lists_the_modified_ones_in_the_save_prompt():
+    asked = []
+    controller = MainController.__new__(MainController)
+    controller._store_controller = SimpleNamespace(
+        is_modified=lambda: True,
+        fileset=object(),
+        modified_stream_files=lambda: ['po/af.po', 'help/af.po'],
+        close_file=lambda: None,
+    )
+    controller.view = SimpleNamespace(
+        show_save_confirm_dialog=lambda *files: asked.append(files) or 'cancel'
+    )
+
+    assert controller.close_file() is False
+    assert asked == [(['po/af.po', 'help/af.po'],)]
+
+
 def test_close_file_closes_after_discarding_changes():
     calls = []
     controller = MainController.__new__(MainController)

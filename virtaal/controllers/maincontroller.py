@@ -232,7 +232,7 @@ class MainController(BaseController):
             finally:
                 self._opening_file = True
         if self.store_controller.is_modified():
-            response = self.view.show_save_confirm_dialog()
+            response = self._show_save_confirm_dialog()
             if response == 'save':
                 if not self.save_file():
                     return False
@@ -285,7 +285,7 @@ class MainController(BaseController):
     def _open_files(self, paths):
         self._wait_for_controllers()
         if self.store_controller.is_modified():
-            response = self.view.show_save_confirm_dialog()
+            response = self._show_save_confirm_dialog()
             if response == 'save':
                 if not self.save_file():
                     return False
@@ -309,6 +309,11 @@ class MainController(BaseController):
                 % {'error_message': str(exc)}
             )
             return False
+
+    def _show_save_confirm_dialog(self):
+        if getattr(self.store_controller, 'fileset', None) is None:
+            return self.view.show_save_confirm_dialog()
+        return self.view.show_save_confirm_dialog(self.store_controller.modified_stream_files())
 
     def open_tutorial(self):
         # Save on the disk a localized version of the tutorial using the
@@ -415,7 +420,7 @@ class MainController(BaseController):
 
     def close_file(self):
         if self.store_controller.is_modified():
-            response = self.view.show_save_confirm_dialog()
+            response = self._show_save_confirm_dialog()
             if response == 'save':
                 if not self.save_file():
                     return False
@@ -447,7 +452,7 @@ class MainController(BaseController):
         """Update the current file using the file given by C{filename} as template.
         @returns: The filename opened, or C{None} if an error has occurred."""
         if self.store_controller.is_modified():
-            response = self.view.show_save_confirm_dialog()
+            response = self._show_save_confirm_dialog()
             if response == 'save':
                 if not self.save_file():
                     return False
@@ -515,7 +520,7 @@ class MainController(BaseController):
             return False
 
         if self.store_controller.is_modified() and not force:
-            response = self.view.show_save_confirm_dialog()
+            response = self._show_save_confirm_dialog()
             if response == 'save':
                 if not self.save_file():
                     self._restart_pending = False

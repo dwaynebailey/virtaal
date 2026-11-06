@@ -98,6 +98,24 @@ def test_confirm_dialog_offers_save_discard_and_cancel_defaulting_to_save(view):
     assert dialog._MainView__save_button is save
 
 
+def test_the_save_confirm_dialog_lists_several_modified_files_once(view, monkeypatch):
+    shown = []
+
+    def run(dialog):
+        shown.append((dialog.props.text, dialog.props.secondary_text))
+        return Gtk.ResponseType.CANCEL
+
+    monkeypatch.setattr(Gtk.Dialog, 'run', run)
+    single = view.confirm_dialog.props.text
+
+    assert view.show_save_confirm_dialog(['po/af.po', 'help/af.po']) == 'cancel'
+    view.show_save_confirm_dialog()
+
+    assert shown[0][1] == 'po/af.po\nhelp/af.po'
+    assert shown[0][0] != single
+    assert shown[1] == (single, None)
+
+
 @pytest.mark.parametrize(
     'response, expected',
     [

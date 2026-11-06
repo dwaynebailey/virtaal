@@ -1230,9 +1230,16 @@ class MainView(BaseView):
             filename = self.save_chooser.get_filename()
             return filename
 
-    def show_save_confirm_dialog(self):
-        """@returns: One of C{'save'}, C{'discard'}, or C{'cancel'},
+    def show_save_confirm_dialog(self, filenames=()):
+        """@param filenames: The modified files, when several are open.
+        @returns: One of C{'save'}, C{'discard'}, or C{'cancel'},
         depending on the button pressed."""
+        if filenames:
+            single_text = self.confirm_dialog.props.text
+            # l10n: Followed by the list of files with unsaved changes
+            text = _("These files have been modified. Do you want to save your changes?")
+            self.confirm_dialog.props.text = text
+            self.confirm_dialog.props.secondary_text = '\n'.join(filenames)
         self.confirm_dialog.set_transient_for(self._top_window)
         old_top = self._top_window
         self._top_window = self.confirm_dialog
@@ -1241,6 +1248,9 @@ class MainView(BaseView):
         self.confirm_dialog.present()
         response = self.confirm_dialog.run()
         self.confirm_dialog.hide()
+        if filenames:
+            self.confirm_dialog.props.text = single_text
+            self.confirm_dialog.props.secondary_text = None
         from gi.repository import GLib
 
         GLib.idle_add(old_top.present)

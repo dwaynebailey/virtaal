@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 07:52+0000\n"
+"POT-Creation-Date: 2026-11-06 08:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2460,6 +2460,11 @@ msgstr ""
 
 #: virtaal/views/mainview.py
 msgid "Header information"
+msgstr ""
+
+#. l10n: Followed by the list of files with unsaved changes
+#: virtaal/views/mainview.py
+msgid "These files have been modified. Do you want to save your changes?"
 msgstr ""
 
 #: virtaal/views/mainview.py
