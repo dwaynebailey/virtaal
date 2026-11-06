@@ -68,6 +68,15 @@ open, and the language list at the top of the panel opens another language's
 files. A file that doesn't say its language is shown with "(?)" and opens with
 every language.
 
+With several languages, :menuselection:`Edit --> Check All Languages…` runs
+the quality checks that compare a translation with its source (printf and
+Python placeholders, XML tags, escapes, newlines, accelerators and others you
+can tick) on every language's files, and :menuselection:`Edit --> Find in All
+Languages…` searches them all. Both are also in the menu beside the language
+list. They read the files as saved, and list each problem or match with its
+language, file and unit number. Double-click one to open that language's
+files at the unit; Virtaal asks to save your changes first.
+
 :menuselection:`File --> Save` saves every file you changed, and closing or
 quitting lists the files with unsaved changes.
 
