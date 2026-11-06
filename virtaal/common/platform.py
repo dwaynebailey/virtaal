@@ -24,6 +24,7 @@ import sys
 class Platform:
     def __init__(
         self,
+        *,
         os_name=None,
         sys_platform=None,
         frozen=None,
