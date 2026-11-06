@@ -415,7 +415,8 @@ what Trados keeps with its segment:
   and Needs work clear the status). A unit whose state you don't change keeps
   its status, Sign-off included.
 - Where the translation came from, such as ``tm, 100% match``, shows below
-  the translation, as do Trados comments on the segment.
+  the translation, as do Trados comments on the segment. Retyping the
+  commented text keeps its comment, on the new translation.
 - A locked segment shows its translation and state but can't be changed, and
   Replace skips it. Other segments of the same paragraph can still be
   changed.

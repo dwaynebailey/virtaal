@@ -277,6 +277,27 @@ def _content(node):
     ]
 
 
+def _comment_markers(unit, node):
+    mrk = unit.namespaced("mrk")
+    return [m for m in node.iter(mrk) if m.get("mtype") == "x-sdl-comment" and m.get(SDL + "cid")]
+
+
+def _keep_comments(unit, marker, old):
+    """Put back around C{marker}'s new content the comment markers of
+    C{old} it lost, so a retyped segment keeps its comments."""
+    kept = {m.get(SDL + "cid") for m in _comment_markers(unit, marker)}
+    # Innermost first, so they stay in document order.
+    for comment in reversed(old):
+        if comment.get(SDL + "cid") in kept:
+            continue
+        wrapper = marker.makeelement(comment.tag, dict(comment.attrib))
+        wrapper.text, marker.text = marker.text, None
+        for child in list(marker):
+            wrapper.append(child)
+        marker.append(wrapper)
+        kept.add(comment.get(SDL + "cid"))
+
+
 def _rich(node):
     return StringElem() if node is None else xml_to_strelem(_segment(node), "preserve")
 
@@ -434,9 +455,11 @@ class SegmentUnit(xliff.xliffunit):
         elif _content(new) == _content(_segment(marker)):
             # Showing a unit sets its target: keep an indented segment.
             return
+        comments = _comment_markers(self, marker)
         clear_content(marker)
         if value is not None:
             strelem_to_xml(marker, value[0])
+        _keep_comments(self, marker, comments)
 
     def settarget(self, target, lang="xx", append=False):
         self._rich_target = None
@@ -445,8 +468,10 @@ class SegmentUnit(xliff.xliffunit):
         marker = self.get_target_dom()
         if marker is None:
             marker = self._new_target_marker()
+        comments = _comment_markers(self, marker)
         clear_content(marker)
         marker.text = str(target) if target else None
+        _keep_comments(self, marker, comments)
         if target:
             self.marktranslated()
 

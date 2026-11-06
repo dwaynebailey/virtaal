@@ -444,6 +444,50 @@ def test_each_segment_has_its_own_comments():
     assert sdlxliff_compat.comments(store.units[1]) == [('Bob', 'Two')]
 
 
+def _commented_split():
+    store = _split(
+        _mrk(1, 'Hello') + _mrk(2, 'World'),
+        _mrk(1, 'Hallo <mrk mtype="x-sdl-comment" sdl:cid="a">Welt</mrk>') + _mrk(2, 'Welt'),
+    )
+    store.document.getroot().insert(
+        0,
+        etree.fromstring(
+            f'<doc-info xmlns="{SDL[1:-1]}"><cmt-defs>'
+            '<cmt-def id="a"><Comments><Comment user="Ann">One</Comment></Comments></cmt-def>'
+            '</cmt-defs></doc-info>'
+        ),
+    )
+    return store
+
+
+@pytest.mark.parametrize('rich', [True, False])
+def test_retyping_a_segment_keeps_its_comment(rich):
+    unit = _commented_split().units[0]
+
+    if rich:
+        unit.rich_target = [StringElem('Neu')]
+    else:
+        unit.target = 'Neu'
+
+    assert unit.target == 'Neu'
+    assert sdlxliff_compat.comments(unit) == [('Ann', 'One')]
+    assert _target_xml(unit).startswith(
+        '<target><mrk mtype="seg" mid="1"><mrk mtype="x-sdl-comment" sdl:cid="a">Neu</mrk></mrk>'
+    )
+
+
+def test_an_edit_that_keeps_the_commented_text_leaves_the_comment_where_it_is():
+    unit = _commented_split().units[0]
+    rich = unit.rich_target[0].copy()
+    rich.insert(0, 'O ')
+
+    unit.rich_target = [rich]
+
+    assert _target_xml(unit).startswith(
+        '<target><mrk mtype="seg" mid="1">O Hallo <mrk mtype="x-sdl-comment" sdl:cid="a">Welt</mrk>'
+    )
+
+
 def test_a_segment_is_its_markers_text_without_indentation():
     indented = '\n      <g id="1">%s</g>\n    '
     seg_source = '\n    ' + _mrk(1, indented % 'Hello') + '\n    ' + _mrk(2, 'a  b\n      c ')

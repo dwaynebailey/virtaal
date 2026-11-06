@@ -112,6 +112,12 @@ def _marker(trans_unit, mid, name='target'):
     )
 
 
+def _comment_ids(marker):
+    return [
+        m.get(SDL + 'cid') for m in marker.iterdescendants() if m.get('mtype') == 'x-sdl-comment'
+    ]
+
+
 def _edited(root, index, mid):
     """Trans-unit C{index}'s infoset without segment C{mid}'s translation
     and status."""
@@ -211,7 +217,11 @@ class TestTradosRoundTrip(TestScaffolding):
             return
         assert _without(after, index) == _without(before, index)
         marker = _marker(_units(after)[index], unit.mid)
-        assert marker.text == 'Neu' and len(marker) == 0
+        assert marker.xpath('string()') == 'Neu'
+        # Only the segment's comments stay, round the new text.
+        before_marker = _marker(_units(before)[index], unit.mid)
+        assert _comment_ids(marker) == _comment_ids(before_marker)
+        assert all(m.get('mtype') == 'x-sdl-comment' for m in marker.iterdescendants())
         assert _edited(after, index, unit.mid) == _edited(before, index, unit.mid)
         reopened = factory.getobject(str(path)).units
         assert [u.target for u in reopened].count('Neu') == 1
