@@ -26,6 +26,7 @@ class _UnitMatcher(_matcher):
 
     def inittm(self, stores, reverse=False):
         self._shared = {}
+        self._by_unit = {}  # id(unit): its candidate
         super().inittm(stores, reverse=reverse)
 
     def usable(self, unit):
@@ -41,6 +42,7 @@ class _UnitMatcher(_matcher):
             refs = [ref for ref in candidate.unit_refs if ref() is not None]
             if not any(ref() is unit for ref in refs):
                 refs.append(weakref.ref(unit))
+                self._by_unit[id(unit)] = candidate
             candidate.unit_refs = refs
             candidate.unit_ref = refs[0]
             return False
@@ -57,6 +59,7 @@ class _UnitMatcher(_matcher):
             candidate.unit_refs = [weakref.ref(unit)]
             candidate.unit_ref = candidate.unit_refs[0]
             self._shared[candidate.unit_key] = candidate
+            self._by_unit[id(unit)] = candidate
         self._usable = []
         if sort:
             self.candidates.units.sort(key=match.sourcelen, reverse=self.sort_reverse)
@@ -64,18 +67,20 @@ class _UnitMatcher(_matcher):
     def forget(self, unit):
         """Drop unit's candidate, or just unit's share of it if other
         units still have it. Owners that are gone are dropped too."""
-        for candidate in self.candidates.units:
-            refs = candidate.unit_refs
-            if not any(ref() is unit for ref in refs):
-                continue
-            candidate.unit_refs = [ref for ref in refs if ref() is not None and ref() is not unit]
-            if candidate.unit_refs:
-                candidate.unit_ref = candidate.unit_refs[0]
-            else:
-                self.candidates.units.remove(candidate)
-                del self._shared[candidate.unit_key]
-            # A unit is in at most one candidate.
+        # A unit is in at most one candidate.
+        candidate = self._by_unit.pop(id(unit), None)
+        if candidate is None:
             return
+        refs = candidate.unit_refs
+        if not any(ref() is unit for ref in refs):
+            return  # The id of a unit that is gone.
+        candidate.unit_refs = [ref for ref in refs if ref() is not None and ref() is not unit]
+        if candidate.unit_refs:
+            candidate.unit_ref = candidate.unit_refs[0]
+            return
+        units = self.candidates.units
+        del units[next(i for i, c in enumerate(units) if c is candidate)]
+        del self._shared[candidate.unit_key]
 
     def release(self):
         """Stop tying candidates to units, e.g. those of a closed file;
@@ -83,6 +88,7 @@ class _UnitMatcher(_matcher):
         for candidate in self.candidates.units:
             candidate.unit_refs = []
             candidate.unit_ref = None
+        self._by_unit = {}
 
     def buildunits(self, candidates):
         units = super().buildunits(candidates)

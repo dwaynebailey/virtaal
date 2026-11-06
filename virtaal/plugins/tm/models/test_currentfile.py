@@ -541,3 +541,26 @@ def test_query_offers_the_other_forms_of_the_form_being_edited():
     model.query(SimpleNamespace(target_n=1), unit)
 
     assert emitted == [[('%d lêer', 87)]]
+
+
+class _CountingList(list):
+    iterations = 0
+
+    def __iter__(self):
+        _CountingList.iterations += 1
+        return super().__iter__()
+
+
+def test_editing_a_unit_finds_its_candidate_without_a_scan():
+    # In a large file, a scan of every candidate per edit is slow.
+    store = _po_store([(None, 'Source %d' % n, 'Bron %d' % n) for n in range(500)])
+    store.addunit(store.UnitClass('Source 7'))
+    model, emitted = _model_for(store)
+    _edit(model, store.units[-1], 'Bron 7')
+    model.matcher.candidates.units = _CountingList(model.matcher.candidates.units)
+    _CountingList.iterations = 0
+
+    _edit(model, store.units[7], 'Nuwe bron')
+
+    assert _CountingList.iterations == 0
+    assert ('Nuwe bron', 100) in _offered(model, emitted, store.units[-1])
