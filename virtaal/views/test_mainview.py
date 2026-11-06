@@ -3534,7 +3534,8 @@ def test_show_recovery_notice_buttons_run_their_callbacks():
         assert calls[-1] == expected
 
 
-def test_show_recovery_notice_names_an_earlier_day():
+def test_show_recovery_notice_names_an_earlier_day(monkeypatch):
+    monkeypatch.setattr(pan_app, 'ui_language', 'en')
     view, vbox = _view_for_same_lang_notice()
 
     view.show_recovery_notice(1, 86400 * 365, lambda: None, lambda: None)
