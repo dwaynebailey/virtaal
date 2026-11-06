@@ -507,26 +507,15 @@ class Settings:
     def read(self):
         """Read the configuration file and set the dictionaries up."""
         self.config_recovery_backup = _read_ini_recovering(self.config, self.filename)
+        language_defaults = dict(self.language)
         for section in self.sections:
             if not self.config.has_section(section):
                 self.config.add_section(section)
+            getattr(self, section).update(self.config.items(section))
+        self._reset_bad_language_codes(language_defaults)
+        self._reset_bad_fonts()
 
-        for key, value in self.config.items("translator"):
-            self.translator[key] = value
-        for key, value in self.config.items("general"):
-            self.general[key] = value
-        language_defaults = dict(self.language)
-        for key, value in self.config.items("language"):
-            self.language[key] = value
-        for key, value in self.config.items("placeable_state"):
-            self.placeable_state[key] = value
-        for key, value in self.config.items("plugin_state"):
-            self.plugin_state[key] = value
-        for key, value in self.config.items("undo"):
-            self.undo[key] = value
-        for key, value in self.config.items("installed_assets"):
-            self.installed_assets[key] = value
-
+    def _reset_bad_language_codes(self, defaults):
         # A code that isn't one broke every TM request (#4340): "af",
         # "zh_CN", "pt-BR", "sr@latin".
         for lang in ('sourcelang', 'targetlang'):
@@ -535,13 +524,14 @@ class Settings:
 
                 logging.warning(
                     "Using %s for %s: %r isn't a language code",
-                    language_defaults[lang],
+                    defaults[lang],
                     lang,
                     self.language[lang],
                 )
                 _note_reset(lang)
-                self.language[lang] = language_defaults[lang]
+                self.language[lang] = defaults[lang]
 
+    def _reset_bad_fonts(self):
         # Make sure we have some kind of font names to work with, and
         # ones GTK's CSS accepts: a newline broke the editor (#4340).
         for font in ('sourcefont', 'targetfont'):
@@ -560,20 +550,9 @@ class Settings:
             if self.language[font] == defaultfont:
                 self.language[font] = ''
 
-        for key in self.translator:
-            self.config.set("translator", key, self.translator[key])
-        for key in self.general:
-            self.config.set("general", key, self.general[key])
-        for key in self.language:
-            self.config.set("language", key, self.language[key])
-        for key in self.placeable_state:
-            self.config.set("placeable_state", key, self.placeable_state[key])
-        for key in self.plugin_state:
-            self.config.set("plugin_state", key, self.plugin_state[key])
-        for key in self.undo:
-            self.config.set("undo", key, self.undo[key])
-        for key in self.installed_assets:
-            self.config.set("installed_assets", key, self.installed_assets[key])
+        for section in self.sections:
+            for key, value in getattr(self, section).items():
+                self.config.set(section, key, value)
 
         # make sure that the configuration directory exists
         project_dir = os.path.split(self.filename)[0]
@@ -1001,10 +980,7 @@ def load_config(filename, section=None):
             return {}
         return dict(parser.items(section))
 
-    conf = {}
-    for section in parser.sections():
-        conf[section] = dict(parser.items(section))
-    return conf
+    return {name: dict(parser.items(name)) for name in parser.sections()}
 
 
 def save_config(filename, config, section=None):
@@ -1030,12 +1006,12 @@ def save_config(filename, config, section=None):
         for sect in parser.sections():
             parser.remove_section(sect)
 
-    for section, section_conf in config.items():
-        if section not in parser.sections():
-            parser.add_section(section)
+    for name, section_conf in config.items():
+        if name not in parser.sections():
+            parser.add_section(name)
         for key, value in section_conf.items():
             if isinstance(value, list):
                 value = ','.join(value)
-            parser.set(section, key, str(value))
+            parser.set(name, key, str(value))
 
     _write_ini(parser, filename)
