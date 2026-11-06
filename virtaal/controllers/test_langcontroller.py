@@ -497,10 +497,12 @@ def test_on_store_loaded_creates_the_view_and_sets_the_language_pair(monkeypatch
     monkeypatch.setattr(
         'virtaal.views.langview.LanguageView', lambda c: created.append(c) or _FakeLanguageView(c)
     )
+    adopted = []
     store = main_controller.store_controller.store = SimpleNamespace(
         get_source_language=lambda: 'fr',
         get_target_language=lambda: 'zzunknown',
         get_declared_nplurals=lambda: None,
+        adopt_target_language=adopted.append,
     )
     main_controller.store_controller.get_store = lambda: store
     main_controller.store_controller.get_nplurals = lambda: 4
@@ -511,6 +513,7 @@ def test_on_store_loaded_creates_the_view_and_sets_the_language_pair(monkeypatch
     assert controller.view.shown
     assert controller.source_lang.code == 'fr'
     assert controller.target_lang.code == 'zzunknown'
+    assert adopted == ['zzunknown']
     assert controller.get_target_nplurals() == 4
 
 
@@ -522,6 +525,7 @@ def test_on_store_loaded_reuses_an_existing_view(monkeypatch, tmp_path):
     main_controller.store_controller.store = SimpleNamespace(
         get_source_language=lambda: 'en',
         get_target_language=lambda: 'af',
+        adopt_target_language=lambda code: None,
     )
     main_controller.store_controller.get_nplurals = lambda: 2
 
@@ -538,6 +542,7 @@ def test_on_store_loaded_falls_back_to_the_current_source_lang(monkeypatch, tmp_
     main_controller.store_controller.store = SimpleNamespace(
         get_source_language=lambda: None,
         get_target_language=lambda: 'af',
+        adopt_target_language=lambda code: None,
     )
     main_controller.store_controller.get_nplurals = lambda: 2
 

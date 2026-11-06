@@ -249,6 +249,46 @@ def test_a_different_language_replaces_the_files_code(tmp_path):
     assert model._trans_store.gettargetlanguage() == "af"
 
 
+_TMX = b"""<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4"><header srclang="EN-GB" adminlang="en" datatype="plaintext"
+ segtype="sentence" creationtool="t" creationtoolversion="1" o-tmf="t"/><body>
+<tu><tuv xml:lang="EN-US"><seg>Open</seg></tuv><tuv xml:lang="DE-DE"><seg>Offnen</seg></tuv></tu>
+<tu><tuv xml:lang="EN-US"><seg>Close</seg></tuv></tu>
+</body></tmx>
+"""
+
+
+def _tmx_model(tmp_path, data=_TMX):
+    path = tmp_path / "memory.tmx"
+    path.write_bytes(data)
+    return StoreModel(str(path), _FakeController())
+
+
+def test_a_tmx_is_translated_into_the_language_of_its_translations(tmp_path):
+    assert _tmx_model(tmp_path).get_target_language() == "DE-DE"
+
+
+def test_a_tmx_target_language_is_found_by_the_files_own_code(tmp_path):
+    model = _tmx_model(tmp_path)
+
+    model.set_target_language("de")
+
+    assert model._trans_store.gettargetlanguage() == "DE-DE"
+    assert model.get_units()[0].target == "Offnen"
+
+
+def test_a_tmx_adopts_a_target_language_only_when_it_has_none(tmp_path):
+    model = _tmx_model(
+        tmp_path, _TMX.replace(b'<tuv xml:lang="DE-DE"><seg>Offnen</seg></tuv>', b"")
+    )
+    assert model.get_target_language() is None
+
+    model.adopt_target_language("af")
+    model.adopt_target_language("de")
+
+    assert model._trans_store.gettargetlanguage() == "af"
+
+
 def test_set_language_reports_whether_the_file_changed(tmp_path):
     model = _xliff_model(tmp_path)
 

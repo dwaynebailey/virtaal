@@ -191,8 +191,30 @@ class StoreModel(BaseModel):
         # If we couldn't get the language from the first unit, try the store
         if candidate is None:
             candidate = self._trans_store.gettargetlanguage()
+        if candidate is None:
+            candidate = tmx_compat.translation_language(self._trans_store)
         if candidate and candidate != 'und':
             return candidate
+
+    def adopt_target_language(self, langcode):
+        """Give a TMX, which names no target language, C{langcode} as the
+        one it is translated into. Other files keep their own."""
+        from translate.storage import tmx
+
+        if isinstance(self._trans_store, tmx.tmxfile) and not self._trans_store.gettargetlanguage():
+            self._trans_store.settargetlanguage(self._file_language(langcode))
+
+    def _file_language(self, langcode):
+        """A TMX's own code for C{langcode} ("DE-DE" for "de"), so its
+        tuvs are found; else C{langcode}."""
+        from translate.storage import tmx
+
+        if isinstance(self._trans_store, tmx.tmxfile):
+            for unit in self._trans_store.units:
+                for node in unit.getlanguageNodes():
+                    if same_language(tmx_compat.tuv_lang(node), langcode):
+                        return tmx_compat.tuv_lang(node)
+        return langcode
 
     def set_target_language(self, langcode):
         """Returns whether the file's language changed."""
@@ -202,7 +224,7 @@ class StoreModel(BaseModel):
         from translate.storage.poheader import poheader
 
         if not isinstance(self._trans_store, poheader):
-            self._trans_store.settargetlanguage(langcode)
+            self._trans_store.settargetlanguage(self._file_language(langcode))
             return True
         with _added_fields_in_gettext_order(self._trans_store):
             self._trans_store.settargetlanguage(langcode)

@@ -14,7 +14,12 @@ translate-toolkit 3.17 and earlier and in Virtaal's TM import.
 TMX 1.1 and 1.2 give a tuv's language in lang, not xml:lang, and
 translate-toolkit only reads xml:lang (#4726). Here a tuv without
 xml:lang has the language in its lang, and a new tuv uses lang when the
-file's tuvs do."""
+file's tuvs do.
+
+A unit keeps the rich source and target it read before the store's
+languages changed; here a language change drops them. A TMX names no
+target language: L{translation_language} finds the one its translations
+are in."""
 
 from translate.misc import xml_helpers
 from translate.storage import lisa, tmx
@@ -46,6 +51,25 @@ def _uses_lang(unit):
     return tuv is not None and xml_helpers.getXMLlang(tuv) is None and tuv.get("lang") is not None
 
 
+def translation_language(store):
+    """The language of every translation in C{store}, a TMX that names no
+    target language, when they are all in one; else None."""
+    if not isinstance(store, tmx.tmxfile):
+        return None
+    found = None
+    for unit in store.units:
+        source = unit.get_source_dom()
+        for node in unit.getlanguageNodes():
+            lang = tuv_lang(node)
+            if node is source or not lang:
+                continue
+            if found is None:
+                found = lang
+            elif lang.replace("_", "-").lower() != found.replace("_", "-").lower():
+                return None
+    return found
+
+
 def get_source_dom(self):
     node = _get_source_dom(self)
     if node is None:
@@ -61,6 +85,17 @@ def createlanguageNode(self, lang, text, purpose):
     return node
 
 
+def _dropping_rich_text(set_language):
+    def compat_set_language(self, language):
+        set_language(self, language)
+        for unit in getattr(self, 'units', ()):
+            unit._rich_source = unit._rich_target = None
+
+    return compat_set_language
+
+
+tmx.tmxfile.setsourcelanguage = _dropping_rich_text(tmx.tmxfile.setsourcelanguage)
+tmx.tmxfile.settargetlanguage = _dropping_rich_text(tmx.tmxfile.settargetlanguage)
 tmx.tmxunit.get_source_dom = get_source_dom
 tmx.tmxunit.source_dom = property(get_source_dom, tmx.tmxunit.set_source_dom)
 tmx.tmxunit.createlanguageNode = createlanguageNode

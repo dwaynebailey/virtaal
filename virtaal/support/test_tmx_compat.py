@@ -124,3 +124,30 @@ def test_a_new_tuv_in_a_tmx_1_4_file_uses_xml_lang():
 
     assert b' lang="' not in saved
     assert tmx.tmxfile.parsestring(saved).units[1].target == "Maak toe"
+
+
+@needs_languages
+def test_a_rich_target_follows_a_target_language_change():
+    store = _store_1_1("af")
+    unit = store.units[0]
+    assert str(unit.rich_target[0]) == "Oop"
+
+    store.settargetlanguage("de")
+
+    assert str(unit.rich_target[0]) == "Auf"
+
+
+@pytest.mark.parametrize(
+    ("data", "language"),
+    [
+        (TMX % b"en-US", "de-DE"),
+        (TMX_1_1, None),
+        pytest.param(
+            TMX_1_1.replace(b'<tuv lang="de"><seg>Auf</seg></tuv>', b""),
+            "af",
+            marks=needs_languages,
+        ),
+    ],
+)
+def test_the_translation_language_is_the_only_one_besides_the_source(data, language):
+    assert tmx_compat.translation_language(tmx.tmxfile.parsestring(data)) == language

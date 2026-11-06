@@ -220,3 +220,4 @@ class LanguageController(BaseController):
         srclang = store_controller.store.get_source_language() or self.source_lang.code
         tgtlang = store_controller.store.get_target_language() or self.target_lang.code
         self.set_language_pair(srclang, tgtlang)
+        store_controller.store.adopt_target_language(self.target_lang.code)

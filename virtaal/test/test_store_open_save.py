@@ -15,6 +15,7 @@ from test_scaffolding import TestScaffolding
 from translate.storage import factory, workflow
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
+from virtaal.models.langmodel import LanguageModel
 from virtaal.support.bundleprojstore import BundleProjectStore, InvalidBundleError
 
 PO = b'''msgid ""
@@ -34,6 +35,15 @@ XLIFF = b'''<?xml version="1.0" encoding="UTF-8"?>
 '''
 
 CSV = b'source,target\nOpen,Oop\n'
+
+TMX = b'''<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.1"><header srclang="en" adminlang="en" datatype="plaintext"
+ segtype="sentence" creationtool="t" creationtoolversion="1" o-tmf="t"/><body>
+<tu><tuv lang="en"><seg>Close</seg></tuv><tuv lang="de"><seg>Schliessen</seg></tuv>
+<tuv lang="af"><seg>Maak toe</seg></tuv></tu>
+<tu><tuv lang="en"><seg>Open</seg></tuv></tu>
+</body></tmx>
+'''
 
 
 def _zip_without_a_project(path):
@@ -124,6 +134,22 @@ class TestStoreOpenSave(TestScaffolding):
         self.store_controller.save_file()
 
         assert _target_state(str(path), 'Open') == workflow.StateEnum.NEEDS_WORK
+
+    def test_a_tmx_is_read_and_saved_in_the_target_language(self, tmp_path, monkeypatch):
+        # A TMX names no target language; it holds one per tuv.
+        monkeypatch.setattr(self.lang_controller, '_target_lang', LanguageModel('af'))
+        path = tmp_path / 'memory.tmx'
+        path.write_bytes(TMX)
+        self.store_controller.open_file(str(path))
+        units = self.store_controller.store.get_units()
+        self.unit_controller.load_unit(units[1])
+
+        self.unit_controller.set_unit_target(0, ['Maak oop'])
+        units[1]._modified = True
+        self.store_controller.save_file()
+
+        assert [str(u.rich_target[0]) for u in units] == ['Maak toe', 'Maak oop']
+        assert b'<tuv lang="af"><seg>Maak oop</seg></tuv>' in path.read_bytes()
 
     def test_a_unit_without_states_loads_without_a_workflow(self, tmp_path):
         path = tmp_path / 'open.csv'
