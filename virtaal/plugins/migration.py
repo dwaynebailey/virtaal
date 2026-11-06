@@ -26,7 +26,7 @@ from virtaal.support import tmdb
 
 
 class Plugin(BasePlugin):
-    description = _('Migrate settings from KBabel, Lokalize and/or Poedit to Virtaal.')
+    description = _('Migrate settings from KBabel, Lokalize and/or Poedit to Virtaal')
     display_name = _('Migration Assistant')
     version = 0.1
 

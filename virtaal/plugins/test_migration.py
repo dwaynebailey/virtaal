@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 from virtaal.common.platform import platform
+from virtaal.controllers.plugincontroller import PluginController
 from virtaal.plugins import migration
 from virtaal.support import tmdb
 
@@ -672,3 +673,13 @@ def test_starting_with_nothing_to_import_asks_nothing(tmp_path, monkeypatch):
 
     assert shown == []
     assert settings.plugin_state == {'migration': 'disabled'}
+
+
+def test_no_plugin_description_ends_with_a_full_stop():
+    # Preferences > Plug-ins lists them together (#4549).
+    pc = PluginController(SimpleNamespace(), classname='Plugin')
+    pc.PLUGIN_MODULES = ['virtaal.plugins']
+    names = [name for name in pc._find_plugin_names() if not name.startswith('_')]
+
+    assert 'migration' in names
+    assert [n for n in names if pc.get_plugin_info(n)['description'].endswith('.')] == []

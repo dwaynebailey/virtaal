@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 06:13+0000\n"
+"POT-Creation-Date: 2026-11-06 06:14+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1450,7 +1450,7 @@ msgid "A web look-up with this name already exists."
 msgstr ""
 
 #: virtaal/plugins/migration.py
-msgid "Migrate settings from KBabel, Lokalize and/or Poedit to Virtaal."
+msgid "Migrate settings from KBabel, Lokalize and/or Poedit to Virtaal"
 msgstr ""
 
 #: virtaal/plugins/migration.py

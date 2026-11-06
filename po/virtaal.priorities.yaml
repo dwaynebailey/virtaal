@@ -412,7 +412,7 @@ domains:
     - 'Location:'
     - Lokalize settings
     - 'Lokalize''s Translation Memory: %(database_name)s'
-    - Migrate settings from KBabel, Lokalize and/or Poedit to Virtaal.
+    - Migrate settings from KBabel, Lokalize and/or Poedit to Virtaal
     - Migration Assistant
     - Migration completed
     - Migration was successfully completed
