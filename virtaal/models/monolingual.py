@@ -33,9 +33,11 @@ class _Review:
 
 class MonolingualPair:
     """C{target} translated from C{template}. C{store} is the bilingual
-    store to edit; L{save()} writes only the target."""
+    store to edit; L{save()} writes only the target. Untranslated keys
+    get the template's text there, unless C{skip_untranslated} (if not
+    given, what the baseline last recorded)."""
 
-    def __init__(self, target, template, language=None):
+    def __init__(self, target, template, language=None, skip_untranslated=None):
         from virtaal.models.fileset import path_language
 
         self.converter = converters.monolingual_converter(target)
@@ -51,6 +53,7 @@ class MonolingualPair:
         """{key: _Review} of the units marked for review on open."""
         self.carried = 0
         """Translations carried over from a renamed key on open."""
+        self.skip_untranslated = skip_untranslated
         self._compare()
 
     @property
@@ -70,6 +73,8 @@ class MonolingualPair:
         """Mark what changed since the baseline, and record what was seen."""
         old = baseline.load(self.target)
         old_units = old['units'] if old else {}
+        if self.skip_untranslated is None:
+            self.skip_untranslated = bool(old and old.get('skip_untranslated'))
         keys = {key for key, _unit in self.units()}
         # Kept until a save, so a rename still carries over on a later open.
         units = {key: e for key, e in old_units.items() if key not in keys}
@@ -87,7 +92,9 @@ class MonolingualPair:
                 units[key] = baseline.entry(unit.source, _target_text(unit), FUZZY, outside=True)
             else:
                 units[key] = self._known_key(key, unit, previous)
-        data = dict(old or {}, template=self.template, units=units)
+        data = dict(
+            old or {}, template=self.template, units=units, skip_untranslated=self.skip_untranslated
+        )
         if data != old:
             baseline.save(self.target, data)
 
@@ -109,6 +116,12 @@ class MonolingualPair:
 
     def _known_key(self, key, unit, previous):
         target = _target_text(unit)
+        if previous.get('state') == UNTRANSLATED and previous.get('target_hash') == text_hash(
+            target
+        ):
+            # The template's text, written in for an untranslated key.
+            unit.target = ''
+            return baseline.entry(unit.source, target, UNTRANSLATED)
         review = _Review(previous.get('previous_source'), previous.get('outside', False))
         fuzzy = previous.get('state') == FUZZY
         if previous.get('source_hash') != text_hash(unit.source):
@@ -149,7 +162,9 @@ class MonolingualPair:
         what it now holds as the baseline."""
         path = os.path.abspath(path or self.target)
         translations = {key: _target_text(unit) for key, unit in self.units() if unit.target}
-        data = self.converter.to_monolingual(self.template, self.target, translations)
+        data = self.converter.to_monolingual(
+            self.template, self.target, translations, self.skip_untranslated
+        )
         with open(path, 'wb') as f:
             f.write(data)
         old = baseline.load(self.target) if path == self.target else None
@@ -159,7 +174,7 @@ class MonolingualPair:
         units = {}
         for key, unit in self.units():
             target = saved.get(key)
-            if not target:
+            if not unit.target:
                 state = UNTRANSLATED
             else:
                 state = FUZZY if unit.isfuzzy() else TRANSLATED
@@ -169,4 +184,12 @@ class MonolingualPair:
             units[key] = baseline.entry(
                 unit.source, target, state, review.previous_source, review.outside
             )
-        baseline.save(path, dict(old or {}, template=self.template, units=units))
+        baseline.save(
+            path,
+            dict(
+                old or {},
+                template=self.template,
+                units=units,
+                skip_untranslated=self.skip_untranslated,
+            ),
+        )

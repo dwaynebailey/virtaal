@@ -27,6 +27,9 @@ class TemplateMatch(NamedTuple):
     """The target's language, if the match says."""
     how: str
     """What found it: a config file's name, or "layout"."""
+    skip_untranslated: bool | None = None
+    """Whether the project leaves untranslated keys out of the target
+    (C{None}: it doesn't say)."""
 
 
 # File masks, as amaGama reads them: a path relative to the config's
@@ -89,8 +92,8 @@ def _join(base, path):
 
 
 # Config readers: each takes a config file's text and gives
-# [(mask, template)], relative to the directory the config's paths are
-# relative to.
+# [(mask, template, skip_untranslated)], relative to the directory the
+# config's paths are relative to.
 
 _CROWDIN_LANGUAGE = (
     'locale',
@@ -146,8 +149,9 @@ def read_crowdin(text):
         if not isinstance(entry, dict) or not entry.get('source') or not entry.get('translation'):
             continue
         mask = _crowdin_mask(entry['translation'], _clean(entry['source']))
+        skip = str(entry.get('skip_untranslated_strings', '')).lower() == 'true'
         if mask:
-            found.append((_join(base, mask), _join(base, entry['source'])))
+            found.append((_join(base, mask), _join(base, entry['source']), skip))
     return found
 
 
@@ -168,11 +172,11 @@ def read_transifex(text):
         for key, value in settings.items():
             # trans.<lang> names one language's file outright.
             if key.startswith('trans.') and value.strip():
-                found.append((_clean(value), _clean(source)))
+                found.append((_clean(value), _clean(source), False))
         file_filter = (settings.get('file_filter') or '').strip()
         if '<lang>' in file_filter:
             mask = file_filter.replace('<lang>', '{lang}', 1).replace('<lang>', '*')
-            found.append((_clean(mask), _clean(source)))
+            found.append((_clean(mask), _clean(source), False))
     return found
 
 
@@ -212,8 +216,9 @@ def read_l10n_toml(text):
         l10n = _expand(l10n, env)
         for placeholder in _L10N_LANGUAGE:
             l10n = l10n.replace(placeholder, '{lang}', 1).replace(placeholder, '*')
+        # Mozilla's tools fall back to English for a missing string.
         if '{lang}' in l10n:
-            found.append((_join(base, l10n), _join(base, _expand(reference, env))))
+            found.append((_join(base, l10n), _join(base, _expand(reference, env)), True))
     return found
 
 
@@ -235,7 +240,7 @@ def _config_match(directory, relpath, name, reader):
             pairs = reader(f.read())
     except (OSError, UnicodeDecodeError):
         return None
-    for mask, template in pairs:
+    for mask, template, skip in pairs:
         try:
             match = compile_mask(mask).match(relpath)
         except ValueError:
@@ -247,7 +252,8 @@ def _config_match(directory, relpath, name, reader):
             continue
         found = os.path.join(directory, *fill(template, match).split('/'))
         if os.path.isfile(found) and not os.path.samefile(found, os.path.join(directory, relpath)):
-            return TemplateMatch(found, match.groupdict().get('lang'), name.replace(os.sep, '/'))
+            how = name.replace(os.sep, '/')
+            return TemplateMatch(found, match.groupdict().get('lang'), how, skip)
     return None
 
 

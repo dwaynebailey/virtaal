@@ -57,12 +57,13 @@ files:
     translation: /%two_letters_code%/%original_file_name%
   - source: /src/**/*.ftl
     translation: /src/**/%file_name%.%locale%.ftl
+    skip_untranslated_strings: true
   - source: /no-language.properties
     translation: /out.properties
 """
     assert read_crowdin(text) == [
-        ('app/{lang}/messages.properties', 'app/en/messages.properties'),
-        ('app/src/**/*.{lang}.ftl', 'app/src/**/*.ftl'),
+        ('app/{lang}/messages.properties', 'app/en/messages.properties', False),
+        ('app/src/**/*.{lang}.ftl', 'app/src/**/*.ftl', True),
     ]
 
 
@@ -82,8 +83,8 @@ file_filter = locale/messages_<lang>.properties
 trans.af_ZA = custom/afrikaans.properties
 """
     assert sorted(read_transifex(text)) == [
-        ('custom/afrikaans.properties', 'locale/messages.properties'),
-        ('locale/messages_{lang}.properties', 'locale/messages.properties'),
+        ('custom/afrikaans.properties', 'locale/messages.properties', False),
+        ('locale/messages_{lang}.properties', 'locale/messages.properties', False),
     ]
 
 
@@ -99,7 +100,7 @@ basepath = "."
     reference = "locales/en-US/**"
     l10n = "locales/{locale}/**"
 """
-    assert read_l10n_toml(text) == [('locales/{lang}/**', 'locales/en-US/**')]
+    assert read_l10n_toml(text) == [('locales/{lang}/**', 'locales/en-US/**', True)]
 
 
 def test_crowdin_yml_finds_the_template(tmp_path):
@@ -112,7 +113,7 @@ def test_crowdin_yml_finds_the_template(tmp_path):
 
     match = find_template(af)
 
-    assert match == templatefinder.TemplateMatch(en, 'af', 'crowdin.yml')
+    assert match == templatefinder.TemplateMatch(en, 'af', 'crowdin.yml', False)
 
 
 def test_transifex_config_finds_the_template(tmp_path):
@@ -136,7 +137,7 @@ def test_l10n_toml_finds_a_fluent_template(tmp_path):
     )
     en, af = _touch(tmp_path, 'locales/en-US/app/main.ftl', 'locales/af/app/main.ftl')
 
-    assert find_template(af) == templatefinder.TemplateMatch(en, 'af', 'l10n.toml')
+    assert find_template(af) == templatefinder.TemplateMatch(en, 'af', 'l10n.toml', True)
 
 
 def test_a_config_whose_template_is_missing_falls_back_to_the_layout(tmp_path):

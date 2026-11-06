@@ -12,13 +12,17 @@ One JSON file per target, in this user's state directory (never in the
 project), named by a hash of the target's absolute path:
 
   {"format": 1, "target": <path>, "template": <path>, "chosen": <bool>,
+   "skip_untranslated": <bool>,
    "units": {<key>: {"source": <text>, "source_hash": <hash>,
                      "target_hash": <hash or null>, "state": <state>,
                      "previous_source": <text>, "outside": <bool>}}}
 
-"state" is "translated", "fuzzy" or "untranslated". "previous_source"
-(the source the translation was made for) and "outside" (the target
-changed outside Virtaal) are kept while the unit needs review."""
+"state" is "translated", "fuzzy" or "untranslated"; an untranslated
+key's target_hash is of the template's text written in for it, if any.
+"previous_source" (the source the translation was made for) and
+"outside" (the target changed outside Virtaal) are kept while the unit
+needs review. "skip_untranslated" is whether untranslated keys are left
+out of the target, as the project says."""
 
 import hashlib
 import json

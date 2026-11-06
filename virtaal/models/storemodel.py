@@ -94,10 +94,10 @@ class StoreModel(BaseModel):
     __gtype_name__ = "StoreModel"
 
     # INITIALIZERS #
-    def __init__(self, fileobj, controller, fill_stats_cache=True, template=None, language=None):
+    def __init__(self, fileobj, controller, fill_stats_cache=True, template=None, **pairing):
         super().__init__()
         self.controller = controller
-        self.load_file(fileobj, fill_stats_cache, template, language)
+        self.load_file(fileobj, fill_stats_cache, template, **pairing)
 
     # SPECIAL METHODS #
     def __getitem__(self, index):
@@ -215,9 +215,9 @@ class StoreModel(BaseModel):
         return totals
 
     # METHODS #
-    def load_file(self, fileobj, fill_stats_cache=True, template=None, language=None):
+    def load_file(self, fileobj, fill_stats_cache=True, template=None, **pairing):
         """Open C{fileobj}; a monolingual file opens paired with its
-        C{template}, in C{language} if given."""
+        C{template}, with L{MonolingualPair}'s other arguments."""
         # Adapted from Document.__init__()
         filename = fileobj
         if isinstance(filename, str):
@@ -245,7 +245,7 @@ class StoreModel(BaseModel):
         if template:
             from .monolingual import MonolingualPair
 
-            self.pair = MonolingualPair(filename, template, language)
+            self.pair = MonolingualPair(filename, template, **pairing)
             self._trans_store = self.pair.store
         else:
             from translate.storage import factory

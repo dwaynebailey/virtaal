@@ -93,12 +93,25 @@ def test_properties_pair_shows_the_template_as_source(tmp_path):
     assert 'The window title' in units['app.title'].getnotes()
 
 
-def test_properties_written_back_follow_the_template_and_leave_out_untranslated(tmp_path):
+def test_properties_written_back_give_untranslated_keys_the_english(tmp_path):
+    en = _write(tmp_path / 'en.properties', EN_PROPERTIES)
+    af = _write(tmp_path / 'af.properties', 'app.title=Ou\n')
+
+    data = PropertiesConverter().to_monolingual(en, af, {'quit': 'Verlaat'})
+
+    assert data.decode('iso-8859-1').splitlines()[-3:] == [
+        'app.title=File Manager',
+        'greeting=Hello, {0}!',
+        'quit=Verlaat',
+    ]
+
+
+def test_properties_written_back_follow_the_template_and_can_leave_out_untranslated(tmp_path):
     en = _write(tmp_path / 'en.properties', EN_PROPERTIES)
     af = _write(tmp_path / 'af.properties', 'app.title=Ou\n')
 
     data = PropertiesConverter().to_monolingual(
-        en, af, {'app.title': 'Lêerbestuurder', 'quit': 'Verlaat'}
+        en, af, {'app.title': 'Lêerbestuurder', 'quit': 'Verlaat'}, skip_untranslated=True
     )
 
     assert data.decode('iso-8859-1') == (
@@ -155,6 +168,7 @@ def test_fluent_written_back_keeps_template_comments_and_attributes(tmp_path):
         en,
         af,
         {'app-title': 'Lêerbestuurder', 'login': 'Teken aan\n.title = Teken aan by jou rekening'},
+        skip_untranslated=True,
     )
 
     assert data.decode('utf-8') == (
@@ -175,4 +189,6 @@ def test_fluent_round_trip_keeps_every_translation(tmp_path):
 
     af.write_bytes(converter.to_monolingual(en, str(af), wanted))
 
-    assert converter.values(str(af)) == wanted
+    assert converter.values(str(af)) == dict(
+        wanted, login='Log in\n.title = Log in to your account'
+    )

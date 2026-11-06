@@ -43,10 +43,11 @@ class MonolingualConverter:
         target's. Each unit's first location is its key."""
         raise NotImplementedError
 
-    def to_monolingual(self, template_path, target_path, translations):
+    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
         """The bytes of the target file: the template with each key in
-        C{translations} ({key: text}) translated and every other message
-        left out. C{target_path} is the file being replaced, if any."""
+        C{translations} ({key: text}) translated, and every other message
+        in the template's text, or left out with C{skip_untranslated}.
+        C{target_path} is the file being replaced, if any."""
         raise NotImplementedError
 
     def values(self, path):
@@ -91,7 +92,7 @@ class PropertiesConverter(MonolingualConverter):
 
         return prop2po.prop2po().mergestore(self._store(template_path), self._store(target_path))
 
-    def to_monolingual(self, template_path, target_path, translations):
+    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
         from translate.convert import po2prop
         from translate.storage import po
 
@@ -108,9 +109,9 @@ class PropertiesConverter(MonolingualConverter):
                 personality = 'java-utf8'
         encoding = 'iso-8859-1' if personality == 'java' else 'utf-8'
         inputstore = po.pofile()
-        # A key left out of the input store is copied from the template.
+        # An untranslated key gets the template's text unless removed.
         for key, source in self.values(template_path).items():
-            unit = inputstore.addsourceunit(source or key)
+            unit = inputstore.addsourceunit(source)
             unit.addlocation(key)
             unit.target = translations.get(key, '')
         writer = po2prop.reprop(
@@ -118,7 +119,7 @@ class PropertiesConverter(MonolingualConverter):
             inputstore,
             personality,
             encoding,
-            remove_untranslated=True,
+            remove_untranslated=skip_untranslated,
         )
         return writer.convertstore()
 
@@ -152,12 +153,12 @@ class FluentConverter(MonolingualConverter):
             self._store(template_path), self._store(target_path)
         )
 
-    def to_monolingual(self, template_path, target_path, translations):
+    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
         store = self._store(template_path)
         for unit in self._messages(store):
             if unit.getid() in translations:
                 unit.source = translations[unit.getid()]
-            else:
+            elif skip_untranslated:
                 store.removeunit(unit)
         return bytes(store)
 

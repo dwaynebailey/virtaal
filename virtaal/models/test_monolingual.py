@@ -110,7 +110,7 @@ def test_save_as_writes_the_new_file_in_the_same_format(project):
     pair.save(str(project / 'copy.properties'))
 
     assert (project / 'copy.properties').read_text(encoding='utf-8') == (
-        '# The window title\napp.title=Lêerbestuurder\ngreeting=Hallo, {0}!\n'
+        '# The window title\napp.title=Lêerbestuurder\ngreeting=Hallo, {0}!\nquit=Quit\n'
     )
     assert pair.store.filename == str(project / 'copy.properties')
     assert (project / 'af.properties').read_text(encoding='utf-8') == AF
@@ -280,6 +280,38 @@ def test_saving_a_first_open_unchanged_writes_the_targets_values(project):
 
     after = PropertiesConverter().values(af)
     assert {key: after[key] for key in before} == before
+
+
+def test_an_untranslated_key_is_written_in_english_and_stays_untranslated(project):
+    _open(project).save()
+
+    assert 'quit=Quit\n' in (project / 'af.properties').read_text(encoding='utf-8')
+    unit = _units(_open(project))['quit']
+    assert (unit.target, unit.isfuzzy()) == ('', False)
+
+
+def test_english_written_in_and_then_changed_outside_is_taken(project):
+    _open(project).save()
+    text = (project / 'af.properties').read_text(encoding='utf-8')
+    (project / 'af.properties').write_text(
+        text.replace('quit=Quit', 'quit=Verlaat'), encoding='utf-8'
+    )
+
+    unit = _units(_open(project))['quit']
+
+    assert (unit.target, unit.isfuzzy()) == ('Verlaat', True)
+
+
+def test_a_project_that_skips_untranslated_keys_is_remembered(project):
+    target, template = str(project / 'af.properties'), str(project / 'en.properties')
+    MonolingualPair(target, template, skip_untranslated=True).save()
+
+    again = MonolingualPair(target, template)
+    again.save()
+
+    assert again.skip_untranslated is True
+    assert 'quit' not in (project / 'af.properties').read_text(encoding='utf-8')
+    assert baseline.load(target)['skip_untranslated'] is True
 
 
 @pytest.mark.skipif(

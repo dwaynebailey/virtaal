@@ -254,7 +254,11 @@ class StoreController(BaseController):
             self.store = StoreModel(filename, self)
         else:
             self.store = StoreModel(
-                filename, self, template=template.template, language=template.language
+                filename,
+                self,
+                template=template.template,
+                language=template.language,
+                skip_untranslated=template.skip_untranslated,
             )
 
     def find_template(self, filename):

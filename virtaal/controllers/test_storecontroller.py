@@ -1187,3 +1187,16 @@ def test_a_translation_carried_to_a_renamed_key_leaves_the_file_unsaved(tmp_path
 
     assert [(u.source, u.target) for u in controller.store.get_units()] == [('Open', 'Oop')]
     assert controller._modified is True
+
+
+def test_open_file_passes_on_the_projects_untranslated_policy(tmp_path):
+    from virtaal.support.templatefinder import TemplateMatch
+
+    target = _write_pair(tmp_path, 'a=Open\n')
+    controller = _pair_controller()
+
+    controller.open_file(
+        target, template=TemplateMatch(str(tmp_path / 'en.properties'), 'af', 'l10n.toml', True)
+    )
+
+    assert controller.store.pair.skip_untranslated is True
