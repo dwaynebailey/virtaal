@@ -13,6 +13,8 @@ from virtaal.support.libi18n.numbers import (
     format_percent,
     format_size,
     localise_digits,
+    localise_number,
+    target_numbering_system,
     ui_locale,
 )
 
@@ -97,3 +99,47 @@ def test_format_size(monkeypatch, lang, size, expected):
     monkeypatch.setattr(pan_app, 'ui_language', lang)
 
     assert format_size(size) == expected
+
+
+@pytest.mark.parametrize(
+    'text, lang, expected',
+    [
+        ('1,234.5', 'af', '1\xa0234,5'),
+        ('1,234.5', 'de', '1.234,5'),
+        ('1,234.5', 'fr', '1\u202f234,5'),
+        ('1,234,567.89', 'hi', '12,34,567.89'),
+        ('1,234.5', 'bn_IN', '১,২৩৪.৫'),
+        ('1,234.5', 'ar_EG', '١٬٢٣٤٫٥'),
+        ('1234.5', 'de', '1234,5'),
+        ('2026', 'de', '2026'),
+        ('2026', 'ne', '२०२६'),
+        ('0.50', 'af', '0,50'),
+        ('-3', 'bn', '-৩'),
+        ('+4', 'de', '+4'),
+        ('1,234.5', 'ach', '1,234.5'),
+    ],
+)
+def test_localise_number(text, lang, expected):
+    assert localise_number(text, 'en', lang) == expected
+
+
+@pytest.mark.parametrize('text', ['1.2.3', '007', '05', '2,5', '1,23,456', '1e5', 'x'])
+def test_localise_number_leaves_out_what_is_not_a_plain_number(text):
+    assert localise_number(text, 'en', 'de') is None
+
+
+def test_localise_number_reads_the_source_languages_separators():
+    assert localise_number('1.234,5', 'de', 'en') == '1,234.5'
+
+
+def test_target_numbering_system_defaults_to_cldr():
+    assert target_numbering_system('hi') == 'latn'
+    assert target_numbering_system('bn_IN') == 'beng'
+    assert target_numbering_system('sr@latin') == 'latn'
+
+
+def test_target_numbering_system_entries_override_cldr(monkeypatch):
+    monkeypatch.setattr('virtaal.support.libi18n.numbers.TARGET_NUMBERING_SYSTEMS', {'hi': 'deva'})
+
+    assert target_numbering_system('hi_IN') == 'deva'
+    assert localise_number('1,234', 'en', 'hi') == '१,२३४'

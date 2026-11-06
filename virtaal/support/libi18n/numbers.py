@@ -5,12 +5,17 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""Numbers formatted for the UI language: Babel's CLDR patterns and
-symbols, with the digits of the locale's default numbering system."""
+"""Numbers formatted for the UI or a target language: Babel's CLDR
+patterns and symbols, with the digits of the locale's default numbering
+system."""
 
 import copy
+import functools
+import re
+from decimal import Decimal
 
 from babel import Locale, UnknownLocaleError
+from babel.numbers import get_decimal_symbol, get_group_symbol, get_plus_sign_symbol
 from babel.units import format_unit
 
 from virtaal.support.libi18n.cldr_numbering_systems import DIGITS
@@ -36,10 +41,26 @@ def ui_locale(lang=None):
         return Locale.parse("root")
 
 
-def localise_digits(text, locale=None):
-    """text with its ASCII digits replaced by those of the locale's
-    default numbering system."""
-    digits = DIGITS.get((locale or ui_locale()).default_numbering_system, LATIN)
+# Numbering systems for translations into a language where they differ
+# from CLDR's default for its locale, as language code: CLDR numbering
+# system ("latn", "deva", ...).
+TARGET_NUMBERING_SYSTEMS = {}
+
+
+def target_numbering_system(lang):
+    """The numbering system of translations into lang: an entry of
+    TARGET_NUMBERING_SYSTEMS, or the CLDR default for its locale."""
+    code = lang.partition("@")[0]
+    for key in (lang, code, code.partition("_")[0]):
+        if key in TARGET_NUMBERING_SYSTEMS:
+            return TARGET_NUMBERING_SYSTEMS[key]
+    return ui_locale(lang).default_numbering_system
+
+
+def localise_digits(text, locale=None, numbering_system=None):
+    """text with its ASCII digits replaced by those of numbering_system,
+    by default the locale's default numbering system."""
+    digits = DIGITS.get(numbering_system or (locale or ui_locale()).default_numbering_system, LATIN)
     if digits == LATIN:
         return text
     return text.translate(str.maketrans(LATIN, digits))
@@ -79,3 +100,50 @@ def format_size(size):
             size, "digital-" + unit, "short", "#,##0.0", locale, numbering_system="default"
         )
     return localise_digits(text, locale)
+
+
+@functools.lru_cache(maxsize=32)
+def _number_re(lang):
+    """A regular expression for a plain number as lang writes it: sign,
+    integer part (in lang's groups, or not grouped) and decimals."""
+    locale = ui_locale(lang)
+    group = re.escape(get_group_symbol(locale, numbering_system="default"))
+    decimal = re.escape(get_decimal_symbol(locale, numbering_system="default"))
+    primary, secondary = locale.decimal_formats[None].grouping
+    grouped = r"[0-9]{1,%d}(?:%s[0-9]{%d})*%s[0-9]{%d}" % (
+        secondary,
+        group,
+        secondary,
+        group,
+        primary,
+    )
+    return re.compile(
+        r"([-+]?)(?:(?P<grouped>%s)|(?P<plain>[0-9]+))(?:%s([0-9]+))?\Z" % (grouped, decimal)
+    )
+
+
+def localise_number(text, source_lang, target_lang):
+    """text, a number as source_lang writes it, in target_lang's decimal
+    and group separators and digits, grouped only if text is; None for
+    anything else (versions, codes, numbers with leading zeros)."""
+    match = _number_re(source_lang).match(text)
+    if not match:
+        return None
+    sign, grouped, plain, decimals = match.group(1, "grouped", "plain", 4)
+    integer = re.sub("[^0-9]", "", grouped or plain)
+    if len(integer) > 1 and integer.startswith("0"):
+        return None
+    locale = ui_locale(target_lang)
+    numbering_system = target_numbering_system(target_lang)
+    pattern = copy.copy(locale.decimal_formats[None])
+    pattern.frac_prec = (len(decimals or ""), len(decimals or ""))
+    value = Decimal(integer + "." + (decimals or "0"))
+    result = pattern.apply(
+        -value if sign == "-" else value,
+        locale,
+        group_separator=bool(grouped),
+        numbering_system="default",
+    )
+    if sign == "+":
+        result = get_plus_sign_symbol(locale, numbering_system="default") + result
+    return localise_digits(result, locale, numbering_system)
