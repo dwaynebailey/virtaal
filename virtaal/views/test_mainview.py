@@ -3668,6 +3668,44 @@ def test_recent_add_folder_names_it_as_virtaal_s(tmp_path):
     assert data.app_name == 'Virtaal'
 
 
+# ask_template() #
+
+
+def test_the_source_file_chooser_offers_the_targets_format(tmp_path):
+    view = MainView.__new__(MainView)
+    view.main_window = None
+
+    chooser = view._source_file_chooser(str(tmp_path / 'af.properties'), None)
+
+    assert 'af.properties' in chooser.get_title()
+    assert [f.get_name() for f in chooser.list_filters()] == ['*.properties', 'All Files']
+    chooser.destroy()
+
+
+def test_ask_template_returns_the_chosen_file(tmp_path, monkeypatch):
+    class _Chooser(_FakeChooser):
+        destroyed = False
+
+        def destroy(self):
+            self.destroyed = True
+
+    chooser = _Chooser(Gtk.ResponseType.ACCEPT, str(tmp_path / 'en.properties'))
+    view = _make_view_with_chooser('unused', None)
+    monkeypatch.setattr(view, '_source_file_chooser', lambda target, guess: chooser)
+
+    assert view.ask_template('af.properties', 'en.properties') == str(tmp_path / 'en.properties')
+    assert chooser.destroyed
+
+
+def test_ask_template_returns_nothing_on_cancel(monkeypatch):
+    chooser = _FakeChooser(Gtk.ResponseType.CANCEL)
+    chooser.destroy = lambda: None
+    view = _make_view_with_chooser('unused', None)
+    monkeypatch.setattr(view, '_source_file_chooser', lambda target, guess: chooser)
+
+    assert view.ask_template('af.properties') is None
+
+
 def test_the_open_chooser_offers_properties_files():
     view = MainView.__new__(MainView)
     view.main_window = None

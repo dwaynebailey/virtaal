@@ -1199,6 +1199,47 @@ class MainView(BaseView):
         else:
             return ()
 
+    def ask_template(self, target, guess=None):
+        """Ask for the source-language file of C{target}, starting at
+        C{guess} if given.
+        @returns: The file chosen, or C{None}."""
+        chooser = self._source_file_chooser(target, guess)
+        chooser.set_transient_for(self._top_window)
+        accepted = chooser.run() == Gtk.ResponseType.ACCEPT
+        chooser.hide()
+        filename = chooser.get_filename() if accepted else None
+        chooser.destroy()
+        return filename
+
+    def _source_file_chooser(self, target, guess):
+        chooser = Gtk.FileChooserNative.new(
+            _(
+                # l10n: Title of the file chooser for the English (or other
+                # source-language) file a file like af.properties translates.
+                "Choose the Source-Language File for %s"
+            )
+            % os.path.basename(target),
+            self.main_window,
+            Gtk.FileChooserAction.OPEN,
+            None,
+            None,
+        )
+        extension = os.path.splitext(target)[1]
+        if extension:
+            same_format = Gtk.FileFilter()
+            same_format.set_name('*' + extension)
+            same_format.add_pattern('*' + extension)
+            chooser.add_filter(same_format)
+        all_filter = Gtk.FileFilter()
+        all_filter.set_name(_("All Files"))
+        all_filter.add_pattern("*")
+        chooser.add_filter(all_filter)
+        if guess:
+            chooser.set_filename(guess)
+        else:
+            chooser.set_current_folder(os.path.dirname(os.path.abspath(target)))
+        return chooser
+
     def show_error_dialog(self, title='', message='', markup='', parent=None):
         fill_dialog(self.error_dialog, title, message, markup)
 

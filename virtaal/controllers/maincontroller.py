@@ -225,6 +225,16 @@ class MainController(BaseController):
 
             logging.warning('open_file(): gave up waiting for placeables_controller')
 
+    def _reload_confirmed(self, filename):
+        """Whether to go on opening C{filename}: asks first if it's the
+        file already open."""
+        if self.store_controller.store and self.store_controller.store.get_filename() == filename:
+            promptmsg = _(
+                'You selected the currently open file for opening. Do you want to reload the file?'
+            )
+            return self.show_prompt(msg=promptmsg)
+        return True
+
     def _open_file(self, filename, uri, forget_dir):
         self._wait_for_controllers()
         if filename is None:
@@ -244,16 +254,17 @@ class MainController(BaseController):
 
         filename = _strip_file_uri(filename)
 
-        if self.store_controller.store and self.store_controller.store.get_filename() == filename:
-            promptmsg = _(
-                'You selected the currently open file for opening. Do you want to reload the file?'
-            )
-            if not self.show_prompt(msg=promptmsg):
-                return False
+        template = False
+        if self._reload_confirmed(filename):
+            template = self._monolingual_template(filename)
+        if template is False:
+            return False
 
         try:
             with self.view.busy(_("Loading '%s'…") % os.path.basename(filename)):
-                self.store_controller.open_file(filename, uri, forget_dir=forget_dir)
+                self.store_controller.open_file(
+                    filename, uri, forget_dir=forget_dir, template=template
+                )
                 self.mode_controller.refresh_mode()
             return True
         except Exception as exc:
@@ -268,6 +279,23 @@ class MainController(BaseController):
                 % {'error_message': str(exc)}
             )
             return False
+
+    def _monolingual_template(self, filename):
+        """The L{TemplateMatch} to open a monolingual file with, asking
+        the user when the project doesn't say; C{None} for any other
+        file, C{False} if the user cancelled."""
+        from virtaal.support import baseline, converters, templatefinder
+
+        if not converters.is_monolingual(filename) or not os.path.isfile(filename):
+            return None
+        match = self.store_controller.find_template(filename)
+        if match is not None:
+            return match
+        chosen = self.view.ask_template(filename, templatefinder.guess_template(filename))
+        if not chosen:
+            return False
+        baseline.remember_template(filename, chosen)
+        return templatefinder.TemplateMatch(chosen, None, 'chosen')
 
     def open_files(self, paths):
         """Open several files, or directories of them, as one list of

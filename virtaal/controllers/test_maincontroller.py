@@ -143,7 +143,7 @@ def test_open_file_with_no_filename_actually_opens_the_chosen_one(monkeypatch):
     opened = []
     controller._store_controller = SimpleNamespace(
         is_modified=lambda: False,
-        open_file=lambda filename, uri, forget_dir=False: opened.append(filename),
+        open_file=lambda filename, uri, forget_dir=False, template=None: opened.append(filename),
         store=None,
     )
     controller._mode_controller = SimpleNamespace(refresh_mode=lambda: None)
@@ -425,7 +425,7 @@ def _controller_for_open_file(is_modified=False, store=None):
     controller._store_controller = SimpleNamespace(
         is_modified=lambda: is_modified,
         store=store,
-        open_file=lambda filename, uri, forget_dir=False: None,
+        open_file=lambda filename, uri, forget_dir=False, template=None: None,
     )
     controller._mode_controller = SimpleNamespace(refresh_mode=lambda: None)
     controller.view = SimpleNamespace(busy=_not_busy)
@@ -443,8 +443,8 @@ def test_open_file_loads_the_file_while_the_view_shows_it_is_busy():
         calls.append('idle')
 
     controller.view.busy = busy
-    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: calls.append(
-        'opened'
+    controller._store_controller.open_file = lambda filename, uri, forget_dir=False, template=None: (
+        calls.append('opened')
     )
     controller._mode_controller.refresh_mode = lambda: calls.append('refreshed')
 
@@ -467,8 +467,8 @@ def test_open_file_saves_first_when_the_user_confirms_the_save_prompt():
     controller = _controller_for_open_file(is_modified=True)
     controller.view.show_save_confirm_dialog = lambda: 'save'
     controller.save_file = lambda: calls.append('saved') or True
-    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: calls.append(
-        ('opened', filename)
+    controller._store_controller.open_file = lambda filename, uri, forget_dir=False, template=None: (
+        calls.append(('opened', filename))
     )
 
     result = controller.open_file('other.po')
@@ -492,8 +492,8 @@ def test_open_file_strips_a_windows_file_uri(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', True)
     opened = []
     controller = _controller_for_open_file()
-    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: opened.append(
-        filename
+    controller._store_controller.open_file = lambda filename, uri, forget_dir=False, template=None: (
+        opened.append(filename)
     )
 
     controller.open_file('file:///C:/translations/af.po')
@@ -505,8 +505,8 @@ def test_open_file_strips_a_posix_file_uri(monkeypatch):
     monkeypatch.setattr(platform, 'is_windows', False)
     opened = []
     controller = _controller_for_open_file()
-    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: opened.append(
-        filename
+    controller._store_controller.open_file = lambda filename, uri, forget_dir=False, template=None: (
+        opened.append(filename)
     )
 
     controller.open_file('file:///home/user/af.po')
@@ -525,8 +525,8 @@ def test_open_file_reloads_the_currently_open_file_on_confirmation():
     opened = []
     controller = _controller_for_open_file(store=SimpleNamespace(get_filename=lambda: 'current.po'))
     controller.view.show_prompt_dialog = lambda **kwargs: True
-    controller._store_controller.open_file = lambda filename, uri, forget_dir=False: opened.append(
-        filename
+    controller._store_controller.open_file = lambda filename, uri, forget_dir=False, template=None: (
+        opened.append(filename)
     )
 
     result = controller.open_file('current.po')
@@ -1085,3 +1085,52 @@ def test_quit_forces_past_unsaved_changes(monkeypatch):
 
     assert result is False
     assert calls == ['hide', 'quit-signal', 'view-quit']
+
+
+# open_file() - asking for a monolingual file's template #
+
+
+def _controller_for_template(tmp_path, found=None, chosen=None):
+    target = tmp_path / 'mine.properties'
+    target.write_text('a=b\n', encoding='utf-8')
+    (tmp_path / 'en.properties').write_text('a=c\n', encoding='utf-8')
+    asked = []
+    controller = MainController.__new__(MainController)
+    controller._store_controller = SimpleNamespace(find_template=lambda filename: found)
+    controller.view = SimpleNamespace(
+        ask_template=lambda filename, guess: asked.append((filename, guess)) or chosen
+    )
+    return controller, str(target), asked
+
+
+def test_a_template_the_project_gives_is_used_without_asking(tmp_path):
+    controller, target, asked = _controller_for_template(tmp_path, found='match')
+
+    assert controller._monolingual_template(target) == 'match'
+    assert asked == []
+
+
+def test_the_user_is_asked_with_a_guess_and_the_choice_is_remembered(tmp_path):
+    from virtaal.support import baseline
+
+    chosen = str(tmp_path / 'en.properties')
+    controller, target, asked = _controller_for_template(tmp_path, chosen=chosen)
+
+    match = controller._monolingual_template(target)
+
+    assert asked == [(target, chosen)]
+    assert (match.template, match.how) == (chosen, 'chosen')
+    assert baseline.remembered_template(target) == chosen
+
+
+def test_cancelling_the_template_question_cancels_the_open(tmp_path):
+    controller, target, _asked = _controller_for_template(tmp_path)
+
+    assert controller._monolingual_template(target) is False
+
+
+def test_other_files_need_no_template(tmp_path):
+    controller, _target, asked = _controller_for_template(tmp_path)
+
+    assert controller._monolingual_template(str(tmp_path / 'af.po')) is None
+    assert asked == []

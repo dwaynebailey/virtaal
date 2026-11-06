@@ -259,10 +259,15 @@ class StoreController(BaseController):
 
     def find_template(self, filename):
         """The L{TemplateMatch} for a monolingual file, without asking:
-        from the project or its layout."""
-        from virtaal.support import templatefinder
+        from the project, its layout, or the user's earlier choice."""
+        from virtaal.support import baseline, templatefinder
 
-        return templatefinder.find_template(filename)
+        match = templatefinder.find_template(filename)
+        if match is None:
+            remembered = baseline.remembered_template(filename)
+            if remembered:
+                match = templatefinder.TemplateMatch(remembered, None, 'remembered')
+        return match
 
     def _rename_pot_template(self, filename, force_saveas):
         import re

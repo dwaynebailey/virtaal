@@ -1117,6 +1117,22 @@ def test_arriving_ends_when_the_move_raises():
 # open_file() - a monolingual file #
 
 
+def test_find_template_falls_back_to_the_users_earlier_choice(tmp_path):
+    from virtaal.support import baseline
+
+    target = tmp_path / 'mine.properties'
+    chosen = tmp_path / 'source.properties'
+    target.write_text('a=b\n', encoding='utf-8')
+    chosen.write_text('a=c\n', encoding='utf-8')
+    controller = _controller()
+    assert controller.find_template(str(target)) is None
+
+    baseline.remember_template(str(target), str(chosen))
+
+    match = controller.find_template(str(target))
+    assert (match.template, match.how) == (str(chosen), 'remembered')
+
+
 def test_open_file_refuses_a_monolingual_file_without_a_template(monkeypatch, tmp_path):
     target = tmp_path / 'mine.properties'
     target.write_text('a=b\n', encoding='utf-8')
