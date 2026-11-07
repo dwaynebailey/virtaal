@@ -893,7 +893,7 @@ jobs:
           $result = devsupport\packaging\windows\run_module.ps1 dist\virtaal virtaal.support.enchant_compat -Arguments hu_HU
           if ($LASTEXITCODE) { exit 1 }
           $result
-          foreach ($expected in '^dictionary: True$', '^gtkspell: ok$', '^marked: .*xqzwy') {
+          foreach ($expected in '^dictionary: True$', '^gtkspell: ok$', '^marked: xqzwy$') {
             if (-not ($result -match $expected)) { throw "Not in the report: $expected" }
           }
 
@@ -1432,7 +1432,7 @@ jobs:
           cat /tmp/enchant-hu.txt
           grep -q "^dictionary: True$" /tmp/enchant-hu.txt
           grep -q "^gtkspell: ok$" /tmp/enchant-hu.txt
-          grep -q "^marked: .*xqzwy" /tmp/enchant-hu.txt
+          grep -q "^marked: xqzwy$" /tmp/enchant-hu.txt
 
       - name: Verify the bundled msgfmt check
         # The bundled libgettextpo, not Homebrew's, translating through

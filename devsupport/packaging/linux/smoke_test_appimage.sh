@@ -61,7 +61,7 @@ if [ -n "${HUNSPELL_HU_DIR:-}" ]; then
     ENCHANT_CONFIG_DIR="$LOGS/enchant-hu" run --run-module virtaal.support.enchant_compat hu_HU | tee "$LOGS/enchant-hu.txt"
     grep -q "^dictionary: True$" "$LOGS/enchant-hu.txt"
     grep -q "^gtkspell: ok$" "$LOGS/enchant-hu.txt"
-    grep -q "^marked: .*xqzwy" "$LOGS/enchant-hu.txt"
+    grep -q "^marked: xqzwy$" "$LOGS/enchant-hu.txt"
 fi
 
 stage "the desktop's settings, not the build machine's"

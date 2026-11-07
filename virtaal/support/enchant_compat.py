@@ -18,8 +18,7 @@ _USED = ('dict_exists', 'list_languages', 'get_user_config_dir')
 # by language. Hungarian's long compounds stress hunspell (#1958).
 SAMPLES = {
     'en': 'This is a tset',
-    'hu': 'Ez egy megszentségteleníthetetlenségeskedéseitekért '
-          'elkelkáposztástalaníthatatlanságoskodásaitokért xqzwy',
+    'hu': 'Ez a számítógép legeslegmegszentségteleníthetetlenebbek kerékpárjavító-műhelyekben xqzwy',
 }
 _SPELLING_LIBRARY_RE = re.compile(r'enchant|gtkspell|hunspell|aspell|nuspell|winspell', re.IGNORECASE)
 
