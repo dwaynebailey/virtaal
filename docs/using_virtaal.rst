@@ -80,6 +80,46 @@ files at the unit; Virtaal asks to save your changes first.
 :menuselection:`File --> Save` saves every file you changed, and closing or
 quitting lists the files with unsaved changes.
 
+.. _using_virtaal#one_language_files:
+
+Files That Hold One Language
+----------------------------
+Some formats keep each language in a file of its own: Java properties, Fluent,
+JSON (including i18next and Flutter's ARB), Android string resources and Apple
+strings files. An Afrikaans ``af.json`` says nothing of the English it
+translates, so Virtaal opens it together with the English file and shows the
+English as the source. Saving writes only your file, in its own format; nothing
+else is written into the project.
+
+Virtaal finds the English file without asking when the project says where it
+is, in a ``.tx/config``, ``crowdin.yml``, ``l10n.toml``,
+``project.inlang/settings.json``, Lingui config (JSON catalogs) or
+i18next-parser, i18next-scanner or i18next-cli config, or when the files are
+laid out the usual way:
+
+- ``Messages_af.properties`` beside ``Messages.properties``
+- ``af.json`` beside ``en.json``, ``app_af.arb`` beside ``app_en.arb``
+- ``locales/af/common.json`` beside ``locales/en/common.json``
+- ``res/values-af/strings.xml`` beside ``res/values/strings.xml``
+- ``af.lproj/Localizable.strings`` beside ``en.lproj`` or ``Base.lproj``
+
+Otherwise it asks, and remembers your answer. The English file opened by itself
+shows its text, and Virtaal doesn't save over it.
+
+Plural forms follow your language: an i18next ``item_one``/``item_other`` pair
+or an Android ``<plurals>`` gets the forms your language needs, each starting
+from the English. Android files leave out what you haven't translated, as
+Android falls back to the English.
+
+In a folder, each such file is shown in the Files Panel with its English file
+greyed under it. A file whose English file Virtaal can't find is greyed too and
+isn't part of the units: double-click it (or press :kbd:`Enter`) to choose its
+English file, and it joins the others.
+
+When the English changes under a translation, Virtaal marks the translation
+for review and shows the earlier English, from what you last saw, your
+translation memory or the project's Git history.
+
 A list of supported translation formats can be found on the :doc:`features
 <features>` page.
 

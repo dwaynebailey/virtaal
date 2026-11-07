@@ -101,6 +101,15 @@ Virtaal supports many file formats:
 - Trados Studio bilingual files (.sdlxliff), a unit per Trados segment with its
   Trados status (see :ref:`using_virtaal#trados`)
 
+Files that hold one language each are translated against their English (or
+other source-language) file (see :ref:`using_virtaal#one_language_files`):
+
+- Java properties (.properties)
+- Fluent (.ftl)
+- JSON, including i18next and Flutter's ARB (.json and .arb)
+- Android string resources (res/values-af/strings.xml)
+- Apple strings files (af.lproj/Localizable.strings)
+
 Translation memories and termbases from Trados can be used without
 opening them (see :ref:`using_virtaal#trados`):
 
