@@ -156,12 +156,14 @@ class FetchSuggestionsDialog:
             self.allowances[model] = left
             if not self._closed:
                 self._describe(self._row_of(model), model, default)
+                self._update_buttons()
 
         def refused():
             self._checking.discard(model)
             self._refused.add(model)
             if not self._closed:
                 self._describe(self._row_of(model), model)
+                self._update_buttons()
 
         model.bulk_allowance(answer, refused)
 

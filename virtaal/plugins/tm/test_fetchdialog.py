@@ -333,3 +333,15 @@ def test_a_service_that_keeps_asking_to_wait_shows_stopped(made, tmp_path, monke
         amagama.sent[-1].handlers['http-client-error'](amagama.sent[-1], 429)
 
     assert _rows(dialog, COL_STATUS) == [('Stopped',)]
+
+
+def test_fetch_can_be_pressed_once_the_allowance_arrives(made, tmp_path):
+    amagama = _Service('amagama')
+    amagama.allowance = 'ask'
+    dialog = _dialog(made, tmp_path, amagama)
+    assert not dialog.fetch_button.get_sensitive()
+
+    amagama.asked_allowance[0](None)
+
+    assert _rows(dialog, COL_USE) == [(True,)]
+    assert dialog.fetch_button.get_sensitive()
