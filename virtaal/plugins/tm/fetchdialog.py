@@ -53,7 +53,7 @@ class FetchSuggestionsDialog:
             transient_for=parent,
             modal=True,
         )
-        self.dialog.set_default_size(560, 320)
+        self.dialog.set_default_size(720, 320)
         self.dialog.add_button(_('_Close'), Gtk.ResponseType.CLOSE)
         # l10n: Button: stops asking the services for suggestions
         self.stop_button = self.dialog.add_button(_('_Stop'), RESPONSE_STOP)
