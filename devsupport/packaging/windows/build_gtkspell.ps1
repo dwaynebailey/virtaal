@@ -45,7 +45,7 @@ Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Out
 $src = Join-Path $Out "src"
 New-Item -ItemType Directory -Force -Path $src, "$Out\bin", "$Out\lib\girepository-1.0" | Out-Null
 
-Get-Pinned "https://downloads.sourceforge.net/gtkspell/gtkspell3-$GtkSpellVersion.tar.xz" $GtkSpellSha256 "$src\gtkspell.tar.xz"
+Get-Pinned "https://deb.debian.org/debian/pool/main/g/gtkspell3/gtkspell3_$GtkSpellVersion.orig.tar.xz" $GtkSpellSha256 "$src\gtkspell.tar.xz"
 Get-Pinned "https://github.com/AbiWord/enchant/releases/download/v$EnchantVersion/enchant-$EnchantVersion.tar.gz" $EnchantSha256 "$src\enchant.tar.gz"
 7z x "$src\gtkspell.tar.xz" "-o$src" -y | Out-Null
 7z x "$src\gtkspell.tar" "-o$src" -y | Out-Null
