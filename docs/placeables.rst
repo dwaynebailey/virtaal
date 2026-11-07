@@ -43,10 +43,10 @@ Invisible Characters
 Some characters show as nothing at all, or look like an ordinary space. The
 editor marks each one without changing the text: ° for a no-break space, a
 small box with a short name for a zero-width character (ZWSP, ZWJ, ZWNJ, WJ,
-BOM), a direction mark or isolate (LRM, RLM, LRI, PDI…) and a soft hyphen
-(SHY), → for a tab and ↵ for a line separator. Point at a box to see the
-character's full name. They are placeables, so :kbd:`Alt+Down` inserts one
-from the source.
+BOM), a direction mark or isolate (LRM, RLM, LRI, PDI…), a soft hyphen (SHY)
+and a line or paragraph separator (LS, PS), and → for a tab. An ordinary new
+line shows ¶. Point at a box to see the character's full name. They are
+placeables, so :kbd:`Alt+Down` inserts one from the source.
 
 A space is marked with · where it is easy to miss: two or more together, or at
 the start or end of a line. :menuselection:`View --> Show All Spaces` marks

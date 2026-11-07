@@ -37,6 +37,8 @@ def marked(text, *args, **kwargs):
         ('\u2066', 'LRI'),
         ('\u00ad', 'SHY'),
         ('\t', '→'),
+        ('\u2028', 'LS'),
+        ('\u2029', 'PS'),
     ],
 )
 def test_an_invisible_character_is_marked_wherever_it_is(char, label):
@@ -70,6 +72,11 @@ def test_the_characters_beside_a_range_decide_its_edge_spaces():
 
 def test_only_the_range_is_marked():
     assert marked('\u200bab\u200b', 1, 3) == []
+
+
+def test_a_line_or_paragraph_separator_is_boxed_unlike_a_newlines_pilcrow():
+    assert MARKERS['\u2028'].zero_width and MARKERS['\u2029'].zero_width
+    assert '¶' not in (MARKERS['\u2028'].label, MARKERS['\u2029'].label)
 
 
 def test_zero_width_characters_need_room_and_spaces_do_not():

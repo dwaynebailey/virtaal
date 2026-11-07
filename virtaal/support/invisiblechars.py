@@ -47,8 +47,8 @@ MARKERS = {
     '\u2067': Marker('RLI', True),
     '\u2068': Marker('FSI', True),
     '\u2069': Marker('PDI', True),
-    '\u2028': Marker('↵'),
-    '\u2029': Marker('¶'),
+    '\u2028': Marker('LS', True),
+    '\u2029': Marker('PS', True),
 }
 """The characters marked wherever they are."""
 

@@ -7,12 +7,12 @@
 
 import cairo
 import pytest
-from gi.repository import Gtk
+from gi.repository import Gdk, Gtk
 from test_scaffolding import TestScaffolding
 
 from virtaal.common import pan_app
 from virtaal.controllers.placeablescontroller import PlaceablesController
-from virtaal.support.invisiblechars import InvisiblePlaceable
+from virtaal.support.invisiblechars import MARKERS, InvisiblePlaceable
 from virtaal.views.placeablesguiinfo import InvisibleGUI
 from virtaal.views.widgets.textbox import TextBox
 
@@ -176,3 +176,29 @@ class TestTextBoxMarkers(TestScaffolding):
 
         assert shown == '1'
         assert pan_app.settings.general['showspaces'] == ''
+
+    def test_a_separator_ending_a_line_is_boxed_past_the_lines_end(self, monkeypatch):
+        textbox = self._shown('ab\u2029cd')
+        boxes = []
+
+        class Context:
+            def set_line_width(self, width):
+                pass
+
+            def rectangle(self, *rect):
+                boxes.append(rect)
+
+            def stroke(self):
+                pass
+
+        monkeypatch.setattr(Gdk, 'cairo_set_source_rgba', lambda cr, fg: None)
+        monkeypatch.setattr(Gtk, 'render_layout', lambda *args: None)
+        itr = textbox.buffer.get_iter_at_offset(2)
+        marker = MARKERS['\u2029']
+        layout = textbox._marker_layout(marker)
+        textbox._draw_marker(Context(), layout, marker, itr, Gdk.RGBA())
+
+        [(x, _y, width, _height)] = boxes
+        line_end = textbox.get_iter_location(itr).x
+        assert x >= line_end
+        assert width >= layout.get_pixel_size()[0]

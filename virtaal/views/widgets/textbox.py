@@ -569,13 +569,18 @@ class TextBox(Gtk.TextView):
     def _draw_marker(self, cr, layout, marker, itr, fg):
         x, y, width, height = self.marker_area(itr)
         label_width, label_height = layout.get_pixel_size()
+        rtl = self.get_direction() == Gtk.TextDirection.RTL
+        if marker.zero_width and width <= 3:
+            # No room made (a line break): boxed past the line's end.
+            width = label_width + 4
+            x -= width if rtl else 0
         if width:
             label_x = x + (width - label_width) / 2
-        elif self.get_direction() == Gtk.TextDirection.RTL:
+        elif rtl:
             label_x = x - label_width
         else:
             label_x = x
-        if marker.zero_width and width > 3:
+        if marker.zero_width:
             Gdk.cairo_set_source_rgba(cr, fg)
             cr.set_line_width(1)
             cr.rectangle(x + 1.5, y + 1.5, width - 3, height - 3)
