@@ -6,6 +6,8 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import logging
+import time
+from collections import deque
 
 from gi.repository import Gdk, GLib, Gtk, Pango
 from gi.repository.GObject import SignalFlags
@@ -20,6 +22,13 @@ from virtaal.views.theme import current_theme
 
 MARKER_SCALE = 0.7
 """The size of a zero-width character's label, against the text's."""
+
+EAGER_LENGTH = 5000
+"""Invisible characters past this many of a text's first characters are
+parsed as placeables in idle steps, or when every placeable is needed."""
+
+_PENDING_STEP = 0.01
+"""Seconds an idle step parses invisible characters for."""
 
 
 def colors_equal(a, b):
@@ -75,6 +84,19 @@ def unlock_partly_covered_leaves(elem, start, end):
             parent.sub = [StringElem(str(leaf)) if sub is leaf else sub for sub in parent.sub]
             unlocked = True
     return unlocked
+
+
+def _unparsed_leaves(tree, end=None):
+    """The plain leaves of tree holding invisible characters not yet
+    parsed as placeables, those starting before end if given."""
+    offset = 0
+    for leaf in tree.flatten():
+        if end is not None and offset >= end:
+            return
+        text = str(leaf)
+        if type(leaf) is StringElem and leaf.istranslatable and invisiblechars.has_placeable(text):
+            yield leaf
+        offset += len(text)
 
 
 _suggestion_provider = None
@@ -233,6 +255,9 @@ class TextBox(Gtk.TextView):
         self._pilcrow_tag = None
         # Make room for a zero-width character's label, one per label.
         self._room_tags = {}
+        # Leaves whose invisible characters are still to be parsed.
+        self._pending_leaves = deque()
+        self._pending_id = None
         self.undo_controller = main_controller.undo_controller
 
         self.__connect_default_handlers()
@@ -337,9 +362,7 @@ class TextBox(Gtk.TextView):
 
             # We have to edit the existing .elem for the sake of the undo controller
             if self.placeables_controller:
-                self.elem.sub = [
-                    elem_parse(text, self.placeables_controller.get_parsers_for_textbox(self))
-                ]
+                self.elem.sub = [self._parse_start(text)]
                 self.elem.prune()
             else:
                 self.elem.sub = [text]
@@ -752,19 +775,28 @@ class TextBox(Gtk.TextView):
         source.select_elem(elem=elems[index])
         self.__color_selector_textboxes()
 
-    def selectable_elems(self):
-        """The placeables that can be selected for insertion, in order."""
+    def selectable_elems(self, complete=True):
+        """The placeables that can be selected for insertion, in order;
+        without complete, only those parsed so far (see L{finish_parsing})."""
         if self.elem is None:
             return []
+        if complete:
+            self.finish_parsing()
         return [e for e in self.elem.depth_first() if e.__class__ not in self.unselectables]
+
+    def has_selectable_elems(self):
+        """Whether there is a placeable to select, parsed or not."""
+        return bool(self._pending_leaves or self.selectable_elems(complete=False))
 
     def select_first_elem(self):
         """Select the first placeable, unless one is already selected."""
         if not getattr(self.elem, 'gui_info', None):
             return  # Not rendered with placeables, so nothing to highlight.
-        elems = self.selectable_elems()
+        # The first leaf still unparsed has the first such placeable.
+        self._parse_pending(1)
+        elems = self.selectable_elems(complete=False)
         if elems and not self._has_valid_selection(elems):
-            self.select_elem(elem=elems[0])
+            self.select_elem(elem=elems[0], elems=elems)
 
     def _has_valid_selection(self, elems):
         # The selection goes stale when the text is re-parsed (e.g. a
@@ -835,7 +867,9 @@ class TextBox(Gtk.TextView):
 
         self.emit('refreshed', self.elem)
 
-    def select_elem(self, elem=None, offset=None):
+    def select_elem(self, elem=None, offset=None, elems=None):
+        """Select elem, or the placeable at offset among elems (by
+        default every one)."""
         if elem is not None and offset is not None:
             raise ValueError('Only one of "elem" or "offset" may be specified.')
 
@@ -843,7 +877,7 @@ class TextBox(Gtk.TextView):
             self._clear_selected_elem()
             return
 
-        filtered_elems = self.selectable_elems()
+        filtered_elems = self.selectable_elems() if elems is None else elems
         if not filtered_elems:
             return
 
@@ -955,6 +989,76 @@ class TextBox(Gtk.TextView):
         # At this point we have a tree of string elements with GUI info.
         self.apply_gui_info(self.elem)
         self.make_room()
+        self._schedule_pending()
+
+    def _lazy_parsers(self):
+        """The parsers a long text's invisible characters wait for: the
+        invisible characters' and those after it."""
+        parsers = self.placeables_controller.get_parsers_for_textbox(self)
+        if invisiblechars.InvisiblePlaceable.parse not in parsers:
+            return []
+        return parsers[parsers.index(invisiblechars.InvisiblePlaceable.parse) :]
+
+    def _parse_start(self, text):
+        """text parsed for placeables, but for a long text, the invisible
+        characters only in its first L{EAGER_LENGTH} characters: the rest
+        wait for L{_schedule_pending}."""
+        parsers = self.placeables_controller.get_parsers_for_textbox(self)
+        lazy = self._lazy_parsers()
+        if len(text) <= EAGER_LENGTH or not lazy:
+            return elem_parse(text, parsers)
+        tree = elem_parse(text, [p for p in parsers if p not in lazy])
+        for leaf in _unparsed_leaves(tree, EAGER_LENGTH):
+            elem_parse(leaf, lazy)
+        return tree
+
+    def _schedule_pending(self):
+        """Parse the invisible characters still unparsed in idle steps."""
+        lazy = self._lazy_parsers() if self.elem is not None else []
+        self._pending_leaves = deque(_unparsed_leaves(self.elem) if lazy else ())
+        if self._pending_leaves and self._pending_id is None:
+            self._pending_id = GLib.idle_add(self._parse_pending_step, priority=GLib.PRIORITY_LOW)
+        elif not self._pending_leaves and self._pending_id is not None:
+            GLib.source_remove(self._pending_id)
+            self._pending_id = None
+
+    def _parse_pending_step(self):
+        deadline = time.perf_counter() + _PENDING_STEP
+        while self._pending_leaves and time.perf_counter() < deadline:
+            self._parse_pending(20)
+        if self._pending_leaves:
+            return True
+        self._pending_id = None
+        return False
+
+    def _parse_pending(self, count=None):
+        """Parse the next count leaves still unparsed (all if None)."""
+        if not self._pending_leaves:
+            return
+        lazy = self._lazy_parsers()
+        for _ in range(count or len(self._pending_leaves)):
+            if not self._pending_leaves:
+                break
+            leaf = self._pending_leaves.popleft()
+            # An edit may have parsed it already.
+            if leaf.isleaf():
+                elem_parse(leaf, lazy)
+                leaf.gui_info = None
+                self.add_default_gui_info(leaf)
+        if self.selected_elem is not None and not self._pending_leaves:
+            # Placeables found before it move it along.
+            elems = self.selectable_elems(complete=False)
+            self.selected_elem_index = next(
+                (i for i, e in enumerate(elems) if e is self.selected_elem), None
+            )
+
+    def finish_parsing(self):
+        """Parse every invisible character still unparsed now."""
+        if self._pending_id is not None:
+            GLib.source_remove(self._pending_id)
+            self._pending_id = None
+        if self._pending_leaves:
+            self._parse_pending()
 
     # EVENT HANDLERS #
     def __on_controller_register(self, main_controller, controller):

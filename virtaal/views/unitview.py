@@ -639,7 +639,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         """Only offer placeable navigation/insertion when a visible source
         has a placeable to select."""
         has_placeables = any(
-            src.get_parent().props.visible and src.selectable_elems() for src in self.sources
+            src.get_parent().props.visible and src.has_selectable_elems() for src in self.sources
         )
         for widget in (self.mnu_next, self.mnu_prev, self.mnu_insert):
             widget.set_sensitive(has_placeables)

@@ -96,6 +96,11 @@ def zero_width_indices(text):
             yield match.start(), marker
 
 
+def has_placeable(text):
+    """Whether text holds an L{InvisiblePlaceable}'s character."""
+    return _PLACEABLE_RE.search(text) is not None
+
+
 class InvisiblePlaceable(base.Ph):
     """One of L{MARKERS} other than a tab, which can't be typed on most
     keyboards and so is inserted from the source."""

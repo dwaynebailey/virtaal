@@ -9,6 +9,7 @@ import cairo
 import pytest
 from gi.repository import Gdk, Gtk
 from test_scaffolding import TestScaffolding
+from translate.storage.placeables import StringElem, parse
 
 from virtaal.common import pan_app
 from virtaal.controllers.placeablescontroller import PlaceablesController
@@ -202,3 +203,65 @@ class TestTextBoxMarkers(TestScaffolding):
         line_end = textbox.get_iter_location(itr).x
         assert x >= line_end
         assert width >= layout.get_pixel_size()[0]
+
+    # A long text's invisible characters past its start are parsed later.
+
+    def _invisibles(self, textbox):
+        return [e for e in textbox.elem.depth_first() if isinstance(e, InvisiblePlaceable)]
+
+    def _leaves(self, elem):
+        return [(type(e).__name__, str(e)) for e in elem.flatten()]
+
+    def _settle(self):
+        for _ in range(500):
+            Gtk.main_iteration_do(False)
+
+    LONG = 'a\u00a0b\u200bc\n' * 2000
+
+    def test_a_short_texts_invisible_characters_are_parsed_at_once(self):
+        textbox = self._shown('a\u00a0b\u200bc\n' * 10)
+
+        assert len(self._invisibles(textbox)) == 20
+        assert not textbox._pending_leaves and textbox._pending_id is None
+
+    def test_a_long_texts_invisible_characters_after_its_start_are_parsed_when_idle(self):
+        textbox = self._shown(self.LONG)
+        at_once = len(self._invisibles(textbox))
+        full = parse(StringElem(self.LONG), textbox.placeables_controller.parsers)
+
+        assert 0 < at_once < 4000
+        assert textbox.has_selectable_elems()
+        self._settle()
+        assert len(self._invisibles(textbox)) == 4000
+        assert self._leaves(textbox.elem) == self._leaves(full)
+        assert textbox.get_text() == self.LONG
+
+    def test_every_placeable_is_parsed_when_they_are_all_needed(self):
+        textbox = self._shown(self.LONG)
+
+        elems = textbox.selectable_elems()
+
+        assert sum(isinstance(e, InvisiblePlaceable) for e in elems) == 4000
+        assert textbox._pending_id is None
+
+    def test_the_first_placeable_is_selected_even_past_the_start(self):
+        text = 'word ' * 2000 + 'x\u200by ' + 'word ' * 2000
+        textbox = self._shown(text)
+
+        textbox.select_first_elem()
+
+        assert str(textbox.selected_elem) == '\u200b'
+        assert textbox.selected_elem_index == 0
+        assert textbox.has_selectable_elems()
+
+    def test_the_next_placeable_follows_a_selection_made_before_the_rest_was_parsed(self):
+        text = '\u200b' + 'word ' * 2000 + 'x\u200by\u00a0z'
+        textbox = self._shown(text)
+        textbox.select_first_elem()
+        self._settle()
+
+        textbox.move_elem_selection(1)
+
+        assert str(textbox.selected_elem) == '\u200b'
+        assert textbox.selected_elem_index == 1
+        assert textbox.elem.elem_offset(textbox.selected_elem) == text.index('x') + 1

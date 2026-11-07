@@ -504,7 +504,7 @@ def _placeable_menu_view(sources):
 
 def _placeable_source(elems, visible=True):
     parent = SimpleNamespace(props=SimpleNamespace(visible=visible))
-    return SimpleNamespace(selectable_elems=lambda: elems, get_parent=lambda: parent)
+    return SimpleNamespace(has_selectable_elems=lambda: bool(elems), get_parent=lambda: parent)
 
 
 def test_store_loaded_enables_transfer_and_recomputes_edit_menu():
