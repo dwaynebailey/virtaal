@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import pytest
 from gi.repository import Gtk
 
+from virtaal.common import pan_app
 from virtaal.plugins.tm.fetchdialog import (
     COL_AVAILABLE,
     COL_CHARS,
@@ -95,7 +96,9 @@ UNITS = [_unit('Open'), _unit('Close'), _unit('Save'), _unit('Done', translated=
 
 
 @pytest.fixture
-def made(tmp_path):
+def made(tmp_path, monkeypatch):
+    # Counts are formatted in the UI language; another test may leave one set.
+    monkeypatch.setattr(pan_app, 'ui_language', 'en')
     made = []
     yield made
     for dialog, fetched in made:
