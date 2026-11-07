@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 01:10+0000\n"
+"POT-Creation-Date: 2026-11-07 01:24+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -528,15 +528,18 @@ msgstr ""
 msgid "Qt Linguist Translation File"
 msgstr ""
 
-#: devsupport/tmp_strings.py share/mime/packages/virtaal-mimetype.xml.in
+#: devsupport/tmp_strings.py
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "Qt Phrase Book"
 msgstr ""
 
-#: devsupport/tmp_strings.py share/mime/packages/virtaal-mimetype.xml.in
+#: devsupport/tmp_strings.py
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "TBX Glossary"
 msgstr ""
 
-#: devsupport/tmp_strings.py share/mime/packages/virtaal-mimetype.xml.in
+#: devsupport/tmp_strings.py
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 #: virtaal/plugins/tm/localtmdialog.py
 msgid "TMX Translation Memory"
 msgstr ""
@@ -545,7 +548,8 @@ msgstr ""
 msgid "Trados Translation Memory"
 msgstr ""
 
-#: devsupport/tmp_strings.py share/mime/packages/virtaal-mimetype.xml.in
+#: devsupport/tmp_strings.py
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "UTX Dictionary"
 msgstr ""
 
@@ -553,7 +557,8 @@ msgstr ""
 msgid "WiX Localization File"
 msgstr ""
 
-#: devsupport/tmp_strings.py share/mime/packages/virtaal-mimetype.xml.in
+#: devsupport/tmp_strings.py
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "Wordfast Translation Memory"
 msgstr ""
 
@@ -680,31 +685,31 @@ msgstr ""
 msgid "Translate"
 msgstr ""
 
-#: share/mime/packages/virtaal-mimetype.xml.in
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "TMX"
 msgstr ""
 
-#: share/mime/packages/virtaal-mimetype.xml.in
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "Translation Memory eXchange"
 msgstr ""
 
-#: share/mime/packages/virtaal-mimetype.xml.in
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "TBX"
 msgstr ""
 
-#: share/mime/packages/virtaal-mimetype.xml.in
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "TermBase eXchange"
 msgstr ""
 
-#: share/mime/packages/virtaal-mimetype.xml.in
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "Qt Message File"
 msgstr ""
 
-#: share/mime/packages/virtaal-mimetype.xml.in
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "UTX"
 msgstr ""
 
-#: share/mime/packages/virtaal-mimetype.xml.in
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "Universal Terminology eXchange"
 msgstr ""
 

@@ -430,6 +430,18 @@ def test_app_id_names_the_desktop_file_and_the_flatpak():
     assert manifest.read_text().splitlines()[0] == f'id: {cli.APP_ID}'
 
 
+def test_app_id_names_the_mimetype_package():
+    # Flatpak only exports a mime package named after the app id.
+    repo = Path(__file__).resolve().parent.parent
+    package = f'share/mime/packages/{cli.APP_ID}.xml'
+
+    assert (repo / f'{package}.in').is_file()
+    assert f'mimetype={package}\n' in (repo / 'maketranslations').read_text(encoding='utf-8')
+    assert f'{package}.in\n' in (repo / 'po' / 'POTFILES.in').read_text(encoding='utf-8')
+    loc = (repo / 'po' / 'its' / 'shared-mime-info.loc').read_text(encoding='utf-8')
+    assert f'pattern="{cli.APP_ID}.xml"' in loc
+
+
 @pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Linux only')
 def test_importing_cli_sets_the_program_name():
     # GTK sends the program name as a Wayland window's app ID.

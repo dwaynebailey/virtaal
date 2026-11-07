@@ -18,7 +18,7 @@
 /share/applications/*.desktop
 
 # /share/mime/packages/
-/share/mime/packages/*-mimetype.xml
+/share/mime/packages/io.github.translate.Virtaal.xml
 
 # /virtaal/
 /virtaal/_build_info.py

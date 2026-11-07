@@ -2,11 +2,11 @@
 <!--
 No built-in gettext ITS rule exists for shared-mime-info XML (unlike
 .desktop, GtkBuilder, or AppStream metainfo) - this fills that gap so
-xgettext/msgfmt recognise virtaal-mimetype.xml.in as ITS-governed XML
+xgettext/msgfmt recognise io.github.translate.Virtaal.xml.in as ITS-governed XML
 at all. The real shared-mime-info package ships its own gettext rules
 under this same name (/usr/share/gettext/its/shared-mime-info.its) -
 present on most real build machines - so which external rule actually
-applies here isn't reliable. virtaal-mimetype.xml.in carries its own
+applies here isn't reliable. The template carries its own
 its:translate markup per element instead; that always wins over
 either external rule, per the ITS 2.0 precedence for local markup.
 -->

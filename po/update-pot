@@ -13,7 +13,7 @@
 # plain text/XML by extension, so those get their own -L pass;
 # --join-existing accumulates every pass into one pot. The final pass
 # auto-detects the rest: .py files, the metainfo template via
-# AppStream's metainfo.its, and virtaal-mimetype.xml.in via po/its/
+# AppStream's metainfo.its, and the mimetype package via po/its/
 # (both found through GETTEXTDATADIRS below).
 set -euo pipefail
 cd "$(dirname "$0")"
