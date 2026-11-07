@@ -7,6 +7,8 @@
 
 """The files panel beside several files opened as one list."""
 
+import time
+
 import pytest
 from gi.repository import Gdk, GLib, Gtk, Pango
 from test_scaffolding import TestScaffolding
@@ -244,3 +246,38 @@ class TestFilePanel(TestScaffolding):
         assert units.get_parent() is view.paned.get_child2()
         assert self.main_controller.view.nav_ribbon.get_parent() is units.get_parent()
         assert isinstance(view.paned, Gtk.Paned)
+
+    def test_a_file_with_no_known_template_is_greyed_and_pairs_when_activated(self, monkeypatch):
+        en = self.dir / 'app' / 'base.properties'
+        en.write_text('hello=Hello\nbye=Goodbye\n', encoding='utf-8')
+        lone = self.dir / 'app' / 'lone.properties'
+        lone.write_text('hello=Hallo\n', encoding='utf-8')
+        view = self._open_folder()
+
+        row = _rows(view)['app/lone.properties']
+        assert row[filepanelview.COL_SENSITIVE] is False
+        assert row[filepanelview.COL_SEGMENTS] == []
+        paths = [segment.entry.path for segment in self.store_controller.store.segments]
+        assert str(lone) not in paths
+        asked = []
+        monkeypatch.setattr(
+            self.main_controller.view,
+            'ask_template',
+            lambda target, guess=None: asked.append(target) or str(en),
+        )
+
+        monkeypatch.setattr(self.panel, 'GO_TO_SECONDS', 0.2)
+        it = view.model.get_iter(row.path)
+        view.treeview.row_activated(view.model.get_path(it), view.treeview.get_column(0))
+
+        assert asked == [str(lone)]
+        store = self.store_controller.store
+        segment = next(s for s in store.segments if s.entry.path == str(lone))
+        assert segment.entry.template.template == str(en)
+        until = time.monotonic() + 2
+        while self.store_controller.cursor.index != segment.offset and time.monotonic() < until:
+            Gtk.main_iteration_do(False)
+        assert self.store_controller.cursor.index == segment.offset
+        assert 'app/lone.properties' not in [
+            name for name, r in _rows(view).items() if not r[filepanelview.COL_SENSITIVE]
+        ]

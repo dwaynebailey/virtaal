@@ -25,7 +25,8 @@ from .baseview import BaseView
     COL_WEIGHT,
     COL_TOOLTIP,
     COL_SENSITIVE,
-) = range(8)
+    COL_PATH,
+) = range(9)
 
 # Folders open fully up to this many files; past it, only towards the
 # file being edited.
@@ -75,6 +76,8 @@ class FilePanelView(BaseView):
         self._rows = {}
         self._current = None
         self._languages = []
+        self._unpaired = []
+        self._unpaired_from = 0
         self._list_closed = False
         self._build_widgets()
         self._place_beside_units()
@@ -100,7 +103,7 @@ class FilePanelView(BaseView):
         self.language_box.pack_start(self._all_languages_button(), False, False, 0)
         self.widget.pack_start(self.language_box, False, False, 0)
 
-        self.model = Gtk.TreeStore(str, str, int, str, object, int, str, bool)
+        self.model = Gtk.TreeStore(str, str, int, str, object, int, str, bool, str)
         self.treeview = Gtk.TreeView(model=self.model)
         self.treeview.set_headers_visible(False)
         self.treeview.set_enable_search(True)
@@ -136,6 +139,7 @@ class FilePanelView(BaseView):
         selection.set_mode(Gtk.SelectionMode.MULTIPLE)
         selection.connect('changed', self._on_selection_changed)
         self.treeview.connect('key-press-event', self._on_key_press)
+        self.treeview.connect('row-activated', self._on_row_activated)
 
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -202,11 +206,12 @@ class FilePanelView(BaseView):
     def focus(self):
         self.treeview.grab_focus()
 
-    def load(self, entries, languages=(), language=None, templates=()):
+    def load(self, entries, languages=(), language=None, templates=(), unpaired=()):
         """Show the files C{entries} (FileEntry objects, as numbered in
         the stream) and the C{languages}, (code, name, count) each, with
         C{language} chosen. C{templates} are shown greyed, outside the
-        stream, under the files paired with them if any."""
+        stream, under the files paired with them if any; so are the
+        C{unpaired} files, which have no known template."""
         self._building = True
         try:
             self.model.clear()
@@ -220,7 +225,10 @@ class FilePanelView(BaseView):
                 if entry.template is not None
             }
             templates = [t for t in templates if os.path.normcase(t.path) not in paired]
-            tree = build_tree([entry.display_name for entry in list(entries) + list(templates)])
+            self._unpaired = list(unpaired)
+            self._unpaired_from = len(entries) + len(templates)
+            shown = list(entries) + templates + self._unpaired
+            tree = build_tree([entry.display_name for entry in shown])
             # A folder holding everything adds nothing: start inside it.
             while not tree['files'] and len(tree['folders']) == 1:
                 tree = next(iter(tree['folders'].values()))
@@ -236,16 +244,14 @@ class FilePanelView(BaseView):
         numbers = []
         for name in sorted(node['folders'], key=str.lower):
             it = self.model.append(
-                parent, [name, 'folder', 0, '', [], Pango.Weight.NORMAL, None, True]
+                parent, [name, 'folder', 0, '', [], Pango.Weight.NORMAL, None, True, None]
             )
             below = self._add_node(it, node['folders'][name], unknown)
             self.model[it][COL_SEGMENTS] = below
             numbers.extend(below)
         for name, number in node['files']:
             if number >= self._file_count:
-                self.model.append(
-                    parent, [name, 'text-x-generic', 0, '', [], Pango.Weight.NORMAL, None, False]
-                )
+                self.model.append(parent, self._outside_row(name, number))
                 continue
             tooltip = None
             if unknown and unknown[number]:
@@ -255,7 +261,7 @@ class FilePanelView(BaseView):
                 tooltip = _("This file doesn't say what language it is in.")
             it = self.model.append(
                 parent,
-                [name, 'text-x-generic', 0, '', [number], Pango.Weight.NORMAL, tooltip, True],
+                [name, 'text-x-generic', 0, '', [number], Pango.Weight.NORMAL, tooltip, True, None],
             )
             self._rows[number] = Gtk.TreeRowReference.new(self.model, self.model.get_path(it))
             numbers.append(number)
@@ -272,9 +278,26 @@ class FilePanelView(BaseView):
                         Pango.Weight.NORMAL,
                         _("This is the source-language file."),
                         False,
+                        None,
                     ],
                 )
         return numbers
+
+    def _outside_row(self, name, number):
+        """The greyed row of a file outside the stream: a source-language
+        file, or a file whose template isn't known."""
+        tooltip = _("This is the source-language file.")
+        path = None
+        if number >= self._unpaired_from:
+            path = self._unpaired[number - self._unpaired_from].path
+            tooltip = _(
+                # l10n: Tooltip of a greyed file in the files panel, like
+                # af.properties, whose English (or other source-language)
+                # file Virtaal couldn't find
+                "Virtaal can't tell which file this one translates. "
+                "Double-click to choose its source-language file."
+            )
+        return [name, 'text-x-generic', 0, '', [], Pango.Weight.NORMAL, tooltip, False, path]
 
     def _load_languages(self, languages, language):
         store = self.language_combo.get_model()
@@ -371,6 +394,13 @@ class FilePanelView(BaseView):
         else:
             self.controller.focus_units()
         return True
+
+    def _on_row_activated(self, _treeview, path, _column):
+        """Double-click or Enter on a file with no known template asks
+        for its template."""
+        unpaired = self.model[path][COL_PATH]
+        if unpaired:
+            self.controller.pair_file(unpaired)
 
     def _on_language_popup_shown(self, combo, _param):
         if combo.props.popup_shown:

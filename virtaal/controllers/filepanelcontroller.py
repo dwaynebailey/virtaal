@@ -5,6 +5,9 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import os
+import time
+
 from gi.repository import GLib
 
 from virtaal.common import GObjectWrapper
@@ -32,6 +35,8 @@ class FilePanelController(BaseController):
 
     # How long after the last change to update the files' progress.
     PROGRESS_DELAY_MS = 300
+    # How long to wait for the units view before going to a paired file.
+    GO_TO_SECONDS = 5
 
     def __init__(self, main_controller):
         GObjectWrapper.__init__(self)
@@ -95,6 +100,34 @@ class FilePanelController(BaseController):
         """Check or search the files of every language."""
         self.scan_controller.show(kind)
 
+    def pair_file(self, path):
+        """Ask for the template of C{path}, a monolingual file the folder
+        scan couldn't pair, then open the files again with it paired and
+        go to it."""
+        sc = self.store_controller
+        paths = sc.opened_paths
+        if not sc.is_stream() or not paths or not self.main_controller.choose_template(path):
+            return
+        if not self.main_controller.open_files(list(paths)) or not sc.is_stream():
+            return
+        path = os.path.abspath(path)
+        for segment in sc.store.segments:
+            if segment.entry.path == path and segment.count:
+                until = time.monotonic() + self.GO_TO_SECONDS
+                GLib.timeout_add(50, self._go_to, sc.store, segment.offset, until)
+                break
+
+    def _go_to(self, store, index, until):
+        """Move once the units view has started editing the first unit:
+        a move before that leaves the editor undrawn."""
+        sc = self.store_controller
+        if sc.store is not store:
+            return False
+        if sc.view._treeview._waiting_for_row_change and time.monotonic() < until:
+            return True
+        sc.cursor.force_index(index)
+        return False
+
     def focus_units(self):
         unit_view = getattr(self.main_controller.unit_controller, 'view', None)
         if unit_view is not None and getattr(unit_view, 'targets', None):
@@ -142,6 +175,7 @@ class FilePanelController(BaseController):
             languages,
             sc.stream_language,
             sc.all_files.templates,
+            sc.store.fileset.unpaired,
         )
         view.update_progress(sc.store.segment_counts())
         self.menu_item.set_sensitive(True)

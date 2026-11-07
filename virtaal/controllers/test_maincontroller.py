@@ -1123,6 +1123,26 @@ def test_the_user_is_asked_with_a_guess_and_the_choice_is_remembered(tmp_path):
     assert baseline.remembered_template(target) == chosen
 
 
+def test_choose_template_asks_and_remembers_the_choice(tmp_path):
+    from virtaal.support import baseline
+
+    chosen = str(tmp_path / 'en.properties')
+    controller, target, asked = _controller_for_template(tmp_path, chosen=chosen)
+
+    assert controller.choose_template(target) == chosen
+    assert asked == [(target, chosen)]
+    assert baseline.remembered_template(target) == chosen
+
+
+def test_choose_template_cancelled_remembers_nothing(tmp_path):
+    from virtaal.support import baseline
+
+    controller, target, _asked = _controller_for_template(tmp_path)
+
+    assert controller.choose_template(target) is None
+    assert baseline.remembered_template(target) is None
+
+
 def test_cancelling_the_template_question_cancels_the_open(tmp_path):
     controller, target, _asked = _controller_for_template(tmp_path)
 

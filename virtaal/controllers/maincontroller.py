@@ -284,7 +284,7 @@ class MainController(BaseController):
         """The L{TemplateMatch} to open a monolingual file with, asking
         the user when the project doesn't say; C{None} for any other
         file, C{False} if the user cancelled."""
-        from virtaal.support import baseline, converters, templatefinder
+        from virtaal.support import converters, templatefinder
 
         if not converters.is_monolingual(filename) or not os.path.isfile(filename):
             return None
@@ -294,11 +294,23 @@ class MainController(BaseController):
         if templatefinder.translations_of(filename):
             # The source-language file itself.
             return templatefinder.TemplateMatch(filename, None, 'source')
-        chosen = self.view.ask_template(filename, templatefinder.guess_template(filename))
+        chosen = self.choose_template(filename)
         if not chosen:
             return False
-        baseline.remember_template(filename, chosen)
         return templatefinder.TemplateMatch(chosen, None, 'chosen')
+
+    def choose_template(self, filename):
+        """Ask for the source-language file of the monolingual file
+        C{filename}, and remember the answer for it.
+        @returns: The file chosen (C{filename} itself when the user says
+            it is the source-language file), or C{None}."""
+        from virtaal.support import baseline, templatefinder
+
+        chosen = self.view.ask_template(filename, templatefinder.guess_template(filename))
+        if not chosen:
+            return None
+        baseline.remember_template(filename, chosen)
+        return chosen
 
     def open_files(self, paths):
         """Open several files, or directories of them, as one list of

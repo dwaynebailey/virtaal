@@ -71,14 +71,16 @@ def test_the_panel_goes_beside_the_units_and_the_ribbon_box():
     vbox.destroy()
 
 
-def _loaded_view(entries, templates):
+def _loaded_view(entries, templates, unpaired=(), **controller):
     vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
     units = Gtk.ScrolledWindow()
     vbox.pack_start(units, True, True, 0)
     objects = {'vbox_main': vbox, 'scrwnd_storeview': units}
     mainview = SimpleNamespace(gui=SimpleNamespace(get_object=objects.get))
-    view = FilePanelView(SimpleNamespace(main_controller=SimpleNamespace(view=mainview)))
-    view.load(entries, templates=templates)
+    view = FilePanelView(
+        SimpleNamespace(main_controller=SimpleNamespace(view=mainview), **controller)
+    )
+    view.load(entries, templates=templates, unpaired=unpaired)
     return view, vbox
 
 
@@ -129,3 +131,34 @@ def test_a_paired_file_shows_its_template_greyed_under_it(tmp_path):
     under = view.model.get_iter(Gtk.TreePath.new_from_string('0:0:0'))
     assert view.model[under][0] == 'Messages.properties'
     vbox.destroy()
+
+
+def test_a_file_with_no_known_template_shows_greyed_and_asks_for_one_when_activated():
+    entry = SimpleNamespace(display_name='po/af.po', language='af', template=None)
+    source = SimpleNamespace(display_name='i18n/en.properties', language='en', path='/p/en')
+    lone = SimpleNamespace(display_name='i18n/lone.properties', language=None, path='/p/lone')
+    asked = []
+    view, vbox = _loaded_view([entry], [source], [lone], pair_file=asked.append)
+
+    view.update_progress([(1, 0, 2)])
+
+    rows = {row[0]: row for row in _rows(view.model)}
+    row = rows['lone.properties']
+    # Greyed, with no progress and no units.
+    assert row[4] == [] and row[7] is False and row[2] == 0
+    assert row[6].startswith("Virtaal can't tell which file this one translates.")
+    assert rows['en.properties'][6] == 'This is the source-language file.'
+    assert rows['en.properties'][8] is None
+    for name in ('lone.properties', 'en.properties', 'af.po'):
+        it = next(it for it in _iters(view.model) if view.model[it][0] == name)
+        view.treeview.row_activated(view.model.get_path(it), view.treeview.get_column(0))
+    assert asked == ['/p/lone']
+    vbox.destroy()
+
+
+def _iters(model, it=None):
+    it = model.iter_children(it)
+    while it is not None:
+        yield it
+        yield from _iters(model, it)
+        it = model.iter_next(it)
