@@ -154,6 +154,8 @@ class StreamModel(BaseModel):
 
     # The target language the files were picked for, if any.
     language = None
+    # The language given to TMX files that name none.
+    _adopted_language = None
 
     def __init__(self, fileset, controller):
         super().__init__()
@@ -276,6 +278,8 @@ class StreamModel(BaseModel):
         segment.model = model
         if model.get_checker() is None and self._checker is not None:
             model._checker = self._checker
+        if self._adopted_language:
+            model.adopt_target_language(self._adopted_language)
         peek, segment.peek = segment.peek, None
         self.generation += 1
         self.emit('file-loaded', number, peek)
@@ -420,6 +424,13 @@ class StreamModel(BaseModel):
 
     def set_target_language(self, langcode):
         return self._set_language('set_target_language', langcode)
+
+    def adopt_target_language(self, langcode):
+        """Give each TMX read, and those read later, C{langcode} as the
+        language it is translated into, if it names none."""
+        self._adopted_language = langcode
+        for model in self.loaded_models():
+            model.adopt_target_language(langcode)
 
     def _set_language(self, method, langcode):
         changed = False

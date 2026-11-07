@@ -275,3 +275,19 @@ def test_a_paired_file_is_never_read_for_the_stats_cache(tmp_path, monkeypatch):
     StreamModel(FileSet.from_paths([str(tmp_path)]), _FakeController())
 
     assert filled == []
+
+
+def test_a_tmx_in_the_stream_adopts_the_target_language(tmp_path):
+    from translate.storage import tmx
+
+    store = tmx.tmxfile(sourcelanguage='en')
+    store.addtranslation('One', 'en', 'Een', 'af')
+    store.savefile(str(tmp_path / 'b.tmx'))
+    a = _po(tmp_path / 'a.po', [('Two', 'Twee')])
+    model = StreamModel(FileSet.from_paths([a, str(tmp_path / 'b.tmx')]), _FakeController())
+
+    model.adopt_target_language('af')
+    tmx_model = model.load_segment(1).model
+
+    assert tmx_model._trans_store.gettargetlanguage() == 'af'
+    statsworker.wait()
