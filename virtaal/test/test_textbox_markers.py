@@ -50,7 +50,12 @@ class TestTextBoxMarkers(TestScaffolding):
             '_draw_marker',
             lambda cr, layout, marker, itr, fg: drawn.append((itr.get_offset(), marker.label)),
         )
-        textbox.draw(cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)))
+        # Only the markers layer: on Windows CI, drawing the text itself
+        # into an image surface leaves the context out of memory.
+        textbox.do_draw_layer(
+            Gtk.TextViewLayer.ABOVE_TEXT,
+            cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)),
+        )
         return drawn
 
     def _width_of(self, textbox, offset):
