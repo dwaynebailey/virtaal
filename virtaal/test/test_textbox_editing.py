@@ -486,6 +486,63 @@ class TestTextBoxEditing(TestScaffolding):
         assert editor.text == 'hierClick here to continue.'
         assert [str(g) for g in self._g(editor)] == ['here']
 
+    # A match whose codes don't map goes in as its text, without the
+    # native code a TMX or XLIFF code holds; in a PO file that is text.
+
+    TMX_IT_MATCH = {
+        'target': '<b>Klik hier en gaan voort.',
+        'source_markup': '<it id="tmx1" pos="open">&lt;b&gt;</it>Click here to continue.',
+        'target_markup': '<it id="tmx1" pos="open">&lt;b&gt;</it>Klik hier en gaan voort.',
+    }
+    XLIFF_BPT_MATCH = {
+        'target': 'Klik <b>hier</b> en gaan voort.',
+        'source_markup': 'Click <bpt id="1">&lt;b&gt;</bpt>here<ept id="1">&lt;/b&gt;</ept>'
+        '<x id="2"/> to continue.',
+        'target_markup': 'Klik <bpt id="1">&lt;b&gt;</bpt>hier<ept id="1">&lt;/b&gt;</ept>'
+        '<x id="2"/> en gaan voort.',
+    }
+
+    @pytest.mark.parametrize('match', [TMX_IT_MATCH, XLIFF_BPT_MATCH])
+    def test_select_match_with_codes_that_dont_map_leaves_out_their_code(self, monkeypatch, match):
+        editor = self._editor(PLACEABLES_XLIFF, 0)
+        unit = self.unit_controller.current_unit
+
+        self._tm_controller(monkeypatch).select_match(match)
+        editor.run_idle()
+        editor.check()
+
+        assert editor.text == 'Klik hier en gaan voort.'
+        assert unit.target == 'Klik hier en gaan voort.'
+
+    @pytest.mark.parametrize('match', [TMX_IT_MATCH, XLIFF_BPT_MATCH])
+    def test_insert_match_with_codes_that_dont_map_leaves_out_their_code(self, monkeypatch, match):
+        editor = self._editor(PLACEABLES_XLIFF, 0)
+        editor.place(0)
+
+        self._tm_controller(monkeypatch).insert_match(match)
+        editor.run_idle()
+        editor.check()
+
+        assert editor.text == 'Klik hier en gaan voort.Click here to continue.'
+        assert [str(g) for g in self._g(editor)] == ['here']
+
+    def test_select_match_into_a_po_unit_keeps_the_code_text(self, monkeypatch):
+        editor = self._editor(PLACEABLES_PO, 0)
+
+        self._tm_controller(monkeypatch).select_match(self.TMX_IT_MATCH)
+        editor.run_idle()
+
+        assert editor.text == '<b>Klik hier en gaan voort.'
+
+    def test_insert_match_into_a_po_unit_keeps_the_code_text(self, monkeypatch):
+        editor = self._editor(PLACEABLES_PO, 0)
+        editor.select(0, editor.buffer.get_char_count())
+
+        self._tm_controller(monkeypatch).insert_match(self.XLIFF_BPT_MATCH)
+        editor.run_idle()
+
+        assert editor.text == 'Klik <b>hier</b> en gaan voort.'
+
     def test_deleting_an_x_can_be_undone(self):
         # "A line break<x/>after it.": X has a widget and no text.
         editor = self._editor(PLACEABLES_XLIFF, 1)

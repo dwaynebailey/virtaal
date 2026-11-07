@@ -385,7 +385,8 @@ class TMController(BaseController):
         placeables and accelerator, and its quality rescored. Machine
         translations (no quality) are left alone. A match with inline
         codes for unit, with codes too, is scored on their texts without
-        the codes' native code, as the local TM scores it."""
+        the codes' native code, as the local TM scores it; that text's
+        adapted target, if it differs, is kept as plain_target."""
         if not match.get('quality') or match.get('source') is None or not match.get('target'):
             return match
         source, target = forceunicode(match['source']), forceunicode(match['target'])
@@ -393,10 +394,13 @@ class TMController(BaseController):
         raw_quality = match.get('raw_quality', match['quality'])
         adapted = abstraction.adapt(query_str, source, target, raw_quality, accel_markers)
         plain = _plain_texts(unit, match)
+        extra = {}
         if plain is not None:
-            quality = abstraction.adapt(*plain, raw_quality, accel_markers).quality
-            adapted = adapted._replace(quality=quality)
-        if adapted.target == target and adapted.quality == match['quality']:
+            plain_adapted = abstraction.adapt(*plain, raw_quality, accel_markers)
+            adapted = adapted._replace(quality=plain_adapted.quality)
+            if plain_adapted.target != plain[2]:
+                extra['plain_target'] = plain_adapted.target
+        if adapted.target == target and adapted.quality == match['quality'] and not extra:
             return match
         logging.debug(
             'TM: %r scored %d, adapted %d: %r',
@@ -405,7 +409,7 @@ class TMController(BaseController):
             adapted.quality,
             adapted.target,
         )
-        match = dict(match, quality=adapted.quality, raw_quality=adapted.raw_quality)
+        match = dict(match, quality=adapted.quality, raw_quality=adapted.raw_quality, **extra)
         if adapted.target != target:
             match['target'] = adapted.target
             match['tm_target'] = target
@@ -457,9 +461,10 @@ class TMController(BaseController):
         target_n = unit_controller.view.focused_target_n
         textbox = unit_controller.view.targets[target_n]
         self.main_controller.undo_controller.push_current_text(textbox)
-        target = self._rich_target(getattr(unit_controller, 'current_unit', None), match_data)
+        unit = getattr(unit_controller, 'current_unit', None)
+        target = self._rich_target(unit, match_data)
         if target is None:
-            target = forceunicode(match_data['target'])
+            target = self._plain_target(unit, match_data)
         unit_controller.set_unit_target(target_n, target)
 
     @staticmethod
@@ -475,10 +480,22 @@ class TMController(BaseController):
             return None
         return inlinecodes.rebuild(source_markup, target_markup, sources[0])
 
+    @staticmethod
+    def _plain_target(unit, match_data):
+        """The match's target as text: for a unit of a format with inline
+        codes, without the native code its codes hold (a TMX <b>), which
+        is only text in a format without codes."""
+        target = forceunicode(match_data['target'])
+        markup = match_data.get('target_markup')
+        if not markup or not inlinecodes.holds_codes(unit):
+            return target
+        return match_data.get('plain_target') or inlinecodes.plain_text(markup) or target
+
     def insert_match(self, match_data):
         """Insert the match's text at the cursor in the focused target,
         keeping the rest of the target and its placeables, with the unit's
-        own inline codes if they map and the target has none of them."""
+        own inline codes if they map and the target has none of them,
+        else as text (L{_plain_target})."""
         unit_view = self.main_controller.unit_controller.view
         target_n = unit_view.focused_target_n
         if target_n is None:
@@ -489,7 +506,7 @@ class TMController(BaseController):
         if target is not None and not inlinecodes.shares_codes(target, textbox.elem):
             textbox.insert_elem(target)
         else:
-            textbox.insert_text(forceunicode(match_data['target']))
+            textbox.insert_text(self._plain_target(unit, match_data))
         textbox.grab_focus()
 
     def send_tm_query(self, unit=None):

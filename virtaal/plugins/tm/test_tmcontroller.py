@@ -149,6 +149,67 @@ def test_accept_response_scores_a_match_with_codes_without_their_native_code(uni
     assert controller.matches[0]['quality'] == quality
 
 
+def test_accept_response_adapts_a_matchs_plain_target_too():
+    # What picking a match whose codes don't map inserts (#4708).
+    unit = xliff.xlifffile.parsestring(
+        (_XLIFF % '<g id="1">Delete</g> 3 files<x id="2"/>').encode('utf-8')
+    ).units[0]
+    controller = _make_controller(current_query=unit.source)
+    controller.abstract_placeables = True
+    controller._queried_unit = unit
+    controller._accel_markers = lambda: ()
+    match = {
+        'source': '<b>Delete</b> 5 files',
+        'target': '<b>Skrap</b> 5 lêers',
+        'quality': 81,
+        'source_markup': '<bpt id="1">&lt;b&gt;</bpt>Delete<ept id="1">&lt;/b&gt;</ept> 5 files',
+        'target_markup': '<bpt id="1">&lt;b&gt;</bpt>Skrap<ept id="1">&lt;/b&gt;</ept> 5 lêers',
+    }
+
+    controller.accept_response(_tmmodel(), unit.source, [match])
+
+    match = controller.matches[0]
+    assert match['target'] == '<b>Skrap</b> 3 lêers'
+    assert match['plain_target'] == 'Skrap 3 lêers'
+    assert TMController._rich_target(unit, match) is None
+    assert TMController._plain_target(unit, match) == 'Skrap 3 lêers'
+
+
+@pytest.mark.parametrize(
+    ('match', 'expected'),
+    [
+        # A TMX it code's <b> is native code, not text.
+        (
+            {
+                'target': '<b>Skrap dit nou',
+                'target_markup': '<it id="tmx1" pos="open">&lt;b&gt;</it>Skrap dit nou',
+            },
+            'Skrap dit nou',
+        ),
+        # An XLIFF g holds text.
+        ({'target': 'Skrap dit nou', 'target_markup': '<g id="1">Skrap</g> dit nou'}, None),
+        ({'target': 'Skrap dit nou'}, None),
+        # Markup that can't be read leaves the target alone.
+        ({'target': '<b>Skrap', 'target_markup': '<b>Skrap'}, None),
+    ],
+)
+def test_plain_target_leaves_out_the_native_code_of_codes(match, expected):
+    unit = xliff.xlifffile.parsestring((_XLIFF % 'Delete it now').encode('utf-8')).units[0]
+
+    assert TMController._plain_target(unit, match) == (expected or match['target'])
+
+
+def test_plain_target_of_a_po_unit_keeps_the_code_text():
+    from translate.storage import po
+
+    match = {
+        'target': '<b>Skrap dit nou',
+        'target_markup': '<it id="tmx1" pos="open">&lt;b&gt;</it>Skrap dit nou',
+    }
+
+    assert TMController._plain_target(po.pounit('Delete it now'), match) == '<b>Skrap dit nou'
+
+
 def test_accept_response_leaves_a_match_without_markup_at_100():
     assert _tagged_response('Click <g id="1">here</g>', {}) == 100
 
