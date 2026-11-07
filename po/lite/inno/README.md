@@ -13,6 +13,11 @@ Inno's: the list, with why each group is there, is `WIZARD_MESSAGES` in
 `devsupport/packaging/windows/inno_lite.py`. Each message's msgctxt is
 its Inno key and its msgid the English from Inno's `Default.isl`.
 
+Its messages have their own priority, Installer (see
+`po/priorities.toml`): no release needs them, and translation packs
+hold them in `inno-<lang>-installer.po`, beside `<lang>-installer.po`
+with Virtaal's own installer messages.
+
 A language has a catalog when its Inno file doesn't translate every
 message here, or it has no Inno file. It starts with what that file
 translates, and its translators' credits as header comments.

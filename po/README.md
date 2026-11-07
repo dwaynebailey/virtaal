@@ -68,8 +68,11 @@ counting its library gaps, and each main push publishes that to the
 `virtaal.priorities.yaml` gives each message a level, from what Virtaal
 shows on screen: level 1 is the welcome screen, menus and editing a
 file (with "1" the core: the welcome screen and menus), level 2 settings
-and screens seen once, level 3 the rest, and "x" messages translators
-are never asked for. A message the file doesn't list is newer than it.
+and screens seen once, "installer" the Windows installer (its wizard
+and Virtaal's own installer messages), level 3 the rest, and "x"
+messages translators are never asked for. A release needs level 1
+only; level 2 and the installer come after it. A message the file
+doesn't list is newer than it.
 GTK's and the other libraries' messages Virtaal shows are listed too.
 `priorities.toml` holds the rules, and explains them. It also defines the
 priorities: each is a name with an `order` (lower is more important) and
@@ -93,10 +96,12 @@ commit with the change, and the whole file for a string freeze.
 ### Translation packs
 
 A translation pack is one language's catalog cut down to what users see
-most, for a translator to finish first: `<lang>-level1.po` (level 1) and
-`<lang>-level2.po` (levels 1 and 2), with the priority file, zipped.
-With `--libraries`, it also holds `<domain>-<lang>-level1.po` (and
-`-level2`) for GTK and the other libraries, and for language names:
+most, for a translator to finish first: `<lang>-level1.po` (level 1),
+`<lang>-level2.po` (levels 1 and 2) and `<lang>-installer.po` (Virtaal's
+own installer messages), with the priority file, zipped. With
+`--libraries`, it also holds `<domain>-<lang>-level1.po` (and
+`-level2`) for GTK and the other libraries, `inno-<lang>-installer.po`
+for the installer's wizard, and for language names:
 everything in the language's lite catalog, translations included, plus
 the messages neither it nor the library's catalog on this host
 translates. Run that where Virtaal runs:

@@ -175,15 +175,26 @@ def test_cut_off_counts_the_libraries_level_one_too(linguas, tmp_path, monkeypat
 def test_progress_writes_each_translations_standing(linguas, tmp_path, monkeypatch):
     (tmp_path / "virtaal.priorities.yaml").write_text(
         "domains:\n  virtaal:\n    '1': [One]\n    1~: [Two, Three]\n    '2': [Four]\n"
-        "  gtk30:\n    '1': [_Open]\n",
+        "    installer: [Not in the template]\n"
+        "  gtk30:\n    '1': [_Open]\n"
+        "  inno:\n    installer: [\"ButtonNext\\x04&Next >\", \"ButtonBack\\x04< &Back\"]\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(linguas, "library_gaps", lambda: {"de": (1, 0)})
+    # de's installer wizard shows one message in English.
+    monkeypatch.setattr(linguas, "installer_gaps", lambda: {"de": 1})
 
     assert _run(linguas, monkeypatch, "--progress", str(tmp_path / "progress.json")) == 0
 
     data = json.loads((tmp_path / "progress.json").read_text(encoding="utf-8"))
-    assert data["totals"] == {"core": 2, "rest": 2, "level2": 1, "level3": 0}
+    # The installer, like level 2, isn't needed to ship.
+    assert data["totals"] == {
+        "core": 2,
+        "rest": 2,
+        "level2": 1,
+        "level3": 0,
+        "installer": 2,
+    }
     languages = {lang["code"]: lang for lang in data["languages"]}
     assert set(languages) == {"de", "fr", "vi"}
     assert languages["de"] == {
@@ -195,6 +206,7 @@ def test_progress_writes_each_translations_standing(linguas, tmp_path, monkeypat
         "needed": 1,
         "level2_missing": 1,
         "level3_missing": 0,
+        "installer_missing": 1,
         "ships": "50%",
     }
     assert (languages["fr"]["core_missing"], languages["fr"]["ships"]) == (1, "50%")
@@ -228,3 +240,18 @@ def test_a_plural_message_counts_under_its_singular(linguas, tmp_path):
 
     assert linguas.level_one() == ({"%d file"}, set())
     assert linguas.translated_keys(tmp_path / "de.po") == {"%d file"}
+
+
+@needs_gettext
+def test_progress_counts_virtaals_own_installer_messages_apart(linguas, tmp_path):
+    (tmp_path / "virtaal.priorities.yaml").write_text(
+        "domains:\n  virtaal:\n    '1': [One]\n    1~: [Two, Three]\n    installer: [Four]\n",
+        encoding="utf-8",
+    )
+
+    data = linguas.progress(["de", "fr"])
+
+    assert (data["totals"]["level2"], data["totals"]["installer"]) == (0, 1)
+    languages = {lang["code"]: lang for lang in data["languages"]}
+    assert languages["de"]["installer_missing"] == 1
+    assert languages["fr"]["installer_missing"] == 0

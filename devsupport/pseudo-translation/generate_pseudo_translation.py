@@ -28,7 +28,7 @@ translation:
   gap in lite coverage.
 - pseudo-priority: every string prefixed with its translation priority
   from po/virtaal.priorities.yaml ("1:_Open", "1~:Search", "2:Settings",
-  "3:", "x:" for one translators are never asked for), and "?:" for one
+  "installer:", "3:", "x:" for one translators are never asked for), and "?:" for one
   the file doesn't list - for checking the priorities by eye. Library
   strings and language names too, from the same catalogs as
   pseudo-source.

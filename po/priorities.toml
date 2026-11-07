@@ -24,14 +24,20 @@ name = "Level 2"
 order = 3
 description = "Settings, and screens seen once."
 
+[priorities.installer]
+# Seen once, before Virtaal itself, like level 2; not needed to ship.
+name = "Installer"
+order = 4
+description = "The Windows installer: its wizard and Virtaal's own installer strings."
+
 [priorities."3"]
 name = "Level 3"
-order = 4
+order = 5
 description = "Everything else."
 
 [priorities.x]
 name = "Never asked"
-order = 5
+order = 6
 description = "Not asked of translators."
 
 # Each place a message was seen on screen takes the priority of the first
@@ -181,14 +187,21 @@ domain = "virtaal"
 msgids = ["Settings…"]
 
 [[override]]
-# The Windows installer and command-line help, in tmp_strings.py with
-# the file type names.
-priority = "3"
+# Virtaal's own Windows installer strings (virtaal.iss, in tmp_strings.py
+# as installer only). Its other file type names show in the Open dialog
+# too, so keep their own level.
+priority = "installer"
 msgids = [
     "Associate Virtaal with translation file types (.po, .xlf, .tmx, ...)",
     "Edit with Virtaal",
     "SDL XLIFF Translation File",
     "Uninstall the older Virtaal 0.7 first",
+]
+
+[[override]]
+# The command-line help, in tmp_strings.py.
+priority = "3"
+msgids = [
     "options",
     "positional arguments",
     "show program's version number and exit",
@@ -197,10 +210,10 @@ msgids = [
 ]
 
 [[override]]
-# The Windows installer's wizard, which the harvest can't show: a screen
-# seen once. Its messages are its lite template's (see
+# The Windows installer's wizard, which the harvest can't show. Its
+# messages are its lite template's (see
 # devsupport/packaging/windows/inno_lite.py).
-priority = "2"
+priority = "installer"
 domain = "inno"
 template = "po/lite/inno/inno.pot"
 

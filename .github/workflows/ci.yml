@@ -299,8 +299,8 @@ jobs:
     # so a change to it lands with the change that causes it: download the
     # translation-priorities artifact and commit its level-1 file. A
     # warning until it proves reliable, then a required check (#4102).
-    # Levels 2 and 3 are only noted; they're updated in full at each
-    # string freeze.
+    # Levels 2, 3 and Installer are only noted; they're updated in full
+    # at each string freeze.
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

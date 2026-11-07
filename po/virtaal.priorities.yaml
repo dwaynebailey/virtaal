@@ -16,13 +16,17 @@ priorities:
   name: Level 2
   order: 3
   description: Settings, and screens seen once.
+- id: installer
+  name: Installer
+  order: 4
+  description: 'The Windows installer: its wizard and Virtaal''s own installer strings.'
 - id: '3'
   name: Level 3
-  order: 4
+  order: 5
   description: Everything else.
 - id: x
   name: Never asked
-  order: 5
+  order: 6
   description: Not asked of translators.
 domains:
   gtk-mac-integration:
@@ -115,7 +119,7 @@ domains:
     - Add "%s" to Dictionary
     - Ignore All
   inno:
-    '2':
+    installer:
     - "AdditionalIcons\x04Additional shortcuts:"
     - "ApplicationsFound2\x04The following applications are using files that need to be updated by Setup. It is recommended that you allow Setup to automatically close these applications. After the installation has completed, Setup will attempt to restart the applications."
     - "BrowseDialogLabel\x04Select a folder in the list below, then click OK."
@@ -662,6 +666,11 @@ domains:
     - _Source term — %(langname)s
     - _Target term — %(langname)s
     - translator-credits
+    installer:
+    - Associate Virtaal with translation file types (.po, .xlf, .tmx, ...)
+    - Edit with Virtaal
+    - SDL XLIFF Translation File
+    - Uninstall the older Virtaal 0.7 first
     '3':
     - '"alt" Attributes'
     - '%(filename)s is read-only.
@@ -679,7 +688,6 @@ domains:
     - All Checks
     - All States
     - Apertium
-    - Associate Virtaal with translation file types (.po, .xlf, .tmx, ...)
     - Bing
     - CONFIG
     - Can only export Gettext PO files
@@ -731,7 +739,6 @@ domains:
     - Download %(language)s thesaurus…
     - Downloading %(language)s thesaurus…
     - Edit Language
-    - Edit with Virtaal
     - Enter a language name.
     - Error
     - Error opening file
@@ -793,7 +800,6 @@ domains:
     - Revert to the last saved copy and lose all changes?
     - Reviewed
     - 'Reviewed:'
-    - SDL XLIFF Translation File
     - Select Look-up Services
     - Select Terminology Sources
     - Select sources of Translation Memory
@@ -817,7 +823,6 @@ domains:
 
 
       %(errormsg)s'
-    - Uninstall the older Virtaal 0.7 first
     - Unreviewed machine translations from Apertium
     - Unreviewed machine translations from Google's translation service
     - Unreviewed machine translations from a Moses server

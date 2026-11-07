@@ -13,9 +13,11 @@ po/level-pack.py LANG [LANG ...]   (or --all)
 
 writes OUT/<lang>.zip (--out, default dist/level-packs): <lang>-level1.po,
 po/<lang>.po merged into level 1 of virtaal.pot; <lang>-level2.po,
-levels 1 and 2; and the priority file they name in their header.
-With --libraries, also <domain>-<lang>-level1.po (and -level2) for
-each library (GTK, GLib, ...) and the language names: everything in
+levels 1 and 2; <lang>-installer.po, Virtaal's own Windows installer
+messages; and the priority file they name in their header.
+With --libraries, also <domain>-<lang>-level1.po (and -level2, and
+-installer for the installer's wizard, inno) for each library (GTK,
+GLib, ...) and the language names: everything in
 the lite catalog in po/lite, translations included, plus the messages
 neither it nor the library's catalog on this host translates. Run that
 where Virtaal runs.
@@ -23,7 +25,8 @@ where Virtaal runs.
 po/level-pack.py --merge LANG FILE.po
 
 merges a pack a translator sends back into po/<lang>.po, or a
-<domain>-<lang>-level*.po one into po/lite/<domain>/<lang>.po: its
+<domain>-<lang>-level*.po or -installer.po one into
+po/lite/<domain>/<lang>.po: its
 translations replace the ones there, or are added if po/<lang>.po
 doesn't have the message yet; an untranslated or fuzzy one in it
 leaves the one there alone. Nothing else in the catalog changes."""
@@ -45,8 +48,9 @@ LITE_DIR = PO_DIR / 'lite'
 LANGUAGE_NAMES = ('iso639-3', 'iso639-5')
 OUT = PO_DIR.parent / 'dist' / 'level-packs'
 PLURALS = PO_DIR.parent / 'virtaal' / 'support' / 'libi18n' / 'plurals.py'
-# Each pack level: the priority levels it holds.
-PACK_LEVELS = {1: ('1', '1~'), 2: ('1', '1~', '2')}
+# Each pack, by the name its files end in: the priorities it holds. The
+# installer's is its own, as no level needs it.
+PACKS = {'level1': ('1', '1~'), 'level2': ('1', '1~', '2'), 'installer': ('installer',)}
 
 
 def _run(*command):
@@ -63,13 +67,13 @@ def _plurals():
     return module
 
 
-def level_keys(level, domain='virtaal'):
-    """domain's messages, as msgctxt\\x04msgid, at pack level."""
+def level_keys(pack, domain='virtaal'):
+    """domain's messages, as msgctxt\\x04msgid, in pack (a PACKS name)."""
     import yaml
 
     with open(PRIORITIES, encoding='utf-8') as f:
         priorities = yaml.safe_load(f)['domains'].get(domain, {})
-    return {key for priority in PACK_LEVELS[level] for key in priorities.get(priority, [])}
+    return {key for priority in PACKS[pack] for key in priorities.get(priority, [])}
 
 
 def library_gaps():
@@ -87,7 +91,7 @@ def library_gaps():
         for lang, keys in langs.items():
             gaps.setdefault(lang, {})[domain] = {key.split('\0')[0] for key in keys}
     for domain in LANGUAGE_NAMES:
-        names = {key for level in PACK_LEVELS for key in level_keys(level, domain)}
+        names = {key for pack in PACKS for key in level_keys(pack, domain)}
         for lang in coverage.shipped_languages():
             missing = {
                 name for name in names if not coverage._name_translated(lite, lang, name, domain)
@@ -192,11 +196,14 @@ def pack(lang, out_dir, gaps=None):
         tempfile.TemporaryDirectory() as tmp,
         zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as zf,
     ):
-        for level in PACK_LEVELS:
-            template = Path(tmp) / ('level%d.pot' % level)
-            write_template(level_keys(level), template)
+        for pack_name in PACKS:
+            keys = level_keys(pack_name)
+            if not keys:
+                continue
+            template = Path(tmp) / ('%s.pot' % pack_name)
+            write_template(keys, template)
             merged = Path(tmp) / 'merged.po'
-            name = '%s-level%d.po' % (lang, level)
+            name = '%s-%s.po' % (lang, pack_name)
             _run(
                 'msgmerge',
                 '--quiet',
@@ -210,9 +217,9 @@ def pack(lang, out_dir, gaps=None):
             _set_header_field(Path(tmp) / name, 'X-Priority-File', PRIORITIES.name)
             zf.write(Path(tmp) / name, name)
             for domain, keys in sorted(library.items()):
-                keys = keys & level_keys(level, domain)
+                keys = keys & level_keys(pack_name, domain)
                 if keys:
-                    name = '%s-%s-level%d.po' % (domain, lang, level)
+                    name = '%s-%s-%s.po' % (domain, lang, pack_name)
                     write_library_pack(domain, lang, keys, Path(tmp) / name)
                     zf.write(Path(tmp) / name, name)
         zf.write(PRIORITIES, PRIORITIES.name)
@@ -221,9 +228,10 @@ def pack(lang, out_dir, gaps=None):
 
 def merge_target(lang, returned):
     """The catalog a returned pack file goes back into, and its library
-    domain: po/lite/<domain>/<lang>.po for <domain>-<lang>-level*.po,
+    domain: po/lite/<domain>/<lang>.po for <domain>-<lang>-<pack>.po,
     else po/<lang>.po."""
-    match = re.match(r'(.+)-%s-level\d+\.po$' % re.escape(lang), returned.name)
+    packs = '|'.join(re.escape(name) for name in PACKS)
+    match = re.match(r'(.+)-%s-(?:%s)\.po$' % (re.escape(lang), packs), returned.name)
     if match and ((LITE_DIR / match.group(1)).is_dir() or match.group(1) in LANGUAGE_NAMES):
         return LITE_DIR / match.group(1) / (lang + '.po'), match.group(1)
     return PO_DIR / (lang + '.po'), None

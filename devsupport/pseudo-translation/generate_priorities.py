@@ -437,13 +437,13 @@ def report(level_one, other, redefined=False):
         )
     if other:
         lines += [
-            "Levels 2 and 3 differ (%s); updated at the next string freeze:"
+            "Levels 2, 3 and Installer differ (%s); updated at the next string freeze:"
             % _messages(len(other)),
             "",
         ]
         lines += _describe(other)
         annotations.append(
-            "::notice::%s at a different level 2 or 3 than po/virtaal.priorities.yaml "
+            "::notice::%s at a different level 2, 3 or Installer than po/virtaal.priorities.yaml "
             "says; updated at the next string freeze" % _messages(len(other))
         )
     return "\n".join(lines) + "\n", annotations

@@ -252,9 +252,9 @@ def test_the_installer_wizard_packs_at_level_two_and_merges_into_its_lite_catalo
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    assert "ButtonNext\x04&Next >" in module.level_keys(2, "inno")
-    assert not module.level_keys(1, "inno")
-    assert module.merge_target("zu", module.Path("inno-zu-level2.po")) == (
+    assert "ButtonNext\x04&Next >" in module.level_keys("installer", "inno")
+    assert not module.level_keys("level2", "inno")
+    assert module.merge_target("zu", module.Path("inno-zu-installer.po")) == (
         module.LITE_DIR / "inno" / "zu.po",
         "inno",
     )
@@ -271,3 +271,18 @@ def test_a_new_library_pack_catalog_takes_the_plural_table(tmp_path):
     assert '"Plural-Forms: nplurals=2; plural=(n != 1);\\n"' in (tmp_path / "lg.po").read_text(
         encoding="utf-8"
     )
+
+
+def test_the_installer_has_a_pack_of_its_own(packs, tmp_path):
+    (tmp_path / "virtaal.priorities.yaml").write_text(
+        "domains:\n  virtaal:\n    '1': [_File]\n    installer: [Settings]\n", encoding="utf-8"
+    )
+
+    archive = packs.pack("de", tmp_path / "out")
+
+    with zipfile.ZipFile(archive) as zf:
+        assert "de-installer.po" in zf.namelist()
+        installer = zf.read("de-installer.po").decode("utf-8")
+        level2 = zf.read("de-level2.po").decode("utf-8")
+    assert 'msgid "Settings"' in installer and 'msgid "_File"' not in installer
+    assert 'msgid "Settings"' not in level2

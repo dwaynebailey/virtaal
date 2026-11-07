@@ -373,3 +373,18 @@ def test_a_plural_message_is_keyed_by_its_singular(gen, tmp_path):
     path = tmp_path / "priorities.yaml"
     gen.write_file(str(path), gen.to_file({"virtaal": {key: "1"}}, "2026-11-05", RULES))
     assert gen.from_file(gen.read_file(str(path))) == {"virtaal": {key: "1"}}
+
+
+def test_the_installer_is_its_own_priority_after_level_2(gen):
+    from virtaal.support import priorityfile
+
+    committed = priorityfile.load(gen.OUTPUT)
+    order = [level.id for level in committed.levels]
+    assert order == ["1", "1~", "2", "installer", "3", "x"]
+    levels = gen.from_file(gen.read_file(gen.OUTPUT))
+    assert set(levels["inno"].values()) == {"installer"}
+    assert levels["virtaal"]["Edit with Virtaal"] == "installer"
+    assert levels["virtaal"]["SDL XLIFF Translation File"] == "installer"
+    # The command-line help stays at 3; the Open dialog's file types at 2.
+    assert levels["virtaal"]["usage: "] == "3"
+    assert levels["virtaal"]["Gettext PO file"] == "2"

@@ -26,7 +26,9 @@ translations-only rc2) to catch up first.
 
 --progress FILE writes each shipped translation's standing as JSON,
 for the "Translate Virtaal" page: level 1 as --cut-off counts it,
-and Virtaal's own levels 2 and 3.
+Virtaal's own levels 2 and 3, and the Windows installer's messages
+(the installer priority: Virtaal's own and its wizard's lite ones),
+which, like level 2, no release needs.
 
 With --check, changes nothing: prints how po/LINGUAS differs from the
 rule and exits 1 if it does. Uses gettext's own tools only, so the
@@ -179,16 +181,32 @@ def level_one():
     return set(levels.get('1', [])) & current, set(levels.get('1~', [])) & current
 
 
+def _coverage():
+    path = PO_DIR.parent / 'devsupport' / 'pseudo-translation' / 'report_lite_coverage.py'
+    spec = importlib.util.spec_from_file_location('report_lite_coverage', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def installer_gaps():
+    """{lang: count}: the installer wizard's messages each shipped
+    language shows in English (see report_lite_coverage.py)."""
+    module = _coverage()
+    gaps = module.inno_missing(
+        module._lite_module(),
+        module.shipped_languages(),
+        module.shipped_lite().get(module.INNO, ()),
+    )
+    return {lang: len(keys) for lang, keys in gaps.items()}
+
+
 def library_gaps():
     """{lang: (core, rest)}: the level-1 messages of GTK and the other
     libraries, and language names, this host shows in English (see
     devsupport/pseudo-translation/report_lite_coverage.py)."""
-    path = PO_DIR.parent / 'devsupport' / 'pseudo-translation' / 'report_lite_coverage.py'
-    spec = importlib.util.spec_from_file_location('report_lite_coverage', path)
-    module = importlib.util.module_from_spec(spec)
     try:
-        spec.loader.exec_module(module)
-        return module.level_one_gaps()
+        return _coverage().level_one_gaps()
     except ImportError as e:
         sys.exit(
             "--cut-off counts the libraries' level-1 messages on this host, which needs Virtaal's own"
@@ -349,14 +367,16 @@ def _names(lang):
     return tuple('%s (%s)' % (name, variant) if variant else name for name in names)
 
 
-def progress(langs, libraries=None):
+def progress(langs, libraries=None, installer=None):
     """Each translation's standing, for --progress: level 1 as readiness()
-    counts it, and how many of Virtaal's level 2 and 3 messages it
-    lacks."""
+    counts it, how many of Virtaal's level 2 and 3 messages it lacks,
+    and of the installer's: Virtaal's own, and with installer
+    (installer_gaps()), its wizard's."""
     domains = _levels()
     current = template_keys()
     level = {
-        priority: set(domains['virtaal'].get(priority, [])) & current for priority in ('2', '3')
+        priority: set(domains['virtaal'].get(priority, [])) & current
+        for priority in ('2', '3', 'installer')
     }
     states = readiness(langs, libraries)
     languages = []
@@ -374,6 +394,8 @@ def progress(langs, libraries=None):
                 'needed': _needed(core_missing, rest_missing),
                 'level2_missing': len(level['2'] - have),
                 'level3_missing': len(level['3'] - have),
+                'installer_missing': len(level['installer'] - have)
+                + (installer or {}).get(lang, 0),
                 'ships': ships(state),
             }
         )
@@ -402,6 +424,8 @@ def progress(langs, libraries=None):
             'rest': len(rest) + library_total('1~'),
             'level2': len(level['2']),
             'level3': len(level['3']),
+            'installer': len(level['installer'])
+            + (len(domains.get('inno', {}).get('installer', [])) if installer is not None else 0),
         },
         'languages': languages,
     }
@@ -450,7 +474,9 @@ def main():
 
     if args.progress:
         skip = excluded()
-        data = progress([lang for lang in catalogs() if lang not in skip], library_gaps())
+        data = progress(
+            [lang for lang in catalogs() if lang not in skip], library_gaps(), installer_gaps()
+        )
         with open(args.progress, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=1)
             f.write('\n')

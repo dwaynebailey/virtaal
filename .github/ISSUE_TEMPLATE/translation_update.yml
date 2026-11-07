@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for translating Virtaal. [Translate Virtaal](https://virtaal.translatehouse.org/translate.html) shows how far each language is and has the translation packs to start from. Pick one level and translate all of that level's files in your pack (the level 1 files or the level 2 files): level 2 already includes level 1, so there's no need to do both.
+        Thank you for translating Virtaal. [Translate Virtaal](https://virtaal.translatehouse.org/translate.html) shows how far each language is and has the translation packs to start from. Pick one level and translate all of that level's files in your pack (the level 1 files or the level 2 files): level 2 already includes level 1, so there's no need to do both. The installer files (ending in `-installer.po`) are the Windows installer's, apart from both: translate them too if you can.
 
         Comfortable with git? A pull request that updates `po/LANG.po` is just as welcome, instead of this form. If your language has files in `po/lite/<library>/LANG.po` (GTK's and other libraries' messages, and the Windows installer's in `po/lite/inno/LANG.po`), update those too. Only languages whose library translations are incomplete have them, so don't create new ones: elsewhere Virtaal uses the library's own translations.
 
@@ -28,6 +28,7 @@ body:
       options:
         - A level 1 pack
         - A level 2 pack
+        - Installer files
         - The whole translation (po/LANG.po)
         - Something else (say below)
     validations:
