@@ -528,20 +528,52 @@ def code_spans(markup, text):
     return tuple(out)
 
 
+# The opening half of each paired code, which both halves are known by.
+_PAIRS = {'bx': 'bx', 'ex': 'bx', 'bpt': 'bpt', 'ept': 'bpt'}
+
+
+def _code_key(tag, elem):
+    """A code by its kind and id: a pair's halves by its rid, if set."""
+    attrib = elem.xml_node.attrib if isinstance(elem, UnknownXML) else {}
+    code_id = getattr(elem, 'id', None) or attrib.get('id')
+    if tag in _PAIRS:
+        return _PAIRS[tag], getattr(elem, 'rid', None) or attrib.get('rid') or code_id
+    return tag, code_id
+
+
 def _codes(elem):
     if elem is None:
         return set()
     return {
-        (tag, getattr(sub, 'id', None))
-        for sub in elem.depth_first()
-        if (tag := _code_tag(sub)) is not None
+        _code_key(tag, sub) for sub in elem.depth_first() if (tag := _code_tag(sub)) is not None
     }
 
 
-def shares_codes(elem, other):
-    """Whether the rich trees elem and other hold a code of the same kind
-    and id."""
-    return bool(_codes(elem) & _codes(other))
+def _strip(elem, keys):
+    """elem's subtrees with each code in keys as its text (a g's content;
+    nothing for a code with native code, which isn't text)."""
+    if isinstance(elem, str):
+        return [StringElem(elem)]
+    tag = _code_tag(elem)
+    if tag is not None and _code_key(tag, elem) in keys:
+        return [part for sub in elem.sub for part in _strip(sub, keys)] if tag == 'g' else []
+    if tag is not None and tag != 'g':
+        return [elem.copy()]
+    copy = elem.copy()
+    copy.sub = [part for sub in elem.sub for part in _strip(sub, keys)]
+    return [copy]
+
+
+def without_codes_of(elem, other):
+    """The rich tree elem, or a copy with each code that the rich tree
+    other holds too (the same kind and id; both halves of a pair) as its
+    text."""
+    keys = _codes(elem) & _codes(other)
+    if not keys:
+        return elem
+    root = StringElem(_strip(elem, keys))
+    root.prune()
+    return root
 
 
 # TMX export

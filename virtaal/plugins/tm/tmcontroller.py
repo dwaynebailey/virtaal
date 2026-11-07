@@ -494,8 +494,8 @@ class TMController(BaseController):
     def insert_match(self, match_data):
         """Insert the match's text at the cursor in the focused target,
         keeping the rest of the target and its placeables, with the unit's
-        own inline codes if they map and the target has none of them,
-        else as text (L{_plain_target})."""
+        own inline codes if they map, those the target holds already as
+        text; else as text (L{_plain_target})."""
         unit_view = self.main_controller.unit_controller.view
         target_n = unit_view.focused_target_n
         if target_n is None:
@@ -503,8 +503,8 @@ class TMController(BaseController):
         textbox = unit_view.targets[target_n]
         unit = getattr(self.main_controller.unit_controller, 'current_unit', None)
         target = self._rich_target(unit, match_data)
-        if target is not None and not inlinecodes.shares_codes(target, textbox.elem):
-            textbox.insert_elem(target)
+        if target is not None:
+            textbox.insert_elem(target, new_codes_only=True)
         else:
             textbox.insert_text(self._plain_target(unit, match_data))
         textbox.grab_focus()

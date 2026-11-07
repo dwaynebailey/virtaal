@@ -15,7 +15,7 @@ from translate.storage.placeables import StringElem
 from translate.storage.placeables import parse as elem_parse
 
 from virtaal.common import pan_app
-from virtaal.support import invisiblechars
+from virtaal.support import inlinecodes, invisiblechars
 from virtaal.support.translate_compat import forceunicode
 from virtaal.views import placeablesguiinfo, theme
 from virtaal.views.theme import current_theme
@@ -655,9 +655,10 @@ class TextBox(Gtk.TextView):
         self.insert_elem(elem.translate())
         return True
 
-    def insert_elem(self, translation):
+    def insert_elem(self, translation, new_codes_only=False):
         """Insert C{translation}, text or a rich tree, at the cursor, over
-        the selection if any, as one undo entry."""
+        the selection if any, as one undo entry; with C{new_codes_only},
+        the codes the rest of the target holds already go in as text."""
         if self.suggestion_is_visible():
             self.suggestion = None
         # Group the selection-delete with whatever follows into one undo entry.
@@ -674,6 +675,8 @@ class TextBox(Gtk.TextView):
 
         cursor_pos = self.buffer.props.cursor_position
         if isinstance(translation, StringElem):
+            if new_codes_only:
+                translation = inlinecodes.without_codes_of(translation, self.elem)
             self.add_default_gui_info(translation)
             insert_offset = self.elem.gui_info.gui_to_tree_index(cursor_pos)
             self.elem_before_edit = self.elem.copy()

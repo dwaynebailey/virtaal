@@ -236,7 +236,7 @@ translation, the first of each kind for the first, when both originals have the
 same number of each kind; otherwise only the text goes in, for an XLIFF or
 TMX file without the text inside its tags.
 :guilabel:`Insert at Cursor` in the suggestion's context menu does the same,
-unless your translation already has those tags.
+except that a tag your translation already has goes in as its text.
 
 Machine translation keeps your placeables too: Virtaal asks the service to
 leave them untranslated and puts your own placeables in its suggestion. Should

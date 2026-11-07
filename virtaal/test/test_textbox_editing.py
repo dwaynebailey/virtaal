@@ -43,6 +43,24 @@ BEGUN_G_XLIFF = """<?xml version="1.0" encoding="UTF-8"?>
 </xliff>
 """
 
+# Targets begun with some of their codes.
+HELD_CODES_XLIFF = """<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+<file original="test" source-language="en" target-language="af" datatype="plaintext">
+<body><trans-unit id="1">
+<source>Click <g id="1">here</g> to <x id="2"/>continue</source>
+<target>Klik <g id="1">hier</g> </target>
+</trans-unit><trans-unit id="2">
+<source>Some <bx id="3"/>bold<ex id="3"/> text<x id="4"/>.</source>
+<target>Party <bx id="3"/>vet<ex id="3"/> </target>
+</trans-unit><trans-unit id="3">
+<source>Press<x id="5"/> <g id="6">Enter</g></source>
+<target>Druk<x id="5"/> </target>
+</trans-unit></body>
+</file>
+</xliff>
+"""
+
 # Text GTK lays out as clusters of several code points.
 CLUSTER_TEXTS = [
     'ক্ষমা',  # Bengali conjunct
@@ -477,14 +495,59 @@ class TestTextBoxEditing(TestScaffolding):
         assert editor.text == 'Klik .'
         assert not self.undo_controller.model.can_undo()
 
-    def test_insert_match_takes_the_text_if_the_target_has_the_codes(self, monkeypatch):
-        editor = self._editor(PLACEABLES_XLIFF, 0)
-        editor.place(0)
+    def _insert_held(self, monkeypatch, tmp_path, index, target_markup):
+        path = tmp_path / 'held.xlf'
+        path.write_text(HELD_CODES_XLIFF, encoding='utf-8')
+        editor = self._editor(str(path), index)
+        unit = self.unit_controller.current_unit
+        editor.place(editor.buffer.get_char_count())
+        self._tm_controller(monkeypatch).insert_match(
+            {
+                'target': '',
+                'source_markup': inlinecodes.unit_markup(unit)[0],
+                'target_markup': target_markup,
+            }
+        )
+        editor.run_idle()
+        editor.check()
+        return editor, unit
 
-        self._insert_tagged(monkeypatch, editor, '<g id="7">hier</g>')
+    def test_insert_match_takes_a_code_the_target_holds_as_its_text(self, monkeypatch, tmp_path):
+        editor, unit = self._insert_held(
+            monkeypatch, tmp_path, 0, 'Klik <g id="1">hier</g> en <x id="2"/>gaan voort'
+        )
 
-        assert editor.text == 'hierClick here to continue.'
-        assert [str(g) for g in self._g(editor)] == ['here']
+        assert editor.text == 'Klik hier Klik hier en gaan voort'
+        assert [str(g) for g in self._g(editor)] == ['hier']
+        assert inlinecodes.from_elem(unit.rich_target[0]) == (
+            'Klik <g id="1">hier</g> Klik hier en <x id="2"/>gaan voort'
+        )
+
+        editor.undo()
+
+        assert inlinecodes.from_elem(editor.textbox.elem) == 'Klik <g id="1">hier</g> '
+        assert not self.undo_controller.model.can_undo()
+
+    def test_insert_match_takes_both_halves_of_a_held_pair_as_text(self, monkeypatch, tmp_path):
+        editor, unit = self._insert_held(
+            monkeypatch,
+            tmp_path,
+            1,
+            'Sommige <bx id="3"/>vet<ex id="3"/> teks<x id="4"/>.',
+        )
+
+        assert inlinecodes.from_elem(unit.rich_target[0]) == (
+            'Party <bx id="3"/>vet<ex id="3"/> Sommige vet teks<x id="4"/>.'
+        )
+
+    def test_insert_match_takes_a_held_standalone_code_as_nothing(self, monkeypatch, tmp_path):
+        editor, unit = self._insert_held(
+            monkeypatch, tmp_path, 2, 'Druk<x id="5"/> <g id="6">Enter</g>'
+        )
+
+        assert inlinecodes.from_elem(unit.rich_target[0]) == (
+            'Druk<x id="5"/> Druk <g id="6">Enter</g>'
+        )
 
     # A match whose codes don't map goes in as its text, without the
     # native code a TMX or XLIFF code holds; in a PO file that is text.

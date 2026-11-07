@@ -279,16 +279,37 @@ def test_a_dropped_code_is_left_out():
 @pytest.mark.parametrize(
     ('other', 'expected'),
     [
-        ('A <g id="1">b</g>', True),
-        ('A <x id="2"/> <g id="3">b</g>', False),
-        ('A <x id="1"/>', False),
-        ('A b', False),
+        # Codes of the same kind and id go in as their text.
+        ('A <g id="1">b</g>', 'Klik hier en <x id="2"/>gaan <bx id="3"/>voort<ex id="3"/>.'),
+        ('A <x id="2"/>', 'Klik <g id="1">hier</g> en gaan <bx id="3"/>voort<ex id="3"/>.'),
+        # Both halves of a pair, if the other holds either.
+        ('A <ex id="3"/>', 'Klik <g id="1">hier</g> en <x id="2"/>gaan voort.'),
+        ('A <x id="1"/> <g id="2">b</g>', None),
+        ('A b', None),
     ],
 )
-def test_trees_share_codes_of_the_same_kind_and_id(other, expected):
-    elem = _rich_source('Click <g id="1">here</g>')
+def test_codes_another_tree_holds_go_in_as_text(other, expected):
+    elem = _rich_source('Klik <g id="1">hier</g> en <x id="2"/>gaan <bx id="3"/>voort<ex id="3"/>.')
 
-    assert inlinecodes.shares_codes(elem, _rich_source(other)) is expected
+    result = inlinecodes.without_codes_of(elem, _rich_source(other))
+
+    if expected is None:
+        assert result is elem
+    else:
+        assert inlinecodes.from_elem(result, force=True) == expected
+        assert str(elem) == 'Klik hier en gaan voort.'
+
+
+def test_a_held_code_with_native_code_goes_in_as_nothing():
+    elem = _rich_source(
+        'A <bpt id="1">&lt;b&gt;</bpt>b<ept id="1">&lt;/b&gt;</ept><ph id="2">&lt;br/&gt;</ph>'
+        '<g id="3">c <g id="4">d</g></g>'
+    )
+    other = _rich_source('<ept id="1">&lt;/b&gt;</ept> <g id="3">e</g>')
+
+    result = inlinecodes.without_codes_of(elem, other)
+
+    assert inlinecodes.from_elem(result) == 'A b<ph id="2">&lt;br/&gt;</ph>c <g id="4">d</g>'
 
 
 def test_code_spans_give_each_codes_place_in_the_text():
