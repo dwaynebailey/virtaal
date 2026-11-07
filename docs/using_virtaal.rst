@@ -106,15 +106,24 @@ laid out the usual way:
 Otherwise it asks, and remembers your answer. The English file opened by itself
 shows its text, and Virtaal doesn't save over it.
 
-Plural forms follow your language: an i18next ``item_one``/``item_other`` pair
-or an Android ``<plurals>`` gets the forms your language needs, each starting
-from the English. Android files leave out what you haven't translated, as
-Android falls back to the English.
+Plural forms follow your language: an i18next ``item_one``/``item_other`` group
+(and ``item_ordinal_one``... as a group of its own) or an Android ``<plurals>``
+is one unit with a box for each form your language has in these files, named
+with numbers that take it, such as "few: 2, 3, 4". Russian has four here (one,
+few, many and other), not the three of its PO files. Saving writes each form
+under its own key or quantity. Android files leave out what you haven't
+translated, as Android falls back to the English.
+
+Saving a JSON file changes only the translations in it: its layout, line endings
+and escaping stay as they were, and a new key goes beside the one before it in
+the English file.
 
 In a folder, each such file is shown in the Files Panel with its English file
 greyed under it. A file whose English file Virtaal can't find is greyed too and
-isn't part of the units: double-click it (or press :kbd:`Enter`) to choose its
-English file, and it joins the others.
+isn't part of the units: double-click it, press :kbd:`Enter` or choose
+:menuselection:`Choose Source-Language File…` from its menu to pick its English
+file; the folder opens again with it among the others, at its first unit. A
+folder holding only such files opens with no units, ready to pair them.
 
 When the English changes under a translation, Virtaal marks the translation
 for review and shows the earlier English, from what you last saw, your
