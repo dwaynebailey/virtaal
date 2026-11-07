@@ -28,14 +28,16 @@ msgid "Setup - %1"
 msgstr ""
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonBack"
 msgid "< &Back"
-msgstr ""
+msgstr "< &Mabega"
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonNext"
 msgid "&Next >"
-msgstr ""
+msgstr "&Weyongereyo >"
 
 #. A button on the wizard's pages or its message boxes.
 msgctxt "ButtonInstall"

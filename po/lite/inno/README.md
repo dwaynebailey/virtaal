@@ -20,9 +20,10 @@ with Virtaal's own installer messages.
 
 A language has a catalog when its Inno file doesn't translate every
 message here, or it has no Inno file. It starts with what that file
-translates, and its translators' credits as header comments. With no
-Inno file, a message whose English (without its access key, dots or
-arrows) Virtaal's own catalog or the GTK or GLib lite catalog
+translates, and its translators' credits as header comments. A message
+neither translates, whose English (without its access key, dots or
+arrows) Virtaal's own catalog, the GTK or GLib lite catalog, or the GTK
+or GLib catalog installed where `update_lite_catalogs.py` runs
 translates, such as OK, Cancel, Yes and No, starts with that
 translation marked fuzzy: it ships once a translator confirms it.
 

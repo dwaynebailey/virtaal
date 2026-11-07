@@ -26,10 +26,12 @@ inno, the Windows installer's wizard, has no installed catalogs: its
 upstream is the vendored Inno Setup messages files
 (devsupport/packaging/windows/languages/), and its template is
 inno_lite.py's list. Its lite translations win at build time (see
-generate_installer_translations.py). For a language with no Inno file,
-a message whose English Virtaal's own catalog (po/<lang>.po) or its GTK
-or GLib lite catalog translates is pre-filled from it, fuzzy, so it
-ships only once a translator confirms it.
+generate_installer_translations.py). A message neither the Inno file
+nor the lite catalog translates, whose English Virtaal's own catalog
+(po/<lang>.po), its GTK or GLib lite catalog, or this host's GTK or GLib
+catalog translates, is pre-filled from it, fuzzy, so it ships only once
+a translator confirms it. A host without GTK's or GLib's catalogs just
+pre-fills fewer, and a pre-filled message is kept as it is.
 """
 
 import argparse
@@ -237,11 +239,29 @@ def _guess_table(path):
     translates in more than one way."""
     if not os.path.exists(path):
         return {}
+    return _table(
+        (str(unit.source), str(unit.target))
+        for unit in factory.getobject(path).units
+        if not unit.isheader() and unit.istranslated() and not unit.hasplural()
+    )
+
+
+def _host_table(domain, lang, directory):
+    """_guess_table() of this host's own catalog for domain, if any."""
+    if directory is None:
+        return {}
+    return _table(
+        (msgid, str(target))
+        for (_context, msgid), target in upstream_translations(domain, lang, directory).items()
+        if len(getattr(target, "strings", [target])) == 1
+    )
+
+
+def _table(pairs):
+    """_guess_table() of (English, translation) pairs."""
     found = {}
-    for unit in factory.getobject(path).units:
-        if unit.isheader() or not unit.istranslated() or unit.hasplural():
-            continue
-        found.setdefault(_plain(str(unit.source), "_"), set()).add(str(unit.target))
+    for source, target in pairs:
+        found.setdefault(_plain(source, "_"), set()).add(target)
     table = {}
     for english, targets in found.items():
         if len({_plain(t, "_") for t in targets}) == 1:
@@ -256,6 +276,9 @@ def _as_inno(translation, msgid):
     has one, and msgid's dots and arrows."""
     wants_key = "&" in msgid.replace("&&", "")
     text = translation.replace("&", "&&").replace("__", "\0")
+    if not wants_key:
+        # An access key in brackets, "OK(_O)", goes with its brackets.
+        text = re.sub(r"\s*\(_\w\)", "", text)
     if "_" in text:
         text = text.replace("_", "&" if wants_key else "", 1).replace("_", "")
     elif wants_key:
@@ -273,13 +296,17 @@ def _as_inno(translation, msgid):
     return text
 
 
-def inno_guesses(lang, messages):
+def inno_guesses(lang, messages, host_dirs=None):
     """{(context, msgid): translation} for the inno messages whose
     English, without accelerators, dots or arrows, Virtaal's own
-    catalog for lang, else its GTK or GLib lite catalog, translates."""
-    tables = [_guess_table(os.path.join(PO_DIR, lang + ".po"))] + [
-        _guess_table(os.path.join(LITE_DIR, domain, lang + ".po")) for domain in GUESS_DOMAINS
-    ]
+    catalog for lang, else its GTK or GLib lite catalog, else the GTK
+    or GLib catalog in host_dirs ({domain: locale directory}) translates."""
+    host_dirs = host_dirs or {}
+    tables = (
+        [_guess_table(os.path.join(PO_DIR, lang + ".po"))]
+        + [_guess_table(os.path.join(LITE_DIR, d, lang + ".po")) for d in GUESS_DOMAINS]
+        + [_host_table(d, lang, host_dirs.get(d)) for d in GUESS_DOMAINS]
+    )
     guesses = {}
     for message in messages:
         english = _plain(str(message.source), "&")
@@ -300,11 +327,12 @@ def _fills(domain, lite, upstream):
     return bool(lite) and not upstream
 
 
-def update(domain, lang, upstream):
+def update(domain, lang, upstream, host_dirs=None):
     """Applies the rule to po/lite/<domain>/<lang>.po given the library's
-    own translations; returns how many messages it translates that
-    the library's own doesn't (0 when it isn't needed, or fills no
-    gap yet) - see _fills()."""
+    own translations (and for inno, where this host's GTK and GLib
+    catalogs are, see inno_guesses()); returns how many messages it
+    translates that the library's own doesn't (0 when it isn't needed,
+    or fills no gap yet) - see _fills()."""
     template = factory.getobject(os.path.join(LITE_DIR, domain, domain + ".pot"))
     messages = [unit for unit in template.units if not unit.isheader()]
     path = os.path.join(LITE_DIR, domain, lang + ".po")
@@ -344,8 +372,8 @@ def update(domain, lang, upstream):
         else {}
     )
     store = _new_catalog(domain, lang, existing)
-    # Only a language with no Inno file: each message would show in English.
-    guesses = inno_guesses(lang, messages) if domain == INNO and not upstream else {}
+    # A message the Inno file doesn't translate would show in English.
+    guesses = inno_guesses(lang, messages, host_dirs) if domain == INNO else {}
     fills = 0
     for message in messages:
         unit = _add_message(store, domain, message)
@@ -465,8 +493,17 @@ def main():
         if domain in NAME_DOMAINS:
             write_names_template(domain)
         shipped[domain] = []
+        # inno's guesses also come from this host's GTK and GLib catalogs.
+        host_dirs = (
+            {d: upstream_dir(generator, d) for d in GUESS_DOMAINS} if domain == INNO else None
+        )
+        for missing in sorted(d for d, path in (host_dirs or {}).items() if path is None):
+            print(
+                "warning: %s isn't installed - inno guesses leave it out" % missing, file=sys.stderr
+            )
         for lang in ui_languages():
-            fills = update(domain, lang, upstream_translations(domain, lang, directory))
+            upstream = upstream_translations(domain, lang, directory)
+            fills = update(domain, lang, upstream, host_dirs)
             if fills and lang in languages:
                 shipped[domain].append(lang)
         print(

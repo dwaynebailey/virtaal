@@ -551,13 +551,101 @@ def test_virtaals_own_catalog_comes_first_and_a_guess_is_kept(guessing):
     ).read_text(encoding="utf-8")
 
 
-def test_a_language_with_an_inno_file_gets_no_guesses(guessing):
+def test_a_language_with_an_inno_file_gets_guesses_for_its_gaps_only(guessing):
+    from translate.storage import factory
+
     module, inno, root = guessing
-    _catalog(root / "po" / "xx.po", ("Cancel", "Kanselleer"))
+    _catalog(root / "po" / "xx.po", ("Cancel", "Kanselleer"), ("_Yes", "_Jip"))
 
     module.update("inno", "xx", {("ButtonYes", "&Yes"): "&Ja"})
 
-    assert "Kanselleer" not in (inno / "xx.po").read_text(encoding="utf-8")
+    units = {u.getcontext(): u for u in factory.getobject(str(inno / "xx.po")).units}
+    assert (str(units["ButtonYes"].target), units["ButtonYes"].isfuzzy()) == ("&Ja", False)
+    assert (str(units["ButtonCancel"].target), units["ButtonCancel"].isfuzzy()) == (
+        "Kanselleer",
+        True,
+    )
+
+
+def _host_catalog(locale_dir, lang, domain, *units):
+    """A compiled host catalog: (context, msgid, msgstr) units, a list
+    msgstr making a plural."""
+    from translate.misc.multistring import multistring
+    from translate.storage import mo
+
+    store = mo.mofile()
+    for context, source, target in units:
+        if isinstance(target, list):
+            unit = store.addsourceunit(multistring([source, source + "s"]))
+            unit.target = multistring(target)
+        else:
+            unit = store.addsourceunit(source)
+            unit.target = target
+        if context:
+            unit.setcontext(context)
+    path = locale_dir / lang / "LC_MESSAGES"
+    path.mkdir(parents=True, exist_ok=True)
+    (path / (domain + ".mo")).write_bytes(bytes(store))
+
+
+def test_the_hosts_gtk_and_glib_catalogs_guess_after_the_repositorys(guessing):
+    from translate.storage import factory
+
+    module, inno, root = guessing
+    host = root / "host"
+    _host_catalog(
+        host,
+        "xx",
+        "gtk30",
+        ("Stock label", "_Cancel", "_Kanselleer"),
+        ("", "_Back", "_Terug"),
+        ("", "_Next", ["_Volgende", "_Volgendes"]),
+        ("", "_OK", "Goed(_O)"),
+    )
+    _host_catalog(host, "xx", "glib20", ("", "Finish", "Klaar"))
+    _catalog(root / "gtk30" / "xx.po", ("_Back", "_Agter"))
+
+    module.update("inno", "xx", {}, {"gtk30": str(host), "glib20": str(host)})
+
+    units = {u.getcontext(): u for u in factory.getobject(str(inno / "xx.po")).units}
+    assert {key: str(u.target) for key, u in units.items() if u.isfuzzy()} == {
+        # The lite catalog first.
+        "ButtonBack": "< &Agter",
+        "ButtonCancel": "Kanselleer",
+        "ButtonFinish": "&Klaar",
+    }
+    # A plural is no guess.
+    assert not units["ButtonNext"].target
+
+
+@pytest.mark.parametrize("host_dirs", [None, {"gtk30": None}, {"gtk30": "missing"}])
+def test_no_host_catalog_guesses_less_and_keeps_earlier_guesses(guessing, host_dirs):
+    module, inno, root = guessing
+    host = root / "host"
+    _host_catalog(host, "xx", "gtk30", ("", "_Cancel", "_Kanselleer"), ("", "_Yes", "_Ja"))
+    module.update("inno", "xx", {}, {"gtk30": str(host)})
+    if host_dirs and host_dirs["gtk30"] == "missing":
+        host_dirs = {"gtk30": str(root / "missing")}
+
+    module.update("inno", "xx", {}, host_dirs)
+
+    text = (inno / "xx.po").read_text(encoding="utf-8")
+    assert '#, fuzzy\nmsgctxt "ButtonCancel"\nmsgid "Cancel"\nmsgstr "Kanselleer"' in text
+    assert '#, fuzzy\nmsgctxt "ButtonYes"\nmsgid "&Yes"\nmsgstr "&Ja"' in text
+
+
+@pytest.mark.parametrize(
+    ("translation", "msgid", "expected"),
+    [
+        ("Goed(_O)", "OK", "Goed"),
+        ("Goed (_O)", "OK", "Goed"),
+        ("Klaar(_F)", "&Finish", "Klaar(&F)"),
+    ],
+)
+def test_a_key_in_brackets_goes_when_inno_has_none(lite_catalogs, translation, msgid, expected):
+    module, _domain_dir = lite_catalogs
+
+    assert module._as_inno(translation, msgid) == expected
 
 
 def test_inno_upstream_is_the_vendored_messages_files(lite_catalogs):

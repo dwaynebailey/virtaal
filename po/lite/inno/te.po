@@ -33,9 +33,10 @@ msgid "< &Back"
 msgstr ""
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonNext"
 msgid "&Next >"
-msgstr ""
+msgstr "తరువాత (&N) >"
 
 #. A button on the wizard's pages or its message boxes.
 msgctxt "ButtonInstall"
@@ -67,9 +68,10 @@ msgid "&No"
 msgstr "వద్దు (&N)"
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonFinish"
 msgid "&Finish"
-msgstr ""
+msgstr "పూర్తిచేయి (&F)"
 
 #. A button on the wizard's pages or its message boxes.
 msgctxt "ButtonWizardBrowse"

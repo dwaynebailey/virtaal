@@ -33,9 +33,10 @@ msgid "< &Back"
 msgstr ""
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonNext"
 msgid "&Next >"
-msgstr ""
+msgstr "ਨਵਾਂ(&N) >"
 
 #. A button on the wizard's pages or its message boxes.
 msgctxt "ButtonInstall"
@@ -43,9 +44,10 @@ msgid "&Install"
 msgstr ""
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonOK"
 msgid "OK"
-msgstr ""
+msgstr "ਠੀਕ ਹੈ"
 
 #. A button on the wizard's pages or its message boxes.
 msgctxt "ButtonCancel"
@@ -58,14 +60,16 @@ msgid "&Yes"
 msgstr ""
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonNo"
 msgid "&No"
-msgstr ""
+msgstr "ਨਹੀਂ(&N)"
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonFinish"
 msgid "&Finish"
-msgstr ""
+msgstr "ਮੁਕੰਮਲ(&F)"
 
 #. A button on the wizard's pages or its message boxes.
 msgctxt "ButtonWizardBrowse"
