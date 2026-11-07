@@ -638,3 +638,36 @@ def test_a_placeable_translator_lost_is_added_and_the_suggestion_marked(monkeypa
     (match,) = found[0][1]
     assert match['target'] == 'Kopiere %1 %2'
     assert match['tm_target'] == 'Kopiere %1'
+
+
+# A file's suggestions (#1679)
+
+
+def test_a_file_fetch_sends_an_array_of_texts(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+
+    assert model.bulk_ready() and model.billed
+    request = model.bulk_send(['Open', 'Close'])
+    reply = [{'translations': [{'text': 'Öffnen'}]}, {'translations': [{'text': 'Schließen'}]}]
+    found = model.bulk_parse(['Open', 'Close'], json.dumps(reply).encode('utf-8'))
+
+    assert json.loads(request.data.decode('utf-8')) == [{'Text': 'Open'}, {'Text': 'Close'}]
+    assert 'textType=plain' in request.url
+    assert [found[s][0]['target'] for s in ('Open', 'Close')] == ['Öffnen', 'Schließen']
+
+
+def test_a_file_fetch_keeps_to_microsofts_limits(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+    assert [len(b) for b in model.bulk_batches(['y'] * 150)] == [100, 50]
+
+    monkeypatch.setattr(TMModel, 'BULK_CHARS', 100)
+    batches = model.bulk_batches(['x' * 40] * 3 + ['y'] * 150)
+
+    assert [len(b) for b in batches] == [2, 61, 90]
+
+
+def test_a_file_fetch_stops_for_a_refused_key(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+
+    assert model.bulk_wait(model.bulk_send(['Open']), 401) is None
+    assert not model.bulk_ready()

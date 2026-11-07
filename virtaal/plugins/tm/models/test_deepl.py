@@ -579,3 +579,53 @@ def test_a_tag_deepl_repeated_is_dropped(monkeypatch, tmp_path):
     (match,) = found[0][1]
     assert match['target'] == 'Maak %s nou  oop'
     assert match['tm_target'] == 'Maak %s nou %s oop'
+
+
+# A file's suggestions (#1679)
+
+
+def test_a_file_fetch_sends_many_texts_in_one_request(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+
+    assert model.bulk_ready() and model.billed
+    request = model.bulk_send(['Open', 'Close'])
+    body = json.loads(request.data.decode('utf-8'))
+    reply = {'translations': [{'text': 'Öffnen'}, {'text': ''}]}
+    found = model.bulk_parse(['Open', 'Close'], json.dumps(reply).encode('utf-8'))
+
+    assert body['text'] == ['Open', 'Close'] and 'tag_handling' not in body
+    assert found['Open'][0]['target'] == 'Öffnen' and found['Close'] == []
+    assert model.cache == {'Open': 'Öffnen'}
+
+
+def test_a_file_fetch_batches_marked_up_text_apart(monkeypatch, tmp_path):
+    monkeypatch.setattr(TMModel, 'BULK_BATCH', 2)
+    model = _ready(monkeypatch, tmp_path)
+    sources = ['Open', 'Save %s', 'Close', 'Quit', 'Cut %d']
+
+    batches = model.bulk_batches(sources)
+
+    assert batches == [['Open', 'Close'], ['Quit'], ['Save %s', 'Cut %d']]
+    body = json.loads(model.bulk_send(batches[2]).data.decode('utf-8'))
+    assert body['tag_handling'] == 'xml'
+    assert model.bulk_characters(['Save %s']) == len(model._protect('Save %s').text)
+
+
+def test_a_file_fetch_with_a_reply_of_another_length_fails(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+
+    with pytest.raises(ValueError):
+        model.bulk_parse(['Open', 'Close'], b'{"translations": [{"text": "x"}]}')
+
+
+def test_a_file_fetch_waits_when_deepl_is_busy_and_stops_for_used_up_quota(
+    monkeypatch, tmp_path, clock
+):
+    model = _ready(monkeypatch, tmp_path)
+    request = model.bulk_send(['Open'])
+    request.result_headers.write(b'HTTP/2 429\r\nRetry-After: 20\r\n')
+
+    assert model.bulk_wait(request, 429) == 20
+    assert model.bulk_wait(request, 400) is None
+    assert model.bulk_wait(request, 456) is None
+    assert model._stopped and not model.bulk_ready()

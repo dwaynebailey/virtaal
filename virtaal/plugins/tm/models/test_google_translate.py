@@ -369,3 +369,59 @@ def test_got_translation_adds_a_lost_placeable_and_marks_the_suggestion():
     (match,) = model.cache['Copy %1 to %2']
     assert match['target'] == '%2 na %1'
     assert match['tm_target'] == '%2 na'
+
+
+# A file's suggestions (#1679)
+
+
+def _bulk_model():
+    model = _model()
+    model.client = FakeHTTPClient()
+    model._disable_all = lambda reason: model._languages.clear()
+    return model
+
+
+def test_a_file_fetch_posts_many_q_in_one_request():
+    model = _bulk_model()
+
+    assert model.bulk_ready() and model.billed
+    request = model.bulk_send(['Open', 'Close'])
+    reply = {'data': {'translations': [{'translatedText': 'Maak oop'}, {'translatedText': ''}]}}
+    found = model.bulk_parse(['Open', 'Close'], json.dumps(reply).encode('utf-8'))
+
+    assert model.client.added == [request]
+    assert request.url == model.batch_url % {'key': 'test-key'}
+    assert json.loads(request.data) == {
+        'q': ['Open', 'Close'],
+        'source': 'en',
+        'target': 'af',
+        'format': 'html',
+    }
+    assert found['Open'][0]['target'] == 'Maak oop' and found['Close'] == []
+
+
+def test_a_file_fetch_keeps_to_googles_limits(monkeypatch):
+    monkeypatch.setattr(TMModel, 'BULK_CHARS', 300)
+    model = _bulk_model()
+    sources = ['x'] * 130 + ['y' * 200] * 2
+
+    batches = model.bulk_batches(sources)
+
+    assert [len(b) for b in batches] == [128, 3, 1]
+
+
+def test_a_file_fetch_needs_a_key_and_the_languages():
+    model = _bulk_model()
+    model.config = {'api_key': ''}
+    assert not model.bulk_ready()
+    model = _bulk_model()
+    model._languages = {'en'}
+    assert not model.bulk_ready()
+
+
+def test_a_file_fetch_stops_for_a_refused_key():
+    model = _bulk_model()
+    request = model.bulk_send(['Open'])
+
+    assert model.bulk_wait(request, 403) is None
+    assert not model.bulk_ready()

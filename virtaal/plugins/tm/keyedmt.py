@@ -14,7 +14,7 @@ import time
 
 from virtaal.support.httpclient import HTTPClient
 
-from . import mtplaceables
+from . import bulkfetch, mtplaceables
 from .models.basetmmodel import BaseTMModel
 from .models.remotetm import retry_after
 
@@ -116,15 +116,23 @@ class KeyedMTModel(BaseTMModel):
         translate."""
         raise NotImplementedError
 
-    def _translate_request(self, protected, source_lang, target_lang):
-        """The RESTRequest asking for the translation of protected, an
-        mtplaceables.Protected."""
+    def _batch_request(self, protected, source_lang, target_lang):
+        """The RESTRequest asking for the translations of protected, a
+        list of mtplaceables.Protected all with markup or all without."""
         raise NotImplementedError
 
-    def _translation(self, reply):
-        """The translation in the decoded reply; raise ValueError, KeyError,
-        IndexError or TypeError for an unusable one."""
+    def _translations(self, reply):
+        """The translations in the decoded reply, in the order asked for;
+        raise ValueError, KeyError, IndexError or TypeError for an
+        unusable one."""
         raise NotImplementedError
+
+    def _translate_request(self, protected, source_lang, target_lang):
+        """The RESTRequest asking for the translation of protected."""
+        return self._batch_request([protected], source_lang, target_lang)
+
+    def _translation(self, reply):
+        return self._translations(reply)[0]
 
     def _tmsource(self):
         """The suggestion's source, for display."""
@@ -197,13 +205,15 @@ class KeyedMTModel(BaseTMModel):
         return self.protection.protect(query_str)
 
     def _found(self, query_str, protected, text):
+        self.emit('match-found', query_str, [self._match(query_str, protected, text)])
+
+    def _match(self, query_str, protected, text):
         restored = mtplaceables.Restored(text, text)
         if protected.markup:
             restored = self.protection.restore(text, protected)
             if restored.returned != restored.text:
                 logging.debug('%s: placeables moved in %r', self.service_name, text)
-        match = mtplaceables.suggestion(query_str, restored, self._tmsource())
-        self.emit('match-found', query_str, [match])
+        return mtplaceables.suggestion(query_str, restored, self._tmsource())
 
     def requests_in_flight(self):
         return len(self.client.requests) if self.client is not None else 0
@@ -263,6 +273,55 @@ class KeyedMTModel(BaseTMModel):
 
     def _waiting(self):
         return time.monotonic() < self._retry_at
+
+    # A file's suggestions (#1679), many units per request #
+    billed = True
+    BULK_BATCH = 50
+    """The most units one request asks for."""
+    BULK_CHARS = 10000
+    """The most characters one request sends, but for a longer unit alone."""
+
+    def bulk_ready(self):
+        return not self._stopped and self._has_languages() and bool(self._language_pair())
+
+    def bulk_batches(self, sources):
+        # A request's units are all marked up or all plain.
+        protected = {source: self._protect(source) for source in sources}
+        found = []
+        for markup in (False, True):
+            group = [s for s in sources if bool(protected[s].markup) == markup]
+            found += bulkfetch.batches(
+                group, self.BULK_BATCH, self.BULK_CHARS, lambda s: len(protected[s].text)
+            )
+        return found
+
+    def bulk_characters(self, sources):
+        return sum(len(self._protect(source).text) for source in sources)
+
+    def bulk_send(self, batch):
+        pair = self._language_pair()
+        if not pair:
+            return None
+        request = self._batch_request([self._protect(source) for source in batch], *pair)
+        return request if self.client.add(request) is not False else None
+
+    def bulk_parse(self, batch, reply):
+        texts = self._translations(json.loads(reply))
+        if len(texts) != len(batch):
+            raise ValueError('%d translations for %d units' % (len(texts), len(batch)))
+        found = {}
+        for source, text in zip(batch, texts, strict=True):
+            found[source] = []
+            if isinstance(text, str) and text.strip():
+                protected = self._protect(source)
+                self.cache[protected.text] = text
+                found[source] = [self._match(source, protected, text)]
+        return found
+
+    def bulk_wait(self, request, status):
+        if not self._wait_or_stop(request, status) or self._stopped:
+            return None
+        return max(0, self._retry_at - time.monotonic())
 
     def _stop(self, reason):
         """Send nothing until the settings change or Virtaal starts again."""

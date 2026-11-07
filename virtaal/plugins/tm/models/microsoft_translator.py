@@ -90,6 +90,9 @@ class TMModel(KeyedMTModel):
     )
 
     service_name = 'Microsoft Translator'
+    # Its limits are 1,000 texts and 50,000 characters a request.
+    BULK_BATCH = 100
+    BULK_CHARS = 10000
     # Stop for a refused key or region (401) or used-up quota (403); wait
     # while busy.
     STOP_STATUSES = (401, 403)
@@ -165,23 +168,23 @@ class TMModel(KeyedMTModel):
             return None
         return source_lang, target_lang
 
-    def _translate_request(self, protected, source_lang, target_lang):
+    def _batch_request(self, protected, source_lang, target_lang):
         params = {
             'api-version': '3.0',
             'from': source_lang,
             'to': target_lang,
-            'textType': 'html' if protected.markup else 'plain',
+            'textType': 'html' if protected[0].markup else 'plain',
         }
         return RESTRequest(
             self.endpoint + '/translate?' + urlencode(params),
             '',
             method='POST',
-            data=json.dumps([{'Text': protected.text}]).encode('utf-8'),
+            data=json.dumps([{'Text': p.text} for p in protected]).encode('utf-8'),
             headers=self._headers('Content-Type: application/json; charset=UTF-8'),
         )
 
-    def _translation(self, reply):
-        return reply[0]['translations'][0]['text']
+    def _translations(self, reply):
+        return [item['translations'][0]['text'] for item in reply]
 
     def _tmsource(self):
         # l10n: Try to keep this as short as possible. Feel free to transliterate.

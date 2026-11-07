@@ -14,6 +14,7 @@ import pycurl
 from virtaal.support.httpclient import HTTPClient, RESTRequest
 from virtaal.views.widgets.settingsdialog import api_key_field
 
+from .. import bulkfetch
 from ..mtplaceables import Spans, suggestion
 from .basetmmodel import BaseTMModel
 
@@ -41,6 +42,7 @@ class TMModel(BaseTMModel):
     display_name = _('Google Translate')
     description = _("Unreviewed machine translations from Google's translation service")
     online_service = 'Google'
+    billed = True
     terms_url = 'https://cloud.google.com/terms'
     # Billed per character: off unless turned on.
     PREFETCH_MAX = 2
@@ -52,6 +54,7 @@ class TMModel(BaseTMModel):
     protection = Spans('<span translate="no">', '</span>', always=True)
 
     translate_url = "https://www.googleapis.com/language/translate/v2?key=%(key)s&q=%(message)s&source=%(from)s&target=%(to)s"
+    batch_url = "https://www.googleapis.com/language/translate/v2?key=%(key)s"
     languages_url = "https://www.googleapis.com/language/translate/v2/languages?key=%(key)s"
 
     # INITIALIZERS #
@@ -102,11 +105,13 @@ class TMModel(BaseTMModel):
         if len(protected.text) > 2000 - len(self.translate_url):
             logging.debug('Too long for Google Translate: %d characters', len(protected.text))
             return
-        source_lang = code_translation.get(self.source_lang, self.source_lang).replace('_', '-')
-        target_lang = code_translation.get(self.target_lang, self.target_lang).replace('_', '-')
-        if source_lang not in self._languages or target_lang not in self._languages:
-            logging.debug('language pair not supported: %s => %s' % (source_lang, target_lang))
+        pair = self._pair()
+        if pair is None:
+            logging.debug(
+                'language pair not supported: %s => %s', self.source_lang, self.target_lang
+            )
             return
+        source_lang, target_lang = pair
 
         if query_str in self.cache:
             self.emit('match-found', query_str, self.cache[query_str])
@@ -132,6 +137,15 @@ class TMModel(BaseTMModel):
                     signal, self._for_key(key, lambda response: self.got_error(response, query_str))
                 )
 
+    def _pair(self):
+        """Google's codes for the current languages, or None if it doesn't
+        support them."""
+        source_lang = code_translation.get(self.source_lang, self.source_lang).replace('_', '-')
+        target_lang = code_translation.get(self.target_lang, self.target_lang).replace('_', '-')
+        if source_lang not in self._languages or target_lang not in self._languages:
+            return None
+        return source_lang, target_lang
+
     def requests_in_flight(self):
         client = getattr(self, 'client', None)
         return len(client.requests) if client is not None else 0
@@ -155,14 +169,77 @@ class TMModel(BaseTMModel):
             self._disable_all("Error with json response: %s" % e)
             return
 
+        match = self._match(query_str, text)
+        self.cache[query_str] = [match]
+        self.emit('match-found', query_str, [match])
+
+    def _match(self, query_str, text):
         protected = self.protection.protect(query_str)
         restored = self.protection.restore(text, protected)
         if restored.returned != restored.text:
             logging.debug('Google Translate: placeables moved in %r', text)
         # l10n: Try to keep this as short as possible. Feel free to transliterate.
-        match = suggestion(query_str, restored, _('Google'))
-        self.cache[query_str] = [match]
-        self.emit('match-found', query_str, [match])
+        return suggestion(query_str, restored, _('Google'))
+
+    # A file's suggestions (#1679), many units per request #
+    BULK_BATCH = 128
+    """The most units one request asks for: Google's limit."""
+    BULK_CHARS = 5000
+    """The most characters one request sends, but for a longer unit alone:
+    what Google recommends."""
+    BULK_WAIT_STATUSES = (429, 500, 503)
+
+    def bulk_ready(self):
+        return bool(self.config['api_key']) and self._pair() is not None
+
+    def bulk_batches(self, sources):
+        return bulkfetch.batches(
+            sources,
+            self.BULK_BATCH,
+            self.BULK_CHARS,
+            lambda s: len(self.protection.protect(s).text),
+        )
+
+    def bulk_characters(self, sources):
+        return sum(len(self.protection.protect(source).text) for source in sources)
+
+    def bulk_send(self, batch):
+        pair = self._pair()
+        if pair is None:
+            return None
+        body = {
+            'q': [self.protection.protect(source).text for source in batch],
+            'source': pair[0],
+            'target': pair[1],
+            'format': 'html',
+        }
+        req = RESTRequest(
+            self.batch_url % {'key': quote_plus(self.config['api_key'])},
+            '',
+            method='POST',
+            data=json.dumps(body).encode('utf-8'),
+            headers=['Content-Type: application/json; charset=utf-8'],
+        )
+        req.curl.setopt(pycurl.REFERER, virtaal_referrer)
+        return req if self.client.add(req) is not False else None
+
+    def bulk_parse(self, batch, reply):
+        translations = json.loads(reply)['data']['translations']
+        if len(translations) != len(batch):
+            raise ValueError('%d translations for %d units' % (len(translations), len(batch)))
+        found = {}
+        for source, translation in zip(batch, translations, strict=True):
+            text = translation['translatedText']
+            found[source] = [self._match(source, text)] if isinstance(text, str) and text else []
+            if found[source]:
+                self.cache[source] = found[source]
+        return found
+
+    def bulk_wait(self, request, status):
+        if status in (400, 401, 403):
+            # A refused key or used-up quota.
+            self._disable_all("Got an error response: %s" % status)
+        return super().bulk_wait(request, status)
 
     def got_languages(self, val):
         """Handle the response from the web service to set up language pairs."""

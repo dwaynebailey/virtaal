@@ -68,6 +68,9 @@ class TMModel(KeyedMTModel):
     settings = (api_key_field(),)
 
     service_name = 'DeepL'
+    # Its limits are 50 texts and 128 KiB a request.
+    BULK_BATCH = 50
+    BULK_CHARS = 30000
     # Stop for a refused key (403) or used-up quota (456); wait while busy.
     STOP_STATUSES = (403, 456)
     WAIT_STATUSES = (429, 529)
@@ -119,15 +122,15 @@ class TMModel(KeyedMTModel):
             return None
         return source_lang, target_lang
 
-    def _translate_request(self, protected, source_lang, target_lang):
+    def _batch_request(self, protected, source_lang, target_lang):
         body = {
-            'text': [protected.text],
+            'text': [p.text for p in protected],
             'source_lang': source_lang,
             'target_lang': target_lang,
             # Keep the source's capitals and punctuation at the ends.
             'preserve_formatting': True,
         }
-        if protected.markup:
+        if protected[0].markup:
             body['tag_handling'] = 'xml'
         return RESTRequest(
             self._url('/v2/translate'),
@@ -137,8 +140,8 @@ class TMModel(KeyedMTModel):
             headers=self._headers('Content-Type: application/json'),
         )
 
-    def _translation(self, reply):
-        return reply['translations'][0]['text']
+    def _translations(self, reply):
+        return [item['text'] for item in reply['translations']]
 
     def _tmsource(self):
         # l10n: Try to keep this as short as possible. Feel free to transliterate.
