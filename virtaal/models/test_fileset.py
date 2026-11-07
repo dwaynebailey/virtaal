@@ -15,6 +15,7 @@ from virtaal.models.fileset import (
     path_language,
     scan_directory,
 )
+from virtaal.support.converters import FluentConverter
 
 
 def _po(path, language=None):
@@ -148,6 +149,9 @@ def test_a_folder_scan_pairs_monolingual_files_with_their_templates(tmp_path):
     assert files[0].template_name == 'Messages.properties'
 
 
+@pytest.mark.skipif(
+    not FluentConverter().available(), reason='translate-toolkit before 3.18 has no fluent2po'
+)
 def test_a_template_in_another_folder_is_named_from_the_scanned_one(tmp_path):
     _write(tmp_path, 'locales/en-US/main.ftl', 'hello = Hello\n')
     _write(tmp_path, 'locales/af/main.ftl', 'hello = Hallo\n')
