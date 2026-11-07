@@ -50,7 +50,14 @@ class TestTextBoxMarkers(TestScaffolding):
             '_draw_marker',
             lambda cr, layout, marker, itr, fg: drawn.append((itr.get_offset(), marker.label)),
         )
-        textbox.draw(cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)))
+
+        # Only the markers: on Windows CI, drawing text (the lines or a
+        # pilcrow) into an image surface leaves the context out of memory.
+        monkeypatch.setattr(textbox, '_draw_pilcrow', lambda *args: None)
+        textbox.do_draw_layer(
+            Gtk.TextViewLayer.ABOVE_TEXT,
+            cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)),
+        )
         return drawn
 
     def _width_of(self, textbox, offset):
