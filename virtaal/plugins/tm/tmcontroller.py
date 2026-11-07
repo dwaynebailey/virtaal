@@ -25,6 +25,15 @@ def _needs_suggestions(unit):
     return not unit.istranslated() and not sdlxliff_compat.is_locked(unit)
 
 
+def _form_texts(unit):
+    """unit's target, one string per plural form."""
+    target = getattr(unit, 'target', None)
+    if not target:
+        return []
+    strings = getattr(target, 'strings', None)
+    return [str(text) for text in strings] if strings else [str(target)]
+
+
 def _plain_texts(unit, match):
     """(query, source, target) of a match with inline codes for unit, of
     a format with codes, without the codes' native code; else None."""
@@ -289,6 +298,13 @@ class TMController(BaseController):
         lang_controller = getattr(main_controller, 'lang_controller', None)
         return lang_controller.get_target_nplurals() if lang_controller is not None else None
 
+    def existing_target(self):
+        """The edited form's translation as it was when the unit was
+        reached, or '' if it had none: what suggestions are compared with."""
+        forms = getattr(self, '_existing_targets', ())
+        target_n = getattr(self, 'target_n', 0) or 0
+        return forms[target_n] if target_n < len(forms) else ''
+
     def _accel_markers(self):
         checks_controller = getattr(
             getattr(self, 'main_controller', None), 'checks_controller', None
@@ -552,6 +568,7 @@ class TMController(BaseController):
 
         if self.unit is None:
             return
+        self._existing_targets = _form_texts(self.unit)
 
         # Arriving after a rest, not while moving fast.
         now = time.monotonic()

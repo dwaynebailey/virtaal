@@ -368,6 +368,7 @@ class TMMatchRenderer(Gtk.CellRenderer):
             self.matchdata['target'],
             width - (2 * self.BOX_MARGIN),
             rendering.get_target_font_description(),
+            self._existing_target(),
             codes=self._codes('target'),
         )
         self.target_layout.get_context().set_language(rendering.get_language(tgtlang))
@@ -394,6 +395,14 @@ class TMMatchRenderer(Gtk.CellRenderer):
 
             height = self.source_layout.get_pixel_size()[1] + self.target_layout.get_pixel_size()[1]
             return height + self.LINE_SEPARATION + self.ROW_PADDING
+
+    def _existing_target(self):
+        """The unit's existing translation, which a TM match's target is
+        shown as a difference from (#1291); '' for none or for MT."""
+        existing = getattr(self.view.controller, 'existing_target', None)
+        if not self.matchdata.get('quality') or existing is None:
+            return ''
+        return existing()
 
     def _codes(self, side):
         """The match's inline codes on side, as the editor shows them."""

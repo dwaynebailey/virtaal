@@ -201,6 +201,10 @@ suggestion into the target text with :kbd:`Ctrl+1`, or use :kbd:`Ctrl+2`, etc.
 to select the others. You can also double click the suggestion to obtain the
 same effect.
 
+The source text of a translation memory suggestion is highlighted where it
+differs from yours. When the unit already has a translation, the suggested
+translation is also highlighted where it differs from that one.
+
 A translation memory suggestion for text that differs from yours only in its
 :doc:`placeables <placeables>` or its accelerator key is adapted to your text.
 For example, if the translation memory has "Verwyder {0} lêers" for "Delete {0}

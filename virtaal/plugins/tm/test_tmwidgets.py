@@ -655,3 +655,50 @@ def test_update_geometry_places_the_popup(widget, kwargs, expected):
         ('window', 0, 0, width, height),
         ('toplevel', x, y, width, height),
     ]
+
+
+def _renderer_with_existing(existing, **match):
+    renderer = _match_renderer(**match)
+    renderer.view.controller.existing_target = lambda: existing
+    renderer.do_get_size(Gtk.TreeView(), None)
+    return renderer
+
+
+def _attribute_spans(layout):
+    """The (start, end) byte ranges with a background colour set."""
+    attributes = layout.get_attributes()
+    return [
+        (attribute.start_index, attribute.end_index)
+        for attribute in attributes.get_attributes()
+        if attribute.klass.type == Pango.AttrType.BACKGROUND
+    ]
+
+
+def test_a_tm_matchs_target_shows_how_it_differs_from_the_existing_translation():
+    renderer = _renderer_with_existing('Klik hier', target='Klik nou')
+
+    # "nou", replacing the existing translation's "hier", is highlighted.
+    assert renderer.target_layout.get_text() == 'Klik nou'
+    assert _attribute_spans(renderer.target_layout) == [(5, 8)]
+
+
+def test_text_a_tm_match_leaves_out_of_the_existing_translation_is_struck_out():
+    renderer = _renderer_with_existing('Klik hier nou', target='Klik hier')
+
+    assert renderer.target_layout.get_text() == 'Klik hier nou'
+    assert _attribute_spans(renderer.target_layout) == [(9, 13)]
+
+
+@pytest.mark.parametrize(
+    'existing, match',
+    [
+        ('', {'target': 'Klik daar'}),  # nothing to compare with
+        ('Klik daar', {'target': 'Klik daar'}),  # the same translation
+        ('Klik hier', {'target': 'Klik daar', 'quality': 0, 'source': 'query'}),  # MT
+    ],
+)
+def test_a_matchs_target_shows_no_difference(existing, match):
+    renderer = _renderer_with_existing(existing, **match)
+
+    assert renderer.target_layout.get_text() == 'Klik daar'
+    assert not _attribute_spans(renderer.target_layout)

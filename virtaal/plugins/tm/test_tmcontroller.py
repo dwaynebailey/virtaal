@@ -1363,3 +1363,41 @@ def test_on_cursor_changed_tells_a_rest_from_moving_on(monkeypatch, gap, rested)
     controller._on_cursor_changed(cursor)
 
     assert controller._rested is rested
+
+
+# The existing translation suggestions are compared with (#1291) #
+
+
+def _po_unit(text):
+    from translate.storage import po
+
+    return po.pofile.parsestring(text.encode('utf-8')).units[1]
+
+
+@pytest.mark.parametrize(
+    'po, target_n, expected',
+    [
+        ('msgid "Open"\nmsgstr "Oop"\n', 0, 'Oop'),
+        ('msgid "Open"\nmsgstr ""\n', 0, ''),
+        ('#, fuzzy\nmsgid "Open"\nmsgstr "Maak oop"\n', 0, 'Maak oop'),
+        (
+            'msgid "%d file"\nmsgid_plural "%d files"\nmsgstr[0] "%d lêer"\nmsgstr[1] "%d lêers"\n',
+            1,
+            '%d lêers',
+        ),
+        ('msgid "%d file"\nmsgid_plural "%d files"\nmsgstr[0] "%d lêer"\n', 1, ''),
+    ],
+)
+def test_existing_target_is_the_edited_forms_translation_on_arrival(po, target_n, expected):
+    unit = _po_unit('msgid ""\nmsgstr "Content-Type: text/plain; charset=UTF-8\\n"\n\n' + po)
+    controller, _events = _suggestions_controller(unit)
+
+    controller._on_cursor_changed(SimpleNamespace(deref=lambda: unit))
+    unit.target = 'Something typed since'
+    controller.target_n = target_n
+
+    assert controller.existing_target() == expected
+
+
+def test_existing_target_before_any_unit_is_empty():
+    assert _bare_controller().existing_target() == ''
