@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import json
+import logging
 
 from virtaal.support.httpclient import RESTRequest
 from virtaal.views.widgets.settingsdialog import api_key_field
@@ -146,6 +147,23 @@ class TMModel(KeyedMTModel):
     def _tmsource(self):
         # l10n: Try to keep this as short as possible. Feel free to transliterate.
         return _('DeepL')
+
+    def bulk_allowance(self, on_done, on_error):
+        """What is left of the key's character allowance this billing
+        period, a free key's included, from /v2/usage."""
+
+        def done(_request, value):
+            try:
+                reply = json.loads(value)
+                left = int(reply['character_limit']) - int(reply['character_count'])
+            except (ValueError, KeyError, TypeError) as e:
+                logging.debug('%s: unexpected usage reply: %s', self.service_name, e)
+                on_error()
+                return
+            on_done(max(0, left))
+
+        request = RESTRequest(self._url('/v2/usage'), '', headers=self._headers())
+        self._send(request, done, lambda _request, _status: on_error())
 
     def _stop(self, reason):
         self._sources = {}

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 06:23+0000\n"
+"POT-Creation-Date: 2026-11-07 06:26+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1856,6 +1856,11 @@ msgstr ""
 msgid "Unavailable"
 msgstr ""
 
+#. l10n: Status: asking a service how many characters are left of the account's allowance
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Checking the allowance…"
+msgstr ""
+
 #. l10n: Covers: every unit still needing suggestions, in all the files open together
 #: virtaal/plugins/tm/fetchdialog.py
 msgid "All files"
@@ -1873,11 +1878,6 @@ msgid "Next hour (about %(count)s unit)"
 msgid_plural "Next hour (about %(count)s units)"
 msgstr[0] ""
 msgstr[1] ""
-
-#. l10n: Status: the service already gave suggestions for every unit needing them
-#: virtaal/plugins/tm/fetchdialog.py
-msgid "Nothing to fetch"
-msgstr ""
 
 #. l10n: Status: every unit asked for was answered
 #: virtaal/plugins/tm/fetchdialog.py
@@ -1898,6 +1898,22 @@ msgstr ""
 #: virtaal/plugins/tm/fetchdialog.py
 #, python-format
 msgid "%(done)s of %(total)s"
+msgstr ""
+
+#. l10n: Characters column: characters to send, and what is left of the account's allowance, as in "1,200 of 3,500 left"
+#: virtaal/plugins/tm/fetchdialog.py
+#, python-format
+msgid "%(count)s of %(left)s left"
+msgstr ""
+
+#. l10n: Status: fewer units are asked for, so as not to go past what is left of the account's character allowance
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Cut to the allowance left"
+msgstr ""
+
+#. l10n: Status: the service already gave suggestions for every unit needing them
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Nothing to fetch"
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py

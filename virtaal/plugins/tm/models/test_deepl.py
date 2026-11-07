@@ -629,3 +629,56 @@ def test_a_file_fetch_waits_when_deepl_is_busy_and_stops_for_used_up_quota(
     assert model.bulk_wait(request, 400) is None
     assert model.bulk_wait(request, 456) is None
     assert model._stopped and not model.bulk_ready()
+
+
+# What is left of the key's allowance (#1679)
+
+
+def _usage(model):
+    found = []
+    model.bulk_allowance(found.append, lambda: found.append('refused'))
+    return model.client.added[-1], found
+
+
+@pytest.mark.parametrize(
+    'key, host', [(FREE_KEY, 'api-free.deepl.com'), (PRO_KEY, 'api.deepl.com')]
+)
+def test_the_allowance_left_comes_from_the_keys_own_usage(monkeypatch, tmp_path, key, host):
+    model = _ready(monkeypatch, tmp_path, key=key)
+
+    request, found = _usage(model)
+    request.emit('http-success', b'{"character_count": 180000, "character_limit": 500000}')
+
+    assert request.url == 'https://%s/v2/usage' % host
+    assert 'Authorization: DeepL-Auth-Key %s' % key in request.headers
+    assert found == [320000]
+
+
+def test_an_allowance_past_its_limit_leaves_nothing(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+
+    request, found = _usage(model)
+    request.emit('http-success', b'{"character_count": 500010, "character_limit": 500000}')
+
+    assert found == [0]
+
+
+@pytest.mark.parametrize(
+    'reply', [b'not json', b'{}', b'{"character_count": "x", "character_limit": 1}']
+)
+def test_an_unreadable_usage_reply_says_nothing_is_known(monkeypatch, tmp_path, reply):
+    model = _ready(monkeypatch, tmp_path)
+
+    request, found = _usage(model)
+    request.emit('http-success', reply)
+
+    assert found == ['refused']
+
+
+def test_a_refused_usage_request_says_nothing_is_known(monkeypatch, tmp_path):
+    model = _ready(monkeypatch, tmp_path)
+
+    request, found = _usage(model)
+    request.emit('http-client-error', 403)
+
+    assert found == ['refused']

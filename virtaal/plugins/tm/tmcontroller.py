@@ -534,8 +534,21 @@ class TMController(BaseController):
             model.internal_name, self.file_units(), start, words, self.failing_units()
         )
 
-    def fetch_for_file(self, model, on_progress, on_done):
-        """Start asking model for its fetch_plan()'s sources;
+    @staticmethod
+    def cap_characters(model, sources, characters):
+        """(the first of sources that come to at most characters characters
+        sent to model, whether any were left out)."""
+        kept, total = [], 0
+        for source in sources:
+            total += model.bulk_characters([source])
+            if total > characters:
+                return kept, True
+            kept.append(source)
+        return kept, False
+
+    def fetch_for_file(self, model, on_progress, on_done, characters=None):
+        """Start asking model for its fetch_plan()'s sources, those that
+        come to at most characters characters if given;
         on_progress(fetch) after each batch, on_done(fetch) at the end.
         Returns the BulkFetch."""
         from .bulkfetch import BulkFetch
@@ -552,6 +565,8 @@ class TMController(BaseController):
             on_done(fetch)
 
         sources, _whole = self.fetch_plan(model)
+        if characters is not None:
+            sources, _capped = self.cap_characters(model, sources, characters)
         fetch = BulkFetch(model, sources, found, done)
         self._fetches = {**self._fetches, model: fetch}
         fetch.start()

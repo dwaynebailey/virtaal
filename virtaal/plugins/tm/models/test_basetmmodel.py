@@ -207,3 +207,11 @@ def test_configure_saves_only_what_the_dialog_returns(monkeypatch, values):
     BaseTMModel.configure(model, None)
 
     assert updated == ([values] if values else [])
+
+
+def test_a_backend_has_no_allowance_limit_unless_it_says():
+    found = []
+
+    _backend().bulk_allowance(found.append, lambda: found.append('refused'))
+
+    assert found == [None]

@@ -215,6 +215,12 @@ class BaseTMModel(BaseModel, Configurable):
         the service takes more."""
         return [[source] for source in sources]
 
+    def bulk_allowance(self, on_done, on_error):
+        """Ask how many more characters the service will take on this
+        account: on_done(count), on_done(None) for no known limit, or
+        on_error() if it won't say."""
+        on_done(None)
+
     def bulk_characters(self, sources):
         """How many characters asking for sources sends."""
         return sum(len(source) for source in sources)

@@ -254,7 +254,8 @@ whole file, such as Apertium's volunteer-run server, shows as unavailable, as
 does one not set up for the file's languages. For a service that charges by
 the character, such as Google Translate, Microsoft Translator or DeepL, the
 window shows how many characters would be sent; it is not ticked to begin
-with.
+with. For DeepL it also shows what is left of your key's character allowance
+for this billing period, the free one included, and asks for no more than that.
 
 Tick the services to ask and click :guilabel:`Fetch`: each is asked a batch at
 a time, at the pace it allows, and the window shows how far each has got.

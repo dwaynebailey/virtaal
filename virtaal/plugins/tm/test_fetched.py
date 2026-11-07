@@ -310,6 +310,23 @@ def test_a_file_fetch_keeps_what_each_batch_brings(fetched, path):
     assert fetched.matches('google_translate', 'Close')[0]['source'] == 'Close'
 
 
+def test_a_fetch_can_be_cut_to_a_character_allowance(fetched):
+    units = [_unit('Open'), _unit('Close'), _unit('Quit')]
+    fetched.load(units, 'en', 'af')
+    controller = _controller(fetched, units)
+    controller.fetch_words = 1000
+    model = _BulkModel()
+    model.bulk_characters = lambda sources: sum(len(s) for s in sources)
+
+    assert controller.cap_characters(model, ['Open', 'Close', 'Quit'], 9) == (
+        ['Open', 'Close'],
+        True,
+    )
+    assert controller.cap_characters(model, ['Open'], 9) == (['Open'], False)
+    controller.fetch_for_file(model, lambda f: None, lambda f: None, characters=4)
+    assert [batch for batch, _r in model.sent] == [['Open']]
+
+
 def test_the_failing_units_are_those_any_check_lists():
     controller = _controller(None, [])
     store = SimpleNamespace(checks={'check-endpunc': [1, 4], 'check-printf': [4, 7]})

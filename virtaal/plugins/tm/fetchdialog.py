@@ -38,6 +38,14 @@ class FetchSuggestionsDialog:
     def __init__(self, controller, models, parent=None):
         self.controller = controller
         self.fetches = {}
+        # What is left of each service's allowance (None: no limit), the
+        # services still being asked, and those that wouldn't say.
+        self.allowances = {}
+        self._checking = set()
+        self._refused = set()
+        # The status each fetch ended with.
+        self._results = {}
+        self._closed = False
 
         self.dialog = Gtk.Dialog(
             # l10n: The title of the window that gets suggestions for every unit of the file at once
@@ -134,40 +142,78 @@ class FetchSuggestionsDialog:
             self.liststore.append(row)
         self.billed_note.set_no_show_all(True)
         self.billed_note.set_visible(any(row[COL_MODEL].billed for row in self.liststore))
+        for row in self.liststore:
+            if row[COL_AVAILABLE]:
+                self._check_allowance(row[COL_MODEL], default=True)
+
+    def _check_allowance(self, model, default=False):
+        """Ask model what is left of its allowance, and show it."""
+        self._checking.add(model)
+        self._describe(self._row_of(model), model)
+
+        def answer(left):
+            self._checking.discard(model)
+            self.allowances[model] = left
+            if not self._closed:
+                self._describe(self._row_of(model), model, default)
+
+        def refused():
+            self._checking.discard(model)
+            self._refused.add(model)
+            if not self._closed:
+                self._describe(self._row_of(model), model)
+
+        model.bulk_allowance(answer, refused)
 
     def _describe(self, row, model, default=False):
         """Fill row in for model and what the file still needs from it."""
-        if not self.controller.fetch_budget(model) or not model.bulk_ready():
+        if self._unavailable(model):
             row[COL_USE] = row[COL_AVAILABLE] = False
             row[COL_UNITS] = row[COL_CHARS] = ''
             # l10n: Status: this service can't be asked for a whole file's suggestions
             row[COL_STATUS] = _('Unavailable')
             return
+        if model in self._checking:
+            row[COL_USE] = row[COL_AVAILABLE] = False
+            row[COL_UNITS] = row[COL_CHARS] = ''
+            # l10n: Status: asking a service how many characters are left of the account's allowance
+            row[COL_STATUS] = _('Checking the allowance…')
+            return
         asked, whole = self.controller.fetch_plan(model)
+        left = self.allowances.get(model)
+        capped = False
+        if left is not None:
+            asked, capped = self.controller.cap_characters(model, asked, left)
         row[COL_AVAILABLE] = bool(asked)
         if default:
             # Asking a service that charges is the user's choice.
             row[COL_USE] = bool(asked) and not model.billed
         elif not asked:
             row[COL_USE] = False
+        row[COL_UNITS] = self._covers(asked, whole and not capped)
+        row[COL_CHARS] = _characters(model, asked, left)
+        row[COL_STATUS] = self._results.get(model) or _plan_status(asked, capped)
+
+    def _unavailable(self, model):
+        return (
+            not self.controller.fetch_budget(model)
+            or not model.bulk_ready()
+            or model in self._refused
+        )
+
+    def _covers(self, asked, whole):
         if whole and self.controller.is_stream():
             # l10n: Covers: every unit still needing suggestions, in all the files open together
-            row[COL_UNITS] = _('All files')
-        elif whole:
+            return _('All files')
+        if whole:
             # l10n: Covers: every unit of the file still needing suggestions
-            row[COL_UNITS] = _('Whole file')
-        else:
-            row[COL_UNITS] = ngettext(
-                # l10n: Covers: the units about an hour of translating takes, from the current one
-                'Next hour (about %(count)s unit)',
-                'Next hour (about %(count)s units)',
-                len(asked),
-            ) % {'count': format_number(len(asked))}
-        billed = model.billed and asked
-        row[COL_CHARS] = format_number(model.bulk_characters(asked)) if billed else ''
-        if default or not row[COL_STATUS]:
-            # l10n: Status: the service already gave suggestions for every unit needing them
-            row[COL_STATUS] = '' if asked else _('Nothing to fetch')
+            return _('Whole file')
+        return ngettext(
+            # l10n: Covers: the units about an hour of translating takes, from the current one
+            'Next hour (about %(count)s unit)',
+            'Next hour (about %(count)s units)',
+            len(asked),
+        ) % {'count': format_number(len(asked))}
 
     def ticked(self):
         return [row[COL_MODEL] for row in self.liststore if row[COL_USE] and row[COL_AVAILABLE]]
@@ -176,8 +222,9 @@ class FetchSuggestionsDialog:
         """Ask every ticked service at once, each a batch at a time."""
         self.fetches = {}
         for model in self.ticked():
+            self._results.pop(model, None)
             self.fetches[model] = self.controller.fetch_for_file(
-                model, self._on_progress, self._on_done
+                model, self._on_progress, self._on_done, self.allowances.get(model)
             )
         self._update_progress()
         self._update_buttons()
@@ -217,16 +264,17 @@ class FetchSuggestionsDialog:
         self._update_progress()
 
     def _on_done(self, fetch):
-        row = self._row_of(fetch.model)
         if fetch.finished == DONE:
             # l10n: Status: every unit asked for was answered
-            row[COL_STATUS] = _('Fetched')
+            result = _('Fetched')
         elif fetch.finished == CANCELLED:
             # l10n: Status: the user stopped the fetch
-            row[COL_STATUS] = _('Stopped')
+            result = _('Stopped')
         else:
             # l10n: Status: the service gave an error or no answer, so the fetch stopped
-            row[COL_STATUS] = _('Failed')
+            result = _('Failed')
+        self._results[fetch.model] = result
+        self._row_of(fetch.model)[COL_STATUS] = result
         if not self._running():
             # Run once every fetch started is under way.
             GLib.idle_add(self._all_done)
@@ -235,7 +283,12 @@ class FetchSuggestionsDialog:
         if self._running() or self.dialog.get_window() is None:
             return False
         for row in self.liststore:
-            self._describe(row, row[COL_MODEL])
+            model = row[COL_MODEL]
+            if self.allowances.get(model) is not None and model in self.fetches:
+                # Less is left now.
+                self._check_allowance(model)
+            else:
+                self._describe(row, model)
         self._update_progress()
         self._update_buttons()
         return False
@@ -247,9 +300,32 @@ class FetchSuggestionsDialog:
         self.stop()
         if response == RESPONSE_STOP:
             return
+        self._closed = True
         self.dialog.destroy()
 
 
 def _progress_text(done, total):
     # l10n: How many of the units asked for were answered so far, as in "120 of 500"
     return _('%(done)s of %(total)s') % {'done': format_number(done), 'total': format_number(total)}
+
+
+def _characters(model, asked, left):
+    """The Characters column: what asking model for asked sends, and what
+    is left of its allowance, if it has one."""
+    if not model.billed or (not asked and left is None):
+        return ''
+    count = format_number(model.bulk_characters(asked))
+    if left is None:
+        return count
+    # l10n: Characters column: characters to send, and what is left of the account's allowance, as in "1,200 of 3,500 left"
+    return _('%(count)s of %(left)s left') % {'count': count, 'left': format_number(left)}
+
+
+def _plan_status(asked, capped):
+    if capped:
+        # l10n: Status: fewer units are asked for, so as not to go past what is left of the account's character allowance
+        return _('Cut to the allowance left')
+    if not asked:
+        # l10n: Status: the service already gave suggestions for every unit needing them
+        return _('Nothing to fetch')
+    return ''

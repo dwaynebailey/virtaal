@@ -80,6 +80,15 @@ class _Service:
     def bulk_wait(self, request, status):
         return None
 
+    # The allowance: None for no limit; 'ask' to answer when the test says.
+    allowance = None
+
+    def bulk_allowance(self, on_done, on_error):
+        if self.allowance == 'ask':
+            self.asked_allowance = (on_done, on_error)
+        else:
+            on_done(self.allowance)
+
 
 UNITS = [_unit('Open'), _unit('Close'), _unit('Save'), _unit('Done', translated=True)]
 
@@ -238,3 +247,72 @@ def test_several_files_open_together_are_fetched_for_as_one(made, tmp_path):
     dialog.dialog.response(RESPONSE_FETCH)
     # From the current unit, the first file's second, on through the second file.
     assert [r.batch for r in amagama.sent] == [['Done', 'Close']]
+
+
+# A service's character allowance (DeepL's free one)
+
+
+def test_whats_left_of_the_allowance_shows_and_caps_the_fetch(made, tmp_path):
+    deepl = _Service('deepl', billed=True)
+    deepl.allowance = 'ask'
+    dialog = _dialog(made, tmp_path, deepl)
+    assert _rows(dialog, COL_AVAILABLE, COL_STATUS) == [(False, 'Checking the allowance…')]
+
+    # Close, Save and Open are 5, 4 and 4 characters.
+    deepl.asked_allowance[0](10)
+
+    assert _rows(dialog, COL_AVAILABLE, COL_USE, COL_UNITS, COL_CHARS, COL_STATUS) == [
+        (True, False, 'Next hour (about 2 units)', '9 of 10 left', 'Cut to the allowance left')
+    ]
+    dialog._on_toggled(None, '0')
+    dialog.dialog.response(RESPONSE_FETCH)
+    assert [r.batch for r in deepl.sent] == [['Close', 'Save']]
+
+
+def test_with_enough_left_nothing_is_cut(made, tmp_path):
+    deepl = _Service('deepl', billed=True)
+    deepl.allowance = 500000
+
+    dialog = _dialog(made, tmp_path, deepl)
+
+    assert _rows(dialog, COL_UNITS, COL_CHARS, COL_STATUS) == [
+        ('Whole file', '13 of 500,000 left', '')
+    ]
+
+
+def test_an_allowance_used_up_asks_nothing(made, tmp_path):
+    deepl = _Service('deepl', billed=True)
+    deepl.allowance = 0
+
+    dialog = _dialog(made, tmp_path, deepl)
+
+    assert _rows(dialog, COL_AVAILABLE, COL_CHARS, COL_STATUS) == [
+        (False, '0 of 0 left', 'Cut to the allowance left')
+    ]
+
+
+def test_a_service_that_wont_say_whats_left_is_unavailable(made, tmp_path):
+    deepl = _Service('deepl', billed=True)
+    deepl.allowance = 'ask'
+    dialog = _dialog(made, tmp_path, deepl)
+
+    deepl.asked_allowance[1]()
+
+    assert _rows(dialog, COL_AVAILABLE, COL_STATUS) == [(False, 'Unavailable')]
+
+
+def test_the_allowance_is_asked_again_after_a_fetch(made, tmp_path):
+    deepl = _Service('deepl', billed=True)
+    deepl.allowance = 100
+    dialog = _dialog(made, tmp_path, deepl)
+    dialog._on_toggled(None, '0')
+    dialog.dialog.response(RESPONSE_FETCH)
+    deepl.allowance = 'ask'
+    for _n in range(2):
+        deepl.sent[-1].answer()
+
+    dialog._all_done()
+
+    assert _rows(dialog, COL_STATUS) == [('Checking the allowance…',)]
+    deepl.asked_allowance[0](87)
+    assert _rows(dialog, COL_CHARS, COL_STATUS) == [('0 of 87 left', 'Fetched')]
