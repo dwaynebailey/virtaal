@@ -1681,3 +1681,135 @@ def test_a_bare_key_already_there_keeps_its_origin(db_path, monkeypatch):
         (tmdb.LEGACY_STORE_ID,),
     ).fetchall()
     assert rows == [('quit', 'Sluit')]
+
+
+# Suggestions fetched for a whole file (#1679)
+
+
+@pytest.fixture
+def cache(db_path):
+    cache = tmdb.SuggestionCache(db_path)
+    yield cache
+    cache.close()
+
+
+GOOGLE = [{'source': 'Open', 'target': 'Maak oop', 'tmsource': 'Google'}]
+
+
+def test_a_v5_file_gets_a_table_for_fetched_suggestions(db_path, monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr(tmdb, 'SCHEMA_VERSION', 5)
+        patch.delitem(tmdb.MIGRATIONS, 6)
+        db = tmdb.TMDB(db_path)
+        db.add_dict({'source': SHORT, 'target': 'Maak dit oop', 'context': ''}, 'en', 'af')
+        assert not db._has_table('cached')
+        _close(db_path)
+
+    db = tmdb.TMDB(db_path)
+
+    assert db._user_version() == tmdb.SCHEMA_VERSION == 6
+    assert _columns(db, 'cached') == [
+        'service',
+        'source_lang',
+        'target_lang',
+        'source',
+        'matches',
+        'fetched',
+    ]
+    assert _qualities(db, SHORT) == [100]
+
+
+def test_the_cache_brings_an_older_file_up_to_date(db_path, monkeypatch):
+    # The Virtaal process may open the file before any TM server does.
+    with monkeypatch.context() as patch:
+        patch.setattr(tmdb, 'SCHEMA_VERSION', 5)
+        patch.delitem(tmdb.MIGRATIONS, 6)
+        tmdb.TMDB(db_path)
+        _close(db_path)
+
+    cache = tmdb.SuggestionCache(db_path)
+    try:
+        assert cache._user_version() == tmdb.SCHEMA_VERSION
+        cache.put('google_translate', 'en', 'af', {'Open': GOOGLE})
+        assert cache.get('en', 'af', ['Open']) == {'google_translate': {'Open': GOOGLE}}
+    finally:
+        cache.close()
+
+
+def test_cached_suggestions_are_kept_per_service_and_language_pair(cache):
+    cache.put('google_translate', 'en', 'af', {'Open': GOOGLE, 'Close': []})
+    cache.put('amagama', 'en', 'af', {'Open': [{'source': 'Open', 'target': 'Open'}]})
+    cache.put('amagama', 'en', 'de', {'Open': [{'source': 'Open', 'target': 'Öffnen'}]})
+
+    assert cache.get('en', 'af', ['Open', 'Close', 'Quit']) == {
+        'google_translate': {'Open': GOOGLE, 'Close': []},
+        'amagama': {'Open': [{'source': 'Open', 'target': 'Open'}]},
+    }
+    assert cache.get('en', 'de', ['Close']) == {}
+
+
+def test_a_later_fetch_replaces_a_service_answer(cache):
+    cache.put('google_translate', 'en', 'af', {'Open': []}, now=1)
+    cache.put('google_translate', 'en', 'af', {'Open': GOOGLE}, now=2)
+
+    assert cache.get('en', 'af', ['Open']) == {'google_translate': {'Open': GOOGLE}}
+
+
+def test_cached_suggestions_are_looked_up_in_chunks(cache, monkeypatch):
+    monkeypatch.setattr(tmdb.SuggestionCache, 'CHUNK', 2)
+    sources = ['s%d' % n for n in range(5)]
+    cache.put('amagama', 'en', 'af', {source: [] for source in sources})
+
+    assert cache.get('en', 'af', sources) == {'amagama': {source: [] for source in sources}}
+
+
+def test_translated_units_lose_their_cached_suggestions(cache):
+    cache.put('google_translate', 'en', 'af', {'Open': GOOGLE, 'Close': []})
+    cache.put('amagama', 'en', 'af', {'Open': []})
+    cache.put('amagama', 'en', 'de', {'Open': []})
+
+    cache.forget('en', 'af', ['Open'])
+
+    assert cache.get('en', 'af', ['Open', 'Close']) == {'google_translate': {'Close': []}}
+    assert cache.get('en', 'de', ['Open']) == {'amagama': {'Open': []}}
+
+
+def test_cached_suggestions_expire(cache):
+    day = 86400
+    cache.put('amagama', 'en', 'af', {'Old': []}, now=100 * day)
+    cache.put('amagama', 'en', 'af', {'New': []}, now=130 * day)
+
+    cache.expire(30, now=130 * day + 1)
+
+    assert cache.get('en', 'af', ['Old', 'New']) == {'amagama': {'New': []}}
+
+
+def test_cached_suggestions_are_not_the_users_translations(db_path, cache):
+    cache.put('google_translate', 'en', 'af', {LONG: [{'source': LONG, 'target': 'Maak oop'}]})
+    db = tmdb.TMDB(db_path)
+
+    assert db.translate_unit(LONG, 'en', 'af') == []
+    assert db.list_stores() == []
+    assert b'Maak oop' not in db.export_tmx('en', 'af')
+    assert _count(db, 'targets') == 0
+
+
+def test_a_cache_entry_that_is_not_json_is_skipped(cache):
+    cache.put('amagama', 'en', 'af', {'Open': []})
+    cache.cursor.execute("UPDATE cached SET matches = 'not json'")
+    cache.connection.commit()
+
+    assert cache.get('en', 'af', ['Open']) == {}
+
+
+def test_the_cache_gives_up_soon_on_another_process_lock(cache, db_path, monkeypatch):
+    monkeypatch.setattr(tmdb.SuggestionCache, 'LOCK_WAIT', 0.05)
+    cache.close()
+    cache = tmdb.SuggestionCache(db_path)
+
+    with OtherProcess(db_path), pytest.raises(sqlite3.OperationalError):
+        cache.put('amagama', 'en', 'af', {'Open': []})
+
+    cache.put('amagama', 'en', 'af', {'Open': []})
+    assert cache.get('en', 'af', ['Open']) == {'amagama': {'Open': []}}
+    cache.close()

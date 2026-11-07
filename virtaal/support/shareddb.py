@@ -20,9 +20,10 @@ BUSY_TIMEOUT = 30
 """Seconds to wait for another process's lock before "database is locked"."""
 
 
-def connect(path):
-    """Open the database at C{path}, waiting out other processes' locks."""
-    connection = dbapi2.connect(path, timeout=BUSY_TIMEOUT)
+def connect(path, timeout=BUSY_TIMEOUT):
+    """Open the database at C{path}, waiting out other processes' locks
+    for up to C{timeout} seconds."""
+    connection = dbapi2.connect(path, timeout=timeout)
     # A write-ahead log: readers don't hold up a writer, nor a writer
     # readers. It stays set in the file. Where SQLite can't use one (some
     # network or read-only filesystems) the file keeps its journal.

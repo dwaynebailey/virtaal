@@ -56,10 +56,10 @@ from virtaal.support.tmx_compat import tuv_lang
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 """PRAGMA user_version of the schema below; 0 is a file an older Virtaal made."""
 
-SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1}
+SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}
 """The abstraction algorithm whose abstracts each schema version stores.
 A new algorithm needs a new schema version, whose migration clears the
 abstracts for the backfill to recompute, so that one file never mixes
@@ -195,7 +195,31 @@ def _bare_monolingual_keys(cursor):
 
 SCHEMA_V5 = (_bare_monolingual_keys,)
 
-MIGRATIONS = {1: SCHEMA_V0 + SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3, 4: SCHEMA_V4, 5: SCHEMA_V5}
+# Online services' suggestions fetched for a whole file (#1679): kept
+# apart from the user's own translations, so never matched, listed or
+# exported as theirs. Each is the JSON list of matches the service gave
+# for one source, an empty list for none, and when it was fetched.
+SCHEMA_V6 = (
+    """CREATE TABLE cached (
+       service VARCHAR NOT NULL,
+       source_lang VARCHAR NOT NULL,
+       target_lang VARCHAR NOT NULL,
+       source VARCHAR NOT NULL,
+       matches VARCHAR NOT NULL,
+       fetched INTEGER NOT NULL,
+       PRIMARY KEY (source_lang, target_lang, source, service)
+) WITHOUT ROWID""",
+    "CREATE INDEX cached_fetched_idx ON cached (fetched)",
+)
+
+MIGRATIONS = {
+    1: SCHEMA_V0 + SCHEMA_V1,
+    2: SCHEMA_V2,
+    3: SCHEMA_V3,
+    4: SCHEMA_V4,
+    5: SCHEMA_V5,
+    6: SCHEMA_V6,
+}
 """The statements, or functions of a cursor, bringing a file up to each
 schema version from the one before. A later version that changes only
 the abstraction algorithm migrates with CLEAR_ABSTRACTS."""
@@ -357,6 +381,94 @@ class TMFile:
         self.cursor.execute(
             "UPDATE stores SET updated = ? WHERE store_id = ?", (now, LEGACY_STORE_ID)
         )
+
+
+class SuggestionCache(TMFile):
+    """The online services' suggestions kept in the TM file for offline
+    use (#1679), for the Virtaal process itself: it waits for another
+    process's lock only briefly, so as not to hold up the window, and
+    raises dbapi2.Error if the file can't be used."""
+
+    _tm_dbs = {}
+    LOCK_WAIT = 2
+    """Seconds to wait for another process's lock."""
+    CHUNK = 500
+    """Sources per statement: SQLite takes 999 parameters at most."""
+
+    def _connect(self):
+        return shareddb.connect(self.db_file, timeout=self.LOCK_WAIT)
+
+    def _attach_unattributed(self):
+        # The TM server files them; this would wait on its lock.
+        pass
+
+    def close(self):
+        for connection, _cursor in self._tm_dbs.pop(self.db_file, {}).values():
+            connection.close()
+
+    def put(self, service, source_lang, target_lang, found, now=None):
+        """Keep C{found}, {source: [match, ...]}, as C{service}'s answers,
+        fetched C{now} (seconds since the epoch)."""
+        now = int(time.time() if now is None else now)
+        langs = (data.normalize_code(source_lang), data.normalize_code(target_lang))
+        rows = [
+            (service, *langs, source, json.dumps(matches), now) for source, matches in found.items()
+        ]
+        self._write(
+            "INSERT OR REPLACE INTO cached "
+            "(service, source_lang, target_lang, source, matches, fetched) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+
+    def get(self, source_lang, target_lang, sources):
+        """{service: {source: [match, ...]}} for those of C{sources} kept."""
+        langs = (data.normalize_code(source_lang), data.normalize_code(target_lang))
+        found = {}
+        for chunk in _chunks(list(set(sources)), self.CHUNK):
+            rows = self.cursor.execute(
+                "SELECT service, source, matches FROM cached "
+                "WHERE source_lang = ? AND target_lang = ? AND source IN (%s)"
+                % ",".join("?" * len(chunk)),
+                (*langs, *chunk),
+            ).fetchall()
+            for service, source, matches in rows:
+                try:
+                    matches = json.loads(matches)
+                except ValueError:
+                    continue
+                if isinstance(matches, list):
+                    found.setdefault(service, {})[source] = matches
+        self.connection.commit()
+        return found
+
+    def forget(self, source_lang, target_lang, sources):
+        """Drop every service's answers for C{sources}, translated now."""
+        langs = (data.normalize_code(source_lang), data.normalize_code(target_lang))
+        self._write(
+            "DELETE FROM cached WHERE source_lang = ? AND target_lang = ? AND source = ?",
+            [(*langs, source) for source in set(sources)],
+        )
+
+    def expire(self, days, now=None):
+        """Drop the answers fetched more than C{days} days before C{now}."""
+        now = time.time() if now is None else now
+        self._write("DELETE FROM cached WHERE fetched < ?", [(int(now - days * 86400),)])
+
+    def _write(self, statement, rows):
+        if not rows:
+            return
+        try:
+            self._begin()
+            self.cursor.executemany(statement, rows)
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+
+
+def _chunks(items, size):
+    return [items[i : i + size] for i in range(0, len(items), size)]
 
 
 class TMDB(TMFile):
