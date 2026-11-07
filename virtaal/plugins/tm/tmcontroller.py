@@ -45,6 +45,12 @@ def _plain_texts(unit, match):
     return query, source, target
 
 
+def _fetched(model, unit):
+    """Whether model has suggestions fetched with the file for unit."""
+    fetched_matches = getattr(model, 'fetched_matches', None)
+    return fetched_matches is not None and fetched_matches(unit) is not None
+
+
 class TMController(BaseController):
     """The logic-filled glue between the TM view and -model."""
 
@@ -76,6 +82,11 @@ class TMController(BaseController):
     """Whether translated units get suggestions unasked too: View >
         Suggestions for Translated Units, plugins.ini's [tm] show_translated."""
 
+    fetched = None
+    """The open file's FetchedSuggestions (#1679)."""
+    fetch_words = 1000
+    """How many source words one fetch asks a service for."""
+
     # INITIALIZERS #
     def __init__(self, main_controller, config=None):
         from virtaal.common import GObjectWrapper
@@ -99,6 +110,7 @@ class TMController(BaseController):
         self.storecursor = None
         self.view = TMView(self, self.max_matches)
         self._load_timing()
+        self._load_fetched()
         self._load_models()
 
         self._connect_plugin()
@@ -130,6 +142,10 @@ class TMController(BaseController):
                 for signal in ('key-release-event', 'button-release-event')
             ]
 
+        unit_controller = getattr(self.main_controller, 'unit_controller', None)
+        if unit_controller is not None:
+            self._unit_done_id = unit_controller.connect('unit-done', self._on_unit_done)
+
         lang_controller = getattr(self.main_controller, 'lang_controller', None)
         if lang_controller is not None:
             self._lang_changed_ids = [
@@ -158,6 +174,22 @@ class TMController(BaseController):
             self.burst_threshold,
             self.tap_grace,
         )
+
+    def _load_fetched(self):
+        """The suggestions fetched for files (#1679): tm.ini's [suggestions]
+        fetch_words source words a fetch, kept cache_days days."""
+        from .fetched import DAYS, WORDS, FetchedSuggestions
+
+        config = pan_app.load_config(
+            os.path.join(pan_app.get_config_dir(), 'tm.ini'), 'suggestions'
+        )
+        days = pan_app.config_int(config.get('cache_days', DAYS), DAYS, 1, 3650, 'cache_days')
+        self.fetch_words = pan_app.config_int(
+            config.get('fetch_words', WORDS), WORDS, 1, 1000000, 'fetch_words'
+        )
+        self.fetched = FetchedSuggestions(days)
+        # What expired goes at start, without holding it up.
+        GLib.idle_add(self.fetched.expire)
 
     def _load_models(self):
         from virtaal.controllers.plugincontroller import PluginController
@@ -373,6 +405,10 @@ class TMController(BaseController):
             self.main_controller.unit_controller.view.disconnect(self._target_focused_id)
         for signal_id in getattr(self, '_lang_changed_ids', []):
             self.main_controller.lang_controller.disconnect(signal_id)
+        if getattr(self, '_unit_done_id', None):
+            self.main_controller.unit_controller.disconnect(self._unit_done_id)
+        if self.fetched is not None:
+            self.fetched.close()
         for signal_id in getattr(self, '_release_ids', []):
             self.main_controller.view.main_window.disconnect(signal_id)
         if getattr(self, '_popup_toggled_id', None):
@@ -445,6 +481,55 @@ class TMController(BaseController):
         self.emit('start-query', self.unit)
         self._prefetch_upcoming()
 
+    # Suggestions for a whole file (#1679) #
+    def file_units(self):
+        """The open file's units, or [] with none open."""
+        store = self.main_controller.store_controller.get_store()
+        return store.get_units() if store is not None else []
+
+    def load_fetched(self):
+        """Keep the open file's fetched suggestions at hand, for the
+        current languages."""
+        if self.fetched is None:
+            return
+        lang_controller = self.main_controller.lang_controller
+        self.fetched.load(
+            self.file_units(), lang_controller.source_lang.code, lang_controller.target_lang.code
+        )
+
+    def fetch_budget(self, model):
+        """How many source words model may be asked for at once: the fetch
+        budget, or the model's BULK_MAX if lower; 0 for none."""
+        ceiling = model.BULK_MAX
+        return self.fetch_words if ceiling is None else min(self.fetch_words, ceiling)
+
+    def fetch_plan(self, model):
+        """(sources, whole): what a fetch from model asks for, from the
+        current unit on, and whether that is all the file needs."""
+        cursor = getattr(self, 'storecursor', None)
+        start = cursor.index if cursor and cursor.index >= 0 else 0
+        words = self.fetch_budget(model)
+        if not words:
+            return [], False
+        return self.fetched.plan(model.internal_name, self.file_units(), start, words)
+
+    def fetch_for_file(self, model, on_progress, on_done):
+        """Start asking model for its fetch_plan()'s sources;
+        on_progress(fetch) after each batch, on_done(fetch) at the end.
+        Returns the BulkFetch."""
+        from .bulkfetch import BulkFetch
+
+        service = model.internal_name
+
+        def found(fetch, batch):
+            self.fetched.keep(service, batch)
+            on_progress(fetch)
+
+        sources, _whole = self.fetch_plan(model)
+        fetch = BulkFetch(model, sources, found, on_done)
+        fetch.start()
+        return fetch
+
     def _prefetching_models(self):
         plugins = getattr(getattr(self, 'plugin_controller', None), 'plugins', {})
         return [(model, model.prefetch_depth()) for model in plugins.values()]
@@ -462,6 +547,8 @@ class TMController(BaseController):
             if unit is None or not self._shows_unasked(unit):
                 continue
             for model, depth in models:
+                if _fetched(model, unit):
+                    continue
                 if depth >= distance and model.requests_in_flight() <= self.PREFETCH_BUSY:
                     model.prefetch(unit)
 
@@ -470,7 +557,7 @@ class TMController(BaseController):
         answer, or has it on its way."""
         plugins = getattr(getattr(self, 'plugin_controller', None), 'plugins', {})
         return all(
-            model.has_cached(unit.source)
+            model.has_cached(unit.source) or _fetched(model, unit)
             for model in plugins.values()
             if getattr(model, 'PREFETCH_MAX', 0) > 0
         )
@@ -627,6 +714,7 @@ class TMController(BaseController):
         self.view.clear()
         if not self.storecursor:
             return
+        self.load_fetched()
         if self.view.summoned:
             self.start_query()
         else:
@@ -641,6 +729,8 @@ class TMController(BaseController):
         self.storecursor = None
         self._cursor_changed_id = 0
         self._arrival_pending, self._release_wait = False, None
+        if self.fetched is not None:
+            self.fetched.clear()
         self.view.hide()
 
     def _on_store_loaded(self, storecontroller):
@@ -651,12 +741,18 @@ class TMController(BaseController):
         self._cursor_changed_id = self.storecursor.connect(
             'cursor-changed', self._on_cursor_changed
         )
+        self.load_fetched()
 
         def handle_first_unit():
             self._on_cursor_changed(self.storecursor)
             return False
 
         GLib.idle_add(handle_first_unit)
+
+    def _on_unit_done(self, _unit_controller, unit, _modified):
+        # A translated unit's fetched suggestions have served their turn.
+        if unit is not None and unit.istranslated() and self.fetched is not None:
+            self.fetched.forget(unit.source)
 
     def _on_release(self, _widget, event):
         self._released = True

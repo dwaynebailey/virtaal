@@ -88,7 +88,7 @@ class BaseTMModel(BaseModel, Configurable):
             self.config = {}
         self.controller = controller
         self._signal_tracker = SignalTracker()
-        self._signal_tracker.connect(self.controller, 'start-query', self.query)
+        self._signal_tracker.connect(self.controller, 'start-query', self._start_query)
 
         # static suggestion cache for slow TM queries
         self.cache = {}
@@ -137,6 +137,23 @@ class BaseTMModel(BaseModel, Configurable):
         All TM backends must implement this method, check for
         suggested translations for unit, emit "match-found" on success."""
         pass
+
+    def _start_query(self, tmcontroller, unit):
+        """Answer with the suggestions fetched for the file, if any,
+        rather than ask again (#1679)."""
+        matches = self.fetched_matches(unit)
+        if matches is None:
+            self.query(tmcontroller, unit)
+        elif matches:
+            self.emit('match-found', unit.source, [dict(match) for match in matches])
+
+    def fetched_matches(self, unit):
+        """The matches fetched for unit with the whole file (maybe none),
+        or None if it wasn't."""
+        fetched = getattr(self.controller, 'fetched', None)
+        if fetched is None:
+            return None
+        return fetched.matches(getattr(self, 'internal_name', None), unit.source)
 
     def prefetch_depth(self):
         """How many units ahead to look up: the "prefetch" setting, within
