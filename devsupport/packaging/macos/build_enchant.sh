@@ -3,7 +3,7 @@
 # (Homebrew's enchant has aspell and AppleSpell only):
 #   build_enchant.sh OUT
 # Installs to OUT/opt/virtaal-enchant; skipped when OUT already has this
-# build. Needs Homebrew's glib, hunspell and pkg-config.
+# build. Needs Homebrew's glib, hunspell, pkg-config and groff.
 set -eu
 
 OUT="$1"
