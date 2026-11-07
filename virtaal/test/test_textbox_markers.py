@@ -50,12 +50,16 @@ class TestTextBoxMarkers(TestScaffolding):
             '_draw_marker',
             lambda cr, layout, marker, itr, fg: drawn.append((itr.get_offset(), marker.label)),
         )
-        # Only the markers layer: on Windows CI, drawing the text itself
-        # into an image surface leaves the context out of memory.
-        textbox.do_draw_layer(
-            Gtk.TextViewLayer.ABOVE_TEXT,
-            cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)),
-        )
+
+        def context():
+            return cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height))
+
+        # A whole draw lays the lines out, but on Windows CI drawing the
+        # text into an image surface can leave the context out of memory
+        # before the markers layer: draw that again on its own.
+        textbox.draw(context())
+        drawn.clear()
+        textbox.do_draw_layer(Gtk.TextViewLayer.ABOVE_TEXT, context())
         return drawn
 
     def _width_of(self, textbox, offset):
