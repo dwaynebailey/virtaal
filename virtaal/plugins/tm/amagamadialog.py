@@ -14,66 +14,42 @@ from gi.repository import GLib, Gtk, Pango
 
 from virtaal.support.libi18n.numbers import format_percent
 
-from .models.amagama import MAX_WEIGHT, sources_for
+from .models.amagama import (
+    BUILTIN_PREFIX,
+    MAX_WEIGHT,
+    licence_globs,
+    parse_licence,
+    sources_for,
+)
 
 COL_USE, COL_TITLE, COL_LICENCE, COL_WEIGHT, COL_NAME, COL_DEFAULT = range(6)
 
-# SPDX identifier globs for the licence choices, as amaGama's licence=
-# matches them: a glob matches a whole identifier, whatever its case.
-PERMISSIVE = (
-    '0BSD',
-    'Apache-*',
-    'BSD-*',
-    'BSL-1.0',
-    'CC-BY-[0-9]*',
-    'CC0-1.0',
-    'ISC',
-    'MIT',
-    'MIT-*',
-    'PSF-2.0',
-    'Unlicense',
-    'X11',
-    'Zlib',
-)
-COPYLEFT = (
-    'AGPL-*',
-    'CC-BY-SA-[0-9]*',
-    'CDDL-*',
-    'EPL-*',
-    'EUPL-*',
-    # The GFDL's free variants, not those with invariant sections.
-    'GFDL-[0-9].[0-9]-or-later',
-    'GFDL-*-no-invariants-*',
-    'GPL-*',
-    'LGPL-*',
-    'MPL-*',
-    'OSL-*',
-)
 ANY, CUSTOM = 'any', 'custom'
 
 
 def licence_presets():
-    """(key, label, globs) of each licence choice, Custom last."""
+    """(key, label, tm.ini value) of each licence choice, Custom last."""
     return (
         # l10n: A choice of licences: any at all, with no licence asked for
-        (ANY, _('Any license'), ()),
+        (ANY, _('Any license'), ''),
         # l10n: A choice of licences: those of free and open source software, copyleft and permissive
-        ('free', _('Free software'), PERMISSIVE + COPYLEFT),
+        ('free', _('Free software'), BUILTIN_PREFIX + 'free'),
         # l10n: A choice of licences: those that let translations be used in any software, such as MIT or Apache
-        ('permissive', _('Permissive only'), PERMISSIVE),
+        ('permissive', _('Permissive only'), BUILTIN_PREFIX + 'permissive'),
         # l10n: A choice of licences: shows a field to list them
         (CUSTOM, _('Custom…'), None),
     )
 
 
 def preset_of(licence):
-    """The key of the choice whose globs licence (amaGama's licence=) is,
-    whatever their order or case; Custom for any other."""
-    globs = {glob.casefold() for glob in licence.split(',') if glob}
-    for key, _label, preset in licence_presets():
-        if preset is not None and globs == {glob.casefold() for glob in preset}:
+    """The key of the choice tm.ini's licence is: Any for a preset this
+    version doesn't know, Custom for globs."""
+    if not licence:
+        return ANY
+    for key, _label, value in licence_presets():
+        if value == licence:
             return key
-    return CUSTOM
+    return ANY if licence.startswith(BUILTIN_PREFIX) else CUSTOM
 
 
 def _compare_titles(model, a, b, _data):
@@ -143,7 +119,7 @@ class AmagamaSourcesDialog:
         for key, label, _globs in licence_presets():
             self.licence_combo.append(key, label)
         self.licence = Gtk.Entry(
-            text=self.model.licence.replace(',', ', '),
+            text=licence_globs(self.model.licence).replace(',', ', '),
             # l10n: Shown in the empty field of licences to accept
             placeholder_text=_('Any license'),
             hexpand=True,
@@ -259,18 +235,23 @@ class AmagamaSourcesDialog:
         )
         self.model.set_choices(excluded, weights)
 
-    def licence_text(self):
-        """The licences chosen: the preset's, or those typed in."""
+    def licence_value(self):
+        """tm.ini's licence for the choice: the preset's name, or the
+        licences typed in."""
         key = self.licence_combo.get_active_id()
         if key == CUSTOM:
             return self.licence.get_text()
-        return ','.join({k: g for k, _label, g in licence_presets()}[key])
+        return {k: value for k, _label, value in licence_presets()}[key]
 
     def apply_licence(self):
-        self.model.set_licence(self.licence_text())
+        self.model.set_licence(self.licence_value())
+
+    def _custom(self):
+        return self.licence_combo.get_active_id() == CUSTOM
 
     def _show_licence_note(self):
-        self.licence_note.set_visible(bool(self.licence_text().strip(' ,')))
+        globs = licence_globs(parse_licence(self.licence_value()))
+        self.licence_note.set_visible(bool(globs))
 
     # EVENT HANDLERS #
     def _on_fetched(self, sources):
@@ -290,11 +271,11 @@ class AmagamaSourcesDialog:
     def _on_preset_changed(self, combo, apply=True):
         key = combo.get_active_id()
         custom = key == CUSTOM
-        globs = self.licence_text()
+        globs = licence_globs(self.licence_value()).replace(',', ', ')
         # The field starts from the last preset, to change it.
         if not custom:
-            self.licence.set_text(globs.replace(',', ', '))
-        combo.set_tooltip_text(None if custom else globs.replace(',', ', ') or None)
+            self.licence.set_text(globs)
+        combo.set_tooltip_text(None if custom else globs or None)
         self.licence.set_visible(custom)
         self._show_licence_note()
         if apply:
@@ -304,7 +285,7 @@ class AmagamaSourcesDialog:
             self.licence.set_position(-1)
 
     def _on_licence_focus_out(self, _entry, _event):
-        if not self._closed:
+        if not self._closed and self._custom():
             self.apply_licence()
         return False
 
@@ -330,6 +311,8 @@ class AmagamaSourcesDialog:
 
     def _on_response(self, _dialog, _response):
         self._closed = True
-        self.apply_licence()
+        # A preset applied when chosen; one this version doesn't know stays.
+        if self._custom():
+            self.apply_licence()
         self.model.save_config()
         self.dialog.destroy()

@@ -148,6 +148,70 @@ def parse_licence(text):
     return ','.join(re.split(r'[\s,]+', str(text).strip())).strip(',')
 
 
+# Reserved for the built-in licence choices, as for built-in web look-ups
+# (lookup/models/weblookup.py): tm.ini keeps a choice's name, and its
+# globs always come from the code.
+BUILTIN_PREFIX = 'virtaal-'
+
+# SPDX identifier globs for the licence choices, as amaGama's licence=
+# matches them: a glob matches a whole identifier, whatever its case.
+PERMISSIVE = (
+    '0BSD',
+    'Apache-*',
+    'BSD-*',
+    'BSL-1.0',
+    'CC-BY-[0-9]*',
+    'CC0-1.0',
+    'ISC',
+    'MIT',
+    'MIT-*',
+    'PSF-2.0',
+    'Unlicense',
+    'X11',
+    'Zlib',
+)
+COPYLEFT = (
+    'AGPL-*',
+    'CC-BY-SA-[0-9]*',
+    'CDDL-*',
+    'EPL-*',
+    'EUPL-*',
+    # The GFDL's free variants, not those with invariant sections.
+    'GFDL-[0-9].[0-9]-or-later',
+    'GFDL-*-no-invariants-*',
+    'GPL-*',
+    'LGPL-*',
+    'MPL-*',
+    'OSL-*',
+)
+LICENCE_PRESETS = {
+    BUILTIN_PREFIX + 'free': PERMISSIVE + COPYLEFT,
+    BUILTIN_PREFIX + 'permissive': PERMISSIVE,
+}
+
+
+def stored_licence(text):
+    """tm.ini's licence for text: a built-in choice's name as it is, else
+    the globs it lists, or the name of the choice with those globs."""
+    text = str(text).strip()
+    if text.startswith(BUILTIN_PREFIX):
+        return text
+    licence = parse_licence(text)
+    globs = {glob.casefold() for glob in licence.split(',') if glob}
+    for name, preset in LICENCE_PRESETS.items():
+        if globs == {glob.casefold() for glob in preset}:
+            return name
+    return licence
+
+
+def licence_globs(licence):
+    """amaGama's licence= for tm.ini's licence: a built-in choice's globs
+    as this version has them, '' for one it doesn't know."""
+    if not licence.startswith(BUILTIN_PREFIX):
+        return licence
+    return ','.join(LICENCE_PRESETS.get(licence, ()))
+
+
 def parse_choices(config):
     """The (excluded names, {name: weight}) in config's exclude and weights."""
     excluded = {name.strip() for name in str(config.get('exclude', '')).split(',')}
@@ -210,7 +274,11 @@ class TMModel(remotetm.TMModel):
         self.v2_base = v2_url(url)
         excluded, self.weights = parse_choices(self.config)
         self.excluded = frozenset(excluded)
-        self.licence = parse_licence(self.config.get('licence', ''))
+        self.licence = stored_licence(self.config.get('licence', ''))
+        # Globs a preset now has its name for, as saved before.
+        self.config['licence'] = self.licence
+        if self.licence.startswith(BUILTIN_PREFIX) and not licence_globs(self.licence):
+            logging.debug('amaGama: unknown licence choice %s, so any licence', self.licence)
         self.sources = self._cached_sources()
         self.configure_func = self.configure
 
@@ -279,9 +347,10 @@ class TMModel(remotetm.TMModel):
         self._drop_answers()
 
     def set_licence(self, text):
-        """Keep only sources under the licences text lists, from the next
-        lookup on; with none listed, any licence."""
-        licence = parse_licence(text)
+        """Keep only sources under the licences text lists, or the
+        built-in choice it names, from the next lookup on; with none
+        listed, any licence."""
+        licence = stored_licence(text)
         if licence == self.licence:
             return
         self.licence = self.config['licence'] = licence
@@ -303,8 +372,9 @@ class TMModel(remotetm.TMModel):
     def _params(self):
         params = super()._params()
         params.update(source_params(self.excluded, self.weights, self.sources or ()))
-        if self.licence:
-            params['licence'] = self.licence
+        licence = licence_globs(self.licence)
+        if licence:
+            params['licence'] = licence
         return params
 
     def _uses_v2(self):

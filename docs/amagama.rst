@@ -50,6 +50,8 @@ characters, and ``!`` leaves a licence out, so ``!AGPL-*`` accepts every
 licence but the AGPL. A project whose licence offers a choice, such as ``MIT OR
 GPL-2.0-only``, is kept if one of the choices is listed. Projects with no known
 licence are then left out. The choice is kept as ``licence`` in the
-``[amagama]`` section of ``tm.ini``.
+``[amagama]`` section of ``tm.ini``: a choice by its name, such as
+``virtaal-free``, so that a later Virtaal's changes to its licences reach you,
+and :guilabel:`Custom…` as the licences listed.
 
 Virtaal keeps the list of projects, so the window still works offline.

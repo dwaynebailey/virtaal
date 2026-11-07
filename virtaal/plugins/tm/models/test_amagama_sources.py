@@ -9,6 +9,8 @@
 the network: the server's replies are given by hand."""
 
 import json
+import logging
+from fnmatch import fnmatchcase
 from types import SimpleNamespace
 
 import pytest
@@ -18,13 +20,18 @@ from virtaal.common import pan_app
 from virtaal.plugins.tm._testhelpers import fake_controller
 from virtaal.plugins.tm.models import amagama
 from virtaal.plugins.tm.models.amagama import (
+    COPYLEFT,
+    LICENCE_PRESETS,
+    PERMISSIVE,
     TMModel,
+    licence_globs,
     parse_choices,
     parse_licence,
     parse_sources,
     source_params,
     source_weight,
     sources_for,
+    stored_licence,
 )
 
 
@@ -432,6 +439,90 @@ def test_set_licence_applies_to_the_next_lookup_and_drops_earlier_answers(state_
 
     model.set_licence('')
     assert 'licence' not in model._params()
+
+
+def _matches(identifier, globs):
+    """Whether amaGama's licence= of globs keeps a source under the one
+    SPDX identifier: a glob matches the whole identifier, any case."""
+    return any(fnmatchcase(identifier.lower(), glob.lower()) for glob in globs)
+
+
+# The licences amaGama's /sources/ listed (2026-11-07), and the choices
+# that keep each.
+FREE_AND_PERMISSIVE = (
+    '0BSD Apache-2.0 BSD-2-Clause BSD-3-Clause BSL-1.0 CC-BY-3.0-US CC-BY-4.0'
+    ' CC0-1.0 ISC MIT MIT-0 MIT-Modern-Variant Unlicense Zlib'
+).split()
+FREE_ONLY = (
+    'AGPL-3.0-only AGPL-3.0-or-later CC-BY-SA-3.0 CC-BY-SA-4.0 EUPL-1.2'
+    ' GPL-2.0-only GPL-2.0-or-later GPL-3.0-only GPL-3.0-or-later LGPL-2.0-only'
+    ' LGPL-2.0-or-later LGPL-2.1-only LGPL-2.1-or-later LGPL-3.0-only'
+    ' LGPL-3.0-or-later MPL-2.0 OSL-3.0 GFDL-1.1-or-later'
+    # Not listed, but free.
+    ' GFDL-1.3-or-later GFDL-1.3-no-invariants-only GFDL-1.2-no-invariants-or-later'
+).split()
+NEITHER = (
+    'CC-BY-NC-4.0 CC-BY-ND-4.0 CC-BY-NC-SA-4.0 GFDL-1.1-invariants-only'
+    ' GFDL-1.3-invariants-or-later GFDL-1.3-only'
+).split()
+
+
+@pytest.mark.parametrize('identifier', FREE_AND_PERMISSIVE + FREE_ONLY + NEITHER)
+def test_the_licence_choices_keep_the_licences_they_name(identifier):
+    free, permissive = LICENCE_PRESETS['virtaal-free'], LICENCE_PRESETS['virtaal-permissive']
+
+    assert _matches(identifier, free) is (identifier not in NEITHER)
+    assert _matches(identifier, permissive) is (identifier in FREE_AND_PERMISSIVE)
+
+
+@pytest.mark.parametrize(
+    'saved, stored',
+    [
+        ('', ''),
+        ('GPL-*, MIT', 'GPL-*,MIT'),
+        # Saved before presets were kept by name.
+        (','.join(PERMISSIVE), 'virtaal-permissive'),
+        (', '.join(reversed(PERMISSIVE)).lower(), 'virtaal-permissive'),
+        (','.join(PERMISSIVE + COPYLEFT), 'virtaal-free'),
+        (','.join(PERMISSIVE[1:]), ','.join(PERMISSIVE[1:])),
+        ('virtaal-free', 'virtaal-free'),
+        ('virtaal-somewhere', 'virtaal-somewhere'),
+    ],
+)
+def test_stored_licence(saved, stored):
+    assert stored_licence(saved) == stored
+
+
+def test_a_preset_is_sent_as_this_versions_globs(state_dir, monkeypatch):
+    model = _amagama(monkeypatch, licence='virtaal-permissive')
+
+    assert model._params()['licence'] == ','.join(PERMISSIVE)
+    assert licence_globs('GPL-*,MIT') == 'GPL-*,MIT'
+
+
+def test_globs_saved_for_a_preset_are_kept_as_its_name(state_dir, monkeypatch):
+    model = _amagama(monkeypatch, licence=', '.join(PERMISSIVE + COPYLEFT))
+
+    assert model.licence == model.config['licence'] == 'virtaal-free'
+    assert model._params()['licence'] == ','.join(PERMISSIVE + COPYLEFT)
+
+
+def test_a_newer_versions_preset_means_any_licence_and_is_kept(state_dir, monkeypatch, caplog):
+    with caplog.at_level(logging.DEBUG):
+        model = _amagama(monkeypatch, licence='virtaal-somewhere')
+
+    assert 'licence' not in model._params()
+    assert model.config['licence'] == 'virtaal-somewhere'
+    assert 'unknown licence choice virtaal-somewhere' in caplog.text
+
+
+def test_set_licence_keeps_a_presets_name(state_dir, monkeypatch):
+    model = _amagama(monkeypatch)
+
+    model.set_licence('virtaal-permissive')
+    assert model.config['licence'] == 'virtaal-permissive'
+    model.set_licence(','.join(PERMISSIVE))
+    assert model.config['licence'] == 'virtaal-permissive'
 
 
 def test_model_without_init_sends_no_choices():

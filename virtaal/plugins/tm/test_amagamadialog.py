@@ -5,8 +5,6 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from fnmatch import fnmatchcase
-
 import pytest
 from gi.repository import Gtk
 
@@ -18,15 +16,12 @@ from virtaal.plugins.tm.amagamadialog import (
     COL_TITLE,
     COL_USE,
     COL_WEIGHT,
-    COPYLEFT,
     CUSTOM,
-    PERMISSIVE,
     AmagamaSourcesDialog,
-    licence_presets,
     parse_percent,
     preset_of,
 )
-from virtaal.plugins.tm.models.amagama import parse_licence, parse_sources
+from virtaal.plugins.tm.models.amagama import PERMISSIVE, parse_sources
 
 SOURCES = parse_sources(
     {
@@ -244,49 +239,19 @@ def test_closing_saves_the_choices_and_ignores_a_late_answer(dialogs):
     assert len(dialog.liststore) == 0
 
 
-def _matches(identifier, globs):
-    """Whether amaGama's licence= of globs keeps a source under the one
-    SPDX identifier: a glob matches the whole identifier, any case."""
-    return any(fnmatchcase(identifier.lower(), glob.lower()) for glob in globs)
-
-
-# The licences amaGama's /sources/ listed (2026-11-07), and the choices
-# that keep each.
-FREE_AND_PERMISSIVE = (
-    '0BSD Apache-2.0 BSD-2-Clause BSD-3-Clause BSL-1.0 CC-BY-3.0-US CC-BY-4.0'
-    ' CC0-1.0 ISC MIT MIT-0 MIT-Modern-Variant Unlicense Zlib'
-).split()
-FREE_ONLY = (
-    'AGPL-3.0-only AGPL-3.0-or-later CC-BY-SA-3.0 CC-BY-SA-4.0 EUPL-1.2'
-    ' GPL-2.0-only GPL-2.0-or-later GPL-3.0-only GPL-3.0-or-later LGPL-2.0-only'
-    ' LGPL-2.0-or-later LGPL-2.1-only LGPL-2.1-or-later LGPL-3.0-only'
-    ' LGPL-3.0-or-later MPL-2.0 OSL-3.0 GFDL-1.1-or-later'
-    # Not listed, but free.
-    ' GFDL-1.3-or-later GFDL-1.3-no-invariants-only GFDL-1.2-no-invariants-or-later'
-).split()
-NEITHER = (
-    'CC-BY-NC-4.0 CC-BY-ND-4.0 CC-BY-NC-SA-4.0 GFDL-1.1-invariants-only'
-    ' GFDL-1.3-invariants-or-later GFDL-1.3-only'
-).split()
-
-
-@pytest.mark.parametrize('identifier', FREE_AND_PERMISSIVE + FREE_ONLY + NEITHER)
-def test_the_licence_choices_keep_the_licences_they_name(identifier):
-    globs = {key: preset for key, _label, preset in licence_presets()}
-
-    assert _matches(identifier, globs['free']) is (identifier not in NEITHER)
-    assert _matches(identifier, globs['permissive']) is (identifier in FREE_AND_PERMISSIVE)
+FREE = 'virtaal-free'
+PERMISSIVE_NAME = 'virtaal-permissive'
 
 
 @pytest.mark.parametrize(
     'licence, key',
     [
         ('', ANY),
-        (','.join(PERMISSIVE), 'permissive'),
-        (','.join(reversed(PERMISSIVE)).lower(), 'permissive'),
-        (','.join(PERMISSIVE + COPYLEFT), 'free'),
+        (PERMISSIVE_NAME, 'permissive'),
+        (FREE, 'free'),
         ('GPL-*,MIT', CUSTOM),
-        (','.join(PERMISSIVE[1:]), CUSTOM),
+        # A newer version's choice.
+        ('virtaal-somewhere', ANY),
     ],
 )
 def test_a_saved_licence_shows_as_its_choice(dialogs, licence, key):
@@ -295,10 +260,7 @@ def test_a_saved_licence_shows_as_its_choice(dialogs, licence, key):
     assert preset_of(licence) == key
     assert dialog.licence_combo.get_active_id() == key
     assert dialog.licence.get_visible() is (key == CUSTOM)
-    assert dialog.licence_note.get_visible() is bool(licence)
-    assert preset_of(parse_licence(dialog.licence_text())) == key
-    if key == CUSTOM:
-        assert parse_licence(dialog.licence_text()) == licence
+    assert dialog.licence_note.get_visible() is (key != ANY)
 
 
 def test_a_custom_licence_shows_in_its_field(dialogs):
@@ -308,14 +270,14 @@ def test_a_custom_licence_shows_in_its_field(dialogs):
     assert dialog.licence.get_placeholder_text() == 'Any license'
 
 
-def test_choosing_a_preset_applies_it_at_once(dialogs):
+def test_choosing_a_preset_applies_its_name_at_once(dialogs):
     model = _FakeModel(SOURCES)
     dialog = _dialog(dialogs, model)
     assert not dialog.licence_note.get_visible()
 
     dialog.licence_combo.set_active_id('permissive')
 
-    assert model.licences == [','.join(PERMISSIVE)]
+    assert model.licences == [PERMISSIVE_NAME]
     assert dialog.licence_note.get_visible()
     assert 'MIT, MIT-*' in dialog.licence_combo.get_tooltip_text()
 
@@ -326,8 +288,8 @@ def test_choosing_a_preset_applies_it_at_once(dialogs):
     assert dialog.licence_combo.get_tooltip_text() is None
 
 
-def test_custom_starts_from_the_last_preset_and_applies_on_enter_and_close(dialogs):
-    model = _FakeModel(SOURCES, licence=','.join(PERMISSIVE))
+def test_custom_starts_from_the_last_presets_globs_and_applies_on_enter_and_close(dialogs):
+    model = _FakeModel(SOURCES, licence=PERMISSIVE_NAME)
     dialog = _dialog(dialogs, model)
 
     dialog.licence_combo.set_active_id(CUSTOM)
@@ -351,7 +313,7 @@ def test_custom_starts_from_the_last_preset_and_applies_on_enter_and_close(dialo
     assert model.saved == 1
 
 
-def test_a_preset_applies_on_close_whatever_the_hidden_field_holds(dialogs):
+def test_a_preset_is_applied_once_whatever_the_hidden_field_holds(dialogs):
     model = _FakeModel(SOURCES, licence='GPL-*')
     dialog = _dialog(dialogs, model)
     dialog.licence_combo.set_active_id('free')
@@ -359,7 +321,16 @@ def test_a_preset_applies_on_close_whatever_the_hidden_field_holds(dialogs):
 
     dialog.dialog.response(Gtk.ResponseType.CLOSE)
 
-    assert model.licences == [','.join(PERMISSIVE + COPYLEFT)] * 2
+    assert model.licences == [FREE]
+
+
+def test_closing_keeps_a_newer_versions_choice_untouched(dialogs):
+    model = _FakeModel(SOURCES, licence='virtaal-somewhere')
+    dialog = _dialog(dialogs, model)
+
+    dialog.dialog.response(Gtk.ResponseType.CLOSE)
+
+    assert model.licences == []
 
 
 @pytest.mark.parametrize(
