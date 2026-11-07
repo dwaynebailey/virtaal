@@ -116,8 +116,9 @@ def _finish(proc):
 def check_in_background(filenames, checker, done):
     """Cache C{checker}'s failures for each file on disk in a child
     process, then call C{done(succeeded)} from the main loop. Starts
-    nothing and returns False for a checker a child can't build.
-    Replaces a child checking other files, or with another checker."""
+    nothing and returns False for a checker a child can't build, else
+    the child. Replaces a child checking other files, or with another
+    checker."""
     global _checking
     from virtaal.support import checkerspec, helperprocess
 
@@ -128,7 +129,7 @@ def check_in_background(filenames, checker, done):
     key = (json.dumps(spec, sort_keys=True), tuple(filenames))
     if _checking is not None and _checking.key == key:
         _checking.done = done
-        return True
+        return _checking
     stop_checking()
     with tempfile.NamedTemporaryFile('w', encoding='utf-8', suffix='.txt', delete=False) as f:
         f.write('\n'.join(filenames))
@@ -144,7 +145,7 @@ def check_in_background(filenames, checker, done):
     from gi.repository import GLib
 
     GLib.timeout_add(200, _poll_checking, proc)
-    return True
+    return proc
 
 
 def checking():
@@ -152,8 +153,11 @@ def checking():
     return _checking is not None
 
 
-def stop_checking():
+def stop_checking(child=None):
+    """Stop the child checking files; with child, only if it is that one."""
     global _checking
+    if child is not None and child is not _checking:
+        return
     proc, _checking = _checking, None
     if proc is None:
         return

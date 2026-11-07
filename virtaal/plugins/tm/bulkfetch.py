@@ -36,8 +36,11 @@ class BulkFetch:
 
     def __init__(self, model, sources, on_found, on_done):
         self.model = model
-        self.batches = model.bulk_batches(list(sources))
-        self.total = sum(len(batch) for batch in self.batches)
+        self.sources = list(sources)
+        self.batches = model.bulk_batches(self.sources)
+        self.total = len(self.sources)
+        self.characters = None
+        """The most characters it may send, if it has a limit."""
         self.fetched = 0
         self.finished = None
         self._on_found = on_found
@@ -48,6 +51,14 @@ class BulkFetch:
 
     def start(self):
         self._send()
+
+    def extend(self, sources):
+        """Ask for sources too, after those planned."""
+        if self.finished is not None or not sources:
+            return
+        self.sources += sources
+        self.batches += self.model.bulk_batches(list(sources))
+        self.total += len(sources)
 
     def cancel(self):
         if self.finished is None:

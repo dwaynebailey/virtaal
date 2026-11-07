@@ -89,6 +89,8 @@ class TMController(BaseController):
     """How many source words one fetch asks a service for."""
     # Replaced, never changed in place: the running file fetch of each model.
     _fetches = {}
+    # The quality checks being worked out for a fetch plan, if any.
+    _checks = None
 
     # INITIALIZERS #
     def __init__(self, main_controller, config=None):
@@ -492,18 +494,48 @@ class TMController(BaseController):
         store = self.main_controller.store_controller.get_store()
         return store.get_units() if store is not None else []
 
-    def failing_units(self, check=False):
+    def failing_units(self):
         """The indices of the units failing the current checker's quality
-        checks, as far as they are known; with check, checked first if
-        they aren't."""
-        store_controller = self.main_controller.store_controller
-        store = store_controller.get_store()
-        checks = getattr(store, 'checks', None)
-        if checks is None and check and store is not None:
-            checker = self.main_controller.checks_controller.get_checker()
-            checks = store_controller.update_store_checks(checker=checker)
-        checks = checks or {}
+        checks, as far as they are known."""
+        store = self.main_controller.store_controller.get_store()
+        checks = getattr(store, 'checks', None) or {}
         return frozenset(index for indices in checks.values() for index in indices)
+
+    def check_files(self, on_done):
+        """Work the quality checks out in the background if they aren't
+        known, then take the units failing them into running fetches and
+        call on_done(). Whether they are on their way."""
+        from .fetched import BackgroundChecks
+
+        self.stop_checking()
+        checker = self.main_controller.checks_controller.get_checker()
+
+        def done():
+            self.extend_fetches()
+            on_done()
+
+        checks = BackgroundChecks(self.main_controller.store_controller, checker, done)
+        if not checks.start():
+            return False
+        self._checks = checks
+        return True
+
+    def stop_checking(self):
+        if self._checks is not None:
+            self._checks.cancel()
+            self._checks = None
+
+    def extend_fetches(self):
+        """Have each running fetch also ask for what its plan gained."""
+        for model, fetch in self._fetches.items():
+            if fetch.finished is not None:
+                continue
+            sources, _whole = self.fetch_plan(model)
+            new = [source for source in sources if source not in fetch.sources]
+            if fetch.characters is not None:
+                left = fetch.characters - model.bulk_characters(fetch.sources)
+                new, _capped = self.cap_characters(model, new, left)
+            fetch.extend(new)
 
     def is_stream(self):
         """Whether several files are open as one."""
@@ -538,7 +570,7 @@ class TMController(BaseController):
         if not words:
             return [], False
         return self.fetched.plan(
-            model.internal_name, self.file_units(), start, words, self.failing_units(check=True)
+            model.internal_name, self.file_units(), start, words, self.failing_units()
         )
 
     @staticmethod
@@ -575,6 +607,7 @@ class TMController(BaseController):
         if characters is not None:
             sources, _capped = self.cap_characters(model, sources, characters)
         fetch = BulkFetch(model, sources, found, done)
+        fetch.characters = characters
         self._fetches = {**self._fetches, model: fetch}
         fetch.start()
         return fetch
@@ -785,6 +818,7 @@ class TMController(BaseController):
         self.storecursor = None
         self._cursor_changed_id = 0
         self._arrival_pending, self._release_wait = False, None
+        self.stop_checking()
         if self.fetched is not None:
             self.fetched.clear()
         self.view.hide()

@@ -103,7 +103,19 @@ def made(tmp_path):
         fetched.close()
 
 
-def _dialog(made, tmp_path, *models, units=UNITS, stream=False, checks=frozenset()):
+def _dialog(made, tmp_path, *models, units=UNITS, stream=False, checks=frozenset(), checked=None):
+    """The dialog for units; checks None for checks not worked out yet,
+    which then come out as checked."""
+    store = SimpleNamespace(
+        get_units=lambda: units,
+        checks=None if checks is None else dict(checks),
+        get_filename=lambda: str(tmp_path / 'file.po'),
+    )
+
+    def update_store_checks(checker):
+        store.checks = dict(checked or {})
+        return store.checks
+
     fetched = FetchedSuggestions(path=lambda: str(tmp_path / 'tm.db'))
     fetched.load(units, 'en', 'af')
     controller = TMController.__new__(TMController)
@@ -112,9 +124,11 @@ def _dialog(made, tmp_path, *models, units=UNITS, stream=False, checks=frozenset
     controller.storecursor = SimpleNamespace(index=1)
     controller.main_controller = SimpleNamespace(
         store_controller=SimpleNamespace(
-            get_store=lambda: SimpleNamespace(get_units=lambda: units, checks=dict(checks)),
+            get_store=lambda: store,
             is_stream=lambda: stream,
-        )
+            update_store_checks=update_store_checks,
+        ),
+        checks_controller=SimpleNamespace(get_checker=lambda: 'checker'),
     )
     dialog = FetchSuggestionsDialog(controller, models)
     dialog.show()
@@ -345,3 +359,83 @@ def test_fetch_can_be_pressed_once_the_allowance_arrives(made, tmp_path):
 
     assert _rows(dialog, COL_USE) == [(True,)]
     assert dialog.fetch_button.get_sensitive()
+
+
+# The quality checks, worked out in the background
+
+
+@pytest.fixture
+def child(monkeypatch):
+    """check_in_background() that waits for the test to finish it."""
+    from virtaal.support import statsworker
+
+    started, stopped = [], []
+
+    def check_in_background(paths, checker, done):
+        started.append((paths, checker, done))
+        return 'the child'
+
+    monkeypatch.setattr(statsworker, 'check_in_background', check_in_background)
+    monkeypatch.setattr(statsworker, 'stop_checking', stopped.append)
+    return SimpleNamespace(started=started, stopped=stopped)
+
+
+CHECKED_UNITS = [_unit('Open'), _unit('Close'), _unit('Done', translated=True)]
+
+
+def test_the_dialog_opens_before_the_checks_are_worked_out(made, tmp_path, child):
+    (tmp_path / 'file.po').write_text('')
+    google = _Service('google', billed=True)
+
+    dialog = _dialog(
+        made, tmp_path, google, units=CHECKED_UNITS, checks=None, checked={'check-x': [2]}
+    )
+
+    assert [(paths, checker) for paths, checker, _done in child.started] == [
+        ([str(tmp_path / 'file.po')], 'checker')
+    ]
+    # Close and Open, from what is known: 9 characters.
+    assert _rows(dialog, COL_UNITS, COL_CHARS) == [('Whole file', '9')]
+    dialog._on_toggled(None, '0')
+    assert dialog.fetch_button.get_sensitive()
+
+    child.started[0][2](True)
+
+    # Done, failing a check, joins them.
+    assert _rows(dialog, COL_UNITS, COL_CHARS) == [('Whole file', '13')]
+
+
+def test_a_running_fetch_takes_in_the_units_failing_a_check(made, tmp_path, child):
+    (tmp_path / 'file.po').write_text('')
+    amagama = _Service('amagama')
+    dialog = _dialog(
+        made, tmp_path, amagama, units=CHECKED_UNITS, checks=None, checked={'check-x': [2]}
+    )
+    dialog.dialog.response(RESPONSE_FETCH)
+    assert dialog.fetches[amagama].sources == ['Close', 'Open']
+
+    child.started[0][2](True)
+    amagama.sent[0].answer()
+
+    assert [r.batch for r in amagama.sent] == [['Close', 'Open'], ['Done']]
+    assert dialog.progress.get_text() == '2 of 3'
+    assert _rows(dialog, COL_STATUS) == [('2 of 3',)]
+
+
+def test_closing_the_dialog_stops_the_checks(made, tmp_path, child):
+    (tmp_path / 'file.po').write_text('')
+    amagama = _Service('amagama')
+    dialog = _dialog(made, tmp_path, amagama, units=CHECKED_UNITS, checks=None)
+
+    dialog.dialog.response(Gtk.ResponseType.CLOSE)
+    child.started[0][2](True)
+
+    assert child.stopped == ['the child']
+    assert dialog.controller._checks is None
+    assert dialog.controller.main_controller.store_controller.get_store().checks is None
+
+
+def test_checks_already_known_are_not_worked_out_again(made, tmp_path, child):
+    _dialog(made, tmp_path, _Service('amagama'), units=CHECKED_UNITS, checks={'check-x': [2]})
+
+    assert child.started == []

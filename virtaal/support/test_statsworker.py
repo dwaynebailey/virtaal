@@ -11,6 +11,7 @@ import os
 import runpy
 import sys
 import time
+from types import SimpleNamespace
 
 import pytest
 from gi.repository import GLib
@@ -316,3 +317,17 @@ def test_the_child_process_checks_the_files_listed(tmp_path, monkeypatch):
 
     assert exit_info.value.code == 0
     assert statsdb.StatsCache(statsfile).has_checks(path, _checker())
+
+
+def test_only_the_child_asked_for_is_stopped(monkeypatch):
+    stopped = []
+    current = SimpleNamespace(
+        terminate=lambda: stopped.append('terminate'), wait=lambda: None, listfile='/nonexistent'
+    )
+    monkeypatch.setattr(statsworker, '_checking', current)
+
+    statsworker.stop_checking(object())
+    assert stopped == [] and statsworker._checking is current
+
+    statsworker.stop_checking(current)
+    assert stopped == ['terminate'] and statsworker._checking is None

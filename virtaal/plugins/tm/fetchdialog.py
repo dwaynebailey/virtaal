@@ -145,6 +145,8 @@ class FetchSuggestionsDialog:
         for row in self.liststore:
             if row[COL_AVAILABLE]:
                 self._check_allowance(row[COL_MODEL], default=True)
+        # Units failing a quality check join the plan once known.
+        self.controller.check_files(self._on_checks_done)
 
     def _check_allowance(self, model, default=False):
         """Ask model what is left of its allowance, and show it."""
@@ -194,7 +196,13 @@ class FetchSuggestionsDialog:
             row[COL_USE] = False
         row[COL_UNITS] = self._covers(asked, whole and not capped)
         row[COL_CHARS] = _characters(model, asked, left)
-        row[COL_STATUS] = self._results.get(model) or _plan_status(asked, capped)
+        row[COL_STATUS] = self._status(model, asked, capped)
+
+    def _status(self, model, asked, capped):
+        fetch = self.fetches.get(model)
+        if fetch is not None and fetch.finished is None:
+            return _progress_text(fetch.fetched, fetch.total)
+        return self._results.get(model) or _plan_status(asked, capped)
 
     def _unavailable(self, model):
         return (
@@ -295,6 +303,16 @@ class FetchSuggestionsDialog:
         self._update_buttons()
         return False
 
+    def _on_checks_done(self):
+        if self._closed:
+            return
+        for row in self.liststore:
+            model = row[COL_MODEL]
+            if model not in self._checking:
+                self._describe(row, model)
+        self._update_progress()
+        self._update_buttons()
+
     def _on_response(self, _dialog, response):
         if response == RESPONSE_FETCH:
             self.fetch()
@@ -303,6 +321,7 @@ class FetchSuggestionsDialog:
         if response == RESPONSE_STOP:
             return
         self._closed = True
+        self.controller.stop_checking()
         self.dialog.destroy()
 
 

@@ -50,6 +50,53 @@ def source_words(unit):
     return sum(statsdb.wordcount(str(text)) for text in strings)
 
 
+class BackgroundChecks:
+    """The open files' quality checks, worked out in a child process for
+    a fetch plan, so nothing waits for them; then on_done(), once the
+    store has them."""
+
+    def __init__(self, store_controller, checker, on_done):
+        self._store_controller = store_controller
+        self._checker = checker
+        self._on_done = on_done
+        self._child = None
+        self.running = False
+
+    def start(self):
+        """Start, unless the checks are known; whether they will come."""
+        store = self._store_controller.get_store()
+        if store is None or getattr(store, 'checks', None) is not None:
+            return False
+        from virtaal.support import statsworker
+
+        self._child = statsworker.check_in_background(_paths(store), self._checker, self._done)
+        self.running = bool(self._child)
+        return self.running
+
+    def cancel(self):
+        if not self.running:
+            return
+        from virtaal.support import statsworker
+
+        self.running = False
+        statsworker.stop_checking(self._child)
+
+    def _done(self, _succeeded):
+        if not self.running:
+            return
+        self.running = False
+        # From the cache the child filled, at once.
+        self._store_controller.update_store_checks(checker=self._checker)
+        self._on_done()
+
+
+def _paths(store):
+    """The open files on disk."""
+    offsets = getattr(store, 'file_offsets', None)
+    paths = [entry.path for _offset, entry in offsets()] if offsets else [store.get_filename()]
+    return [path for path in paths if path and os.path.isfile(path)]
+
+
 class FetchedSuggestions:
     """The open file's fetched suggestions, by service and source."""
 

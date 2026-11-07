@@ -340,27 +340,6 @@ def test_the_failing_units_are_those_any_check_lists():
     assert controller.failing_units() == frozenset()
 
 
-def test_a_fetch_plan_has_the_checks_run_if_they_havent_been():
-    controller = _controller(None, [])
-    store = SimpleNamespace(checks=None)
-    checked = []
-
-    def update_store_checks(checker):
-        checked.append(checker)
-        store.checks = {'check-endpunc': [2]}
-        return store.checks
-
-    controller.main_controller.store_controller = SimpleNamespace(
-        get_store=lambda: store, update_store_checks=update_store_checks
-    )
-    controller.main_controller.checks_controller = SimpleNamespace(get_checker=lambda: 'checker')
-
-    assert controller.failing_units(check=True) == {2}
-    assert checked == ['checker']
-    assert controller.failing_units(check=True) == {2}
-    assert checked == ['checker']
-
-
 @pytest.mark.parametrize('ceiling, expected', [(None, 1000), (300, 300), (5000, 1000), (0, 0)])
 def test_a_backend_may_only_lower_the_word_budget(ceiling, expected):
     controller = _controller(None, [])
@@ -485,3 +464,14 @@ def test_a_fetch_walks_on_through_every_file_open_together(tmp_path, fetched):
         )
     finally:
         statsworker.wait()
+
+
+def test_closing_the_file_stops_the_checks():
+    controller = _controller(None, [])
+    cancelled = []
+    controller._checks = SimpleNamespace(cancel=lambda: cancelled.append(True))
+    controller.view = SimpleNamespace(hide=lambda: None)
+
+    controller._on_store_closed(None)
+
+    assert cancelled == [True] and controller._checks is None
