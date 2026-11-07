@@ -210,6 +210,50 @@ def test_plain_target_of_a_po_unit_keeps_the_code_text():
     assert TMController._plain_target(po.pounit('Delete it now'), match) == '<b>Skrap dit nou'
 
 
+def _numbered_match(unit_source, **match):
+    unit = xliff.xlifffile.parsestring((_XLIFF % unit_source).encode('utf-8')).units[0]
+    controller = _make_controller(current_query=unit.source)
+    controller.abstract_placeables = True
+    controller._queried_unit = unit
+    controller._accel_markers = lambda: ()
+    match = dict(
+        {
+            'source': 'Save 5 files',
+            'target': 'Stoor 5 lêers',
+            'quality': 90,
+            'source_markup': 'Save <g id="1">5</g> files',
+            'target_markup': 'Stoor <g id="1">5</g> lêers',
+        },
+        **match,
+    )
+
+    controller.accept_response(_tmmodel(), unit.source, [match])
+
+    return controller.matches[0]
+
+
+def test_an_adapted_match_shows_the_codes_picking_it_gives():
+    match = _numbered_match('Save <g id="4">3</g> files')
+
+    assert match['target'] == 'Stoor 3 lêers'
+    assert match['target_shown_markup'] == 'Stoor <g id="4">3</g> lêers'
+    assert match['target_markup'] == 'Stoor <g id="1">5</g> lêers'
+
+
+@pytest.mark.parametrize(
+    ('unit_source', 'match'),
+    [
+        # Not adapted: its own markup holds its text.
+        ('Save <g id="4">5</g> files', {}),
+        # Codes that don't map: picking it gives the text.
+        ('Save <x id="4"/>3 files', {}),
+        ('Save 3 files', {'source_markup': None, 'target_markup': None}),
+    ],
+)
+def test_a_match_shows_its_own_codes_unless_adapted(unit_source, match):
+    assert 'target_shown_markup' not in _numbered_match(unit_source, **match)
+
+
 def test_accept_response_leaves_a_match_without_markup_at_100():
     assert _tagged_response('Click <g id="1">here</g>', {}) == 100
 

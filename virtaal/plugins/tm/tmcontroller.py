@@ -270,6 +270,7 @@ class TMController(BaseController):
         accel_markers = self._accel_markers() if self.abstract_placeables else ()
         matches = [self._for_form(unit, match, accel_markers) for match in matches]
         matches = [self._cap_for_codes(unit, match) for match in matches]
+        matches = [self._shown_codes(unit, match) for match in matches]
 
         anything_new = False
         for match in matches:
@@ -425,6 +426,18 @@ class TMController(BaseController):
         if not differing:
             return match
         return dict(match, quality=max(100 - differing, 0))
+
+    @classmethod
+    def _shown_codes(cls, unit, match):
+        """match, or a copy whose target_shown_markup is the markup of the
+        target with unit's own codes that picking it gives, if it was
+        adapted: the stored markup no longer holds the adapted text."""
+        if 'tm_target' not in match or not match.get('target_markup'):
+            return match
+        rich = cls._rich_target(unit, match)
+        if rich is None or str(rich) != match['target']:
+            return match
+        return dict(match, target_shown_markup=inlinecodes.from_elem(rich))
 
     def destroy(self):
         # Destroy the view

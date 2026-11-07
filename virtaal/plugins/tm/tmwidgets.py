@@ -406,7 +406,9 @@ class TMMatchRenderer(Gtk.CellRenderer):
 
     def _codes(self, side):
         """The match's inline codes on side, as the editor shows them."""
-        code_markup = self.matchdata.get(side + '_markup')
+        # An adapted target's (see TMController._shown_codes).
+        shown = self.matchdata.get(side + '_shown_markup')
+        code_markup = shown or self.matchdata.get(side + '_markup')
         if not code_markup:
             return ()
         return placeablesguiinfo.code_marks(

@@ -532,6 +532,39 @@ def test_a_match_whose_text_isnt_its_markups_shows_the_text():
     assert renderer.target_layout.get_text() == 'Klik daar'
 
 
+ADAPTED_MATCH = {
+    'source': 'Save 5 files',
+    'target': 'Stoor 3 lêers',
+    'source_markup': 'Save <g id="1">5</g> files',
+    'target_markup': 'Stoor <g id="1">5</g> lêers',
+    'target_shown_markup': 'Stoor <g id="1">3</g> lêers',
+}
+
+
+def test_an_adapted_match_shows_its_codes():
+    renderer = _match_renderer(**ADAPTED_MATCH)
+
+    renderer.do_get_size(Gtk.TreeView(), None)
+
+    assert renderer.source_layout.get_text() == 'Save <1|5> files'
+    assert renderer.target_layout.get_text() == 'Stoor <1|3> lêers'
+
+
+def test_an_adapted_matchs_codes_keep_its_difference_shown():
+    unchanged = _renderer_with_existing('', **ADAPTED_MATCH)
+    renderer = _renderer_with_existing('Stoor 5 lêers', **ADAPTED_MATCH)
+
+    assert renderer.target_layout.get_text() == 'Stoor <1|3> lêers'
+    # "3", at byte 9, replacing the existing translation's "5".
+    (start, end), *others = [
+        span
+        for span in _attribute_spans(renderer.target_layout)
+        if span not in _attribute_spans(unchanged.target_layout)
+    ]
+    assert start <= 9 < end
+    assert others == []
+
+
 def test_match_text_is_right_aligned_in_a_right_to_left_view():
     widget = Gtk.TreeView()
     widget.set_direction(Gtk.TextDirection.RTL)
