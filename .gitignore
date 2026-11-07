@@ -50,5 +50,7 @@ assets/
 
 # devsupport/packaging/windows/
 # generate_installer_translations.py's output - regenerated fresh from
-# po/*.po on every build_installer.ps1 run, not committed.
+# po/*.po and po/lite/inno/ on every build_installer.ps1 run, not
+# committed.
 /devsupport/packaging/windows/installer-strings.iss
+/devsupport/packaging/windows/generated-languages/

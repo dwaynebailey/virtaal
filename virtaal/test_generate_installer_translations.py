@@ -36,6 +36,20 @@ def test_every_linguas_code_has_an_installer_decision(gen):
 
 def test_mapped_and_unmapped_are_disjoint(gen):
     assert not set(gen.INNO_LANGUAGES) & gen.NO_INNO_LANGUAGE
+    assert not set(gen.NEW_LANGUAGES) & (set(gen.INNO_LANGUAGES) | gen.NO_INNO_LANGUAGE)
+
+
+def test_each_language_has_its_own_installer_name(gen):
+    names = [gen.inno_name(code) for code in list(gen.INNO_LANGUAGES) + list(gen.NEW_LANGUAGES)]
+    assert len(names) == len(set(names))
+    assert "english" not in names
+
+
+def test_new_languages_have_valid_lang_options(gen):
+    for code, (_stem, options) in gen.NEW_LANGUAGES.items():
+        assert options.name and options.name != "English", code
+        assert 0 <= options.language_id <= 0xFFFF, code
+        assert options.codepage in (0, 1252), code
 
 
 def test_vendored_files_match_the_mapping(gen):
@@ -97,3 +111,75 @@ def test_main_writes_bom_and_rejects_unmapped(gen, tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as exc:
         gen.main()
     assert exc.value.code == 1
+
+
+def test_a_new_language_is_offered_once_po_linguas_lite_lists_it(gen):
+    assert gen.installer_languages(["de", "zu"]) == ["de"]
+    assert gen.installer_languages(["de", "zu"], {"zu"}) == ["de", "zu"]
+    include = gen.build_include(["de", "zu", "ast"], {"zu", "ast"})
+    assert 'Name: "zulu"; MessagesFile: "generated-languages\\Zulu.isl"' in include
+    assert 'Name: "asturian"; MessagesFile: "generated-languages\\Asturian.isl"' in include
+    assert 'Name: "german"; MessagesFile: "languages\\German.isl"' in include
+
+
+def test_read_lite_takes_only_inno_lines(gen, tmp_path, monkeypatch):
+    (tmp_path / "po").mkdir()
+    (tmp_path / "po" / "LINGUAS-lite").write_text("gtk30/zu\ninno/ast\ninno/zu\n", encoding="utf-8")
+    monkeypatch.setattr(gen, "REPO_ROOT", tmp_path)
+    assert gen.read_lite() == {"ast", "zu"}
+
+
+def _lite_po(tmp_path, lang, entries):
+    path = tmp_path / "po" / "lite" / "inno" / (lang + ".po")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+    for context, msgid, msgstr in entries:
+        text += 'msgctxt "%s"\nmsgid "%s"\nmsgstr "%s"\n\n' % (context, msgid, msgstr)
+    path.write_text(text, encoding="utf-8")
+
+
+def test_messages_files_for_listed_languages(gen, tmp_path, monkeypatch):
+    _lite_po(tmp_path, "zu", [("ButtonNext", "&Next >", "&Okulandelayo >")])
+    _lite_po(tmp_path, "ast", [("ButtonCancel", "Cancel", "Encaboxar")])
+    _lite_po(tmp_path, "de", [("ButtonCancel", "Cancel", "Nein")])
+    monkeypatch.setattr(gen, "REPO_ROOT", tmp_path)
+    out = tmp_path / "generated"
+
+    assert gen.write_messages_files(["ast", "de", "zu"], {"ast", "zu"}, out) == []
+
+    assert sorted(p.name for p in out.iterdir()) == ["Asturian.isl", "Zulu.isl"]
+    zulu = gen.inno_lite.read(out / "Zulu.isl")
+    assert "LanguageName=isiZulu\nLanguageID=$0435\n" in zulu.replace("\r\n", "\n")
+    assert "ButtonNext=&Okulandelayo >" in zulu
+    asturian = gen.inno_lite.parse(gen.inno_lite.read(out / "Asturian.isl"))
+    assert asturian["Messages"]["ButtonCancel"].value == "Encaboxar"
+    # The rest of the vendored file, decoded from its code page.
+    assert asturian["LangOptions"]["LanguageName"].value == "Asturianu"
+    assert asturian["Messages"]["ButtonYes"].value == "&S\u00ed"
+
+
+def test_vendored_translations_are_the_wizard_messages_it_has(gen):
+    german = gen.vendored_translations("de")
+    assert german[("ButtonNext", "&Next >")] == "&Weiter >"
+    assert gen.vendored_translations("zu") == {}
+
+
+def test_main_writes_messages_files_and_warns_of_a_stale_template(
+    gen, tmp_path, monkeypatch, capsys
+):
+    out = tmp_path / "installer-strings.iss"
+    (tmp_path / "generated-languages").mkdir()
+    (tmp_path / "generated-languages" / "Old.isl").write_text("", encoding="utf-8")
+    default = tmp_path / "Default.isl"
+    default.write_text("[Messages]\nButtonNext=&Next >\n", encoding="utf-8")
+    _lite_po(tmp_path, "zu", [("ButtonNext", "&Next >", "&Okulandelayo >")])
+    monkeypatch.setattr(gen, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(gen, "read_linguas", lambda: ["de", "zu"])
+
+    gen.main([str(out), "--every-lite", "--default-isl", str(default)])
+
+    assert 'Name: "zulu"' in out.read_text(encoding="utf-8-sig")
+    assert sorted(p.name for p in (tmp_path / "generated-languages").iterdir()) == ["Zulu.isl"]
+    printed = capsys.readouterr().out
+    assert "::warning title=Installer lite template out of date::" in printed
+    assert "ButtonBack" in printed and "ButtonNext," not in printed
