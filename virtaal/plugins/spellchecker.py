@@ -19,6 +19,9 @@ from virtaal.support.dictionary_source import DEFAULT_REGIONS
 from virtaal.support.enchant_compat import enchant_tag, import_enchant
 from virtaal.support.libi18n.locale import rebind_library_domain
 
+# How long typing must pause before the word at the cursor is checked (#4649).
+RECHECK_DELAY_MS = 1000
+
 
 def _gtkspell_text(msgid):
     """gtkspell's own translation of msgid, kept out of virtaal.pot."""
@@ -130,6 +133,7 @@ class Plugin(BasePlugin):
         """Remove signal connections and disable spell checking."""
         self._signal_tracker.disconnect_all()
         for text_view in self.unit_view.sources + self.unit_view.targets:
+            self._cancel_recheck(text_view)
             self._disable_checking(text_view)
 
     def _connect_to_textboxes(self, unitview, textboxes):
@@ -145,6 +149,12 @@ class Plugin(BasePlugin):
             self._signal_tracker.connect(
                 textbox.get_buffer(), 'apply-tag', self._on_apply_tag, textbox
             )
+            # GtkSpell skips the word at the cursor while it's typed, so a
+            # misspelt last word would stay unmarked (#4649).
+            self._signal_tracker.connect(
+                textbox.get_buffer(), 'changed', self._on_buffer_changed, textbox
+            )
+            self._signal_tracker.connect(textbox, 'focus-out-event', self._on_focus_out)
 
     # METHODS #
 
@@ -167,7 +177,41 @@ class Plugin(BasePlugin):
             spell.detach()
         text_view.spell_lang = None
 
+    def _cancel_recheck(self, text_view):
+        source_id = getattr(text_view, 'spell_recheck_id', None)
+        if source_id is not None:
+            GLib.source_remove(source_id)
+        text_view.spell_recheck_id = None
+
+    def _recheck(self, text_view):
+        """Check every word in text_view, the one at the cursor too."""
+        self._cancel_recheck(text_view)
+        if self.gtkspell is None or getattr(text_view, 'spell_lang', None) is None:
+            return False
+        try:
+            spell = self.gtkspell.Checker.get_from_text_view(text_view)
+        except SystemError as e:
+            logging.debug("gtkspell.Checker.get_from_text_view() raised: %s", e)
+            return False
+        if spell is not None:
+            spell.recheck_all()
+        return False
+
     # SIGNAL HANDLERS #
+    def _on_buffer_changed(self, buffer, text_view):
+        self._cancel_recheck(text_view)
+        text_view.spell_recheck_id = GLib.timeout_add(
+            RECHECK_DELAY_MS, self._on_recheck_timeout, text_view
+        )
+
+    def _on_recheck_timeout(self, text_view):
+        text_view.spell_recheck_id = None
+        return self._recheck(text_view)
+
+    def _on_focus_out(self, text_view, event):
+        self._recheck(text_view)
+        return False
+
     def _on_unit_lang_changed(self, unit_view, text_view, language):
         if not self.gtkspell:
             return

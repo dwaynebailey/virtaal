@@ -25,7 +25,7 @@ just the instance state each one reads, same as the tests above.
 from types import SimpleNamespace
 
 import pytest
-from gi.repository import GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.common import SignalTracker
 from virtaal.common.platform import platform
@@ -775,3 +775,133 @@ def test_spellchecker_dependencies_importable():
         "enchant imported but reports no available dictionaries/providers "
         "- check the enchant backend (hunspell/aspell) is installed"
     )
+
+
+# The word at the cursor (#4649) #
+
+
+def _plugin_watching(text_view, gtkspell):
+    plugin = Plugin.__new__(Plugin)
+    plugin.gtkspell = gtkspell
+    plugin._signal_tracker = SignalTracker()
+    plugin._connect_to_textboxes(unitview=None, textboxes=[text_view])
+    text_view.spell_lang = 'en_US'
+    return plugin
+
+
+def test_a_pause_in_typing_rechecks_once(monkeypatch):
+    checker = _FakeChecker()
+    gtkspell, _created = _fake_gtkspell(existing=checker)
+    timeouts = []
+    monkeypatch.setattr(
+        GLib, 'timeout_add', lambda ms, *a: timeouts.append((ms, a)) or len(timeouts)
+    )
+    removed = []
+    monkeypatch.setattr(GLib, 'source_remove', removed.append)
+    text_view = Gtk.TextView()
+    _plugin_watching(text_view, gtkspell)
+
+    text_view.get_buffer().insert_at_cursor('wrl')
+    text_view.get_buffer().insert_at_cursor('d')
+
+    # Each keystroke restarts the wait.
+    assert [ms for ms, _a in timeouts] == [spellchecker.RECHECK_DELAY_MS] * 2
+    assert removed == [1]
+    assert checker.rechecked is False
+    callback, *args = timeouts[-1][1]
+    assert callback(*args) is False
+    assert checker.rechecked is True
+    assert text_view.spell_recheck_id is None
+
+
+def test_leaving_the_text_rechecks_it(monkeypatch):
+    checker = _FakeChecker()
+    gtkspell, _created = _fake_gtkspell(existing=checker)
+    text_view = Gtk.TextView()
+    _plugin_watching(text_view, gtkspell)
+
+    text_view.emit('focus-out-event', Gdk.Event.new(Gdk.EventType.FOCUS_CHANGE))
+
+    assert checker.rechecked is True
+
+
+def test_no_recheck_without_a_spelling_language():
+    checker = _FakeChecker()
+    gtkspell, _created = _fake_gtkspell(existing=checker)
+    text_view = Gtk.TextView()
+    plugin = _plugin_watching(text_view, gtkspell)
+    text_view.spell_lang = None
+
+    assert plugin._recheck(text_view) is False
+    assert checker.rechecked is False
+
+
+def test_destroy_cancels_a_waiting_recheck():
+    checker = _FakeChecker()
+    gtkspell, _created = _fake_gtkspell(existing=checker)
+    text_view = Gtk.TextView()
+    plugin = _plugin_watching(text_view, gtkspell)
+    plugin._disable_checking = lambda tv: None
+    plugin.unit_view = SimpleNamespace(sources=[], targets=[text_view])
+    text_view.get_buffer().insert_at_cursor('wrld')
+    assert text_view.spell_recheck_id is not None
+
+    plugin.destroy()
+
+    assert text_view.spell_recheck_id is None
+
+
+def _misspelt(buffer):
+    tag = buffer.get_tag_table().lookup('gtkspell-misspelled')
+    words = []
+    it = buffer.get_start_iter()
+    while True:
+        if it.starts_tag(tag):
+            end = it.copy()
+            end.forward_to_tag_toggle(tag)
+            words.append(buffer.get_text(it, end, False))
+        if not it.forward_to_tag_toggle(tag):
+            return words
+
+
+def _real_gtkspell():
+    try:
+        import enchant
+        import gi
+
+        gi.require_version('GtkSpell', '3.0')
+        from gi.repository import GtkSpell
+    except (ImportError, ValueError):
+        pytest.skip("GtkSpell 3.0 or pyenchant not installed - optional")
+    if not enchant.dict_exists('en_US'):
+        pytest.skip("no en_US dictionary")
+    return GtkSpell
+
+
+@pytest.mark.parametrize('leave', ['pause', 'focus-out'])
+def test_a_misspelt_last_word_is_marked(monkeypatch, leave):
+    gtkspell = _real_gtkspell()
+    monkeypatch.setattr(spellchecker, 'RECHECK_DELAY_MS', 0)
+    text_view = Gtk.TextView()
+    checker = gtkspell.Checker()
+    checker.set_language('en_US')
+    checker.attach(text_view)
+    plugin = _plugin_watching(text_view, gtkspell)
+    buffer = text_view.get_buffer()
+    if leave == 'focus-out':
+        monkeypatch.setattr(GLib, 'timeout_add', lambda *a: None)
+
+    for char in 'Helo wrld':
+        buffer.insert_interactive_at_cursor(char, -1, True)
+    # GtkSpell leaves the word being typed alone.
+    assert _misspelt(buffer) == ['Helo']
+    if leave == 'pause':
+        context = GLib.MainContext.default()
+        for _ in range(20):
+            context.iteration(False)
+    else:
+        text_view.emit('focus-out-event', Gdk.Event.new(Gdk.EventType.FOCUS_CHANGE))
+
+    assert _misspelt(buffer) == ['Helo', 'wrld']
+    plugin._signal_tracker.disconnect_all()
+    checker.detach()
