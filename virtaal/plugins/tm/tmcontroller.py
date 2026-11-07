@@ -16,6 +16,7 @@ from translate.search.lshtein import LevenshteinComparer
 from virtaal.common import pan_app
 from virtaal.controllers.basecontroller import BaseController
 from virtaal.support import abstraction, inlinecodes, sdlxliff_compat
+from virtaal.support.httpclient import speculative
 from virtaal.support.translate_compat import forceunicode
 
 
@@ -598,7 +599,8 @@ class TMController(BaseController):
                 if _fetched(model, unit):
                     continue
                 if depth >= distance and model.requests_in_flight() <= self.PREFETCH_BUSY:
-                    model.prefetch(unit)
+                    with speculative():
+                        model.prefetch(unit)
 
     def _answers_ready(self, unit):
         """Whether every backend that answers over the network has unit's

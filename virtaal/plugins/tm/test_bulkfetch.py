@@ -10,7 +10,7 @@ import io
 import pytest
 
 from virtaal.plugins.tm import bulkfetch
-from virtaal.plugins.tm.bulkfetch import CANCELLED, DONE, FAILED, BulkFetch, batches
+from virtaal.plugins.tm.bulkfetch import CANCELLED, DONE, FAILED, REFUSED, BulkFetch, batches
 
 
 class _Request:
@@ -167,7 +167,8 @@ def test_stops_after_waiting_too_often_in_a_row(timers):
         timers[n][1]()
     model.sent[-1].fire('http-client-error', 429)
 
-    assert fetch.finished == FAILED
+    # The service is busy, not broken.
+    assert fetch.finished == REFUSED
     assert len(model.sent) == BulkFetch.MAX_WAITS + 1
 
 
@@ -195,3 +196,21 @@ def test_cancelling_while_waiting_sends_nothing_more(timers):
 )
 def test_batches(items, expected):
     assert batches(items, 2, 4) == expected
+
+
+def test_a_file_fetchs_requests_are_marked_as_asked_ahead_of_need(timers, monkeypatch, tmp_path):
+    from virtaal.plugins.tm.models import test_deepl
+
+    model = test_deepl._ready(monkeypatch, tmp_path)
+    monkeypatch.setattr(model, 'bulk_wait', lambda request, status: 1)
+    fetch = BulkFetch(model, ['Open', 'Close'], lambda f, b: None, lambda f: None)
+
+    fetch.start()
+    model.client.added[-1].emit('http-client-error', 429)
+    timers[0][1]()
+    sent = model.client.added[1:]
+    test_deepl._query(model, 'Quit')
+
+    assert len(sent) == 2
+    assert all('Sec-Purpose: prefetch' in request.headers for request in sent)
+    assert 'Sec-Purpose: prefetch' not in model.client.added[-1].headers

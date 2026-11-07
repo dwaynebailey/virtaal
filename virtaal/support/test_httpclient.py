@@ -556,3 +556,54 @@ def test_a_failed_request_logs_no_api_key(caplog):
 
     assert 'SECRET123' not in caplog.text
     assert 'could not connect' in caplog.text
+
+
+# Requests asked ahead of need: Sec-Purpose: prefetch
+
+
+def _sent_headers(monkeypatch, make):
+    """The request's headers, and those it gives curl."""
+    sent = {}
+    configure = HTTPRequest._configure_method
+
+    def record(self, method, data, headers, *args):
+        sent['headers'] = headers
+        return configure(self, method, data, headers, *args)
+
+    monkeypatch.setattr(HTTPRequest, '_configure_method', record)
+    request = make()
+    return request.headers, sent['headers']
+
+
+def test_a_request_asked_ahead_of_need_says_so(monkeypatch):
+    with httpclient.speculative():
+        headers, sent = _sent_headers(
+            monkeypatch, lambda: RESTRequest('https://example.org', '', headers=['X-A: 1'])
+        )
+
+    assert headers == sent == ['X-A: 1', 'Sec-Purpose: prefetch']
+
+
+def test_a_request_asked_for_now_does_not(monkeypatch):
+    with httpclient.speculative():
+        pass
+
+    headers, sent = _sent_headers(monkeypatch, lambda: RESTRequest('https://example.org', ''))
+    assert (headers, sent) == (None, None)
+    headers, _sent = _sent_headers(
+        monkeypatch, lambda: HTTPRequest('https://example.org', headers=['X-A: 1'])
+    )
+    assert headers == ['X-A: 1']
+
+
+def test_speculative_marking_nests_and_ends_on_an_error():
+    try:
+        with httpclient.speculative():
+            with httpclient.speculative():
+                pass
+            assert HTTPRequest('https://example.org').headers == ['Sec-Purpose: prefetch']
+            raise ValueError
+    except ValueError:
+        pass
+
+    assert HTTPRequest('https://example.org').headers is None

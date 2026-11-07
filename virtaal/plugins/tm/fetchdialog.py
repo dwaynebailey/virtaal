@@ -14,7 +14,7 @@ from gi.repository import GLib, Gtk, Pango
 from virtaal.common.pan_app import ngettext
 from virtaal.support.libi18n.numbers import format_number
 
-from .bulkfetch import CANCELLED, DONE
+from .bulkfetch import CANCELLED, DONE, REFUSED
 
 COL_MODEL, COL_USE, COL_AVAILABLE, COL_NAME, COL_UNITS, COL_CHARS, COL_STATUS = range(7)
 
@@ -267,8 +267,8 @@ class FetchSuggestionsDialog:
         if fetch.finished == DONE:
             # l10n: Status: every unit asked for was answered
             result = _('Fetched')
-        elif fetch.finished == CANCELLED:
-            # l10n: Status: the user stopped the fetch
+        elif fetch.finished in (CANCELLED, REFUSED):
+            # l10n: Status: the user stopped the fetch, or the service kept asking to wait
             result = _('Stopped')
         else:
             # l10n: Status: the service gave an error or no answer, so the fetch stopped

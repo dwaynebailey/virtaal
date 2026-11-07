@@ -316,3 +316,20 @@ def test_the_allowance_is_asked_again_after_a_fetch(made, tmp_path):
     assert _rows(dialog, COL_STATUS) == [('Checking the allowance…',)]
     deepl.asked_allowance[0](87)
     assert _rows(dialog, COL_CHARS, COL_STATUS) == [('0 of 87 left', 'Fetched')]
+
+
+def test_a_service_that_keeps_asking_to_wait_shows_stopped(made, tmp_path, monkeypatch):
+    from virtaal.plugins.tm import bulkfetch
+
+    # Each wait ends at once.
+    monkeypatch.setattr(bulkfetch.GLib, 'timeout_add', lambda ms, func: func() or 1)
+    monkeypatch.setattr(bulkfetch.GLib, 'source_remove', lambda source_id: None)
+    amagama = _Service('amagama')
+    amagama.bulk_wait = lambda request, status: 1
+    dialog = _dialog(made, tmp_path, amagama)
+    dialog.dialog.response(RESPONSE_FETCH)
+
+    for _n in range(bulkfetch.BulkFetch.MAX_WAITS + 1):
+        amagama.sent[-1].handlers['http-client-error'](amagama.sent[-1], 429)
+
+    assert _rows(dialog, COL_STATUS) == [('Stopped',)]

@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import contextlib
 import logging
 from io import BytesIO
 from urllib import parse, request
@@ -35,7 +36,25 @@ def loggable_url(url):
     return parse.urlunsplit(parts._replace(query=parse.urlencode(masked, safe='*')))
 
 
-__all__ = ['HTTPClient', 'HTTPRequest', 'RESTRequest']
+__all__ = ['HTTPClient', 'HTTPRequest', 'RESTRequest', 'speculative']
+
+SPECULATIVE_HEADER = 'Sec-Purpose: prefetch'
+"""Marks a request asked ahead of need (the Fetch standard's header), so
+a server may answer it later, or not at all."""
+
+_speculative = 0
+
+
+@contextlib.contextmanager
+def speculative():
+    """Mark every request made meanwhile as asked ahead of need: a
+    look-up of units not reached yet, or a whole file's."""
+    global _speculative
+    _speculative += 1
+    try:
+        yield
+    finally:
+        _speculative -= 1
 
 
 class HTTPRequest(GObjectWrapper):
@@ -70,6 +89,8 @@ class HTTPRequest(GObjectWrapper):
         self.url = url
         self.method = method
         self.data = data
+        if _speculative:
+            headers = [*(headers or ()), SPECULATIVE_HEADER]
         self.headers = headers
         self.status = None
 

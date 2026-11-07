@@ -1496,3 +1496,19 @@ def test_preloading_includes_translated_units_with_show_translated_on():
     controller._prefetch_upcoming()
 
     assert model.prefetched == ['done', 'after']
+
+
+def test_preloads_are_marked_as_asked_ahead_of_need_and_queries_are_not(monkeypatch, tmp_path):
+    from virtaal.plugins.tm.models import test_deepl
+
+    model = test_deepl._ready(monkeypatch, tmp_path)
+    model.config['prefetch'] = 1
+    model.requests_in_flight = lambda: 0
+    controller, _asked = _prefetch_controller(model)
+
+    controller._prefetch_upcoming()
+    test_deepl._query(model, 'now')
+
+    preload, query = model.client.added[1:]
+    assert 'Sec-Purpose: prefetch' in preload.headers
+    assert 'Sec-Purpose: prefetch' not in query.headers

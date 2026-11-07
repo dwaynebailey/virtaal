@@ -16,7 +16,9 @@ import logging
 
 from gi.repository import GLib
 
-DONE, CANCELLED, FAILED = 'done', 'cancelled', 'failed'
+from virtaal.support.httpclient import speculative
+
+DONE, CANCELLED, FAILED, REFUSED = 'done', 'cancelled', 'failed', 'refused'
 
 _ERROR_SIGNALS = ('http-redirect', 'http-client-error', 'http-server-error', 'http-failed')
 
@@ -25,7 +27,8 @@ class BulkFetch:
     """Ask C{model} for the suggestions for C{sources} through its
     bulk_*() methods. C{on_found(fetch, found)} gets each batch's
     {source: [match, ...]}; C{on_done(fetch)} runs once, with
-    C{finished} DONE, CANCELLED or FAILED."""
+    C{finished} DONE, CANCELLED, FAILED, or REFUSED when the service
+    kept asking to wait."""
 
     MAX_WAITS = 3
     """How often in a row the service may ask to wait before the fetch
@@ -57,7 +60,8 @@ class BulkFetch:
         if not self.batches:
             self._finish(DONE)
             return False
-        request = self.model.bulk_send(self.batches[0])
+        with speculative():
+            request = self.model.bulk_send(self.batches[0])
         if request is None:
             # The client's queue was full, or the service can't be asked.
             self._finish(FAILED)
@@ -89,7 +93,7 @@ class BulkFetch:
         seconds = self.model.bulk_wait(request, status)
         if seconds is None or self._waits >= self.MAX_WAITS:
             logging.debug('%s: file fetch stopped (%s)', self.model, status)
-            self._finish(FAILED)
+            self._finish(FAILED if seconds is None else REFUSED)
             return
         self._waits += 1
         logging.debug('%s: file fetch waits %d s (%s)', self.model, seconds, status)
