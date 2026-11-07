@@ -335,6 +335,26 @@ def test_the_budget_and_expiry_come_from_tm_ini(tmp_path, monkeypatch):
     assert (controller.fetch_words, controller.fetched.days) == (250, 2)
 
 
+def test_turning_a_service_off_stops_its_fetch(fetched):
+    units = [_unit('Open'), _unit('Close')]
+    fetched.load(units, 'en', 'af')
+    controller = _controller(fetched, units)
+    controller.fetch_words = 1000
+    model, other = _BulkModel(), _BulkModel()
+    done = []
+
+    fetch = controller.fetch_for_file(model, lambda f: None, done.append)
+    other_fetch = controller.fetch_for_file(other, lambda f: None, done.append)
+    controller.stop_fetch(model)
+    controller.stop_fetch(object())
+
+    assert fetch.finished == 'cancelled' and other_fetch.finished is None
+    assert done == [fetch]
+    assert controller._fetches == {other: other_fetch}
+    model.sent[-1][1].handlers['http-success'](model.sent[-1][1], b'')
+    assert len(model.sent) == 1
+
+
 def test_confirming_a_translated_unit_drops_its_fetched_suggestions(fetched):
     units = [_unit('Open')]
     fetched.load(units, 'en', 'af')

@@ -455,9 +455,14 @@ def test_load_models_on_plugin_disabled_disconnects_the_model(monkeypatch):
     plugin = _FakePlugin(disconnect=disconnected.append)
     controller._model_signal_ids[plugin] = 'plugin-sig'
 
+    stopped = []
+    controller._fetches = {plugin: SimpleNamespace(cancel=lambda: stopped.append(plugin))}
+
     handlers['plugin-disabled'](None, plugin)
 
     assert disconnected == ['plugin-sig']
+    # A file fetch from a service just turned off stops (#1679).
+    assert stopped == [plugin]
 
 
 # _connect_plugin() #

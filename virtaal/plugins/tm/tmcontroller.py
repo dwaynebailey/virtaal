@@ -86,6 +86,8 @@ class TMController(BaseController):
     """The open file's FetchedSuggestions (#1679)."""
     fetch_words = 1000
     """How many source words one fetch asks a service for."""
+    # Replaced, never changed in place: the running file fetch of each model.
+    _fetches = {}
 
     # INITIALIZERS #
     def __init__(self, main_controller, config=None):
@@ -210,6 +212,7 @@ class TMController(BaseController):
                 self.view.add_exclude_menu_item(plugin)
 
         def on_plugin_disabled(plugin_ctrlr, plugin):
+            self.stop_fetch(plugin)
             plugin.disconnect(self._model_signal_ids[plugin])
             if hasattr(plugin, 'import_file'):
                 self.view.remove_import_menu_item()
@@ -525,10 +528,22 @@ class TMController(BaseController):
             self.fetched.keep(service, batch)
             on_progress(fetch)
 
+        def done(fetch):
+            if self._fetches.get(model) is fetch:
+                self._fetches = {m: f for m, f in self._fetches.items() if m is not model}
+            on_done(fetch)
+
         sources, _whole = self.fetch_plan(model)
-        fetch = BulkFetch(model, sources, found, on_done)
+        fetch = BulkFetch(model, sources, found, done)
+        self._fetches = {**self._fetches, model: fetch}
         fetch.start()
         return fetch
+
+    def stop_fetch(self, model):
+        """Stop model's file fetch, if one is running: it was turned off."""
+        fetch = self._fetches.get(model)
+        if fetch is not None:
+            fetch.cancel()
 
     def _prefetching_models(self):
         plugins = getattr(getattr(self, 'plugin_controller', None), 'plugins', {})
