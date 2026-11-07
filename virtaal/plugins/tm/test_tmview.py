@@ -1166,3 +1166,42 @@ def test_insert_at_cursor_inserts_the_match(monkeypatch):
     _menu_items(view)['_Insert at Cursor'].activate()
 
     assert [match['target'] for match in inserted] == ['second']
+
+
+# File > Fetch Suggestions for This File… (#1679)
+
+
+def test_fetch_suggestions_follows_export_and_needs_an_open_file():
+    view, _main_window, _groups = _real_tmview()
+    gui = view.controller.main_controller.view.gui
+    items = gui.get_object('menuitem_file').get_submenu().get_children()
+
+    assert items[items.index(gui.get_object('mnu_binary_export')) + 1] is view.mnu_fetch
+    assert view.mnu_fetch.get_label() == 'Fetch Su_ggestions for This File…'
+    assert not view.mnu_fetch.get_sensitive()
+    view.controller.main_controller.store_controller.emit('store-loaded')
+    assert view.mnu_fetch.get_sensitive()
+    view.controller.main_controller.store_controller.emit('store-closed')
+    assert not view.mnu_fetch.get_sensitive()
+
+
+def test_fetch_suggestions_opens_the_dialog_for_the_loaded_backends(monkeypatch):
+    from virtaal.plugins.tm import fetchdialog
+
+    opened = []
+
+    class _Dialog:
+        def __init__(self, controller, models, parent):
+            opened.append((controller, list(models), parent))
+
+        def show(self):
+            opened.append('shown')
+
+    monkeypatch.setattr(fetchdialog, 'FetchSuggestionsDialog', _Dialog)
+    view, main_window, _groups = _real_tmview(
+        plugin_controller=SimpleNamespace(plugins={'amagama': 'model'})
+    )
+
+    view.mnu_fetch.activate()
+
+    assert opened == [(view.controller, ['model'], main_window), 'shown']

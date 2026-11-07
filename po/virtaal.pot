@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 01:58+0000\n"
+"POT-Creation-Date: 2026-11-07 05:27+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1761,9 +1761,9 @@ msgstr ""
 msgid "Amagama Sources"
 msgstr ""
 
-#: virtaal/plugins/tm/amagamadialog.py virtaal/plugins/tm/localtmdialog.py
-#: virtaal/views/mainview.py virtaal/views/setscanview.py
-#: virtaal/views/widgets/selectdialog.py
+#: virtaal/plugins/tm/amagamadialog.py virtaal/plugins/tm/fetchdialog.py
+#: virtaal/plugins/tm/localtmdialog.py virtaal/views/mainview.py
+#: virtaal/views/setscanview.py virtaal/views/widgets/selectdialog.py
 msgid "_Close"
 msgstr ""
 
@@ -1799,6 +1799,100 @@ msgstr ""
 
 #: virtaal/plugins/tm/amagamadialog.py
 msgid "Could not get the list of projects from Amagama."
+msgstr ""
+
+#. l10n: The title of the window that gets suggestions for every unit of the file at once
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Fetch Suggestions"
+msgstr ""
+
+#. l10n: Button: stops asking the services for suggestions
+#: virtaal/plugins/tm/fetchdialog.py virtaal/views/setscanview.py
+msgid "_Stop"
+msgstr ""
+
+#. l10n: Button: asks the ticked services for suggestions for the file
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "_Fetch"
+msgstr ""
+
+#: virtaal/plugins/tm/fetchdialog.py
+msgid ""
+"Get suggestions now for about the next hour of work, from this unit on: "
+"units still to translate or needing work. They are kept to use without a "
+"connection."
+msgstr ""
+
+#. l10n: Under the list of services; the characters column shows only for those that charge
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Services that charge by the character show how many would be sent."
+msgstr ""
+
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Ask"
+msgstr ""
+
+#. l10n: Column heading: a source of suggestions, such as Amagama or Google Translate
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Service"
+msgstr ""
+
+#. l10n: Column heading: how much of the file a service is asked for: "Whole file" or "Next hour (about 40 units)"
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Covers"
+msgstr ""
+
+#. l10n: Column heading: how many characters are sent to a service that charges by the character
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Characters"
+msgstr ""
+
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Status"
+msgstr ""
+
+#. l10n: Status: this service can't be asked for a whole file's suggestions
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Unavailable"
+msgstr ""
+
+#. l10n: Covers: every unit of the file still needing suggestions
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Whole file"
+msgstr ""
+
+#. l10n: Covers: the units about an hour of translating takes, from the current one
+#: virtaal/plugins/tm/fetchdialog.py
+#, python-format
+msgid "Next hour (about %(count)s unit)"
+msgid_plural "Next hour (about %(count)s units)"
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: Status: the service already gave suggestions for every unit needing them
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Nothing to fetch"
+msgstr ""
+
+#. l10n: Status: every unit asked for was answered
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Fetched"
+msgstr ""
+
+#. l10n: Status: the user stopped the fetch
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Stopped"
+msgstr ""
+
+#. l10n: Status: the service gave an error or no answer, so the fetch stopped
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Failed"
+msgstr ""
+
+#. l10n: How many of the units asked for were answered so far, as in "120 of 500"
+#: virtaal/plugins/tm/fetchdialog.py
+#, python-format
+msgid "%(done)s of %(total)s"
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py
@@ -2019,6 +2113,12 @@ msgstr ""
 #. l10n: Inserts the suggestion at the cursor in the translation, or over the selected text, keeping the rest of the translation.
 #: virtaal/plugins/tm/tmview.py
 msgid "_Insert at Cursor"
+msgstr ""
+
+#. l10n: Gets suggestions from online services for every unit of the file still
+#. to translate, for use without a connection
+#: virtaal/plugins/tm/tmview.py
+msgid "Fetch Su_ggestions for This File…"
 msgstr ""
 
 #. l10n: Adds the translations in files the user picks to the local
@@ -2880,10 +2980,6 @@ msgid "%(count)s file could not be read."
 msgid_plural "%(count)s files could not be read."
 msgstr[0] ""
 msgstr[1] ""
-
-#: virtaal/views/setscanview.py
-msgid "_Stop"
-msgstr ""
 
 #. l10n: Window title
 #: virtaal/views/setscanview.py

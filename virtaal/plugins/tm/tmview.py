@@ -33,6 +33,8 @@ class TMView(BaseView, GObjectWrapper):
         'tm-match-selected': (GObject.SignalFlags.RUN_FIRST, None, (GObject.TYPE_PYOBJECT,)),
     }
 
+    # File > Fetch Suggestions for This File… (#1679).
+    mnu_fetch = None
     # File > Import into Translation Memory…, and the model it imports into.
     mnu_import = None
     _import_model = None
@@ -169,6 +171,8 @@ class TMView(BaseView, GObjectWrapper):
         self.mnu_suggestions.set_active(True)
         self.mnu_summon.connect('activate', lambda *_args: self.controller.summon())
 
+        self._add_fetch_menu_item(mainview)
+
     def _create_match_menu(self):
         menu = Gtk.Menu()
         # GTK's own label, as in the target's context menu.
@@ -207,9 +211,29 @@ class TMView(BaseView, GObjectWrapper):
         self.menu.remove(self.mnu_suggestions)
         self.menu.remove(self.mnu_translated)
         self.menu.remove(self.mnu_summon)
+        if self.mnu_fetch is not None:
+            self.mnu_fetch.get_parent().remove(self.mnu_fetch)
+            self.mnu_fetch = None
         self.remove_import_menu_item()
         self.remove_exclude_menu_item()
         self._match_menu.destroy()
+
+    def _add_fetch_menu_item(self, mainview):
+        """Offer File > Fetch Suggestions for This File… (#1679)."""
+        menu = mainview.gui.get_object('menuitem_file').get_submenu()
+        self.mnu_fetch = Gtk.MenuItem.new_with_mnemonic(
+            # l10n: Gets suggestions from online services for every unit of the file still
+            # to translate, for use without a connection
+            _('Fetch Su_ggestions for This File…')
+        )
+        after = mainview.gui.get_object('mnu_binary_export')
+        menu.insert(self.mnu_fetch, menu.get_children().index(after) + 1)
+        store_controller = getattr(self.controller.main_controller, 'store_controller', None)
+        get_store = getattr(store_controller, 'get_store', lambda: None)
+        self.mnu_fetch.set_sensitive(get_store() is not None)
+        self.mnu_fetch.connect('activate', self._on_fetch)
+        self.mnu_fetch.show()
+        getattr(mainview, 'sync_menubar', lambda: None)()
 
     def add_import_menu_item(self, model):
         """Offer File > Import into Translation Memory…, importing into
@@ -519,6 +543,13 @@ class TMView(BaseView, GObjectWrapper):
     def resume(self):
         self._on_mainwindow_focus_gained()
 
+    def _on_fetch(self, _item=None):
+        from .fetchdialog import FetchSuggestionsDialog
+
+        models = self.controller.plugin_controller.plugins.values()
+        parent = self.controller.main_controller.view.main_window
+        FetchSuggestionsDialog(self.controller, models, parent).show()
+
     def select_backends(self, parent):
         from virtaal.views.backendselect import select_backends
 
@@ -758,11 +789,15 @@ class TMView(BaseView, GObjectWrapper):
         self.hide()
         self.mnu_suggestions.set_sensitive(False)
         self.mnu_summon.set_sensitive(False)
+        if self.mnu_fetch is not None:
+            self.mnu_fetch.set_sensitive(False)
         self._show_add_on_save()
 
     def _on_store_loaded(self, storecontroller):
         self.mnu_suggestions.set_sensitive(True)
         self.mnu_summon.set_sensitive(True)
+        if self.mnu_fetch is not None:
+            self.mnu_fetch.set_sensitive(True)
         self._show_add_on_save()
 
     def _on_store_saved(self, storecontroller):
