@@ -219,8 +219,8 @@ to see what the translation memory has.
 
 Your local translation memory also keeps the inline codes (formatting tags) of
 XLIFF and TMX translations. The tags count in the match percentage only when
-the text is the same: then a different number of some kind of tag scores 99%
-instead of 100%. Text inside a tag, such as the ``<b>`` a TMX file can hold,
+the text is the same: then each tag one has and the other lacks takes 1% off
+the 100%, a pair of opening and closing tags counting once. Text inside a tag, such as the ``<b>`` a TMX file can hold,
 doesn't count when you translate an XLIFF or TMX file; in a PO file it counts
 as text. Suggestions from the file you are translating have their tags too.
 The suggestion list shows the tags as the editor does. Picking such a

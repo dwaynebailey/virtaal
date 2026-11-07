@@ -386,13 +386,14 @@ class TMController(BaseController):
 
     @staticmethod
     def _cap_for_codes(unit, match):
-        """match, or a copy scored 99 if it is a 100 whose inline codes
-        differ from unit's."""
-        if int(match.get('quality') or 0) < 100 or not inlinecodes.codes_differ(
-            match.get('source_markup'), unit
-        ):
+        """match, or a copy scored 100 less one for each inline code it
+        and unit don't share, if it is a 100."""
+        if int(match.get('quality') or 0) < 100:
             return match
-        return dict(match, quality=99)
+        differing = inlinecodes.codes_differing(match.get('source_markup'), unit)
+        if not differing:
+            return match
+        return dict(match, quality=max(100 - differing, 0))
 
     def destroy(self):
         # Destroy the view

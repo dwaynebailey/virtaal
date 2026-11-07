@@ -101,17 +101,19 @@ def _tagged_response(unit_source, match):
 @pytest.mark.parametrize(
     ('unit_source', 'source_markup', 'quality'),
     [
-        # #4708: the same text with other tags isn't the same.
-        ('Click <g id="1">here</g>', 'Click <x id="1"/>here', 99),
+        # #4708: the same text with other tags isn't the same - 100 less
+        # one for each code not shared, a pair counting once.
+        ('Click <g id="1">here</g>', 'Click <x id="1"/>here', 98),
         ('Click <g id="1">here</g>', 'Click <g id="1">here</g><x id="2"/>', 99),
         ('Click here', 'Click <g id="1">here</g>', 99),
+        ('Click here', 'Click <g id="1">here</g><x id="2"/>', 98),
         ('Click <g id="1">here</g>', 'Click here', 99),
         # The same kinds of code, whatever their ids.
         ('Click <g id="1">here</g>', 'Click <g id="7">here</g>', 100),
         ('Click <x id="1"/>here', 'Click <ph id="7"></ph>here', 100),
     ],
 )
-def test_accept_response_scores_a_match_with_other_codes_99(unit_source, source_markup, quality):
+def test_accept_response_scores_a_match_with_other_codes_less(unit_source, source_markup, quality):
     match = {'source_markup': source_markup, 'target_markup': 'Klik hier'}
 
     assert _tagged_response(unit_source, match) == quality

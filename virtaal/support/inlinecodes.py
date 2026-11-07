@@ -485,15 +485,19 @@ def holds_codes(unit):
     return isinstance(unit, (xliff.xliffunit, tmx.tmxunit)) and not unit.hasplural()
 
 
-def codes_differ(source_markup, unit):
-    """Whether a match whose source is source_markup has a different
-    number of some kind of code than unit's source. False if either is
-    without markup to tell."""
+def codes_differing(source_markup, unit):
+    """How many codes a match whose source is source_markup has that
+    unit's source lacks, and the other way round; a pair counts once.
+    0 if either is without markup to tell."""
     if not source_markup or not holds_codes(unit):
-        return False
+        return 0
     match_kinds = _kinds(source_markup)
     unit_kinds = _kinds(unit_markup(unit)[0])
-    return None not in (match_kinds, unit_kinds) and match_kinds != unit_kinds
+    if None in (match_kinds, unit_kinds):
+        return 0
+    for kinds in (match_kinds, unit_kinds):
+        del kinds[abstraction.TAG_CLOSE]
+    return (match_kinds - unit_kinds).total() + (unit_kinds - match_kinds).total()
 
 
 # Showing a match's codes
