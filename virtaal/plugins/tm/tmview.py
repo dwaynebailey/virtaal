@@ -12,7 +12,6 @@ from gi.repository import Gdk, GLib, GObject, Gtk
 
 from virtaal.common import GObjectWrapper, SignalTracker, pan_app
 from virtaal.common.pan_app import ngettext
-from virtaal.support.translate_compat import forceunicode
 from virtaal.views.baseview import BaseView
 from virtaal.views.widgets.popupwidgetbutton import PopupWidgetButton
 from virtaal.views.widgets.wayland import set_popup_parent
@@ -588,9 +587,9 @@ class TMView(BaseView, GObjectWrapper):
         )
 
     def copy_match(self, match_data):
-        """Put the match's text on the clipboard."""
+        """Put the match's text, as picking it gives it, on the clipboard."""
         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-        clipboard.set_text(forceunicode(match_data['target']), -1)
+        clipboard.set_text(self.controller.match_text(match_data), -1)
 
     def popup_match_menu(self, path, event):
         """Show the Copy / Insert menu for the match in row C{path}."""

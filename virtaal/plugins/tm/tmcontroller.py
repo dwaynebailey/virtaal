@@ -504,6 +504,12 @@ class TMController(BaseController):
             return target
         return match_data.get('plain_target') or inlinecodes.plain_text(markup) or target
 
+    def match_text(self, match_data):
+        """The text picking the match gives the current unit."""
+        unit = getattr(self.main_controller.unit_controller, 'current_unit', None)
+        target = self._rich_target(unit, match_data)
+        return str(target) if target is not None else self._plain_target(unit, match_data)
+
     def insert_match(self, match_data):
         """Insert the match's text at the cursor in the focused target,
         keeping the rest of the target and its placeables, with the unit's

@@ -199,6 +199,53 @@ def test_plain_target_leaves_out_the_native_code_of_codes(match, expected):
     assert TMController._plain_target(unit, match) == (expected or match['target'])
 
 
+def _match_text(unit_source, match):
+    unit = xliff.xlifffile.parsestring((_XLIFF % unit_source).encode('utf-8')).units[0]
+    controller = _bare_controller(
+        main_controller=SimpleNamespace(unit_controller=SimpleNamespace(current_unit=unit))
+    )
+    return controller.match_text(match)
+
+
+@pytest.mark.parametrize(
+    ('unit_source', 'match', 'expected'),
+    [
+        # Codes that don't map: the text without their native code.
+        (
+            '<g id="1">Delete</g> it now',
+            {
+                'target': '<b>Skrap dit nou',
+                'source_markup': '<it id="tmx1" pos="open">&lt;b&gt;</it>Delete it now',
+                'target_markup': '<it id="tmx1" pos="open">&lt;b&gt;</it>Skrap dit nou',
+            },
+            'Skrap dit nou',
+        ),
+        (
+            'Delete <g id="1">it</g><x id="2"/> now',
+            {
+                'target': 'Skrap <b>dit</b> nou',
+                'source_markup': 'Delete <bpt id="1">&lt;b&gt;</bpt>it<ept id="1">&lt;/b&gt;</ept> now',
+                'target_markup': 'Skrap <bpt id="1">&lt;b&gt;</bpt>dit<ept id="1">&lt;/b&gt;</ept> nou',
+            },
+            'Skrap dit nou',
+        ),
+        # Codes that map: the text with the unit's own codes.
+        (
+            'Save <g id="4">3</g> files',
+            {
+                'target': 'Stoor 3 lêers',
+                'source_markup': 'Save <g id="1">5</g> files',
+                'target_markup': 'Stoor <g id="1">5</g> lêers',
+            },
+            'Stoor 3 lêers',
+        ),
+        ('Delete it now', {'target': 'Skrap dit nou'}, 'Skrap dit nou'),
+    ],
+)
+def test_match_text_is_what_picking_the_match_gives(unit_source, match, expected):
+    assert _match_text(unit_source, match) == expected
+
+
 def test_plain_target_of_a_po_unit_keeps_the_code_text():
     from translate.storage import po
 

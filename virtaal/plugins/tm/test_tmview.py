@@ -1102,7 +1102,8 @@ def _button_press(button):
 
 def _menu_view(monkeypatch, inserted=None):
     view, _main_window, _groups = _real_tmview(
-        insert_match=(inserted if inserted is not None else []).append
+        insert_match=(inserted if inserted is not None else []).append,
+        match_text=lambda match: 'text of %s' % match['target'],
     )
     for target in ('first', 'second'):
         view.tmwindow.liststore.append([{'source': 's', 'target': target}, ''])
@@ -1161,7 +1162,7 @@ def test_copy_puts_the_matchs_text_on_the_clipboard(monkeypatch):
 
     _menu_items(view)[GLib.dgettext('gtk30', '_Copy')].activate()
 
-    assert copied == ['second']
+    assert copied == ['text of second']
 
 
 def test_insert_at_cursor_inserts_the_match(monkeypatch):
