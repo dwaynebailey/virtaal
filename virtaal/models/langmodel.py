@@ -9,26 +9,14 @@ import functools
 import logging
 
 from translate.lang import data
-from translate.lang.data import languages as toolkit_langs
 
 from virtaal.common.pan_app import ui_language
-from virtaal.support.libi18n import plurals
-from virtaal.support.translate_compat import english_name, tr_lang
+from virtaal.support.languages import known_languages
+from virtaal.support.translate_compat import tr_lang
 
 from .basemodel import BaseModel
 
 gettext_lang = tr_lang(ui_language)
-
-
-def known_languages():
-    """{code: (English name, nplurals, plural)}: translate-toolkit's
-    languages, and those plurals.PLURAL_RULES has that it lacks, named
-    as ISO 639 names them. translate-toolkit's entry wins."""
-    extra = {
-        code: (english_name(code) or code, nplurals, plural)
-        for code, (nplurals, plural) in plurals.PLURAL_RULES.items()
-    }
-    return {**extra, **toolkit_langs}
 
 
 # Every n%10 and n%100 case; Breton's fourth form needs a multiple of a million.

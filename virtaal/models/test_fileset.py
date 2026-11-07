@@ -53,6 +53,10 @@ def test_scan_finds_translation_files_in_path_order_without_templates_or_hidden_
         ('locale/zu/LC_MESSAGES/messages.po', 'zu'),
         ('locale/pt-BR/LC_MESSAGES/messages.po', 'pt_BR'),
         ('strings/messages.po', None),
+        # Luganda: from the plural table, not translate-toolkit.
+        ('virtaal.lg.po', 'lg'),
+        ('lg/LC_MESSAGES/messages.po', 'lg'),
+        ('po/lg.po', 'lg'),
     ],
 )
 def test_path_language_reads_the_file_name_then_its_directories(tmp_path, relpath, expected):
@@ -184,3 +188,24 @@ def test_a_monolingual_file_named_on_its_own_without_a_template_stays_unpaired(t
     files = FileSet.from_paths([lone, po])
 
     assert [(e.path, e.template) for e in files] == [(lone, None), (po, None)]
+
+
+def test_path_language_knows_a_language_the_user_added(tmp_path, monkeypatch):
+    from virtaal.models.langmodel import LanguageModel
+
+    assert path_language(str(tmp_path / 'qqy' / 'messages.po'), str(tmp_path)) is None
+    monkeypatch.setitem(LanguageModel.languages, 'qqy', ('Mine', 2, '(n != 1)'))
+
+    assert path_language(str(tmp_path / 'qqy' / 'messages.po'), str(tmp_path)) == 'qqy'
+
+
+def test_a_folder_scan_counts_luganda_files(tmp_path):
+    _po(tmp_path / 'po' / 'lg.po')
+    _po(tmp_path / 'lg' / 'help.po')
+
+    _po(tmp_path / 'zu' / 'help.po')
+
+    files = FileSet.from_paths([str(tmp_path)])
+
+    assert files.languages() == {'lg': 2, 'zu': 1}
+    assert len(files.for_language('lg')) == 2

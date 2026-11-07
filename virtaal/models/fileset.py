@@ -29,11 +29,16 @@ _CODE_RE = re.compile(r'^([a-z]{2,3})(?:[_-]([A-Za-z]{2}|[A-Za-z]{4}|\d{3}))?(?:
 
 
 def known_language(token):
-    """The language code token names, or None."""
-    from translate.lang import data
+    """The language code token names, or None: one Virtaal knows
+    (virtaal.support.languages, or the user's own in langs.ini)."""
+    from virtaal.models.langmodel import LanguageModel
+    from virtaal.support.languages import known_codes
 
     match = _CODE_RE.match(token)
-    if not match or match.group(1) not in data.languages:
+    if not match:
+        return None
+    code = match.group(1)
+    if code not in known_codes() and code not in LanguageModel.languages:
         return None
     return token.replace('-', '_')
 

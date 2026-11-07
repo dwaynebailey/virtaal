@@ -758,21 +758,15 @@ def get_available_ui_languages():
 
 
 def _english_language_name(code):
-    """toolkit's English name for a language code, else pycountry's, or
-    None."""
-    from translate.lang.data import languages as toolkit_langs
+    """The English name Virtaal knows a language code by
+    (virtaal.support.languages), else ISO 639's, or None."""
+    from virtaal.support.languages import known_languages
+    from virtaal.support.translate_compat import english_name
 
-    from virtaal.support import translate_compat
-
-    if code in toolkit_langs:
-        return toolkit_langs[code][0]
-    if translate_compat.pycountry is None:
-        return None
-    base = code.split('@')[0].split('_')[0]
-    language = translate_compat.pycountry.languages.get(
-        alpha_2=base
-    ) or translate_compat.pycountry.languages.get(alpha_3=base)
-    return language.name if language else None
+    known = known_languages()
+    if code in known:
+        return known[code][0]
+    return english_name(code)
 
 
 # CLDR names for UI languages iso-codes can't name in themselves: no catalog,

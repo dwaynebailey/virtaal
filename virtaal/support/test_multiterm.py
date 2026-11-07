@@ -91,6 +91,13 @@ def test_a_language_without_a_code_is_found_by_its_name():
     assert store.gettargetlanguage() == 'fr'
 
 
+def test_a_language_only_the_plural_table_has_is_found_by_its_name():
+    store = _store(MTF.replace('type="French"', 'type="Ganda"'))
+
+    assert store.select_languages('en', 'lg')
+    assert store.gettargetlanguage() == 'lg'
+
+
 def test_a_pair_the_termbase_lacks_keeps_the_current_one():
     store = _store()
 

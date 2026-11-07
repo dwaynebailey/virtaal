@@ -30,8 +30,9 @@ import tempfile
 from io import BytesIO
 
 from lxml import etree
-from translate.lang import data
 from translate.storage import base
+
+from virtaal.support.languages import known_languages
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ def is_multiterm_xml(head):
 
 
 def _language_names():
-    return {name.lower(): code for code, (name, _n, _p) in data.languages.items()}
+    return {name.lower(): code for code, (name, _n, _p) in known_languages().items()}
 
 
 def _fields(element, names):
