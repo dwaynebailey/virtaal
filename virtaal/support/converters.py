@@ -16,6 +16,7 @@ laid out like the template. Nothing here touches a file on disk."""
 
 import io
 import os
+import re
 
 
 def _read(path):
@@ -52,7 +53,22 @@ class MonolingualConverter:
 
     def values(self, path):
         """{key: text} of a file in this format."""
+        return self.values_of(_read(path))
+
+    def values_of(self, data):
+        """{key: text} of the bytes of a file in this format."""
         raise NotImplementedError
+
+    def spans(self, data):
+        """{key: (first line, last line)}, counted from 1, of each
+        message in the bytes of a file in this format."""
+        raise NotImplementedError
+
+
+def _continues(line):
+    """Whether a .properties line goes on to the next."""
+    line = line.rstrip(b'\r')
+    return (len(line) - len(line.rstrip(b'\\'))) % 2 == 1
 
 
 def properties_personality(data):
@@ -75,17 +91,40 @@ class PropertiesConverter(MonolingualConverter):
     modules = ('translate.convert.prop2po', 'translate.convert.po2prop')
 
     @staticmethod
-    def _store(path):
+    def _parse(data, path=None):
         from translate.storage import properties
 
-        data = _read(path)
         store = properties.propfile(personality=properties_personality(data))
         store.filename = path
         store.parse(data)
         return store
 
-    def values(self, path):
-        return {unit.name: unit.source for unit in self._store(path).units if not unit.isblank()}
+    @classmethod
+    def _store(cls, path):
+        return cls._parse(_read(path), path)
+
+    def values_of(self, data):
+        return {unit.name: unit.source for unit in self._parse(data).units if not unit.isblank()}
+
+    def spans(self, data):
+        lines = data.split(b'\n')
+        spans = []
+        number = 0
+        while number < len(lines):
+            line = lines[number]
+            number += 1
+            stripped = line.strip()
+            if not stripped or stripped[:1] in (b'#', b'!'):
+                continue
+            start = number
+            while _continues(line) and number < len(lines):
+                line = lines[number]
+                number += 1
+            spans.append((start, number))
+        names = [unit.name for unit in self._parse(data).units if not unit.isblank()]
+        if len(names) != len(spans):
+            return {}
+        return dict(zip(names, spans, strict=True))
 
     def to_bilingual(self, template_path, target_path):
         from translate.convert import prop2po
@@ -124,6 +163,9 @@ class PropertiesConverter(MonolingualConverter):
         return writer.convertstore()
 
 
+_FLUENT_ENTRY = re.compile(rb'(-?[A-Za-z][A-Za-z0-9_-]*)[ \t]*=')
+
+
 class FluentConverter(MonolingualConverter):
     id = 'fluent'
     name = 'Fluent file'
@@ -131,20 +173,45 @@ class FluentConverter(MonolingualConverter):
     modules = ('fluent.syntax', 'translate.convert.fluent2po')
 
     @staticmethod
-    def _store(path):
+    def _parse(data):
         from translate.storage import fluent
 
         from virtaal.support import fluent_compat  # noqa: F401 - applies its patch on import
 
-        with open(path, 'rb') as f:
-            return fluent.FluentFile(f)
+        return fluent.FluentFile(io.BytesIO(data))
+
+    @classmethod
+    def _store(cls, path):
+        store = cls._parse(_read(path))
+        store.filename = path
+        return store
 
     @staticmethod
     def _messages(store):
         return [unit for unit in store.units if not unit.isheader() and unit.istranslatable()]
 
-    def values(self, path):
-        return {unit.getid(): unit.source for unit in self._messages(self._store(path))}
+    def values_of(self, data):
+        return {unit.getid(): unit.source for unit in self._messages(self._parse(data))}
+
+    def spans(self, data):
+        found = {}
+        key = None
+        last = 0
+        for number, line in enumerate(data.split(b'\n'), 1):
+            if line[:1].isspace() or not line.strip():
+                if key is not None and line.strip():
+                    last = number
+                continue
+            if key is not None:
+                found[key] = (found[key][0], last)
+            match = _FLUENT_ENTRY.match(line)
+            key = match.group(1).decode('utf-8') if match else None
+            if key is not None:
+                found[key] = (number, number)
+                last = number
+        if key is not None:
+            found[key] = (found[key][0], last)
+        return found
 
     def to_bilingual(self, template_path, target_path):
         from translate.convert import fluent2po

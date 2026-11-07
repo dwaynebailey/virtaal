@@ -6,11 +6,14 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import os
+import shutil
+import subprocess
 
 import pytest
 
 from virtaal.models.monolingual import MonolingualPair, state_name
 from virtaal.support import sourcehistory, tmdb
+from virtaal.support.converters import PropertiesConverter
 
 EN = 'app.title=File Manager\ngreeting=Hello, {0}!\nquit=Quit\n'
 AF = 'app.title=Lêerbestuurder\ngreeting=Hallo, {0}!\nquit=Verlaat\n'
@@ -158,3 +161,242 @@ def test_a_baseline_wins_over_recalling(project):
     MonolingualPair(target, template, recall=lambda *args: calls.append(args) or {})
 
     assert calls == []
+
+
+# Git #
+
+needs_git = pytest.mark.skipif(shutil.which('git') is None, reason='no git')
+
+
+@pytest.fixture
+def repo(tmp_path, monkeypatch):
+    """A git repository of its own, untouched by the user's git settings."""
+    empty = tmp_path / 'gitconfig'
+    empty.write_text('', encoding='utf-8')
+    monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(empty))
+    monkeypatch.setenv('GIT_CONFIG_NOSYSTEM', '1')
+    repo = tmp_path / 'repo'
+    repo.mkdir()
+    _git(repo, 'init', '-q')
+    _git(repo, 'config', 'user.name', 'Test')
+    _git(repo, 'config', 'user.email', 'test@example.com')
+    _git(repo, 'config', 'commit.gpgsign', 'false')
+    return repo
+
+
+def _git(repo, *args):
+    subprocess.run(['git', '-C', str(repo), *args], check=True, capture_output=True)
+
+
+def _commit(repo, files, message):
+    for name, text in files.items():
+        (repo / name).write_text(text, encoding='utf-8')
+    _git(repo, 'add', *files)
+    _git(repo, 'commit', '-q', '-m', message)
+
+
+def _history(repo):
+    """greeting's English changes after it was translated, quit is
+    translated again after, and app.title's translation isn't committed."""
+    _commit(
+        repo,
+        {
+            'en.properties': 'app.title=File Manager\ngreeting=Hello!\nquit=Quit\n',
+            'af.properties': 'app.title=Lêers\ngreeting=Hallo!\nquit=Verlaat\n',
+        },
+        'Translate',
+    )
+    _commit(
+        repo,
+        {'en.properties': 'app.title=File Manager\ngreeting=Hello, {0}!\nquit=Close\n'},
+        'Change the English',
+    )
+    _commit(
+        repo,
+        {'af.properties': 'app.title=Lêers\ngreeting=Hallo!\nquit=Maak toe\n'},
+        'Translate quit again',
+    )
+    (repo / 'af.properties').write_text(
+        'app.title=Lêerbestuurder\ngreeting=Hallo!\nquit=Maak toe\n', encoding='utf-8'
+    )
+
+
+TARGETS = {'app.title': 'Lêerbestuurder', 'greeting': 'Hallo!', 'quit': 'Maak toe'}
+
+
+def _from_git(repo, targets=TARGETS, **kwargs):
+    return sourcehistory.from_git(
+        str(repo / 'af.properties'),
+        str(repo / 'en.properties'),
+        PropertiesConverter(),
+        targets,
+        **kwargs,
+    )
+
+
+@needs_git
+def test_git_gives_the_template_as_of_each_keys_last_change(repo):
+    _history(repo)
+
+    assert _from_git(repo) == {'greeting': 'Hello!', 'quit': 'Close'}
+
+
+@needs_git
+def test_git_reads_but_never_changes_the_repository(repo):
+    _history(repo)
+    status = subprocess.run(
+        ['git', '-C', str(repo), 'status', '--porcelain'], capture_output=True, check=True
+    ).stdout
+    files = sorted(p.relative_to(repo) for p in repo.rglob('*'))
+
+    _from_git(repo)
+
+    assert sorted(p.relative_to(repo) for p in repo.rglob('*')) == files
+    assert (
+        subprocess.run(
+            ['git', '-C', str(repo), 'status', '--porcelain'], capture_output=True, check=True
+        ).stdout
+        == status
+    )
+
+
+@needs_git
+def test_a_key_the_target_had_in_its_first_commit(repo):
+    _commit(
+        repo,
+        {'en.properties': 'quit=Quit\n', 'af.properties': 'quit=Verlaat\n'},
+        'Translate',
+    )
+
+    assert _from_git(repo, {'quit': 'Verlaat'}) == {'quit': 'Quit'}
+
+
+@needs_git
+def test_a_change_to_any_line_of_a_message_counts(repo):
+    _commit(
+        repo,
+        {'en.properties': 'about=One\n', 'af.properties': 'about=Een \\\n  twee\n'},
+        'Translate',
+    )
+    _commit(repo, {'en.properties': 'about=One two\n'}, 'Change the English')
+    _commit(repo, {'af.properties': 'about=Een \\\n  twee drie\n'}, 'Translate again')
+
+    assert _from_git(repo, {'about': 'Een twee drie'}) == {'about': 'One two'}
+
+
+@needs_git
+def test_a_template_not_yet_committed_with_the_target_gives_nothing(repo):
+    _commit(repo, {'af.properties': 'quit=Verlaat\n'}, 'Translate')
+    (repo / 'en.properties').write_text('quit=Quit\n', encoding='utf-8')
+
+    assert _from_git(repo, {'quit': 'Verlaat'}) == {}
+
+
+@needs_git
+def test_a_folder_outside_git_gives_nothing(tmp_path, project):
+    found = sourcehistory.from_git(
+        str(project / 'af.properties'),
+        str(project / 'en.properties'),
+        PropertiesConverter(),
+        {'quit': 'Verlaat'},
+    )
+
+    assert found == {}
+
+
+@needs_git
+def test_a_template_outside_the_repository_gives_nothing(repo, project):
+    _history(repo)
+
+    found = sourcehistory.from_git(
+        str(repo / 'af.properties'),
+        str(project / 'en.properties'),
+        PropertiesConverter(),
+        TARGETS,
+    )
+
+    assert found == {}
+
+
+@needs_git
+def test_git_gives_up_when_out_of_time(repo):
+    _history(repo)
+
+    assert _from_git(repo, seconds=0) == {}
+
+
+def test_no_git_gives_nothing(project, monkeypatch):
+    monkeypatch.setattr(sourcehistory.shutil, 'which', lambda _name: None)
+
+    assert _from_git(project) == {}
+
+
+def test_apples_git_stub_is_never_run_without_the_command_line_tools(monkeypatch):
+    from virtaal.common.platform import platform
+
+    ran = []
+
+    def run(command, **_kwargs):
+        ran.append(command[0])
+        raise subprocess.CalledProcessError(2, command)
+
+    monkeypatch.setattr(platform, 'is_mac', True)
+    monkeypatch.setattr(sourcehistory.shutil, 'which', lambda _name: '/usr/bin/git')
+    monkeypatch.setattr(sourcehistory.os.path, 'realpath', lambda path: path)
+    monkeypatch.setattr(sourcehistory.subprocess, 'run', run)
+
+    assert sourcehistory._git() is None
+    assert ran == ['xcode-select']
+
+
+def test_apples_git_stub_needs_the_tools_folder_it_names(tmp_path, monkeypatch):
+    from virtaal.common.platform import platform
+
+    def run(command, **_kwargs):
+        return subprocess.CompletedProcess(command, 0, os.fsencode(missing) + b'\n', b'')
+
+    missing = str(tmp_path / 'CommandLineTools')
+    monkeypatch.setattr(platform, 'is_mac', True)
+    monkeypatch.setattr(sourcehistory.shutil, 'which', lambda _name: '/usr/bin/git')
+    monkeypatch.setattr(sourcehistory.os.path, 'realpath', lambda path: path)
+    monkeypatch.setattr(sourcehistory.subprocess, 'run', run)
+
+    assert sourcehistory._git() is None
+    os.mkdir(missing)
+    assert sourcehistory._git() == '/usr/bin/git'
+
+
+@needs_git
+def test_a_first_open_flags_a_source_changed_since_its_commit(config_dir, repo):
+    _history(repo)
+
+    pair = MonolingualPair(
+        str(repo / 'af.properties'), str(repo / 'en.properties'), recall=sourcehistory.recall
+    )
+
+    units = dict(pair.units())
+    assert {key: state_name(unit) for key, unit in units.items()} == {
+        'app.title': 'needs-review',
+        'greeting': 'needs-work',
+        # Translated again for the English it has now.
+        'quit': 'needs-review',
+    }
+    assert units['greeting'].getnotes('translator') == 'Previous source: Hello!'
+    assert units['quit'].getnotes('translator') == ''
+
+
+@needs_git
+def test_the_local_tm_comes_before_git(config_dir, repo):
+    _history(repo)
+    _tm(
+        config_dir / 'tm.db',
+        os.path.realpath(str(repo / 'af.properties')),
+        [('greeting', 'Hi!', 'Hallo!')],
+    )
+
+    pair = MonolingualPair(
+        str(repo / 'af.properties'), str(repo / 'en.properties'), recall=sourcehistory.recall
+    )
+
+    notes = {key: unit.getnotes('translator') for key, unit in pair.units()}
+    assert notes == {'app.title': '', 'greeting': 'Previous source: Hi!', 'quit': ''}

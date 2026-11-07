@@ -192,3 +192,42 @@ def test_fluent_round_trip_keeps_every_translation(tmp_path):
     assert converter.values(str(af)) == dict(
         wanted, login='Log in\n.title = Log in to your account'
     )
+
+
+def test_properties_spans_cover_each_messages_lines():
+    data = (
+        b'# A comment\n! Another\n\na=1\nb : two \\\n   lines\nc\\:d=3\n'
+        b'# trailing\n\ng\nh=\\\\\ni=5\r\nj=x\\\r\n y\r\n'
+    )
+
+    assert PropertiesConverter().spans(data) == {
+        'a': (4, 4),
+        'b': (5, 6),
+        'c\\:d': (7, 7),
+        'g': (10, 10),
+        'h': (11, 11),
+        'i': (12, 12),
+        'j': (13, 14),
+    }
+
+
+@needs_fluent
+def test_fluent_spans_cover_each_messages_lines():
+    data = (
+        b'# A comment\nhello = Hello\n    world\n\nbtn = Press\n    .title = Tip\n\n'
+        b'-brand = Firefox\n'
+    )
+
+    assert FluentConverter().spans(data) == {
+        'hello': (2, 3),
+        'btn': (5, 6),
+        '-brand': (8, 8),
+    }
+
+
+def test_values_of_reads_bytes_as_values_reads_a_file(tmp_path):
+    path = tmp_path / 'af.properties'
+    path.write_bytes('a=Lêer\nb=Twee\n'.encode())
+    converter = PropertiesConverter()
+
+    assert converter.values_of(path.read_bytes()) == converter.values(str(path))
