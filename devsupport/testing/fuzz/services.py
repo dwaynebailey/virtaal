@@ -198,6 +198,8 @@ def configure(service, url, conf):
         set_option('tm.ini', 'remotetm', 'port', port)
     elif service == 'moses':
         set_option('tm.ini', 'moses', 'en->af', url)
+    elif service == 'apertium':
+        set_option('tm.ini', 'apertium', 'url', url)
     elif service == 'google':
         set_option('tm.ini', 'google_translate', 'api_key', 'fuzz')
 
@@ -205,11 +207,7 @@ def configure(service, url, conf):
 def patch_fixed_urls(service, url):
     """Services whose address is fixed in the code: point them at the mock.
     Runs after Virtaal is imported, before the plug-ins load."""
-    if service == 'apertium':
-        from virtaal.plugins.tm.models import apertium
-
-        apertium.TMModel.url = url
-    elif service == 'google':
+    if service == 'google':
         from virtaal.plugins.tm.models import google_translate
 
         google_translate.TMModel.translate_url = (

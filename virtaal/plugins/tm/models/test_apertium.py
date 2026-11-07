@@ -618,3 +618,53 @@ def test_a_file_fetch_needs_a_listed_pair():
     model.language_pairs = [('en', 'de')]
 
     assert not model.bulk_ready()
+
+
+# The user's own server (tm.ini's [apertium] url)
+
+
+def _model_on(monkeypatch, url):
+    monkeypatch.setattr(apertium, 'HTTPClient', FakeHTTPClient)
+    monkeypatch.setattr(
+        TMModel, 'load_config', lambda self: setattr(self, 'config', {'prefetch': 2, 'url': url})
+    )
+    return TMModel('apertium', fake_controller())
+
+
+@pytest.mark.parametrize(
+    'url, public',
+    [
+        ('https://www.apertium.org/apy', True),
+        ('https://apertium.org/apy/', True),
+        ('https://beta.apertium.org/apy', True),
+        ('http://localhost:2737', False),
+        ('https://apy.example.org/', False),
+        ('https://notapertium.org/apy', False),
+    ],
+)
+def test_only_apertiums_own_server_is_public(url, public):
+    assert apertium.is_public(url) is public
+
+
+def test_the_public_server_keeps_its_limits(monkeypatch, config_dir):
+    model = _model_on(monkeypatch, apertium.PUBLIC_URL)
+
+    assert (model.PREFETCH_MAX, model.BULK_MAX) == (1, 0)
+    assert model.prefetch_depth() == 1
+
+
+def test_an_own_server_may_be_asked_as_much_as_any(monkeypatch, config_dir):
+    _write_manifest(config_dir, [('eng', 'afr')])
+    _write_saved(config_dir, [('eng', 'spa')])
+
+    model = _model_on(monkeypatch, 'http://localhost:2737/')
+
+    assert (model.PREFETCH_MAX, model.BULK_MAX) == (2, None)
+    assert model.prefetch_depth() == 2
+    assert (TMModel.PREFETCH_MAX, TMModel.BULK_MAX) == (1, 0)
+    # Its own pair list, not the public server's copies.
+    assert [r.url for r in model.client.added] == ['http://localhost:2737/listPairs']
+    assert model.url_translate == 'http://localhost:2737/translate'
+    model.client.added[0].emit('http-success', _pairs_reply(('eng', 'afr')))
+    assert _saved(config_dir) == {'pairs': [['eng', 'spa']]}
+    assert model.bulk_ready()

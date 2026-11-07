@@ -18,12 +18,18 @@ available on `their wiki <http://wiki.apertium.org/>`_.
 Apertium leaves your :doc:`placeables <placeables>` untranslated, though it
 keeps each where it is in your text, even when the words around it move.
 
-The plugin queries a web service over the Internet, and suggestions might
-therefore take a moment before they are displayed. Future versions might be
-able to make use of a locally installed copy of Apertium. Join us to make this
-a reality. Also keep in mind that your source text is sent unencrypted over the
-Internet, and therefore no confidential translation should be done using this
-plug-in.
+The plugin queries Apertium's public web service over the Internet, and
+suggestions might therefore take a moment before they are displayed. Keep in
+mind that your source text is sent over the Internet, and therefore no
+confidential translation should be done using this plug-in.
+
+To use your own Apertium server (APy) instead, set ``url`` in the
+``[apertium]`` section of ``tm.ini`` in Virtaal's settings folder, for example
+``url = http://localhost:2737``. The public server is run by volunteers, so
+Virtaal looks up at most one unit ahead there (``prefetch`` in the same
+section, off by default) and never asks it for a whole file; your own server
+can be looked up two units ahead and asked with
+:ref:`Fetch Suggestions for This File <using_virtaal#fetch_suggestions_for_a_whole_file>`.
 
 Remember that the suggestions from the Apertium plugin are unreviewed
 machine-generated translations, that could be wrong, inaccurate, or flawed in

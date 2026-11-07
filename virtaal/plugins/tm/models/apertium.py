@@ -23,7 +23,7 @@ fetched with the first query, replacing it.
 import json
 import logging
 import os
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import pycountry
 
@@ -44,6 +44,15 @@ APY_LANGUAGES = {
 
 # The last pair list Apertium returned, in the config dir.
 PAIRS_FILENAME = 'apertium-pairs.json'
+
+PUBLIC_URL = "https://www.apertium.org/apy"
+"""Apertium's own, volunteer-run server."""
+
+
+def is_public(url):
+    """Whether url is Apertium's public server, whose limits apply."""
+    host = urlsplit(url.strip()).hostname or ''
+    return host == 'apertium.org' or host.endswith('.apertium.org')
 
 
 def _chop_newline(text):
@@ -124,13 +133,14 @@ class TMModel(BaseTMModel):
     description = _('Unreviewed machine translations from Apertium')
     online_service = 'Apertium'
 
-    url = "https://www.apertium.org/apy"
-
-    # A volunteer-run server: at most one ahead, and only if turned on,
-    # and never a whole file.
+    # The public, volunteer-run server: at most one ahead, and only if
+    # turned on, and never a whole file. Another server (tm.ini's
+    # [apertium] url) is the user's own: see _use_server().
     PREFETCH_MAX = 1
     BULK_MAX = 0
-    default_config = {'prefetch': 0}
+    default_config = {'prefetch': 0, 'url': PUBLIC_URL}
+    url = PUBLIC_URL
+    public = True
 
     # A start list from a copy waits for the first query to fetch the
     # live one; then the live one is in flight until it answers.
@@ -145,10 +155,10 @@ class TMModel(BaseTMModel):
         self.load_config()
 
         self.client = HTTPClient()
-        self.url_getpairs = "%(url)s/listPairs" % {"url": self.url}
-        self.url_translate = "%(url)s/translate" % {"url": self.url}
+        self._use_server()
         config_dir = _config_dir()
-        pairs = _manifest_pairs(config_dir) or _saved_pairs(config_dir)
+        # The copies list the public server's pairs.
+        pairs = (_manifest_pairs(config_dir) or _saved_pairs(config_dir)) if self.public else None
         if pairs:
             self.language_pairs = pairs
             self.languages_known = True
@@ -157,6 +167,17 @@ class TMModel(BaseTMModel):
             self._request_language_pairs()
 
         super().__init__(controller)
+
+    def _use_server(self):
+        """Use tm.ini's server: the public one with its limits, or the
+        user's own, which may be asked as much as any."""
+        self.url = str(self.config.get('url') or PUBLIC_URL).strip().rstrip('/')
+        self.public = is_public(self.url)
+        if not self.public:
+            self.PREFETCH_MAX = 2
+            self.BULK_MAX = None
+        self.url_getpairs = "%(url)s/listPairs" % {"url": self.url}
+        self.url_translate = "%(url)s/translate" % {"url": self.url}
 
     def _request_language_pairs(self):
         self._refresh_due = False
@@ -242,7 +263,8 @@ class TMModel(BaseTMModel):
             # dropping every pair: keep the one from the start.
             if pairs:
                 self.language_pairs = pairs
-                _save_pairs(_config_dir(), pairs)
+                if self.public:
+                    _save_pairs(_config_dir(), pairs)
         finally:
             self._refreshing = False
             self.set_languages_known()
