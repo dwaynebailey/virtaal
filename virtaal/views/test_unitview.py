@@ -113,6 +113,46 @@ def test_each_target_gets_its_own_matching_source_for_gettext_plurals():
     assert view.targets[1].selector_textbox is view.sources[1]
 
 
+class _FakeLabel:
+    def __init__(self):
+        self.text = None
+        self.shown = False
+
+    def set_text(self, text):
+        self.text = text
+
+    def show(self):
+        self.shown = True
+
+    def hide(self):
+        self.shown = False
+
+
+def test_a_monolingual_plural_shows_a_box_per_cldr_form_each_labelled():
+    # Russian: gettext has 3 forms, CLDR (an i18next or Android file) 4.
+    view = _make_view(['%d note', '%d notes'], multistring(['a', 'b', 'c', 'd']))
+    view.unit.plural_tags = ['one', 'few', 'many', 'other']
+    view.controller.main_controller.lang_controller.get_target_nplurals = lambda: 3
+    view.controller.main_controller.lang_controller.target_lang = SimpleNamespace(code='ru')
+    view._form_label_widgets = [_FakeLabel() for _ in range(UnitView.MAX_TARGETS)]
+
+    view._layout_update_targets()
+
+    assert [t.text for t in view.targets[:4]] == ['a', 'b', 'c', 'd']
+    labels = [label.text for label in view._form_label_widgets if label.shown]
+    assert labels == ['one: 1, 21, 31', 'few: 2, 3, 4', 'many: 0, 5, 6', 'other: 0.5, 1.5, 2.5']
+    assert view._plural_count() == 4
+
+
+def test_a_gettext_plural_has_no_form_labels():
+    view = _make_view(['%d file', '%d files'], multistring(['form 0', 'form 1']))
+    view._form_label_widgets = [_FakeLabel() for _ in range(UnitView.MAX_TARGETS)]
+
+    view._layout_update_targets()
+
+    assert not any(label.shown for label in view._form_label_widgets)
+
+
 def test_targets_fall_back_to_the_single_source_when_there_is_only_one():
     # .qm-style: one source covers every plural target form.
     view = _make_view(['%n file(s) selected'], multistring(['form 0', 'form 1']))

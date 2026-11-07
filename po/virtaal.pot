@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 20:01+0000\n"
+"POT-Creation-Date: 2026-11-07 20:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3159,6 +3159,14 @@ msgid "Removed %(count)d character this file format can't store."
 msgid_plural "Removed %(count)d characters this file format can't store."
 msgstr[0] ""
 msgstr[1] ""
+
+#. l10n: Above a plural form's box for a file like strings.xml or an
+#. i18next .json: the form's CLDR name (one, few, many, other...,
+#. left in English as the file names it) and numbers that take it.
+#: virtaal/views/unitview.py
+#, python-format
+msgid "%(form)s: %(numbers)s"
+msgstr ""
 
 #: virtaal/views/unitview.py
 msgid "Move one step back in the workflow (Ctrl+Shift+Enter)"

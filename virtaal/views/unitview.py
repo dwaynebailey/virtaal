@@ -199,6 +199,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         self.must_advance = False
         self._modified = False
         self._bg_provider = None
+        # A label above each target box, naming its plural form.
+        self._form_label_widgets = []
 
         self.connect('key-press-event', self._on_key_press_event)
 
@@ -697,6 +699,11 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         self.emit('targets-created', self.targets)
 
     def _add_target_textbox(self, index):
+        label = Gtk.Label(xalign=0)
+        label.set_no_show_all(True)
+        label.get_style_context().add_class('dim-label')
+        self._widgets['vbox_targets'].pack_start(label, False, False, 0)
+        self._form_label_widgets.append(label)
         target = self._create_textbox('', editable=True, role='target')
         textbox = target.get_child()
         rendering.set_widget_font(textbox, rendering.get_target_font_description())
@@ -970,7 +977,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
         nplurals = 1
         if self.unit.hasplural():
-            nplurals = self.controller.main_controller.lang_controller.get_target_nplurals()
+            nplurals = self._plural_count()
+        labels = self._form_labels()
 
         visible_sources = [src for src in self.sources if src.props.visible]
 
@@ -990,6 +998,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
                 rendering.set_widget_font(self.targets[i], rendering.get_target_font_description())
                 self.targets[i].set_text(targetstr)
                 self.targets[i].get_parent().show_all()
+                self._show_form_label(i, labels)
                 self.targets[i].selector_textboxes = visible_sources
                 # Match each target's own plural form to the
                 # corresponding source form (msgid vs msgid_plural) -
@@ -1011,6 +1020,48 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
                 # outside plural range
                 # logging.debug('Hiding target #%d: %s' % (i, self.targets[i]))
                 self.targets[i].get_parent().hide()
+                self._show_form_label(i, ())
+
+    def _plural_count(self):
+        """How many target forms the unit has: its own plural categories
+        (a monolingual file's CLDR forms), else the file's or the target
+        language's plural forms."""
+        tags = getattr(self.unit, 'plural_tags', None)
+        if tags:
+            return len(tags)
+        return self.controller.main_controller.lang_controller.get_target_nplurals()
+
+    def _form_labels(self):
+        """A label for each of the unit's plural categories, with numbers
+        that take it, or nothing for a unit without its own categories."""
+        tags = getattr(self.unit, 'plural_tags', None) if self.unit is not None else None
+        if not tags:
+            return ()
+        from virtaal.support.converters import plural_examples
+        from virtaal.support.libi18n.numbers import format_number
+
+        language = self.controller.main_controller.lang_controller.target_lang.code
+        examples = plural_examples(language, getattr(self.unit, 'plural_ordinal', False))
+        labels = []
+        for tag in tags:
+            numbers = [format_number(n) for n in examples.get(tag, [])]
+            # l10n: Above a plural form's box for a file like strings.xml or an
+            # i18next .json: the form's CLDR name (one, few, many, other...,
+            # left in English as the file names it) and numbers that take it.
+            label = _("%(form)s: %(numbers)s") % {'form': tag, 'numbers': ', '.join(numbers)}
+            labels.append(label if numbers else tag)
+        return labels
+
+    def _show_form_label(self, index, labels):
+        widgets = getattr(self, '_form_label_widgets', ())
+        if index >= len(widgets):
+            return
+        label = widgets[index]
+        if index < len(labels):
+            label.set_text(labels[index])
+            label.show()
+        else:
+            label.hide()
 
     def _layout_update_states(self):
         if not self._widgets['state'] and self.unit.STATE:
@@ -1100,7 +1151,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
     def _on_target_changed(self, buffer, index):
         tgt = self.targets[index]
-        nplurals = self.controller.main_controller.lang_controller.get_target_nplurals()
+        nplurals = self._plural_count()
         if tgt.elem is not None:
             rich_target = self.unit.rich_target
             if self.unit.hasplural() and len(rich_target) < nplurals:
