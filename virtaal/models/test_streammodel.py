@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -212,3 +213,65 @@ def test_the_language_picked_is_the_target_language(stream):
     stream.language = 'zu'
 
     assert stream.get_target_language() == 'zu'
+
+
+@pytest.fixture
+def paired_stream(tmp_path):
+    _po(tmp_path / 'a.po', [('One', 'Een')])
+    i18n = tmp_path / 'i18n'
+    i18n.mkdir()
+    (i18n / 'en.properties').write_text('quit=Quit\nsave=Save\n', encoding='utf-8')
+    (i18n / 'af.properties').write_text('quit=Verlaat\n', encoding='utf-8')
+    model = StreamModel(FileSet.from_paths([str(tmp_path)]), _FakeController())
+    yield model
+    statsworker.wait()
+
+
+def test_a_monolingual_file_joins_the_stream_paired_with_its_template(paired_stream, tmp_path):
+    assert [s.entry.display_name for s in paired_stream.segments] == [
+        'a.po',
+        os.path.join('i18n', 'af.properties'),
+    ]
+    paired = paired_stream.segments[1]
+    assert paired.loaded and paired.model.pair is not None
+    assert [(u.source, u.target) for u in paired_stream.get_units()] == [
+        ('One', 'Een'),
+        ('Quit', 'Verlaat'),
+        ('Save', ''),
+    ]
+    assert paired_stream.stats['total'] == [0, 1, 2]
+    assert paired_stream.stats['untranslated'] == [2]
+
+
+def test_a_paired_files_checks_come_from_memory(paired_stream):
+    paired_stream[2].target = 'Stoor!'
+    paired_stream._edited_units.add(2)
+
+    checks = paired_stream.update_checks(_checker())
+
+    assert 2 in checks.get('check-endpunc', [])
+
+
+def test_saving_the_stream_writes_a_paired_file_in_its_own_format(paired_stream, tmp_path):
+    paired_stream[2].target = 'Stoor'
+    paired_stream.mark_modified(2)
+
+    paired_stream.save_file()
+
+    assert (tmp_path / 'i18n' / 'af.properties').read_text(encoding='utf-8') == (
+        'quit=Verlaat\nsave=Stoor\n'
+    )
+    path, units = paired_stream.file_parts()[1]
+    assert path == str(tmp_path / 'i18n' / 'af.properties')
+    assert [unit.getid() for unit in units] == ['quit', 'save']
+
+
+def test_a_paired_file_is_never_read_for_the_stats_cache(tmp_path, monkeypatch):
+    (tmp_path / 'en.properties').write_text('quit=Quit\n', encoding='utf-8')
+    (tmp_path / 'af.properties').write_text('quit=Verlaat\n', encoding='utf-8')
+    filled = []
+    monkeypatch.setattr(statsworker, 'fill', filled.extend)
+
+    StreamModel(FileSet.from_paths([str(tmp_path)]), _FakeController())
+
+    assert filled == []

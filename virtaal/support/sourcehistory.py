@@ -253,11 +253,23 @@ def from_git(target, template, converter, targets, seconds=GIT_SECONDS):
     return found
 
 
-def recall(pair, targets):
+def recall(pair, targets, seconds=GIT_SECONDS):
     """{key: source} of the translations in C{targets} ({key: text})
     that C{pair}'s history knows: the local TM's, else git's."""
     found = from_local_tm(local_tm_path(), pair.target, targets)
     rest = {key: text for key, text in targets.items() if key not in found}
-    if rest:
-        found.update(from_git(pair.target, pair.template, pair.converter, rest))
+    if rest and seconds > 0:
+        found.update(from_git(pair.target, pair.template, pair.converter, rest, seconds))
     return found
+
+
+def budgeted(seconds):
+    """A L{recall} for several files whose git history may take
+    C{seconds} all told."""
+    deadline = time.monotonic() + seconds
+
+    def recall_within(pair, targets):
+        remaining = min(GIT_SECONDS, deadline - time.monotonic())
+        return recall(pair, targets, remaining)
+
+    return recall_within

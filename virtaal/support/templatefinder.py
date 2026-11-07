@@ -291,6 +291,16 @@ def _java_suffix(target):
                 yield os.path.join(directory, '%s_%s%s' % (base, code.replace('-', '_'), extension))
 
 
+def _suffix_language(target):
+    """The language of Messages_af.properties."""
+    parts = os.path.splitext(os.path.basename(target))[0].split('_')
+    for cut in (2, 1):
+        code = len(parts) > cut and known_language('_'.join(parts[-cut:]))
+        if code:
+            return code
+    return None
+
+
 def _language_name(target):
     """af.ftl, af-ZA.properties: en.ftl beside it."""
     directory, name = os.path.split(target)
@@ -318,13 +328,29 @@ def from_layout(target):
     for layout in LAYOUTS:
         for candidate in layout(target):
             if os.path.isfile(candidate) and candidate != target:
-                return TemplateMatch(candidate, path_language(target), 'layout')
+                return TemplateMatch(
+                    candidate, path_language(target) or _suffix_language(target), 'layout'
+                )
     return None
 
 
 def find_template(target):
     """A L{TemplateMatch} for C{target}, or None."""
     return from_config(target) or from_layout(target)
+
+
+def known_template(target):
+    """The L{TemplateMatch} for C{target} found without asking: from the
+    project, its layout, or the user's earlier choice. None if there's
+    none."""
+    from virtaal.support import baseline
+
+    match = find_template(target)
+    if match is None:
+        remembered = baseline.remembered_template(target)
+        if remembered:
+            match = TemplateMatch(remembered, None, 'remembered')
+    return match
 
 
 def _translation_candidates(source):

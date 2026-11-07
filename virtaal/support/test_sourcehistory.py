@@ -91,7 +91,9 @@ def test_a_translation_the_tm_never_saw_is_not_recalled(tmp_path, project):
 def test_another_files_entries_are_left_alone(tmp_path, project):
     db = _tm(tmp_path / 'tm.db', os.path.join(str(tmp_path), 'other.properties'), SAVED)
 
-    assert sourcehistory.from_local_tm(db, str(project / 'af.properties'), {'quit': 'Verlaat'}) == {}
+    assert (
+        sourcehistory.from_local_tm(db, str(project / 'af.properties'), {'quit': 'Verlaat'}) == {}
+    )
 
 
 def test_no_or_an_unreadable_local_tm_recalls_nothing(tmp_path, project):
@@ -126,9 +128,7 @@ def test_a_first_open_flags_a_changed_source_from_the_local_tm(config_dir, proje
     target = str(project / 'af.properties')
     _tm(config_dir / 'tm.db', os.path.join(str(config_dir), 'moved', 'af.properties'), SAVED)
 
-    pair = MonolingualPair(
-        target, str(project / 'en.properties'), recall=sourcehistory.recall
-    )
+    pair = MonolingualPair(target, str(project / 'en.properties'), recall=sourcehistory.recall)
 
     units = dict(pair.units())
     assert {key: state_name(unit) for key, unit in units.items()} == {
@@ -400,3 +400,14 @@ def test_the_local_tm_comes_before_git(config_dir, repo):
 
     notes = {key: unit.getnotes('translator') for key, unit in pair.units()}
     assert notes == {'app.title': '', 'greeting': 'Previous source: Hi!', 'quit': ''}
+
+
+def test_a_shared_budget_stops_asking_git_once_spent(project, monkeypatch):
+    asked = []
+    monkeypatch.setattr(sourcehistory, 'from_git', lambda *args: asked.append(args[-1]) or {})
+    pair = MonolingualPair(str(project / 'af.properties'), str(project / 'en.properties'))
+
+    sourcehistory.budgeted(10)(pair, {'quit': 'Verlaat'})
+    sourcehistory.budgeted(0)(pair, {'quit': 'Verlaat'})
+
+    assert len(asked) == 1 and 0 < asked[0] <= sourcehistory.GIT_SECONDS

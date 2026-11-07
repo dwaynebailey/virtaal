@@ -19,6 +19,8 @@ from bisect import bisect_left, bisect_right
 
 from gi.repository import GObject
 
+from virtaal.support import sourcehistory
+
 from .basemodel import BaseModel
 from .storemodel import StoreModel, fix_indexes
 
@@ -147,6 +149,8 @@ class StreamModel(BaseModel):
 
     # Read the next or previous file once the cursor is this close to it.
     PREFETCH_UNITS = 10
+    # How long the git histories of monolingual files may take at open.
+    RECALL_SECONDS = 10
 
     # The target language the files were picked for, if any.
     language = None
@@ -183,26 +187,55 @@ class StreamModel(BaseModel):
         cache = statsdb.StatsCache()
         # Reading a file for its stats is slow and, with the cyclic
         # collector off, never gives the memory back: a child does it.
-        uncached = [entry.path for entry in self.fileset if not cache.is_cached(entry.path)]
+        uncached = [
+            entry.path
+            for entry in self.fileset
+            if entry.template is None and not cache.is_cached(entry.path)
+        ]
         if uncached:
             statsworker.fill(uncached)
+        recall = sourcehistory.budgeted(self.RECALL_SECONDS)
         offset = 0
         for entry in self.fileset:
             try:
-                rows = cache.file_units(entry.path)
+                if entry.template is not None:
+                    segment = self._paired_segment(entry, offset, recall)
+                else:
+                    segment = self._cached_segment(entry, offset, cache)
             except Exception as exc:
                 logging.warning('Leaving out %s: %s', entry.path, exc)
+                segment = None
+            if segment is None:
                 self.skipped.append(entry)
                 continue
-            if not rows:
-                self.skipped.append(entry)
-                continue
-            peek = [PeekUnit(r[1], r[2], r[3], r[5]) for r in rows]
-            valid = [r[0] for r in rows]
-            self.segments.append(FileSegment(entry, offset, peek, _peek_stats(rows), valid))
-            offset += len(peek)
+            self.segments.append(segment)
+            offset += segment.count
         self._offsets = [segment.offset for segment in self.segments]
         self._len = offset
+
+    @staticmethod
+    def _cached_segment(entry, offset, cache):
+        rows = cache.file_units(entry.path)
+        if not rows:
+            return None
+        peek = [PeekUnit(r[1], r[2], r[3], r[5]) for r in rows]
+        valid = [r[0] for r in rows]
+        return FileSegment(entry, offset, peek, _peek_stats(rows), valid)
+
+    def _paired_segment(self, entry, offset, recall):
+        """A monolingual file, read now: the stats cache can't read it
+        paired with its template."""
+        from .monolingual import pairing
+
+        model = StoreModel(
+            entry.path, self.controller, fill_stats_cache=False, **pairing(entry.template, recall)
+        )
+        if not len(model):
+            return None
+        segment = FileSegment(entry, offset, model.get_units(), model.stats, model._valid_units)
+        segment.model = model
+        segment.peek = None
+        return segment
 
     # SPECIAL METHODS #
     def __getitem__(self, index):
@@ -439,10 +472,15 @@ class StreamModel(BaseModel):
         for segment in self.segments:
             if not os.path.isfile(segment.path) or segment.path in pending:
                 continue
-            store = segment.model._trans_store if segment.loaded else None
-            errors = cache.filechecks(segment.path, checker, store)
-            valid = segment.model._valid_units if segment.loaded else segment.valid
-            for key, indices in fix_indexes(errors, valid).items():
+            if segment.entry.template is not None:
+                # Checked in memory, edits included.
+                local = segment.model.update_checks(checker)
+            else:
+                store = segment.model._trans_store if segment.loaded else None
+                errors = cache.filechecks(segment.path, checker, store)
+                valid = segment.model._valid_units if segment.loaded else segment.valid
+                local = fix_indexes(errors, valid)
+            for key, indices in local.items():
                 checks.setdefault(key, []).extend(i + segment.offset for i in indices)
         for index in self._edited_units:
             self._recheck_unit(checks, index)

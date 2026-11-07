@@ -22,6 +22,20 @@ from virtaal.support.baseline import (
 )
 
 
+def pairing(match, recall=None):
+    """The L{StoreModel} arguments that open a monolingual file paired as
+    the L{TemplateMatch} C{match} says, recalling earlier sources with
+    C{recall} (L{sourcehistory.recall} if not given)."""
+    if recall is None:
+        from virtaal.support.sourcehistory import recall
+    return {
+        'template': match.template,
+        'language': match.language,
+        'skip_untranslated': match.skip_untranslated,
+        'recall': recall,
+    }
+
+
 def _state_numbers():
     from translate.storage.workflow import StateEnum
 

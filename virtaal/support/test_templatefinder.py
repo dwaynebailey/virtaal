@@ -189,6 +189,7 @@ def test_layouts_find_the_template(tmp_path, template, target):
 
     assert match.template == template
     assert match.how == 'layout'
+    assert match.language in ('af', 'af_ZA')
 
 
 def test_no_template_when_nothing_matches(tmp_path):

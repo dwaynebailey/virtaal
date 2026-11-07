@@ -121,11 +121,62 @@ def _write(root, relpath, text='a=b\n'):
 def test_a_folder_scan_keeps_monolingual_sources_out_of_the_files(tmp_path):
     po = _write(tmp_path, 'po/af.po', 'msgid "a"\nmsgstr "b"\n')
     en = _write(tmp_path, 'i18n/en.properties')
-    _write(tmp_path, 'i18n/af.properties')
+    af = _write(tmp_path, 'i18n/af.properties')
     _write(tmp_path, 'i18n/lone.properties')
 
     files = FileSet.from_paths([str(tmp_path)])
 
-    assert files.paths == [po]
+    assert files.paths == [af, po]
     assert [entry.path for entry in files.templates] == [en]
     assert [entry.path for entry in files.for_language('af').templates] == [en]
+
+
+def test_a_folder_scan_pairs_monolingual_files_with_their_templates(tmp_path):
+    en = _write(tmp_path, 'app/Messages.properties')
+    af = _write(tmp_path, 'app/Messages_af.properties')
+    _write(tmp_path, 'app/Messages_de.properties')
+    _write(tmp_path, 'app/lone.properties')
+
+    files = FileSet.from_paths([str(tmp_path)])
+
+    assert [e.display_name for e in files] == [
+        os.path.join('app', 'Messages_af.properties'),
+        os.path.join('app', 'Messages_de.properties'),
+    ]
+    assert [(e.template.template, e.language) for e in files] == [(en, 'af'), (en, 'de')]
+    assert [e.path for e in files.for_language('af')] == [af]
+    assert files[0].template_name == 'Messages.properties'
+
+
+def test_a_template_in_another_folder_is_named_from_the_scanned_one(tmp_path):
+    _write(tmp_path, 'locales/en-US/main.ftl', 'hello = Hello\n')
+    _write(tmp_path, 'locales/af/main.ftl', 'hello = Hallo\n')
+
+    entry = FileSet.from_paths([str(tmp_path)])[0]
+
+    assert entry.template_name == os.path.join('locales', 'en-US', 'main.ftl')
+
+
+def test_a_chosen_template_pairs_a_file_in_a_folder_scan(tmp_path):
+    from virtaal.support import baseline
+
+    en = _write(tmp_path, 'strings.properties')
+    target = _write(tmp_path, 'vertaal/strings.properties')
+    baseline.remember_template(target, en)
+
+    entry = FileSet.from_paths([str(tmp_path)])[0]
+
+    assert (entry.path, entry.template.template, entry.template.how) == (
+        target,
+        en,
+        'remembered',
+    )
+
+
+def test_a_monolingual_file_named_on_its_own_without_a_template_stays_unpaired(tmp_path):
+    lone = _write(tmp_path, 'lone.properties')
+    po = _write(tmp_path, 'af.po', 'msgid "a"\nmsgstr "b"\n')
+
+    files = FileSet.from_paths([lone, po])
+
+    assert [(e.path, e.template) for e in files] == [(lone, None), (po, None)]

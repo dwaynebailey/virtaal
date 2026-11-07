@@ -254,19 +254,16 @@ class StoreController(BaseController):
         if template is None:
             self.store = StoreModel(filename, self)
         else:
+            from virtaal.models.monolingual import pairing
+
             self.store = StoreModel(filename, self, **pairing(template))
 
     def find_template(self, filename):
         """The L{TemplateMatch} for a monolingual file, without asking:
         from the project, its layout, or the user's earlier choice."""
-        from virtaal.support import baseline, templatefinder
+        from virtaal.support import templatefinder
 
-        match = templatefinder.find_template(filename)
-        if match is None:
-            remembered = baseline.remembered_template(filename)
-            if remembered:
-                match = templatefinder.TemplateMatch(remembered, None, 'remembered')
-        return match
+        return templatefinder.known_template(filename)
 
     def _rename_pot_template(self, filename, force_saveas):
         import re
@@ -633,16 +630,3 @@ class StoreController(BaseController):
         if self.is_stream():
             self.store.mark_modified(index)
         self.set_modified(True)
-
-
-def pairing(match):
-    """The L{StoreModel} arguments that open a monolingual file paired as
-    the L{TemplateMatch} C{match} says."""
-    from virtaal.support import sourcehistory
-
-    return {
-        'template': match.template,
-        'language': match.language,
-        'skip_untranslated': match.skip_untranslated,
-        'recall': sourcehistory.recall,
-    }

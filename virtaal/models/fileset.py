@@ -109,21 +109,54 @@ def is_monolingual_source(path):
 
 def scan_monolingual_sources(directory):
     """The monolingual source-language files under directory."""
-    from virtaal.support import converters
+    return scan_monolingual(directory)[1]
 
-    return [
-        path for path in _walk(directory, converters.is_monolingual) if is_monolingual_source(path)
-    ]
+
+def scan_monolingual(directory):
+    """([(path, TemplateMatch)], sources) of the monolingual files under
+    directory: those whose template is known without asking, and the
+    source-language files. Others are left out."""
+    from virtaal.support import converters, templatefinder
+
+    paired = []
+    sources = []
+    for path in _walk(directory, converters.is_monolingual):
+        if is_monolingual_source(path):
+            sources.append(path)
+            continue
+        match = templatefinder.known_template(path)
+        if match is not None:
+            paired.append((path, match))
+    return paired, sources
+
+
+def _scan(path):
+    """(files to translate, {monolingual file: TemplateMatch}, monolingual
+    source files) of a file or a directory. A monolingual file named on
+    its own whose template isn't known opens unpaired."""
+    from virtaal.support import converters, templatefinder
+
+    if os.path.isdir(path):
+        paired, sources = scan_monolingual(path)
+        files = scan_directory(path) + [name for name, _match in paired]
+        files.sort(key=lambda name: os.path.relpath(name, path).split(os.sep))
+        return files, dict(paired), sources
+    if is_monolingual_source(path):
+        return [], {}, [path]
+    match = converters.is_monolingual(path) and templatefinder.known_template(path)
+    return [path], ({path: match} if match else {}), []
 
 
 class FileEntry:
     """One file of a set."""
 
-    def __init__(self, path, root=None):
+    def __init__(self, path, root=None, template=None):
         self.path = os.path.abspath(path)
         self.root = root
-        self._language = None
-        self._language_known = False
+        self.template = template
+        """The L{TemplateMatch} a monolingual file is paired with."""
+        self._language = template.language if template else None
+        self._language_known = bool(self._language)
 
     @property
     def language(self):
@@ -138,6 +171,15 @@ class FileEntry:
         if self.root:
             return os.path.relpath(self.path, self.root)
         return os.path.basename(self.path)
+
+    @property
+    def template_name(self):
+        """The template's name: beside the file, its own; else its path
+        relative to the scanned directory, if any."""
+        template = os.path.abspath(self.template.template)
+        if os.path.dirname(template) == os.path.dirname(self.path) or not self.root:
+            return os.path.basename(template)
+        return os.path.relpath(template, self.root)
 
     def __repr__(self):
         return 'FileEntry(%r)' % self.path
@@ -168,16 +210,15 @@ class FileSet:
         templates = []
         seen = set()
         for path in paths:
-            if os.path.isdir(path):
-                found = scan_directory(path)
-                sources = scan_monolingual_sources(path)
-            else:
-                found, sources = ([], [path]) if is_monolingual_source(path) else ([path], [])
+            found, paired, sources = _scan(path)
             for name in found + sources:
                 if name in seen:
                     continue
                 seen.add(name)
-                (templates if name in sources else entries).append(FileEntry(name, root))
+                if name in sources:
+                    templates.append(FileEntry(name, root))
+                else:
+                    entries.append(FileEntry(name, root, paired.get(name)))
         return cls(entries, root, templates)
 
     def __len__(self):
