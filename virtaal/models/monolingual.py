@@ -139,7 +139,7 @@ class MonolingualPair:
         values = self.converter.values(self.target) if renamed else {}
         for key, unit in self.units():
             previous = old_units.get(key)
-            if old is None:
+            if not old_units:
                 units[key] = self._first_seen(key, unit)
             elif not unit.target:
                 units[key] = self._untranslated(unit, renamed, values)

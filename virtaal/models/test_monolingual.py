@@ -266,6 +266,20 @@ def test_first_open_marks_every_translation_for_review(project):
     assert not any(unit.getnotes('translator') for unit in _units(pair).values())
 
 
+def test_first_open_after_choosing_the_template_is_still_a_first_open(project):
+    baseline.remember_template(str(project / 'af.properties'), str(project / 'en.properties'))
+
+    pair = _open(project)
+
+    assert {key: _state(u) for key, u in _units(pair).items()} == {
+        'app.title': 'needs-review',
+        'greeting': 'needs-review',
+        'quit': 'untranslated',
+    }
+    assert not any(unit.getnotes('translator') for unit in _units(pair).values())
+    assert baseline.load(str(project / 'af.properties'))['chosen']
+
+
 def test_first_open_leaves_keys_the_target_lacks_untranslated(project):
     unit = _units(_open(project))['quit']
 
