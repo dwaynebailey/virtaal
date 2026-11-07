@@ -71,7 +71,7 @@ lib /nologo /machine:x64 "/def:$src\enchant.def" "/out:$src\enchant-2.lib"
 if ($LASTEXITCODE) { throw "lib failed" }
 
 # gtkspell.h has no export annotations.
-$symbols = Select-String -Path "$gtkspell\gtkspell\gtkspell.h" -Pattern '\b(gtk_spell_[a-z_]+)\s*\(' -AllMatches |
+$symbols = Select-String -CaseSensitive -Path "$gtkspell\gtkspell\gtkspell.h" -Pattern '\b(gtk_spell_[a-z_]+)\s*\(' -AllMatches |
     ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
 (@("LIBRARY libgtkspell3-3-0", "EXPORTS") + $symbols) | Set-Content -Path "$src\gtkspell.def" -Encoding ascii
 
