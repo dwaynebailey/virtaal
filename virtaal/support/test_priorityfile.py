@@ -51,7 +51,7 @@ def _write(path, text=SMALL):
 def test_load_reads_virtaals_own_priority_file():
     priority_file = priorityfile.load(REPO_PRIORITIES)
 
-    assert [level.id for level in priority_file.levels] == ['1', '1~', '2', '3', 'x']
+    assert [level.id for level in priority_file.levels] == ['1', '1~', '2', 'installer', '3', 'x']
     assert priority_file.levels[0].name == 'Level 1 core'
     assert 'virtaal' in priority_file.domains
     assert any('\x04' in key for keys in priority_file.domains['gtk30'].values() for key in keys)
