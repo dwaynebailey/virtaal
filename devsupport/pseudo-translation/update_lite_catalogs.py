@@ -26,7 +26,10 @@ inno, the Windows installer's wizard, has no installed catalogs: its
 upstream is the vendored Inno Setup messages files
 (devsupport/packaging/windows/languages/), and its template is
 inno_lite.py's list. Its lite translations win at build time (see
-generate_installer_translations.py).
+generate_installer_translations.py). For a language with no Inno file,
+a message whose English Virtaal's own catalog (po/<lang>.po) or its GTK
+or GLib lite catalog translates is pre-filled from it, fuzzy, so it
+ships only once a translator confirms it.
 """
 
 import argparse
@@ -41,6 +44,7 @@ from translate.storage import factory, pypo
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
+PO_DIR = os.path.join(REPO_ROOT, "po")
 LITE_DIR = os.path.join(REPO_ROOT, "po", "lite")
 LINGUAS = os.path.join(REPO_ROOT, "po", "LINGUAS-lite")
 SHIPPED = os.path.join(REPO_ROOT, "po", "LINGUAS")
@@ -213,6 +217,80 @@ def _add_message(store, domain, message):
     return unit
 
 
+# Guessing an inno message from the language's other catalogs, whose
+# accelerator marker is _, where Inno's is &.
+GUESS_DOMAINS = ("gtk30", "glib20")
+# Inno's back and next buttons point the way: "< &Back", "&Next >".
+_ARROWS = ("< ", " >")
+
+
+def _plain(text, marker):
+    """text without its accelerator marker (a doubled one is the
+    character itself), and an ellipsis as three dots."""
+    text = text.replace(marker * 2, "\0").replace(marker, "").replace("\0", marker)
+    return text.replace("\u2026", "...")
+
+
+def _guess_table(path):
+    """{English without accelerator: translation} of the catalog at
+    path's translated singular messages, leaving out English it
+    translates in more than one way."""
+    if not os.path.exists(path):
+        return {}
+    found = {}
+    for unit in factory.getobject(path).units:
+        if unit.isheader() or not unit.istranslated() or unit.hasplural():
+            continue
+        found.setdefault(_plain(str(unit.source), "_"), set()).add(str(unit.target))
+    table = {}
+    for english, targets in found.items():
+        if len({_plain(t, "_") for t in targets}) == 1:
+            # The one with an accelerator, if any.
+            table[english] = max(sorted(targets), key=lambda t: "_" in t.replace("__", ""))
+    return table
+
+
+def _as_inno(translation, msgid):
+    """translation (with _ as its accelerator marker) as Inno writes
+    msgid's: & as the marker, on a letter of the translation if msgid
+    has one, and msgid's dots and arrows."""
+    wants_key = "&" in msgid.replace("&&", "")
+    text = translation.replace("&", "&&").replace("__", "\0")
+    if "_" in text:
+        text = text.replace("_", "&" if wants_key else "", 1).replace("_", "")
+    elif wants_key:
+        first = next((i for i, c in enumerate(text) if c.isalnum()), None)
+        if first is not None:
+            text = text[:first] + "&" + text[first:]
+    text = text.replace("\0", "_")
+    if "..." in msgid:
+        text = text.replace("\u2026", "...")
+    before, after = _ARROWS
+    if msgid.startswith(before):
+        text = before + text
+    if msgid.endswith(after):
+        text += after
+    return text
+
+
+def inno_guesses(lang, messages):
+    """{(context, msgid): translation} for the inno messages whose
+    English, without accelerators, dots or arrows, Virtaal's own
+    catalog for lang, else its GTK or GLib lite catalog, translates."""
+    tables = [_guess_table(os.path.join(PO_DIR, lang + ".po"))] + [
+        _guess_table(os.path.join(LITE_DIR, domain, lang + ".po")) for domain in GUESS_DOMAINS
+    ]
+    guesses = {}
+    for message in messages:
+        english = _plain(str(message.source), "&")
+        before, after = _ARROWS
+        english = english.removeprefix(before).removesuffix(after)
+        found = next((table[english] for table in tables if english in table), None)
+        if found:
+            guesses[_key(message)] = _as_inno(found, str(message.source))
+    return guesses
+
+
 def _fills(domain, lite, upstream):
     """Whether a lite translation changes what ships: it translates a
     message upstream doesn't - or, for inno, whose lite translations
@@ -266,6 +344,8 @@ def update(domain, lang, upstream):
         else {}
     )
     store = _new_catalog(domain, lang, existing)
+    # Only a language with no Inno file: each message would show in English.
+    guesses = inno_guesses(lang, messages) if domain == INNO and not upstream else {}
     fills = 0
     for message in messages:
         unit = _add_message(store, domain, message)
@@ -279,6 +359,10 @@ def update(domain, lang, upstream):
         elif before is not None and before.isfuzzy() and before.target:
             # Unfinished work: kept, still fuzzy, so it doesn't ship.
             unit.target = before.target
+            unit.markfuzzy()
+        elif _key(message) in guesses:
+            # A guess, for a translator to confirm.
+            unit.target = guesses[_key(message)]
             unit.markfuzzy()
     for unit in extras:
         code = iso_code(domain, str(unit.source))

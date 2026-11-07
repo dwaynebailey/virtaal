@@ -43,24 +43,28 @@ msgid "&Install"
 msgstr ""
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonOK"
 msgid "OK"
-msgstr ""
+msgstr "OK"
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonCancel"
 msgid "Cancel"
-msgstr ""
+msgstr "Anullo"
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonYes"
 msgid "&Yes"
-msgstr ""
+msgstr "&Po"
 
 #. A button on the wizard's pages or its message boxes.
+#, fuzzy
 msgctxt "ButtonNo"
 msgid "&No"
-msgstr ""
+msgstr "&Jo"
 
 #. A button on the wizard's pages or its message boxes.
 msgctxt "ButtonFinish"

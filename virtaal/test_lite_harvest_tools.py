@@ -471,6 +471,95 @@ def test_an_inno_translation_that_differs_from_upstream_ships(inno_catalogs):
     assert not (inno / "af.po").exists()
 
 
+@pytest.fixture
+def guessing(inno_catalogs, tmp_path, monkeypatch):
+    """A language with no Inno file, with Virtaal's and GTK's catalogs."""
+    module, inno, _upstream = inno_catalogs
+    monkeypatch.setattr(module, "PO_DIR", str(tmp_path / "po"))
+    (tmp_path / "po").mkdir()
+    (tmp_path / "gtk30").mkdir()
+    (inno / "inno.pot").write_text(
+        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+        + "".join(
+            'msgctxt "%s"\nmsgid "%s"\nmsgstr ""\n\n' % pair
+            for pair in (
+                ("ButtonBack", "< &Back"),
+                ("ButtonNext", "&Next >"),
+                ("ButtonCancel", "Cancel"),
+                ("ButtonYes", "&Yes"),
+                ("ButtonWizardBrowse", "B&rowse..."),
+                ("ButtonFinish", "&Finish"),
+                ("SetupAppTitle", "Setup"),
+            )
+        ),
+        encoding="utf-8",
+    )
+    return module, inno, tmp_path
+
+
+def _catalog(path, *pairs):
+    path.write_text(
+        "".join('msgid "%s"\nmsgstr "%s"\n\n' % pair for pair in pairs), encoding="utf-8"
+    )
+
+
+def test_a_language_with_no_inno_file_gets_fuzzy_guesses_from_its_other_catalogs(guessing):
+    from translate.storage import factory
+
+    module, inno, root = guessing
+    _catalog(
+        root / "po" / "xx.po",
+        ("_Next", "_Volgende"),
+        ("Browse…", "Blaai…"),
+        ("_Finish", "Klaar"),
+        ("Setup", "Opstel"),
+        ("Setup", "Opstelling"),
+    )
+    _catalog(
+        root / "gtk30" / "xx.po", ("_Cancel", "_Kanselleer"), ("_Yes", "_Ja"), ("_Back", "_Terug")
+    )
+
+    # Guesses don't ship: nothing fills a gap.
+    assert module.update("inno", "xx", {}) == 0
+
+    units = {u.getcontext(): u for u in factory.getobject(str(inno / "xx.po")).units}
+    assert {key: str(u.target) for key, u in units.items() if u.isfuzzy()} == {
+        "ButtonBack": "< &Terug",
+        "ButtonNext": "&Volgende >",
+        # No access key in Inno's English.
+        "ButtonCancel": "Kanselleer",
+        "ButtonYes": "&Ja",
+        # One added on the translation's first letter.
+        "ButtonWizardBrowse": "&Blaai...",
+        "ButtonFinish": "&Klaar",
+    }
+    # Translated two ways: no guess.
+    assert not units["SetupAppTitle"].target
+
+
+def test_virtaals_own_catalog_comes_first_and_a_guess_is_kept(guessing):
+    module, inno, root = guessing
+    _catalog(root / "po" / "xx.po", ("Cancel", "Kanselleer"))
+    _catalog(root / "gtk30" / "xx.po", ("_Cancel", "_Stop"))
+    module.update("inno", "xx", {})
+    (root / "po" / "xx.po").write_text("", encoding="utf-8")
+
+    module.update("inno", "xx", {})
+
+    assert '#, fuzzy\nmsgctxt "ButtonCancel"\nmsgid "Cancel"\nmsgstr "Kanselleer"' in (
+        inno / "xx.po"
+    ).read_text(encoding="utf-8")
+
+
+def test_a_language_with_an_inno_file_gets_no_guesses(guessing):
+    module, inno, root = guessing
+    _catalog(root / "po" / "xx.po", ("Cancel", "Kanselleer"))
+
+    module.update("inno", "xx", {("ButtonYes", "&Yes"): "&Ja"})
+
+    assert "Kanselleer" not in (inno / "xx.po").read_text(encoding="utf-8")
+
+
 def test_inno_upstream_is_the_vendored_messages_files(lite_catalogs):
     module, _domain_dir = lite_catalogs
 
