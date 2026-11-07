@@ -142,6 +142,12 @@ def source_weight(names, weights, sources=()):
     return max(found, default=1.0)
 
 
+def parse_licence(text):
+    """amaGama's licence= for the SPDX identifier globs in text, separated
+    by commas or spaces; '' for any licence."""
+    return ','.join(re.split(r'[\s,]+', str(text).strip())).strip(',')
+
+
 def parse_choices(config):
     """The (excluded names, {name: weight}) in config's exclude and weights."""
     excluded = {name.strip() for name in str(config.get('exclude', '')).split(',')}
@@ -174,12 +180,14 @@ class TMModel(remotetm.TMModel):
         "prefetch": 2,
         "exclude": "",
         "weights": "",
+        "licence": "",
     }
 
     # The server's sources, if known, and the ones left out and weighted.
     sources = None
     excluded = frozenset()
     weights = {}
+    licence = ''
 
     # (API v2 URL, source language) the server refused this session: it has
     # no v2 (404), or its abstracts are another version's (409).
@@ -202,6 +210,7 @@ class TMModel(remotetm.TMModel):
         self.v2_base = v2_url(url)
         excluded, self.weights = parse_choices(self.config)
         self.excluded = frozenset(excluded)
+        self.licence = parse_licence(self.config.get('licence', ''))
         self.sources = self._cached_sources()
         self.configure_func = self.configure
 
@@ -267,6 +276,18 @@ class TMModel(remotetm.TMModel):
         self.config['weights'] = ','.join(
             '%s:%g' % (name, weight) for name, weight in sorted(weights.items())
         )
+        self._drop_answers()
+
+    def set_licence(self, text):
+        """Keep only sources under the licences text lists, from the next
+        lookup on; with none listed, any licence."""
+        licence = parse_licence(text)
+        if licence == self.licence:
+            return
+        self.licence = self.config['licence'] = licence
+        self._drop_answers()
+
+    def _drop_answers(self):
         # Answers chosen by the earlier choices are dropped.
         self.cache = {}
         self._pending = {}
@@ -282,6 +303,8 @@ class TMModel(remotetm.TMModel):
     def _params(self):
         params = super()._params()
         params.update(source_params(self.excluded, self.weights, self.sources or ()))
+        if self.licence:
+            params['licence'] = self.licence
         return params
 
     def _uses_v2(self):

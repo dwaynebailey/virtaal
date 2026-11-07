@@ -6,7 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """The Amagama Sources dialog: which of the server's projects suggestions
-come from, and the weight of each (#4565)."""
+come from, the weight of each, and the licences to accept (#4565)."""
 
 import unicodedata
 
@@ -77,6 +77,41 @@ class AmagamaSourcesDialog:
         content.pack_start(intro, False, False, 0)
         content.pack_start(self.status, False, False, 0)
         content.pack_start(scrolled, True, True, 0)
+        content.pack_start(self._licence_box(), False, False, 0)
+
+    def _licence_box(self):
+        """The field for the licences to accept, and a note on what it
+        leaves out."""
+        self.licence = Gtk.Entry(
+            text=self.model.licence.replace(',', ', '),
+            # l10n: Shown in the empty field of licences to accept
+            placeholder_text=_('Any license'),
+            hexpand=True,
+            tooltip_text=_(
+                # l10n: The licences field's tooltip. Leave GPL-*, MIT and !AGPL-* as they are.
+                'SPDX license identifiers, separated by commas: * stands for any'
+                ' characters, ! leaves a license out. For example: GPL-*, MIT or !AGPL-*'
+            ),
+        )
+        self.licence.connect('changed', self._on_licence_changed)
+        self.licence.connect('activate', lambda _entry: self.apply_licence())
+        self.licence.connect('focus-out-event', self._on_licence_focus_out)
+        # l10n: Before a field listing the licences a project's translations must be under
+        label = Gtk.Label(label=_('_Licenses:'), use_underline=True, mnemonic_widget=self.licence)
+        self.licence_note = Gtk.Label(
+            # l10n: Shown under the licences field once licences are listed in it
+            label=_('Projects with no known license are left out.'),
+            wrap=True,
+            xalign=0,
+            no_show_all=True,
+        )
+        self.licence_note.get_style_context().add_class('dim-label')
+        grid = Gtk.Grid(column_spacing=6, row_spacing=3)
+        grid.attach(label, 0, 0, 1, 1)
+        grid.attach(self.licence, 1, 0, 1, 1)
+        grid.attach(self.licence_note, 1, 1, 1, 1)
+        self._on_licence_changed(self.licence)
+        return grid
 
     def _add_columns(self):
         use = Gtk.CellRendererToggle()
@@ -156,6 +191,9 @@ class AmagamaSourcesDialog:
         )
         self.model.set_choices(excluded, weights)
 
+    def apply_licence(self):
+        self.model.set_licence(self.licence.get_text())
+
     # EVENT HANDLERS #
     def _on_fetched(self, sources):
         if self._closed:
@@ -170,6 +208,14 @@ class AmagamaSourcesDialog:
             self._set_status('')
         else:
             self._set_status(_('Could not get the list of projects from Amagama.'))
+
+    def _on_licence_changed(self, entry):
+        self.licence_note.set_visible(bool(entry.get_text().strip(' ,')))
+
+    def _on_licence_focus_out(self, _entry, _event):
+        if not self._closed:
+            self.apply_licence()
+        return False
 
     def _on_toggled(self, _renderer, path):
         row = self.liststore[path]
@@ -193,5 +239,6 @@ class AmagamaSourcesDialog:
 
     def _on_response(self, _dialog, _response):
         self._closed = True
+        self.apply_licence()
         self.model.save_config()
         self.dialog.destroy()

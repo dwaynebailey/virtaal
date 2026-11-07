@@ -20,6 +20,7 @@ from virtaal.plugins.tm.models import amagama
 from virtaal.plugins.tm.models.amagama import (
     TMModel,
     parse_choices,
+    parse_licence,
     parse_sources,
     source_params,
     source_weight,
@@ -214,6 +215,23 @@ def test_parse_choices_of_an_empty_config():
     assert parse_choices({}) == (set(), {})
 
 
+# parse_licence() #
+
+
+@pytest.mark.parametrize(
+    'text, expected',
+    [
+        ('', ''),
+        (' , ', ''),
+        ('MIT', 'MIT'),
+        ('GPL-*, MIT', 'GPL-*,MIT'),
+        ('GPL-*,,MIT  !AGPL-*', 'GPL-*,MIT,!AGPL-*'),
+    ],
+)
+def test_parse_licence(text, expected):
+    assert parse_licence(text) == expected
+
+
 # The model #
 
 
@@ -389,6 +407,31 @@ def test_match_weight_follows_the_matchs_sources(state_dir, monkeypatch, match, 
     model.sources = SOURCES
 
     assert model.match_weight(match) == expected
+
+
+def test_the_licences_chosen_go_with_each_lookup(state_dir, monkeypatch):
+    model = _amagama(monkeypatch, licence='GPL-*, MIT')
+
+    assert model._params()['licence'] == 'GPL-*,MIT'
+
+
+def test_set_licence_applies_to_the_next_lookup_and_drops_earlier_answers(state_dir, monkeypatch):
+    model = _amagama(monkeypatch)
+    model.cache = {'Open': None}
+    key = model._key()
+
+    model.set_licence('!AGPL-* ')
+
+    assert model.config['licence'] == '!AGPL-*'
+    assert model._params()['licence'] == '!AGPL-*'
+    assert model.cache == {} and model._key() != key
+
+    model.cache = {'Open': None}
+    model.set_licence('!AGPL-*')
+    assert model.cache == {'Open': None}
+
+    model.set_licence('')
+    assert 'licence' not in model._params()
 
 
 def test_model_without_init_sends_no_choices():

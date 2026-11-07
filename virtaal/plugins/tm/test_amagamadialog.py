@@ -58,13 +58,18 @@ class _FakeModel:
     source_lang = 'en'
     target_lang = 'af'
 
-    def __init__(self, sources=None, excluded=(), weights=None):
+    def __init__(self, sources=None, excluded=(), weights=None, licence=''):
         self.sources = sources
         self.excluded = frozenset(excluded)
         self.weights = dict(weights or {})
+        self.licence = licence
+        self.licences = []
         self.fetches = []
         self.choices = []
         self.saved = 0
+
+    def set_licence(self, text):
+        self.licences.append(text)
 
     def fetch_sources(self, on_done, on_error):
         self.fetches.append((on_done, on_error))
@@ -229,6 +234,38 @@ def test_closing_saves_the_choices_and_ignores_a_late_answer(dialogs):
 
     assert model.saved == 1
     assert len(dialog.liststore) == 0
+
+
+@pytest.mark.parametrize('licence, text', [('', ''), ('GPL-*,MIT', 'GPL-*, MIT')])
+def test_the_licence_field_shows_the_licences_chosen(dialogs, licence, text):
+    dialog = _dialog(dialogs, _FakeModel(SOURCES, licence=licence))
+
+    assert dialog.licence.get_text() == text
+    assert dialog.licence.get_placeholder_text() == 'Any license'
+    assert dialog.licence_note.get_visible() is bool(licence)
+
+
+@pytest.mark.parametrize('text, shown', [('MIT', True), (' , ', False), ('', False)])
+def test_the_note_on_unknown_licences_shows_with_licences_listed(dialogs, text, shown):
+    dialog = _dialog(dialogs, _FakeModel(SOURCES))
+
+    dialog.licence.set_text(text)
+
+    assert dialog.licence_note.get_visible() is shown
+
+
+def test_typed_licences_apply_on_enter_and_on_close(dialogs):
+    model = _FakeModel(SOURCES)
+    dialog = _dialog(dialogs, model)
+
+    dialog.licence.set_text('GPL-*')
+    assert model.licences == []
+    dialog.licence.activate()
+    dialog.licence.set_text('GPL-*, MIT')
+    dialog.dialog.response(Gtk.ResponseType.CLOSE)
+
+    assert model.licences == ['GPL-*', 'GPL-*, MIT']
+    assert model.saved == 1
 
 
 @pytest.mark.parametrize(
