@@ -281,3 +281,62 @@ class TestFilePanel(TestScaffolding):
         assert 'app/lone.properties' not in [
             name for name, r in _rows(view).items() if not r[filepanelview.COL_SENSITIVE]
         ]
+
+    def _unpaired_folder(self, monkeypatch):
+        en = self.dir / 'app' / 'base.properties'
+        en.write_text('hello=Hello\n', encoding='utf-8')
+        lone = self.dir / 'app' / 'lone.properties'
+        lone.write_text('hello=Hallo\n', encoding='utf-8')
+        view = self._open_folder()
+        monkeypatch.setattr(
+            self.main_controller.view, 'ask_template', lambda target, guess=None: str(en)
+        )
+        monkeypatch.setattr(self.panel, 'GO_TO_SECONDS', 0.2)
+        return view, str(lone)
+
+    def _edit_first_unit(self):
+        sc = self.store_controller
+        sc.cursor.force_index(1)
+        self.unit_controller.load_unit(sc.store[1])
+        self.unit_controller.set_unit_target(0, ['Twee'])
+        self.unit_controller.finish_current_unit()
+
+    def test_the_menu_of_an_unpaired_file_chooses_its_source_language_file(self, monkeypatch):
+        view, lone = self._unpaired_folder(monkeypatch)
+
+        item = view.pair_menu(lone).get_children()[0]
+        assert item.get_label() == '_Choose Source-Language File…'
+        item.activate()
+
+        paths = [segment.entry.path for segment in self.store_controller.store.segments]
+        assert lone in paths
+
+    def test_pairing_asks_to_save_edits_first_and_keeps_them(self, monkeypatch):
+        view, lone = self._unpaired_folder(monkeypatch)
+        self._edit_first_unit()
+        asked = []
+        monkeypatch.setattr(
+            self.main_controller, '_show_save_confirm_dialog', lambda: asked.append(1) or 'save'
+        )
+        errors = []
+        monkeypatch.setattr(self.main_controller, 'show_error', errors.append)
+
+        view.pair_menu(lone).get_children()[0].activate()
+
+        assert asked == [1]
+        assert errors == []
+        with open(self.dir / 'app' / 'af.po', encoding='utf-8') as f:
+            assert 'msgstr "Twee"' in f.read()
+        assert lone in [segment.entry.path for segment in self.store_controller.store.segments]
+
+    def test_pairing_cancelled_at_the_save_question_leaves_the_edits_open(self, monkeypatch):
+        view, lone = self._unpaired_folder(monkeypatch)
+        self._edit_first_unit()
+        store = self.store_controller.store
+        monkeypatch.setattr(self.main_controller, '_show_save_confirm_dialog', lambda: 'cancel')
+
+        view.pair_menu(lone).get_children()[0].activate()
+
+        assert self.store_controller.store is store
+        assert self.store_controller.is_modified()
+        assert store[1].target == 'Twee'

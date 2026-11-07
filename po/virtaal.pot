@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 20:09+0000\n"
+"POT-Creation-Date: 2026-11-07 20:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2766,6 +2766,12 @@ msgstr ""
 msgid ""
 "Virtaal can't tell which file this one translates. Double-click to choose "
 "its source-language file."
+msgstr ""
+
+#. l10n: In the files panel's menu for a greyed file like af.properties
+#. whose English (or other source-language) file wasn't found
+#: virtaal/views/filepanelview.py
+msgid "_Choose Source-Language File…"
 msgstr ""
 
 #: virtaal/views/langview.py

@@ -9,7 +9,7 @@
 
 import os
 
-from gi.repository import GLib, Gtk, Pango
+from gi.repository import Gdk, GLib, Gtk, Pango
 
 from virtaal.common.pan_app import ngettext
 from virtaal.support.libi18n.numbers import format_number, format_percent
@@ -135,11 +135,7 @@ class FilePanelView(BaseView):
         column.add_attribute(progress, 'visible', COL_SENSITIVE)
         self.treeview.append_column(column)
 
-        selection = self.treeview.get_selection()
-        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
-        selection.connect('changed', self._on_selection_changed)
-        self.treeview.connect('key-press-event', self._on_key_press)
-        self.treeview.connect('row-activated', self._on_row_activated)
+        self._connect_treeview()
 
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -149,6 +145,15 @@ class FilePanelView(BaseView):
         self.widget.set_size_request(self.WIDTH // 2, -1)
         self.widget.show_all()
         self.language_box.hide()
+
+    def _connect_treeview(self):
+        selection = self.treeview.get_selection()
+        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection.connect('changed', self._on_selection_changed)
+        self.treeview.connect('key-press-event', self._on_key_press)
+        self.treeview.connect('row-activated', self._on_row_activated)
+        self.treeview.connect('button-press-event', self._on_button_press)
+        self.treeview.connect('popup-menu', self._on_popup_menu)
 
     def _all_languages_button(self):
         """A menu of what can be done with every language's files."""
@@ -384,8 +389,6 @@ class FilePanelView(BaseView):
         self.controller.files_selected(self.selected_files())
 
     def _on_key_press(self, _treeview, event):
-        from gi.repository import Gdk
-
         if event.keyval != Gdk.KEY_Escape:
             return False
         selection = self.treeview.get_selection()
@@ -401,6 +404,41 @@ class FilePanelView(BaseView):
         unpaired = self.model[path][COL_PATH]
         if unpaired:
             self.controller.pair_file(unpaired)
+
+    def _on_button_press(self, treeview, event):
+        if not event.triggers_context_menu():
+            return False
+        found = treeview.get_path_at_pos(int(event.x), int(event.y))
+        unpaired = found and self.model[found[0]][COL_PATH]
+        if not unpaired:
+            return False
+        self.pair_menu(unpaired).popup_at_pointer(event)
+        return True
+
+    def _on_popup_menu(self, treeview):
+        """Shift+F10 or the Menu key on a file with no known template."""
+        _model, paths = treeview.get_selection().get_selected_rows()
+        unpaired = len(paths) == 1 and self.model[paths[0]][COL_PATH]
+        if not unpaired:
+            return False
+        area = treeview.get_cell_area(paths[0], treeview.get_column(0))
+        self.pair_menu(unpaired).popup_at_rect(
+            treeview.get_bin_window(), area, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, None
+        )
+        return True
+
+    def pair_menu(self, path):
+        """The menu of a file with no known template."""
+        menu = Gtk.Menu()
+        # l10n: In the files panel's menu for a greyed file like af.properties
+        # whose English (or other source-language) file wasn't found
+        item = Gtk.MenuItem.new_with_mnemonic(_("_Choose Source-Language File…"))
+        item.connect('activate', lambda _item: self.controller.pair_file(path))
+        menu.append(item)
+        menu.show_all()
+        menu.attach_to_widget(self.treeview, None)
+        self._pair_menu = menu
+        return menu
 
     def _on_language_popup_shown(self, combo, _param):
         if combo.props.popup_shown:
