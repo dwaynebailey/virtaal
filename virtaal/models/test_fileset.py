@@ -181,6 +181,35 @@ def test_a_chosen_template_pairs_a_file_in_a_folder_scan(tmp_path):
     )
 
 
+def test_a_folder_scan_lists_monolingual_files_with_no_known_template_apart(tmp_path):
+    _write(tmp_path, 'app/Messages.properties')
+    _write(tmp_path, 'app/Messages_af.properties')
+    lone = _write(tmp_path, 'app/lone.properties')
+    de = _write(tmp_path, 'de/extra.properties')
+
+    files = FileSet.from_paths([str(tmp_path)])
+
+    assert [e.display_name for e in files] == [os.path.join('app', 'Messages_af.properties')]
+    assert [e.path for e in files.unpaired] == [lone, de]
+    assert all(e.template is None for e in files.unpaired)
+    # Like the files, those in another language are left out.
+    assert [e.path for e in files.for_language('af').unpaired] == [lone]
+
+
+def test_a_file_the_user_called_its_own_source_is_a_source_in_a_folder_scan(tmp_path):
+    from virtaal.support import baseline
+
+    _write(tmp_path, 'app/Messages.properties')
+    _write(tmp_path, 'app/Messages_af.properties')
+    own = _write(tmp_path, 'app/lone.properties')
+    baseline.remember_template(own, own)
+
+    files = FileSet.from_paths([str(tmp_path)])
+
+    assert own in [e.path for e in files.templates]
+    assert files.unpaired == []
+
+
 def test_a_monolingual_file_named_on_its_own_without_a_template_stays_unpaired(tmp_path):
     lone = _write(tmp_path, 'lone.properties')
     po = _write(tmp_path, 'af.po', 'msgid "a"\nmsgstr "b"\n')

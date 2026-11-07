@@ -118,38 +118,45 @@ def scan_monolingual_sources(directory):
 
 
 def scan_monolingual(directory):
-    """([(path, TemplateMatch)], sources) of the monolingual files under
-    directory: those whose template is known without asking, and the
-    source-language files. Others are left out."""
+    """([(path, TemplateMatch)], sources, unpaired) of the monolingual
+    files under directory: those whose template is known without asking,
+    the source-language files, and the others."""
     from virtaal.support import converters, templatefinder
 
     paired = []
     sources = []
+    unpaired = []
     for path in _walk(directory, converters.is_monolingual):
         if is_monolingual_source(path):
             sources.append(path)
             continue
         match = templatefinder.known_template(path)
-        if match is not None:
+        if match is None:
+            unpaired.append(path)
+        elif os.path.samefile(match.template, path):
+            # The user said it is the source-language file.
+            sources.append(path)
+        else:
             paired.append((path, match))
-    return paired, sources
+    return paired, sources, unpaired
 
 
 def _scan(path):
     """(files to translate, {monolingual file: TemplateMatch}, monolingual
-    source files) of a file or a directory. A monolingual file named on
-    its own whose template isn't known opens unpaired."""
+    source files, monolingual files with no known template) of a file or
+    a directory. A monolingual file named on its own whose template isn't
+    known opens unpaired."""
     from virtaal.support import converters, templatefinder
 
     if os.path.isdir(path):
-        paired, sources = scan_monolingual(path)
+        paired, sources, unpaired = scan_monolingual(path)
         files = scan_directory(path) + [name for name, _match in paired]
         files.sort(key=lambda name: os.path.relpath(name, path).split(os.sep))
-        return files, dict(paired), sources
+        return files, dict(paired), sources, unpaired
     if is_monolingual_source(path):
-        return [], {}, [path]
+        return [], {}, [path], []
     match = converters.is_monolingual(path) and templatefinder.known_template(path)
-    return [path], ({path: match} if match else {}), []
+    return [path], ({path: match} if match else {}), [], []
 
 
 class FileEntry:
@@ -191,14 +198,16 @@ class FileEntry:
 
 
 class FileSet:
-    """An ordered list of translation files, and the monolingual
-    source-language files (C{templates}) found with them, which aren't
-    translated in place."""
+    """An ordered list of translation files, and the monolingual files
+    found with them that aren't translated in place: source-language
+    files (C{templates}), and files whose template isn't known without
+    asking (C{unpaired})."""
 
-    def __init__(self, entries, root=None, templates=()):
+    def __init__(self, entries, root=None, templates=(), unpaired=()):
         self.entries = list(entries)
         self.root = root
         self.templates = list(templates)
+        self.unpaired = list(unpaired)
 
     @classmethod
     def from_paths(cls, paths):
@@ -213,18 +222,21 @@ class FileSet:
             root = common if os.path.isdir(common) else os.path.dirname(common)
         entries = []
         templates = []
+        unpaired = []
         seen = set()
         for path in paths:
-            found, paired, sources = _scan(path)
-            for name in found + sources:
+            found, paired, sources, lone = _scan(path)
+            for name in found + sources + lone:
                 if name in seen:
                     continue
                 seen.add(name)
                 if name in sources:
                     templates.append(FileEntry(name, root))
+                elif name in lone:
+                    unpaired.append(FileEntry(name, root))
                 else:
                     entries.append(FileEntry(name, root, paired.get(name)))
-        return cls(entries, root, templates)
+        return cls(entries, root, templates, unpaired)
 
     def __len__(self):
         return len(self.entries)
@@ -247,11 +259,10 @@ class FileSet:
         """The files in code's language, plus those of unknown language."""
         from virtaal.models.langmodel import same_language
 
-        return FileSet(
-            [e for e in self.entries if e.language is None or same_language(e.language, code)],
-            self.root,
-            self.templates,
-        )
+        def wanted(entries):
+            return [e for e in entries if e.language is None or same_language(e.language, code)]
+
+        return FileSet(wanted(self.entries), self.root, self.templates, wanted(self.unpaired))
 
     def choose_language(self, current=None):
         """The language to open: current if some file has it, else the
