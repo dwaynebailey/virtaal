@@ -47,13 +47,13 @@ msgstr ""
 #, fuzzy
 msgctxt "ButtonOK"
 msgid "OK"
-msgstr "సరే (O)"
+msgstr "సరే"
 
 #. A button on the wizard's pages or its message boxes.
 #, fuzzy
 msgctxt "ButtonCancel"
 msgid "Cancel"
-msgstr "రద్దుచేయి (C)"
+msgstr "రద్దుచేయి"
 
 #. A button on the wizard's pages or its message boxes.
 #, fuzzy
