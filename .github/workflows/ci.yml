@@ -1402,7 +1402,9 @@ jobs:
           fi
           kill "$PID"
           pkill -f virtaal.support.tmserver || true
-          if grep -Eqv "GtkosxApplication|Traceback" /tmp/bundle-launch.log; then
+          # The Toolkit's spelling check has no bare "en" dictionary, as
+          # on Windows (Assert-VirtaalLogsClean).
+          if grep -Eqv 'GtkosxApplication|^ERROR:translate\.filters\.spelling:Dictionary not found$|^Traceback \(most recent call last\):$|^ *File "(translate/filters/spelling\.py|enchant/checker/__init__\.py)", line [0-9]+, in (_get_checker|__init__)$|^enchant\.errors\.DefaultLanguageNotFoundError: ' /tmp/bundle-launch.log; then
             echo "::error::Unexpected output in the bundle's log"
             cat /tmp/bundle-launch.log
             exit 1
