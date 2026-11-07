@@ -9,6 +9,7 @@ import re
 
 from diff_match_patch import diff_match_patch
 
+from virtaal.support import invisiblechars
 from virtaal.support.abstraction import placeables
 from virtaal.views.theme import current_theme, readable_fg
 
@@ -46,6 +47,30 @@ def _fancyspaces(string):
     return '<span underline="error" foreground="grey">%s</span>' % spaces
 
 
+# The editor's labels (invisiblechars.MARKERS) for the zero-width
+# characters not already marked as unusual spaces.
+_labelled_re = re.compile(
+    '[%s]'
+    % ''.join(
+        char
+        for char, marker in invisiblechars.MARKERS.items()
+        if marker.zero_width and not _unusual_spaces_re.fullmatch(char)
+    )
+)
+
+
+def _invisible_label(match):
+    """A small grey label before the zero-width character, as the editor
+    shows it. Isolated (LRI .. PDI), its letters don't change the bidi
+    order of the text around it."""
+    char = match.group()
+    return '<span size="smaller" foreground="%s">\u2066%s\u2069</span>%s' % (
+        current_theme['subtle_fg'],
+        invisiblechars.MARKERS[char].label,
+        char,
+    )
+
+
 # Highlighting for XML
 
 # incorrect XML might be marked up incorrectly:  "<a> text </a more text bla"
@@ -77,7 +102,8 @@ def markuptext(text, fancyspaces=True, markupescapes=True, diff_text="", codes=(
     """Markup the given text to be pretty Pango markup.
 
     Special characters (&, <) are converted, XML markup highlighted with
-    escapes and unusual spaces optionally being indicated. codes are
+    escapes and unusual spaces and zero-width characters optionally
+    being indicated. codes are
     (start, end, open label, close label, span attributes) marking
     text[start:end] and the labels either side of it."""
     # locations are coming through here for some reason - tooltips, maybe
@@ -93,6 +119,7 @@ def markuptext(text, fancyspaces=True, markupescapes=True, diff_text="", codes=(
 
     if fancyspaces:
         text = _unusual_spaces_re.sub(_fancyspaces, text)
+        text = _labelled_re.sub(_invisible_label, text)
 
     if markupescapes:
         #        text = text.replace(u"\r\n", _subtle_escape(u'¶\r\n')

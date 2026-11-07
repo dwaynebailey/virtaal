@@ -13,7 +13,9 @@ label_expander.py. Uses the live current_theme colours for assertions
 palette changes."""
 
 import pytest
+from gi.repository import Gtk, Pango
 
+from virtaal.support import invisiblechars
 from virtaal.views import markup, theme
 from virtaal.views.markup import markuptext
 from virtaal.views.theme import current_theme
@@ -259,3 +261,77 @@ def test_markuptext_counts_codes_past_a_diffs_deleted_text(monkeypatch):
 
 def test_markuptext_of_only_codes():
     assert markuptext('', codes=[(0, 0, '[1]', None, 'X')]) == '<span X>[1]</span>'
+
+
+# Zero-width characters get the editor's labels (invisiblechars.MARKERS).
+
+LABELLED = [
+    char
+    for char, marker in invisiblechars.MARKERS.items()
+    if marker.zero_width and char != '\u200b'
+]
+
+
+@pytest.mark.parametrize('char', LABELLED)
+def test_markuptext_labels_a_zero_width_character_as_the_editor_does(char):
+    label = '<span size="smaller" foreground="%s">\u2066%s\u2069</span>' % (
+        current_theme['subtle_fg'],
+        invisiblechars.MARKERS[char].label,
+    )
+
+    assert markuptext('a' + char + 'b') == 'a' + label + char + 'b'
+
+
+def test_markuptext_labels_each_zero_width_character_in_a_run():
+    assert markuptext('a\u200f\u200eb').count('\u2066') == 2
+
+
+def test_markuptext_labels_nothing_else_and_only_with_fancyspaces():
+    assert markuptext('a, b; 12 c') == 'a, b; 12 c'
+    assert markuptext('a\u200fb', fancyspaces=False) == 'a\u200fb'
+
+
+def _layout(text, markup_text=None):
+    # As the unit list lays out a row.
+    context = Gtk.TreeView().create_pango_context()
+    context.set_base_dir(Pango.Direction.RTL)
+    layout = Pango.Layout(context)
+    layout.set_auto_dir(False)
+    layout.set_width(2000 * Pango.SCALE)
+    if markup_text is None:
+        layout.set_text(text, -1)
+    else:
+        layout.set_markup(markup_text, -1)
+    return layout
+
+
+def _visual_order(layout):
+    """The layout's characters left to right, without the labels and the
+    zero-width characters."""
+    text = layout.get_text()
+    positions = []
+    index = 0
+    in_label = False
+    for char in text:
+        in_label = (in_label or char == '\u2066') and char != '\u2069'
+        if not in_label and char not in invisiblechars.MARKERS and char != '\u2069':
+            positions.append((layout.index_to_pos(index).x, char))
+        index += len(char.encode('utf-8'))
+    return [char for _x, char in sorted(positions)]
+
+
+@pytest.mark.parametrize(
+    'text', ['abc \u200f-1 שלום', 'שלום \u200e12, 34 עולם', 'א\u202bב 5\u202c ג']
+)
+def test_a_label_doesnt_change_the_bidi_order_of_right_to_left_text(text):
+    labelled = _layout(text, markuptext(text))
+
+    assert labelled.get_text() != text
+    assert _visual_order(labelled) == _visual_order(_layout(text))
+
+
+def test_a_label_doesnt_change_a_rows_height():
+    plain = _layout('abc def')
+    labelled = _layout('abc\u200fdef', markuptext('abc\u200fdef'))
+
+    assert labelled.get_pixel_size()[1] == plain.get_pixel_size()[1]
