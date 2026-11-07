@@ -222,10 +222,201 @@ def read_l10n_toml(text):
     return found
 
 
+# JavaScript and TypeScript configs are read without running them: string
+# and string-array values of known keys, wherever they are in the file.
+
+_JS_TOKENS = re.compile(
+    r"""//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`""",
+    re.DOTALL,
+)
+_JS_STRING = r"""("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\$])*`)"""
+
+
+def _without_js_comments(text):
+    return _JS_TOKENS.sub(lambda m: '' if m.group(0)[0] == '/' else m.group(0), text)
+
+
+def _js_string(literal):
+    """The text of a JavaScript string literal (no ${...} in it)."""
+    body = literal[1:-1]
+    return re.sub(r'\\(.)', r'\1', body)
+
+
+def js_values(text, names):
+    """{name: text or [texts]} of the keys C{names} that a JavaScript or
+    TypeScript config sets to a string or an array of strings. Nothing
+    in it is run; a value built any other way is left out."""
+    text = _without_js_comments(text)
+    found = {}
+    for name in names:
+        key = r"""(?:\b%s|"%s"|'%s')\s*:\s*""" % ((re.escape(name),) * 3)
+        match = re.search(key + _JS_STRING, text)
+        if match:
+            found[name] = _js_string(match.group(1))
+            continue
+        match = re.search(key + r'\[([^\]]*)\]', text)
+        if match:
+            found[name] = [_js_string(m) for m in re.findall(_JS_STRING, match.group(1))]
+    return found
+
+
+def _config_values(text, names):
+    """{name: value} of the keys C{names} in a JSON, YAML or JavaScript
+    config, at any depth for JavaScript and at the top or one level
+    down for JSON and YAML."""
+    import json
+
+    import yaml
+
+    try:
+        config = json.loads(text)
+    except ValueError:
+        try:
+            config = yaml.load(text, Loader=yaml.BaseLoader)
+        except yaml.YAMLError:
+            config = None
+    if not isinstance(config, dict):
+        return js_values(text, names)
+    found = {}
+    for level in [config] + [v for v in config.values() if isinstance(v, dict)]:
+        for name in names:
+            if name in level and name not in found:
+                found[name] = level[name]
+    return found
+
+
+def _source_locale(values, *keys, locales='locales'):
+    """The source language a config names, else English if it lists it,
+    else its first language."""
+    for key in keys:
+        if isinstance(values.get(key), str) and values[key]:
+            return values[key]
+    listed = values.get(locales)
+    if isinstance(listed, list) and listed and isinstance(listed[0], str):
+        return next((code for code in listed if code.split('-')[0] == 'en'), listed[0])
+    return 'en'
+
+
+def _locale_mask(pattern, source, tokens, wildcards=()):
+    """(mask, template) of a path pattern, its language tokens (the first
+    becomes {lang}, the template's language) and wildcard tokens."""
+    mask = template = pattern
+    for token in tokens:
+        mask = mask.replace(token, '{lang}', 1).replace(token, '*')
+        template = template.replace(token, source)
+    for token in wildcards:
+        mask = mask.replace(token, '*')
+        template = template.replace(token, '*')
+    if '{lang}' not in mask:
+        return None
+    return _clean(mask), _clean(template)
+
+
+def read_inlang(text):
+    """An inlang project's settings.json: each plugin's pathPattern."""
+    import json
+
+    try:
+        config = json.loads(text)
+    except ValueError:
+        return []
+    if not isinstance(config, dict):
+        return []
+    source = _source_locale(config, 'baseLocale', 'sourceLanguageTag', locales='locales')
+    found = []
+    for key, plugin in config.items():
+        if not key.startswith('plugin.') or not isinstance(plugin, dict):
+            continue
+        patterns = plugin.get('pathPattern')
+        if isinstance(patterns, dict):
+            patterns = list(patterns.values())
+        for pattern in patterns if isinstance(patterns, list) else [patterns]:
+            if isinstance(pattern, str):
+                pair = _locale_mask(pattern, source, ('{languageTag}', '{locale}'))
+                if pair:
+                    found.append((*pair, None))
+    return found
+
+
+_LINGUI_JSON = ('minimal', 'json')
+
+
+def _lingui_paths(text):
+    """(settings, catalog paths) of a Lingui config."""
+    import json
+
+    try:
+        config = json.loads(text)
+    except ValueError:
+        values = js_values(text, ('sourceLocale', 'locales', 'format', 'style'))
+        path = r"""(?:\bpath|"path"|'path')\s*:\s*""" + _JS_STRING
+        found = re.findall(path, _without_js_comments(text))
+        return values, [_js_string(literal) for literal in found]
+    if not isinstance(config, dict):
+        return {}, []
+    catalogs = config.get('catalogs')
+    catalogs = catalogs if isinstance(catalogs, list) else []
+    return config, [c.get('path') for c in catalogs if isinstance(c, dict)]
+
+
+def read_lingui(text):
+    """A Lingui config: its catalogs' paths, when they are JSON files
+    (format "minimal", or @lingui/format-json's minimal style)."""
+    values, paths = _lingui_paths(text)
+    style = values.get('style') or values.get('format')
+    if style not in _LINGUI_JSON:
+        return []
+    source = _source_locale(values, 'sourceLocale')
+    found = []
+    for path in paths:
+        if not isinstance(path, str):
+            continue
+        path = path.replace('<rootDir>/', '').replace('<rootDir>', '')
+        pair = _locale_mask(path + '.json', source, ('{locale}',), ('{name}',))
+        if pair:
+            found.append((*pair, None))
+    return found
+
+
+_I18NEXT_LANGUAGE = ('$LOCALE', '{{lng}}', '{{language}}')
+_I18NEXT_NAMESPACE = ('$NAMESPACE', '{{ns}}', '{{namespace}}')
+_I18NEXT_PATHS = ('output', 'savePath', 'loadPath')
+
+
+def read_i18next(text):
+    """An i18next-parser, i18next-scanner or i18next-cli config: where
+    its catalogs are written (i18next-parser's default if it doesn't
+    say)."""
+    names = (*_I18NEXT_PATHS, 'locales', 'lngs', 'defaultLng', 'primaryLanguage')
+    values = _config_values(text, names)
+    listed = 'locales' if 'locales' in values else 'lngs'
+    source = _source_locale(values, 'primaryLanguage', 'defaultLng', locales=listed)
+    patterns = [values[key] for key in _I18NEXT_PATHS if isinstance(values.get(key), str)]
+    found = []
+    for pattern in patterns or ['locales/$LOCALE/$NAMESPACE.json']:
+        pair = _locale_mask(pattern, source, _I18NEXT_LANGUAGE, _I18NEXT_NAMESPACE)
+        if pair and (*pair, None) not in found:
+            found.append((*pair, None))
+    return found
+
+
+_LINGUI_CONFIGS = tuple(
+    'lingui.config.' + extension for extension in ('js', 'ts', 'mjs', 'cjs', 'json')
+) + ('.linguirc',)
+_I18NEXT_CONFIGS = tuple(
+    '%s.config.%s' % (tool, extension)
+    for tool in ('i18next-parser', 'i18next-scanner', 'i18next')
+    for extension in ('js', 'ts', 'mjs', 'cjs', 'json', 'yaml', 'yml')
+)
+
+
 CONFIG_READERS = [
     (('crowdin.yml', 'crowdin.yaml', '.crowdin.yml', '.crowdin.yaml'), read_crowdin),
     ((os.path.join('.tx', 'config'),), read_transifex),
     (('l10n.toml',), read_l10n_toml),
+    ((os.path.join('project.inlang', 'settings.json'),), read_inlang),
+    (_LINGUI_CONFIGS, read_lingui),
+    (_I18NEXT_CONFIGS, read_i18next),
 ]
 """(config file names, reader): a config file found in a folder above
 the target is read for (mask, template) pairs relative to that folder."""

@@ -275,3 +275,147 @@ def test_translations_of_android_and_apple_sources(tmp_path):
 )
 def test_source_folders(folder, expected):
     assert templatefinder.is_source_folder(folder) is expected
+
+
+# inlang, Lingui, i18next
+
+
+def test_inlang_path_patterns_become_masks():
+    text = """{
+      "$schema": "https://inlang.com/schema/project-settings",
+      "baseLocale": "en",
+      "locales": ["en", "af"],
+      "plugin.inlang.messageFormat": {"pathPattern": "./messages/{locale}.json"},
+      "plugin.inlang.i18next": {"pathPattern": {"common": "./locales/{languageTag}/common.json"}}
+    }"""
+
+    assert templatefinder.read_inlang(text) == [
+        ('messages/{lang}.json', 'messages/en.json', None),
+        ('locales/{lang}/common.json', 'locales/en/common.json', None),
+    ]
+    assert templatefinder.read_inlang('{"sourceLanguageTag": "de"}') == []
+    assert templatefinder.read_inlang('not json') == []
+
+
+def test_inlang_project_finds_the_template(tmp_path):
+    _config(
+        tmp_path,
+        'project.inlang/settings.json',
+        '{"sourceLanguageTag": "de", "languageTags": ["de", "af"],'
+        ' "plugin.inlang.messageFormat": {"pathPattern": "./i18n/{languageTag}.json"}}',
+    )
+    de, af = _touch(tmp_path, 'i18n/de.json', 'i18n/af.json')
+
+    assert find_template(af) == templatefinder.TemplateMatch(
+        de, 'af', 'project.inlang/settings.json', None
+    )
+
+
+LINGUI_TS = """\
+import { defineConfig } from "@lingui/cli"
+// format: "po" was the old one
+export default defineConfig({
+  sourceLocale: "en",
+  locales: ["en", "af", 'de'],
+  catalogs: [
+    {
+      path: "<rootDir>/src/locales/{locale}/messages",
+      include: ["src"],
+    },
+  ],
+  format: 'minimal',
+})
+"""
+
+
+def test_lingui_js_config_is_read_without_running_it():
+    assert templatefinder.read_lingui(LINGUI_TS) == [
+        ('src/locales/{lang}/messages.json', 'src/locales/en/messages.json', None)
+    ]
+    # PO catalogs (Lingui's default) are bilingual: nothing to pair.
+    assert templatefinder.read_lingui(LINGUI_TS.replace("'minimal'", '"po"')) == []
+    assert templatefinder.read_lingui(LINGUI_TS.replace("  format: 'minimal',\n", '')) == []
+
+
+def test_lingui_json_config_and_format_json_minimal_style():
+    text = (
+        '{"sourceLocale": "de", "locales": ["de", "af"],'
+        ' "catalogs": [{"path": "locale/{locale}/{name}"}], "format": "minimal"}'
+    )
+    assert templatefinder.read_lingui(text) == [('locale/{lang}/*.json', 'locale/de/*.json', None)]
+    js = LINGUI_TS.replace("format: 'minimal'", 'format: formatter({ style: "minimal" })')
+    assert templatefinder.read_lingui(js)[0][0] == 'src/locales/{lang}/messages.json'
+
+
+def test_lingui_config_finds_the_template(tmp_path):
+    _config(tmp_path, 'lingui.config.ts', LINGUI_TS)
+    en, af = _touch(tmp_path, 'src/locales/en/messages.json', 'src/locales/af/messages.json')
+
+    match = find_template(af)
+
+    assert (match.template, match.language, match.how) == (en, 'af', 'lingui.config.ts')
+
+
+@pytest.mark.parametrize(
+    'text, expected',
+    [
+        (
+            "module.exports = {\n  locales: ['de', 'en', 'af'],\n"
+            "  output: 'public/locales/$LOCALE/$NAMESPACE.json',\n}\n",
+            [('public/locales/{lang}/*.json', 'public/locales/en/*.json', None)],
+        ),
+        (
+            "module.exports = { options: { lngs: ['af', 'nl'], defaultLng: 'nl',"
+            " resource: { loadPath: 'i18n/{{lng}}/{{ns}}.json',"
+            " savePath: 'i18n/{{lng}}/{{ns}}.json' } } }",
+            [('i18n/{lang}/*.json', 'i18n/nl/*.json', None)],
+        ),
+        (
+            "export default defineConfig({ locales: ['en', 'af'], extract: {"
+            " input: ['src/**/*.tsx'], output: 'locales/{{language}}/{{namespace}}.json',"
+            " primaryLanguage: 'en' } })",
+            [('locales/{lang}/*.json', 'locales/en/*.json', None)],
+        ),
+        (
+            "locales:\n  - en\n  - af\noutput: translations/$LOCALE.json\n",
+            [('translations/{lang}.json', 'translations/en.json', None)],
+        ),
+        # i18next-parser's own default.
+        (
+            "module.exports = { locales: ['en', 'af'] }",
+            [('locales/{lang}/*.json', 'locales/en/*.json', None)],
+        ),
+    ],
+)
+def test_i18next_configs(text, expected):
+    assert templatefinder.read_i18next(text) == expected
+
+
+def test_i18next_parser_config_finds_the_template(tmp_path):
+    _config(
+        tmp_path,
+        'i18next-parser.config.js',
+        "module.exports = { locales: ['en', 'af'], output: 'lang/$LOCALE/$NAMESPACE.json' }",
+    )
+    en, af = _touch(tmp_path, 'lang/en/common.json', 'lang/af/common.json')
+
+    assert find_template(af).template == en
+    assert find_template(af).how == 'i18next-parser.config.js'
+
+
+def test_js_values_skip_comments_and_built_values():
+    text = """\
+    // sourceLocale: "xx",
+    /* locales: ["yy"] */
+    const base = "src";
+    export default {
+      sourceLocale: `en`,
+      path: `${base}/locales/{locale}`,
+      locales: ["en", "af"],
+    }
+    """
+
+    assert templatefinder.js_values(text, ('sourceLocale', 'path', 'locales')) == {
+        'sourceLocale': 'en',
+        'locales': ['en', 'af'],
+    }
