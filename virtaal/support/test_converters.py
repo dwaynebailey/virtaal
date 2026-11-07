@@ -231,3 +231,50 @@ def test_values_of_reads_bytes_as_values_reads_a_file(tmp_path):
     converter = PropertiesConverter()
 
     assert converter.values_of(path.read_bytes()) == converter.values(str(path))
+
+
+# Apple .strings
+
+EN_STRINGS = """\
+/* The window title */
+"app.title" = "File Manager";
+
+"greeting" = "Hello, %@!";
+"quit" = "Quit";
+"""
+
+
+def test_strings_pair_shows_the_template_as_source(tmp_path):
+    en = _write(tmp_path / 'en.strings', EN_STRINGS)
+    af = _write(tmp_path / 'af.strings', '"app.title" = "Lêerbestuurder";\n', 'utf-16')
+
+    store = converters.StringsConverter().to_bilingual(en, af)
+
+    assert _translations(store) == {'app.title': 'Lêerbestuurder', 'greeting': '', 'quit': ''}
+    assert store.units[1].getnotes() == 'The window title'
+
+
+def test_strings_written_back_escape_quotes_and_keep_the_target_s_encoding(tmp_path):
+    en = _write(tmp_path / 'en.strings', EN_STRINGS)
+    af = _write(tmp_path / 'af.strings', '"quit" = "Verlaat";\n', 'utf-16')
+
+    data = converters.StringsConverter().to_monolingual(
+        en, af, {'app.title': 'Die "lêer"', 'quit': 'Verlaat'}, skip_untranslated=True
+    )
+
+    assert data.startswith(b'\xff\xfe') or data.startswith(b'\xfe\xff')
+    text = data.decode('utf-16')
+    assert '"app.title" = "Die \\"lêer\\"";' in text
+    assert 'greeting' not in text and '/* The window title */' in text
+    assert converters.StringsConverter().values_of(data) == {
+        'app.title': 'Die "lêer"',
+        'quit': 'Verlaat',
+    }
+
+
+def test_strings_spans_cover_each_messages_lines():
+    assert converters.StringsConverter().spans(EN_STRINGS.encode()) == {
+        'app.title': (2, 2),
+        'greeting': (4, 4),
+        'quit': (5, 5),
+    }

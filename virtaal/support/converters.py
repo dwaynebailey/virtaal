@@ -247,9 +247,81 @@ class FluentConverter(MonolingualConverter):
         return bytes(store)
 
 
+# Apple .strings
+
+
+_STRINGS_ENTRY = re.compile(rb'^\s*("(?:\\.|[^"\\])*"|[\w.$:-]+)\s*=')
+_STRINGS_END = re.compile(rb'"\s*;\s*(?:/[/*].*)?\r?$')
+
+
+def _strings_end(lines, start):
+    """The line, counted from 1, where the .strings entry on line
+    C{start} ends."""
+    for number in range(start, len(lines) + 1):
+        if _STRINGS_END.search(lines[number - 1]):
+            return number
+    return start
+
+
+def strings_personality(data):
+    """The .strings dialect that reads C{data}: UTF-16 with a byte order
+    mark, else UTF-8."""
+    return 'strings' if data[:2] in (b'\xff\xfe', b'\xfe\xff') else 'strings-utf8'
+
+
+class StringsConverter(PropertiesConverter):
+    """Apple's .strings (Localizable.strings and others)."""
+
+    id = 'strings'
+    name = 'Apple Strings'
+    extensions = ('strings',)
+
+    def is_source_path(self, path):
+        from virtaal.support.templatefinder import is_source_folder
+
+        return is_source_folder(os.path.basename(os.path.dirname(os.path.abspath(path))))
+
+    @staticmethod
+    def _parse(data, path=None):
+        from translate.storage import properties
+
+        store = properties.propfile(personality=strings_personality(data))
+        store.filename = path
+        store.parse(data)
+        return store
+
+    def spans(self, data):
+        if strings_personality(data) == 'strings':
+            # Git's line numbers don't fit UTF-16.
+            return {}
+        lines = data.split(b'\n')
+        starts = [number for number, line in enumerate(lines, 1) if _STRINGS_ENTRY.match(line)]
+        names = [unit.name for unit in self._parse(data).units if not unit.isblank()]
+        if len(names) != len(starts):
+            return {}
+        return {
+            name: (start, _strings_end(lines, start))
+            for name, start in zip(names, starts, strict=True)
+        }
+
+    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
+        store = self._store(template_path)
+        for unit in list(store.units):
+            if unit.isblank():
+                continue
+            if unit.name in translations:
+                unit.target = translations[unit.name]
+            elif skip_untranslated:
+                store.removeunit(unit)
+        text = bytes(store).decode(store.encoding)
+        target = _read(target_path) if target_path and os.path.isfile(target_path) else b''
+        return text.encode('utf-16' if strings_personality(target) == 'strings' else 'utf-8')
+
+
 MONOLINGUAL_CONVERTERS = [
     PropertiesConverter(),
     FluentConverter(),
+    StringsConverter(),
 ]
 
 
