@@ -7,6 +7,7 @@
 
 import sys
 import types
+from types import SimpleNamespace
 
 from virtaal.common import pan_app
 from virtaal.support import asset_manifest as am
@@ -41,16 +42,24 @@ class _FakeMainController:
 
 
 class _FakeEnchant:
-    def __init__(self, known_dicts=()):
+    """known_dicts are hunspell's, applespell AppleSpell's."""
+
+    def __init__(self, known_dicts=(), applespell=()):
         self.known_dicts = set(known_dicts)
+        self.applespell = set(applespell)
         self.checked = []
 
     def dict_exists(self, language):
         self.checked.append(language)
-        return language in self.known_dicts
+        return language in self.known_dicts | self.applespell
 
     def list_languages(self):
-        return list(self.known_dicts)
+        return list(self.known_dicts | self.applespell)
+
+    def Broker(self):
+        dicts = ([(code, SimpleNamespace(name='hunspell')) for code in self.known_dicts]
+                 + [(code, SimpleNamespace(name='AppleSpell')) for code in self.applespell])
+        return SimpleNamespace(list_dicts=lambda: dicts)
 
 
 class _FakeDownloader:
@@ -92,13 +101,14 @@ class _FakeAssetManifest:
         return self._has_data
 
 
-def _make_watcher(known_dicts=(), target_lang=None, manifest_entries=None, manifest_has_data=None, lull_calls=None):
+def _make_watcher(known_dicts=(), target_lang=None, manifest_entries=None, manifest_has_data=None, lull_calls=None,
+                  applespell=()):
     _FakeDownloader.instances = []
     lull_calls = lull_calls if lull_calls is not None else []
     main_controller = _FakeMainController(target_lang)
     watcher = DictionaryDownloadWatcher(
         main_controller,
-        enchant_module=_FakeEnchant(known_dicts),
+        enchant_module=_FakeEnchant(known_dicts, applespell),
         downloader_factory=_FakeDownloader,
         asset_manifest=_FakeAssetManifest(manifest_entries, has_data=manifest_has_data),
         schedule_after_idle_lull=lambda callback: lull_calls.append(callback),
@@ -145,6 +155,29 @@ def test_skips_download_when_dictionary_already_exists():
 def test_skips_download_when_a_country_variant_covers_a_bare_code():
     main_controller, _watcher = _make_watcher(known_dicts={'de_DE'})
     main_controller.lang_controller.emit_target_lang_changed('de')
+    assert _FakeDownloader.instances == []
+
+
+def test_downloads_over_applespell_in_the_macos_build(monkeypatch):
+    """AppleSpell covers de_DE, but a hunspell dictionary comes first."""
+    monkeypatch.setattr(dictionary_download_watcher.platform, 'bundles_spelling', True)
+    main_controller, _watcher = _make_watcher(applespell={'de_DE'})
+    main_controller.lang_controller.emit_target_lang_changed('de_DE')
+    assert len(_FakeDownloader.instances) == 1
+
+
+def test_applespell_counts_elsewhere(monkeypatch):
+    monkeypatch.setattr(dictionary_download_watcher.platform, 'bundles_spelling', False)
+    main_controller, _watcher = _make_watcher(applespell={'de_DE'})
+    main_controller.lang_controller.emit_target_lang_changed('de_DE')
+    assert _FakeDownloader.instances == []
+
+
+def test_skips_download_with_a_hunspell_dictionary_in_the_macos_build(monkeypatch):
+    monkeypatch.setattr(dictionary_download_watcher.platform, 'bundles_spelling', True)
+    main_controller, _watcher = _make_watcher(known_dicts={'de_DE'}, applespell={'fr'})
+    main_controller.lang_controller.emit_target_lang_changed('de')
+    main_controller.lang_controller.emit_target_lang_changed('de_DE')
     assert _FakeDownloader.instances == []
 
 

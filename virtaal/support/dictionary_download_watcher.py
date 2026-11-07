@@ -26,6 +26,7 @@ import logging
 import os
 
 from virtaal.common import pan_app
+from virtaal.common.platform import platform
 from virtaal.support import asset_manifest as asset_manifest_module
 from virtaal.support.asset_manifest import (
     AssetManifest,
@@ -75,6 +76,11 @@ class DictionaryDownloadWatcher:
 
     def _has_dictionary(self, language):
         tag = enchant_tag(language)
+        if platform.bundles_spelling:
+            # The macOS build's AppleSpell stands in only until there is a
+            # hunspell dictionary.
+            hunspell = [code for code, provider in self._enchant.Broker().list_dicts() if provider.name == 'hunspell']
+            return any(code == tag or code.startswith(tag + '_') for code in hunspell)
         if self._enchant.dict_exists(tag):
             return True
         # A bare language code ("de") counts as covered if a country

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Builds enchant with its hunspell provider, for the self-contained .app
-# (Homebrew's enchant has aspell and AppleSpell only):
+# Builds enchant with its hunspell and AppleSpell providers, for the
+# self-contained .app (Homebrew's enchant has no hunspell provider):
 #   build_enchant.sh OUT
 # Installs to OUT/opt/virtaal-enchant; skipped when OUT already has this
 # build. Needs Homebrew's glib, hunspell, pkg-config and groff.
@@ -32,7 +32,7 @@ tar xzf "$OUT/enchant.tar.gz" -C "$OUT/src" --strip-components=1
     PKG_CONFIG_PATH="$(brew --prefix hunspell)/lib/pkgconfig:$(brew --prefix glib)/lib/pkgconfig" \
         CFLAGS="-O2 -w" CXXFLAGS="-O2 -w" OBJCXXFLAGS="-O2 -w" \
         ./configure -q --prefix="$PREFIX" --enable-relocatable --disable-static \
-        --with-hunspell --without-applespell --without-aspell --without-nuspell \
+        --with-hunspell --with-applespell --without-aspell --without-nuspell \
         --without-hspell --without-voikko --without-zemberek
     make -s -j"$(sysctl -n hw.ncpu)"
     make -s install DESTDIR="$OUT"
