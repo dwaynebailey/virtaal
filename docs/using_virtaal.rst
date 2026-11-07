@@ -519,9 +519,9 @@ the source text is confidential, this is probably not a good idea.
 
 :ref:`Fetching suggestions for a whole file
 <using_virtaal#fetch_suggestions_for_a_whole_file>` sends the source text of
-every unit it asks for at once. Requests made ahead of need, for a whole file
-or for the next units, are marked as such (``Sec-Purpose: prefetch``), so a
-service may answer them later or not at all.
+every unit it asks for at once. Requests made ahead of need are marked as such
+(``Sec-Purpose: prefetch`` for the next units, ``Sec-Purpose: prefetch;bulk``
+for a whole file), so a service may answer them later or not at all.
 
 .. _using_virtaal#contributions_to_remote_tms:
 

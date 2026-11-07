@@ -1511,4 +1511,5 @@ def test_preloads_are_marked_as_asked_ahead_of_need_and_queries_are_not(monkeypa
 
     preload, query = model.client.added[1:]
     assert 'Sec-Purpose: prefetch' in preload.headers
-    assert 'Sec-Purpose: prefetch' not in query.headers
+    assert 'Sec-Purpose: prefetch;bulk' not in preload.headers
+    assert not any(h.startswith('Sec-Purpose') for h in query.headers)

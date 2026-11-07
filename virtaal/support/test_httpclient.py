@@ -596,11 +596,18 @@ def test_a_request_asked_for_now_does_not(monkeypatch):
     assert headers == ['X-A: 1']
 
 
+def test_a_whole_files_requests_say_they_are_one_of_many(monkeypatch):
+    with httpclient.speculative(bulk=True):
+        headers, sent = _sent_headers(monkeypatch, lambda: RESTRequest('https://example.org', ''))
+
+    assert headers == sent == ['Sec-Purpose: prefetch;bulk']
+
+
 def test_speculative_marking_nests_and_ends_on_an_error():
     try:
         with httpclient.speculative():
-            with httpclient.speculative():
-                pass
+            with httpclient.speculative(bulk=True):
+                assert HTTPRequest('x').headers == ['Sec-Purpose: prefetch;bulk']
             assert HTTPRequest('https://example.org').headers == ['Sec-Purpose: prefetch']
             raise ValueError
     except ValueError:

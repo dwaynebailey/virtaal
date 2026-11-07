@@ -212,5 +212,5 @@ def test_a_file_fetchs_requests_are_marked_as_asked_ahead_of_need(timers, monkey
     test_deepl._query(model, 'Quit')
 
     assert len(sent) == 2
-    assert all('Sec-Purpose: prefetch' in request.headers for request in sent)
-    assert 'Sec-Purpose: prefetch' not in model.client.added[-1].headers
+    assert all('Sec-Purpose: prefetch;bulk' in request.headers for request in sent)
+    assert not any(h.startswith('Sec-Purpose') for h in model.client.added[-1].headers)

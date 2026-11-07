@@ -38,23 +38,24 @@ def loggable_url(url):
 
 __all__ = ['HTTPClient', 'HTTPRequest', 'RESTRequest', 'speculative']
 
-SPECULATIVE_HEADER = 'Sec-Purpose: prefetch'
+PREFETCH = 'Sec-Purpose: prefetch'
 """Marks a request asked ahead of need (the Fetch standard's header), so
 a server may answer it later, or not at all."""
+BULK = 'Sec-Purpose: prefetch;bulk'
+"""The same, for one of many asked at once: a whole file's."""
 
-_speculative = 0
+_speculative = []
 
 
 @contextlib.contextmanager
-def speculative():
+def speculative(bulk=False):
     """Mark every request made meanwhile as asked ahead of need: a
-    look-up of units not reached yet, or a whole file's."""
-    global _speculative
-    _speculative += 1
+    look-up of the next units, or with bulk, of a whole file."""
+    _speculative.append(BULK if bulk else PREFETCH)
     try:
         yield
     finally:
-        _speculative -= 1
+        _speculative.pop()
 
 
 class HTTPRequest(GObjectWrapper):
@@ -90,7 +91,7 @@ class HTTPRequest(GObjectWrapper):
         self.method = method
         self.data = data
         if _speculative:
-            headers = [*(headers or ()), SPECULATIVE_HEADER]
+            headers = [*(headers or ()), _speculative[-1]]
         self.headers = headers
         self.status = None
 

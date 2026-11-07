@@ -60,7 +60,7 @@ class BulkFetch:
         if not self.batches:
             self._finish(DONE)
             return False
-        with speculative():
+        with speculative(bulk=True):
             request = self.model.bulk_send(self.batches[0])
         if request is None:
             # The client's queue was full, or the service can't be asked.
