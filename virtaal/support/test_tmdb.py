@@ -1217,6 +1217,7 @@ def test_a_v1_file_gains_the_markup_columns_and_keeps_its_abstracts(db_path, mon
         patch.setattr(tmdb, 'SCHEMA_VERSION', 1)
         patch.delitem(tmdb.MIGRATIONS, 2)
         patch.delitem(tmdb.MIGRATIONS, 3)
+        patch.delitem(tmdb.MIGRATIONS, 4)
         db = tmdb.TMDB(db_path)
         db.cursor.execute(
             "INSERT INTO sources (text, context, lang, length, abstract) "
@@ -1392,6 +1393,7 @@ def test_a_v2_file_gets_its_plain_lengths_from_its_markup(db_path, monkeypatch):
     with monkeypatch.context() as patch:
         patch.setattr(tmdb, 'SCHEMA_VERSION', 2)
         patch.delitem(tmdb.MIGRATIONS, 3)
+        patch.delitem(tmdb.MIGRATIONS, 4)
         db = tmdb.TMDB(db_path)
         db.cursor.execute(
             "INSERT INTO sources (text, context, lang, length, abstract) "
@@ -1411,7 +1413,7 @@ def test_a_v2_file_gets_its_plain_lengths_from_its_markup(db_path, monkeypatch):
 
     db = tmdb.TMDB(db_path)
 
-    assert db._user_version() == tmdb.SCHEMA_VERSION == 3
+    assert db._user_version() == tmdb.SCHEMA_VERSION
     assert db.cursor.execute('SELECT text, plain_length FROM targets ORDER BY tid').fetchall() == [
         ('<b>Stoor</b> die lêer', len('Save the file')),
         ('Stoor dit', None),
@@ -1451,3 +1453,162 @@ def test_an_exported_tmx_imports_with_its_codes(db_path, tmp_path):
         )
     finally:
         _close(other)
+
+
+# Plural units: every form, with the source plural to score forms after the first.
+
+PLURAL_PO = (
+    'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
+    '"Plural-Forms: nplurals=2; plural=(n != 1);\\n"\n\n'
+    'msgid "Delete %d file"\nmsgid_plural "Delete %d files"\n'
+    'msgstr[0] "Skrap %d lêer"\nmsgstr[1] "Skrap %d lêers"\n'
+)
+PLURAL_FORMS = ['Skrap %d lêer', 'Skrap %d lêers']
+
+
+def _plural_po(text=PLURAL_PO):
+    return pypo.pofile.parsestring(text.encode('utf-8'))
+
+
+def _plurals(db):
+    return db.cursor.execute(
+        'SELECT text, plural_source, plural_targets FROM targets ORDER BY tid'
+    ).fetchall()
+
+
+def test_a_plural_match_has_every_form_and_the_source_plural(db_path):
+    db = tmdb.TMDB(db_path)
+    db.import_store(_plural_po(), '/x/af.po', 'en', 'af')
+
+    (match,) = db.translate_unit('Delete %d file', 'en', 'af')
+
+    assert match['target'] == 'Skrap %d lêer'
+    assert match['plural_source'] == 'Delete %d files'
+    assert match['plural_targets'] == PLURAL_FORMS
+
+
+def test_add_store_keeps_every_form(db_path):
+    db = tmdb.TMDB(db_path)
+
+    db.add_store(_plural_po(), 'en', 'af')
+
+    assert db.translate_unit('Delete %d file', 'en', 'af')[0]['plural_targets'] == PLURAL_FORMS
+
+
+def test_a_synced_unit_dict_keeps_every_form(db_path):
+    db = tmdb.TMDB(db_path)
+    unit = {
+        'source': 'Delete %d file',
+        'target': PLURAL_FORMS[0],
+        'key': 'k',
+        'plural_source': 'Delete %d files',
+        'plural_targets': PLURAL_FORMS,
+    }
+
+    db.sync_store('/x/af.po', [unit], 'en', 'af')
+    db.sync_store(
+        '/x/af.po', [{**unit, 'plural_targets': [PLURAL_FORMS[0], 'Skrap %d']}], 'en', 'af'
+    )
+
+    # The latest forms, under the same target.
+    assert _plurals(db) == [(PLURAL_FORMS[0], 'Delete %d files', '["Skrap %d lêer", "Skrap %d"]')]
+
+
+@pytest.mark.parametrize(
+    'fields',
+    [
+        {'plural_source': 'Delete %d files', 'plural_targets': ['Skrap %d lêer', '']},
+        {'plural_source': 'Delete %d files', 'plural_targets': ['Skrap %d lêer']},
+        {'plural_source': 'Delete %d files', 'plural_targets': ['Iets anders', 'Skrap']},
+        {'plural_source': 'Delete %d files', 'plural_targets': 'Skrap %d lêer'},
+        {'plural_source': None, 'plural_targets': PLURAL_FORMS},
+    ],
+)
+def test_unusable_plural_fields_are_left_out(db_path, fields):
+    db = tmdb.TMDB(db_path)
+
+    db.sync_store(
+        '/x/af.po', [{'source': 'Delete %d file', 'target': 'Skrap %d lêer', **fields}], 'en', 'af'
+    )
+
+    assert _plurals(db) == [('Skrap %d lêer', None, None)]
+    assert 'plural_targets' not in db.translate_unit('Delete %d file', 'en', 'af')[0]
+
+
+@pytest.mark.parametrize('stored', ['[unclosed', '"Skrap %d lêers"'])
+def test_a_match_with_unreadable_forms_has_none(db_path, stored):
+    db = tmdb.TMDB(db_path)
+    db.import_store(_plural_po(), '/x/af.po', 'en', 'af')
+    db.cursor.execute('UPDATE targets SET plural_targets = ?', (stored,))
+
+    (match,) = db.translate_unit('Delete %d file', 'en', 'af')
+
+    assert match['target'] == 'Skrap %d lêer'
+    assert 'plural_targets' not in match
+
+
+def test_a_plural_with_an_empty_form_is_kept_as_its_singular(db_path):
+    db = tmdb.TMDB(db_path)
+
+    db.import_store(_plural_po(PLURAL_PO.replace('Skrap %d lêers', '')), '/x/af.po', 'en', 'af')
+
+    assert _plurals(db) == [('Skrap %d lêer', None, None)]
+
+
+def test_a_singular_unit_with_a_plurals_text_keeps_its_forms(db_path):
+    db = tmdb.TMDB(db_path)
+    db.import_store(_plural_po(), '/x/af.po', 'en', 'af')
+
+    db.sync_store(
+        '/x/other.po', [{'source': 'Delete %d file', 'target': 'Skrap %d lêer'}], 'en', 'af'
+    )
+
+    assert _plurals(db) == [
+        (PLURAL_FORMS[0], 'Delete %d files', '["Skrap %d lêer", "Skrap %d lêers"]')
+    ]
+
+
+def test_a_v3_file_gains_the_plural_columns_and_keeps_its_abstracts(db_path, monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr(tmdb, 'SCHEMA_VERSION', 3)
+        patch.delitem(tmdb.MIGRATIONS, 4)
+        db = tmdb.TMDB(db_path)
+        for source, target, markup in (
+            (BOLD, '<b>Stoor</b> die lêer', BOLD_MARKUP),
+            ('Delete %d file', 'Skrap %d lêer', (None, None)),
+        ):
+            db.cursor.execute(
+                "INSERT INTO sources (text, context, lang, length, abstract) "
+                "VALUES (?, '', 'en', ?, ?)",
+                (source, len(source), tmdb._abstract(source)),
+            )
+            db.cursor.execute(
+                "INSERT INTO targets (sid, text, lang, abstract, source_markup, target_markup, "
+                "plain_length) VALUES (?, ?, 'af', ?, ?, ?, ?)",
+                (
+                    db.cursor.lastrowid,
+                    target,
+                    tmdb._abstract(target),
+                    *markup,
+                    tmdb._plain_length(markup[0]),
+                ),
+            )
+        db.connection.commit()
+        _close(db_path)
+
+    db = tmdb.TMDB(db_path)
+
+    assert db._user_version() == tmdb.SCHEMA_VERSION
+    assert {'plural_source', 'plural_targets'} <= set(_columns(db, 'targets'))
+    # A v3 file kept only the first form.
+    assert _plurals(db) == [('<b>Stoor</b> die lêer', None, None), ('Skrap %d lêer', None, None)]
+    assert _abstracts(db, 'targets') == [
+        ('<b>Stoor</b> die lêer', tmdb._abstract('<b>Stoor</b> die lêer')),
+        ('Skrap %d lêer', tmdb._abstract('Skrap %d lêer')),
+    ]
+    assert _markups(db)[0][1:] == BOLD_MARKUP
+    assert _qualities(db, 'Save the file', 'Save the file') == [100]
+
+    db.import_store(_plural_po(), '/x/af.po', 'en', 'af')
+
+    assert db.translate_unit('Delete %d file', 'en', 'af')[0]['plural_targets'] == PLURAL_FORMS

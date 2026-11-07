@@ -16,7 +16,7 @@ from gi.repository import GLib
 from virtaal.common import pan_app
 from virtaal.common.platform import platform
 from virtaal.controllers.baseplugin import PluginUnsupported
-from virtaal.support import inlinecodes
+from virtaal.support import inlinecodes, tmdb
 
 from . import remotetm
 from .basetmmodel import BaseTMModel
@@ -431,8 +431,13 @@ def _on_reply(request, on_success, on_error, action, ignore_status=(), log=loggi
 
 
 def _unit_dict(unit):
-    """What the local TM keeps of unit: its text, and its inline codes."""
-    unit_dict = {**remotetm.unit2dict(unit), 'key': unit.getid()}
+    """What the local TM keeps of unit: its text, every plural form, and
+    its inline codes."""
+    unit_dict = {
+        **remotetm.unit2dict(unit),
+        'key': unit.getid(),
+        **tmdb.plural_fields(unit.source, unit.target),
+    }
     source_markup, target_markup = inlinecodes.unit_markup(unit)
     if source_markup is not None:
         unit_dict['source_markup'] = source_markup

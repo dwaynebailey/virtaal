@@ -34,6 +34,7 @@
 """Module to provide a translation memory database."""
 
 import contextlib
+import json
 import logging
 import math
 import operator
@@ -55,10 +56,10 @@ from virtaal.support.tmx_compat import tuv_lang
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 """PRAGMA user_version of the schema below; 0 is a file an older Virtaal made."""
 
-SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1}
+SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1}
 """The abstraction algorithm whose abstracts each schema version stores.
 A new algorithm needs a new schema version, whose migration clears the
 abstracts for the backfill to recompute, so that one file never mixes
@@ -159,7 +160,14 @@ SCHEMA_V3 = (
     _fill_plain_lengths,
 )
 
-MIGRATIONS = {1: SCHEMA_V0 + SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3}
+# A plural target's source plural (msgid_plural) and every one of its
+# forms, as a JSON list whose first is the target's text; NULL otherwise.
+SCHEMA_V4 = (
+    "ALTER TABLE targets ADD COLUMN plural_source VARCHAR DEFAULT NULL",
+    "ALTER TABLE targets ADD COLUMN plural_targets VARCHAR DEFAULT NULL",
+)
+
+MIGRATIONS = {1: SCHEMA_V0 + SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3, 4: SCHEMA_V4}
 """The statements, or functions of a cursor, bringing a file up to each
 schema version from the one before. A later version that changes only
 the abstraction algorithm migrates with CLEAR_ABSTRACTS."""
@@ -480,6 +488,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             "context": unit.getcontext(),
             "source_markup": source_markup,
             "target_markup": target_markup,
+            **plural_fields(unit.source, unit.target),
         }
         self.add_dict(unitdict, source_lang, target_lang, commit)
 
@@ -530,11 +539,13 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             (sid,) = self.cursor.fetchone()
         source_markup, target_markup = _markup(unit)
         plain_length = _plain_length(source_markup)
+        plural_source, plural_targets = _plurals(unit)
         try:
             self.cursor.execute(
                 "INSERT INTO targets "
-                "(sid, text, lang, time, abstract, source_markup, target_markup, plain_length) "
-                "VALUES (?, ?, ?, ?, %s, ?, ?, ?)" % _ABSTRACT_IF_CURRENT,
+                "(sid, text, lang, time, abstract, source_markup, target_markup, plain_length, "
+                "plural_source, plural_targets) "
+                "VALUES (?, ?, ?, ?, %s, ?, ?, ?, ?, ?)" % _ABSTRACT_IF_CURRENT,
                 (
                     sid,
                     unit["target"],
@@ -545,6 +556,8 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                     source_markup,
                     target_markup,
                     plain_length,
+                    plural_source,
+                    plural_targets,
                 ),
             )
             return self.cursor.lastrowid
@@ -554,6 +567,13 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                 (sid, unit["target"], target_lang),
             )
             (tid,) = self.cursor.fetchone()
+            if plural_targets is not None:
+                # The latest forms; a singular unit keeps those it has.
+                self.cursor.execute(
+                    "UPDATE targets SET plural_source = ?, plural_targets = ? "
+                    "WHERE tid = ? AND (plural_source IS NOT ? OR plural_targets IS NOT ?)",
+                    (plural_source, plural_targets, tid, plural_source, plural_targets),
+                )
             if source_markup is not None:
                 # The latest codes; plain text keeps those it has.
                 self.cursor.execute(
@@ -644,6 +664,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                         "key": unit.getid(),
                         "source_markup": markup[0],
                         "target_markup": markup[1],
+                        **plural_fields(source, target),
                     }
                 )
         if not pairs and source_lang and target_lang:
@@ -986,7 +1007,10 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         unit_words = STRIP_REGEXP.sub(" ", queries[-1][1]).split()
         unit_words = list(filter(lambda word: len(word) > 2, unit_words))
 
-        columns = "s.text, t.text, s.context, s.abstract, t.source_markup, t.target_markup"
+        columns = (
+            "s.text, t.text, s.context, s.abstract, t.source_markup, t.target_markup, "
+            "t.plural_source, t.plural_targets"
+        )
         if self.fulltext and len(unit_words) > 3:
             logger.debug("fulltext matching")
             query = """SELECT %s FROM sources s JOIN targets t ON s.sid = t.sid JOIN fulltext f ON s.sid = f.docid
@@ -1012,7 +1036,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             match = {"source": row[0], "target": row[1], "context": row[2], "quality": quality}
             if self.abstract:
                 match["raw_quality"] = raw_quality
-            results.append(_with_markup(match, row))
+            results.append(_with_plurals(_with_markup(match, row), row))
         results.sort(key=operator.itemgetter("quality"), reverse=True)
         results = results[: self.max_candidates]
         logger.debug("results: %s", results)
@@ -1068,6 +1092,49 @@ def _with_markup(match, row):
         match["source_markup"] = source_markup
         match["target_markup"] = target_markup
     return match
+
+
+def _with_plurals(match, row):
+    """match, with the source plural and forms of a plural target."""
+    plural_source, plural_targets = row[6:8]
+    if plural_source is None or plural_targets is None:
+        return match
+    try:
+        forms = json.loads(plural_targets)
+    except ValueError:
+        return match
+    if isinstance(forms, list):
+        match["plural_source"] = plural_source
+        match["plural_targets"] = forms
+    return match
+
+
+def plural_fields(source, target):
+    """The "plural_source" and "plural_targets" a unit dictionary gives a
+    plural unit's C{source} and C{target} (multistrings) with every form
+    translated; none for any other."""
+    targets = [str(form) for form in getattr(target, "strings", ())]
+    if len(targets) < 2 or not all(targets):
+        return {}
+    # .qm and .ts: one source for every form.
+    sources = getattr(source, "strings", None) or [source]
+    return {"plural_source": str(sources[min(1, len(sources) - 1)]), "plural_targets": targets}
+
+
+def _plurals(unit):
+    """C{unit}'s (source plural, forms as JSON) if it has usable ones,
+    else (None, None)."""
+    plural_source = unit.get("plural_source")
+    forms = unit.get("plural_targets")
+    if (
+        not isinstance(plural_source, str)
+        or not isinstance(forms, list)
+        or len(forms) < 2
+        or not all(isinstance(form, str) and form for form in forms)
+        or forms[0] != str(unit["target"])
+    ):
+        return None, None
+    return plural_source, json.dumps(forms, ensure_ascii=False)
 
 
 def _write_codes(unit, source_markup, target_markup):

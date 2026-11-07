@@ -395,6 +395,35 @@ def test_push_store_sends_an_xliff_units_inline_codes(tmp_path):
     ]
 
 
+PLURAL_PO = (
+    b'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
+    b'"Plural-Forms: nplurals=2; plural=(n != 1);\\n"\n\n'
+    b'msgid "%d file"\nmsgid_plural "%d files"\nmsgstr[0] "%d l\xc3\xaaer"\n'
+    b'msgstr[1] "%d l\xc3\xaaers"\n\n'
+    # Translated as gettext counts it, but a form is missing.
+    b'msgid "%d day"\nmsgid_plural "%d days"\nmsgstr[0] "%d dag"\nmsgstr[1] ""\n'
+)
+
+
+def test_push_store_sends_every_form_of_a_plural_unit(tmp_path):
+    model = _pushing_model()
+
+    model.push_store(_store_controller(PLURAL_PO, str(tmp_path / 'af.po')))
+
+    ((_path, body, _source_lang, _target_lang),) = model.sent
+    assert body['units'] == [
+        {
+            'source': '%d file',
+            'target': '%d lêer',
+            'context': '',
+            'key': '%d file',
+            'plural_source': '%d files',
+            'plural_targets': ['%d lêer', '%d lêers'],
+        },
+        {'source': '%d day', 'target': '%d dag', 'context': '', 'key': '%d day'},
+    ]
+
+
 def _querying_model():
     model = _pushing_model()
     model.checker = None
