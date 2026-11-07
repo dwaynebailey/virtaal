@@ -1570,6 +1570,129 @@ def test_a_singular_unit_with_a_plurals_text_keeps_its_forms(db_path):
     ]
 
 
+# TMX export: a unit per form, marked so an import joins them again.
+
+THREE_FORMS_PO = (
+    'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
+    '"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n==2 ? 1 : 2);\\n"\n\n'
+    'msgctxt "menu"\nmsgid "Delete %d file"\nmsgid_plural "Delete %d files"\n'
+    'msgstr[0] "Skrap %d lêer"\nmsgstr[1] "Skrap %d lêertjies"\nmsgstr[2] "Skrap %d lêers"\n\n'
+    'msgid "Open it"\nmsgstr "Maak dit oop"\n'
+)
+THREE_FORMS = ['Skrap %d lêer', 'Skrap %d lêertjies', 'Skrap %d lêers']
+
+
+def _plural_props(unit):
+    props = {p.get('type'): p.text for p in unit.xmlelement.iterfind(unit.namespaced('prop'))}
+    return props.get(tmdb.PLURAL_GROUP_PROP), props.get(tmdb.PLURAL_FORM_PROP)
+
+
+def test_export_writes_each_plural_form_as_a_marked_unit(db_path):
+    db = tmdb.TMDB(db_path)
+    db.import_store(_plural_po(THREE_FORMS_PO), '/x/af.po', 'en', 'af')
+
+    exported = tmx.tmxfile(db.export_tmx('en', 'af'))
+
+    assert [(u.source, u.target, u.getcontext(), _plural_props(u)) for u in exported.units] == [
+        ('Delete %d file', THREE_FORMS[0], 'menu', ('1', '0')),
+        ('Delete %d files', THREE_FORMS[1], 'menu', ('1', '1')),
+        ('Delete %d files', THREE_FORMS[2], 'menu', ('1', '2')),
+        ('Open it', 'Maak dit oop', '', (None, None)),
+    ]
+
+
+def test_an_exported_plural_imports_as_one_plural(db_path, tmp_path):
+    db = tmdb.TMDB(db_path)
+    db.import_store(_plural_po(THREE_FORMS_PO), '/x/af.po', 'en', 'af')
+    other = str(tmp_path / 'other.db')
+    try:
+        again = tmdb.TMDB(other)
+        counts = again.import_store(tmx.tmxfile(db.export_tmx('en', 'af')), '/x/e.tmx')
+
+        assert counts['added'] == 2
+        assert _plurals(again) == _plurals(db)
+        (match,) = again.translate_unit('Delete %d file', 'en', 'af')
+        assert match['plural_targets'] == THREE_FORMS
+    finally:
+        _close(other)
+
+
+def _tmx_forms(*forms, props=True):
+    """A TMX of one plural's forms, (source, target, group, form) each."""
+    units = []
+    for source, target, group, form in forms:
+        marks = (
+            '<prop type="x-plural-group">%s</prop><prop type="x-plural-form">%s</prop>'
+            % (group, form)
+            if props
+            else ''
+        )
+        units.append(
+            '<tu>%s<tuv xml:lang="en"><seg>%s</seg></tuv>'
+            '<tuv xml:lang="af"><seg>%s</seg></tuv></tu>' % (marks, source, target)
+        )
+    return tmx.tmxfile.parsestring(
+        (
+            '<tmx version="1.4"><header srclang="en" segtype="sentence" adminlang="en" '
+            'datatype="plaintext" o-tmf="x" creationtool="x" creationtoolversion="1"/>'
+            '<body>%s</body></tmx>' % ''.join(units)
+        ).encode('utf-8')
+    )
+
+
+SINGULAR = ('Delete %d file', 'Skrap %d lêer')
+PLURAL = ('Delete %d files', 'Skrap %d lêers')
+
+
+def test_a_tmx_without_plural_marks_imports_as_plain_units(db_path):
+    db = tmdb.TMDB(db_path)
+
+    db.import_store(_tmx_forms((*SINGULAR, 1, 0), (*PLURAL, 1, 1), props=False), '/x/e.tmx')
+
+    assert _plurals(db) == [('Skrap %d lêer', None, None), ('Skrap %d lêers', None, None)]
+
+
+@pytest.mark.parametrize(
+    'forms',
+    [
+        [(*SINGULAR, 1, 0)],  # A form on its own.
+        [(*PLURAL, 1, 1), ('Delete %d files', 'Skrap baie', 1, 2)],  # No first form.
+        [(*SINGULAR, 1, 0), (*PLURAL, 1, 2)],  # A form missing.
+        [(*SINGULAR, 1, 0), (*PLURAL, 1, 1), ('Other %d', 'Ander %d', 1, 2)],
+        [(*SINGULAR, 1, 0), (*PLURAL, 1, 'one')],
+        [(*SINGULAR, 1, 0), (*PLURAL, '', 1)],
+    ],
+)
+def test_incomplete_plural_marks_import_as_plain_units(db_path, forms):
+    db = tmdb.TMDB(db_path)
+
+    db.import_store(_tmx_forms(*forms), '/x/e.tmx')
+
+    assert all(plural is None for _text, plural, _forms in _plurals(db))
+    assert len(_plurals(db)) == len(forms)
+
+
+def test_a_synced_tmx_joins_its_marked_forms(db_path):
+    db = tmdb.TMDB(db_path)
+    units = [
+        {'source': source, 'target': target, 'key': str(form), **tmdb.plural_marker(unit)}
+        for unit, (source, target, _group, form) in zip(
+            _tmx_forms((*SINGULAR, 7, 0), (*PLURAL, 7, 1)).units,
+            [(*SINGULAR, 7, 0), (*PLURAL, 7, 1)],
+            strict=True,
+        )
+    ]
+
+    db.sync_store('/x/open.tmx', [{**units[0], 'target': ''}, units[1]], 'en', 'af')
+    assert _plurals(db) == [('', None, None), ('Skrap %d lêers', None, None)]
+
+    db.sync_store('/x/open.tmx', units, 'en', 'af')
+
+    assert _plurals(db) == [
+        ('Skrap %d lêer', 'Delete %d files', '["Skrap %d lêer", "Skrap %d lêers"]')
+    ]
+
+
 def test_a_v3_file_gains_the_plural_columns_and_keeps_its_abstracts(db_path, monkeypatch):
     with monkeypatch.context() as patch:
         patch.setattr(tmdb, 'SCHEMA_VERSION', 3)

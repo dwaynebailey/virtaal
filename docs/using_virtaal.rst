@@ -443,7 +443,11 @@ recorded)".
   translation tools can import: the selected row's language pair (or the
   current one, with nothing selected), only the selected file's translations
   unless you untick :guilabel:`Only the selected file`. Inline codes are saved
-  as TMX codes.
+  as TMX codes. TMX has no plurals, so each plural form is saved as a
+  translation of its own: the first with the singular source text, the others
+  with the plural one. Each is marked as a form of its plural, so importing the
+  file into Virtaal's TM gives back one translation with every form; other
+  tools see ordinary translations.
 
 The first time this version of Virtaal opens a ``tm.db`` from an older
 version, it saves a copy of it as ``tm-v0.db`` beside it before updating it.

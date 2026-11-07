@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 from gi.repository import GObject, Gtk
-from translate.storage import pypo, xliff
+from translate.storage import pypo, tmx, xliff
 
 from virtaal.common import SignalTracker, pan_app
 from virtaal.common.platform import Platform
@@ -422,6 +422,21 @@ def test_push_store_sends_every_form_of_a_plural_unit(tmp_path):
         },
         {'source': '%d day', 'target': '%d dag', 'context': '', 'key': '%d day'},
     ]
+
+
+def test_push_store_sends_an_open_tmx_units_plural_mark(tmp_path):
+    model = _pushing_model()
+    store = tmx.tmxfile(sourcelanguage='en', targetlanguage='af')
+    store.addtranslation('%d file', 'en', '%d lêer', 'af')
+    tmdb._mark_plural(store.units[-1], '3', 0)
+    store_controller = _store_controller(b'', str(tmp_path / 'af.tmx'))
+    store_controller.store.get_units = lambda: store.units
+
+    model.push_store(store_controller)
+
+    ((_path, body, _source_lang, _target_lang),) = model.sent
+    assert body['units'][0]['plural_group'] == '3'
+    assert body['units'][0]['plural_form'] == 0
 
 
 def _querying_model():

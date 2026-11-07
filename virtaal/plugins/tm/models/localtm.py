@@ -432,12 +432,13 @@ def _on_reply(request, on_success, on_error, action, ignore_status=(), log=loggi
 
 
 def _unit_dict(unit):
-    """What the local TM keeps of unit: its text, every plural form, and
-    its inline codes."""
+    """What the local TM keeps of unit: its text, every plural form (or
+    a TMX unit's mark as one), and its inline codes."""
     unit_dict = {
         **remotetm.unit2dict(unit),
         'key': unit.getid(),
         **tmdb.plural_fields(unit.source, unit.target),
+        **tmdb.plural_marker(unit),
     }
     source_markup, target_markup = inlinecodes.unit_markup(unit)
     if source_markup is not None:

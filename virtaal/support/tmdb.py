@@ -815,6 +815,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                         "source_markup": markup[0],
                         "target_markup": markup[1],
                         **plural_fields(source, target),
+                        **plural_marker(unit),
                     }
                 )
         if not pairs and source_lang and target_lang:
@@ -884,7 +885,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         by_target = {}
         for (source_lang, target_lang), units in pairs.items():
             current = by_target.setdefault(target_lang, {})
-            for unit in units:
+            for unit in join_plurals(units):
                 unit = {**unit, "context": unit.get("context") or ""}
                 current[unit_key(unit)] = self._add_target(unit, source_lang, target_lang)
         return by_target
@@ -1067,10 +1068,9 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
     def export_tmx(self, source_lang, target_lang, path=None, member=""):
         """The TM's entries for this language pair as TMX bytes; only the
         store at C{path}'s if given (None if it is unknown)."""
-        from translate.storage import tmx
-
         query = (
-            "SELECT s.text, t.text, s.context, t.source_markup, t.target_markup "
+            "SELECT s.text, t.text, s.context, t.source_markup, t.target_markup, "
+            "t.plural_source, t.plural_targets "
             "FROM sources s JOIN targets t ON s.sid = t.sid "
             "WHERE s.lang = ? AND t.lang = ?"
         )
@@ -1086,10 +1086,16 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         source_tag = source_lang.replace("_", "-")
         target_tag = target_lang.replace("_", "-")
         store = tmx.tmxfile(sourcelanguage=source_tag, targetlanguage=target_tag)
-        for source, target, context, source_markup, target_markup in self.cursor.fetchall():
+        groups = 0
+        for row in self.cursor.fetchall():
+            source, target, context, source_markup, target_markup = row[:5]
             store.addtranslation(source, source_tag, target, target_tag, context=context or None)
             if source_markup is not None and target_markup is not None:
                 _write_codes(store.units[-1], source_markup, target_markup)
+            forms = _forms(*row[5:7])
+            if forms:
+                groups += 1
+                _add_forms(store, (source_tag, target_tag), str(groups), row[5], forms, context)
         return bytes(store)
 
     def forget_unit(self, source, target, source_lang, target_lang, context=None):
@@ -1252,16 +1258,95 @@ def _with_markup(match, row):
 def _with_plurals(match, row):
     """match, with the source plural and forms of a plural target."""
     plural_source, plural_targets = row[6:8]
-    if plural_source is None or plural_targets is None:
-        return match
-    try:
-        forms = json.loads(plural_targets)
-    except ValueError:
-        return match
-    if isinstance(forms, list):
+    forms = _forms(plural_source, plural_targets)
+    if forms is not None:
         match["plural_source"] = plural_source
         match["plural_targets"] = forms
     return match
+
+
+def _forms(plural_source, plural_targets):
+    """The forms a target's plural columns hold, or None."""
+    if plural_source is None or plural_targets is None:
+        return None
+    try:
+        forms = json.loads(plural_targets)
+    except ValueError:
+        return None
+    return forms if isinstance(forms, list) else None
+
+
+# TMX has no plurals: each form is a translation unit of its own, the
+# first with the singular source and the others with the source plural,
+# as gettext pairs them. These properties put the forms back together.
+PLURAL_GROUP_PROP = "x-plural-group"
+PLURAL_FORM_PROP = "x-plural-form"
+
+
+def _add_forms(store, tags, group, plural_source, forms, context):
+    """Add the plural forms after the first to the TMX C{store}, whose
+    last unit is the first, marking each as one of C{group}."""
+    source_tag, target_tag = tags
+    _mark_plural(store.units[-1], group, 0)
+    for form, text in enumerate(forms[1:], 1):
+        store.addtranslation(plural_source, source_tag, text, target_tag, context=context or None)
+        _mark_plural(store.units[-1], group, form)
+
+
+def _mark_plural(unit, group, form):
+    """Mark the TMX unit as form C{form} of the plural C{group}."""
+    tuv = unit.xmlelement.find(unit.namespaced(unit.languageNode))
+    for prop_type, value in ((PLURAL_GROUP_PROP, group), (PLURAL_FORM_PROP, str(form))):
+        prop = unit.xmlelement.makeelement(unit.namespaced("prop"), {"type": prop_type})
+        prop.text = value
+        tuv.addprevious(prop)
+
+
+def plural_marker(unit):
+    """The "plural_group" and "plural_form" a unit dictionary gives the
+    TMX unit's plural properties (see export_tmx); none if it has none."""
+    if not isinstance(unit, tmx.tmxunit):
+        return {}
+    props = {}
+    for prop in unit.xmlelement.iterfind(unit.namespaced("prop")):
+        if prop.get("type") in (PLURAL_GROUP_PROP, PLURAL_FORM_PROP):
+            props.setdefault(prop.get("type"), (prop.text or "").strip())
+    group = props.get(PLURAL_GROUP_PROP)
+    form = props.get(PLURAL_FORM_PROP, "")
+    if not group or not (form.isascii() and form.isdigit()):
+        return {}
+    return {"plural_group": group, "plural_form": int(form)}
+
+
+def join_plurals(units):
+    """units (dictionaries), with the forms of each complete plural
+    group (see plural_marker) joined into its first form's entry, which
+    gains the source plural and every form."""
+    groups = {}
+    for unit in units:
+        group, form = unit.get("plural_group"), unit.get("plural_form")
+        if isinstance(group, str) and isinstance(form, int):
+            groups.setdefault(group, []).append((form, unit))
+    joined = {}
+    for members in groups.values():
+        members.sort(key=operator.itemgetter(0))
+        forms = [unit for _form, unit in members]
+        sources = {unit["source"] for unit in forms[1:]}
+        complete = [form for form, _unit in members] == list(range(len(members)))
+        if not complete or len(sources) != 1 or not all(unit["target"] for unit in forms):
+            continue
+        joined[id(forms[0])] = {
+            "plural_source": sources.pop(),
+            "plural_targets": [unit["target"] for unit in forms],
+        }
+        joined.update((id(unit), None) for unit in forms[1:])
+    if not joined:
+        return units
+    return [
+        {**unit, **joined[id(unit)]} if joined.get(id(unit)) else unit
+        for unit in units
+        if id(unit) not in joined or joined[id(unit)]
+    ]
 
 
 def plural_fields(source, target):
