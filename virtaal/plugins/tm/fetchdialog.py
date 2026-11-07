@@ -18,7 +18,7 @@ from .bulkfetch import CANCELLED, DONE, REFUSED
 
 COL_MODEL, COL_USE, COL_AVAILABLE, COL_NAME, COL_UNITS, COL_CHARS, COL_STATUS = range(7)
 
-RESPONSE_FETCH, RESPONSE_STOP = 1, 2
+RESPONSE_FETCH, RESPONSE_STOP, RESPONSE_CLEAR = 1, 2, 3
 
 
 def listed(model):
@@ -59,6 +59,16 @@ class FetchSuggestionsDialog:
         self.stop_button = self.dialog.add_button(_('_Stop'), RESPONSE_STOP)
         # l10n: Button: asks the ticked services for suggestions for the file
         self.fetch_button = self.dialog.add_button(_('_Fetch'), RESPONSE_FETCH)
+        self.clear_button = self.dialog.add_button(
+            # l10n: Button: forgets every suggestion fetched before, for every file and language
+            _('C_lear Fetched Suggestions'),
+            RESPONSE_CLEAR,
+        )
+        self.clear_button.set_tooltip_text(
+            # l10n: Tooltip of the button that forgets the suggestions fetched before
+            _('Forget the suggestions fetched for every file and language, to ask for them again.')
+        )
+        self.clear_button.get_parent().set_child_secondary(self.clear_button, True)
         self.dialog.set_default_response(RESPONSE_FETCH)
         self.dialog.connect('response', self._on_response)
 
@@ -239,6 +249,17 @@ class FetchSuggestionsDialog:
         self._update_progress()
         self._update_buttons()
 
+    def clear(self):
+        """Forget every fetched suggestion, so each service's plan asks
+        for all the file needs again."""
+        self.controller.clear_fetched()
+        self._results = {}
+        for row in self.liststore:
+            if row[COL_MODEL] not in self._checking:
+                # One with nothing to fetch before is ticked as at first.
+                self._describe(row, row[COL_MODEL], default=not row[COL_AVAILABLE])
+        self._update_buttons()
+
     def stop(self):
         for fetch in list(self.fetches.values()):
             fetch.cancel()
@@ -260,6 +281,7 @@ class FetchSuggestionsDialog:
     def _update_buttons(self):
         running = bool(self._running())
         self.fetch_button.set_sensitive(not running and bool(self.ticked()))
+        self.clear_button.set_sensitive(not running and self.controller.fetched_count() > 0)
         self.stop_button.set_visible(running)
         self.treeview.set_sensitive(not running)
 
@@ -316,6 +338,9 @@ class FetchSuggestionsDialog:
     def _on_response(self, _dialog, response):
         if response == RESPONSE_FETCH:
             self.fetch()
+            return
+        if response == RESPONSE_CLEAR:
+            self.clear()
             return
         self.stop()
         if response == RESPONSE_STOP:

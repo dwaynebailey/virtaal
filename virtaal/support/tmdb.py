@@ -456,6 +456,16 @@ class SuggestionCache(TMFile):
         now = time.time() if now is None else now
         self._write("DELETE FROM cached WHERE fetched < ?", [(int(now - days * 86400),)])
 
+    def count(self):
+        """How many answers are kept, for every language pair."""
+        (count,) = self.cursor.execute("SELECT COUNT(*) FROM cached").fetchone()
+        self.connection.commit()
+        return count
+
+    def clear(self):
+        """Drop every answer kept, for every language pair."""
+        self._write("DELETE FROM cached", [()])
+
     def _write(self, statement, rows):
         if not rows:
             return

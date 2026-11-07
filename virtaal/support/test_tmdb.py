@@ -1999,6 +1999,19 @@ def test_cached_suggestions_expire(cache):
     assert cache.get('en', 'af', ['Old', 'New']) == {'amagama': {'New': []}}
 
 
+def test_cached_suggestions_are_counted_and_cleared_for_every_pair(cache):
+    assert cache.count() == 0
+    cache.put('amagama', 'en', 'af', {'Open': [], 'Close': []})
+    cache.put('google_translate', 'en', 'de', {'Open': GOOGLE})
+
+    assert cache.count() == 3
+    cache.clear()
+
+    assert cache.count() == 0
+    assert cache.get('en', 'af', ['Open', 'Close']) == {}
+    assert cache.get('en', 'de', ['Open']) == {}
+
+
 def test_cached_suggestions_are_not_the_users_translations(db_path, cache):
     cache.put('google_translate', 'en', 'af', {LONG: [{'source': LONG, 'target': 'Maak oop'}]})
     db = tmdb.TMDB(db_path)

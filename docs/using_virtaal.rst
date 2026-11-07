@@ -315,7 +315,9 @@ under the service's name. Until they expire, a service's fetched suggestions
 answer for it, so it isn't asked again. They expire after 7 days, or as soon
 as their unit is translated. In the ``[suggestions]`` section of ``tm.ini`` in
 Virtaal's settings folder, ``fetch_words`` sets how many words a fetch covers
-and ``cache_days`` how long its suggestions are kept.
+and ``cache_days`` how long its suggestions are kept. To ask again sooner, for
+example after changing a service's settings, click :guilabel:`Clear Fetched
+Suggestions`: it forgets the fetched suggestions for every file and language.
 
 .. _using_virtaal#navigation:
 

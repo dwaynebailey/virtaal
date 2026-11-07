@@ -613,6 +613,15 @@ class TMController(BaseController):
             self.failing_units(),
         )
 
+    def fetched_count(self):
+        """How many fetched answers are kept, for every language pair."""
+        return 0 if self.fetched is None else self.fetched.count()
+
+    def clear_fetched(self):
+        """Drop every fetched suggestion kept, for every language pair."""
+        if self.fetched is not None:
+            self.fetched.drop_all()
+
     def fetch_budget(self, model):
         """How many source words model may be asked for at once: the fetch
         budget, or the model's BULK_MAX if lower; 0 for none."""

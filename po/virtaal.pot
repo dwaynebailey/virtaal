@@ -1854,6 +1854,18 @@ msgstr ""
 msgid "_Fetch"
 msgstr ""
 
+#. l10n: Button: forgets every suggestion fetched before, for every file and language
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "C_lear Fetched Suggestions"
+msgstr ""
+
+#. l10n: Tooltip of the button that forgets the suggestions fetched before
+#: virtaal/plugins/tm/fetchdialog.py
+msgid ""
+"Forget the suggestions fetched for every file and language, to ask for them "
+"again."
+msgstr ""
+
 #: virtaal/plugins/tm/fetchdialog.py
 msgid ""
 "Get suggestions now for about the next hour of work, from this unit on: "

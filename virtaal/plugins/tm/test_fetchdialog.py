@@ -20,6 +20,7 @@ from virtaal.plugins.tm.fetchdialog import (
     COL_STATUS,
     COL_UNITS,
     COL_USE,
+    RESPONSE_CLEAR,
     RESPONSE_FETCH,
     RESPONSE_STOP,
     FetchSuggestionsDialog,
@@ -245,6 +246,40 @@ def test_a_service_with_everything_fetched_has_nothing_to_fetch(made, tmp_path):
         (False, False, '', 'Nothing to fetch'),
         (False, False, '', 'Nothing to fetch'),
     ]
+
+
+def test_clear_is_offered_only_with_fetched_suggestions_kept(made, tmp_path):
+    dialog = _dialog(made, tmp_path, _Service('amagama'))
+
+    assert not dialog.clear_button.get_sensitive()
+
+    dialog.dialog.response(RESPONSE_FETCH)
+    assert not dialog.clear_button.get_sensitive()
+    dialog.fetches[dialog.ticked()[0]].model.sent[0].answer()
+    dialog.fetches[dialog.ticked()[0]].model.sent[1].answer()
+    dialog._all_done()
+
+    assert dialog.clear_button.get_sensitive()
+
+
+def test_clearing_forgets_every_pairs_suggestions_and_plans_again(made, tmp_path):
+    fetched = FetchedSuggestions(path=lambda: str(tmp_path / 'tm.db'))
+    fetched.load(UNITS, 'en', 'de')
+    fetched.keep('amagama', {'Open': []})
+    fetched.load(UNITS, 'en', 'af')
+    fetched.keep('amagama', {s: [] for s in ('Open', 'Close', 'Save')})
+    fetched.close()
+    dialog = _dialog(made, tmp_path, _Service('amagama'))
+    assert _rows(dialog, COL_AVAILABLE, COL_STATUS) == [(False, 'Nothing to fetch')]
+    assert dialog.clear_button.get_sensitive()
+
+    dialog.dialog.response(RESPONSE_CLEAR)
+
+    assert dialog.controller.fetched.count() == 0
+    assert _rows(dialog, COL_AVAILABLE, COL_UNITS, COL_STATUS) == [(True, 'Whole file', '')]
+    assert dialog.fetch_button.get_sensitive()
+    assert not dialog.clear_button.get_sensitive()
+    assert dialog.dialog.get_window() is not None
 
 
 def test_several_files_open_together_are_fetched_for_as_one(made, tmp_path):

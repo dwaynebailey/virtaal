@@ -137,6 +137,28 @@ def test_opening_a_file_drops_what_its_translated_units_had(fetched, path):
     assert _stored(path, ['Open', 'Close']) == {'google_translate': {'Close': []}}
 
 
+def test_dropping_all_forgets_every_language_pairs_answers(fetched, path):
+    fetched.load([_unit('Open')], 'en', 'de')
+    fetched.keep('amagama', {'Open': []})
+    fetched.load([_unit('Open')], 'en', 'af')
+    fetched.keep('google_translate', {'Open': [MATCH]})
+    assert fetched.count() == 2
+
+    fetched.drop_all()
+
+    assert fetched.count() == 0
+    assert fetched.matches('google_translate', 'Open') is None
+    assert _stored(path, ['Open']) == {}
+    assert _stored(path, ['Open'], target_lang='de') == {}
+
+
+def test_with_no_usable_tm_file_nothing_is_kept(tmp_path):
+    fetched = FetchedSuggestions(path=lambda: str(tmp_path / 'no' / 'such' / 'tm.db'))
+
+    assert fetched.count() == 0
+    fetched.drop_all()
+
+
 def test_a_source_still_to_translate_elsewhere_in_the_file_keeps_them(fetched, path):
     fetched.load([_unit('Open')], 'en', 'af')
     fetched.keep('google_translate', {'Open': [MATCH]})
