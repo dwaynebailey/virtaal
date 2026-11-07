@@ -426,3 +426,186 @@ def test_arb_pair_shows_descriptions_and_writes_its_own_locale(tmp_path):
 )
 def test_plural_categories_are_cldr_s(language, ordinal, expected):
     assert converters.plural_categories(language, ordinal) == expected
+
+
+# Android
+
+EN_ANDROID = """\
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- The app's name -->
+    <string name="app_name">Notes</string>
+    <string name="greeting">Hello, %1$s! It\\'s <b>nice</b> here.</string>
+    <string name="api_key" translatable="false">abc123</string>
+    <plurals name="notes_count">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
+    <string-array name="colours">
+        <item>Red</item>
+        <item>Green</item>
+    </string-array>
+</resources>
+"""
+
+
+def _android_project(tmp_path, folder, target):
+    for name, text in (('values', EN_ANDROID), (folder, target)):
+        (tmp_path / 'res' / name).mkdir(parents=True, exist_ok=True)
+        _write(tmp_path / 'res' / name / 'strings.xml', text)
+    return str(tmp_path / 'res' / 'values' / 'strings.xml'), str(
+        tmp_path / 'res' / folder / 'strings.xml'
+    )
+
+
+RU_ANDROID = """\
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Заметки</string>
+    <plurals name="notes_count">
+        <item quantity="one">%d заметка</item>
+    </plurals>
+</resources>
+"""
+
+
+def test_android_pair_has_strings_plural_forms_and_array_items(tmp_path):
+    en, ru = _android_project(tmp_path, 'values-ru', RU_ANDROID)
+
+    store = converters.AndroidConverter().to_bilingual(en, ru)
+
+    units = [
+        (u.getlocations()[0], u.source, u.target, u.getnotes())
+        for u in store.units
+        if not u.isheader()
+    ]
+    assert units == [
+        ('app_name', 'Notes', 'Заметки', "The app's name"),
+        ('greeting', "Hello, %1$s! It's <b>nice</b> here.", '', ''),
+        ('colours[0]', 'Red', '', ''),
+        ('colours[1]', 'Green', '', ''),
+        ('notes_count[one]', '%d note', '%d заметка', ''),
+        ('notes_count[few]', '%d notes', '', ''),
+        ('notes_count[many]', '%d notes', '', ''),
+        ('notes_count[other]', '%d notes', '', ''),
+    ]
+
+
+def test_android_written_back_escapes_and_leaves_out_what_isn_t_translated(tmp_path):
+    en, af = _android_project(tmp_path, 'values-af', '<resources/>\n')
+    wanted = {
+        'app_name': 'Notas',
+        # Markup after plain text stays markup.
+        'greeting': "Hallo, %1$s! Dit's <b>lekker</b> hier.",
+        'notes_count[one]': '%d nota',
+        'colours[1]': 'Groen',
+    }
+
+    data = converters.AndroidConverter().to_monolingual(en, af, wanted, skip_untranslated=True)
+
+    assert data.decode() == (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<resources xmlns:tools="http://schemas.android.com/tools">\n'
+        '    <!-- The app\'s name -->\n'
+        '    <string name="app_name">Notas</string>\n'
+        '    <string name="greeting">Hallo, %1$s! Dit\\\'s <b>lekker</b> hier.</string>\n'
+        '    <plurals name="notes_count">\n'
+        '        <item quantity="one">%d nota</item>\n'
+        '        <item quantity="other">%d notes</item>\n'
+        '    </plurals>\n'
+        '    <string-array name="colours">\n'
+        '        <item>Red</item>\n'
+        '        <item>Groen</item>\n'
+        '    </string-array>\n'
+        '</resources>\n'
+    )
+    assert converters.AndroidConverter().values_of(data)['greeting'] == wanted['greeting']
+
+
+def test_android_written_back_keeps_untranslated_strings_in_english_when_asked(tmp_path):
+    en, af = _android_project(tmp_path, 'values-af', '<resources/>\n')
+
+    text = converters.AndroidConverter().to_monolingual(en, af, {}).decode()
+
+    assert '<string name="app_name">Notes</string>' in text
+    assert 'api_key' not in text and "The app's name" in text
+
+
+def test_android_round_trip_keeps_every_translation(tmp_path):
+    en, af = _android_project(tmp_path, 'values-af', '<resources/>\n')
+    converter = converters.AndroidConverter()
+    wanted = {
+        'app_name': 'Notas & "kie"',
+        'greeting': 'Hallo @ %1$s\nnuwe reël',
+        'notes_count[one]': '%d nota',
+        'notes_count[other]': '%d notas',
+        'colours[0]': 'Rooi',
+    }
+
+    _write(
+        tmp_path / 'res' / 'values-af' / 'strings.xml',
+        converter.to_monolingual(en, af, wanted, True).decode(),
+    )
+
+    found = {k: v for k, v in _translations(converter.to_bilingual(en, af)).items() if v}
+    # An array is written whole: its untranslated items in English.
+    assert found == dict(wanted, **{'colours[1]': 'Green'})
+
+
+def test_android_spans_cover_each_string_and_item():
+    spans = converters.AndroidConverter().spans(EN_ANDROID.encode())
+
+    assert spans == {
+        'app_name': (4, 4),
+        'greeting': (5, 5),
+        'notes_count[one]': (8, 8),
+        'notes_count[other]': (9, 9),
+        'colours[0]': (12, 12),
+        'colours[1]': (13, 13),
+    }
+
+
+@pytest.mark.parametrize(
+    'relpath, text, expected',
+    [
+        ('res/values-af/strings.xml', EN_ANDROID, converters.AndroidConverter),
+        ('res/values/strings.xml', EN_ANDROID, converters.AndroidConverter),
+        # Colours, or an XML file elsewhere, aren't string resources.
+        (
+            'res/values/colors.xml',
+            '<resources><color name="a">#fff</color></resources>',
+            type(None),
+        ),
+        ('layout/strings.xml', EN_ANDROID, type(None)),
+        ('l10n/app_af.arb', '{}', converters.JsonConverter),
+        ('af.json', '{}', converters.JsonConverter),
+        ('af.lproj/Localizable.strings', EN_STRINGS, converters.StringsConverter),
+    ],
+)
+def test_monolingual_converter_reads_the_folder_and_the_file(tmp_path, relpath, text, expected):
+    path = tmp_path.joinpath(*relpath.split('/'))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _write(path, text)
+    assert isinstance(converters.monolingual_converter(str(path)), expected)
+
+
+@pytest.mark.parametrize(
+    'relpath, expected',
+    [
+        ('locales/af/common.json', True),
+        ('af.json', True),
+        ('package.json', False),
+        ('l10n/intl_messages.arb', True),
+        ('res/values-af/strings.xml', True),
+        ('res/values-pt-rBR/strings.xml', True),
+        ('res/values/strings.xml', True),
+        ('res/values-night/strings.xml', False),
+    ],
+)
+def test_a_folder_scan_takes_in_json_only_where_its_path_names_a_language(
+    tmp_path, relpath, expected
+):
+    path = tmp_path.joinpath(*relpath.split('/'))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _write(path, EN_ANDROID if relpath.endswith('.xml') else '{}')
+    assert converters.in_folder_scan(str(path), str(tmp_path)) is expected

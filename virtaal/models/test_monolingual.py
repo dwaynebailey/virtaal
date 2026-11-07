@@ -447,3 +447,26 @@ def test_the_working_units_ids_are_the_bare_keys(project):
     pair = _open(project)
 
     assert [unit.getid() for _key, unit in pair.units()] == ['app.title', 'greeting', 'quit']
+
+
+def test_an_android_pair_leaves_untranslated_strings_out_unless_told(tmp_path):
+    (tmp_path / 'values').mkdir()
+    (tmp_path / 'values-af').mkdir()
+    (tmp_path / 'values' / 'strings.xml').write_text(
+        '<resources>\n    <string name="open">Open</string>\n'
+        '    <string name="save">Save</string>\n</resources>\n',
+        encoding='utf-8',
+    )
+    target = tmp_path / 'values-af' / 'strings.xml'
+    target.write_text('<resources>\n    <string name="open">Maak oop</string>\n</resources>\n')
+
+    pair = MonolingualPair(str(target), str(tmp_path / 'values' / 'strings.xml'))
+    pair.save()
+
+    assert 'save' not in target.read_text(encoding='utf-8')
+    assert (
+        MonolingualPair(
+            str(target), str(tmp_path / 'values' / 'strings.xml'), skip_untranslated=False
+        ).skip_untranslated
+        is False
+    )

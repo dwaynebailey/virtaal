@@ -247,6 +247,37 @@ def test_a_folder_scan_counts_luganda_files(tmp_path):
     assert len(files.for_language('lg')) == 2
 
 
+ANDROID = '<resources>\n    <string name="a">%s</string>\n</resources>\n'
+
+
+def test_a_folder_scan_pairs_an_android_project(tmp_path):
+    values = _write(tmp_path, 'app/src/main/res/values/strings.xml', ANDROID % 'Open')
+    af = _write(tmp_path, 'app/src/main/res/values-af/strings.xml', ANDROID % 'Maak oop')
+    _write(
+        tmp_path,
+        'app/src/main/res/values/colors.xml',
+        '<resources><color name="c">#000</color></resources>',
+    )
+    _write(tmp_path, 'app/src/main/res/values-night/strings.xml', ANDROID % 'Open')
+    _write(tmp_path, 'app/src/main/AndroidManifest.xml', '<manifest/>')
+
+    files = FileSet.from_paths([str(tmp_path)])
+
+    assert [(e.path, e.template.template, e.language) for e in files] == [(af, values, 'af')]
+    assert [e.path for e in files.templates] == [values]
+    assert files.unpaired == []
+
+
+def test_an_android_default_strings_file_alone_is_a_source(tmp_path):
+    values = _write(tmp_path, 'res/values/strings.xml', ANDROID % 'Open')
+    po = _write(tmp_path, 'po/af.po', 'msgid "a"\nmsgstr "b"\n')
+
+    files = FileSet.from_paths([str(tmp_path)])
+
+    assert files.paths == [po]
+    assert [e.path for e in files.templates] == [values]
+
+
 def test_a_folder_scan_takes_in_json_only_where_the_path_names_a_language(tmp_path):
     en = _write(tmp_path, 'public/locales/en/translation.json', '{"a": "Open"}')
     af = _write(tmp_path, 'public/locales/af/translation.json', '{"a": "Maak oop"}')

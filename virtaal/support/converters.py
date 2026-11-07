@@ -653,11 +653,276 @@ class JsonConverter(MonolingualConverter):
         return (text + '\n').encode('utf-8')
 
 
+# Android
+
+
+_ANDROID_TAGS = ('string', 'plurals', 'string-array')
+
+
+def _android_root(data):
+    from lxml import etree
+
+    parser = etree.XMLParser(resolve_entities=False, no_network=True, strip_cdata=False)
+    return etree.fromstring(data, parser)
+
+
+def _android_codec(element):
+    """A unit whose XML text helpers decode and encode Android's
+    escaping on C{element}, in the markup style C{element} has
+    (translate-toolkit 3.20 keeps one style per unit)."""
+    from translate.storage import aresource
+
+    return aresource.AndroidResourceUnit(None, xmlelement=element)
+
+
+def _android_text(element):
+    """The text of an Android string or item, unescaped."""
+    return _android_codec(element).get_xml_text_value(element)
+
+
+def _android_entries(root):
+    """(key, element, (name, kind, part)) of each string to translate in
+    a resources element: a <string>, a <plurals> item (key name[quantity])
+    or a <string-array> item (key name[index]). Those marked
+    translatable="false" are left out."""
+    for element in root:
+        name = element.get('name') if isinstance(element.tag, str) else None
+        if element.tag not in _ANDROID_TAGS or not name:
+            continue
+        if element.get('translatable') == 'false':
+            continue
+        if element.tag == 'string':
+            yield name, element, (name, 'string', None)
+            continue
+        items = [item for item in element if item.tag == 'item']
+        for index, item in enumerate(items):
+            part = item.get('quantity') if element.tag == 'plurals' else index
+            if part is not None:
+                yield '%s[%s]' % (name, part), item, (name, element.tag, part)
+
+
+def _android_note(element):
+    """The comment just before C{element}, if any."""
+    previous = element.getprevious()
+    if previous is not None and not isinstance(previous.tag, str) and previous.text:
+        if 'Comment' in str(previous.tag):
+            return previous.text.strip()
+    return None
+
+
+class AndroidConverter(MonolingualConverter):
+    """Android string resources (res/values-af/strings.xml): strings,
+    plurals (given the target language's quantities) and string arrays."""
+
+    id = 'android'
+    name = 'Android String Resources'
+    extensions = ('xml',)
+    modules = ('lxml', 'babel', 'translate.storage.aresource')
+    leaves_out_untranslated = True
+
+    def handles(self, path):
+        folder = os.path.basename(os.path.dirname(os.path.abspath(path)))
+        if folder != 'values' and not folder.startswith('values-'):
+            return False
+        try:
+            data = _read(path)
+        except OSError:
+            return True
+        return any(b'<' + tag.encode() in data for tag in _ANDROID_TAGS)
+
+    def in_folder(self, path, root):
+        from virtaal.models.fileset import path_language
+
+        folder = os.path.dirname(os.path.abspath(path))
+        return (
+            self.is_source_path(path) or path_language(folder, os.path.dirname(folder)) is not None
+        )
+
+    def is_source_path(self, path):
+        return os.path.basename(os.path.dirname(os.path.abspath(path))) == 'values'
+
+    def values_of(self, data):
+        return {
+            key: _android_text(element)
+            for key, element, _part in _android_entries(_android_root(data))
+        }
+
+    def spans(self, data):
+        from lxml import etree
+
+        found = {}
+        for key, element, _part in _android_entries(_android_root(data)):
+            lines = etree.tostring(element, with_tail=False).count(b'\n')
+            found[key] = (element.sourceline, element.sourceline + lines)
+        return found
+
+    def _units(self, template_path, target_path):
+        """[(key, source, note)] of the template, its plurals in the
+        target language's quantities."""
+        root = _android_root(_read(template_path))
+        categories = plural_categories(_target_language(target_path))
+        found = []
+        plurals = {}
+        for key, element, (name, kind, part) in _android_entries(root):
+            if kind == 'plurals':
+                plurals.setdefault(name, []).append((part, element))
+                continue
+            note = None
+            if kind == 'string' or part == 0:
+                note = _android_note(element if kind == 'string' else element.getparent())
+            found.append((key, _android_text(element), note))
+        for name, items in plurals.items():
+            sources = {part: _android_text(item) for part, item in items}
+            note = _android_note(items[0][1].getparent())
+            for category in categories or list(sources):
+                source = sources.get(category, sources.get('other', next(iter(sources.values()))))
+                found.append(('%s[%s]' % (name, category), source, note))
+        return found
+
+    def to_bilingual(self, template_path, target_path):
+        from translate.storage import po
+
+        targets = self.values(target_path)
+        store = po.pofile()
+        for key, source, note in self._units(template_path, target_path):
+            unit = store.addsourceunit(source)
+            unit.addlocation(key)
+            unit.target = targets.get(key, '')
+            if note:
+                unit.addnote(note, 'developer')
+        return store
+
+    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
+        from lxml import etree
+
+        data = _read(template_path)
+        root = _android_root(data)
+        writer = _AndroidWriter(
+            translations, skip_untranslated, plural_categories(_target_language(target_path))
+        )
+        writer.write(root)
+        declaration = re.match(rb'<\?xml[^>]*\?>\s*', data)
+        body = etree.tostring(root, encoding='utf-8', with_tail=False)
+        return (declaration.group(0) if declaration else b'') + body + b'\n'
+
+
+def _drop(element):
+    """Remove C{element}, the comment just before it, and its line."""
+    parent = element.getparent()
+    previous = element.getprevious()
+    if previous is not None and 'Comment' in str(previous.tag):
+        _drop(previous)
+        previous = element.getprevious()
+    if element.getnext() is None:
+        if previous is not None:
+            previous.tail = element.tail
+        else:
+            parent.text = element.tail
+    parent.remove(element)
+
+
+class _AndroidWriter:
+    """A template's resources translated in place: untranslated strings
+    keep the template's text or are left out, plurals get the target
+    language's quantities, untranslatable strings are left out."""
+
+    def __init__(self, translations, skip_untranslated, categories):
+        self.translations = translations
+        self.skip = skip_untranslated
+        self.categories = categories
+
+    def write(self, root):
+        for element in list(root):
+            name = element.get('name') if isinstance(element.tag, str) else None
+            if element.tag not in _ANDROID_TAGS or not name:
+                continue
+            if element.get('translatable') == 'false':
+                _drop(element)
+            elif element.tag == 'string':
+                self._string(element, name)
+            elif element.tag == 'plurals':
+                self._plurals(element, name)
+            else:
+                self._array(element, name)
+
+    def _string(self, element, name):
+        if name in self.translations:
+            _set_text(self.translations[name], element)
+        elif self.skip:
+            _drop(element)
+
+    def _array(self, element, name):
+        items = [item for item in element if item.tag == 'item']
+        keys = ['%s[%d]' % (name, index) for index in range(len(items))]
+        if self.skip and not any(key in self.translations for key in keys):
+            _drop(element)
+            return
+        for key, item in zip(keys, items, strict=True):
+            if key in self.translations:
+                _set_text(self.translations[key], item)
+
+    def _plurals(self, element, name):
+        items = {item.get('quantity'): item for item in element if item.tag == 'item'}
+        categories = self.categories or list(items)
+        keys = {category: '%s[%s]' % (name, category) for category in categories}
+        if self.skip and not any(key in self.translations for key in keys.values()):
+            _drop(element)
+            return
+        if not items:
+            return
+        fallback = items.get('other', next(iter(items.values())))
+        model = next(iter(items.values()))
+        last_tail = list(items.values())[-1].tail
+        for item in items.values():
+            element.remove(item)
+        item = None
+        for category in categories:
+            item = self._item(element, model, category)
+            if keys[category] in self.translations:
+                item = _set_text(self.translations[keys[category]], item)
+            else:
+                _copy_text(items.get(category, fallback), item)
+        item.tail = last_tail
+
+    @staticmethod
+    def _item(element, model, category):
+        import copy
+
+        item = copy.copy(model)
+        for child in list(item):
+            item.remove(child)
+        item.text = None
+        item.set('quantity', category)
+        element.append(item)
+        return item
+
+
+def _set_text(text, element):
+    """Write C{text} into C{element} with Android's escaping, keeping
+    the whitespace after it. translate-toolkit may put a new element in
+    its place: that one is returned."""
+    tail = element.tail
+    parent = element.getparent()
+    index = parent.index(element)
+    _android_codec(element).set_xml_text_value(text, element)
+    element = parent[index]
+    element.tail = tail
+    return element
+
+
+def _copy_text(source, item):
+    import copy
+
+    item.text = source.text
+    item.extend(copy.deepcopy(child) for child in source)
+
+
 MONOLINGUAL_CONVERTERS = [
     PropertiesConverter(),
     FluentConverter(),
     StringsConverter(),
     JsonConverter(),
+    AndroidConverter(),
 ]
 
 

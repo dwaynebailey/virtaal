@@ -1165,3 +1165,15 @@ def test_a_source_file_opens_as_the_source_without_asking(tmp_path):
 
     assert (match.template, match.how) == (source, 'source')
     assert asked == []
+
+
+def test_an_android_default_strings_file_opens_as_the_source_without_asking(tmp_path):
+    controller, _target, asked = _controller_for_template(tmp_path)
+    values = tmp_path / 'res' / 'values' / 'strings.xml'
+    values.parent.mkdir(parents=True)
+    values.write_text('<resources><string name="a">Open</string></resources>', encoding='utf-8')
+
+    match = controller._monolingual_template(str(values))
+
+    assert (match.template, match.how) == (str(values), 'source')
+    assert asked == []
