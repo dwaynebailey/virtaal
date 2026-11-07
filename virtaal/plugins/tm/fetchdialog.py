@@ -57,8 +57,8 @@ class FetchSuggestionsDialog:
         intro = Gtk.Label(
             label=_(
                 'Get suggestions now for about the next hour of work, from this unit on: '
-                'units still to translate or needing work. They are kept to use without a '
-                'connection.'
+                'units still to translate, needing work or failing a quality check. They '
+                'are kept to use without a connection.'
             ),
             wrap=True,
             xalign=0,
@@ -150,7 +150,10 @@ class FetchSuggestionsDialog:
             row[COL_USE] = bool(asked) and not model.billed
         elif not asked:
             row[COL_USE] = False
-        if whole:
+        if whole and self.controller.is_stream():
+            # l10n: Covers: every unit still needing suggestions, in all the files open together
+            row[COL_UNITS] = _('All files')
+        elif whole:
             # l10n: Covers: every unit of the file still needing suggestions
             row[COL_UNITS] = _('Whole file')
         else:

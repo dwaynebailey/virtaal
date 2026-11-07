@@ -33,14 +33,21 @@ def tm_file():
     return os.path.join(config_dir, os.path.expanduser(config.get('tmdb', 'tm.db')))
 
 
-def needs_suggestions(unit):
-    """Whether a file fetch asks for unit: one still to translate or
-    needing work, that can take a suggestion."""
+def needs_suggestions(unit, failing=False):
+    """Whether a file fetch asks for unit: one still to translate, needing
+    work, or failing a quality check (failing), that can take a
+    suggestion."""
     return (
-        not unit.istranslated()
+        (failing or not unit.istranslated())
         and not sdlxliff_compat.is_locked(unit)
         and bool(str(unit.source).strip())
     )
+
+
+def source_words(unit):
+    """The words in unit's source, every plural form counted."""
+    strings = getattr(unit.source, 'strings', None) or [unit.source or '']
+    return sum(statsdb.wordcount(str(text)) for text in strings)
 
 
 class FetchedSuggestions:
@@ -79,15 +86,20 @@ class FetchedSuggestions:
     def expire(self):
         self._run('expire', self.days)
 
-    def load(self, units, source_lang, target_lang):
+    def load(self, units, source_lang, target_lang, failing=frozenset()):
         """Drop what expired, and what units translated now had; then
-        keep the rest of units' for this language pair at hand."""
+        keep the rest of units' for this language pair at hand. failing
+        holds the indices of units failing a quality check."""
         self._pair = (source_lang, target_lang)
         self.by_service = {}
         if not source_lang or not target_lang:
             return
         self.expire()
-        wanted = {str(unit.source) for unit in units if needs_suggestions(unit)}
+        wanted = {
+            str(unit.source)
+            for index, unit in enumerate(units)
+            if needs_suggestions(unit, index in failing)
+        }
         done = {str(unit.source) for unit in units if unit.istranslated()} - wanted
         self._run('forget', source_lang, target_lang, done)
         self.by_service = self._run('get', source_lang, target_lang, wanted, default={})
@@ -101,18 +113,21 @@ class FetchedSuggestions:
         None if there are none."""
         return self.by_service.get(service, {}).get(str(source))
 
-    def plan(self, service, units, start, words):
+    def plan(self, service, units, start, words, failing=frozenset()):
         """(sources, whole) for asking service: the sources of units it
         still needs to be asked for, each once, from units[start] on (and
         then from the top), until they come to about words source words;
-        whole if those are all it needs."""
+        whole if those are all it needs. failing holds the indices of
+        units failing a quality check."""
         have = self.by_service.get(service, {})
         sources, total = {}, 0
-        for unit in units[start:] + units[:start]:
-            source = str(unit.source)
-            if source in sources or source in have or not needs_suggestions(unit):
+        for index in [*range(start, len(units)), *range(start)]:
+            unit, source = units[index], str(units[index].source)
+            if source in sources or source in have:
                 continue
-            count = statsdb.wordsinunit(unit)[0]
+            if not needs_suggestions(unit, index in failing):
+                continue
+            count = source_words(unit)
             if sources and total + count > words:
                 return list(sources), False
             sources[source] = None

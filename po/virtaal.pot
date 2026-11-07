@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 05:27+0000\n"
+"POT-Creation-Date: 2026-11-07 06:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1819,8 +1819,8 @@ msgstr ""
 #: virtaal/plugins/tm/fetchdialog.py
 msgid ""
 "Get suggestions now for about the next hour of work, from this unit on: "
-"units still to translate or needing work. They are kept to use without a "
-"connection."
+"units still to translate, needing work or failing a quality check. They are "
+"kept to use without a connection."
 msgstr ""
 
 #. l10n: Under the list of services; the characters column shows only for those that charge
@@ -1854,6 +1854,11 @@ msgstr ""
 #. l10n: Status: this service can't be asked for a whole file's suggestions
 #: virtaal/plugins/tm/fetchdialog.py
 msgid "Unavailable"
+msgstr ""
+
+#. l10n: Covers: every unit still needing suggestions, in all the files open together
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "All files"
 msgstr ""
 
 #. l10n: Covers: every unit of the file still needing suggestions

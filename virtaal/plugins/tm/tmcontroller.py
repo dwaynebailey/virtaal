@@ -486,9 +486,22 @@ class TMController(BaseController):
 
     # Suggestions for a whole file (#1679) #
     def file_units(self):
-        """The open file's units, or [] with none open."""
+        """The open file's units, or [] with none open: with several files
+        open, every file's, one after the other."""
         store = self.main_controller.store_controller.get_store()
         return store.get_units() if store is not None else []
+
+    def failing_units(self):
+        """The indices of the units failing the current checker's quality
+        checks, as far as they are known."""
+        store = self.main_controller.store_controller.get_store()
+        checks = getattr(store, 'checks', None) or {}
+        return frozenset(index for indices in checks.values() for index in indices)
+
+    def is_stream(self):
+        """Whether several files are open as one."""
+        store_controller = self.main_controller.store_controller
+        return bool(getattr(store_controller, 'is_stream', lambda: False)())
 
     def load_fetched(self):
         """Keep the open file's fetched suggestions at hand, for the
@@ -497,7 +510,10 @@ class TMController(BaseController):
             return
         lang_controller = self.main_controller.lang_controller
         self.fetched.load(
-            self.file_units(), lang_controller.source_lang.code, lang_controller.target_lang.code
+            self.file_units(),
+            lang_controller.source_lang.code,
+            lang_controller.target_lang.code,
+            self.failing_units(),
         )
 
     def fetch_budget(self, model):
@@ -514,7 +530,9 @@ class TMController(BaseController):
         words = self.fetch_budget(model)
         if not words:
             return [], False
-        return self.fetched.plan(model.internal_name, self.file_units(), start, words)
+        return self.fetched.plan(
+            model.internal_name, self.file_units(), start, words, self.failing_units()
+        )
 
     def fetch_for_file(self, model, on_progress, on_done):
         """Start asking model for its fetch_plan()'s sources;

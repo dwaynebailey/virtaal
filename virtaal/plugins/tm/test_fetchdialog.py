@@ -94,7 +94,7 @@ def made(tmp_path):
         fetched.close()
 
 
-def _dialog(made, tmp_path, *models, units=UNITS):
+def _dialog(made, tmp_path, *models, units=UNITS, stream=False, checks=None):
     fetched = FetchedSuggestions(path=lambda: str(tmp_path / 'tm.db'))
     fetched.load(units, 'en', 'af')
     controller = TMController.__new__(TMController)
@@ -102,7 +102,10 @@ def _dialog(made, tmp_path, *models, units=UNITS):
     controller.fetch_words = 1000
     controller.storecursor = SimpleNamespace(index=1)
     controller.main_controller = SimpleNamespace(
-        store_controller=SimpleNamespace(get_store=lambda: SimpleNamespace(get_units=lambda: units))
+        store_controller=SimpleNamespace(
+            get_store=lambda: SimpleNamespace(get_units=lambda: units, checks=checks),
+            is_stream=lambda: stream,
+        )
     )
     dialog = FetchSuggestionsDialog(controller, models)
     dialog.show()
@@ -219,3 +222,19 @@ def test_a_service_with_everything_fetched_has_nothing_to_fetch(made, tmp_path):
         (False, False, '', 'Nothing to fetch'),
         (False, False, '', 'Nothing to fetch'),
     ]
+
+
+def test_several_files_open_together_are_fetched_for_as_one(made, tmp_path):
+    # Two files, one after the other; "Done" is translated but fails a check.
+    first = [_unit('Open'), _unit('Done', translated=True)]
+    second = [_unit('Close'), _unit('Quit', translated=True)]
+    amagama = _Service('amagama')
+
+    dialog = _dialog(
+        made, tmp_path, amagama, units=first + second, stream=True, checks={'check-endpunc': [1]}
+    )
+
+    assert _rows(dialog, COL_UNITS) == [('All files',)]
+    dialog.dialog.response(RESPONSE_FETCH)
+    # From the current unit, the first file's second, on through the second file.
+    assert [r.batch for r in amagama.sent] == [['Done', 'Close']]

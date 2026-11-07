@@ -90,6 +90,19 @@ def test_a_fetch_covers_the_next_units_up_to_the_word_budget(fetched, start, wor
     assert fetched.plan('amagama', WORDY, start, words) == expected
 
 
+def test_a_translated_unit_failing_a_check_needs_suggestions_too(fetched, path):
+    units = [_unit('Open', translated=True), _unit('Close', translated=True), _unit('Quit')]
+    fetched.load(units, 'en', 'af')
+    fetched.keep('amagama', {'Open': [MATCH], 'Close': []})
+
+    fetched.load(units, 'en', 'af', failing={0})
+
+    assert fetched.matches('amagama', 'Open') == [MATCH]
+    assert fetched.matches('amagama', 'Close') is None
+    assert fetched.plan('google', units, 0, 100, failing={0}) == (['Open', 'Quit'], True)
+    assert fetched.plan('google', units, 0, 100) == (['Quit'], True)
+
+
 def test_the_word_budget_counts_every_plural_form(fetched):
     from translate.misc.multistring import multistring
 
@@ -297,6 +310,16 @@ def test_a_file_fetch_keeps_what_each_batch_brings(fetched, path):
     assert fetched.matches('google_translate', 'Close')[0]['source'] == 'Close'
 
 
+def test_the_failing_units_are_those_any_check_lists():
+    controller = _controller(None, [])
+    store = SimpleNamespace(checks={'check-endpunc': [1, 4], 'check-printf': [4, 7]})
+    controller.main_controller.store_controller = SimpleNamespace(get_store=lambda: store)
+
+    assert controller.failing_units() == {1, 4, 7}
+    store.checks = None
+    assert controller.failing_units() == frozenset()
+
+
 @pytest.mark.parametrize('ceiling, expected', [(None, 1000), (300, 300), (5000, 1000), (0, 0)])
 def test_a_backend_may_only_lower_the_word_budget(ceiling, expected):
     controller = _controller(None, [])
@@ -390,3 +413,34 @@ def test_a_unit_with_fetched_suggestions_is_not_preloaded():
     controller._prefetch_upcoming()
 
     assert model.prefetched == ['after']
+
+
+def test_a_fetch_walks_on_through_every_file_open_together(tmp_path, fetched):
+    from virtaal.models.fileset import FileSet
+    from virtaal.models.streammodel import PeekUnit, StreamModel
+    from virtaal.models.test_streammodel import _FakeController, _po
+    from virtaal.support import statsworker
+
+    _po(tmp_path / 'a.po', [('One', ''), ('Two', 'Twee')])
+    _po(tmp_path / 'b.po', [('Three', ''), ('Four', 'Vier'), ('Five six', '')])
+    stream = StreamModel(FileSet.from_paths([str(tmp_path)]), _FakeController())
+    try:
+        units = stream.get_units()
+        assert isinstance(units[2], PeekUnit)
+        fetched.load(units, 'en', 'af')
+        controller = _controller(fetched, units, index=1)
+        controller.main_controller.store_controller = SimpleNamespace(get_store=lambda: stream)
+        controller.fetch_words = 3
+        stream.checks = {'check-simplecaps': [3]}
+
+        assert controller.fetch_plan(SimpleNamespace(internal_name='amagama', BULK_MAX=None)) == (
+            ['Three', 'Four'],
+            False,
+        )
+        controller.fetch_words = 10
+        assert controller.fetch_plan(SimpleNamespace(internal_name='amagama', BULK_MAX=None)) == (
+            ['Three', 'Four', 'Five six', 'One'],
+            True,
+        )
+    finally:
+        statsworker.wait()

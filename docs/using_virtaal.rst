@@ -243,11 +243,13 @@ Fetch Suggestions for a Whole File
 To work without a connection, or over a slow one, get the online services'
 suggestions beforehand with :menuselection:`File --> Fetch Suggestions for
 This File…`. A fetch covers about the next hour of work: starting at the
-current unit, the units still to translate or needing work, until their source
-text comes to 1,000 words, and only those a service hasn't already answered.
-The window lists the services that are sources of suggestions, each with what
-it would be asked for: :guilabel:`Whole file` when everything left fits, or
-"Next hour" with about how many units. A service that can't be asked for a
+current unit, the units still to translate, needing work or failing a quality
+check, until their source text comes to 1,000 words, and only those a service
+hasn't already answered. With several files open together, it goes on into the
+next files. The window lists the services that are sources of suggestions,
+each with what it would be asked for: :guilabel:`Whole file` (or
+:guilabel:`All files`) when everything left fits, or "Next hour" with about how
+many units. A service that can't be asked for a
 whole file, such as Apertium's volunteer-run server, shows as unavailable, as
 does one not set up for the file's languages. For a service that charges by
 the character, such as Google Translate, Microsoft Translator or DeepL, the
