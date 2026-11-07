@@ -59,9 +59,28 @@ def header_language(path):
     return None
 
 
+_ANDROID_REGION = re.compile(r'^r([A-Z]{2})$')
+
+
+def folder_language_code(segment):
+    """The language code an app's resource folder names, unchecked:
+    Android's values-af, values-pt-rBR and values-b+sr+Latn, Apple's
+    af.lproj; other folders as they are."""
+    if segment.endswith('.lproj'):
+        return segment[: -len('.lproj')]
+    if not segment.startswith('values-'):
+        return segment
+    qualifiers = segment[len('values-') :].split('-')
+    if qualifiers[0].startswith('b+'):
+        return '_'.join(qualifiers[0][2:].split('+'))
+    region = len(qualifiers) > 1 and _ANDROID_REGION.match(qualifiers[1])
+    return qualifiers[0] + ('_' + region.group(1) if region else '')
+
+
 def path_language(path, root=None):
     """The language a file's name or directories name: af.po,
-    foo.af.po, foo-af.po, af/LC_MESSAGES/foo.po."""
+    foo.af.po, foo-af.po, af/LC_MESSAGES/foo.po, values-af/strings.xml,
+    af.lproj/Localizable.strings."""
     name = os.path.basename(path)
     stem = name.split('.')[0]
     candidates = [stem]
@@ -73,7 +92,7 @@ def path_language(path, root=None):
         directory, segment = os.path.split(directory)
         if not segment:
             break
-        candidates.append(segment)
+        candidates.append(folder_language_code(segment))
     for candidate in candidates:
         code = known_language(candidate)
         if code:
@@ -106,10 +125,13 @@ def scan_directory(directory):
 
 
 def is_monolingual_source(path):
-    """Whether C{path} is a monolingual file that others translate."""
+    """Whether C{path} is a monolingual file that others translate, or
+    whose place says it's a source-language file (Android's values/)."""
     from virtaal.support import converters, templatefinder
 
-    return converters.is_monolingual(path) and bool(templatefinder.translations_of(path))
+    if not converters.is_monolingual(path):
+        return False
+    return converters.is_source_path(path) or bool(templatefinder.translations_of(path))
 
 
 def scan_monolingual_sources(directory):
@@ -126,7 +148,9 @@ def scan_monolingual(directory):
     paired = []
     sources = []
     unpaired = []
-    for path in _walk(directory, converters.is_monolingual):
+    for path in _walk(directory, converters.may_be_monolingual):
+        if not converters.in_folder_scan(path, directory):
+            continue
         if is_monolingual_source(path):
             sources.append(path)
             continue

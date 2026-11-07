@@ -15,7 +15,7 @@ import posixpath
 import re
 from typing import NamedTuple
 
-from virtaal.models.fileset import known_language, path_language
+from virtaal.models.fileset import folder_language_code, known_language, path_language
 
 SOURCE_CODES = ('en', 'en-US', 'en_US', 'en-GB', 'en_GB')
 """Language codes a template's path may use, in order of preference."""
@@ -264,8 +264,14 @@ def from_config(target):
     directory = os.path.dirname(target)
     while True:
         relpath = os.path.relpath(target, directory).replace(os.sep, '/')
+        try:
+            present = set(os.listdir(directory))
+        except OSError:
+            present = set()
         for names, reader in CONFIG_READERS:
             for name in names:
+                if name.split(os.sep)[0] not in present:
+                    continue
                 match = _config_match(directory, relpath, name, reader)
                 if match:
                     return match
@@ -319,7 +325,34 @@ def _language_directory(target):
                 yield os.sep.join(parts[:index] + [code] + parts[index + 1 :])
 
 
-LAYOUTS = [_java_suffix, _language_name, _language_directory]
+def _android_values(target):
+    """res/values-af/strings.xml: res/values/strings.xml."""
+    directory, name = os.path.split(target)
+    parent, folder = os.path.split(directory)
+    if folder.startswith('values-') and known_language(folder_language_code(folder)):
+        yield os.path.join(parent, 'values', name)
+
+
+def _lproj(target):
+    """af.lproj/Localizable.strings: en.lproj/ or Base.lproj/."""
+    directory, name = os.path.split(target)
+    parent, folder = os.path.split(directory)
+    if folder.endswith('.lproj') and known_language(folder_language_code(folder)):
+        for code in (*SOURCE_CODES, 'Base'):
+            yield os.path.join(parent, code + '.lproj', name)
+
+
+LAYOUTS = [_java_suffix, _language_name, _language_directory, _android_values, _lproj]
+
+
+def is_source_folder(folder):
+    """Whether an app's resource folder holds its source-language files:
+    Android's values, Apple's Base.lproj and en.lproj."""
+    if folder in ('values', 'Base.lproj'):
+        return True
+    if not folder.endswith('.lproj'):
+        return False
+    return (known_language(folder_language_code(folder)) or '').split('_')[0] == 'en'
 
 
 def from_layout(target):
@@ -353,6 +386,10 @@ def known_template(target):
     return match
 
 
+def _is_english(folder):
+    return (known_language(folder) or '').split('_')[0] == 'en'
+
+
 def _translation_candidates(source):
     """Files that may translate C{source}: beside it in its format, and
     at the same place under the folders beside a source-language one."""
@@ -367,7 +404,7 @@ def _translation_candidates(source):
             yield os.path.join(directory, other)
     parts = source.split(os.sep)
     for index in range(len(parts) - 2, 0, -1):
-        if (known_language(parts[index]) or '').split('_')[0] != 'en':
+        if not is_source_folder(parts[index]) and not _is_english(parts[index]):
             continue
         try:
             siblings = sorted(os.listdir(os.sep.join(parts[:index])))

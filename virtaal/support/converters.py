@@ -34,10 +34,27 @@ class MonolingualConverter:
     modules = ()
     """Modules the converter needs; without them it isn't offered."""
 
+    leaves_out_untranslated = False
+    """Whether a target leaves out untranslated keys unless the project
+    or the user says otherwise: the platform falls back to the
+    template's text for a missing key."""
+
     def available(self):
         import importlib.util
 
         return all(importlib.util.find_spec(module) for module in self.modules)
+
+    def handles(self, path):
+        """Whether C{path}, with one of L{extensions}, is in this format."""
+        return True
+
+    def in_folder(self, path, root):
+        """Whether a folder scan of C{root} takes in C{path}."""
+        return True
+
+    def is_source_path(self, path):
+        """Whether C{path}'s place says it's a source-language file."""
+        return False
 
     def to_bilingual(self, template_path, target_path):
         """A PO store with the template's units, translated from the
@@ -230,7 +247,10 @@ class FluentConverter(MonolingualConverter):
         return bytes(store)
 
 
-MONOLINGUAL_CONVERTERS = [PropertiesConverter(), FluentConverter()]
+MONOLINGUAL_CONVERTERS = [
+    PropertiesConverter(),
+    FluentConverter(),
+]
 
 
 def _by_extension():
@@ -238,18 +258,45 @@ def _by_extension():
     for converter in MONOLINGUAL_CONVERTERS:
         if converter.available():
             for extension in converter.extensions:
-                table[extension] = converter
+                table.setdefault(extension, []).append(converter)
     return table
+
+
+def _extension(path):
+    return os.path.splitext(path)[1][1:].lower()
+
+
+def may_be_monolingual(name):
+    """Whether a file named C{name} may be monolingual: its extension is
+    one a monolingual format has."""
+    return _extension(name) in _by_extension()
 
 
 def monolingual_converter(path):
     """The converter for C{path}'s format if it's monolingual, else C{None}."""
-    extension = os.path.splitext(path)[1][1:].lower()
-    return _by_extension().get(extension) if extension else None
+    for converter in _by_extension().get(_extension(path), ()):
+        if converter.handles(path):
+            return converter
+    return None
 
 
 def is_monolingual(path):
     return monolingual_converter(path) is not None
+
+
+def in_folder_scan(path, root):
+    """Whether a folder scan of C{root} takes in the monolingual file
+    C{path}: a JSON file only where its path names a language, an
+    Android resource only in a language's values folder."""
+    converter = monolingual_converter(path)
+    return converter is not None and converter.in_folder(path, root)
+
+
+def is_source_path(path):
+    """Whether a monolingual file's place says it's a source-language
+    file, such as Android's res/values/strings.xml."""
+    converter = monolingual_converter(path)
+    return converter is not None and converter.is_source_path(path)
 
 
 def open_formats():

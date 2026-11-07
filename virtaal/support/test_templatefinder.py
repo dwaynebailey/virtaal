@@ -180,6 +180,13 @@ def test_the_nearest_config_wins(tmp_path):
         ('locales/en-US/main.ftl', 'locales/af/main.ftl'),
         ('locales/en/main.ftl', 'locales/af/main.ftl'),
         ('l10n/en/app/main.ftl', 'l10n/af/app/main.ftl'),
+        ('en.json', 'af.json'),
+        ('public/locales/en/translation.json', 'public/locales/af/translation.json'),
+        ('lib/l10n/app_en.arb', 'lib/l10n/app_af.arb'),
+        ('res/values/strings.xml', 'res/values-af/strings.xml'),
+        ('res/values/strings.xml', 'res/values-af-rZA/strings.xml'),
+        ('en.lproj/Localizable.strings', 'af.lproj/Localizable.strings'),
+        ('Base.lproj/Localizable.strings', 'af.lproj/Localizable.strings'),
     ],
 )
 def test_layouts_find_the_template(tmp_path, template, target):
@@ -241,3 +248,30 @@ def test_translations_of_a_crowdin_source(tmp_path):
 def test_a_file_nothing_translates_has_no_translations(tmp_path):
     (lone,) = _touch(tmp_path, 'lone.properties')
     assert templatefinder.translations_of(lone) == []
+
+
+def test_translations_of_android_and_apple_sources(tmp_path):
+    values, af, ru = _touch(
+        tmp_path,
+        'res/values/strings.xml',
+        'res/values-af/strings.xml',
+        'res/values-ru/strings.xml',
+    )
+    en, de = _touch(tmp_path, 'en.lproj/Localizable.strings', 'de.lproj/Localizable.strings')
+
+    assert templatefinder.translations_of(values) == [af, ru]
+    assert templatefinder.translations_of(en) == [de]
+
+
+@pytest.mark.parametrize(
+    'folder, expected',
+    [
+        ('values', True),
+        ('Base.lproj', True),
+        ('en.lproj', True),
+        ('af.lproj', False),
+        ('src', False),
+    ],
+)
+def test_source_folders(folder, expected):
+    assert templatefinder.is_source_folder(folder) is expected

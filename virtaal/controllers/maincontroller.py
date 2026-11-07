@@ -284,6 +284,7 @@ class MainController(BaseController):
         """The L{TemplateMatch} to open a monolingual file with, asking
         the user when the project doesn't say; C{None} for any other
         file, C{False} if the user cancelled."""
+        from virtaal.models.fileset import is_monolingual_source
         from virtaal.support import converters, templatefinder
 
         if not converters.is_monolingual(filename) or not os.path.isfile(filename):
@@ -291,7 +292,7 @@ class MainController(BaseController):
         match = self.store_controller.find_template(filename)
         if match is not None:
             return match
-        if templatefinder.translations_of(filename):
+        if is_monolingual_source(filename):
             # The source-language file itself.
             return templatefinder.TemplateMatch(filename, None, 'source')
         chosen = self.choose_template(filename)

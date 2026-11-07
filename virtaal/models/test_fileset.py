@@ -57,6 +57,13 @@ def test_scan_finds_translation_files_in_path_order_without_templates_or_hidden_
         ('virtaal.lg.po', 'lg'),
         ('lg/LC_MESSAGES/messages.po', 'lg'),
         ('po/lg.po', 'lg'),
+        ('res/values-af/strings.xml', 'af'),
+        ('res/values-pt-rBR/strings.xml', 'pt_BR'),
+        ('res/values-b+sr+Latn/strings.xml', 'sr_Latn'),
+        ('res/values/strings.xml', None),
+        ('res/values-night/strings.xml', None),
+        ('af.lproj/Localizable.strings', 'af'),
+        ('pt-BR.lproj/Localizable.strings', 'pt_BR'),
     ],
 )
 def test_path_language_reads_the_file_name_then_its_directories(tmp_path, relpath, expected):

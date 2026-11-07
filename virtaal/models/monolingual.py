@@ -96,7 +96,7 @@ class MonolingualPair:
     """C{target} translated from C{template}. C{store} is the bilingual
     store to edit; L{save()} writes only the target. Untranslated keys
     get the template's text there, unless C{skip_untranslated} (if not
-    given, what the baseline last recorded).
+    given, what the baseline last recorded, else the format's habit).
 
     With no baseline, C{recall(pair, {key: translation})} may give
     {key: source} of the source each translation was made for: one that
@@ -150,8 +150,10 @@ class MonolingualPair:
         """Mark what changed since the baseline, and record what was seen."""
         old = baseline.load(self.target)
         old_units = old['units'] if old else {}
-        if self.skip_untranslated is None:
-            self.skip_untranslated = bool(old and old.get('skip_untranslated'))
+        if self.skip_untranslated is None and old and 'skip_untranslated' in old:
+            self.skip_untranslated = bool(old['skip_untranslated'])
+        elif self.skip_untranslated is None:
+            self.skip_untranslated = self.converter.leaves_out_untranslated
         keys = {key for key, _unit in self.units()}
         # Kept until a save, so a rename still carries over on a later open.
         units = {key: e for key, e in old_units.items() if key not in keys}
