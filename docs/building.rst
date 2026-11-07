@@ -186,7 +186,10 @@ The first produces a frozen ``dist\virtaal\`` tree (PyInstaller,
 one-dir mode - see that script's own comments for why not
 ``--onefile``); the second wraps it into a single
 ``virtaal-<version>-setup.exe`` via Inno Setup
-(``devsupport/packaging/windows/virtaal.iss``).
+(``devsupport/packaging/windows/virtaal.iss``), with each language's
+wizard messages from Inno's messages file and its ``po/lite/inno``
+catalog (see ``po/lite/inno/README.md``). It prints the Inno Setup
+version and the messages each installer language shows in English.
 
 .. _building#macos:
 

@@ -158,9 +158,11 @@ Some instructions:
   <https://github.com/translate/virtaal/blob/main/CONTRIBUTING.md>`_)
   - or, if you're not comfortable with git, attach it to a `new issue
   <https://github.com/translate/virtaal/issues/new>`_ instead.
-- We currently use the InnoSetup installer for building our Windows installers.
-  You might want to check that the localisation for your language is there and
-  an official translation.
+- The Windows installer is built with Inno Setup. If your language has a
+  ``po/lite/inno/<lang>.po``, translate it too: those are the installer's
+  messages Inno Setup has no translation of for your language (see
+  `po/lite/inno/README.md
+  <https://github.com/translate/virtaal/blob/main/po/lite/inno/README.md>`_).
 - For translators with non-Latin scripts, you can customise the image on the
   welcome screen. Send us the text and your desired font to start the process.
   If you prefer to edit it yourself, get in contact with us and ensure you are

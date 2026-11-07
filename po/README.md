@@ -145,6 +145,15 @@ Currently we translate lite versions for:
   Only English, the languages of wider communication and the languages
   Virtaal ships (po/priorities.toml's `[names]`); a catalog keeps any
   other names it already has.
+- The Windows installer's wizard (inno), Inno Setup's messages - <https://jrsoftware.org/files/istrans/>.
+  Only the messages our installer shows. See
+  [lite/inno/README.md](lite/inno/README.md).
+
+The installer's wizard isn't a library Virtaal runs with: its
+upstream is the Inno Setup messages files vendored in
+`devsupport/packaging/windows/languages/`, and its lite translations
+win over them, merged when the installer is built. Its template is a
+hand-picked list, not a harvest.
 
 gettext-tools is the exception to the rule above: the macOS and Windows
 builds' libgettextpo comes without any catalogs, so its lite catalogs
@@ -175,7 +184,7 @@ and to apply the rule above against the libraries' installed catalogs
 a message the library doesn't - for the languages in `LINGUAS`):
 
 ```sh
-python devsupport/pseudo-translation/update_lite_catalogs.py gtk30 glib20 gtkspell3 gtk-mac-integration iso639-3 iso639-5
+python devsupport/pseudo-translation/update_lite_catalogs.py gtk30 glib20 gtkspell3 gtk-mac-integration iso639-3 iso639-5 inno
 ```
 
 The macOS build runs it with `--check`, which changes nothing and fails
@@ -191,4 +200,6 @@ python devsupport/pseudo-translation/report_lite_coverage.py
 
 CI runs it after the macOS and Windows builds, against the catalogs
 each bundles: a table in the job summary and one non-blocking warning.
-To fill a gap, translate `po/lite/<domain>/<lang>.po`.
+To fill a gap, translate `po/lite/<domain>/<lang>.po`. The Windows
+installer's build also lists, in its job summary, the messages the Inno
+Setup compiler shows in English for each installer language.
