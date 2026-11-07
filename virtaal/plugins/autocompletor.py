@@ -18,6 +18,7 @@ from translate.storage.placeables import parse as parse_placeables
 from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.controllers.baseplugin import BasePlugin
+from virtaal.support.invisiblechars import InvisiblePlaceable
 from virtaal.support.libi18n.numbers import localise_number
 from virtaal.views.widgets.textbox import TextBox
 
@@ -466,7 +467,12 @@ class AutoCompletor:
 
     def _placeable_candidates(self, sources):
         placeables_controller = getattr(self.main_controller, 'placeables_controller', None)
-        parsers = getattr(placeables_controller, 'parsers', None)
+        # A single invisible character is never offered.
+        parsers = [
+            p
+            for p in getattr(placeables_controller, 'parsers', None) or ()
+            if p != InvisiblePlaceable.parse
+        ]
         if not parsers:
             return []
         languages = self._languages()

@@ -8,6 +8,7 @@
 from gi.repository import Gtk, Pango
 from translate.storage.placeables import StringElem, base, general, xliff
 
+from virtaal.support import invisiblechars
 from virtaal.views import theme
 from virtaal.views.rendering import (
     get_role_font_description,
@@ -335,6 +336,21 @@ class NewlineGUI(StringElemGUI):
         return end
 
 
+class InvisibleGUI(StringElemGUI):
+    """A character drawn as a marker by the text box (see
+    L{invisiblechars}), with a tag only while selected."""
+
+    fg = theme.current_theme['subtle_fg']
+
+    def create_tags(self):
+        if self.fg == InvisibleGUI.fg and self.bg == StringElemGUI.bg:
+            return []
+        tags = super().create_tags()
+        for tag, _start, _end in tags:
+            tag.colours_pilcrow = True
+        return tags
+
+
 class UrlGUI(StringElemGUI):
     fg = theme.current_theme['url_fg']
 
@@ -447,10 +463,12 @@ def update_style(widget):
     PhGUI.bg = theme.current_theme['ph_placeable_bg']
     UrlGUI.fg = theme.current_theme['url_fg']
     NewlineGUI.fg = theme.current_theme['subtle_fg']
+    InvisibleGUI.fg = theme.current_theme['subtle_fg']
 
 
 element_gui_map = [
     (general.NewlinePlaceable, NewlineGUI),
+    (invisiblechars.InvisiblePlaceable, InvisibleGUI),
     (general.UrlPlaceable, UrlGUI),
     (general.EmailPlaceable, UrlGUI),
     (base.Ph, PhGUI),

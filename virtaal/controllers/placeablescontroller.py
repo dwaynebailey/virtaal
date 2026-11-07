@@ -10,6 +10,7 @@ from translate.storage.placeables import StringElem, general
 from translate.storage.placeables import parse as parse_placeables
 
 from virtaal.common import GObjectWrapper, pan_app
+from virtaal.support.invisiblechars import InvisiblePlaceable
 from virtaal.views import placeablesguiinfo
 
 from .basecontroller import BaseController
@@ -22,6 +23,9 @@ class PlaceablesController(BaseController):
     __gsignals__ = {
         'parsers-changed': (GObject.SignalFlags.RUN_FIRST, None, tuple()),
     }
+
+    own_parsers = [InvisiblePlaceable.parse]
+    """Virtaal's parsers, beside translate-toolkit's."""
 
     parsers = []
     """The list of parsers that should be used by the main placeables C{parse()}
@@ -62,7 +66,7 @@ class PlaceablesController(BaseController):
         ]
 
         self.parsers = []
-        for parser in general.parsers:
+        for parser in general.parsers + self.own_parsers:
             classname = parser.__self__.__name__.lower()
             if classname in disabled:
                 continue
@@ -128,6 +132,11 @@ class PlaceablesController(BaseController):
         self.parser_info[general.XMLTagPlaceable.parse] = (
             _('XML Tags'),
             _('XML tags, such as <b> and </i>'),
+        )
+        self.parser_info[InvisiblePlaceable.parse] = (
+            _('Invisible Characters'),
+            # l10n: Characters that show as nothing or as an ordinary space
+            _('No-break spaces, zero-width characters and direction marks'),
         )
         # This code should eventually be used to add the SpacesPlaceable, but
         # it is not working well yet. We add the strings for translation so
@@ -232,7 +241,7 @@ class PlaceablesController(BaseController):
         unitview.enable_signals(['modified', 'insert-text', 'delete-text'])
 
     def _on_quit(self, main_ctrlr):
-        for parser in general.parsers:
+        for parser in general.parsers + self.own_parsers:
             classname = parser.__self__.__name__.lower()
             enabled = parser in self.parsers
             if classname in pan_app.settings.placeable_state or not enabled:

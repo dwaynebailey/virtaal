@@ -12,9 +12,13 @@ from gi.repository.GObject import SignalFlags
 from translate.storage.placeables import StringElem
 from translate.storage.placeables import parse as elem_parse
 
+from virtaal.support import invisiblechars
 from virtaal.support.translate_compat import forceunicode
 from virtaal.views import placeablesguiinfo, theme
 from virtaal.views.theme import current_theme
+
+MARKER_SCALE = 0.7
+"""The size of a zero-width character's label, against the text's."""
 
 
 def colors_equal(a, b):
@@ -226,6 +230,8 @@ class TextBox(Gtk.TextView):
         # The tag table is shared (search highlight, gtkspell): remove only ours.
         self._placeable_tags = []
         self._pilcrow_tag = None
+        # Make room for a zero-width character's label, one per label.
+        self._room_tags = {}
         self.undo_controller = main_controller.undo_controller
 
         self.__connect_default_handlers()
@@ -246,9 +252,12 @@ class TextBox(Gtk.TextView):
         self.connect('key-press-event', self._on_key_pressed)
         self.connect('move-cursor', self._on_event_remove_suggestion)
         self.connect('unmap', self._on_event_remove_suggestion)
+        self.set_has_tooltip(True)
+        self.connect('query-tooltip', self._on_query_tooltip)
         self.buffer.connect('insert-text', self._on_insert_text)
         self.buffer.connect_after('insert-text', self._on_insert_text_after)
         self.buffer.connect('delete-range', self._on_delete_range)
+        self.buffer.connect_after('delete-range', self._on_delete_range_after)
         self.buffer.connect('begin-user-action', self._on_begin_user_action)
         self.buffer.connect('end-user-action', self._on_end_user_action)
 
@@ -410,9 +419,47 @@ class TextBox(Gtk.TextView):
             self.buffer.get_iter_at_offset(end),
         )
 
+    def _marker_layout(self, marker, fg=None):
+        layout = self.create_pango_layout(marker.label)
+        attrs = Pango.AttrList()
+        if marker.zero_width:
+            attrs.insert(Pango.attr_scale_new(MARKER_SCALE))
+        if fg is not None:
+            attrs.insert(
+                Pango.attr_foreground_new(*(round(c * 65535) for c in (fg.red, fg.green, fg.blue)))
+            )
+        layout.set_attributes(attrs)
+        return layout
+
+    def make_room(self, start=0, end=None):
+        """Make room for the label of each zero-width character in
+        buffer offsets [start, end)."""
+        buffer = self.buffer
+        start = max(start, 0)
+        start_iter = buffer.get_iter_at_offset(start)
+        end_iter = buffer.get_end_iter() if end is None else buffer.get_iter_at_offset(end)
+        for tag in self._room_tags.values():
+            buffer.remove_tag(tag, start_iter, end_iter)
+        text = buffer.get_text(start_iter, end_iter, include_hidden_chars=True)
+        for index, marker in invisiblechars.zero_width_indices(text):
+            itr = buffer.get_iter_at_offset(start + index)
+            after = itr.copy()
+            after.forward_char()
+            # A line's first and last characters get half their spacing.
+            edge = itr.starts_line() or after.ends_line()
+            tag = self._room_tags.get((marker.label, edge))
+            if tag is None:
+                tag = self._room_tags[marker.label, edge] = buffer.create_tag(None)
+            width = self._marker_layout(marker).get_size()[0] + 4 * Pango.SCALE
+            tag.props.letter_spacing = width * 2 if edge else width
+            buffer.apply_tag(tag, itr, after)
+
     def do_draw_layer(self, layer, cr):
-        if layer == Gtk.TextViewLayer.ABOVE_TEXT and self._pilcrow_tag is not None:
+        if layer != Gtk.TextViewLayer.ABOVE_TEXT:
+            return
+        if self._pilcrow_tag is not None:
             self._draw_pilcrows(cr)
+        self._draw_markers(cr)
 
     def _draw_pilcrows(self, cr):
         """Draw a pilcrow at the end of each line being drawn that ends
@@ -455,6 +502,106 @@ class TextBox(Gtk.TextView):
         )
         layout.set_attributes(attrs)
         Gtk.render_layout(self.get_style_context(), cr, x, y, layout)
+
+    def _drawn_range(self, cr):
+        """The buffer offsets [start, end) of the display lines being
+        drawn, or None."""
+        drawn, area = Gdk.cairo_get_clip_rectangle(cr)
+        if drawn:
+            drawn, area = area.intersect(self.get_visible_rect())
+        if not drawn:
+            return None
+        bottom = area.y + area.height
+        start = self.get_iter_at_location(area.x, area.y)[1]
+        self.backward_display_line_start(start)
+        end = self.get_iter_at_location(area.x + area.width, bottom)[1]
+        self.forward_display_line_end(end)
+        end = end.get_offset() + 1
+        # Lines not laid out yet have no height, and aren't drawn.
+        line = start.copy()
+        while line.forward_line() and line.get_offset() < end:
+            y, height = self.get_line_yrange(line)
+            if y > bottom or not height:
+                end = line.get_offset()
+        return start.get_offset(), end
+
+    def _draw_markers(self, cr):
+        """Draw a marker on each invisible character (see
+        L{invisiblechars}) on the lines being drawn. cr is in buffer
+        coordinates."""
+        drawn = self._drawn_range(cr)
+        if drawn is None:
+            return
+        start, end = drawn
+        # A character either side decides a space at the range's edges.
+        context = 1 if start else 0
+        text = self.get_text(start - context, end + 1)
+        default_fg = _tag_colors((), placeablesguiinfo.InvisibleGUI.fg)[0]
+        layouts = {}
+        for index, marker in invisiblechars.find_markers(
+            text, context, min(end - start + context, len(text))
+        ):
+            itr = self.buffer.get_iter_at_offset(start - context + index)
+            fg = _tag_colors(itr.get_tags(), default_fg)[0]
+            key = (marker, fg.to_string())
+            layout = layouts.get(key)
+            if layout is None:
+                layout = layouts[key] = self._marker_layout(marker, fg)
+            self._draw_marker(cr, layout, marker, itr, fg)
+
+    def marker_area(self, itr):
+        """(x, y, width, height) of the character at itr, in buffer
+        coordinates. A joiner has no width of its own in its letter's
+        cluster, but the room made for it follows it."""
+        rect = self.get_iter_location(itr)
+        x, width = rect.x, rect.width
+        if not width and not itr.ends_line():
+            after = itr.copy()
+            after.forward_char()
+            after = self.get_iter_location(after)
+            if after.y == rect.y:
+                width = after.x - x
+        # Right to left, a width can be negative.
+        return min(x, x + width), rect.y, abs(width), rect.height
+
+    def _draw_marker(self, cr, layout, marker, itr, fg):
+        x, y, width, height = self.marker_area(itr)
+        label_width, label_height = layout.get_pixel_size()
+        if width:
+            label_x = x + (width - label_width) / 2
+        elif self.get_direction() == Gtk.TextDirection.RTL:
+            label_x = x - label_width
+        else:
+            label_x = x
+        if marker.zero_width and width > 3:
+            Gdk.cairo_set_source_rgba(cr, fg)
+            cr.set_line_width(1)
+            cr.rectangle(x + 1.5, y + 1.5, width - 3, height - 3)
+            cr.stroke()
+        Gtk.render_layout(
+            self.get_style_context(), cr, label_x, y + (height - label_height) / 2, layout
+        )
+
+    def _on_query_tooltip(self, widget, x, y, keyboard_mode, tooltip):
+        if keyboard_mode:
+            offsets = [self.buffer.props.cursor_position]
+        else:
+            bx, by = self.window_to_buffer_coords(Gtk.TextWindowType.WIDGET, x, y)
+            found, itr = self.get_iter_at_location(bx, by)
+            if not found:
+                return False
+            # The room made for a joiner isn't the joiner's own.
+            offset = itr.get_offset()
+            offsets = [offset, offset + 1] + ([offset - 1] if offset else [])
+        for offset in offsets:
+            char = self.buffer.get_iter_at_offset(offset).get_char()
+            if char not in invisiblechars.MARKERS:
+                continue
+            left, _y, width, _height = self.marker_area(self.buffer.get_iter_at_offset(offset))
+            if keyboard_mode or left <= bx < left + max(width, 1):
+                tooltip.set_text(invisiblechars.describe(char))
+                return True
+        return False
 
     def get_cursor_position(self):
         return self.buffer.props.cursor_position
@@ -800,6 +947,7 @@ class TextBox(Gtk.TextView):
         self._remove_placeable_tags()
         # At this point we have a tree of string elements with GUI info.
         self.apply_gui_info(self.elem)
+        self.make_room()
 
     # EVENT HANDLERS #
     def __on_controller_register(self, main_controller, controller):
@@ -1121,12 +1269,18 @@ class TextBox(Gtk.TextView):
             return elem.insert(len(elem) if widget_index else 0, text)
         return None
 
+    def _on_delete_range_after(self, buffer, start, end):
+        # The characters either side may have become a line's first or last.
+        self.make_room(start.get_offset() - 1, start.get_offset() + 1)
+
     def _on_insert_text_after(self, buffer, iter, ins_text, length):
+        typed = len(forceunicode(ins_text).encode('utf-8')[:length].decode('utf-8'))
         if self._pilcrow_tag is not None:
             # Text typed between two line breaks is inside their tag.
-            typed = len(forceunicode(ins_text).encode('utf-8')[:length].decode('utf-8'))
             start = buffer.get_iter_at_offset(iter.get_offset() - typed)
             buffer.remove_tag(self._pilcrow_tag, start, iter)
+        # The characters either side may have become a line's first or last.
+        self.make_room(iter.get_offset() - typed - 1, iter.get_offset() + 1)
         pending = getattr(self, '_live_insert_pending', None)
         self._live_insert_pending = None
         if pending is None or self.elem is None:

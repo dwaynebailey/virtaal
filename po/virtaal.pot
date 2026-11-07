@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 19:26+0000\n"
+"POT-Creation-Date: 2026-11-07 00:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1164,6 +1164,15 @@ msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
 msgid "XML tags, such as <b> and </i>"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Invisible Characters"
+msgstr ""
+
+#. l10n: Characters that show as nothing or as an ordinary space
+#: virtaal/controllers/placeablescontroller.py
+msgid "No-break spaces, zero-width characters and direction marks"
 msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
