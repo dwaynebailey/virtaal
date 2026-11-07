@@ -17,6 +17,9 @@ catalog merged into upstream's exact-language catalog, as setup.py
 does; any other language gets upstream as gettext finds it at runtime
 (pt_BR falling back to pt). A library this host doesn't have (gtkspell
 or gtk-mac-integration on some platforms) is skipped: it isn't shipped.
+The Windows installer's wizard (inno) is the same everywhere: its
+upstream is the vendored Inno Setup messages files, and a shipped lite
+catalog's translations win over them.
 
 Prints a Markdown report, also appended to $GITHUB_STEP_SUMMARY when
 set, and one aggregate ::warning:: under GitHub Actions when anything
@@ -36,6 +39,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
 PO_DIR = os.path.join(REPO_ROOT, "po")
 LITE_DIR = os.path.join(PO_DIR, "lite")
+INNO = "inno"
+INSTALLER = os.path.join(
+    REPO_ROOT, "devsupport", "packaging", "windows", "generate_installer_translations.py"
+)
 
 
 def _lite_module():
@@ -96,6 +103,40 @@ def translations(lite, domain, lang, upstream_dir, with_lite):
     return messages
 
 
+def _installer():
+    spec = importlib.util.spec_from_file_location("generate_installer_translations", INSTALLER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def inno_translations(lite, lang, with_lite, installer=None):
+    """{original: translation} the installer's wizard shows for lang:
+    its vendored messages file's, and with_lite, its lite catalog's,
+    which win."""
+    installer = installer or _installer()
+    messages = {
+        "%s\x04%s" % key: text for key, text in installer.vendored_translations(lang).items()
+    }
+    lite_po = os.path.join(LITE_DIR, INNO, lang + ".po")
+    if with_lite and os.path.isfile(lite_po):
+        messages.update({k: v for k, v in lite.read_lite_po(lite_po).items() if v})
+    return messages
+
+
+def inno_missing(lite, languages, shipped):
+    """{lang: [msgid, ...]} of the installer wizard's messages that ship
+    untranslated; shipped: the languages po/LINGUAS-lite lists an inno
+    catalog for."""
+    installer, keys, gaps = _installer(), template_keys(INNO), {}
+    for lang in languages:
+        have = inno_translations(lite, lang, lang in shipped, installer)
+        missed = [key for key in keys if not have.get(key)]
+        if missed:
+            gaps[lang] = missed
+    return gaps
+
+
 def missing(lite=None):
     """{domain: {lang: [msgid, ...]}} of template messages that ship
     untranslated, and the domains skipped as not on this host."""
@@ -118,6 +159,8 @@ def missing(lite=None):
             gaps = [key for key in keys if not have.get(key)]
             if gaps:
                 report[domain][lang] = gaps
+    if os.path.isfile(os.path.join(LITE_DIR, INNO, INNO + ".pot")):
+        report[INNO] = inno_missing(lite, languages, lite_shipped.get(INNO, ()))
     return report, skipped
 
 
@@ -183,6 +226,7 @@ LABELS = {
     "glib20": "GLib",
     "gtkspell3": "gtkspell",
     "gtk-mac-integration": "macOS app menu",
+    INNO: "Windows installer",
 }
 
 

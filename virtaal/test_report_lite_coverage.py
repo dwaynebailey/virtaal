@@ -131,3 +131,48 @@ def test_markdown_leads_with_the_level_one_gaps(coverage):
         "Level 1 (the release rule, `po/update-linguas.py --cut-off`): af (3 strings), zu (1)."
         in text
     )
+
+
+class _Installer:
+    """generate_installer_translations' vendored_translations: af has
+    an Inno file with Next only; zu has none."""
+
+    @staticmethod
+    def vendored_translations(lang):
+        return {("ButtonNext", "&Next >"): "&Volgende >"} if lang == "af" else {}
+
+
+def test_the_installer_wizard_reports_what_neither_inno_nor_shipped_lite_translates(
+    coverage, tmp_path, monkeypatch
+):
+    module, lite = coverage
+    inno = tmp_path / "po" / "lite" / "inno"
+    inno.mkdir()
+    (inno / "inno.pot").write_text(
+        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+        'msgctxt "ButtonNext"\nmsgid "&Next >"\nmsgstr ""\n\n'
+        'msgctxt "ButtonBack"\nmsgid "< &Back"\nmsgstr ""\n',
+        encoding="utf-8",
+    )
+    # zu's catalog ships (LINGUAS-lite) and translates Back; af's doesn't.
+    for lang in ("af", "zu"):
+        (inno / (lang + ".po")).write_text(
+            'msgctxt "ButtonBack"\nmsgid "< &Back"\nmsgstr "< &Terug"\n\n'
+            'msgctxt "ButtonNext"\nmsgid "&Next >"\nmsgstr "&Verder >"\n',
+            encoding="utf-8",
+        )
+    (tmp_path / "po" / "LINGUAS-lite").write_text("inno/zu\n", encoding="utf-8")
+    monkeypatch.setattr(module, "_installer", _Installer)
+
+    report, _skipped = module.missing(lite)
+
+    assert report["inno"] == {
+        "af": ["ButtonBack\x04< &Back"],
+        "pt_BR": ["ButtonNext\x04&Next >", "ButtonBack\x04< &Back"],
+    }
+    # A shipped lite catalog's translation wins over the Inno file's.
+    have = module.inno_translations(lite, "af", True, _Installer)
+    assert have["ButtonNext\x04&Next >"] == "&Verder >"
+    assert "| Windows installer (2 strings) | pt_BR (2 strings), af (1) |" in module.markdown(
+        report, [], "Windows"
+    )
