@@ -1340,7 +1340,15 @@ def test_measure_editor_grows_with_the_targets_lines():
     assert renderer._measure_editor(editor, widget, 300) > one_line
 
 
-LONG_TEXT = 'line\u00a0one\u200bx\n' * 5000
+# Short enough to lay out in an off-screen window: one 5000 lines tall
+# is past X's size limit, and older GTKs fail on it (BadAlloc).
+CUTOFF = 400
+LONG_TEXT = 'line\u00a0one\u200bx\n' * 80
+
+
+@pytest.fixture
+def cutoff(monkeypatch):
+    monkeypatch.setattr(storecellrenderer, 'MEASURED_LENGTH', CUTOFF)
 
 
 def _laid_out(monkeypatch):
@@ -1356,22 +1364,22 @@ def _laid_out(monkeypatch):
     return lengths
 
 
-def test_a_long_text_taller_than_the_limit_is_measured_by_its_start(monkeypatch):
+def test_a_long_text_taller_than_the_limit_is_measured_by_its_start(monkeypatch, cutoff):
     textview = _realized_textview(LONG_TEXT)
     lengths = _laid_out(monkeypatch)
 
     compute_optimal_height(textview, 200, 300)
 
-    assert lengths == [storecellrenderer.MEASURED_LENGTH]
+    assert lengths == [CUTOFF]
     assert textview.get_parent().get_size_request()[1] >= 300
 
 
 @pytest.mark.parametrize(
     ('text', 'limit'),
-    [(LONG_TEXT, 0), (LONG_TEXT, 10**9), ('Maak\n' * 100, 300)],
+    [(LONG_TEXT, 0), (LONG_TEXT, 10**9), ('Maak\n' * 50, 300)],
     ids=['no-limit', 'start-below-limit', 'short'],
 )
-def test_other_texts_are_measured_whole(monkeypatch, text, limit):
+def test_other_texts_are_measured_whole(monkeypatch, cutoff, text, limit):
     textview = _realized_textview(text)
     lengths = _laid_out(monkeypatch)
 
@@ -1380,13 +1388,13 @@ def test_other_texts_are_measured_whole(monkeypatch, text, limit):
     assert lengths[-1] == len(text)
 
 
-def test_measure_editor_sizes_a_long_target_as_if_measured_whole(monkeypatch):
+def test_measure_editor_sizes_a_long_target_as_if_measured_whole(monkeypatch, cutoff):
     renderer = _renderer_with_view()
     widget = _toplevel_widget()
     whole = _editor_with_target(LONG_TEXT)
     monkeypatch.setattr(storecellrenderer, 'MEASURED_LENGTH', 10**9)
     whole_height = renderer._measure_editor(whole, widget, 300)
-    monkeypatch.undo()
+    monkeypatch.setattr(storecellrenderer, 'MEASURED_LENGTH', CUTOFF)
     by_start = _editor_with_target(LONG_TEXT)
     lengths = _laid_out(monkeypatch)
 
