@@ -181,6 +181,47 @@ class BaseTMModel(BaseModel, Configurable):
         if held is not None:
             self.query(*held)
 
+    # Fetching a whole file's suggestions (#1679), see bulkfetch.py #
+    billed = False
+    """Whether the service bills by the character sent."""
+
+    BULK_WAIT_STATUSES = (429, 503)
+    """HTTP statuses that make a file fetch wait and ask again."""
+
+    def bulk_ready(self):
+        """Whether the service can be asked for a file's suggestions now:
+        it knows these languages and nothing stops it."""
+        return False
+
+    def bulk_batches(self, sources):
+        """sources in the batches each request asks for: one each, unless
+        the service takes more."""
+        return [[source] for source in sources]
+
+    def bulk_characters(self, sources):
+        """How many characters asking for sources sends."""
+        return sum(len(source) for source in sources)
+
+    def bulk_send(self, batch):
+        """The request asking for one batch, or None if it can't be sent."""
+        raise NotImplementedError
+
+    def bulk_parse(self, batch, reply):
+        """{source: [match, ...]} from the reply to batch's request, with an
+        empty list for a source without a suggestion; raise ValueError,
+        KeyError, IndexError, TypeError or AttributeError for an unusable
+        reply."""
+        raise NotImplementedError
+
+    def bulk_wait(self, request, status):
+        """Seconds to wait before asking again after the HTTP status (None
+        for no reply), or None to stop."""
+        if status not in self.BULK_WAIT_STATUSES:
+            return None
+        from .remotetm import retry_after
+
+        return retry_after(request.result_headers.getvalue(), 60, 900)
+
     def set_source_lang(self, language):
         """models override this to implement their own
         source-lang-changed event handlers"""

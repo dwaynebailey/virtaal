@@ -299,18 +299,26 @@ class TMModel(remotetm.TMModel):
             return
         if getattr(request, 'tm_key', None) != self._key():
             return
-        key = (self.v2_base, self.source_lang)
-        if key not in self._v1_only:
-            logging.info('%s: no API v2 for %s (HTTP %d), using v1', self, self.source_lang, status)
-            TMModel._v1_only = self._v1_only | {key}
+        self._use_v1(status)
         # Each request sent before the refusal is asked again.
         if self._pending.get(query_str) is request:
             self._pending = {k: v for k, v in self._pending.items() if k != query_str}
         self._request(query_str)
 
+    def _use_v1(self, status):
+        """Use API v1 for this source language from now on."""
+        key = (self.v2_base, self.source_lang)
+        if key not in self._v1_only:
+            logging.info('%s: no API v2 for %s (HTTP %d), using v1', self, self.source_lang, status)
+            TMModel._v1_only = self._v1_only | {key}
+
     def _handle_v2_matches(self, widget, query_str, reply):
         """Score the v2 matches, which the server scored on their abstracts,
         on query_str and pass them on as v1 matches."""
+        self._handle_matches(widget, query_str, self._scored(query_str, reply))
+
+    def _scored(self, query_str, reply):
+        """The v2 reply's matches as v1 matches, scored on query_str."""
         matches = []
         if isinstance(reply, dict) and isinstance(reply.get('matches'), list):
             matches = reply['matches']
@@ -329,7 +337,41 @@ class TMModel(remotetm.TMModel):
                 continue
             scored.append(dict(match, quality=adapted.quality, raw_quality=adapted.raw_quality))
         scored.sort(key=lambda match: match['quality'], reverse=True)
-        self._handle_matches(widget, query_str, scored)
+        return scored
+
+    # A file's suggestions (#1679), a unit per request #
+    def bulk_send(self, batch):
+        if not self._uses_v2():
+            return super().bulk_send(batch)
+        (query_str,) = batch
+        request = self.tmclient.translate_abstract(
+            self.v2_base,
+            query_str,
+            abstraction.abstract(query_str)[0],
+            abstraction.ABSTRACTION_VERSION,
+            self.source_lang,
+            self.target_lang,
+            None,
+            self._params(),
+        )
+        if request is not None:
+            request.amagama_v2 = True
+        return request
+
+    def bulk_parse(self, batch, reply):
+        (query_str,) = batch
+        reply = json.loads(reply)
+        if isinstance(reply, dict):
+            # API v2's
+            return {query_str: self._usable(self._scored(query_str, reply))}
+        return {query_str: self._usable(reply)}
+
+    def bulk_wait(self, request, status):
+        if status in (404, 409) and getattr(request, 'amagama_v2', False):
+            # Asked again through API v1.
+            self._use_v1(status)
+            return 0
+        return super().bulk_wait(request, status)
 
     def push_store(self, store_controller):
         pass

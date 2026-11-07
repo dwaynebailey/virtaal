@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import io
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -13,7 +14,7 @@ from gi.repository import GObject
 
 from virtaal.plugins.tm._testhelpers import fake_controller
 from virtaal.plugins.tm.models.amagama import TMModel, v2_url
-from virtaal.support.abstraction import ABSTRACTION_VERSION
+from virtaal.support.abstraction import ABSTRACTION_VERSION, abstract
 
 
 def _model():
@@ -314,3 +315,30 @@ def test_init_finds_the_v2_url(monkeypatch):
     )
 
     assert TMModel('amagama', fake_controller()).v2_base == 'https://example.com/api/v2'
+
+
+# A file's suggestions (#1679)
+
+
+def test_a_file_fetch_sends_the_abstract_to_v2_and_scores_the_reply():
+    model, emitted = _v2_model()
+
+    request = model.bulk_send([QUERY])
+    found = model.bulk_parse([QUERY], json.dumps({'matches': [STORED]}).encode())
+
+    assert request.api == 'v2'
+    assert request.sent[1] == abstract(QUERY)[0]
+    assert found[QUERY][0]['target'] == 'Skrap {0} lêers'
+    assert 90 < found[QUERY][0]['quality'] < 100
+    assert found[QUERY][0]['tmsource'] == 'Amagama'
+    assert emitted == []
+
+
+@pytest.mark.parametrize('status', [404, 409])
+def test_a_file_fetch_the_server_refuses_on_v2_is_asked_with_v1(status):
+    model, _emitted = _v2_model()
+    request = model.bulk_send([QUERY])
+
+    assert model.bulk_wait(request, status) == 0
+    assert model.bulk_send([QUERY]).api == 'v1'
+    assert model.bulk_parse([QUERY], json.dumps([STORED]).encode())[QUERY][0]['quality'] == 100

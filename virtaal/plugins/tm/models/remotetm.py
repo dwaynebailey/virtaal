@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import email.utils
+import json
 import logging
 import time
 from datetime import timezone
@@ -163,15 +164,34 @@ class TMModel(BaseTMModel):
         if getattr(widget, 'tm_key', self._key()) != self._key():
             # Asked for before a language or style change, or a save.
             return
+        matches = self._usable(matches)
+        self.cache[query_str] = matches or None  # None instead of empty list
+        if matches:
+            self.emit('match-found', query_str, matches)
+
+    def _usable(self, matches):
+        """The matches in a reply, each with this server as its source."""
         # A reply of another shape than a list of matches is no matches (#4437).
         if not isinstance(matches, list):
             matches = []
         matches = [m for m in matches if isinstance(m, dict) and 'source' in m and 'target' in m]
-        self.cache[query_str] = matches or None  # None instead of empty list
-        if matches:
-            for match in matches:
-                match['tmsource'] = self.shortname
-            self.emit('match-found', query_str, matches)
+        for match in matches:
+            match['tmsource'] = self.shortname
+        return matches
+
+    # A file's suggestions (#1679), a unit per request #
+    def bulk_ready(self):
+        return bool(self.source_lang) and self.source_lang != self.target_lang
+
+    def bulk_send(self, batch):
+        (query_str,) = batch
+        return self.tmclient.translate_unit(
+            query_str, self.source_lang, self.target_lang, None, self._params()
+        )
+
+    def bulk_parse(self, batch, reply):
+        (query_str,) = batch
+        return {query_str: self._usable(json.loads(reply))}
 
     def push_store(self, store_controller):
         """Add units in store to TM database on save."""

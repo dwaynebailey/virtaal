@@ -143,3 +143,26 @@ def test_handle_response_caches_and_emits_a_translation():
 
     assert model.cache['bonjour'] == {'source': 'bonjour', 'target': 'hello', 'tmsource': 'Moses'}
     assert emitted == [('bonjour', [model.cache['bonjour']])]
+
+
+# A file's suggestions (#1679)
+
+
+def test_a_file_fetch_asks_the_language_pairs_server_a_unit_at_a_time():
+    model = _model()
+    model.source_lang, model.target_lang = 'en', 'af'
+    sent = []
+    client = SimpleNamespace(
+        translate_unit=lambda q, callback, target: sent.append((q, callback, target)) or 'request',
+        _handle_response=lambda q, reply: {b'good': 'Goed', b'': None}[reply],
+    )
+    assert not model.bulk_ready()
+    model.clients = {'en': {'af': client}}
+
+    assert model.bulk_ready()
+    assert model.bulk_send(['good']) == 'request'
+    assert sent == [('good', None, 'af')]
+    assert model.bulk_parse(['good'], b'good') == {
+        'good': [{'source': 'good', 'target': 'Goed', 'tmsource': 'Moses'}]
+    }
+    assert model.bulk_parse(['bad'], b'') == {'bad': []}

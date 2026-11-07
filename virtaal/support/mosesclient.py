@@ -69,6 +69,8 @@ class MosesClient(GObject.GObject, HTTPClient):
         self.multilang = state
 
     def translate_unit(self, unit_source, callback=None, target_language=None):
+        """Ask for unit_source's translation.
+        @returns: The request."""
         parameters = {
             'text': prepare(unit_source),
         }
@@ -93,6 +95,7 @@ class MosesClient(GObject.GObject, HTTPClient):
                 )
 
             request.connect("http-success", call_callback)
+        return request
 
     def _loads_safe(self, response):
         """Does the loading of the XML-RPC response, but handles exceptions."""

@@ -193,13 +193,7 @@ class TMModel(BaseTMModel):
         if query_str in self.cache:
             self.emit('match-found', query_str, self.cache[query_str])
         else:
-            values = {
-                'q': self.protection.protect(query_str).text,
-                'langpair': "%s|%s" % pair,
-                'markUnknown': "no",
-                'format': 'html',
-            }
-            req = RESTRequest(self.url_translate + "?" + urlencode(values), '')
+            req = RESTRequest(self._translate_url(query_str, pair), '')
             self.client.add(req)
             req.connect(
                 'http-success', lambda req, response: self.got_translation(response, query_str)
@@ -209,6 +203,15 @@ class TMModel(BaseTMModel):
 
     def requests_in_flight(self):
         return len(self.client.requests)
+
+    def _translate_url(self, query_str, pair):
+        values = {
+            'q': self.protection.protect(query_str).text,
+            'langpair': "%s|%s" % pair,
+            'markUnknown': "no",
+            'format': 'html',
+        }
+        return self.url_translate + "?" + urlencode(values)
 
     def _apy_pair(self):
         """The most specific listed APY pair for the current languages, or
@@ -247,17 +250,27 @@ class TMModel(BaseTMModel):
     def got_translation(self, val, query_str):
         """Handle the response from the web service now that it came in."""
         try:
-            data = json.loads(val)
-            if data['responseStatus'] != 200:
-                logging.debug("Failed to translate '%s':\n%s", query_str, data['responseDetails'])
-                return
-            target = data['responseData']['translatedText']
-            if not isinstance(target, str):
-                raise TypeError('translatedText is %s' % type(target).__name__)
+            match = self._match(val, query_str)
         except (ValueError, KeyError, TypeError) as exc:
             # Not JSON, or of another shape (#4438).
             logging.warning("Ignoring an Apertium translation it can't read: %s", exc)
             return
+        if match is None:
+            return
+        self.cache[query_str] = [match]
+
+        self.emit('match-found', query_str, [match])
+
+    def _match(self, val, query_str):
+        """The suggestion in a reply for query_str, or None if Apertium
+        refused it."""
+        data = json.loads(val)
+        if data['responseStatus'] != 200:
+            logging.debug("Failed to translate '%s':\n%s", query_str, data['responseDetails'])
+            return None
+        target = data['responseData']['translatedText']
+        if not isinstance(target, str):
+            raise TypeError('translatedText is %s' % type(target).__name__)
         restored = self.protection.restore(target, self.protection.protect(query_str))
         if restored.returned != restored.text:
             logging.debug('Apertium: placeables moved in %r', target)
@@ -266,7 +279,18 @@ class TMModel(BaseTMModel):
                 text=_chop_newline(restored.text), returned=_chop_newline(restored.returned)
             )
         # l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for optimal vertical display.
-        match = suggestion(query_str, restored, _('Apertium'))
-        self.cache[query_str] = [match]
+        return suggestion(query_str, restored, _('Apertium'))
 
-        self.emit('match-found', query_str, [match])
+    # A file's suggestions (#1679), a unit per request #
+    def bulk_ready(self):
+        return self.languages_known and self._apy_pair() is not None
+
+    def bulk_send(self, batch):
+        (query_str,) = batch
+        req = RESTRequest(self._translate_url(query_str, self._apy_pair()), '')
+        return req if self.client.add(req) is not False else None
+
+    def bulk_parse(self, batch, reply):
+        (query_str,) = batch
+        match = self._match(reply, query_str)
+        return {query_str: [match] if match else []}

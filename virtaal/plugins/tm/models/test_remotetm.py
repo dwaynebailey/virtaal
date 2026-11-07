@@ -480,3 +480,44 @@ def test_the_local_tm_server_is_not_configurable():
     from virtaal.plugins.tm.models import localtm
 
     assert localtm.TMModel.settings == ()
+
+
+# A file's suggestions (#1679)
+
+
+def _fetch(model, sources):
+    from virtaal.plugins.tm.bulkfetch import BulkFetch
+
+    found = {}
+    fetch = BulkFetch(model, sources, lambda f, batch: found.update(batch), lambda f: None)
+    fetch.start()
+    return fetch, found
+
+
+def test_a_file_fetch_asks_a_unit_per_request_one_at_a_time():
+    model = _model(checker='gnome')
+    model.tmclient = _Client()
+    fetch, found = _fetch(model, ['Open', 'Close'])
+
+    assert [r.query_str for r in model.tmclient.sent] == ['Open']
+    model.tmclient.sent[0]._fire('http-success', b'[{"source": "Open", "target": "Maak oop"}]')
+    model.tmclient.sent[1]._fire('http-success', b'"no"')
+
+    assert found == {
+        'Open': [{'source': 'Open', 'target': 'Maak oop', 'tmsource': 'Remote TM'}],
+        'Close': [],
+    }
+    assert fetch.finished == 'done'
+
+
+def test_a_file_fetch_needs_two_languages():
+    assert _model().bulk_ready()
+    assert not _model(target_lang='en').bulk_ready()
+
+
+def test_a_file_fetch_waits_when_the_server_is_busy():
+    model = _model()
+    request = _Request('Open', None, b'HTTP/1.1 429\r\nRetry-After: 12\r\n')
+
+    assert model.bulk_wait(request, 429) == 12
+    assert model.bulk_wait(request, 404) is None

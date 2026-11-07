@@ -589,3 +589,32 @@ def test_got_translation_adds_a_lost_placeable_and_marks_the_suggestion():
 
     (match,) = model.cache['Delete %s']
     assert (match['target'], match['tm_target']) == ('Skrap %s', 'Skrap')
+
+
+# A file's suggestions (#1679)
+
+
+def test_a_file_fetch_asks_a_unit_per_request():
+    model = _model()
+    model.languages_known = True
+    model.client = FakeHTTPClient()
+
+    assert model.bulk_ready()
+    request = model.bulk_send(['Open'])
+    reply = json.dumps({'responseStatus': 200, 'responseData': {'translatedText': 'Maak oop'}})
+    found = model.bulk_parse(['Open'], reply.encode())
+
+    assert model.client.added == [request]
+    assert 'q=Open&langpair=en%7Caf' in request.url
+    assert found['Open'][0]['target'] == 'Maak oop'
+    assert model.bulk_parse(['Open'], b'{"responseStatus": 500, "responseDetails": "x"}') == {
+        'Open': []
+    }
+
+
+def test_a_file_fetch_needs_a_listed_pair():
+    model = _model()
+    model.languages_known = True
+    model.language_pairs = [('en', 'de')]
+
+    assert not model.bulk_ready()

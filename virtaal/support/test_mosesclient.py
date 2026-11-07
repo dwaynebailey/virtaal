@@ -163,3 +163,9 @@ def test_handle_response_fixes_up_the_translated_text():
     body = xmlrpclib.dumps(({'text': 'hello , world !'},), methodresponse=True)
 
     assert client._handle_response('src', body) == 'hello, world!'
+
+
+def test_translate_unit_gives_the_request():
+    client, requests = _client_with_captured_requests()
+
+    assert client.translate_unit('Hello') is requests[0]

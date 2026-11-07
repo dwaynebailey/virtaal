@@ -73,12 +73,31 @@ class TMModel(BaseTMModel):
     def _handle_response(self, id, response):
         if not response:
             return
-        result = {
-            'source': id,
-            'target': response,
-            # l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for vertical display optimization.
-            'tmsource': _('Moses'),
-        }
-
+        result = _match(id, response)
         self.cache[id] = result
         self.emit('match-found', id, [result])
+
+    # A file's suggestions (#1679), a unit per request #
+    def _client(self):
+        return self.clients.get(self.source_lang, {}).get(self.target_lang)
+
+    def bulk_ready(self):
+        return self._client() is not None
+
+    def bulk_send(self, batch):
+        (query_str,) = batch
+        return self._client().translate_unit(query_str, None, self.target_lang)
+
+    def bulk_parse(self, batch, reply):
+        (query_str,) = batch
+        response = self._client()._handle_response(query_str, reply)
+        return {query_str: [_match(query_str, response)] if response else []}
+
+
+def _match(source, target):
+    return {
+        'source': source,
+        'target': target,
+        # l10n: Try to keep this as short as possible. Feel free to transliterate in CJK languages for vertical display optimization.
+        'tmsource': _('Moses'),
+    }
