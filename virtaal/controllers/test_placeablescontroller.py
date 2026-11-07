@@ -8,6 +8,7 @@
 from types import SimpleNamespace
 
 from gi.repository import Gtk
+from translate.storage.placeables import general
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.views import placeablesguiinfo
@@ -90,3 +91,26 @@ def test_style_set_ignores_text_boxes_in_a_hidden_container(monkeypatch):
     _controller(targets=[target, unused_plural])._on_style_set(None)
 
     assert calls == [('update_style', target), ('refresh', 'target')]
+
+
+def test_adding_a_parser_keeps_the_parsers_added_before_it():
+    controller = _controller()
+    controller.parsers = []
+    controller.emit = lambda signal: None
+
+    def first(text):
+        return None
+
+    def second(text):
+        return None
+
+    controller.add_parsers(first)
+    controller.add_parsers(second, general.NumberPlaceable.parse)
+    controller.add_parsers(general.NewlinePlaceable.parse, second)
+
+    assert controller.parsers == [
+        general.NewlinePlaceable.parse,
+        general.NumberPlaceable.parse,
+        first,
+        second,
+    ]
