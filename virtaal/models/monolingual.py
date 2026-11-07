@@ -189,12 +189,15 @@ class MonolingualPair:
             return {}
 
     def _first_seen(self, key, unit, source=None):
-        """With nothing to compare with, every translation needs review,
-        and one whose recalled C{source} has changed since needs work."""
+        """With nothing to compare with, a translation whose source is
+        recalled is translated if that C{source} is the same now, and
+        needs work if it changed since; any other needs review."""
         target = _target_text(unit)
         if not target:
             return baseline.entry(unit.source, None, UNTRANSLATED)
-        if source is not None and source != unit.source:
+        if source == unit.source:
+            return baseline.entry(unit.source, target, TRANSLATED)
+        if source is not None:
             self._mark(key, unit, _Review(source), NEEDS_WORK)
             return baseline.entry(unit.source, target, NEEDS_WORK, source)
         self._mark(key, unit, _Review(), NEEDS_REVIEW)

@@ -132,13 +132,18 @@ def test_a_first_open_flags_a_changed_source_from_the_local_tm(config_dir, proje
 
     units = dict(pair.units())
     assert {key: state_name(unit) for key, unit in units.items()} == {
-        # The same source as when translated: a first open's review.
-        'app.title': 'needs-review',
+        # The same source as when translated: nothing changed.
+        'app.title': 'translated',
         'greeting': 'needs-work',
-        'quit': 'needs-review',
+        'quit': 'translated',
     }
     assert units['greeting'].getnotes('translator') == 'Previous source: Hello!'
     assert pair.reviews['greeting'].previous_source == 'Hello!'
+    assert set(pair.reviews) == {'greeting'}
+    assert units['quit'].getnotes('translator') == ''
+    # Recorded as translated: opening it again leaves it so.
+    again = MonolingualPair(target, str(project / 'en.properties'))
+    assert state_name(dict(again.units())['quit']) == 'translated'
 
 
 def test_a_failing_recall_leaves_a_plain_first_open(project, caplog):
@@ -376,10 +381,11 @@ def test_a_first_open_flags_a_source_changed_since_its_commit(config_dir, repo):
 
     units = dict(pair.units())
     assert {key: state_name(unit) for key, unit in units.items()} == {
+        # Not committed: nothing recalled.
         'app.title': 'needs-review',
         'greeting': 'needs-work',
         # Translated again for the English it has now.
-        'quit': 'needs-review',
+        'quit': 'translated',
     }
     assert units['greeting'].getnotes('translator') == 'Previous source: Hello!'
     assert units['quit'].getnotes('translator') == ''
