@@ -173,6 +173,9 @@ def test_the_installer_wizard_reports_what_neither_inno_nor_shipped_lite_transla
     # A shipped lite catalog's translation wins over the Inno file's.
     have = module.inno_translations(lite, "af", True, _Installer)
     assert have["ButtonNext\x04&Next >"] == "&Verder >"
-    assert "| Windows installer (2 strings) | pt_BR (2 strings), af (1) |" in module.markdown(
-        report, [], "Windows"
-    )
+    text = module.markdown(report, [], "Windows")
+    assert "| Windows installer (2 strings) | pt_BR (2 strings), af (1) |" in text
+    # Counts only: the catalogs list the messages.
+    _summary, _, details = text.partition("<details>")
+    assert "| af | 1 of 2 |\n| pt_BR | 2 of 2 |" in details
+    assert "< &Back" not in details

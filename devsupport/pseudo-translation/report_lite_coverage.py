@@ -281,26 +281,33 @@ def markdown(report, skipped, host, level_one=None):
         "",
     ]
     for domain, langs in sorted(report.items(), key=lambda item: list(LABELS).index(item[0])):
-        if not langs:
-            continue
-        lines += [
-            "**%s** (`%s`)" % (LABELS.get(domain, domain), domain),
-            "",
-            "| Language | Missing | Messages |",
-            "|---|---|---|",
-        ]
-        for lang, gaps in sorted(langs.items()):
-            lines.append(
-                "| %s | %d | %s |"
-                % (
-                    lang,
-                    len(gaps),
-                    ", ".join("`%s`" % _shown(key).replace("|", "\\|") for key in gaps),
-                )
-            )
-        lines.append("")
+        if langs:
+            lines += [
+                "**%s** (`%s`)" % (LABELS.get(domain, domain), domain),
+                "",
+                *(_counted(domain, langs) if domain == INNO else _listed(langs)),
+                "",
+            ]
     lines += ["</details>", ""]
     return "\n".join(lines)
+
+
+def _listed(langs):
+    """Table rows of each language's missing messages."""
+    rows = ["| Language | Missing | Messages |", "|---|---|---|"]
+    for lang, gaps in sorted(langs.items()):
+        shown = ", ".join("`%s`" % _shown(key).replace("|", "\\|") for key in gaps)
+        rows.append("| %s | %d | %s |" % (lang, len(gaps), shown))
+    return rows
+
+
+def _counted(domain, langs):
+    """Table rows of how many of the domain's messages each language
+    misses: the installer's catalog lists them."""
+    total = len(template_keys(domain))
+    rows = ["| Language | Missing |", "|---|---|"]
+    rows += ["| %s | %d of %d |" % (lang, len(gaps), total) for lang, gaps in sorted(langs.items())]
+    return rows
 
 
 def main(argv=None):
