@@ -145,6 +145,7 @@ class TMModel(BaseTMModel):
 
     # In-process: nothing to hide, and the unit just left can be a match.
     PREFETCH_MAX = 0
+    BULK_MAX = 0
     default_config = {'max_length': 1000, 'prefetch': 0}
     LOAD_CHUNK = 500  # Units read per extendtm() call.
     LOAD_BUDGET = 0.02  # Seconds of the main loop each loading step takes.

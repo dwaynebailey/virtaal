@@ -16,6 +16,7 @@ class TMModel(BaseTMModel):
     description = _('A translation memory suggestion providers that is only useful for testing')
 
     PREFETCH_MAX = 0
+    BULK_MAX = 0
     default_config = {'prefetch': 0}
 
     # INITIALIZERS #

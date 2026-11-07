@@ -81,6 +81,28 @@ def test_preload_policy_per_backend():
     }
 
 
+def test_every_backend_decides_how_much_of_a_file_it_may_be_asked_for():
+    assert 'BULK_MAX' not in BaseTMModel.__dict__
+    for name, cls in _backends():
+        assert 'BULK_MAX' in cls.__dict__, name
+        assert cls.BULK_MAX is None or (isinstance(cls.BULK_MAX, int) and cls.BULK_MAX >= 0), name
+
+
+def test_bulk_ceiling_per_backend():
+    assert {name: cls.BULK_MAX for name, cls in _backends()} == {
+        '_dummytm': 0,
+        'amagama': None,
+        'apertium': 0,
+        'currentfile': 0,
+        'deepl': None,
+        'google_translate': None,
+        'localtm': 0,
+        'microsoft_translator': None,
+        'moses': None,
+        'remotetm': None,
+    }
+
+
 class _Backend(BaseTMModel):
     __gtype_name__ = 'TestPrefetchBackend'
     PREFETCH_MAX = 2

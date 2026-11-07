@@ -32,6 +32,7 @@ class TMModel(remotetm.TMModel):
     shortname = _('Local TM')
 
     PREFETCH_MAX = 2
+    BULK_MAX = 0
     default_config = {
         "prefetch": 2,
         "tmserver_bind": "localhost",

@@ -20,6 +20,7 @@ class TMModel(BaseTMModel):
     description = _('Unreviewed machine translations from a Moses server')
 
     PREFETCH_MAX = 2
+    BULK_MAX = None
     default_config = {
         "fr->en": "http://localhost:8080",
         "prefetch": 2,

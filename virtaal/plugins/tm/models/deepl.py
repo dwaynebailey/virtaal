@@ -63,6 +63,7 @@ class TMModel(KeyedMTModel):
     terms_url = 'https://www.deepl.com/pro-license'
     # Billed per character: off unless turned on.
     PREFETCH_MAX = 2
+    BULK_MAX = None
     default_config = {'api_key': '', 'prefetch': 0}
     settings = (api_key_field(),)
 

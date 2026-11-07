@@ -25,6 +25,7 @@ class TMModel(BaseTMModel):
     shortname = _('Remote TM')
 
     PREFETCH_MAX = 2
+    BULK_MAX = None
     default_config = {
         "host": "localhost",
         "port": "55555",

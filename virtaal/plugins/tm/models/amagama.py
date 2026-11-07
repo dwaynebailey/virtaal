@@ -159,6 +159,7 @@ class TMModel(remotetm.TMModel):
     online_service = 'amaGama'
 
     PREFETCH_MAX = 2
+    BULK_MAX = None
     default_config = {
         "url": "https://amagama-live.translatehouse.org/api/v1/",
         "prefetch": 2,

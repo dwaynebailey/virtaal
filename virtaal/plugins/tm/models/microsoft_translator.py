@@ -81,6 +81,7 @@ class TMModel(KeyedMTModel):
     )
     # Billed per character: off unless turned on.
     PREFETCH_MAX = 2
+    BULK_MAX = None
     default_config = {'api_key': '', 'region': '', 'prefetch': 0}
     settings = (
         api_key_field(),

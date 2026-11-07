@@ -72,7 +72,9 @@ class BaseTMModel(BaseModel, Configurable):
 
     # Each backend declares its own PREFETCH_MAX, the most units ahead it
     # may be queried for (0-2; 0 for none), and a "prefetch" default in
-    # default_config: the user's choice, up to that.
+    # default_config: the user's choice, up to that. It also declares its
+    # BULK_MAX, the most source words one fetch for a whole file may ask
+    # it for (#1679): 0 for none, None for as many as the fetch budget.
 
     # INITIALIZERS #
     def __init__(self, controller):

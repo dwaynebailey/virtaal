@@ -126,8 +126,10 @@ class TMModel(BaseTMModel):
 
     url = "https://www.apertium.org/apy"
 
-    # A volunteer-run server: at most one ahead, and only if turned on.
+    # A volunteer-run server: at most one ahead, and only if turned on,
+    # and never a whole file.
     PREFETCH_MAX = 1
+    BULK_MAX = 0
     default_config = {'prefetch': 0}
 
     # A start list from a copy waits for the first query to fetch the

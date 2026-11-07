@@ -44,6 +44,7 @@ class TMModel(BaseTMModel):
     terms_url = 'https://cloud.google.com/terms'
     # Billed per character: off unless turned on.
     PREFETCH_MAX = 2
+    BULK_MAX = None
     default_config = {'api_key': '', 'prefetch': 0}
     settings = (api_key_field(),)
 
