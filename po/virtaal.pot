@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 00:46+0000\n"
+"POT-Creation-Date: 2026-11-07 01:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1960,6 +1960,11 @@ msgstr ""
 
 #: virtaal/plugins/tm/tmview.py
 msgid "Translation _Suggestions"
+msgstr ""
+
+#. l10n: Shows suggestions for units already translated too, not only on request (F9).
+#: virtaal/plugins/tm/tmview.py
+msgid "Suggestions for _Translated Units"
 msgstr ""
 
 #: virtaal/plugins/tm/tmview.py

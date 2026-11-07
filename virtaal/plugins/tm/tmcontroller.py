@@ -19,10 +19,8 @@ from virtaal.support import abstraction, inlinecodes, sdlxliff_compat
 from virtaal.support.translate_compat import forceunicode
 
 
-def _needs_suggestions(unit):
-    """Suggestions show unasked for a unit still to translate. A locked
-    Trados segment can't take one."""
-    return not unit.istranslated() and not sdlxliff_compat.is_locked(unit)
+def _config_bool(value):
+    return str(value).strip().lower() not in ('false', 'no', 'off', '0')
 
 
 def _form_texts(unit):
@@ -74,6 +72,10 @@ class TMController(BaseController):
     """Whether TM matches are scored without their placeables and get the
         current unit's own: plugins.ini's [tm] abstract_placeables."""
 
+    show_translated = False
+    """Whether translated units get suggestions unasked too: View >
+        Suggestions for Translated Units, plugins.ini's [tm] show_translated."""
+
     # INITIALIZERS #
     def __init__(self, main_controller, config=None):
         from virtaal.common import GObjectWrapper
@@ -85,8 +87,8 @@ class TMController(BaseController):
         self.disabled_model_names = ['basetmmodel'] + self.config.get('disabled_models', [])
         self.max_matches = self.config.get('max_matches', 5)
         self.min_quality = self.config.get('min_quality', 75)
-        setting = str(self.config.get('abstract_placeables', True)).strip().lower()
-        self.abstract_placeables = setting not in ('false', 'no', 'off', '0')
+        self.abstract_placeables = _config_bool(self.config.get('abstract_placeables', True))
+        self.show_translated = _config_bool(self.config.get('show_translated', False))
 
         # plug-in signals:
         self._signal_ids = {}
@@ -457,8 +459,7 @@ class TMController(BaseController):
         upcoming = cursor.upcoming(max(depth for _m, depth in models))
         for distance, index in enumerate(upcoming, 1):
             unit = cursor.model[index]
-            # Translated units get no suggestions unless asked.
-            if unit is None or not _needs_suggestions(unit):
+            if unit is None or not self._shows_unasked(unit):
                 continue
             for model, depth in models:
                 if depth >= distance and model.requests_in_flight() <= self.PREFETCH_BUSY:
@@ -474,13 +475,29 @@ class TMController(BaseController):
             if getattr(model, 'PREFETCH_MAX', 0) > 0
         )
 
+    def _shows_unasked(self, unit):
+        """Whether unit gets suggestions unasked: one still to translate,
+        or any with show_translated on. A locked Trados segment can't take
+        one."""
+        if sdlxliff_compat.is_locked(unit):
+            return False
+        return self.show_translated or not unit.istranslated()
+
+    def set_show_translated(self, show):
+        """Turn suggestions for translated units on or off (#1396)."""
+        self.show_translated = show
+        self.config['show_translated'] = str(show)
+        unit = getattr(self, 'unit', None)
+        if unit is not None and unit.istranslated() and not self.view.summoned:
+            self.update_suggestions()
+
     def update_suggestions(self):
         """Query suggestions for the current unit if they are on and it
-        still needs work; translated units only get them on request."""
+        gets them unasked; otherwise it only gets them on request."""
         if not self.storecursor:
             return
         unit = getattr(self, 'unit', None)
-        if self.view.active and unit is not None and _needs_suggestions(unit):
+        if self.view.active and unit is not None and self._shows_unasked(unit):
             return self.start_query()
         if getattr(self, '_delay_id', None):
             GLib.source_remove(self._delay_id)
@@ -601,7 +618,7 @@ class TMController(BaseController):
             return
         unit = self.storecursor.deref()
         if getattr(self.view, 'summoned', False) or (
-            self.view.active and unit is not None and _needs_suggestions(unit)
+            self.view.active and unit is not None and self._shows_unasked(unit)
         ):
             self.start_query()
 

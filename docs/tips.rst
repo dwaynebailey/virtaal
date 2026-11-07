@@ -112,6 +112,10 @@ for ``min_quality``.
 If you want to receive more suggestions at a time, edit ``plugins.ini`` and
 increase the setting for ``max_matches``.
 
+A translated unit only shows suggestions when you ask for them with F9
+(View > Suggestions for This Unit). To see them for every unit, for example
+while reviewing a translation, tick View > Suggestions for Translated Units.
+
 To see translation memory suggestions exactly as the translation memory has
 them, without their placeables and accelerator key adapted to your text, set
 ``abstract_placeables = False`` in the ``[tm]`` section of ``plugins.ini``.

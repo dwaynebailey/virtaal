@@ -1401,3 +1401,93 @@ def test_existing_target_is_the_edited_forms_translation_on_arrival(po, target_n
 
 def test_existing_target_before_any_unit_is_empty():
     assert _bare_controller().existing_target() == ''
+
+
+# Suggestions for translated units (#1396) #
+
+
+@pytest.mark.parametrize(
+    'translated, show_translated, expected',
+    [
+        (False, False, ['query']),
+        (True, False, ['hide']),
+        (False, True, ['query']),
+        (True, True, ['query']),
+    ],
+)
+def test_translated_units_get_suggestions_unasked_only_when_asked_to(
+    translated, show_translated, expected
+):
+    unit = SimpleNamespace(istranslated=lambda: translated)
+    controller, events = _suggestions_controller(unit)
+    controller.show_translated = show_translated
+
+    controller._on_cursor_changed(SimpleNamespace(deref=lambda: unit))
+
+    assert events == expected
+
+
+def test_suggestions_for_translated_units_still_skip_a_locked_trados_segment():
+    data = (
+        b'<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2"'
+        b' xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0" version="1.2">'
+        b'<file original="a" datatype="x-sdlfilterframework2" source-language="en"'
+        b' target-language="af"><body><trans-unit id="1"><source>Open</source>'
+        b'<target>Oop</target>'
+        b'<sdl:seg-defs><sdl:seg id="1" locked="true"/></sdl:seg-defs>'
+        b'</trans-unit></body></file></xliff>'
+    )
+    unit = xliff.xlifffile.parsestring(data).units[0]
+    controller, events = _suggestions_controller(unit)
+    controller.show_translated = True
+
+    controller.update_suggestions()
+
+    assert events == ['hide']
+
+
+@pytest.mark.parametrize(
+    'translated, summoned, show, expected',
+    [
+        (True, False, True, ['query']),
+        (True, False, False, ['hide']),
+        (True, True, False, []),  # asked for with F9
+        (False, False, False, []),  # unchanged for a unit still to translate
+    ],
+)
+def test_set_show_translated_updates_the_current_units_suggestions(
+    translated, summoned, show, expected
+):
+    unit = SimpleNamespace(istranslated=lambda: translated)
+    controller, events = _suggestions_controller(unit, summoned=summoned)
+    controller.config = {}
+
+    controller.set_show_translated(show)
+
+    assert controller.show_translated is show
+    assert controller.config == {'show_translated': str(show)}
+    assert events == expected
+
+
+@pytest.mark.parametrize('setting, expected', [('True', True), ('False', False), (None, False)])
+def test_init_reads_show_translated(monkeypatch, setting, expected):
+    monkeypatch.setattr(TMController, '_load_timing', lambda self: None)
+    monkeypatch.setattr(TMController, '_load_models', lambda self: None)
+    monkeypatch.setattr(TMController, '_connect_plugin', lambda self: None)
+    monkeypatch.setattr('virtaal.plugins.tm.tmview.TMView', lambda *args: None)
+    config = {} if setting is None else {'show_translated': setting}
+
+    controller = TMController(SimpleNamespace(), config)
+
+    assert controller.show_translated is expected
+
+
+def test_preloading_includes_translated_units_with_show_translated_on():
+    model = _PrefetchModel(2)
+    units = [_store_unit('now'), _store_unit('done', translated=True), _store_unit('after')]
+    controller, _asked = _prefetch_controller(model, units=units)
+    controller.show_translated = True
+
+    controller._prefetch_upcoming()
+
+    assert model.prefetched == ['done', 'after']

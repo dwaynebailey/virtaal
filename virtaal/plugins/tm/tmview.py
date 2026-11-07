@@ -138,6 +138,14 @@ class TMView(BaseView, GObjectWrapper):
         self.mnu_suggestions.show()
         self.menu.append(self.mnu_suggestions)
 
+        self.mnu_translated = Gtk.CheckMenuItem.new_with_mnemonic(
+            # l10n: Shows suggestions for units already translated too, not only on request (F9).
+            label=_('Suggestions for _Translated Units')
+        )
+        self.mnu_translated.set_active(self.controller.show_translated)
+        self.mnu_translated.show()
+        self.menu.append(self.mnu_translated)
+
         self.mnu_summon = Gtk.MenuItem.new_with_mnemonic(label=_('Suggestions for This _Unit'))
         self.mnu_summon.show()
         self.menu.append(self.mnu_summon)
@@ -155,6 +163,9 @@ class TMView(BaseView, GObjectWrapper):
         self.menu.set_accel_group(accel_group)
 
         self.mnu_suggestions.connect('toggled', self._on_toggle_show_tm)
+        self.mnu_translated.connect(
+            'toggled', lambda item: self.controller.set_show_translated(item.get_active())
+        )
         self.mnu_suggestions.set_active(True)
         self.mnu_summon.connect('activate', lambda *_args: self.controller.summon())
 
@@ -194,6 +205,7 @@ class TMView(BaseView, GObjectWrapper):
             self._move_settle_id = None
 
         self.menu.remove(self.mnu_suggestions)
+        self.menu.remove(self.mnu_translated)
         self.menu.remove(self.mnu_summon)
         self.remove_import_menu_item()
         self.remove_exclude_menu_item()
@@ -768,6 +780,7 @@ class TMView(BaseView, GObjectWrapper):
             self.hide()
 
     def _on_toggle_show_tm(self, *args):
+        self.mnu_translated.set_sensitive(self.active)
         if not self.active and self.isvisible and not self.summoned:
             self.hide()
         elif self.active and not self.isvisible:

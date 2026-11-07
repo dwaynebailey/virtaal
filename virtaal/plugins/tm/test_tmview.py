@@ -58,6 +58,7 @@ def _tmview(liststore=None, isvisible=False, active=True, may_show=True, target=
         main_controller=SimpleNamespace(unit_controller=SimpleNamespace(view=unit_view))
     )
     view.mnu_suggestions = SimpleNamespace(get_active=lambda: active)
+    view.mnu_translated = Gtk.CheckMenuItem()
     view.summoned = False
     return view
 
@@ -624,6 +625,35 @@ def test_toggle_show_tm_does_nothing_when_state_already_matches():
     assert hidden == []
 
 
+@pytest.mark.parametrize('active', [True, False])
+def test_suggestions_for_translated_units_can_only_be_changed_while_suggestions_are_on(active):
+    view = _tmview(isvisible=True, active=active)
+    view.hide = lambda: None
+    view.controller = SimpleNamespace(update_suggestions=lambda: None)
+
+    view._on_toggle_show_tm()
+
+    assert view.mnu_translated.get_sensitive() is active
+
+
+@pytest.mark.parametrize('show', [True, False])
+def test_suggestions_for_translated_units_starts_as_last_left(show):
+    view, _main_window, _groups = _real_tmview(show_translated=show)
+
+    assert view.mnu_translated in view.menu.get_children()
+    assert view.mnu_translated.get_active() is show
+
+
+def test_ticking_suggestions_for_translated_units_tells_the_controller():
+    changes = []
+    view, _main_window, _groups = _real_tmview(set_show_translated=changes.append)
+
+    view.mnu_translated.set_active(True)
+    view.mnu_translated.set_active(False)
+
+    assert changes == [True, False]
+
+
 # get_target_width() / _get_selected_unit_view()
 
 
@@ -680,6 +710,7 @@ def test_destroy_disconnects_signals_and_removes_the_suggestions_menu_item():
     removed = []
     view.menu = SimpleNamespace(remove=removed.append)
     view.mnu_suggestions = object()
+    view.mnu_translated = object()
     view.mnu_summon = object()
     destroyed = []
     view._match_menu = SimpleNamespace(destroy=lambda: destroyed.append(True))
@@ -687,7 +718,7 @@ def test_destroy_disconnects_signals_and_removes_the_suggestions_menu_item():
     view.destroy()
 
     assert disconnected == [True]
-    assert removed == [view.mnu_suggestions, view.mnu_summon]
+    assert removed == [view.mnu_suggestions, view.mnu_translated, view.mnu_summon]
     assert destroyed == [True]
 
 
@@ -877,6 +908,7 @@ def test_setup_menu_items_adds_a_translation_suggestions_toggle():
         main_controller=SimpleNamespace(view=SimpleNamespace(menubar=None, gui=_real_builder())),
         update_suggestions=lambda: started.append('update'),
         summon=lambda: started.append('summon'),
+        show_translated=False,
     )
 
     view._setup_menu_items()
@@ -908,6 +940,7 @@ class _FakeSignalSource(GObjectWrapper):
 
 def _real_tmview(**controller_attrs):
     controller_attrs.setdefault('update_suggestions', lambda: None)
+    controller_attrs.setdefault('show_translated', False)
     main_window = Gtk.Window()
     store_controller = _FakeSignalSource()
     store_controller.view = SimpleNamespace(parent_widget=Gtk.ScrolledWindow())
