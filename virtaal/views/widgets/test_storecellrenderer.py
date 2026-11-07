@@ -373,6 +373,21 @@ def test_compute_cell_height_uses_the_taller_of_source_and_target():
     assert height == target_h + renderer.ROW_PADDING
 
 
+@pytest.mark.parametrize('source, target', [('Open', ''), ('', ''), ('Open', 'Maak oop')])
+def test_a_row_of_a_file_not_read_yet_is_drawn(source, target):
+    # With several files open, a file not read yet gives PeekUnits.
+    from translate.storage.workflow import StateEnum
+
+    from virtaal.models.streammodel import PeekUnit
+
+    renderer = _renderer_for_unit('', '')
+    state = StateEnum.UNREVIEWED if target else StateEnum.EMPTY
+    renderer.unit = PeekUnit('id', source, target, state)
+
+    assert renderer.compute_cell_height(Gtk.TextView(), 200) > renderer.ROW_PADDING
+    assert (renderer._row_source(), renderer._row_target()) == (source, target)
+
+
 def test_compute_cell_height_right_aligns_for_rtl():
     renderer = _renderer_for_unit('source', 'target')
     textview = Gtk.TextView()

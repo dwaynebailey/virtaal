@@ -42,6 +42,16 @@ class PeekUnit:
     def getid(self):
         return self._id
 
+    # The stats cache keeps plain text only, so a row of a file not read
+    # yet shows that text, without the tags of a tag-only segment.
+    @property
+    def rich_source(self):
+        return []
+
+    @property
+    def rich_target(self):
+        return []
+
     def getnotes(self, origin=None):
         return ''
 
