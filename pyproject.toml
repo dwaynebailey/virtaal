@@ -169,8 +169,8 @@ ignore = [
 ]
 
 [tool.ruff.lint.mccabe]
-# The most complex function in virtaal/ is at 11; lower this as they go.
-max-complexity = 11
+# The most complex functions in virtaal/ are at 10; lower this as they go.
+max-complexity = 10
 
 [tool.ruff.lint.pylint]
 # Functions that build a dialog's widgets run long.
