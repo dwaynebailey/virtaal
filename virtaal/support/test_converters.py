@@ -527,7 +527,7 @@ def test_json_nested_i18next_plurals_are_written_in_place(tmp_path):
     target = '{\n  "notes": {\n    "item_one": "{{count}} заметка"\n  }\n}\n'
     for code, text in (('en', template), ('ru', target)):
         (tmp_path / code).mkdir()
-        (tmp_path / code / 'a.json').write_text(text, encoding='utf-8')
+        (tmp_path / code / 'a.json').write_text(text, encoding='utf-8', newline='')
     en, ru = str(tmp_path / 'en' / 'a.json'), str(tmp_path / 'ru' / 'a.json')
 
     data = converters.JsonConverter().to_monolingual(
