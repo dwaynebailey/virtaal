@@ -7,6 +7,8 @@
 
 """The panel beside the units listing the files open together."""
 
+import os
+
 from gi.repository import GLib, Gtk, Pango
 
 from virtaal.common.pan_app import ngettext
@@ -204,13 +206,20 @@ class FilePanelView(BaseView):
         """Show the files C{entries} (FileEntry objects, as numbered in
         the stream) and the C{languages}, (code, name, count) each, with
         C{language} chosen. C{templates} are shown greyed, outside the
-        stream."""
+        stream, under the files paired with them if any."""
         self._building = True
         try:
             self.model.clear()
             self._rows = {}
             self._current = None
+            self._entries = list(entries)
             self._file_count = len(entries)
+            paired = {
+                os.path.normcase(os.path.abspath(entry.template.template))
+                for entry in entries
+                if entry.template is not None
+            }
+            templates = [t for t in templates if os.path.normcase(t.path) not in paired]
             tree = build_tree([entry.display_name for entry in list(entries) + list(templates)])
             # A folder holding everything adds nothing: start inside it.
             while not tree['files'] and len(tree['folders']) == 1:
@@ -250,6 +259,21 @@ class FilePanelView(BaseView):
             )
             self._rows[number] = Gtk.TreeRowReference.new(self.model, self.model.get_path(it))
             numbers.append(number)
+            entry = self._entries[number]
+            if entry.template is not None:
+                self.model.append(
+                    it,
+                    [
+                        entry.template_name,
+                        'text-x-generic',
+                        0,
+                        '',
+                        [],
+                        Pango.Weight.NORMAL,
+                        _("This is the source-language file."),
+                        False,
+                    ],
+                )
         return numbers
 
     def _load_languages(self, languages, language):

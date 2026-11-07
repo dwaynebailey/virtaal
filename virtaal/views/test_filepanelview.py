@@ -93,8 +93,8 @@ def _rows(model, it=None):
 
 
 def test_monolingual_sources_show_greyed_outside_the_stream():
-    entry = SimpleNamespace(display_name='po/af.po', language='af')
-    source = SimpleNamespace(display_name='i18n/en.properties', language='en')
+    entry = SimpleNamespace(display_name='po/af.po', language='af', template=None)
+    source = SimpleNamespace(display_name='i18n/en.properties', language='en', path='/p/en')
     view, vbox = _loaded_view([entry], [source])
 
     view.update_progress([(1, 0, 2)])
@@ -103,4 +103,29 @@ def test_monolingual_sources_show_greyed_outside_the_stream():
     assert rows['en.properties'][4] == [] and rows['en.properties'][7] is False
     assert rows['af.po'][4] == [0] and rows['af.po'][7] is True
     assert rows['af.po'][2] == 50
+    vbox.destroy()
+
+
+def test_a_paired_file_shows_its_template_greyed_under_it(tmp_path):
+    from virtaal.models.fileset import FileSet
+
+    for name, text in (('Messages.properties', 'a=A\n'), ('Messages_af.properties', 'a=B\n')):
+        (tmp_path / 'app').mkdir(exist_ok=True)
+        (tmp_path / 'app' / name).write_text(text, encoding='utf-8')
+    (tmp_path / 'af.po').write_text('msgid "a"\nmsgstr "b"\n', encoding='utf-8')
+    files = FileSet.from_paths([str(tmp_path)])
+    view, vbox = _loaded_view(list(files), files.templates)
+
+    view.update_progress([(1, 0, 1), (0, 0, 1)])
+
+    rows = _rows(view.model)
+    names = [row[0] for row in rows]
+    # The template only under its file, not again on its own.
+    assert names == ['app', 'Messages_af.properties', 'Messages.properties', 'af.po']
+    target, template = rows[1], rows[2]
+    assert target[4] == [1] and target[7] is True
+    assert template[4] == [] and template[7] is False
+    assert template[6] == 'This is the source-language file.'
+    under = view.model.get_iter(Gtk.TreePath.new_from_string('0:0:0'))
+    assert view.model[under][0] == 'Messages.properties'
     vbox.destroy()

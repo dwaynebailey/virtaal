@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 01:24+0000\n"
+"POT-Creation-Date: 2026-11-07 01:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2552,14 +2552,14 @@ msgstr ""
 msgid "This file doesn't say what language it is in."
 msgstr ""
 
-#: virtaal/views/langview.py
-msgid "_New Language Pair…"
-msgstr ""
-
 #. l10n: Shown for a file like en.properties that the project's other
 #. files (af.properties, de.properties) translate.
-#: virtaal/views/mainview.py
+#: virtaal/views/filepanelview.py virtaal/views/mainview.py
 msgid "This is the source-language file."
+msgstr ""
+
+#: virtaal/views/langview.py
+msgid "_New Language Pair…"
 msgstr ""
 
 #: virtaal/views/mainview.py virtaal/views/widgets/settingsdialog.py
