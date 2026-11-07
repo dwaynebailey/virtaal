@@ -40,8 +40,7 @@ def state_name(unit):
 
 
 def unit_key(unit):
-    # XLIFF prefixes the id with its <file>'s name and \x04.
-    return (unit.getid() or '').rsplit('\x04', 1)[-1] or None
+    return unit.getid() or None
 
 
 def _working_store(bilingual):
@@ -60,6 +59,9 @@ def _working_store(bilingual):
         notes = unit.getnotes('developer')
         if notes:
             working.addnote(notes, 'developer')
+    # Without a file name, XLIFF's ids are the bare keys.
+    for node in store.document.getroot().iterchildren(store.namespaced('file')):
+        node.set('original', '')
     return store
 
 

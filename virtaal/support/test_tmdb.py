@@ -1218,6 +1218,7 @@ def test_a_v1_file_gains_the_markup_columns_and_keeps_its_abstracts(db_path, mon
         patch.delitem(tmdb.MIGRATIONS, 2)
         patch.delitem(tmdb.MIGRATIONS, 3)
         patch.delitem(tmdb.MIGRATIONS, 4)
+        patch.delitem(tmdb.MIGRATIONS, 5)
         db = tmdb.TMDB(db_path)
         db.cursor.execute(
             "INSERT INTO sources (text, context, lang, length, abstract) "
@@ -1394,6 +1395,7 @@ def test_a_v2_file_gets_its_plain_lengths_from_its_markup(db_path, monkeypatch):
         patch.setattr(tmdb, 'SCHEMA_VERSION', 2)
         patch.delitem(tmdb.MIGRATIONS, 3)
         patch.delitem(tmdb.MIGRATIONS, 4)
+        patch.delitem(tmdb.MIGRATIONS, 5)
         db = tmdb.TMDB(db_path)
         db.cursor.execute(
             "INSERT INTO sources (text, context, lang, length, abstract) "
@@ -1572,6 +1574,7 @@ def test_a_v3_file_gains_the_plural_columns_and_keeps_its_abstracts(db_path, mon
     with monkeypatch.context() as patch:
         patch.setattr(tmdb, 'SCHEMA_VERSION', 3)
         patch.delitem(tmdb.MIGRATIONS, 4)
+        patch.delitem(tmdb.MIGRATIONS, 5)
         db = tmdb.TMDB(db_path)
         for source, target, markup in (
             (BOLD, '<b>Stoor</b> die lêer', BOLD_MARKUP),
@@ -1612,3 +1615,69 @@ def test_a_v3_file_gains_the_plural_columns_and_keeps_its_abstracts(db_path, mon
     db.import_store(_plural_po(), '/x/af.po', 'en', 'af')
 
     assert db.translate_unit('Delete %d file', 'en', 'af')[0]['plural_targets'] == PLURAL_FORMS
+
+
+def test_a_v4_file_keys_monolingual_origins_by_their_bare_keys(db_path, monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr(tmdb, 'SCHEMA_VERSION', 4)
+        patch.delitem(tmdb.MIGRATIONS, 5)
+        db = tmdb.TMDB(db_path)
+        units = [
+            {'source': 'Quit', 'target': 'Verlaat', 'key': 'NoName\x04quit'},
+            {'source': 'Open', 'target': 'Open', 'key': 'NoName\x04open'},
+        ]
+        db.sync_store('/x/af.properties', units, 'en', 'af')
+        db.sync_store('/x/af.properties', units[:1], 'en', 'de')
+        db.sync_store('/x/af.xlf', units, 'en', 'af')
+        _close(db_path)
+
+    db = tmdb.TMDB(db_path)
+
+    assert db._user_version() == tmdb.SCHEMA_VERSION
+    keys = db.cursor.execute(
+        'SELECT s.path, o.lang, o.unit_key FROM origins o '
+        'JOIN stores s ON s.store_id = o.store_id ORDER BY 1, 2, 3'
+    ).fetchall()
+    # An XLIFF file's own ids keep their file name.
+    assert keys == [
+        ('/x/af.properties', 'af', 'open'),
+        ('/x/af.properties', 'af', 'quit'),
+        ('/x/af.properties', 'de', 'quit'),
+        ('/x/af.xlf', 'af', 'NoName\x04open'),
+        ('/x/af.xlf', 'af', 'NoName\x04quit'),
+    ]
+    assert db.sync_store(
+        '/x/af.properties',
+        [
+            {'source': 'Quit', 'target': 'Verlaat', 'key': 'quit'},
+            {'source': 'Open', 'target': 'Open', 'key': 'open'},
+        ],
+        'en',
+        'af',
+    ) == {'added': 0, 'replaced': 0, 'removed': 0}
+
+
+def test_a_bare_key_already_there_keeps_its_origin(db_path, monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr(tmdb, 'SCHEMA_VERSION', 4)
+        patch.delitem(tmdb.MIGRATIONS, 5)
+        db = tmdb.TMDB(db_path)
+        db.sync_store(
+            '/x/af.properties',
+            [
+                {'source': 'Quit', 'target': 'Verlaat', 'key': 'NoName\x04quit'},
+                {'source': 'Quit', 'target': 'Sluit', 'key': 'quit'},
+            ],
+            'en',
+            'af',
+        )
+        _close(db_path)
+
+    db = tmdb.TMDB(db_path)
+
+    rows = db.cursor.execute(
+        'SELECT o.unit_key, t.text FROM origins o JOIN targets t ON t.tid = o.tid '
+        'WHERE o.store_id != ?',
+        (tmdb.LEGACY_STORE_ID,),
+    ).fetchall()
+    assert rows == [('quit', 'Sluit')]

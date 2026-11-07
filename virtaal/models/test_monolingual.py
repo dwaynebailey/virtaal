@@ -427,3 +427,9 @@ def test_needs_review_is_restored_on_reopen(project):
         'greeting': 'needs-review',
         'quit': 'untranslated',
     }
+
+
+def test_the_working_units_ids_are_the_bare_keys(project):
+    pair = _open(project)
+
+    assert [unit.getid() for _key, unit in pair.units()] == ['app.title', 'greeting', 'quit']

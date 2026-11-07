@@ -56,10 +56,10 @@ from virtaal.support.tmx_compat import tuv_lang
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 """PRAGMA user_version of the schema below; 0 is a file an older Virtaal made."""
 
-SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1}
+SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1}
 """The abstraction algorithm whose abstracts each schema version stores.
 A new algorithm needs a new schema version, whose migration clears the
 abstracts for the backfill to recompute, so that one file never mixes
@@ -167,7 +167,35 @@ SCHEMA_V4 = (
     "ALTER TABLE targets ADD COLUMN plural_targets VARCHAR DEFAULT NULL",
 )
 
-MIGRATIONS = {1: SCHEMA_V0 + SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3, 4: SCHEMA_V4}
+
+def _bare_monolingual_keys(cursor):
+    """Key a monolingual file's origins by their bare keys, not by the
+    "NoName\x04<key>" ids its working XLIFF store gave them."""
+    from virtaal.support.converters import MONOLINGUAL_CONVERTERS
+
+    extensions = {ext for converter in MONOLINGUAL_CONVERTERS for ext in converter.extensions}
+    prefix = "NoName\x04"
+    stores = [
+        store_id
+        for store_id, path in cursor.execute("SELECT store_id, path FROM stores").fetchall()
+        if os.path.splitext(path)[1][1:].lower() in extensions
+    ]
+    for store_id in stores:
+        cursor.execute(
+            "UPDATE OR IGNORE origins SET unit_key = substr(unit_key, ?) "
+            "WHERE store_id = ? AND substr(unit_key, 1, ?) = ?",
+            (len(prefix) + 1, store_id, len(prefix), prefix),
+        )
+        # Those whose bare key is already there.
+        cursor.execute(
+            "DELETE FROM origins WHERE store_id = ? AND substr(unit_key, 1, ?) = ?",
+            (store_id, len(prefix), prefix),
+        )
+
+
+SCHEMA_V5 = (_bare_monolingual_keys,)
+
+MIGRATIONS = {1: SCHEMA_V0 + SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3, 4: SCHEMA_V4, 5: SCHEMA_V5}
 """The statements, or functions of a cursor, bringing a file up to each
 schema version from the one before. A later version that changes only
 the abstraction algorithm migrates with CLEAR_ABSTRACTS."""
