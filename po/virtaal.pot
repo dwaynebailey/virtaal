@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 01:04+0000\n"
+"POT-Creation-Date: 2026-11-07 01:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1751,6 +1751,51 @@ msgstr ""
 msgid "Translation memory suggestions"
 msgstr ""
 
+#. l10n: The title of the window listing the projects Amagama has translations from
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "Amagama Sources"
+msgstr ""
+
+#: virtaal/plugins/tm/amagamadialog.py virtaal/plugins/tm/localtmdialog.py
+#: virtaal/views/mainview.py virtaal/views/setscanview.py
+#: virtaal/views/widgets/selectdialog.py
+msgid "_Close"
+msgstr ""
+
+#: virtaal/plugins/tm/amagamadialog.py
+msgid ""
+"Choose the projects Amagama's suggestions come from, and how much to prefer "
+"each."
+msgstr ""
+
+#. l10n: Column heading: whether suggestions come from this project
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "Use"
+msgstr ""
+
+#. l10n: Column heading: a project Amagama has translations from, such as GNOME 49
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "Project"
+msgstr ""
+
+#. l10n: Column heading: the licence of a project's translations, such as GPL-3.0-or-later
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "License"
+msgstr ""
+
+#. l10n: Column heading: how much a project's suggestions are preferred, 100% being usual
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "Weight"
+msgstr ""
+
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "Getting the list of projects…"
+msgstr ""
+
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "Could not get the list of projects from Amagama."
+msgstr ""
+
 #: virtaal/plugins/tm/localtmdialog.py
 msgid "Earlier translations (file not recorded)"
 msgstr ""
@@ -1776,11 +1821,6 @@ msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py
 msgid "_Export…"
-msgstr ""
-
-#: virtaal/plugins/tm/localtmdialog.py virtaal/views/mainview.py
-#: virtaal/views/setscanview.py virtaal/views/widgets/selectdialog.py
-msgid "_Close"
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py

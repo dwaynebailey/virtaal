@@ -21,3 +21,17 @@ placeables into the suggestion. An older server gets the text as it is.
 Remember that the suggestions from the Amagama plugin come from a variety of
 sources, and might not be perfect for what you need. It is meant as a way to
 help you increase your productivity, but still needs your expertise.
+
+Choosing Amagama's Projects
+===========================
+To choose which projects Amagama's suggestions come from, open
+:menuselection:`Edit --> Preferences`, select Translation Memory under Features
+and click its :guilabel:`Configure…` button, then do the same for Amagama in
+the list of sources. The Amagama Sources window lists the projects Amagama has
+translations from for your languages, with their licences. Untick a project to
+leave out its suggestions. A project's weight says how much to prefer it: 100%
+is usual, and Amagama gives projects it trusts less a lower weight, such as
+80%. When Amagama has more suggestions than Virtaal shows, it keeps those from
+projects with a higher weight. Each change applies to the next suggestions.
+
+Virtaal keeps the list of projects, so the window still works offline.

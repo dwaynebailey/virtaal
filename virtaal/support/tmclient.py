@@ -92,6 +92,21 @@ class TMClient(HTTPClient):
             request.connect("http-success", _json_callback(callback))
         return request
 
+    def get_sources(self, lang):
+        """Ask an amaGama server for its sources, titled in lang.
+        @returns: The request, or None if the queue was too full to send it."""
+        request = RESTRequest(
+            self.base_url.rstrip('/') + '/sources/',
+            None,
+            "GET",
+            user_agent=self.user_agent,
+            params={'lang': lang},
+        )
+        request.curl.setopt(pycurl.TIMEOUT, 30)
+        if not self.add(request):
+            return None
+        return request
+
     def add_unit(self, unit, source_lang, target_lang, callback=None):
         request = RESTRequest(
             self.base_url + "/%s/%s/unit" % (source_lang, target_lang),

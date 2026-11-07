@@ -619,3 +619,24 @@ def test_list_remove_and_export_reach_the_servers_routes(tm_server, monkeypatch)
     assert (status, json.loads(replies[0])) == (200, {'removed': 1})
     assert app.tmdb.translate_unit('dog', 'en', 'fr') == []
     assert app.tmdb.translate_unit('cat', 'en', 'fr')[0]['target'] == 'chat'
+
+
+@pytest.mark.parametrize('base', ['http://example.com/api/v1/', 'http://example.com/api/v1'])
+def test_get_sources_asks_for_amagamas_sources_in_a_language(monkeypatch, base):
+    client, requests = _make_client(monkeypatch)
+    client.base_url = base
+
+    assert client.get_sources('af') is requests[0]
+
+    request = requests[0]
+    assert request.url == 'http://example.com/api/v1/sources/'
+    assert (request.method, request.id, request.params) == ('GET', None, {'lang': 'af'})
+    assert request.user_agent == 'Virtaal/test'
+    assert request.curl.opts[pycurl.TIMEOUT] == 30
+
+
+def test_get_sources_returns_none_for_a_request_it_could_not_queue(monkeypatch):
+    client, _requests = _make_client(monkeypatch)
+    monkeypatch.setattr(client, 'add', lambda request: False)
+
+    assert client.get_sources('af') is None
