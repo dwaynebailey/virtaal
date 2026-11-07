@@ -133,6 +133,15 @@ def source_params(excluded, weights, sources=()):
     return params
 
 
+def source_weight(names, weights, sources=()):
+    """The weight amaGama orders a suggestion from the sources names by:
+    the best of theirs, each the chosen weight or else the server's;
+    1 for none."""
+    defaults = {s['name']: s['weight'] for s in sources}
+    found = [weights.get(n, defaults.get(n, 1.0)) for n in names if isinstance(n, str)]
+    return max(found, default=1.0)
+
+
 def parse_choices(config):
     """The (excluded names, {name: weight}) in config's exclude and weights."""
     excluded = {name.strip() for name in str(config.get('exclude', '')).split(',')}
@@ -262,6 +271,13 @@ class TMModel(remotetm.TMModel):
         self.cache = {}
         self._pending = {}
         self._generation += 1
+
+    def match_weight(self, match):
+        """match's weight, as amaGama orders it by (#4565)."""
+        names = match.get('sources')
+        if not isinstance(names, list):
+            return 1.0
+        return source_weight(names, self.weights, self.sources or ())
 
     def _params(self):
         params = super()._params()

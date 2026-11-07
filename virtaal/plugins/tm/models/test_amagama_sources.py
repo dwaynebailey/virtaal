@@ -22,6 +22,7 @@ from virtaal.plugins.tm.models.amagama import (
     parse_choices,
     parse_sources,
     source_params,
+    source_weight,
     sources_for,
 )
 
@@ -173,6 +174,31 @@ def test_source_params_sends_only_the_weights_that_differ_from_the_servers():
     params = source_params({'kde'}, weights, SOURCES)
 
     assert params == {'exclude': 'kde', 'weight': 'gone:0,hosted-beta:2'}
+
+
+# source_weight() #
+
+
+@pytest.mark.parametrize(
+    ('names', 'weights', 'expected'),
+    [
+        (['kde'], {}, 1.0),
+        (['hosted-alpha'], {}, 0.8),
+        (['hosted-alpha'], {'hosted-alpha': 2}, 2),
+        (['hosted-alpha', 'kde'], {'kde': 0.5}, 0.8),
+        (['hosted-alpha', 'kde'], {'kde': 1.5}, 1.5),
+        (['unknown'], {}, 1.0),
+        ([], {'kde': 3}, 1.0),
+        ([7, 'hosted-beta'], {}, 0.8),
+    ],
+)
+def test_source_weight_is_the_best_of_the_suggestions_sources(names, weights, expected):
+    assert source_weight(names, weights, SOURCES) == expected
+
+
+def test_source_weight_without_the_source_list_is_the_chosen_one_or_1():
+    assert source_weight(['kde', 'gnome-49'], {'kde': 0.5}) == 1.0
+    assert source_weight(['kde'], {'kde': 0.5}) == 0.5
 
 
 # parse_choices() #
@@ -346,6 +372,23 @@ def test_choices_go_with_a_v2_lookup(state_dir, monkeypatch):
     model._send('Open')
 
     assert sent[0]['exclude'] == 'kde'
+
+
+@pytest.mark.parametrize(
+    ('match', 'expected'),
+    [
+        ({'sources': ['hosted-alpha', 'gnome-49']}, 1.5),
+        ({'sources': ['hosted-alpha']}, 0.8),
+        ({'sources': []}, 1.0),
+        ({}, 1.0),
+        ({'sources': 'kde'}, 1.0),
+    ],
+)
+def test_match_weight_follows_the_matchs_sources(state_dir, monkeypatch, match, expected):
+    model = _amagama(monkeypatch, weights='gnome-49:1.5')
+    model.sources = SOURCES
+
+    assert model.match_weight(match) == expected
 
 
 def test_model_without_init_sends_no_choices():

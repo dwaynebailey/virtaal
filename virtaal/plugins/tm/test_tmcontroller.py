@@ -316,6 +316,63 @@ def test_accept_response_sorts_by_quality_descending_and_truncates_to_max_matche
     assert [m['target'] for m in controller.matches] == ['hoog', 'middel']
 
 
+def _weighted_tmmodel(weights):
+    return SimpleNamespace(
+        display_name='Amagama', match_weight=lambda match: weights[match['target']]
+    )
+
+
+def test_accept_response_sorts_by_quality_times_weight_keeping_quality():
+    local = {'target': 'plaaslik', 'quality': 85, 'tmsource': 'Local TM', 'query_str': 'hello'}
+    controller = _make_controller(matches=[local])
+
+    controller.accept_response(
+        _weighted_tmmodel({'kde': 1.0, 'gnome': 1.5, 'hosted': 0.5}),
+        'hello',
+        [
+            {'target': 'kde', 'quality': 90},
+            {'target': 'gnome', 'quality': 80},
+            {'target': 'hosted', 'quality': 95},
+        ],
+    )
+
+    assert [(m['target'], m['quality']) for m in controller.matches] == [
+        ('gnome', 80),
+        ('kde', 90),
+        ('plaaslik', 85),
+        ('hosted', 95),
+    ]
+
+
+def test_accept_response_puts_exact_matches_first_whatever_their_weight():
+    controller = _make_controller()
+
+    controller.accept_response(
+        _weighted_tmmodel({'fuzzy': 2.0, 'exact': 0.5, 'trusted': 1.5}),
+        'hello',
+        [
+            {'target': 'fuzzy', 'quality': 90},
+            {'target': 'exact', 'quality': 100},
+            {'target': 'trusted', 'quality': 100},
+        ],
+    )
+
+    assert [m['target'] for m in controller.matches] == ['trusted', 'exact', 'fuzzy']
+
+
+def test_accept_response_keeps_the_order_of_equally_ranked_matches():
+    first = {'target': 'een', 'quality': 80, 'tmsource': 'Local TM', 'query_str': 'hello'}
+    controller = _make_controller(matches=[first])
+
+    controller.accept_response(
+        _weighted_tmmodel({'twee': 1.0, 'drie': 2.0}),
+        'hello',
+        [{'target': 'twee', 'quality': 80}, {'target': 'drie', 'quality': 40}],
+    )
+
+    assert [m['target'] for m in controller.matches] == ['een', 'twee', 'drie']
+
+
 def test_accept_response_tidies_each_match():
     controller = _make_controller()
     matches = [

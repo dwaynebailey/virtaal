@@ -225,6 +225,7 @@ def test_the_switch_turns_it_off():
         'quality': 59,
         'tmsource': 'TM',
         'query_str': 'Delete %(count)s files',
+        'weight': 1.0,
     }
 
 

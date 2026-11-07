@@ -46,6 +46,13 @@ def _plain_texts(unit, match):
     return query, source, target
 
 
+def _rank(match):
+    """What suggestions are ordered by: exact matches first, then quality
+    times the weight of the match's source."""
+    quality = match.get('quality') or 0
+    return quality >= 100, quality * match.get('weight', 1.0)
+
+
 def _fetched(model, unit):
     """Whether model has suggestions fetched with the file for unit."""
     fetched_matches = getattr(model, 'fetched_matches', None)
@@ -252,7 +259,7 @@ class TMController(BaseController):
             anything_new = self._add_match(match) or anything_new
         if not anything_new:
             return
-        self.matches.sort(key=lambda x: 'quality' in x and x['quality'] or 0, reverse=True)
+        self.matches.sort(key=_rank, reverse=True)
         self.matches = self.matches[: self.max_matches]
 
         # Only call display_matches if necessary:
@@ -261,8 +268,11 @@ class TMController(BaseController):
 
     @staticmethod
     def _tidy_matches(tmmodel, query_str, matches):
-        """Give every match an int quality, a TM source and the query."""
+        """Give every match an int quality, a TM source, the query and
+        the weight its source has with tmmodel."""
+        match_weight = getattr(tmmodel, 'match_weight', None)
         for match in matches:
+            match['weight'] = match_weight(match) if match_weight else 1.0
             if not isinstance(match.get('quality', 0), int):
                 match['quality'] = int(match['quality'] or 0)
             if 'tmsource' not in match or match['tmsource'] is None:

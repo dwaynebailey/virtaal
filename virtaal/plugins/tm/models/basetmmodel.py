@@ -147,6 +147,11 @@ class BaseTMModel(BaseModel, Configurable):
         elif matches:
             self.emit('match-found', unit.source, [dict(match) for match in matches])
 
+    def match_weight(self, match):
+        """How much match is trusted, its quality multiplied by it to
+        order suggestions: 1 unless the service weights its sources."""
+        return 1.0
+
     def fetched_matches(self, unit):
         """The matches fetched for unit with the whole file (maybe none),
         or None if it wasn't."""
