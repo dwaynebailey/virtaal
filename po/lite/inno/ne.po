@@ -1,0 +1,521 @@
+# *** Inno Setup version 5.5.3+ Nepali messages ***
+# Translated by Him Prasad Gautam [ drishtibachak@gmail.com ]
+# To download user-contributed translations of this file, go to:
+#   http://www.jrsoftware.org/files/istrans/
+# Note: When translating this text, do not add periods (.) to the end of
+# messages that didn't have them already, because on those messages Inno
+# Setup adds the periods automatically (appending a period would result in
+# two periods being displayed).
+msgid ""
+msgstr ""
+"Project-Id-Version: Inno Setup wizard lite\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-07 16:02+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Translate Toolkit 3.19.18\n"
+"Language: ne\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Accelerator-Marker: &\n"
+"X-Project-Style: qt\n"
+
+#. Setup's title bar and taskbar button.
+msgctxt "SetupAppTitle"
+msgid "Setup"
+msgstr "मैतालुको प्रवेश"
+
+#. Setup's title bar and taskbar button.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "SetupWindowTitle"
+msgid "Setup - %1"
+msgstr "मैतालु - %1"
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonBack"
+msgid "< &Back"
+msgstr "&पछाडि फर्क"
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonNext"
+msgid "&Next >"
+msgstr "&अगाडि जाउ"
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonInstall"
+msgid "&Install"
+msgstr "&भित्र्याउ"
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonOK"
+msgid "OK"
+msgstr "ठीक"
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonCancel"
+msgid "Cancel"
+msgstr "रद्द गर"
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonYes"
+msgid "&Yes"
+msgstr "&हो"
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonNo"
+msgid "&No"
+msgstr "&होइन"
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonFinish"
+msgid "&Finish"
+msgstr "&समाप्त"
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonWizardBrowse"
+msgid "B&rowse..."
+msgstr "ऊ&घार त..."
+
+#. The Select Setup Language dialog, shown first.
+msgctxt "SelectLanguageTitle"
+msgid "Select Setup Language"
+msgstr "स्थापकको भाषाको चयन"
+
+#. The Select Setup Language dialog, shown first.
+msgctxt "SelectLanguageLabel"
+msgid "Select the language to use during the installation."
+msgstr "स्थापकले भित्र्याउँदा प्रयोग गरिने भाषा चयन गर्नु होस्:"
+
+#. The dialog asking whether to install for you only or for all users, shown after the language.
+msgctxt "PrivilegesRequiredOverrideTitle"
+msgid "Select Setup Install Mode"
+msgstr ""
+
+#. The dialog asking whether to install for you only or for all users, shown after the language.
+msgctxt "PrivilegesRequiredOverrideInstruction"
+msgid "Select install mode"
+msgstr ""
+
+#. The dialog asking whether to install for you only or for all users, shown after the language.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "PrivilegesRequiredOverrideText2"
+msgid ""
+"%1 can be installed for you only, or for all users (requires administrative "
+"privileges)."
+msgstr ""
+
+#. The dialog asking whether to install for you only or for all users, shown after the language.
+msgctxt "PrivilegesRequiredOverrideCurrentUserRecommended"
+msgid "Install for &me only (recommended)"
+msgstr ""
+
+#. The dialog asking whether to install for you only or for all users, shown after the language.
+msgctxt "PrivilegesRequiredOverrideAllUsers"
+msgid "Install for &all users"
+msgstr ""
+
+#. The question when you cancel Setup.
+msgctxt "ExitSetupTitle"
+msgid "Exit Setup"
+msgstr "स्थापकको बहिर्गमन"
+
+#. The question when you cancel Setup.
+msgctxt "ExitSetupMessage"
+msgid ""
+"Setup is not complete. If you exit now, the program will not be installed.\n"
+"\n"
+"You may run Setup again at another time to complete the installation.\n"
+"\n"
+"Exit Setup?"
+msgstr ""
+"स्थापकले भित्र्याउने कार्य सकेको छैन । यदि बहिर्गमन गरेमा यो कार्यक्रम भित्रिने छैन । \n"
+" \n"
+" पछि अर्को समयमा  तपाई  भित्र्याउने कार्य गर्न सक्नु हुन्छ । \n"
+"  स्थापकले  अहिले सम्म गरेको काम त उल्टिन्छ नि!\n"
+" \n"
+" के मैतालु प्रवेशको कार्य स्थगित नै  गर्ने हो?"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "WizardSelectDir"
+msgid "Select Destination Location"
+msgstr "वासस्थानको चयन गर्नु होस्"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "SelectDirDesc"
+msgid "Where should [name] be installed?"
+msgstr "[name] लाई कहाँ भित्र्याउने हो?"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "SelectDirLabel3"
+msgid "Setup will install [name] into the following folder."
+msgstr "स्थापकले [name] लाई निम्न थैली मा भित्र्याई दिने छ ।"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "SelectDirBrowseLabel"
+msgid ""
+"To continue, click Next. If you would like to select a different folder, "
+"click Browse."
+msgstr ""
+"मैतालु प्रवेशको कार्य निरन्तरता राख्न 'अगाडि जाउ' भन्ने टाँकलाई दबाउनु होस् । यदि तपाइ "
+"भिन्दै थैलीको चयन गर्न चाहनु हुन्छ भने 'उघार' भन्ने टाँकलाई दबाउनु होला ।"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "DiskSpaceMBLabel"
+msgid "At least [mb] MB of free disk space is required."
+msgstr "कम्तीमा [mb] MB क्षमताको भकारी चाहिन्छ ।"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "BrowseDialogTitle"
+msgid "Browse For Folder"
+msgstr "थैली उघारिने  कार्य"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "BrowseDialogLabel"
+msgid "Select a folder in the list below, then click OK."
+msgstr "निम्न सूचीबाट थैली चयन गर्नु होस् र 'ठीक' भन्ने टाँकलाई दबाउनु होस् ।"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "ButtonNewFolder"
+msgid "&Make New Folder"
+msgstr "&नया थैली बनाउ"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "NewFolderName"
+msgid "New Folder"
+msgstr "नयाँ थैली"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "DirExistsTitle"
+msgid "Folder Exists"
+msgstr "थैली छ ।"
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "DirExists"
+msgid ""
+"The folder:\n"
+"\n"
+"%1\n"
+"\n"
+"already exists. Would you like to install to that folder anyway?"
+msgstr ""
+"थैली:\n"
+" \n"
+" %1\n"
+" \n"
+" पहिले देखिने छ । के तपाइ यही थैलीमा जसरी भए पनि भित्र्याउने चाहना राख्नु हुन्छ ?"
+
+#. The Select Start Menu Folder page.
+msgctxt "WizardSelectProgramGroup"
+msgid "Select Start Menu Folder"
+msgstr "सुरुवात सूची थैलीको चयन गर्नु होस् ।"
+
+#. The Select Start Menu Folder page.
+msgctxt "SelectStartMenuFolderDesc"
+msgid "Where should Setup place the program's shortcuts?"
+msgstr "स्थापकले द्रुत मार्ग कहाँ बनाउने?"
+
+#. The Select Start Menu Folder page.
+msgctxt "SelectStartMenuFolderLabel3"
+msgid ""
+"Setup will create the program's shortcuts in the following Start menu folder."
+msgstr "स्थापकले कार्यक्रमको द्रुत मार्ग निम्न सुरुवात सूची थैलीमा गरेको छ ।"
+
+#. The Select Start Menu Folder page.
+msgctxt "SelectStartMenuFolderBrowseLabel"
+msgid ""
+"To continue, click Next. If you would like to select a different folder, "
+"click Browse."
+msgstr ""
+"निरन्तरता राख्न 'अगाडि जाउ' भन्ने टाँकलाई दबाउनु होस्, यदी तपाइ अर्कै थैलीमा राख्न चाहनु "
+"हुन्छ भने, 'उघार' भन्ने टाँकलाई दबाउनु होला ।"
+
+#. The Select Additional Tasks page.
+msgctxt "WizardSelectTasks"
+msgid "Select Additional Tasks"
+msgstr "अतिरिक्त कार्यको चयन गर्नु होस्"
+
+#. The Select Additional Tasks page.
+msgctxt "SelectTasksDesc"
+msgid "Which additional tasks should be performed?"
+msgstr "मैले कुन चाही अतिरिक्त कार्य सम्पादन गर्नु पर्ने हो?"
+
+#. The Select Additional Tasks page.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "SelectTasksLabel2"
+msgid ""
+"Select the additional tasks you want Setup to perform while installing "
+"[name], then click Next."
+msgstr ""
+"स्थापकले [name], लाई भित्र्याउने क्रममा यो कार्य पनि गरोस् भनि तपाइले इच्छा राखेको "
+"अतिरिक्त कार्यको चयन गरी 'अगाडि जाउ' भन्ने टाँकलाई दबाउनु होला ।"
+
+#. The Select Additional Tasks page: the desktop shortcut, and the heading above it.
+msgctxt "AdditionalIcons"
+msgid "Additional shortcuts:"
+msgstr "अतिरिक्त प्रतिमा:"
+
+#. The Select Additional Tasks page: the desktop shortcut, and the heading above it.
+msgctxt "CreateDesktopIcon"
+msgid "Create a &desktop shortcut"
+msgstr "&डेस्कटपमा प्रतिमाको सिर्जना होस्"
+
+#. The Ready to Install page, and its summary of what you chose.
+msgctxt "WizardReady"
+msgid "Ready to Install"
+msgstr "अब भित्रिन तयार"
+
+#. The Ready to Install page, and its summary of what you chose.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "ReadyLabel1"
+msgid "Setup is now ready to begin installing [name] on your computer."
+msgstr ""
+"अब तपाइको कल्पयन्त्रमा [name] लाई भित्र्याउने कार्य सुरु गर्न स्थापक तयार छ ।"
+
+#. The Ready to Install page, and its summary of what you chose.
+msgctxt "ReadyLabel2a"
+msgid ""
+"Click Install to continue with the installation, or click Back if you want "
+"to review or change any settings."
+msgstr ""
+"यदि तपाइ तलको अनुकूलतामा समीक्षा वा परिवर्तन गर्न चाहनु हुन्छ भने 'पछाडि फर्क' भन्ने टाँक "
+"लाई दबाउनु होला । यही अनुकूलता ठीक छ जस्तो लाग्छ भने 'भित्र्याउ' भन्ने टाँकलाई दबाउनु "
+"होस् ।"
+
+#. The Ready to Install page, and its summary of what you chose.
+msgctxt "ReadyMemoDir"
+msgid "Destination location:"
+msgstr "गन्तव्य थैली:"
+
+#. The Ready to Install page, and its summary of what you chose.
+msgctxt "ReadyMemoGroup"
+msgid "Start menu folder:"
+msgstr "सुरुवात सूची थैली:"
+
+#. The Ready to Install page, and its summary of what you chose.
+msgctxt "ReadyMemoTasks"
+msgid "Additional tasks:"
+msgstr "अतिरिक्त कार्य:"
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+msgctxt "WizardPreparing"
+msgid "Preparing to Install"
+msgstr "भित्रिने कार्यको तयारी हुँदै छ ।"
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "PreparingDesc"
+msgid "Setup is preparing to install [name] on your computer."
+msgstr "स्थापक तपाइको कल्पयन्त्रमा [name] लाई भित्र्याउन तयारी गर्दै छ ।"
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+msgctxt "ApplicationsFound2"
+msgid ""
+"The following applications are using files that need to be updated by Setup. "
+"It is recommended that you allow Setup to automatically close these "
+"applications. After the installation has completed, Setup will attempt to "
+"restart the applications."
+msgstr ""
+"स्थापकलाई अद्यावधिक गर्न चाहिने फाइल निम्न अनुप्रयोगले प्रयोगमा ल्याएको पाइयो । "
+"स्थापकलाई यी अनुप्रयोगहरू स्वतः बन्द गर्ने अनुमति प्रदान गर्न सुझाव दिइन्छ । भित्र्याउने "
+"कार्य सम्पन्न भए पछि स्थापकले यी अनुप्रयोगहरूलाई पुनर् स्थापित गर्न कोसिस गर्ने छ ।"
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+msgctxt "CloseApplications"
+msgid "&Automatically close the applications"
+msgstr "&अनुप्रयोगहरूलाई स्वतः बन्द गरि देउ"
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+msgctxt "DontCloseApplications"
+msgid "&Do not close the applications"
+msgstr "अनुप्रयोगलाई बन्द &नगरी देउ"
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+msgctxt "ErrorCloseApplications"
+msgid ""
+"Setup was unable to automatically close all applications. It is recommended "
+"that you close all applications using files that need to be updated by Setup "
+"before continuing."
+msgstr ""
+"स्थापकले स्वचालित रूपमा सबै अनुप्रयोगहरूलाई बन्द गर्न सकेन । सिफारिस गरिन्छ कि कार्य जारी "
+"राख्नु अघि स्थापकलाई चाहिने अद्यावधिक फाइल प्रयोग गर्न तपाइले सबै अणुप्रयोगहरूलाई बन्द "
+"गर्नु होस् ।"
+
+#. The Installing page, and its progress messages.
+msgctxt "WizardInstalling"
+msgid "Installing"
+msgstr "भित्र्याउने कार्य गर्दै छु"
+
+#. The Installing page, and its progress messages.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "InstallingLabel"
+msgid "Please wait while Setup installs [name] on your computer."
+msgstr ""
+"कृपया स्थापकले तपाइको कल्पयन्त्रमा [name] लाई भित्र्याउन् जेल सम्म धैर्य गर्नु होला"
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusClosingApplications"
+msgid "Closing applications..."
+msgstr "अनुप्रयोग बन्द गर्दै छु ।"
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusCreateDirs"
+msgid "Creating directories..."
+msgstr "घर्राको सिर्जना गर्दै छु..."
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusExtractFiles"
+msgid "Extracting files..."
+msgstr "फाइलहरूलाई झिक्दै छु..."
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusCreateIcons"
+msgid "Creating shortcuts..."
+msgstr "द्रुत मार्ग सिर्जना गर्दै छु..."
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusCreateRegistryEntries"
+msgid "Creating registry entries..."
+msgstr "Registry प्रविष्टिको सिर्जना गर्दै छु ।"
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusSavingUninstall"
+msgid "Saving uninstall information..."
+msgstr "भित्रिन नसकेको सूचना बचत गर्दै छु ।"
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusRunProgram"
+msgid "Finishing installation..."
+msgstr "भित्रिने कार्यको समाप्ति गर्दै छु ।"
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusRestartingApplications"
+msgid "Restarting applications..."
+msgstr "अनुप्रयोग पुनः सुरुवात हुँदै छ ।"
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusRollback"
+msgid "Rolling back changes..."
+msgstr "परिवर्तनहरूलाई उल्टाउँदै छु ।"
+
+#. The Setup Completed page.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "FinishedHeadingLabel"
+msgid "Completing the [name] Setup Wizard"
+msgstr "स्थापकले [name]लाई भीत्र्याउने कार्यक्रमको समापन हुदैछ ।"
+
+#. The Setup Completed page.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "FinishedLabel"
+msgid ""
+"Setup has finished installing [name] on your computer. The application may "
+"be launched by selecting the installed shortcuts."
+msgstr ""
+"मैले तपाइको कल्पयन्त्रमा [name] भित्र्याउने कार्य पुरा गरेँ । यो अनुप्रयोग स्थापित "
+"प्रतिमालाई चयन गरेर सक्रिय गराउन सकिन्छ"
+
+#. The Setup Completed page.
+msgctxt "ClickFinish"
+msgid "Click Finish to exit Setup."
+msgstr "भित्र्याउने कार्यक्रम समापन गर्न 'समाप्त' भन्ने टाँकलाई दबाउनु होस् ।"
+
+#. The Setup Completed page's box to start Virtaal, and the uninstall shortcut in the Start menu.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "LaunchProgram"
+msgid "Launch %1"
+msgstr "%1 लाई सक्रिय बनाउ"
+
+#. The Setup Completed page's box to start Virtaal, and the uninstall shortcut in the Start menu.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstallProgram"
+msgid "Uninstall %1"
+msgstr "%1 लाई निष्कासन गरि देउ"
+
+#. Uninstalling: the question, the progress window and the result.
+msgctxt "UninstallAppTitle"
+msgid "Uninstall"
+msgstr "निष्कासन"
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstallAppFullTitle"
+msgid "%1 Uninstall"
+msgstr "%1 को निष्कासन"
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "ConfirmUninstall"
+msgid ""
+"Are you sure you want to completely remove %1 and all of its components?"
+msgstr ""
+"के तपाइ %1 र यसका सबै हिस्साहरू हटाउने नै हो भन्ने कुरामा विश्वस्त हुनु हुन्छ?"
+
+#. Uninstalling: the question, the progress window and the result.
+msgctxt "WizardUninstalling"
+msgid "Uninstall Status"
+msgstr "निष्कासनको अवस्था"
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstallStatusLabel"
+msgid "Please wait while %1 is removed from your computer."
+msgstr ""
+"कृपया, तपाइको कल्पयन्त्रबाट %1 लाई हटाउने कार्य समाप्त हुँदासम्म धैर्य गर्नु होस् ।"
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "StatusUninstalling"
+msgid "Uninstalling %1..."
+msgstr "%1 निष्कासित हुँदै छ ।"
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstalledAll"
+msgid "%1 was successfully removed from your computer."
+msgstr "तपाइको कल्पयन्त्रबाट %1 लाई सफलतापूर्वक हटाइयो ।"
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstalledMost"
+msgid ""
+"%1 uninstall complete.\n"
+"\n"
+"Some elements could not be removed. These can be removed manually."
+msgstr ""
+"%1 लाई पुरै निष्कासित गरियो । \n"
+" \n"
+" केही तत्त्वलाई हटाउन सकिएन । यीनैहरूलाई आफैँले मेटाउनु पर्ने हुन्छ ।"
+
+#. Virtaal's name in Windows' list of installed apps when it is installed both for you only and for all users.
+#. used for example as 'My Program (32-bit)'
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstallDisplayNameMark"
+msgid "%1 (%2)"
+msgstr ""
+
+#. Virtaal's name in Windows' list of installed apps when it is installed both for you only and for all users.
+msgctxt "UninstallDisplayNameMarkAllUsers"
+msgid "All users"
+msgstr ""
+
+#. Virtaal's name in Windows' list of installed apps when it is installed both for you only and for all users.
+msgctxt "UninstallDisplayNameMarkCurrentUser"
+msgid "Current user"
+msgstr ""

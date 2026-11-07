@@ -411,3 +411,79 @@ def test_names_template_gives_each_name_its_iso_code(lite_catalogs, tmp_path, mo
     assert "#: eng\nmsgid \"English\"" in (tmp_path / "iso639-3" / "iso639-3.pot").read_text(
         encoding="utf-8"
     )
+
+
+@pytest.fixture
+def inno_catalogs(lite_catalogs, tmp_path):
+    module, _domain_dir = lite_catalogs
+    inno = tmp_path / "inno"
+    inno.mkdir()
+    (inno / "inno.pot").write_text(
+        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+        '#. Setup\'s title bar.\n#, qt-format\nmsgctxt "SetupWindowTitle"\n'
+        'msgid "Setup - %1"\nmsgstr ""\n\n'
+        'msgctxt "ButtonNext"\nmsgid "&Next >"\nmsgstr ""\n',
+        encoding="utf-8",
+    )
+    upstream = {
+        ("SetupWindowTitle", "Setup - %1"): "Opstelling - %1",
+        ("ButtonNext", "&Next >"): "&Volgende >",
+    }
+    return module, inno, upstream
+
+
+def test_inno_catalog_starts_with_its_checker_hints_flags_and_credits(inno_catalogs):
+    from translate.storage import factory
+
+    module, inno, upstream = inno_catalogs
+    del upstream[("ButtonNext", "&Next >")]
+
+    # af's vendored Afrikaans.isl names its translator.
+    assert module.update("inno", "af", upstream) == 0
+
+    store = factory.getobject(str(inno / "af.po"))
+    assert store.parseheader()["X-Accelerator-Marker"] == "&"
+    assert "Leon Odendaal" in store.header().getnotes("translator")
+    units = {u.getcontext(): u for u in store.units if not u.isheader()}
+    assert units["SetupWindowTitle"].hastypecomment("qt-format")
+    assert units["SetupWindowTitle"].getnotes("developer") == "Setup's title bar."
+    assert str(units["SetupWindowTitle"].target) == "Opstelling - %1"
+    assert not units["ButtonNext"].target
+
+
+def test_an_inno_translation_that_differs_from_upstream_ships(inno_catalogs):
+    module, inno, upstream = inno_catalogs
+    (inno / "af.po").write_text(
+        'msgctxt "ButtonNext"\nmsgid "&Next >"\nmsgstr "&Volgende"\n', encoding="utf-8"
+    )
+
+    # Upstream translates everything, but af's lite translation wins.
+    assert module.update("inno", "af", upstream) == 1
+    assert module.gap_fills("inno", "af", upstream) == 1
+    assert 'msgstr "&Volgende"' in (inno / "af.po").read_text(encoding="utf-8")
+
+    (inno / "af.po").write_text(
+        'msgctxt "ButtonNext"\nmsgid "&Next >"\nmsgstr "&Volgende >"\n', encoding="utf-8"
+    )
+    assert module.update("inno", "af", upstream) == 0
+    assert not (inno / "af.po").exists()
+
+
+def test_inno_upstream_is_the_vendored_messages_files(lite_catalogs):
+    module, _domain_dir = lite_catalogs
+
+    assert module.upstream_dir(None, "inno").endswith(os.path.join("windows", "languages"))
+    german = module.upstream_translations("inno", "de", None)
+    assert german[("ButtonNext", "&Next >")] == "&Weiter >"
+
+
+def test_every_gap_filling_inno_catalog_ships():
+    # update_lite_catalogs.py --check inno, which needs nothing installed:
+    # inno's upstream is in the repository.
+    module = _load("update_lite_catalogs")
+    found = [
+        "inno/%s" % lang
+        for lang in module.shipped_languages()
+        if module.gap_fills("inno", lang, module.upstream_translations("inno", lang, None))
+    ]
+    assert module.unlisted(found) == []

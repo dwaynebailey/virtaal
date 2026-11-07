@@ -32,6 +32,9 @@ LIBRARY_NAMESPACES = {
 # libgettextpo's messages (the "msgfmt" check), which isn't a GI library.
 GETTEXT_TOOLS = "gettext-tools"
 LIBRARY_DOMAINS = tuple(LIBRARY_NAMESPACES) + (GETTEXT_TOOLS,)
+# Lite catalogs no build bundles: the Windows installer's wizard, which
+# generate_installer_translations.py builds into its messages files.
+INSTALLER_DOMAINS = ("inno",)
 
 
 def library_locale_dir(namespace):

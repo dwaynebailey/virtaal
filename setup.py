@@ -73,6 +73,8 @@ if os.name == 'nt' or sys.platform == 'darwin':
         langs = linguas.readlines()
     for lang in langs:
         app, lang = lang.rstrip().split('/')
+        if app in lite.INSTALLER_DOMAINS:
+            continue
         po_filename = path.join('po', 'lite', app, lang + '.po')
         mo_filename = path.join('mo', lang, app + '.mo')
         # iso639-3 and iso639-5 have no library: language names fall back

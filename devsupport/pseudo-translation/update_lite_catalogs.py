@@ -21,6 +21,12 @@ po/LINGUAS-lite lists the lite catalogs that fill a gap - translate a
 message the library's own catalog doesn't - for the languages Virtaal
 ships (po/LINGUAS, see po/update-linguas.py). The rest are kept for
 when they fill one, or their language ships.
+
+inno, the Windows installer's wizard, has no installed catalogs: its
+upstream is the vendored Inno Setup messages files
+(devsupport/packaging/windows/languages/), and its template is
+inno_lite.py's list. Its lite translations win at build time (see
+generate_installer_translations.py).
 """
 
 import argparse
@@ -42,12 +48,24 @@ PRIORITIES = os.path.join(REPO_ROOT, "po", "virtaal.priorities.yaml")
 # Language names: pycountry's catalogs are their upstream, and the
 # template is the names po/priorities.toml's [names] rules ask for.
 NAME_DOMAINS = ("iso639-3", "iso639-5")
+# The Windows installer's wizard: Inno Setup's messages files.
+INNO = "inno"
+INSTALLER = os.path.join(
+    REPO_ROOT, "devsupport", "packaging", "windows", "generate_installer_translations.py"
+)
 
 
 def _generator():
     spec = importlib.util.spec_from_file_location(
         "generate_pseudo_translation", os.path.join(HERE, "generate_pseudo_translation.py")
     )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _installer():
+    spec = importlib.util.spec_from_file_location("generate_installer_translations", INSTALLER)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -84,7 +102,10 @@ def _translations(store):
 
 def upstream_translations(domain, lang, upstream_dir):
     """The library's own translations for lang - its exact catalog, else
-    its language's, as gettext looks them up - or {}."""
+    its language's, as gettext looks them up - or {}. For inno, its
+    vendored messages file's."""
+    if domain == INNO:
+        return _installer().vendored_translations(lang)
     path = gettext.find(domain, upstream_dir, [lang]) if upstream_dir else None
     if not path:
         return {}
@@ -111,6 +132,8 @@ def upstream_dir(generator, domain):
         import pycountry
 
         return pycountry.LOCALES_DIR
+    if domain == INNO:
+        return str(_installer().LANGUAGES_DIR)
     return generator.library_locale_dir(generator.LIBRARY_SOURCES[domain][1])
 
 
@@ -146,7 +169,7 @@ def write_names_template(domain):
         store.serialize(f)
 
 
-def _new_catalog(lang):
+def _new_catalog(domain, lang):
     store = pypo.pofile()
     language = lang_factory.getlanguage(lang)
     store.updateheader(
@@ -155,14 +178,43 @@ def _new_catalog(lang):
         Content_Type="text/plain; charset=UTF-8",
         Plural_Forms="nplurals=%d; plural=%s;" % (language.nplurals, language.pluralequation),
     )
+    if domain == INNO:
+        # The template's checker hints, and the vendored file's credits.
+        installer = _installer()
+        installer.inno_lite.start_catalog(store, installer.vendored_text(lang))
     return store
+
+
+def _add_message(store, domain, message):
+    """A unit for template message in store: its context, its
+    developer notes and format flags, and a language name's code."""
+    unit = store.addsourceunit(message.source)
+    unit.setcontext(message.getcontext())
+    if domain in NAME_DOMAINS:
+        unit.addlocations(message.getlocations())
+    if message.getnotes("developer"):
+        unit.addnote(message.getnotes("developer"), origin="developer")
+    for flag in message.typecomments:
+        for name in flag.lstrip("#,").replace(",", " ").split():
+            if name != "fuzzy":
+                unit.settypecomment(name)
+    return unit
+
+
+def _fills(domain, lite, upstream):
+    """Whether a lite translation changes what ships: it translates a
+    message upstream doesn't - or, for inno, whose lite translations
+    win, translates it differently."""
+    if domain == INNO:
+        return bool(lite) and lite != upstream
+    return bool(lite) and not upstream
 
 
 def update(domain, lang, upstream):
     """Applies the rule to po/lite/<domain>/<lang>.po given the library's
     own translations; returns how many messages it translates that
     the library's own doesn't (0 when it isn't needed, or fills no
-    gap yet)."""
+    gap yet) - see _fills()."""
     template = factory.getobject(os.path.join(LITE_DIR, domain, domain + ".pot"))
     messages = [unit for unit in template.units if not unit.isheader()]
     path = os.path.join(LITE_DIR, domain, lang + ".po")
@@ -184,12 +236,14 @@ def update(domain, lang, upstream):
         else []
     )
 
-    if all(_key(unit) in upstream for unit in messages) and not extras:
-        if os.path.exists(path):
-            os.remove(path)
-        return 0
-
     lite = _translations(existing) if existing else {}
+    if all(_key(unit) in upstream for unit in messages) and not extras:
+        # inno's lite translations win: one that differs keeps it.
+        if not any(_fills(domain, lite.get(_key(u)), upstream[_key(u)]) for u in messages):
+            if os.path.exists(path):
+                os.remove(path)
+            return 0
+
     previous = (
         {
             _key(unit): unit
@@ -199,24 +253,19 @@ def update(domain, lang, upstream):
         if existing
         else {}
     )
-    store = _new_catalog(lang)
+    store = _new_catalog(domain, lang)
     if existing and existing.header():
         store.units = [existing.header()]
     fills = 0
     for message in messages:
-        unit = store.addsourceunit(message.source)
-        unit.setcontext(message.getcontext())
-        if domain in NAME_DOMAINS:
-            unit.addlocations(message.getlocations())
-        if message.getnotes("developer"):
-            unit.addnote(message.getnotes("developer"), origin="developer")
+        unit = _add_message(store, domain, message)
         before = previous.get(_key(message))
         if before is not None and before.getnotes("translator"):
             unit.addnote(before.getnotes("translator"), origin="translator")
         target = lite.get(_key(message)) or upstream.get(_key(message))
         if target:
             unit.target = target
-            fills += not upstream.get(_key(message))
+            fills += _fills(domain, target, upstream.get(_key(message)))
         elif before is not None and before.isfuzzy() and before.target:
             # Unfinished work: kept, still fuzzy, so it doesn't ship.
             unit.target = before.target
@@ -251,7 +300,7 @@ def gap_fills(domain, lang, upstream):
     return sum(
         1
         for unit in template.units
-        if not unit.isheader() and lite.get(_key(unit)) and not upstream.get(_key(unit))
+        if not unit.isheader() and _fills(domain, lite.get(_key(unit)), upstream.get(_key(unit)))
     )
 
 
@@ -283,7 +332,7 @@ def main():
         nargs="+",
         choices=[
             d
-            for d in generator.LIBRARY_SOURCES
+            for d in list(generator.LIBRARY_SOURCES) + [INNO]
             if d in NAME_DOMAINS or os.path.isdir(os.path.join(LITE_DIR, d))
         ],
     )

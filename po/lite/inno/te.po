@@ -1,0 +1,478 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Inno Setup wizard lite\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-07 16:02+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Translate Toolkit 3.19.18\n"
+"Language: te\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Accelerator-Marker: &\n"
+"X-Project-Style: qt\n"
+
+#. Setup's title bar and taskbar button.
+msgctxt "SetupAppTitle"
+msgid "Setup"
+msgstr ""
+
+#. Setup's title bar and taskbar button.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "SetupWindowTitle"
+msgid "Setup - %1"
+msgstr ""
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonBack"
+msgid "< &Back"
+msgstr ""
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonNext"
+msgid "&Next >"
+msgstr ""
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonInstall"
+msgid "&Install"
+msgstr ""
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonOK"
+msgid "OK"
+msgstr ""
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonCancel"
+msgid "Cancel"
+msgstr ""
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonYes"
+msgid "&Yes"
+msgstr ""
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonNo"
+msgid "&No"
+msgstr ""
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonFinish"
+msgid "&Finish"
+msgstr ""
+
+#. A button on the wizard's pages or its message boxes.
+msgctxt "ButtonWizardBrowse"
+msgid "B&rowse..."
+msgstr ""
+
+#. The Select Setup Language dialog, shown first.
+msgctxt "SelectLanguageTitle"
+msgid "Select Setup Language"
+msgstr ""
+
+#. The Select Setup Language dialog, shown first.
+msgctxt "SelectLanguageLabel"
+msgid "Select the language to use during the installation."
+msgstr ""
+
+#. The dialog asking whether to install for you only or for all users, shown after the language.
+msgctxt "PrivilegesRequiredOverrideTitle"
+msgid "Select Setup Install Mode"
+msgstr ""
+
+#. The dialog asking whether to install for you only or for all users, shown after the language.
+msgctxt "PrivilegesRequiredOverrideInstruction"
+msgid "Select install mode"
+msgstr ""
+
+#. The dialog asking whether to install for you only or for all users, shown after the language.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "PrivilegesRequiredOverrideText2"
+msgid ""
+"%1 can be installed for you only, or for all users (requires administrative "
+"privileges)."
+msgstr ""
+
+#. The dialog asking whether to install for you only or for all users, shown after the language.
+msgctxt "PrivilegesRequiredOverrideCurrentUserRecommended"
+msgid "Install for &me only (recommended)"
+msgstr ""
+
+#. The dialog asking whether to install for you only or for all users, shown after the language.
+msgctxt "PrivilegesRequiredOverrideAllUsers"
+msgid "Install for &all users"
+msgstr ""
+
+#. The question when you cancel Setup.
+msgctxt "ExitSetupTitle"
+msgid "Exit Setup"
+msgstr ""
+
+#. The question when you cancel Setup.
+msgctxt "ExitSetupMessage"
+msgid ""
+"Setup is not complete. If you exit now, the program will not be installed.\n"
+"\n"
+"You may run Setup again at another time to complete the installation.\n"
+"\n"
+"Exit Setup?"
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "WizardSelectDir"
+msgid "Select Destination Location"
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "SelectDirDesc"
+msgid "Where should [name] be installed?"
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "SelectDirLabel3"
+msgid "Setup will install [name] into the following folder."
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "SelectDirBrowseLabel"
+msgid ""
+"To continue, click Next. If you would like to select a different folder, "
+"click Browse."
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "DiskSpaceMBLabel"
+msgid "At least [mb] MB of free disk space is required."
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "BrowseDialogTitle"
+msgid "Browse For Folder"
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "BrowseDialogLabel"
+msgid "Select a folder in the list below, then click OK."
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "ButtonNewFolder"
+msgid "&Make New Folder"
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "NewFolderName"
+msgid "New Folder"
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+msgctxt "DirExistsTitle"
+msgid "Folder Exists"
+msgstr ""
+
+#. The Select Destination Location page, its Browse dialog and the question when the chosen folder exists.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "DirExists"
+msgid ""
+"The folder:\n"
+"\n"
+"%1\n"
+"\n"
+"already exists. Would you like to install to that folder anyway?"
+msgstr ""
+
+#. The Select Start Menu Folder page.
+msgctxt "WizardSelectProgramGroup"
+msgid "Select Start Menu Folder"
+msgstr ""
+
+#. The Select Start Menu Folder page.
+msgctxt "SelectStartMenuFolderDesc"
+msgid "Where should Setup place the program's shortcuts?"
+msgstr ""
+
+#. The Select Start Menu Folder page.
+msgctxt "SelectStartMenuFolderLabel3"
+msgid ""
+"Setup will create the program's shortcuts in the following Start menu folder."
+msgstr ""
+
+#. The Select Start Menu Folder page.
+msgctxt "SelectStartMenuFolderBrowseLabel"
+msgid ""
+"To continue, click Next. If you would like to select a different folder, "
+"click Browse."
+msgstr ""
+
+#. The Select Additional Tasks page.
+msgctxt "WizardSelectTasks"
+msgid "Select Additional Tasks"
+msgstr ""
+
+#. The Select Additional Tasks page.
+msgctxt "SelectTasksDesc"
+msgid "Which additional tasks should be performed?"
+msgstr ""
+
+#. The Select Additional Tasks page.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "SelectTasksLabel2"
+msgid ""
+"Select the additional tasks you want Setup to perform while installing "
+"[name], then click Next."
+msgstr ""
+
+#. The Select Additional Tasks page: the desktop shortcut, and the heading above it.
+msgctxt "AdditionalIcons"
+msgid "Additional shortcuts:"
+msgstr ""
+
+#. The Select Additional Tasks page: the desktop shortcut, and the heading above it.
+msgctxt "CreateDesktopIcon"
+msgid "Create a &desktop shortcut"
+msgstr ""
+
+#. The Ready to Install page, and its summary of what you chose.
+msgctxt "WizardReady"
+msgid "Ready to Install"
+msgstr ""
+
+#. The Ready to Install page, and its summary of what you chose.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "ReadyLabel1"
+msgid "Setup is now ready to begin installing [name] on your computer."
+msgstr ""
+
+#. The Ready to Install page, and its summary of what you chose.
+msgctxt "ReadyLabel2a"
+msgid ""
+"Click Install to continue with the installation, or click Back if you want "
+"to review or change any settings."
+msgstr ""
+
+#. The Ready to Install page, and its summary of what you chose.
+msgctxt "ReadyMemoDir"
+msgid "Destination location:"
+msgstr ""
+
+#. The Ready to Install page, and its summary of what you chose.
+msgctxt "ReadyMemoGroup"
+msgid "Start menu folder:"
+msgstr ""
+
+#. The Ready to Install page, and its summary of what you chose.
+msgctxt "ReadyMemoTasks"
+msgid "Additional tasks:"
+msgstr ""
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+msgctxt "WizardPreparing"
+msgid "Preparing to Install"
+msgstr ""
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "PreparingDesc"
+msgid "Setup is preparing to install [name] on your computer."
+msgstr ""
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+msgctxt "ApplicationsFound2"
+msgid ""
+"The following applications are using files that need to be updated by Setup. "
+"It is recommended that you allow Setup to automatically close these "
+"applications. After the installation has completed, Setup will attempt to "
+"restart the applications."
+msgstr ""
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+msgctxt "CloseApplications"
+msgid "&Automatically close the applications"
+msgstr ""
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+msgctxt "DontCloseApplications"
+msgid "&Do not close the applications"
+msgstr ""
+
+#. The Preparing to Install page, shown when Virtaal is running while you upgrade it.
+msgctxt "ErrorCloseApplications"
+msgid ""
+"Setup was unable to automatically close all applications. It is recommended "
+"that you close all applications using files that need to be updated by Setup "
+"before continuing."
+msgstr ""
+
+#. The Installing page, and its progress messages.
+msgctxt "WizardInstalling"
+msgid "Installing"
+msgstr ""
+
+#. The Installing page, and its progress messages.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "InstallingLabel"
+msgid "Please wait while Setup installs [name] on your computer."
+msgstr ""
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusClosingApplications"
+msgid "Closing applications..."
+msgstr ""
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusCreateDirs"
+msgid "Creating directories..."
+msgstr ""
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusExtractFiles"
+msgid "Extracting files..."
+msgstr ""
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusCreateIcons"
+msgid "Creating shortcuts..."
+msgstr ""
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusCreateRegistryEntries"
+msgid "Creating registry entries..."
+msgstr ""
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusSavingUninstall"
+msgid "Saving uninstall information..."
+msgstr ""
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusRunProgram"
+msgid "Finishing installation..."
+msgstr ""
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusRestartingApplications"
+msgid "Restarting applications..."
+msgstr ""
+
+#. The Installing page, and its progress messages.
+msgctxt "StatusRollback"
+msgid "Rolling back changes..."
+msgstr ""
+
+#. The Setup Completed page.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "FinishedHeadingLabel"
+msgid "Completing the [name] Setup Wizard"
+msgstr ""
+
+#. The Setup Completed page.
+#. [name] and [name/ver] are Virtaal's name (and version): keep them as they are.
+msgctxt "FinishedLabel"
+msgid ""
+"Setup has finished installing [name] on your computer. The application may "
+"be launched by selecting the installed shortcuts."
+msgstr ""
+
+#. The Setup Completed page.
+msgctxt "ClickFinish"
+msgid "Click Finish to exit Setup."
+msgstr ""
+
+#. The Setup Completed page's box to start Virtaal, and the uninstall shortcut in the Start menu.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "LaunchProgram"
+msgid "Launch %1"
+msgstr ""
+
+#. The Setup Completed page's box to start Virtaal, and the uninstall shortcut in the Start menu.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstallProgram"
+msgid "Uninstall %1"
+msgstr ""
+
+#. Uninstalling: the question, the progress window and the result.
+msgctxt "UninstallAppTitle"
+msgid "Uninstall"
+msgstr ""
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstallAppFullTitle"
+msgid "%1 Uninstall"
+msgstr ""
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "ConfirmUninstall"
+msgid ""
+"Are you sure you want to completely remove %1 and all of its components?"
+msgstr ""
+
+#. Uninstalling: the question, the progress window and the result.
+msgctxt "WizardUninstalling"
+msgid "Uninstall Status"
+msgstr ""
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstallStatusLabel"
+msgid "Please wait while %1 is removed from your computer."
+msgstr ""
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "StatusUninstalling"
+msgid "Uninstalling %1..."
+msgstr ""
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstalledAll"
+msgid "%1 was successfully removed from your computer."
+msgstr ""
+
+#. Uninstalling: the question, the progress window and the result.
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstalledMost"
+msgid ""
+"%1 uninstall complete.\n"
+"\n"
+"Some elements could not be removed. These can be removed manually."
+msgstr ""
+
+#. Virtaal's name in Windows' list of installed apps when it is installed both for you only and for all users.
+#. used for example as 'My Program (32-bit)'
+#. Setup fills in %1 (and %2, ...): keep each one.
+#, qt-format
+msgctxt "UninstallDisplayNameMark"
+msgid "%1 (%2)"
+msgstr ""
+
+#. Virtaal's name in Windows' list of installed apps when it is installed both for you only and for all users.
+msgctxt "UninstallDisplayNameMarkAllUsers"
+msgid "All users"
+msgstr ""
+
+#. Virtaal's name in Windows' list of installed apps when it is installed both for you only and for all users.
+msgctxt "UninstallDisplayNameMarkCurrentUser"
+msgid "Current user"
+msgstr ""
