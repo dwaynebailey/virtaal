@@ -236,6 +236,36 @@ the service lose or repeat one, the suggestion has each placeable once, with any
 lost one at the end, and hovering over it shows what the service gave. Moses
 suggestions are shown as they come.
 
+.. _using_virtaal#fetch_suggestions_for_a_whole_file:
+
+Fetch Suggestions for a Whole File
+----------------------------------
+To work without a connection, or over a slow one, get the online services'
+suggestions beforehand with :menuselection:`File --> Fetch Suggestions for
+This File…`. A fetch covers about the next hour of work: starting at the
+current unit, the units still to translate or needing work, until their source
+text comes to 1,000 words, and only those a service hasn't already answered.
+The window lists the services that are sources of suggestions, each with what
+it would be asked for: :guilabel:`Whole file` when everything left fits, or
+"Next hour" with about how many units. A service that can't be asked for a
+whole file, such as Apertium's volunteer-run server, shows as unavailable, as
+does one not set up for the file's languages. For a service that charges by
+the character, such as Google Translate, Microsoft Translator or DeepL, the
+window shows how many characters would be sent; it is not ticked to begin
+with.
+
+Tick the services to ask and click :guilabel:`Fetch`: each is asked a batch at
+a time, at the pace it allows, and the window shows how far each has got.
+:guilabel:`Stop` or :guilabel:`Close` stops asking; what came already is kept.
+
+The suggestions go into your local translation memory file, kept apart from
+your own translations: they are never exported or offered as your own, and show
+under the service's name. Until they expire, a service's fetched suggestions
+answer for it, so it isn't asked again. They expire after 7 days, or as soon
+as their unit is translated. In the ``[suggestions]`` section of ``tm.ini`` in
+Virtaal's settings folder, ``fetch_words`` sets how many words a fetch covers
+and ``cache_days`` how long its suggestions are kept.
+
 .. _using_virtaal#navigation:
 
 Navigation
@@ -483,6 +513,10 @@ If you have the appropriate plugins enabled, Virtaal will deliver results from
 network based translation memories. Since the source text is sent to the
 service provider, take care that you are allowed to do that. In the case where
 the source text is confidential, this is probably not a good idea.
+
+:ref:`Fetching suggestions for a whole file
+<using_virtaal#fetch_suggestions_for_a_whole_file>` sends the source text of
+every unit it asks for at once.
 
 .. _using_virtaal#contributions_to_remote_tms:
 
