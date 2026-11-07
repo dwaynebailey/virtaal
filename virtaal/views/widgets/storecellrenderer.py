@@ -45,17 +45,19 @@ def row_text(text, rich):
 
 
 @functools.singledispatch
-def compute_optimal_height(widget, width):
+def compute_optimal_height(widget, width, limit=0):
+    """Size widget's text boxes for width. Heights of at least limit (if
+    given) need not be exact: the editor shrinks any that tall."""
     raise NotImplementedError()
 
 
 @compute_optimal_height.register(Gtk.Widget)
-def gtk_widget_compute_optimal_height(widget, width):
+def gtk_widget_compute_optimal_height(widget, width, limit=0):
     pass
 
 
 @compute_optimal_height.register(Gtk.Container)
-def gtk_container_compute_optimal_height(widget, width):
+def gtk_container_compute_optimal_height(widget, width, limit=0):
     if not widget.props.visible:
         return
     # A label inside gets the width left inside the margins, or its size
@@ -66,11 +68,11 @@ def gtk_container_compute_optimal_height(widget, width):
     for child in widget.get_children():
         if not child.props.visible:
             continue
-        compute_optimal_height(child, width)
+        compute_optimal_height(child, width, limit)
 
 
 @compute_optimal_height.register(Gtk.Grid)
-def gtk_table_compute_optimal_height(widget, width):
+def gtk_table_compute_optimal_height(widget, width, limit=0):
     # Each column gets half the width inside the margins. As for
     # Gtk.Container, an unknown (negative) width stays -1.
     if width >= 0:
@@ -80,7 +82,7 @@ def gtk_table_compute_optimal_height(widget, width):
     for child in widget.get_children():
         if child.props.name not in ("vbox_middle", "vbox_below"):
             continue
-        compute_optimal_height(child, width)
+        compute_optimal_height(child, width, limit)
 
 
 def _estimated_text(widget):
@@ -99,8 +101,24 @@ def _estimated_text(widget):
     return markup.escape(text)
 
 
+MEASURED_LENGTH = 5000
+"""A longer text is first measured by this many of its characters."""
+
+
+def _text_height(widget, text, width, limit):
+    """The height text takes at width in widget. Past L{MEASURED_LENGTH}
+    characters, the start's height if that is already at least limit:
+    laying out a long text is slow."""
+    if limit > 0 and len(text) > MEASURED_LENGTH:
+        layout = rendering.make_pango_layout(widget, text[:MEASURED_LENGTH], width)
+        h = layout.get_pixel_size()[1]
+        if h >= limit:
+            return h
+    return rendering.make_pango_layout(widget, text, width).get_pixel_size()[1]
+
+
 @compute_optimal_height.register(Gtk.TextView)
-def gtk_textview_compute_optimal_height(widget, width):
+def gtk_textview_compute_optimal_height(widget, width, limit=0):
     if not widget.props.visible:
         return
     buf = widget.get_buffer()
@@ -110,7 +128,7 @@ def gtk_textview_compute_optimal_height(widget, width):
         border += 2 * widget.style_get_property("focus-line-width")
 
     buftext = buf.props.text or _estimated_text(widget)
-    _w, h = rendering.make_pango_layout(widget, buftext, width - border).get_pixel_size()
+    h = _text_height(widget, buftext, width - border, limit)
     # Blind to embedded placeable widgets - approximate their real height too (#3536).
     for child in widget.get_children():
         # A third is small enough to avoid ballooning, large enough to
@@ -136,7 +154,7 @@ def gtk_textview_compute_optimal_height(widget, width):
 
 
 @compute_optimal_height.register(Gtk.Label)
-def gtk_label_compute_optimal_height(widget, width):
+def gtk_label_compute_optimal_height(widget, width, limit=0):
     if widget.get_text().strip() == "":
         widget.set_size_request(width, 0)
     else:
@@ -300,11 +318,11 @@ class StoreCellRenderer(Gtk.CellRenderer):
     def _measure_editor(self, editor, widget, width):
         editor.set_size_request(width, -1)
         editor.show()
-        # fixme: this will make vbox_editor width too large
-        compute_optimal_height(editor, width)
         parent_height = widget.get_allocation().height
         if parent_height < -1:
             parent_height = widget.get_preferred_size()[1].height
+        # fixme: this will make vbox_editor width too large
+        compute_optimal_height(editor, width, max(parent_height, 0))
         if parent_height > 0:
             self.check_editor_height(editor, width, parent_height)
         return editor.get_preferred_size()[1].height + self.ROW_PADDING
