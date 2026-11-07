@@ -83,7 +83,8 @@ $includes = @(
 $libs = "gtk-3.lib", "gdk-3.lib", "pango-1.0.lib", "gobject-2.0.lib", "glib-2.0.lib", "intl.lib", "$src\enchant-2.lib"
 Push-Location $src
 try {
-    cl /nologo /O2 /MD /W1 @includes `
+    # enchant.h uses ssize_t, which MinGW has.
+    cl /nologo /O2 /MD /W1 /Dssize_t=__int64 @includes `
         "$gtkspell\gtkspell\gtkspell.c" "$gtkspell\gtkspell\gtkspell-win32.c" `
         /LD /Fe:libgtkspell3-3-0.dll /link "/LIBPATH:$Gtk\lib" "/DEF:$src\gtkspell.def" @libs
     if ($LASTEXITCODE) { throw "cl failed" }
