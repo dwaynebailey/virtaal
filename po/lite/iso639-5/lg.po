@@ -11,7 +11,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Translate Toolkit 3.19.18\n"
 "Language: lg\n"
-"Plural-Forms: nplurals=0; plural=0;\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: son
 msgid "Songhai languages"

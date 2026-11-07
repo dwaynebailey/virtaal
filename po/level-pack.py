@@ -44,6 +44,7 @@ LINGUAS = PO_DIR / 'LINGUAS'
 LITE_DIR = PO_DIR / 'lite'
 LANGUAGE_NAMES = ('iso639-3', 'iso639-5')
 OUT = PO_DIR.parent / 'dist' / 'level-packs'
+PLURALS = PO_DIR.parent / 'virtaal' / 'support' / 'libi18n' / 'plurals.py'
 # Each pack level: the priority levels it holds.
 PACK_LEVELS = {1: ('1', '1~'), 2: ('1', '1~', '2')}
 
@@ -53,6 +54,13 @@ def _run(*command):
     if result.returncode:
         sys.exit('%s failed: %s' % (command[0], result.stderr.decode(errors='replace')))
     return result
+
+
+def _plurals():
+    spec = importlib.util.spec_from_file_location('plurals', PLURALS)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def level_keys(level, domain='virtaal'):
@@ -95,6 +103,10 @@ def _new_catalog(domain, lang, path):
     template = LITE_DIR / domain / (domain + '.pot')
     if template.is_file():
         _run('msginit', '--no-translator', '-l', lang, '-i', template, '-o', path)
+        # msginit has no plural rule for some languages (lg).
+        forms = _plurals().plural_forms(lang)
+        if forms and 'Plural-Forms:' not in path.read_text(encoding='utf-8'):
+            _set_header_field(path, 'Plural-Forms', forms)
     else:
         path.write_text(
             'msgid ""\nmsgstr ""\n"Language: %s\\n"\n"MIME-Version: 1.0\\n"\n'

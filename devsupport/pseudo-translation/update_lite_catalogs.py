@@ -33,9 +33,9 @@ import argparse
 import gettext
 import importlib.util
 import os
+import re
 import sys
 
-from translate.lang import factory as lang_factory
 from translate.misc.multistring import multistring
 from translate.storage import factory, pypo
 
@@ -50,6 +50,7 @@ PRIORITIES = os.path.join(REPO_ROOT, "po", "virtaal.priorities.yaml")
 NAME_DOMAINS = ("iso639-3", "iso639-5")
 # The Windows installer's wizard: Inno Setup's messages files.
 INNO = "inno"
+PLURALS = os.path.join(REPO_ROOT, "virtaal", "support", "libi18n", "plurals.py")
 INSTALLER = os.path.join(
     REPO_ROOT, "devsupport", "packaging", "windows", "generate_installer_translations.py"
 )
@@ -169,19 +170,30 @@ def write_names_template(domain):
         store.serialize(f)
 
 
-def _new_catalog(domain, lang):
-    store = pypo.pofile()
-    language = lang_factory.getlanguage(lang)
-    store.updateheader(
-        add=True,
-        Language=lang,
-        Content_Type="text/plain; charset=UTF-8",
-        Plural_Forms="nplurals=%d; plural=%s;" % (language.nplurals, language.pluralequation),
-    )
-    if domain == INNO:
-        # The template's checker hints, and the vendored file's credits.
-        installer = _installer()
-        installer.inno_lite.start_catalog(store, installer.vendored_text(lang))
+def _plurals():
+    spec = importlib.util.spec_from_file_location("plurals", PLURALS)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _new_catalog(domain, lang, existing=None):
+    """The catalog to write: existing's header, else a new one; either
+    way with lang's Plural-Forms if it has none, or nplurals=0, which
+    msgfmt rejects."""
+    store, forms = pypo.pofile(), _plurals().plural_forms(lang)
+    if existing is not None and existing.header():
+        store.units = [existing.header()]
+    else:
+        fields = {"Language": lang, "Content_Type": "text/plain; charset=UTF-8"}
+        store.updateheader(add=True, **fields, **({"Plural_Forms": forms} if forms else {}))
+        if domain == INNO:
+            # The template's checker hints, and the vendored file's credits.
+            installer = _installer()
+            installer.inno_lite.start_catalog(store, installer.vendored_text(lang))
+    declared = store.parseheader().get("Plural-Forms", "")
+    if forms and (not declared or re.match(r"\s*nplurals\s*=\s*0\b", declared)):
+        store.updateheader(add=True, Plural_Forms=forms)
     return store
 
 
@@ -253,9 +265,7 @@ def update(domain, lang, upstream):
         if existing
         else {}
     )
-    store = _new_catalog(domain, lang)
-    if existing and existing.header():
-        store.units = [existing.header()]
+    store = _new_catalog(domain, lang, existing)
     fills = 0
     for message in messages:
         unit = _add_message(store, domain, message)

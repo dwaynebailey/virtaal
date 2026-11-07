@@ -7,6 +7,8 @@
 
 import importlib.util
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -487,3 +489,41 @@ def test_every_gap_filling_inno_catalog_ships():
         if module.gap_fills("inno", lang, module.upstream_translations("inno", lang, None))
     ]
     assert module.unlisted(found) == []
+
+
+def test_a_new_lite_catalog_takes_the_plural_table_for_a_language_ttk_lacks(lite_catalogs):
+    module, domain_dir = lite_catalogs
+
+    module.update("mac", "lg", {})
+
+    assert '"Plural-Forms: nplurals=2; plural=(n != 1);\\n"' in (domain_dir / "lg.po").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_an_existing_lite_catalogs_nplurals_0_is_replaced(lite_catalogs):
+    module, domain_dir = lite_catalogs
+    (domain_dir / "lg.po").write_text(
+        'msgid ""\nmsgstr ""\n"Language: lg\\n"\n"Plural-Forms: nplurals=0; plural=0;\\n"\n'
+        '"X-Kept: yes\\n"\n\nmsgid "Show All"\nmsgstr "Laga byonna"\n',
+        encoding="utf-8",
+    )
+
+    module.update("mac", "lg", {})
+
+    text = (domain_dir / "lg.po").read_text(encoding="utf-8")
+    assert "nplurals=0" not in text
+    assert '"Plural-Forms: nplurals=2; plural=(n != 1);\\n"' in text
+    assert '"X-Kept: yes\\n"' in text and 'msgstr "Laga byonna"' in text
+
+
+@pytest.mark.skipif(not shutil.which("msgfmt"), reason="needs gettext's msgfmt")
+def test_every_lite_catalog_passes_msgfmt_check(tmp_path):
+    failed = []
+    for path in sorted(Path(TOOLS_DIR).parents[1].glob("po/lite/*/*.po")):
+        result = subprocess.run(
+            ["msgfmt", "-c", "-o", str(tmp_path / "out.mo"), str(path)], capture_output=True
+        )
+        if result.returncode:
+            failed.append("%s: %s" % (path.name, result.stderr.decode(errors="replace")))
+    assert failed == []

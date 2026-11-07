@@ -258,3 +258,16 @@ def test_the_installer_wizard_packs_at_level_two_and_merges_into_its_lite_catalo
         module.LITE_DIR / "inno" / "zu.po",
         "inno",
     )
+
+
+def test_a_new_library_pack_catalog_takes_the_plural_table(tmp_path):
+    spec = importlib.util.spec_from_file_location("level_pack", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    # msginit has no plural rule for Luganda.
+    module._new_catalog("inno", "lg", tmp_path / "lg.po")
+
+    assert '"Plural-Forms: nplurals=2; plural=(n != 1);\\n"' in (tmp_path / "lg.po").read_text(
+        encoding="utf-8"
+    )
