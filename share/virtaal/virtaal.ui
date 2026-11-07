@@ -942,6 +942,15 @@ If you are translating from English to French then French would be your translat
                         <accelerator key="F7" signal="activate"/>
                       </object>
                     </child>
+                    <child>
+                      <object class="GtkCheckMenuItem" id="mnu_show_spaces">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="label" translatable="yes" comments="l10n: Marks every space in the text with a dot. Unusual spaces are always marked.">Show All _Spaces</property>
+                        <property name="use_underline">True</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>

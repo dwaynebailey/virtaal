@@ -168,6 +168,7 @@ class _FakeSetupMenusGui:
             'menu_edit',
         )
         self._widgets = {name: _FakeMenuWidget() for name in names}
+        self._widgets['mnu_show_spaces'] = Gtk.CheckMenuItem()
 
     def get_object(self, name):
         return self._widgets[name]

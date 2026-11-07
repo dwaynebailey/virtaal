@@ -192,6 +192,11 @@ msgstr ""
 msgid "Files _Panel"
 msgstr ""
 
+#. l10n: Marks every space in the text with a dot. Unusual spaces are always marked.
+#: share/virtaal/virtaal.ui
+msgid "Show All _Spaces"
+msgstr ""
+
 #: share/virtaal/virtaal.ui
 msgid "_Navigation"
 msgstr ""

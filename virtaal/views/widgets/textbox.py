@@ -12,6 +12,7 @@ from gi.repository.GObject import SignalFlags
 from translate.storage.placeables import StringElem
 from translate.storage.placeables import parse as elem_parse
 
+from virtaal.common import pan_app
 from virtaal.support import invisiblechars
 from virtaal.support.translate_compat import forceunicode
 from virtaal.views import placeablesguiinfo, theme
@@ -536,10 +537,11 @@ class TextBox(Gtk.TextView):
         # A character either side decides a space at the range's edges.
         context = 1 if start else 0
         text = self.get_text(start - context, end + 1)
+        all_spaces = bool(pan_app.settings.general.get('showspaces'))
         default_fg = _tag_colors((), placeablesguiinfo.InvisibleGUI.fg)[0]
         layouts = {}
         for index, marker in invisiblechars.find_markers(
-            text, context, min(end - start + context, len(text))
+            text, context, min(end - start + context, len(text)), all_spaces
         ):
             itr = self.buffer.get_iter_at_offset(start - context + index)
             fg = _tag_colors(itr.get_tags(), default_fg)[0]

@@ -458,6 +458,7 @@ class Settings:
         "windowy": '',
         "assets_manifest_fetched": "",
         "assets_manifest_etag": "",
+        "showspaces": "",
     }
     language = {
         "nplurals": 0,

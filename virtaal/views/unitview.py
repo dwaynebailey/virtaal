@@ -17,7 +17,7 @@ from translate.misc.xml_helpers import valid_chars_only
 from translate.storage.lisa import LISAunit
 from translate.storage.workflow import StateEnum
 
-from virtaal.common import GObjectWrapper
+from virtaal.common import GObjectWrapper, pan_app
 from virtaal.common.pan_app import ngettext
 from virtaal.common.platform import platform
 from virtaal.support import sdlxliff_compat
@@ -244,6 +244,9 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         self.mnu_prev.connect('activate', self._on_prev_placeable)
         self.mnu_transfer.connect('activate', self._on_transfer)
         self.mnu_insert.connect('activate', self._on_insert_placeable)
+        self.mnu_show_spaces = maingui.get_object('mnu_show_spaces')
+        self.mnu_show_spaces.set_active(bool(pan_app.settings.general.get('showspaces')))
+        self.mnu_show_spaces.connect('toggled', self._on_show_spaces_toggled)
 
         Gtk.AccelMap.add_entry(
             "<Virtaal>/Edit/Next Placeable", Gdk.KEY_Right, Gdk.ModifierType.MOD1_MASK
@@ -360,6 +363,11 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if textbox.get_editable():
             textbox.stop_emission_by_name('paste-clipboard')
             textbox.insert_text(text)
+
+    def _on_show_spaces_toggled(self, menuitem):
+        pan_app.settings.general['showspaces'] = '1' if menuitem.get_active() else ''
+        for textbox in self.sources + self.targets:
+            textbox.queue_draw()
 
     def _on_next_placeable(self, *args):
         if not dialog_active(self.targets[self.focused_target_n]):

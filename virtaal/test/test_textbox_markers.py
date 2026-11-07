@@ -10,6 +10,7 @@ import pytest
 from gi.repository import Gtk
 from test_scaffolding import TestScaffolding
 
+from virtaal.common import pan_app
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.support.invisiblechars import InvisiblePlaceable
 from virtaal.views.placeablesguiinfo import InvisibleGUI
@@ -86,6 +87,7 @@ class TestTextBoxMarkers(TestScaffolding):
 
     def test_markers_are_drawn_on_invisible_characters_and_unusual_spaces(self, monkeypatch):
         textbox = self._shown('a\u00a0b\u200bc d  e\u200f ')
+        monkeypatch.setitem(pan_app.settings.general, 'showspaces', '')
 
         assert self._drawn(textbox, monkeypatch) == [
             (1, '°'),
@@ -95,6 +97,12 @@ class TestTextBoxMarkers(TestScaffolding):
             (10, 'RLM'),
             (11, '·'),
         ]
+
+    def test_every_space_is_drawn_when_all_spaces_are_shown(self, monkeypatch):
+        textbox = self._shown('a b c')
+        monkeypatch.setitem(pan_app.settings.general, 'showspaces', '1')
+
+        assert self._drawn(textbox, monkeypatch) == [(1, '·'), (3, '·')]
 
     def test_many_invisible_characters_make_no_tag_each(self):
         textbox = self._shown('a\u200bb\u00a0\n')
@@ -112,6 +120,15 @@ class TestTextBoxMarkers(TestScaffolding):
 
         assert 0 < len(drawn) < 40
         assert drawn[:2] == [(1, '°'), (3, 'ZWSP')]
+
+    def test_only_the_spaces_on_screen_of_a_long_line_are_drawn(self, monkeypatch):
+        textbox = self._shown('word ' * 5000)
+        monkeypatch.setitem(pan_app.settings.general, 'showspaces', '1')
+
+        drawn = self._drawn(textbox, monkeypatch)
+
+        assert 0 < len(drawn) < 100
+        assert drawn[0] == (4, '·')
 
     def test_an_invisible_character_is_a_placeable_that_can_be_inserted(self):
         textbox = self._shown('a\u00a0b')
@@ -141,3 +158,14 @@ class TestTextBoxMarkers(TestScaffolding):
         assert tooltip == [name]
         x, y = textbox.buffer_to_window_coords(Gtk.TextWindowType.WIDGET, 1, top + 2)
         assert not textbox._on_query_tooltip(textbox, x, y, False, FakeTooltip())
+
+    def test_show_all_spaces_in_the_view_menu_sets_the_preference(self, monkeypatch):
+        monkeypatch.setitem(pan_app.settings.general, 'showspaces', '')
+        item = self.unit_controller.view.mnu_show_spaces
+
+        item.set_active(True)
+        shown = pan_app.settings.general['showspaces']
+        item.set_active(False)
+
+        assert shown == '1'
+        assert pan_app.settings.general['showspaces'] == ''

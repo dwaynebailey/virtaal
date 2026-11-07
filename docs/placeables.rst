@@ -49,4 +49,5 @@ character's full name. They are placeables, so :kbd:`Alt+Down` inserts one
 from the source.
 
 A space is marked with · where it is easy to miss: two or more together, or at
-the start or end of a line.
+the start or end of a line. :menuselection:`View --> Show All Spaces` marks
+every space.
