@@ -260,9 +260,14 @@ FREE_ONLY = (
     'AGPL-3.0-only AGPL-3.0-or-later CC-BY-SA-3.0 CC-BY-SA-4.0 EUPL-1.2'
     ' GPL-2.0-only GPL-2.0-or-later GPL-3.0-only GPL-3.0-or-later LGPL-2.0-only'
     ' LGPL-2.0-or-later LGPL-2.1-only LGPL-2.1-or-later LGPL-3.0-only'
-    ' LGPL-3.0-or-later MPL-2.0 OSL-3.0'
+    ' LGPL-3.0-or-later MPL-2.0 OSL-3.0 GFDL-1.1-or-later'
+    # Not listed, but free.
+    ' GFDL-1.3-or-later GFDL-1.3-no-invariants-only GFDL-1.2-no-invariants-or-later'
 ).split()
-NEITHER = 'CC-BY-NC-4.0 CC-BY-ND-4.0 CC-BY-NC-SA-4.0 GFDL-1.1-invariants-only'.split()
+NEITHER = (
+    'CC-BY-NC-4.0 CC-BY-ND-4.0 CC-BY-NC-SA-4.0 GFDL-1.1-invariants-only'
+    ' GFDL-1.3-invariants-or-later GFDL-1.3-only'
+).split()
 
 
 @pytest.mark.parametrize('identifier', FREE_AND_PERMISSIVE + FREE_ONLY + NEITHER)

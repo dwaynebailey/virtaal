@@ -41,6 +41,9 @@ COPYLEFT = (
     'CDDL-*',
     'EPL-*',
     'EUPL-*',
+    # The GFDL's free variants, not those with invariant sections.
+    'GFDL-[0-9].[0-9]-or-later',
+    'GFDL-*-no-invariants-*',
     'GPL-*',
     'LGPL-*',
     'MPL-*',

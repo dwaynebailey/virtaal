@@ -40,7 +40,8 @@ higher weight. Each change applies to the next suggestions.
 
 To use only translations under licences that suit you, choose them under
 :guilabel:`Licenses`: :guilabel:`Free software` keeps projects under free and
-open source licences, copyleft such as the GPL and permissive such as MIT;
+open source licences, copyleft such as the GPL and permissive such as MIT, and
+the GFDL without invariant sections;
 :guilabel:`Permissive only` keeps those under permissive licences, such as MIT,
 BSD, Apache or CC-BY. Hold the pointer over the choice to see the licences it
 keeps. For others, choose :guilabel:`Custom…` and list them as SPDX
