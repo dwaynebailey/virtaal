@@ -184,7 +184,6 @@ def _analyse(text):
         return _Analysis(((None, text),), (), None, raw=True)
     pieces = []
     placeables = []
-    accels = []
     open_tags = {}
     offset = 0
     for marker, raw, name in _pieces(text):
@@ -205,6 +204,12 @@ def _analyse(text):
             placeables.append(Placeable(marker, raw, offset, end, pair))
             pieces.append((marker, raw))
         offset = end
+    return _Analysis(tuple(pieces), tuple(placeables), _find_accelerator(text, pieces))
+
+
+def _find_accelerator(text, pieces):
+    """(offset, marker character) of the one accelerator in the text
+    pieces of text, or None for none or several."""
     text_at = set()
     offset = 0
     for marker, raw in pieces:
@@ -212,11 +217,11 @@ def _analyse(text):
             text_at.update(range(offset, offset + len(raw)))
         offset += len(raw)
     # Over the whole text: "_1" is an accelerator though "1" is a number.
+    accels = []
     for found in _ACCEL_RE.finditer(text):
         if found.group(1) and found.start(1) in text_at:
             accels.append((found.start(1), found.group(1)))
-    accelerator = accels[0] if len(accels) == 1 else None
-    return _Analysis(tuple(pieces), tuple(placeables), accelerator)
+    return accels[0] if len(accels) == 1 else None
 
 
 def placeables(text):
