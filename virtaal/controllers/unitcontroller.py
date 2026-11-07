@@ -281,7 +281,8 @@ class UnitController(BaseController):
     def prepare_for_save(self):
         """Finalise outstanding changes to the toolkit store for saving."""
         unit = self.current_unit
-        if unit._modified and unit.STATE:
+        # None while no unit is shown: a folder of files to pair.
+        if unit is not None and unit._modified and unit.STATE:
             self._commit_state(unit)
 
     def _state_name(self, unit, state_n):

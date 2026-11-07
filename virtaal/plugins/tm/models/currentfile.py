@@ -200,7 +200,11 @@ class TMModel(BaseTMModel):
             self.matcher.release()
         self.cache = {}
         loading = self._loading = SimpleNamespace(
-            units=iter(list(store.units)), sorted=True, query=None, source_id=None
+            # No store while a folder's files all wait to be paired.
+            units=iter(list(store.units) if store is not None else []),
+            sorted=True,
+            query=None,
+            source_id=None,
         )
         loading.source_id = GLib.idle_add(self._load_step)
 

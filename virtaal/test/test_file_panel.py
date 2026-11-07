@@ -12,6 +12,7 @@ import time
 import pytest
 from gi.repository import Gdk, GLib, Gtk, Pango
 from test_scaffolding import TestScaffolding
+from translate.filters.checks import StandardChecker
 
 from virtaal.controllers.filepanelcontroller import FilePanelController
 from virtaal.controllers.placeablescontroller import PlaceablesController
@@ -340,3 +341,58 @@ class TestFilePanel(TestScaffolding):
         assert self.store_controller.store is store
         assert self.store_controller.is_modified()
         assert store[1].target == 'Twee'
+
+    def test_a_folder_of_only_unpaired_files_opens_empty_and_pairs(self, monkeypatch, tmp_path):
+        folder = tmp_path / 'only'
+        folder.mkdir()
+        lone = folder / 'lone.properties'
+        lone.write_text('hello=Hallo\n', encoding='utf-8')
+        en = tmp_path / 'base.properties'
+        en.write_text('hello=Hello\nbye=Goodbye\n', encoding='utf-8')
+        sc = self.store_controller
+        errors = []
+        monkeypatch.setattr(self.main_controller, 'show_error', errors.append)
+
+        assert self.main_controller.open_files([str(folder)]), errors
+
+        assert len(sc.store) == 0 and sc.is_stream()
+        view = self.panel.view
+        assert view.shown
+        row = _rows(view)['lone.properties']
+        assert row[filepanelview.COL_SENSITIVE] is False and row[filepanelview.COL_PATH]
+        # Nothing to move to, check, count or save, but the folder's name.
+        sc.cursor.move(1)
+        sc.cursor.move(-1)
+        assert sc.store.get_stats_totals() == {}
+        sc.store.update_checks(StandardChecker())
+        modes = self.main_controller.mode_controller
+        for name in list(modes.modes):
+            modes.select_mode_by_name(name)
+        modes.select_mode_by_name('Search')
+        modes.modes['Search'].ent_search.set_text('Hallo')
+        modes.select_mode_by_name(modes.default_mode_name)
+        modes.refresh_mode()
+        assert not sc.is_modified()
+        self.main_controller.save_file()
+        self.main_controller.view.refresh_title()
+        assert 'only' in self.main_controller.view.main_window.get_title()
+        monkeypatch.setattr(
+            self.main_controller.view, 'ask_template', lambda target, guess=None: str(en)
+        )
+        monkeypatch.setattr(self.panel, 'GO_TO_SECONDS', 0.2)
+
+        view.pair_menu(str(lone)).get_children()[0].activate()
+
+        # The folder now holds one file to translate: it opens as one does.
+        assert sc.store.get_filename() == str(lone)
+        assert len(sc.store) == 2 and sc.cursor.index == 0
+
+    def test_a_folder_with_nothing_to_translate_still_says_so(self, tmp_path, monkeypatch):
+        folder = tmp_path / 'nothing'
+        folder.mkdir()
+        (folder / 'README').write_text('hi', encoding='utf-8')
+        errors = []
+        monkeypatch.setattr(self.main_controller, 'show_error', errors.append)
+
+        assert not self.main_controller.open_files([str(folder)])
+        assert 'nothing to translate' in errors[0]

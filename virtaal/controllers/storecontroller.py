@@ -125,7 +125,8 @@ class StoreController(BaseController):
         store's file name. If a bundle is currently open, this method will
         return a file name in the format "bundle.zip:some_file.xlf"."""
         store = self.get_store()
-        if not store:
+        # A folder of files to pair has no units but still a name.
+        if store is None or (not store and not self.is_stream()):
             return ''
         filename = ''
         if self.project:
@@ -148,19 +149,19 @@ class StoreController(BaseController):
 
     def get_store_checker(self):
         store = self.get_store()
-        if not store:
+        if store is None:
             raise ValueError('No store to get checker from')
         return store.get_checker()
 
     def get_store_stats(self):
         store = self.get_store()
-        if not store:
+        if store is None:
             raise ValueError('No store to get checker from')
         return store.stats
 
     def get_store_checks(self):
         store = self.get_store()
-        if not store:
+        if store is None:
             raise ValueError('No store to get checker from')
         return store.checks
 
@@ -286,7 +287,7 @@ class StoreController(BaseController):
         from virtaal.models.fileset import FileSet
 
         all_files = FileSet.from_paths(paths)
-        if len(all_files) == 1:
+        if len(all_files) == 1 and not all_files.unpaired:
             return self.open_file(all_files[0].path)
         from virtaal.models.langmodel import same_language
 
@@ -316,7 +317,8 @@ class StoreController(BaseController):
         from virtaal.models.streammodel import StreamModel
 
         fileset = all_files.for_language(language) if language else all_files
-        if not len(fileset):
+        # Files waiting to be paired open with no units, to be paired.
+        if not len(fileset) and not fileset.unpaired:
             raise ValueError('The file contains nothing to translate.')
         store = StreamModel(fileset, self)
         store.language = language
@@ -550,7 +552,7 @@ class StoreController(BaseController):
     def update_store_checks(self, **kwargs):
         """Shortcut to C{StoreModel.update_stats()}"""
         store = self.get_store()
-        if not store:
+        if store is None:
             raise ValueError('No store to get checker from')
         return store.update_checks(**kwargs)
 

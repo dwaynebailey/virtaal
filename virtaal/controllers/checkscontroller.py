@@ -157,7 +157,10 @@ class ChecksController(BaseController):
     unitview = property(_get_unitview)
 
     def default_checker_code(self, store):
-        """The project style for C{store}: its own, else its format's."""
+        """The project style for C{store}: its own, else its format's;
+        none without a file (a folder of files still to pair)."""
+        if store is None:
+            return None
         code = store.getprojectstyle()
         if code:
             return code
@@ -248,7 +251,9 @@ class ChecksController(BaseController):
 
     def _on_cursor_changed(self, cursor):
         self.last_unit = cursor.deref()
-        self.check_unit(self.last_unit)
+        # No unit in a folder whose files all wait to be paired.
+        if self.last_unit is not None:
+            self.check_unit(self.last_unit)
 
     def _on_target_lang_changed(self, lang_controller, langcode):
         current_checker = self.get_checker()

@@ -187,9 +187,10 @@ class StreamModel(BaseModel):
         self._edited_units = set()
         self._offsets = []
         self._build_segments()
-        if not self.segments:
+        if not self.segments and not fileset.unpaired:
             raise ValueError('The files contain nothing to translate.')
-        self.load_segment(0)
+        if self.segments:
+            self.load_segment(0)
         self.update_stats()
 
     def _build_segments(self):
@@ -332,6 +333,10 @@ class StreamModel(BaseModel):
 
     @property
     def current_model(self):
+        """The current file's model; C{None} while no file has units (a
+        folder whose files all wait to be paired)."""
+        if not self.segments:
+            return None
         return self.current_segment.model
 
     def file_offsets(self):
@@ -401,33 +406,42 @@ class StreamModel(BaseModel):
     # FILE-LEVEL ACCESSORS (the current file) #
     @property
     def filename(self):
+        if not self.segments:
+            return self.fileset.root
         return self.segments[self.current].path
 
     def get_filename(self):
         return self.filename
 
+    def _current(self, method, default=None):
+        """C{method} of the current file's model, or C{default} with none."""
+        model = self.current_model
+        return default if model is None else getattr(model, method)()
+
     @property
     def _trans_store(self):
-        return self.current_model._trans_store
+        model = self.current_model
+        return None if model is None else model._trans_store
 
     @property
     def nplurals(self):
-        return self.current_model.nplurals
+        model = self.current_model
+        return None if model is None else model.nplurals
 
     def get_declared_nplurals(self):
-        return self.current_model.get_declared_nplurals()
+        return self._current('get_declared_nplurals')
 
     def get_store_type(self):
-        return self.current_model.get_store_type()
+        return self._current('get_store_type', '')
 
     def get_checker(self):
         return self._checker
 
     def get_source_language(self):
-        return self.current_model.get_source_language()
+        return self._current('get_source_language')
 
     def get_target_language(self):
-        return self.language or self.current_model.get_target_language()
+        return self.language or self._current('get_target_language')
 
     def set_source_language(self, langcode):
         return self._set_language('set_source_language', langcode)
@@ -451,14 +465,15 @@ class StreamModel(BaseModel):
         return changed
 
     def get_stats_totals(self):
-        return self.current_model.get_stats_totals()
+        return self._current('get_stats_totals', {})
 
     def get_live_stats_totals(self):
-        return self.current_model.get_live_stats_totals()
+        return self._current('get_live_stats_totals', {})
 
     # STATS AND CHECKS #
     def update_stats(self):
-        stats = {'extended': {}}
+        # Every list, even with no files to read.
+        stats = {'total': [], 'translated': [], 'fuzzy': [], 'untranslated': [], 'extended': {}}
         for segment in self.segments:
             local_stats = segment.model.update_stats() if segment.loaded else segment.stats
             segment.stats = local_stats
