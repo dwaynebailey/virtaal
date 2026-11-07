@@ -381,4 +381,5 @@ def test_dictionary_write_dir_in_the_macos_build(monkeypatch, tmp_path):
     monkeypatch.setattr(dictionary_source.platform, 'bundles_spelling', True)
     monkeypatch.setattr(dictionary_source.platform, 'is_mac', True)
     monkeypatch.setenv('HOME', str(tmp_path))
+    monkeypatch.setenv('USERPROFILE', str(tmp_path))
     assert dictionary_source.dictionary_write_dir() == str(tmp_path / 'Library' / 'Spelling')
