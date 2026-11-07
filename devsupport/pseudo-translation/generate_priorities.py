@@ -299,9 +299,18 @@ def assign(seen, messages, rules, linguas=()):
     for rule in rules.get("override", []):
         if "domain" in rule:
             levels.setdefault(rule["domain"], {}).update(
-                dict.fromkeys(rule["msgids"], rule["priority"])
+                dict.fromkeys(override_msgids(rule), rule["priority"])
             )
     return levels
+
+
+def override_msgids(rule):
+    """A domain override's messages: its msgids, and every message of
+    its template (a .pot file, relative to the repository root)."""
+    msgids = list(rule.get("msgids", []))
+    if "template" in rule:
+        msgids += template_messages(os.path.join(REPO_ROOT, rule["template"]))
+    return msgids
 
 
 def stale_rules(rules, messages):

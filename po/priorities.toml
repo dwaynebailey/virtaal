@@ -196,6 +196,14 @@ msgids = [
     "usage: ",
 ]
 
+[[override]]
+# The Windows installer's wizard, which the harvest can't show: a screen
+# seen once. Its messages are its lite template's (see
+# devsupport/packaging/windows/inno_lite.py).
+priority = "2"
+domain = "inno"
+template = "po/lite/inno/inno.pot"
+
 # Language and country names come from these rules, not from what the
 # harvest saw: which ones matter depends on the translator, and the
 # harvest's own file is no guide. Any other name isn't listed.

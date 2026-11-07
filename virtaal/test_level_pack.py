@@ -245,3 +245,16 @@ def test_a_returned_language_family_pack_starts_its_lite_catalog(lite, tmp_path)
     catalog = (tmp_path / "lite" / "iso639-5" / "zu.po").read_text(encoding="utf-8")
     assert 'msgid "Songhai languages"\nmsgstr "isiSonghai"' in catalog
     assert "Songhai" not in (tmp_path / "zu.po").read_text(encoding="utf-8")
+
+
+def test_the_installer_wizard_packs_at_level_two_and_merges_into_its_lite_catalog():
+    spec = importlib.util.spec_from_file_location("level_pack", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert "ButtonNext\x04&Next >" in module.level_keys(2, "inno")
+    assert not module.level_keys(1, "inno")
+    assert module.merge_target("zu", module.Path("inno-zu-level2.po")) == (
+        module.LITE_DIR / "inno" / "zu.po",
+        "inno",
+    )

@@ -315,6 +315,29 @@ def test_an_override_with_a_domain_adds_messages_the_harvest_never_saw(gen):
     assert levels["gtk-mac-integration"] == {"Quit %s": "1", "Hide Others": "1"}
 
 
+def test_a_domain_override_can_take_a_templates_messages(gen):
+    rules = dict(
+        RULES,
+        override=RULES["override"]
+        + [{"priority": "2", "domain": "inno", "template": "po/lite/inno/inno.pot"}],
+    )
+
+    levels = gen.assign({}, {}, rules)
+
+    assert levels["inno"]["ButtonNext\x04&Next >"] == "2"
+    assert set(levels["inno"].values()) == {"2"}
+
+
+def test_the_installer_wizards_levels_are_committed(gen):
+    pytest.importorskip("tomllib")
+    rules = gen.load_rules()
+    (rule,) = [rule for rule in rules["override"] if rule.get("domain") == "inno"]
+
+    committed = gen.from_file(gen.read_file(gen.OUTPUT))
+
+    assert committed["inno"] == dict.fromkeys(gen.override_msgids(rule), rule["priority"])
+
+
 def test_a_domain_override_isnt_checked_against_virtaal_pot(gen):
     rules = {
         "override": [{"priority": "1", "domain": "gtk-mac-integration", "msgids": ["Quit %s"]}]
