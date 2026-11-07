@@ -716,15 +716,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             return None
         counts = {"added": 0, "replaced": 0, "removed": 0}
         unlinked = set()
-        # A store's units are linked by target language alone, so pairs
-        # into one target language (a multilingual TMX) are synced as one.
-        by_target = {}
-        for (source_lang, target_lang), units in pairs.items():
-            current = by_target.setdefault(target_lang, {})
-            for unit in units:
-                unit = {**unit, "context": unit.get("context") or ""}
-                current[unit_key(unit)] = self._add_target(unit, source_lang, target_lang)
-        for target_lang, current in by_target.items():
+        for target_lang, current in self._add_targets(pairs).items():
             self.cursor.execute(
                 "SELECT unit_key, tid FROM origins WHERE store_id = ? AND lang = ?",
                 (store_id, target_lang),
@@ -761,6 +753,19 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             # Kept, but no longer this file's.
             self._file_under_legacy()
         return counts
+
+    def _add_targets(self, pairs):
+        """Add the units of C{pairs}, giving each one's tid by target
+        language, then unit key."""
+        # A store's units are linked by target language alone, so pairs
+        # into one target language (a multilingual TMX) are synced as one.
+        by_target = {}
+        for (source_lang, target_lang), units in pairs.items():
+            current = by_target.setdefault(target_lang, {})
+            for unit in units:
+                unit = {**unit, "context": unit.get("context") or ""}
+                current[unit_key(unit)] = self._add_target(unit, source_lang, target_lang)
+        return by_target
 
     def _find_store(self, path, member):
         self.cursor.execute(
