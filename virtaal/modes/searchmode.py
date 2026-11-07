@@ -37,6 +37,22 @@ def _rich_offset(rich, plain, offset):
     return i
 
 
+def _highlight_ranges(matches):
+    """The [start, end] ranges to highlight for matches in start order."""
+    # Merge touching or overlapping matches, and drop empty ones that
+    # have nothing to highlight: converting each match to buffer
+    # iterators made dense matches in a long text slow (#4343).
+    ranges = []
+    for match in matches:
+        if match.start == match.end:
+            continue
+        if ranges and match.start <= ranges[-1][1]:
+            ranges[-1][1] = max(ranges[-1][1], match.end)
+        else:
+            ranges.append([match.start, match.end])
+    return ranges
+
+
 def replace_in_elem(elem, plain, start, end, replace_str):
     """Replace C{plain[start:end]} inside the string tree C{elem},
     keeping its placeables. C{plain} is the unit's plain target."""
@@ -597,18 +613,7 @@ class SearchMode(BaseMode):
         except ValueError:
             logging.exception("(Re-)adding search highlighting tag exception:")
 
-        # Merge touching or overlapping matches, and drop empty ones that
-        # have nothing to highlight: converting each match to buffer
-        # iterators made dense matches in a long text slow (#4343).
-        ranges = []
-        for match in self._get_matches_for_textbox(textbox):
-            if match.start == match.end:
-                continue
-            if ranges and match.start <= ranges[-1][1]:
-                ranges[-1][1] = max(ranges[-1][1], match.end)
-            else:
-                ranges.append([match.start, match.end])
-
+        ranges = _highlight_ranges(self._get_matches_for_textbox(textbox))
         gui_info = getattr(textbox.elem, 'gui_info', None)
         elem_len = len(textbox.elem) if gui_info else None
 

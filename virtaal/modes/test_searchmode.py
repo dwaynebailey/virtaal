@@ -14,7 +14,7 @@ from gi.repository import Gdk, Gtk
 from lxml import etree
 from translate.storage import pypo, xliff
 
-from virtaal.modes.searchmode import SearchMode
+from virtaal.modes.searchmode import SearchMode, _highlight_ranges
 from virtaal.support.pogrep_compat import GrepFilter
 from virtaal.views.theme import current_theme, rgba_to_str
 
@@ -1143,6 +1143,15 @@ def test_get_matches_for_textbox_filters_by_current_unit_role_and_part_index():
 
 
 # _highlight_matches() / _clear_textbox_highlight() / _make_highlight_tag() #
+
+
+def test_highlight_ranges_merges_touching_matches_and_drops_empty_ones():
+    matches = [
+        _FakeMatch(None, 0, start, end)
+        for start, end in [(0, 2), (2, 4), (3, 3), (3, 5), (7, 7), (8, 9)]
+    ]
+
+    assert _highlight_ranges(matches) == [[0, 5], [8, 9]]
 
 
 def test_highlight_matches_clears_highlighting_when_there_is_no_active_search():
