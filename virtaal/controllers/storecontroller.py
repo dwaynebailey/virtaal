@@ -254,13 +254,7 @@ class StoreController(BaseController):
         if template is None:
             self.store = StoreModel(filename, self)
         else:
-            self.store = StoreModel(
-                filename,
-                self,
-                template=template.template,
-                language=template.language,
-                skip_untranslated=template.skip_untranslated,
-            )
+            self.store = StoreModel(filename, self, **pairing(template))
 
     def find_template(self, filename):
         """The L{TemplateMatch} for a monolingual file, without asking:
@@ -639,3 +633,16 @@ class StoreController(BaseController):
         if self.is_stream():
             self.store.mark_modified(index)
         self.set_modified(True)
+
+
+def pairing(match):
+    """The L{StoreModel} arguments that open a monolingual file paired as
+    the L{TemplateMatch} C{match} says."""
+    from virtaal.support import sourcehistory
+
+    return {
+        'template': match.template,
+        'language': match.language,
+        'skip_untranslated': match.skip_untranslated,
+        'recall': sourcehistory.recall,
+    }

@@ -8,6 +8,7 @@
 """A monolingual translation file paired with its template as one
 bilingual store in memory. No GTK here."""
 
+import logging
 import os
 
 from virtaal.support import baseline, converters
@@ -83,10 +84,14 @@ class MonolingualPair:
     get the template's text there, unless C{skip_untranslated} (if not
     given, what the baseline last recorded).
 
+    With no baseline, C{recall(pair, {key: translation})} may give
+    {key: source} of the source each translation was made for: one that
+    differs from the template's now needs work.
+
     A template paired with itself is the source-language file: its text
     as source, no translations, and it can't be saved over."""
 
-    def __init__(self, target, template, language=None, skip_untranslated=None):
+    def __init__(self, target, template, language=None, skip_untranslated=None, recall=None):
         from virtaal.models.fileset import path_language
 
         self.converter = converters.monolingual_converter(target)
@@ -110,6 +115,7 @@ class MonolingualPair:
         self.carried = 0
         """Translations carried over from a renamed key on open."""
         self.skip_untranslated = skip_untranslated
+        self._recall = recall
         if not self.source_only:
             self._compare()
 
@@ -137,10 +143,11 @@ class MonolingualPair:
         units = {key: e for key, e in old_units.items() if key not in keys}
         renamed = {e.get('source_hash'): key for key, e in units.items()}
         values = self.converter.values(self.target) if renamed else {}
+        recalled = self._recalled() if not old_units else {}
         for key, unit in self.units():
             previous = old_units.get(key)
             if not old_units:
-                units[key] = self._first_seen(key, unit)
+                units[key] = self._first_seen(key, unit, recalled.get(key))
             elif not unit.target:
                 units[key] = self._untranslated(unit, renamed, values)
             elif previous is None:
@@ -157,11 +164,25 @@ class MonolingualPair:
         if data != old:
             baseline.save(self.target, data)
 
-    def _first_seen(self, key, unit):
-        """With nothing to compare with, every translation needs review."""
+    def _recalled(self):
+        if self._recall is None:
+            return {}
+        targets = {key: _target_text(unit) for key, unit in self.units() if unit.target}
+        try:
+            return self._recall(self, targets)
+        except Exception:
+            logging.exception("Couldn't recall the sources of %s", self.target)
+            return {}
+
+    def _first_seen(self, key, unit, source=None):
+        """With nothing to compare with, every translation needs review,
+        and one whose recalled C{source} has changed since needs work."""
         target = _target_text(unit)
         if not target:
             return baseline.entry(unit.source, None, UNTRANSLATED)
+        if source is not None and source != unit.source:
+            self._mark(key, unit, _Review(source), NEEDS_WORK)
+            return baseline.entry(unit.source, target, NEEDS_WORK, source)
         self._mark(key, unit, _Review(), NEEDS_REVIEW)
         return baseline.entry(unit.source, target, NEEDS_REVIEW)
 
