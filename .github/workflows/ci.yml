@@ -975,10 +975,14 @@ jobs:
           if-no-files-found: error
 
       - name: Install Inno Setup
+        # Not pinned: the Build installer step's job summary names the
+        # version, with each language's English fallbacks.
         shell: pwsh
         run: choco install innosetup -y
 
       - name: Build installer
+        # Its job summary: the Inno Setup version, and the messages each
+        # installer language shows in English (never fails on them).
         shell: pwsh
         run: devsupport\packaging\windows\build_installer.ps1
 

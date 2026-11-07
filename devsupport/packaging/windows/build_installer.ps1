@@ -26,9 +26,28 @@ $version = & python -c "from virtaal.__version__ import ver; print(ver)"
 
 New-Item -ItemType Directory -Force -Path dist\installer | Out-Null
 
-& python devsupport\packaging\windows\generate_installer_translations.py devsupport\packaging\windows\installer-strings.iss
+# The compiler's own English, to check po/lite/inno/inno.pot's against:
+# beside iscc.exe, unless that's a shim.
+$defaultIsl = @(
+    (Join-Path (Split-Path $iscc.Source) "Default.isl")
+    (Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup*\Default.isl", "$env:ProgramFiles\Inno Setup*\Default.isl" -ErrorAction SilentlyContinue).FullName
+) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+$generate = @("devsupport\packaging\windows\installer-strings.iss")
+if ($defaultIsl) { $generate += @("--default-isl", $defaultIsl) }
+& python devsupport\packaging\windows\generate_installer_translations.py @generate
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-& iscc "/DMyAppVersion=$version" devsupport\packaging\windows\virtaal.iss
+# Kept for report_installer_warnings.py: the compiler's version and its
+# English-fallback warnings. Continue: its stderr lines aren't errors.
+$log = "dist\installer\iscc.log"
+$ErrorActionPreference = "Continue"
+& iscc "/DMyAppVersion=$version" devsupport\packaging\windows\virtaal.iss 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $log
+$isccExit = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+if ($isccExit -ne 0) { exit $isccExit }
+
+# Never fails the build: English fallbacks are for translators to fill.
+& python devsupport\packaging\windows\report_installer_warnings.py $log
+$global:LASTEXITCODE = 0
 
 Write-Host "Built dist\installer\virtaal-$version-setup.exe"
