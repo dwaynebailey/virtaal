@@ -15,6 +15,7 @@ C{to_monolingual()} writes that store back in the target's own format,
 laid out like the template. Nothing here touches a file on disk."""
 
 import io
+import logging
 import os
 import re
 
@@ -434,62 +435,94 @@ def _target_language(target_path):
 _JSON_SPACE = re.compile(r'[ \t\n\r]*')
 
 
-class _JsonLeaves:
-    """Each string in a JSON text, with its path of keys and indices and
-    where it is: [(path, text, start, end)] in file order."""
+class _JsonNode:
+    """A JSON value and where it is in its text: C{start} to C{end}.
+    An object's C{members} are (key, key start, value node), an array's
+    C{items} its value nodes; a string's C{value} is its text."""
+
+    def __init__(self, kind, start):
+        self.kind = kind
+        self.start = start
+        self.end = start
+        self.value = None
+        self.members = []
+        self.items = []
+
+
+class _JsonTree:
+    """A JSON text parsed with where each value is, so it can be written
+    back with only what changed changed."""
 
     def __init__(self, text):
         import json
 
         json.loads(text)  # Malformed JSON raises ValueError here.
         self.text = text
-        self.found = []
         self._decoder = json.JSONDecoder()
-        self._value(0, ())
+        self.root = self._value(0)
 
     def _space(self, pos):
         return _JSON_SPACE.match(self.text, pos).end()
 
-    def _value(self, pos, path):
+    def _value(self, pos):
         from json.decoder import scanstring
 
         pos = self._space(pos)
         first = self.text[pos : pos + 1]
         if first == '{':
-            return self._object(pos + 1, path)
+            return self._object(_JsonNode('object', pos))
         if first == '[':
-            return self._array(pos + 1, path)
+            return self._array(_JsonNode('array', pos))
         if first == '"':
-            value, end = scanstring(self.text, pos + 1)
-            self.found.append((path, value, pos, end))
-            return end
-        return self._decoder.raw_decode(self.text, pos)[1]
+            node = _JsonNode('string', pos)
+            node.value, node.end = scanstring(self.text, pos + 1)
+            return node
+        node = _JsonNode('other', pos)
+        node.value, node.end = self._decoder.raw_decode(self.text, pos)
+        return node
 
-    def _object(self, pos, path):
+    def _object(self, node):
         from json.decoder import scanstring
 
-        pos = self._space(pos)
-        if self.text[pos] == '}':
-            return pos + 1
-        while True:
-            key, pos = scanstring(self.text, self._space(pos) + 1)
-            pos = self._value(self._space(pos) + 1, path + (key,))
-            pos = self._space(pos)
-            if self.text[pos] == '}':
-                return pos + 1
-            pos += 1
+        pos = self._space(node.start + 1)
+        while self.text[pos] != '}':
+            key_start = self._space(pos)
+            key, pos = scanstring(self.text, key_start + 1)
+            value = self._value(self._space(pos) + 1)
+            node.members.append((key, key_start, value))
+            pos = self._space(value.end)
+            if self.text[pos] == ',':
+                pos = self._space(pos + 1)
+        node.end = pos + 1
+        return node
 
-    def _array(self, pos, path):
-        pos = self._space(pos)
-        if self.text[pos] == ']':
-            return pos + 1
-        index = 0
-        while True:
-            pos = self._space(self._value(pos, path + (index,)))
-            index += 1
-            if self.text[pos] == ']':
-                return pos + 1
-            pos += 1
+    def _array(self, node):
+        pos = self._space(node.start + 1)
+        while self.text[pos] != ']':
+            value = self._value(pos)
+            node.items.append(value)
+            pos = self._space(value.end)
+            if self.text[pos] == ',':
+                pos = self._space(pos + 1)
+        node.end = pos + 1
+        return node
+
+
+def _json_leaves(text):
+    """[(path, text, start, end)] of each string in a JSON text, in file
+    order, with its path of keys and indices."""
+    found = []
+
+    def walk(node, path):
+        if node.kind == 'string':
+            found.append((path, node.value, node.start, node.end))
+        for key, _key_start, value in node.members:
+            walk(value, path + (key,))
+        for index, value in enumerate(node.items):
+            walk(value, path + (index,))
+
+    walk(_JsonTree(text).root, ())
+    return found
 
 
 def json_key(path):
@@ -573,7 +606,7 @@ def _json_messages(data):
     one message where its first form is."""
     leaves = [
         leaf
-        for leaf in _JsonLeaves(data.decode('utf-8-sig')).found
+        for leaf in _json_leaves(data.decode('utf-8-sig'))
         if leaf[0] and not _is_metadata(leaf[0])
     ]
     siblings = {}
@@ -720,6 +753,186 @@ class _JsonWriter:
             output[key] = value
 
 
+_NON_ASCII_ESCAPE = re.compile(
+    r'\\u(?:00[89a-fA-F]|0[1-9a-fA-F][0-9a-fA-F]|[1-9a-fA-F][0-9a-fA-F]{2})'
+)
+
+
+class _JsonPatch:
+    """A JSON text rewritten to hold the tree C{wanted}, changing only
+    what differs: an unchanged value keeps its text, a new key goes
+    beside its neighbour from C{wanted} in the style of the keys around
+    it, a dropped key goes with its comma and line. Strings are escaped
+    as the text escapes them. A new value is laid out as it is in the
+    C{template} text, if given."""
+
+    def __init__(self, text, template=None):
+        self.text = text
+        self.template = _JsonPatch(template) if template is not None else None
+        self.tree = _JsonTree(text)
+        self.newline = '\r\n' if '\r\n' in text else '\n'
+        indent = _json_indent(text)
+        self.unit = indent if isinstance(indent, str) else ' ' * indent
+        self.ensure_ascii = bool(_NON_ASCII_ESCAPE.search(text)) and text.isascii()
+        if self.template is not None:
+            # New values are escaped as this text escapes.
+            self.template.ensure_ascii = self.ensure_ascii
+
+    def write(self, wanted):
+        root = self.tree.root
+        return self.text[: root.start] + self._render(root, wanted, ()) + self.text[root.end :]
+
+    def _node(self, path):
+        """The node at C{path}, or None."""
+        node = self.tree.root
+        for part in path:
+            if node.kind == 'object':
+                node = next((v for k, _start, v in node.members if k == part), None)
+            elif node.kind == 'array' and isinstance(part, int) and part < len(node.items):
+                node = node.items[part]
+            else:
+                node = None
+            if node is None:
+                return None
+        return node
+
+    def _dumps(self, value, indent='', multiline=True):
+        import json
+
+        if not isinstance(value, (dict, list)) or not value:
+            return json.dumps(value, ensure_ascii=self.ensure_ascii)
+        if not multiline:
+            return json.dumps(value, ensure_ascii=self.ensure_ascii, separators=(', ', ': '))
+        text = json.dumps(value, ensure_ascii=self.ensure_ascii, indent=self.unit)
+        return text.replace('\n', self.newline + indent)
+
+    def _from_template(self, value, style, path):
+        """C{value} laid out as the template's value at C{path} is, in
+        this text's indent and line endings; None without one."""
+        node = self.template._node(path) if self.template is not None else None
+        if node is None or not isinstance(value, (dict, list)):
+            return None
+        text = self.template._render(node, value, path)
+        if '\n' not in text:
+            return text
+        if not style['multiline']:
+            return None
+        lines = text.replace('\r\n', '\n').split('\n')
+        indent = self.template._line_indent(node.start)
+        lines = [lines[0]] + [style['indent'] + line.removeprefix(indent) for line in lines[1:]]
+        return self.newline.join(lines)
+
+    def _line_indent(self, pos):
+        line = self.text.rfind('\n', 0, pos) + 1
+        return _JSON_SPACE.match(self.text, line).group(0).strip('\r\n')
+
+    def _render(self, node, wanted, path):
+        """The text for C{node}, at C{path}, holding C{wanted}."""
+        same_kind = {
+            dict: 'object',
+            list: 'array',
+            str: 'string',
+        }.get(type(wanted), 'other')
+        if same_kind != node.kind:
+            return self._dumps(wanted, self._line_indent(node.start))
+        if node.kind in ('string', 'other'):
+            if node.value == wanted and type(node.value) is type(wanted):
+                return self.text[node.start : node.end]
+            return self._dumps(wanted)
+        if node.kind == 'object':
+            parts = [
+                (key, self.text[key_start : value.start], value)
+                for key, key_start, value in node.members
+            ]
+            return self._container(node, parts, wanted, '{}', path)
+        parts = [(index, '', value) for index, value in enumerate(node.items)]
+        return self._container(node, parts, dict(enumerate(wanted)), '[]', path)
+
+    def _container(self, node, parts, wanted, brackets, path):
+        """An object's or array's text: C{parts} are its (key, the text
+        before its value, value node)."""
+        order = self._order([key for key, _head, _value in parts], list(wanted))
+        style = self._style(node, parts)
+        known = {key: index for index, (key, _head, _value) in enumerate(parts)}
+        texts = []
+        for position, key in enumerate(order):
+            index = known.get(key)
+            if index is None:
+                text = self._new_member(key, wanted[key], style, brackets, path + (key,))
+            else:
+                _key, head, value = parts[index]
+                text = head + self._render(value, wanted[key], path + (key,))
+            if position:
+                texts.append(self._separator(parts, index, style))
+            texts.append(text)
+        if not texts:
+            return brackets if parts else self.text[node.start : node.end]
+        return brackets[0] + style['open'] + ''.join(texts) + style['close'] + brackets[1]
+
+    @staticmethod
+    def _order(existing, wanted):
+        """The keys to write: those of C{existing} still wanted, in their
+        order, with each new key from C{wanted} after the wanted key
+        before it (or before the one after it)."""
+        order = [key for key in existing if key in wanted]
+        for position, key in enumerate(wanted):
+            if key in order:
+                continue
+            before = [k for k in wanted[:position] if k in order]
+            if before:
+                order.insert(order.index(before[-1]) + 1, key)
+                continue
+            after = [k for k in wanted[position + 1 :] if k in order]
+            order.insert(order.index(after[0]) if after else len(order), key)
+        return order
+
+    def _style(self, node, parts):
+        """How the container lays out its members: the text after its
+        opening bracket and before its closing one, between members,
+        between a key and its value, and the members' indent."""
+        indent = self._line_indent(node.start)
+        if parts:
+            first = parts[0][2]
+            head_start = first.start - len(parts[0][1])
+            opening = self.text[node.start + 1 : head_start]
+            last = parts[-1][2]
+            closing = self.text[last.end : node.end - 1].lstrip(',')
+        else:
+            opening = self.newline + indent + self.unit
+            closing = self.newline + indent
+        multiline = '\n' in opening
+        member_indent = opening.rsplit('\n', 1)[1] if multiline else ''
+        colon = ': '
+        if parts and parts[0][1]:
+            colon = parts[0][1][parts[0][1].rindex('"') + 1 :]
+        separator = ',' + (self.newline + member_indent if multiline else (opening or ' '))
+        return {
+            'open': opening,
+            'close': closing,
+            'separator': separator,
+            'colon': colon,
+            'indent': member_indent,
+            'multiline': multiline,
+        }
+
+    def _separator(self, parts, index, style):
+        """The text before a member: what it had before it, if it was
+        there, else the container's usual one."""
+        if index:
+            previous = parts[index - 1][2]
+            _key, head, value = parts[index]
+            return self.text[previous.end : value.start - len(head)]
+        return style['separator']
+
+    def _new_member(self, key, value, style, brackets, path):
+        text = self._from_template(value, style, path)
+        if text is None:
+            text = self._dumps(value, style['indent'], style['multiline'])
+        if brackets == '[]':
+            return text
+        return self._dumps(key) + style['colon'] + text
+
+
 class JsonConverter(MonolingualConverter):
     """JSON key-value files: flat or nested, and Flutter's ARB. An
     i18next plural group (key_one, key_other..., or key_ordinal_one...)
@@ -742,7 +955,7 @@ class JsonConverter(MonolingualConverter):
     def _raw_values(self, path):
         """{key: text} of every string in a JSON file, plural forms each
         under its own key."""
-        leaves = _JsonLeaves(_read(path).decode('utf-8-sig')).found
+        leaves = _json_leaves(_read(path).decode('utf-8-sig'))
         return {
             json_key(leaf[0]): leaf[1] for leaf in leaves if leaf[0] and not _is_metadata(leaf[0])
         }
@@ -810,6 +1023,15 @@ class JsonConverter(MonolingualConverter):
         )
         tree = writer.write(json.loads(template_text), ())
         tree = {} if tree is None else tree
+        base = _read(template_path)
+        if target_path and os.path.isfile(target_path) and self.values(target_path):
+            base = _read(target_path)
+        bom = b'\xef\xbb\xbf' if base.startswith(b'\xef\xbb\xbf') else b''
+        try:
+            patch = _JsonPatch(base.decode('utf-8-sig'), template_text)
+            return bom + patch.write(tree).encode('utf-8')
+        except (ValueError, IndexError, KeyError):
+            logging.warning("Couldn't keep the layout of %s", target_path, exc_info=True)
         text = json.dumps(tree, ensure_ascii=False, indent=_json_indent(template_text))
         return (text + '\n').encode('utf-8')
 

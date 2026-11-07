@@ -416,6 +416,163 @@ def test_json_that_is_malformed_raises():
         converters.JsonConverter().values_of(b'{"a": ')
 
 
+# JSON written back in the file's own layout
+
+LAYOUT_EN = (
+    '{\n'
+    '  "title": "Notes",\n'
+    '  "list": ["Red", "Green"],\n'
+    '  "inline": {"a": "A", "b": "B"},\n'
+    '\n'
+    '  "menu": {\n'
+    '    "open": "Open",\n'
+    '    "save": "Save"\n'
+    '  },\n'
+    '  "count": 3\n'
+    '}\n'
+)
+
+
+def _layout(tmp_path, target=None, template=LAYOUT_EN, newline='\n'):
+    for code, text in (('en', template), ('af', target)):
+        (tmp_path / code).mkdir(exist_ok=True)
+        if text is not None:
+            (tmp_path / code / 'a.json').write_bytes(text.replace('\n', newline).encode())
+    return str(tmp_path / 'en' / 'a.json'), str(tmp_path / 'af' / 'a.json')
+
+
+def test_json_unchanged_is_written_back_byte_for_byte(tmp_path):
+    target = LAYOUT_EN.replace('Notes', 'Notas').replace('"Open"', '"Maak oop"')
+    en, af = _layout(tmp_path, target, newline='\r\n')
+    converter = converters.JsonConverter()
+    wanted = {k: v for k, v in _translations(converter.to_bilingual(en, af)).items() if v != ''}
+    wanted = {k: v for k, v in wanted.items() if converter.values(en).get(k) != v}
+
+    data = converter.to_monolingual(en, af, wanted)
+
+    assert data == (tmp_path / 'af' / 'a.json').read_bytes()
+
+
+def test_json_one_line_arrays_and_objects_stay_on_one_line(tmp_path):
+    target = '{\n  "list": ["Rooi", "Groen"],\n  "inline": {"a": "A"},\n  "count": 3\n}\n'
+    en, af = _layout(tmp_path, target)
+
+    data = converters.JsonConverter().to_monolingual(
+        en, af, {'list.0': 'Rooi', 'list.1': 'Groen', 'inline.a': 'Ä', 'inline.b': 'Bé'}, True
+    )
+
+    assert data.decode() == (
+        '{\n  "list": ["Rooi", "Groen"],\n  "inline": {"a": "Ä", "b": "Bé"},\n  "count": 3\n}\n'
+    )
+
+
+def test_json_new_keys_go_beside_their_template_neighbour(tmp_path):
+    target = '{\n  "title": "Notas",\n  "menu": {\n    "open": "Maak oop"\n  },\n  "count": 3\n}\n'
+    en, af = _layout(tmp_path, target)
+    wanted = {'title': 'Notas', 'menu.open': 'Maak oop', 'menu.save': 'Stoor', 'list.0': 'Rooi'}
+
+    data = converters.JsonConverter().to_monolingual(en, af, wanted, True)
+
+    assert data.decode() == (
+        '{\n'
+        '  "title": "Notas",\n'
+        '  "list": ["Rooi"],\n'
+        '  "menu": {\n'
+        '    "open": "Maak oop",\n'
+        '    "save": "Stoor"\n'
+        '  },\n'
+        '  "count": 3\n'
+        '}\n'
+    )
+
+
+def test_json_a_dropped_key_leaves_no_comma_behind(tmp_path):
+    target = '{\n  "title": "Notas",\n  "gone": "weg",\n  "menu": {"open": "Maak oop", "x": "y"}\n}'
+    en, af = _layout(tmp_path, target)
+
+    data = converters.JsonConverter().to_monolingual(
+        en, af, {'title': 'Notas', 'menu.open': 'Maak oop'}, True
+    )
+
+    # No final newline, as the target had none.
+    assert data.decode() == (
+        '{\n  "title": "Notas",\n  "menu": {"open": "Maak oop"},\n  "count": 3\n}'
+    )
+
+
+def test_json_keeps_crlf_and_the_file_s_escaping(tmp_path):
+    target = '{\n  "title": "\\u00c4",\n  "count": 3\n}\n'
+    en, af = _layout(tmp_path, target, newline='\r\n')
+
+    data = converters.JsonConverter().to_monolingual(
+        en, af, {'title': '\u00c4', 'menu.save': 'Stoorë'}, True
+    )
+
+    assert data.decode() == (
+        '{\r\n  "title": "\\u00c4",\r\n  "menu": {\r\n    "save": "Stoor\\u00eb"\r\n  },\r\n'
+        '  "count": 3\r\n}\r\n'
+    )
+
+
+def test_a_new_json_target_takes_the_template_s_layout(tmp_path):
+    en, af = _layout(tmp_path)
+
+    data = converters.JsonConverter().to_monolingual(en, af, {'list.1': 'Groen'})
+
+    assert data.decode() == LAYOUT_EN.replace('"Green"', '"Groen"')
+
+
+def test_json_nested_i18next_plurals_are_written_in_place(tmp_path):
+    template = '{\n  "notes": {\n    "item_one": "{{count}} note",\n    "item_other": "{{count}} notes"\n  }\n}\n'
+    target = '{\n  "notes": {\n    "item_one": "{{count}} заметка"\n  }\n}\n'
+    for code, text in (('en', template), ('ru', target)):
+        (tmp_path / code).mkdir()
+        (tmp_path / code / 'a.json').write_text(text, encoding='utf-8')
+    en, ru = str(tmp_path / 'en' / 'a.json'), str(tmp_path / 'ru' / 'a.json')
+
+    data = converters.JsonConverter().to_monolingual(
+        en, ru, {'notes.item': ['{{count}} заметка', '{{count}} заметки', '', '{{count}} заметки']}
+    )
+
+    assert data.decode() == (
+        '{\n  "notes": {\n'
+        '    "item_one": "{{count}} заметка",\n'
+        '    "item_few": "{{count}} заметки",\n'
+        '    "item_many": "{{count}} notes",\n'
+        '    "item_other": "{{count}} заметки"\n'
+        '  }\n}\n'
+    )
+
+
+def test_json_the_layout_can_t_be_kept_for_is_written_whole(tmp_path, monkeypatch, caplog):
+    import json
+
+    en, af = _layout(tmp_path, '{"title": "Notas"}')
+
+    def fail(self, wanted):
+        raise ValueError('unmapped')
+
+    monkeypatch.setattr(converters._JsonPatch, 'write', fail)
+    data = converters.JsonConverter().to_monolingual(en, af, {'title': 'Notas'}, True)
+
+    assert json.loads(data) == {'title': 'Notas', 'count': 3}
+    assert "Couldn't keep the layout" in caplog.text
+
+
+def test_an_arb_target_keeps_its_layout(tmp_path):
+    en = _write(tmp_path / 'app_en.arb', ARB_EN)
+    target = '{\n    "@@locale": "af",\n    "hello": "Hallo {name}"\n}\n'
+    af = _write(tmp_path / 'app_af.arb', target)
+
+    data = converters.JsonConverter().to_monolingual(
+        en, af, {'hello': 'Hallo {name}', 'bye': 'Totsiens'}, True
+    )
+
+    assert data.decode() == (
+        '{\n    "@@locale": "af",\n    "hello": "Hallo {name}",\n    "bye": "Totsiens"\n}\n'
+    )
+
+
 ARB_EN = """\
 {
     "@@locale": "en",
