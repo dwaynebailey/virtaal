@@ -66,6 +66,15 @@ def _update_contributor(store, name, email=None):
         del header.addnote
 
 
+def _remember_translator(name, email, team):
+    """Save the translator details given; an empty one keeps the last."""
+    details = {"name": name, "email": email, "team": team}
+    for key, value in details.items():
+        if value:
+            pan_app.settings.translator[key] = value
+    pan_app.settings.write()
+
+
 # The order gettext's msginit writes header fields in.
 _GETTEXT_HEADER_ORDER = (
     "Project-Id-Version",
@@ -574,13 +583,7 @@ class StoreModel(BaseModel):
 
         if isinstance(self._trans_store, poheader):
             name, email, team = self.controller.main_controller.get_translator_details()
-            if name:
-                pan_app.settings.translator["name"] = name
-            if email:
-                pan_app.settings.translator["email"] = email
-            if team:
-                pan_app.settings.translator["team"] = team
-            pan_app.settings.write()
+            _remember_translator(name, email, team)
 
             header_updates = {}
             import time

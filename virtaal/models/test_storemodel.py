@@ -827,3 +827,21 @@ def test_saving_keeps_the_order_of_existing_header_fields(tmp_path, monkeypatch)
         "PO-Revision-Date",
         "Content-Transfer-Encoding",
     ]
+
+
+def test_saving_remembers_only_the_translator_details_given(tmp_path, monkeypatch):
+    from virtaal.common import pan_app
+
+    translator = {"name": "Old", "email": "old@example.org", "team": "Old team"}
+    monkeypatch.setattr(pan_app.settings, 'translator', translator)
+    writes = []
+    monkeypatch.setattr(pan_app.settings, 'write', lambda: writes.append(True))
+    path = tmp_path / "details.po"
+    path.write_bytes(_OLD_PO)
+    controller = _SavingController("de")
+    controller.main_controller.get_translator_details = lambda: ("Ann", "", None)
+
+    StoreModel(str(path), controller).save_file()
+
+    assert translator == {"name": "Ann", "email": "old@example.org", "team": "Old team"}
+    assert writes == [True]
