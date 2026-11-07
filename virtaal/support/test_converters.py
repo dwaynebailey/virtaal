@@ -42,7 +42,26 @@ def _write(path, text, encoding='utf-8'):
 
 
 def _translations(store):
-    return {unit.getlocations()[0]: unit.target for unit in store.units if not unit.isheader()}
+    return {unit.getlocations()[0]: _forms(unit) for unit in store.units if not unit.isheader()}
+
+
+def _forms(unit):
+    """A unit's target: a plural's forms as a list."""
+    if getattr(unit, 'plural_tags', None):
+        return list(unit.target.strings) if unit.target else [''] * len(unit.plural_tags)
+    return unit.target
+
+
+def _units(store):
+    return [
+        (u.getlocations()[0], _sources(u), _forms(u), getattr(u, 'plural_tags', None))
+        for u in store.units
+        if not u.isheader()
+    ]
+
+
+def _sources(unit):
+    return list(unit.source.strings) if getattr(unit, 'plural_tags', None) else unit.source
 
 
 @pytest.mark.parametrize(
@@ -311,33 +330,41 @@ def test_json_pair_nests_keys_with_dots_and_gives_the_target_its_plural_forms(tm
 
     store = converters.JsonConverter().to_bilingual(en, ru)
 
-    units = [(u.getlocations()[0], u.source, u.target) for u in store.units if not u.isheader()]
-    assert units == [
-        ('title', 'Notes', 'Заметки'),
-        ('menu.open', 'Open', ''),
-        ('menu.save', 'Save', ''),
-        ('item_one', '{{count}} item', '{{count}} заметка'),
-        # Russian has two forms English lacks: they start from "other".
-        ('item_few', '{{count}} items', ''),
-        ('item_many', '{{count}} items', ''),
-        ('item_other', '{{count}} items', ''),
-        ('list.0', 'Red', ''),
-        ('list.1', 'Green', ''),
+    assert _units(store) == [
+        ('title', 'Notes', 'Заметки', None),
+        ('menu.open', 'Open', '', None),
+        ('menu.save', 'Save', '', None),
+        # One plural message, in Russian's four CLDR forms.
+        (
+            'item',
+            ['{{count}} item', '{{count}} items'],
+            ['{{count}} заметка', '', '', ''],
+            ['one', 'few', 'many', 'other'],
+        ),
+        ('list.0', 'Red', '', None),
+        ('list.1', 'Green', '', None),
     ]
+    item = [u for u in store.units if u.getlocations() == ['item']][0]
+    assert item.form_keys == ['item_one', 'item_few', 'item_many', 'item_other']
+    assert item.file_source == '{{count}} item\x1e{{count}} items'
 
 
 def test_json_written_back_follows_the_template_and_the_target_language(tmp_path):
     import json
 
     en, ru = _json_project(tmp_path, 'ru', '{}')
-    wanted = {'menu.open': 'Открыть', 'item_few': '{{count}} заметки', 'list.1': 'Зелёный'}
+    wanted = {'menu.open': 'Открыть', 'item': ['', '{{count}} заметки'], 'list.1': 'Зелёный'}
 
     data = converters.JsonConverter().to_monolingual(en, ru, wanted, skip_untranslated=True)
 
     assert json.loads(data) == {
         '$schema': 'https://inlang.com/schema/inlang-message-format',
         'menu': {'open': 'Открыть'},
+        # Every form once one is translated, the English in the others.
+        'item_one': '{{count}} item',
         'item_few': '{{count}} заметки',
+        'item_many': '{{count}} items',
+        'item_other': '{{count}} items',
         'list': ['Зелёный'],
         'version': 3,
     }
@@ -361,14 +388,15 @@ def test_json_written_back_follows_the_template_and_the_target_language(tmp_path
 def test_json_round_trip_keeps_every_translation(tmp_path):
     en, af = _json_project(tmp_path, 'af', '{}')
     converter = converters.JsonConverter()
-    wanted = {'title': 'Notas', 'menu.save': 'Stoor', 'item_one': '1 nota', 'item_other': 'notas'}
+    wanted = {'title': 'Notas', 'menu.save': 'Stoor', 'item': ['1 nota', 'notas']}
 
     _write(
         tmp_path / 'locales' / 'af' / 'common.json',
         converter.to_monolingual(en, af, wanted, True).decode(),
     )
 
-    assert {k: v for k, v in _translations(converter.to_bilingual(en, af)).items() if v} == wanted
+    found = _translations(converter.to_bilingual(en, af))
+    assert {k: v for k, v in found.items() if any(v)} == wanted
 
 
 def test_json_spans_and_values_skip_metadata():
@@ -378,7 +406,9 @@ def test_json_spans_and_values_skip_metadata():
     assert '$schema' not in spans
     assert spans['menu.save'] == (6, 6)
     assert spans['list.1'] == (10, 10)
-    assert converter.values_of(EN_JSON.encode())['item_other'] == '{{count}} items'
+    # A plural message: from its first form's line to its last's.
+    assert spans['item'] == (8, 9)
+    assert converter.values_of(EN_JSON.encode())['item'] == '{{count}} item\x1e{{count}} items'
 
 
 def test_json_that_is_malformed_raises():
@@ -474,21 +504,21 @@ def test_android_pair_has_strings_plural_forms_and_array_items(tmp_path):
 
     store = converters.AndroidConverter().to_bilingual(en, ru)
 
-    units = [
-        (u.getlocations()[0], u.source, u.target, u.getnotes())
-        for u in store.units
-        if not u.isheader()
+    assert _units(store) == [
+        ('app_name', 'Notes', 'Заметки', None),
+        ('greeting', "Hello, %1$s! It's <b>nice</b> here.", '', None),
+        (
+            'notes_count',
+            ['%d note', '%d notes'],
+            ['%d заметка', '', '', ''],
+            ['one', 'few', 'many', 'other'],
+        ),
+        ('colours[0]', 'Red', '', None),
+        ('colours[1]', 'Green', '', None),
     ]
-    assert units == [
-        ('app_name', 'Notes', 'Заметки', "The app's name"),
-        ('greeting', "Hello, %1$s! It's <b>nice</b> here.", '', ''),
-        ('colours[0]', 'Red', '', ''),
-        ('colours[1]', 'Green', '', ''),
-        ('notes_count[one]', '%d note', '%d заметка', ''),
-        ('notes_count[few]', '%d notes', '', ''),
-        ('notes_count[many]', '%d notes', '', ''),
-        ('notes_count[other]', '%d notes', '', ''),
-    ]
+    assert store.units[1].getnotes() == "The app's name"
+    plural = [u for u in store.units if u.getlocations() == ['notes_count']][0]
+    assert plural.form_keys[1] == 'notes_count[few]'
 
 
 def test_android_written_back_escapes_and_leaves_out_what_isn_t_translated(tmp_path):
@@ -497,7 +527,7 @@ def test_android_written_back_escapes_and_leaves_out_what_isn_t_translated(tmp_p
         'app_name': 'Notas',
         # Markup after plain text stays markup.
         'greeting': "Hallo, %1$s! Dit's <b>lekker</b> hier.",
-        'notes_count[one]': '%d nota',
+        'notes_count': ['%d nota', ''],
         'colours[1]': 'Groen',
     }
 
@@ -537,8 +567,7 @@ def test_android_round_trip_keeps_every_translation(tmp_path):
     wanted = {
         'app_name': 'Notas & "kie"',
         'greeting': 'Hallo @ %1$s\nnuwe reël',
-        'notes_count[one]': '%d nota',
-        'notes_count[other]': '%d notas',
+        'notes_count': ['%d nota', '%d notas'],
         'colours[0]': 'Rooi',
     }
 
@@ -547,7 +576,7 @@ def test_android_round_trip_keeps_every_translation(tmp_path):
         converter.to_monolingual(en, af, wanted, True).decode(),
     )
 
-    found = {k: v for k, v in _translations(converter.to_bilingual(en, af)).items() if v}
+    found = {k: v for k, v in _translations(converter.to_bilingual(en, af)).items() if any(v)}
     # An array is written whole: its untranslated items in English.
     assert found == dict(wanted, **{'colours[1]': 'Green'})
 
@@ -558,8 +587,7 @@ def test_android_spans_cover_each_string_and_item():
     assert spans == {
         'app_name': (4, 4),
         'greeting': (5, 5),
-        'notes_count[one]': (8, 8),
-        'notes_count[other]': (9, 9),
+        'notes_count': (7, 10),
         'colours[0]': (12, 12),
         'colours[1]': (13, 13),
     }

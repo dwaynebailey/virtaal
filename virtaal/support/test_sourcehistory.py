@@ -417,3 +417,57 @@ def test_a_shared_budget_stops_asking_git_once_spent(project, monkeypatch):
     sourcehistory.budgeted(0)(pair, {'quit': 'Verlaat'})
 
     assert len(asked) == 1 and 0 < asked[0] <= sourcehistory.GIT_SECONDS
+
+
+JSON_EN = '{\n  "item_one": "%d note",\n  "item_other": "%d notes"\n}\n'
+JSON_RU = (
+    '{\n  "item_one": "%d заметка",\n  "item_few": "%d заметки",\n'
+    '  "item_many": "%d заметок",\n  "item_other": "%d заметки"\n}\n'
+)
+RU_FORMS = '%d заметка\x1e%d заметки\x1e%d заметок\x1e%d заметки'
+
+
+def test_the_local_tm_gives_a_plural_its_singular_and_plural_source(tmp_path):
+    target = str(tmp_path / 'ru.json')
+    forms = RU_FORMS.split('\x1e')
+    db = _tm(tmp_path / 'tm.db', target, [])
+    tm = tmdb.TMDB(db)
+    tm.sync_store(
+        target,
+        [
+            {
+                'source': '%d note',
+                'target': forms[0],
+                'key': 'item',
+                'plural_source': '%d notes',
+                'plural_targets': forms,
+            }
+        ],
+        'en',
+        'ru',
+    )
+    for connection, _cursor in tmdb.TMDB._tm_dbs.pop(db, {}).values():
+        connection.close()
+
+    found = sourcehistory.from_local_tm(db, target, {'item': RU_FORMS})
+
+    assert found == {'item': '%d note\x1e%d notes'}
+
+
+@needs_git
+def test_git_gives_a_plural_message_its_forms_source(repo):
+    from virtaal.support.converters import JsonConverter
+
+    (repo / 'en').mkdir()
+    (repo / 'ru').mkdir()
+    _commit(repo, {'en/c.json': JSON_EN, 'ru/c.json': JSON_RU}, 'Translate')
+    _commit(repo, {'en/c.json': JSON_EN.replace('notes"', 'notes here"')}, 'Change the English')
+
+    found = sourcehistory.from_git(
+        str(repo / 'ru' / 'c.json'),
+        str(repo / 'en' / 'c.json'),
+        JsonConverter(),
+        {'item': RU_FORMS},
+    )
+
+    assert found == {'item': '%d note\x1e%d notes'}

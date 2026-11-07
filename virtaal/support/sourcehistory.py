@@ -74,15 +74,7 @@ def from_local_tm(db_path, target, targets):
     try:
         cursor = connection.cursor()
         for store_id in _stores(cursor, target):
-            rows = cursor.execute(
-                "SELECT o.unit_key, t.text, s.text FROM origins o "
-                "JOIN targets t ON t.tid = o.tid JOIN sources s ON s.sid = t.sid "
-                "WHERE o.store_id = ?",
-                (store_id,),
-            )
-            for key, translation, source in rows:
-                if key not in found and targets.get(key) == translation:
-                    found[key] = source
+            _recall_store(cursor, store_id, targets, found)
             if len(found) == len(targets):
                 break
     except sqlite3.Error:
@@ -91,6 +83,49 @@ def from_local_tm(db_path, target, targets):
     finally:
         connection.close()
     return found
+
+
+def _recall_store(cursor, store_id, targets, found):
+    """Add to C{found} the sources the TM's entries from the store
+    C{store_id} give C{targets}. A plural message's translation and
+    source are its forms as L{plural_text()}: all its forms against the
+    TM's, and its singular and plural source."""
+    from virtaal.support.converters import PLURAL_SEPARATOR, plural_text
+
+    try:
+        rows = cursor.execute(
+            "SELECT o.unit_key, t.text, s.text, t.plural_source, t.plural_targets "
+            "FROM origins o JOIN targets t ON t.tid = o.tid JOIN sources s ON s.sid = t.sid "
+            "WHERE o.store_id = ?",
+            (store_id,),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # Before the TM kept plurals.
+        rows = cursor.execute(
+            "SELECT o.unit_key, t.text, s.text, NULL, NULL FROM origins o "
+            "JOIN targets t ON t.tid = o.tid JOIN sources s ON s.sid = t.sid "
+            "WHERE o.store_id = ?",
+            (store_id,),
+        ).fetchall()
+    for key, translation, source, plural_source, forms in rows:
+        wanted = targets.get(key)
+        if key in found or wanted is None:
+            continue
+        if PLURAL_SEPARATOR in wanted and plural_source is not None and forms:
+            translation = plural_text(_json_list(forms))
+            source = plural_text([source, plural_source])
+        if wanted == translation:
+            found[key] = source
+
+
+def _json_list(text):
+    import json
+
+    try:
+        forms = json.loads(text)
+    except ValueError:
+        return []
+    return forms if isinstance(forms, list) else []
 
 
 def _git():

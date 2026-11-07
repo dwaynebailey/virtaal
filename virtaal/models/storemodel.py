@@ -347,6 +347,8 @@ class StoreModel(BaseModel):
         if fill_stats_cache:
             self._fill_stats_cache()
         self.nplurals = self._compute_nplurals(self._trans_store)
+        if self.pair is not None:
+            self.nplurals = self.pair.nplurals
 
     def save_file(self, filename=None):
         if filename is None:
@@ -538,6 +540,9 @@ class StoreModel(BaseModel):
 
         if isinstance(self._trans_store, poheader):
             return self.nplurals
+        if self.pair is not None:
+            # A monolingual file's plurals are its language's CLDR forms.
+            return self.pair.nplurals
         return None
 
     def _compute_nplurals(self, store):

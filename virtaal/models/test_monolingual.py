@@ -470,3 +470,153 @@ def test_an_android_pair_leaves_untranslated_strings_out_unless_told(tmp_path):
         ).skip_untranslated
         is False
     )
+
+
+# Plural messages
+
+EN_I18NEXT = '{\n  "title": "Notes",\n  "item_one": "{{count}} note",\n  "item_other": "{{count}} notes"\n}\n'
+
+
+def _i18next(tmp_path, target):
+    for code, text in (('en', EN_I18NEXT), ('ru', target)):
+        (tmp_path / code).mkdir(exist_ok=True)
+        (tmp_path / code / 'common.json').write_text(text, encoding='utf-8')
+    return str(tmp_path / 'ru' / 'common.json'), str(tmp_path / 'en' / 'common.json')
+
+
+def _strings(value):
+    return [str(form) for form in value.strings]
+
+
+def _plural(pair, key='item'):
+    return dict(pair.units())[key]
+
+
+def test_an_i18next_plural_is_one_unit_in_the_target_s_cldr_forms(tmp_path):
+    target, template = _i18next(tmp_path, '{"item_one": "{{count}} заметка"}')
+
+    pair = MonolingualPair(target, template)
+    unit = _plural(pair)
+
+    assert unit.hasplural()
+    assert _strings(unit.source) == ['{{count}} note', '{{count}} notes']
+    assert _strings(unit.target) == ['{{count}} заметка', '', '', '']
+    assert unit.plural_tags == ['one', 'few', 'many', 'other']
+    # Not gettext's three Russian forms.
+    assert pair.nplurals == 4
+    assert [str(e) for e in unit.rich_target] == ['{{count}} заметка', '', '', '']
+
+
+def test_a_plural_unit_saves_its_forms_under_their_keys_and_reopens_translated(tmp_path):
+    import json
+
+    target, template = _i18next(tmp_path, '{}')
+    pair = MonolingualPair(target, template)
+    unit = _plural(pair)
+    unit.target = ['%d заметка', '%d заметки', '%d заметок', '%d заметки']
+    unit.markfuzzy(False)
+    pair.save()
+
+    with open(target, encoding='utf-8') as f:
+        saved = json.load(f)
+    assert saved == {
+        'title': 'Notes',
+        'item_one': '%d заметка',
+        'item_few': '%d заметки',
+        'item_many': '%d заметок',
+        'item_other': '%d заметки',
+    }
+    again = MonolingualPair(target, template)
+    assert _strings(_plural(again).target) == _strings(unit.target)
+    assert state_name(_plural(again)) == 'translated'
+    assert again.reviews == {}
+
+
+def test_a_plural_whose_english_changed_needs_work_and_shows_both_old_forms(tmp_path):
+    target, template = _i18next(tmp_path, '{}')
+    pair = MonolingualPair(target, template)
+    _plural(pair).target = ['a', 'b', 'c', 'd']
+    _plural(pair).markfuzzy(False)
+    pair.save()
+    with open(template, 'w', encoding='utf-8') as f:
+        f.write(EN_I18NEXT.replace('notes"', 'notes in all"'))
+
+    again = MonolingualPair(target, template)
+
+    unit = _plural(again)
+    assert state_name(unit) == 'needs-work'
+    assert 'Previous source: {{count}} note\n{{count}} notes' in unit.getnotes('translator')
+
+
+def test_a_baseline_with_one_entry_per_form_is_read_as_one_plural(tmp_path):
+    from virtaal.support.baseline import TRANSLATED, entry
+
+    forms = ['a', 'b', 'c', 'd']
+    target, template = _i18next(
+        tmp_path,
+        '{"title": "Заметки", "item_one": "a", "item_few": "b", "item_many": "c", "item_other": "d"}',
+    )
+    sources = ['{{count}} note'] + ['{{count}} notes'] * 3
+    units = {'title': entry('Notes', 'Заметки', TRANSLATED)}
+    for category, form, source in zip(('one', 'few', 'many', 'other'), forms, sources, strict=True):
+        units['item_' + category] = entry(source, form, TRANSLATED)
+    baseline.save(target, {'template': template, 'units': units, 'skip_untranslated': False})
+
+    pair = MonolingualPair(target, template)
+
+    assert state_name(_plural(pair)) == 'translated'
+    assert pair.reviews == {}
+
+
+def test_an_android_plural_round_trips_in_russian(tmp_path):
+    for folder in ('values', 'values-ru'):
+        (tmp_path / folder).mkdir()
+    template = tmp_path / 'values' / 'strings.xml'
+    template.write_text(
+        '<resources>\n    <plurals name="notes">\n'
+        '        <item quantity="one">%d note</item>\n'
+        '        <item quantity="other">%d notes</item>\n    </plurals>\n</resources>\n',
+        encoding='utf-8',
+    )
+    target = tmp_path / 'values-ru' / 'strings.xml'
+    target.write_text('<resources/>\n', encoding='utf-8')
+    pair = MonolingualPair(str(target), str(template))
+    unit = _plural(pair, 'notes')
+    assert unit.plural_tags == ['one', 'few', 'many', 'other']
+    unit.target = ['%d заметка', '%d заметки', '%d заметок', '%d заметки']
+
+    pair.save()
+
+    text = target.read_text(encoding='utf-8')
+    assert '<item quantity="many">%d заметок</item>' in text
+    assert text.count('<item ') == 4
+
+
+def test_a_plural_unit_is_checked_form_by_form(tmp_path):
+    from translate.filters import checks
+
+    target, template = _i18next(tmp_path, '{}')
+    unit = _plural(MonolingualPair(target, template))
+    unit.target = ['{{count}} a', '{{count}} b', 'c', '{{count}} d']
+
+    failures = checks.StandardChecker().run_filters(unit)
+
+    assert failures
+
+
+def test_an_ordinal_group_is_its_own_plural_with_ordinal_forms(tmp_path):
+    (tmp_path / 'en').mkdir()
+    (tmp_path / 'af').mkdir()
+    (tmp_path / 'en' / 'a.json').write_text(
+        '{"place_ordinal_one": "{{count}}st", "place_ordinal_two": "{{count}} (two)",'
+        ' "place_ordinal_few": "{{count}}rd", "place_ordinal_other": "{{count}}th"}',
+        encoding='utf-8',
+    )
+    (tmp_path / 'af' / 'a.json').write_text('{}', encoding='utf-8')
+
+    pair = MonolingualPair(str(tmp_path / 'af' / 'a.json'), str(tmp_path / 'en' / 'a.json'))
+
+    unit = _plural(pair, 'place_ordinal')
+    # Afrikaans ordinals have one form.
+    assert unit.plural_tags == ['other'] and unit.plural_ordinal
+    assert _strings(unit.source) == ['{{count}}st', '{{count}}th']

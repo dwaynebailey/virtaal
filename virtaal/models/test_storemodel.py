@@ -747,6 +747,44 @@ def test_a_monolingual_files_stats_and_checks_come_from_memory(tmp_path):
     assert model.checks is not None
 
 
+def _android_plural_pair(tmp_path):
+    for folder in ('values', 'values-ru'):
+        (tmp_path / folder).mkdir()
+    (tmp_path / 'values' / 'strings.xml').write_text(
+        '<resources>\n    <string name="open">Open</string>\n'
+        '    <plurals name="notes">\n'
+        '        <item quantity="one">%d note</item>\n'
+        '        <item quantity="other">%d notes</item>\n    </plurals>\n</resources>\n',
+        encoding='utf-8',
+    )
+    (tmp_path / 'values-ru' / 'strings.xml').write_text(
+        '<resources>\n    <plurals name="notes">\n'
+        '        <item quantity="one">%d заметка</item>\n'
+        '        <item quantity="few">%d заметки</item>\n'
+        '        <item quantity="many">%d заметок</item>\n'
+        '        <item quantity="other">%d заметки</item>\n    </plurals>\n</resources>\n',
+        encoding='utf-8',
+    )
+    return str(tmp_path / 'values-ru' / 'strings.xml'), str(tmp_path / 'values' / 'strings.xml')
+
+
+def test_a_monolingual_plural_has_its_language_s_cldr_forms_and_counts_once(tmp_path):
+    from translate.filters import checks
+
+    target, template = _android_plural_pair(tmp_path)
+
+    model = StoreModel(target, _FakeController(), template=template)
+
+    # CLDR's four Russian forms, not gettext's three.
+    assert model.nplurals == model.get_declared_nplurals() == 4
+    plural = model.get_units()[1]
+    assert plural.hasplural() and len(plural.target.strings) == 4
+    totals = model.get_stats_totals()
+    assert (totals['needs-review']['units'], totals['empty']['units']) == (1, 1)
+    model.update_checks(checks.StandardChecker())
+    assert model.checks is not None
+
+
 @pytest.mark.parametrize(
     'plural_forms, problem',
     [

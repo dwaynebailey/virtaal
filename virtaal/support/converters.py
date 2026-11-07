@@ -24,6 +24,48 @@ def _read(path):
         return f.read()
 
 
+PLURAL_SEPARATOR = '\x1e'
+
+
+def plural_text(forms):
+    """One text for a plural message's forms, as a baseline or a
+    history compares them."""
+    return PLURAL_SEPARATOR.join(str(form) for form in forms)
+
+
+def unit_text(value, unit=None):
+    """The text of a unit's source or target: a plural unit's forms as
+    L{plural_text()}, empty when none is translated."""
+    if unit is not None and getattr(unit, 'plural_tags', None):
+        forms = [str(form) for form in getattr(value, 'strings', [value or ''])]
+        return plural_text(forms) if any(forms) else ''
+    return str(value) if value else ''
+
+
+def add_plural_unit(store, key, template_forms, target_forms, categories, form_keys, ordinal=False):
+    """Add the plural message C{key} to the PO store C{store}: its
+    template forms ({category: text}) give the source (the "one" form as
+    singular, "other" as plural), and C{target_forms} the forms of the
+    target language's C{categories}. The unit also carries the
+    categories, the template's forms as L{plural_text()} (its
+    C{file_source}) and the key each form had in Virtaal before forms
+    were joined (C{form_keys}); C{ordinal} for ordinal forms."""
+    from translate.misc.multistring import multistring
+
+    other = template_forms.get('other', next(iter(template_forms.values())))
+    unit = store.addsourceunit(multistring([template_forms.get('one', other), other]))
+    unit.addlocation(key)
+    if any(target_forms):
+        unit.target = multistring(list(target_forms))
+    unit.plural_tags = list(categories)
+    unit.file_source = plural_text(
+        template_forms[category] for category in CLDR_CATEGORIES if category in template_forms
+    )
+    unit.form_keys = list(form_keys)
+    unit.plural_ordinal = ordinal
+    return unit
+
+
 class MonolingualConverter:
     """One monolingual format."""
 
@@ -63,7 +105,8 @@ class MonolingualConverter:
 
     def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
         """The bytes of the target file: the template with each key in
-        C{translations} ({key: text}) translated, and every other message
+        C{translations} ({key: text}, a list of forms for a plural
+        message) translated, and every other message
         in the template's text, or left out with C{skip_untranslated}.
         C{target_path} is the file being replaced, if any."""
         raise NotImplementedError
@@ -71,6 +114,19 @@ class MonolingualConverter:
     def values(self, path):
         """{key: text} of a file in this format."""
         return self.values_of(_read(path))
+
+    def target_values(self, template_path, target_path):
+        """{key: text} of a target file, its plural messages keyed and
+        given as L{plural_text()} as the pair's units are: those of
+        L{values()} plus the template's keys the target translates."""
+        found = self.values(target_path)
+        for unit in self.to_bilingual(template_path, target_path).units:
+            if unit.isheader() or not unit.getlocations():
+                continue
+            text = unit_text(unit.target, unit)
+            if text:
+                found[unit.getlocations()[0]] = text
+        return found
 
     def values_of(self, data):
         """{key: text} of the bytes of a file in this format."""
@@ -339,6 +395,36 @@ def plural_categories(language, ordinal=False):
     return [category for category in CLDR_CATEGORIES if category in tags]
 
 
+_EXAMPLE_NUMBERS = (*range(200), 1000, 10000, 100000, 1000000)
+_EXAMPLE_FRACTIONS = ('0.5', '1.5', '2.5')
+
+
+def plural_examples(language, ordinal=False, count=3):
+    """{category: [numbers]} of up to C{count} numbers that take each of
+    C{language}'s CLDR plural categories, smallest first; fractions for
+    a category no whole number takes. Empty if the language isn't
+    known."""
+    from decimal import Decimal
+
+    import babel
+
+    try:
+        locale = babel.Locale.parse((language or '').replace('-', '_'))
+    except (ValueError, babel.UnknownLocaleError):
+        return {}
+    rule = locale.ordinal_form if ordinal else locale.plural_form
+    found = {}
+    numbers = list(_EXAMPLE_NUMBERS) + ([] if ordinal else [Decimal(f) for f in _EXAMPLE_FRACTIONS])
+    for number in numbers:
+        category = rule(number)
+        whole = isinstance(number, int)
+        if whole or not any(isinstance(n, int) for n in found.get(category, [])):
+            found.setdefault(category, [])
+            if len(found[category]) < count:
+                found[category].append(number)
+    return found
+
+
 def _target_language(target_path):
     from virtaal.models.fileset import path_language
 
@@ -444,6 +530,90 @@ def _plural_key(base, category, ordinal):
     return '%s_%s%s' % (base, 'ordinal_' if ordinal else '', category)
 
 
+def _plural_message_key(base, ordinal):
+    """The key of an i18next plural message: its base, with _ordinal for
+    ordinal forms, as i18next names them."""
+    return base + ('_ordinal' if ordinal else '')
+
+
+class _JsonMessage:
+    """A string to translate in a JSON file, or a plural message: its
+    C{forms} ({category: text}) then, C{text} otherwise."""
+
+    def __init__(self, path, text, start, end, plural=None):
+        self.path = path
+        self.text = text
+        self.start = start
+        self.end = end
+        self.forms = None
+        self.ordinal = False
+        self.base = None
+        if plural is not None:
+            self.base, category, self.ordinal = plural
+            self.path = path[:-1] + (_plural_message_key(self.base, self.ordinal),)
+            self.forms = {category: text}
+
+    @property
+    def key(self):
+        return json_key(self.path)
+
+    def form_key(self, category):
+        """The key the form C{category} has in the file."""
+        return json_key(self.path[:-1] + (_plural_key(self.base, category, self.ordinal),))
+
+    def add_form(self, category, text, start, end):
+        self.forms[category] = text
+        self.start = min(self.start, start)
+        self.end = max(self.end, end)
+
+
+def _json_messages(data):
+    """[_JsonMessage] of the bytes of a JSON file in file order: an
+    i18next plural group (key_one, key_other... with its "other" form) as
+    one message where its first form is."""
+    leaves = [
+        leaf
+        for leaf in _JsonLeaves(data.decode('utf-8-sig')).found
+        if leaf[0] and not _is_metadata(leaf[0])
+    ]
+    siblings = {}
+    for path, text, _start, _end in leaves:
+        if isinstance(path[-1], str):
+            siblings.setdefault(path[:-1], {})[path[-1]] = text
+    grouped = {
+        parent + (key,)
+        for parent, mapping in siblings.items()
+        for keys in _plural_groups(mapping).values()
+        for key in keys.values()
+    }
+    messages = []
+    plurals = {}
+    for path, text, start, end in leaves:
+        if path not in grouped:
+            messages.append(_JsonMessage(path, text, start, end))
+            continue
+        plural = _plural_suffix(path[-1])
+        message = _JsonMessage(path, text, start, end, plural)
+        if message.key in plurals:
+            plurals[message.key].add_form(plural[1], text, start, end)
+        else:
+            plurals[message.key] = message
+            messages.append(message)
+    return messages
+
+
+def _forms_text(forms):
+    """A file's plural forms ({category: text}) as L{plural_text()}, in
+    CLDR's order."""
+    return plural_text(forms[c] for c in CLDR_CATEGORIES if c in forms)
+
+
+def _categories(language, ordinal, forms):
+    """The plural categories a target in C{language} has: CLDR's, or
+    the template's C{forms} if the language isn't known."""
+    return plural_categories(language, ordinal) or [c for c in CLDR_CATEGORIES if c in forms]
+
+
 def _arb_notes(template):
     """{key: description} of an ARB template's @key entries."""
     if not isinstance(template, dict):
@@ -524,13 +694,24 @@ class _JsonWriter:
         return output if output or not node else None
 
     def _plural(self, output, node, group, groups, path):
+        """Write a plural group in the target language's forms: all of
+        them once one is translated (the template's text for the rest),
+        else the template's text in each, or none if untranslated keys
+        are left out."""
         keys = groups.pop(group, None)
         if keys is None:
             return
-        for name, source in JsonConverter._forms(node, group, keys, self.language):
-            text = self._text(json_key(path + (name,)), source)
-            if text is not None:
-                output[name] = text
+        base, ordinal = group
+        forms = self.translations.get(json_key(path + (_plural_message_key(base, ordinal),)))
+        forms = list(forms or [])
+        if self.skip and not any(forms):
+            return
+        templates = {category: node[key] for category, key in keys.items()}
+        for index, category in enumerate(_categories(self.language, ordinal, templates)):
+            text = forms[index] if index < len(forms) else ''
+            output[_plural_key(base, category, ordinal)] = text or templates.get(
+                category, templates['other']
+            )
 
     def _metadata(self, output, key, value):
         if key == '@@locale':
@@ -540,9 +721,9 @@ class _JsonWriter:
 
 
 class JsonConverter(MonolingualConverter):
-    """JSON key-value files: flat or nested (i18next, with its _one,
-    _other... plural keys given the target language's forms), and
-    Flutter's ARB."""
+    """JSON key-value files: flat or nested, and Flutter's ARB. An
+    i18next plural group (key_one, key_other..., or key_ordinal_one...)
+    is one plural message, in the target language's CLDR forms."""
 
     id = 'json'
     name = 'JSON file'
@@ -558,23 +739,28 @@ class JsonConverter(MonolingualConverter):
     def _text(data):
         return data.decode('utf-8-sig')
 
-    def _strings(self, data):
-        """[(key, text, start, end)] of the strings to translate."""
-        leaves = _JsonLeaves(self._text(data)).found
-        return [
-            (json_key(path), text, start, end)
-            for path, text, start, end in leaves
-            if path and not _is_metadata(path)
-        ]
+    def _raw_values(self, path):
+        """{key: text} of every string in a JSON file, plural forms each
+        under its own key."""
+        leaves = _JsonLeaves(_read(path).decode('utf-8-sig')).found
+        return {
+            json_key(leaf[0]): leaf[1] for leaf in leaves if leaf[0] and not _is_metadata(leaf[0])
+        }
 
     def values_of(self, data):
-        return {key: text for key, text, _start, _end in self._strings(data)}
+        return {
+            message.key: message.text if message.forms is None else _forms_text(message.forms)
+            for message in _json_messages(data)
+        }
 
     def spans(self, data):
-        text = self._text(data)
+        text = data.decode('utf-8-sig')
         return {
-            key: (text.count('\n', 0, start) + 1, text.count('\n', 0, end) + 1)
-            for key, _text, start, end in self._strings(data)
+            message.key: (
+                text.count('\n', 0, message.start) + 1,
+                text.count('\n', 0, message.end) + 1,
+            )
+            for message in _json_messages(data)
         }
 
     @staticmethod
@@ -583,57 +769,32 @@ class JsonConverter(MonolingualConverter):
 
         return json.loads(_read(path).decode('utf-8-sig'))
 
-    def _units(self, template, language):
-        """[(key, source)] the template gives for C{language}."""
-        found = []
-        self._walk_units(template, (), language, found)
-        return found
-
-    def _walk_units(self, node, path, language, found):
-        if isinstance(node, list):
-            for index, value in enumerate(node):
-                self._walk_units(value, path + (index,), language, found)
-        elif isinstance(node, dict):
-            self._object_units(node, path, language, found)
-        elif isinstance(node, str) and path and not _is_metadata(path):
-            found.append((json_key(path), node))
-
-    def _object_units(self, node, path, language, found):
-        groups = _plural_groups(node)
-        grouped = {key for keys in groups.values() for key in keys.values()}
-        for key, value in node.items():
-            if key not in grouped:
-                self._walk_units(value, path + (key,), language, found)
-                continue
-            group = next(g for g, keys in groups.items() if key in keys.values())
-            if key != next(iter(groups[group].values())):
-                continue
-            for name, source in self._forms(node, group, groups[group], language):
-                found.append((json_key(path + (name,)), source))
-
-    @staticmethod
-    def _forms(node, group, keys, language):
-        """(key, source) of each plural form C{language} needs, with the
-        template's "other" text where the template lacks the form."""
-        base, ordinal = group
-        categories = plural_categories(language, ordinal) or list(keys)
-        for category in categories:
-            source = node[keys.get(category, keys['other'])]
-            yield _plural_key(base, category, ordinal), source
-
     def to_bilingual(self, template_path, target_path):
         from translate.storage import po
 
-        template = self._load(template_path)
-        notes = _arb_notes(template)
-        targets = self.values(target_path)
+        data = _read(template_path)
+        notes = _arb_notes(self._load(template_path))
+        targets = self._raw_values(target_path)
+        language = _json_language(target_path)
         store = po.pofile()
-        for key, source in self._units(template, _json_language(target_path)):
-            unit = store.addsourceunit(source)
-            unit.addlocation(key)
-            unit.target = targets.get(key, '')
-            if notes.get(key):
-                unit.addnote(notes[key], 'developer')
+        for message in _json_messages(data):
+            if message.forms is not None:
+                categories = _categories(language, message.ordinal, message.forms)
+                add_plural_unit(
+                    store,
+                    message.key,
+                    message.forms,
+                    [targets.get(message.form_key(c), '') for c in categories],
+                    categories,
+                    [message.form_key(c) for c in categories],
+                    message.ordinal,
+                )
+                continue
+            unit = store.addsourceunit(message.text)
+            unit.addlocation(message.key)
+            unit.target = targets.get(message.key, '')
+            if notes.get(message.key):
+                unit.addnote(notes[message.key], 'developer')
         return store
 
     def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
@@ -657,6 +818,7 @@ class JsonConverter(MonolingualConverter):
 
 
 _ANDROID_TAGS = ('string', 'plurals', 'string-array')
+_EMPTY_RESOURCES = re.compile(rb'<resources\b[^>]*(?:/>|>\s*</resources>)')
 
 
 def _android_root(data):
@@ -681,24 +843,31 @@ def _android_text(element):
 
 
 def _android_entries(root):
-    """(key, element, (name, kind, part)) of each string to translate in
-    a resources element: a <string>, a <plurals> item (key name[quantity])
-    or a <string-array> item (key name[index]). Those marked
-    translatable="false" are left out."""
+    """(key, element, items) of each message to translate in a resources
+    element: a <string> (items None), a <string-array> item (key
+    name[index], items None) or a <plurals> (key its name, items
+    {quantity: item}). Those marked translatable="false" are left out."""
     for element in root:
         name = element.get('name') if isinstance(element.tag, str) else None
         if element.tag not in _ANDROID_TAGS or not name:
             continue
         if element.get('translatable') == 'false':
             continue
-        if element.tag == 'string':
-            yield name, element, (name, 'string', None)
-            continue
         items = [item for item in element if item.tag == 'item']
-        for index, item in enumerate(items):
-            part = item.get('quantity') if element.tag == 'plurals' else index
-            if part is not None:
-                yield '%s[%s]' % (name, part), item, (name, element.tag, part)
+        if element.tag == 'string':
+            yield name, element, None
+        elif element.tag == 'plurals':
+            quantities = {item.get('quantity'): item for item in items if item.get('quantity')}
+            if quantities:
+                yield name, element, quantities
+        else:
+            for index, item in enumerate(items):
+                yield '%s[%d]' % (name, index), item, None
+
+
+def _android_forms(items):
+    """{quantity: text} of a <plurals>' items."""
+    return {quantity: _android_text(item) for quantity, item in items.items()}
 
 
 def _android_note(element):
@@ -712,7 +881,8 @@ def _android_note(element):
 
 class AndroidConverter(MonolingualConverter):
     """Android string resources (res/values-af/strings.xml): strings,
-    plurals (given the target language's quantities) and string arrays."""
+    string arrays (an item per message) and plurals (one plural message
+    each, in the target language's CLDR quantities)."""
 
     id = 'android'
     name = 'Android String Resources'
@@ -728,7 +898,10 @@ class AndroidConverter(MonolingualConverter):
             data = _read(path)
         except OSError:
             return True
-        return any(b'<' + tag.encode() in data for tag in _ANDROID_TAGS)
+        # A new translation may hold no strings yet.
+        return bool(_EMPTY_RESOURCES.search(data)) or any(
+            b'<' + tag.encode() in data for tag in _ANDROID_TAGS
+        )
 
     def in_folder(self, path, root):
         from virtaal.models.fileset import path_language
@@ -743,51 +916,58 @@ class AndroidConverter(MonolingualConverter):
 
     def values_of(self, data):
         return {
-            key: _android_text(element)
-            for key, element, _part in _android_entries(_android_root(data))
+            key: _android_text(element) if items is None else _forms_text(_android_forms(items))
+            for key, element, items in _android_entries(_android_root(data))
         }
 
     def spans(self, data):
         from lxml import etree
 
         found = {}
-        for key, element, _part in _android_entries(_android_root(data)):
+        for key, element, _items in _android_entries(_android_root(data)):
             lines = etree.tostring(element, with_tail=False).count(b'\n')
             found[key] = (element.sourceline, element.sourceline + lines)
         return found
 
-    def _units(self, template_path, target_path):
-        """[(key, source, note)] of the template, its plurals in the
-        target language's quantities."""
-        root = _android_root(_read(template_path))
-        categories = plural_categories(_target_language(target_path))
-        found = []
-        plurals = {}
-        for key, element, (name, kind, part) in _android_entries(root):
-            if kind == 'plurals':
-                plurals.setdefault(name, []).append((part, element))
-                continue
-            note = None
-            if kind == 'string' or part == 0:
-                note = _android_note(element if kind == 'string' else element.getparent())
-            found.append((key, _android_text(element), note))
-        for name, items in plurals.items():
-            sources = {part: _android_text(item) for part, item in items}
-            note = _android_note(items[0][1].getparent())
-            for category in categories or list(sources):
-                source = sources.get(category, sources.get('other', next(iter(sources.values()))))
-                found.append(('%s[%s]' % (name, category), source, note))
-        return found
+    @staticmethod
+    def _targets(target_path):
+        """{key: text or {quantity: text}} of a target file."""
+        if not target_path or not os.path.isfile(target_path):
+            return {}
+        return {
+            key: _android_text(element) if items is None else _android_forms(items)
+            for key, element, items in _android_entries(_android_root(_read(target_path)))
+        }
 
     def to_bilingual(self, template_path, target_path):
         from translate.storage import po
 
-        targets = self.values(target_path)
+        root = _android_root(_read(template_path))
+        targets = self._targets(target_path)
+        language = _target_language(target_path)
         store = po.pofile()
-        for key, source, note in self._units(template_path, target_path):
-            unit = store.addsourceunit(source)
-            unit.addlocation(key)
-            unit.target = targets.get(key, '')
+        for key, element, items in _android_entries(root):
+            note = _android_note(element if element.tag != 'item' else element.getparent())
+            if element.tag == 'item' and element.getprevious() is not None:
+                note = None
+            if items is None:
+                unit = store.addsourceunit(_android_text(element))
+                unit.addlocation(key)
+                target = targets.get(key, '')
+                unit.target = target if isinstance(target, str) else ''
+            else:
+                forms = _android_forms(items)
+                categories = _categories(language, False, forms)
+                target = targets.get(key)
+                target = target if isinstance(target, dict) else {}
+                unit = add_plural_unit(
+                    store,
+                    key,
+                    forms,
+                    [target.get(c, '') for c in categories],
+                    categories,
+                    ['%s[%s]' % (key, c) for c in categories],
+                )
             if note:
                 unit.addnote(note, 'developer')
         return store
@@ -862,24 +1042,29 @@ class _AndroidWriter:
                 _set_text(self.translations[key], item)
 
     def _plurals(self, element, name):
+        """The target language's quantities: all of them once one is
+        translated (the template's text for the rest), else the
+        template's text in each, or none if untranslated strings are
+        left out."""
         items = {item.get('quantity'): item for item in element if item.tag == 'item'}
-        categories = self.categories or list(items)
-        keys = {category: '%s[%s]' % (name, category) for category in categories}
-        if self.skip and not any(key in self.translations for key in keys.values()):
+        forms = list(self.translations.get(name) or [])
+        if self.skip and not any(forms):
             _drop(element)
             return
         if not items:
             return
+        categories = self.categories or [c for c in CLDR_CATEGORIES if c in items]
         fallback = items.get('other', next(iter(items.values())))
         model = next(iter(items.values()))
         last_tail = list(items.values())[-1].tail
         for item in items.values():
             element.remove(item)
         item = None
-        for category in categories:
+        for index, category in enumerate(categories):
             item = self._item(element, model, category)
-            if keys[category] in self.translations:
-                item = _set_text(self.translations[keys[category]], item)
+            text = forms[index] if index < len(forms) else ''
+            if text:
+                item = _set_text(text, item)
             else:
                 _copy_text(items.get(category, fallback), item)
         item.tail = last_tail
