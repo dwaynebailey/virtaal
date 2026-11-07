@@ -34,6 +34,7 @@
 """Module to provide a translation memory database."""
 
 import contextlib
+import hashlib
 import json
 import logging
 import math
@@ -1086,7 +1087,6 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         source_tag = source_lang.replace("_", "-")
         target_tag = target_lang.replace("_", "-")
         store = tmx.tmxfile(sourcelanguage=source_tag, targetlanguage=target_tag)
-        groups = 0
         for row in self.cursor.fetchall():
             source, target, context, source_markup, target_markup = row[:5]
             store.addtranslation(source, source_tag, target, target_tag, context=context or None)
@@ -1094,8 +1094,8 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                 _write_codes(store.units[-1], source_markup, target_markup)
             forms = _forms(*row[5:7])
             if forms:
-                groups += 1
-                _add_forms(store, (source_tag, target_tag), str(groups), row[5], forms, context)
+                group = plural_group_key(params[:2], context, source, row[5], forms)
+                _add_forms(store, (source_tag, target_tag), group, row[5], forms, context)
         return bytes(store)
 
     def forget_unit(self, source, target, source_lang, target_lang, context=None):
@@ -1283,6 +1283,14 @@ PLURAL_GROUP_PROP = "x-plural-group"
 PLURAL_FORM_PROP = "x-plural-form"
 
 
+def plural_group_key(langs, context, source, plural_source, forms):
+    """The x-plural-group of a plural's TMX units: a hash of the plural
+    itself, so that re-exports give the same key and merged exports'
+    plurals do not share one unless they are the same."""
+    text = json.dumps([*langs, context or "", source, plural_source, *forms], ensure_ascii=False)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
 def _add_forms(store, tags, group, plural_source, forms, context):
     """Add the plural forms after the first to the TMX C{store}, whose
     last unit is the first, marking each as one of C{group}."""
@@ -1329,17 +1337,14 @@ def join_plurals(units):
             groups.setdefault(group, []).append((form, unit))
     joined = {}
     for members in groups.values():
-        members.sort(key=operator.itemgetter(0))
-        forms = [unit for _form, unit in members]
-        sources = {unit["source"] for unit in forms[1:]}
-        complete = [form for form, _unit in members] == list(range(len(members)))
-        if not complete or len(sources) != 1 or not all(unit["target"] for unit in forms):
+        forms = _group_forms(members)
+        if forms is None:
             continue
+        joined.update((id(unit), None) for _form, unit in members)
         joined[id(forms[0])] = {
-            "plural_source": sources.pop(),
+            "plural_source": forms[1]["source"],
             "plural_targets": [unit["target"] for unit in forms],
         }
-        joined.update((id(unit), None) for unit in forms[1:])
     if not joined:
         return units
     return [
@@ -1347,6 +1352,24 @@ def join_plurals(units):
         for unit in units
         if id(unit) not in joined or joined[id(unit)]
     ]
+
+
+def _group_forms(members):
+    """The units of a plural group's (form, unit) C{members}, one per form
+    in order, or None if they are not one plural's complete forms. A form
+    repeated with the same text (merged copies of one export) counts once."""
+    by_form = {}
+    for form, unit in members:
+        if by_form.setdefault(form, unit) is not unit:
+            other = by_form[form]
+            if (other["source"], other["target"]) != (unit["source"], unit["target"]):
+                return None
+    if sorted(by_form) != list(range(len(by_form))) or len(by_form) < 2:
+        return None
+    forms = [by_form[form] for form in range(len(by_form))]
+    if len({unit["source"] for unit in forms[1:]}) != 1 or not all(u["target"] for u in forms):
+        return None
+    return forms
 
 
 def plural_fields(source, target):

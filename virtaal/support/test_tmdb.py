@@ -8,6 +8,7 @@
 """The local TM server's database, against real SQLite files. Failures
 come from SQLite itself: an authorizer refuses the statement."""
 
+import json
 import logging
 import os
 import sqlite3
@@ -1593,12 +1594,103 @@ def test_export_writes_each_plural_form_as_a_marked_unit(db_path):
 
     exported = tmx.tmxfile(db.export_tmx('en', 'af'))
 
+    key = tmdb.plural_group_key(
+        ('en', 'af'), 'menu', 'Delete %d file', 'Delete %d files', THREE_FORMS
+    )
+    assert len(key) == 16
     assert [(u.source, u.target, u.getcontext(), _plural_props(u)) for u in exported.units] == [
-        ('Delete %d file', THREE_FORMS[0], 'menu', ('1', '0')),
-        ('Delete %d files', THREE_FORMS[1], 'menu', ('1', '1')),
-        ('Delete %d files', THREE_FORMS[2], 'menu', ('1', '2')),
+        ('Delete %d file', THREE_FORMS[0], 'menu', (key, '0')),
+        ('Delete %d files', THREE_FORMS[1], 'menu', (key, '1')),
+        ('Delete %d files', THREE_FORMS[2], 'menu', (key, '2')),
         ('Open it', 'Maak dit oop', '', (None, None)),
     ]
+
+
+def test_a_re_export_gives_the_same_plural_keys(db_path, tmp_path):
+    db = tmdb.TMDB(db_path)
+    db.import_store(_plural_po(), '/x/first.po', 'en', 'af')
+    db.import_store(_plural_po(THREE_FORMS_PO), '/x/af.po', 'en', 'af')
+    first = db.export_tmx('en', 'af')
+    other = str(tmp_path / 'other.db')
+    try:
+        again = tmdb.TMDB(other)
+        again.import_store(tmx.tmxfile(first), '/x/e.tmx')
+
+        def marks(exported):
+            return sorted(
+                (u.source, u.target, _plural_props(u)) for u in tmx.tmxfile(exported).units
+            )
+
+        assert marks(again.export_tmx('en', 'af')) == marks(first)
+        assert len({group for _s, _t, (group, _f) in marks(first) if group}) == 2
+    finally:
+        _close(other)
+
+
+def _merged(*exports):
+    """One TMX holding the units of every exported TMX."""
+    merged = tmx.tmxfile(sourcelanguage='en', targetlanguage='af')
+    for exported in exports:
+        for unit in tmx.tmxfile(exported).units:
+            merged.addunit(unit)
+    return tmx.tmxfile(bytes(merged))
+
+
+OTHER_FORMS_PO = THREE_FORMS_PO.replace('lêertjies', 'lêerlies').replace('"menu"', '"list"')
+
+
+@pytest.mark.parametrize(
+    'second',
+    [THREE_FORMS_PO, THREE_FORMS_PO.replace('lêertjies', 'lêerlies'), OTHER_FORMS_PO],
+    ids=['same', 'other-translation', 'other-context'],
+)
+def test_merged_exports_import_their_plurals_whole(db_path, tmp_path, second):
+    exports = []
+    for number, text in enumerate((THREE_FORMS_PO, second)):
+        path = str(tmp_path / ('%d.db' % number))
+        source = tmdb.TMDB(path)
+        source.import_store(_plural_po(text), '/x/af.po', 'en', 'af')
+        exports.append(source.export_tmx('en', 'af'))
+        _close(path)
+
+    db = tmdb.TMDB(db_path)
+    db.import_store(_merged(*exports), '/x/merged.tmx')
+
+    # Each plural joins whole; one with the same singular target as an
+    # earlier one replaces it, as a plain unit would.
+    plurals = [row for row in _plurals(db) if row[0] != 'Maak dit oop']
+    assert plurals and all(plural == 'Delete %d files' for _text, plural, _forms in plurals)
+    assert len(plurals) == (2 if second == OTHER_FORMS_PO else 1)
+    assert json.loads(plurals[-1][2]) == _plural_po(second).units[1].target.strings
+
+
+def test_old_counter_keys_still_join(db_path):
+    db = tmdb.TMDB(db_path)
+    db.import_store(
+        _tmx_forms((*SINGULAR, 1, 0), (*PLURAL, 1, 1), ('Open it', 'Maak oop', 2, 0)),
+        '/x/e.tmx',
+    )
+
+    assert _plurals(db) == [
+        ('Skrap %d lêer', 'Delete %d files', '["Skrap %d lêer", "Skrap %d lêers"]'),
+        ('Maak oop', None, None),
+    ]
+
+
+def test_merged_old_exports_with_colliding_counters_fall_back_to_plain_units(db_path):
+    db = tmdb.TMDB(db_path)
+    db.import_store(
+        _tmx_forms(
+            (*SINGULAR, 1, 0),
+            (*PLURAL, 1, 1),
+            ('Move %d file', 'Skuif %d lêer', 1, 0),
+            ('Move %d files', 'Skuif %d lêers', 1, 1),
+        ),
+        '/x/e.tmx',
+    )
+
+    assert all(plural is None for _text, plural, _forms in _plurals(db))
+    assert len(_plurals(db)) == 4
 
 
 def test_an_exported_plural_imports_as_one_plural(db_path, tmp_path):
