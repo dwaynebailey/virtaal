@@ -74,13 +74,13 @@ gtkmac_mo_files = [
     if p.relative_to(_gtkmac_locale_dir).parts[0] in bundle_languages(LANGUAGES)
 ]
 
-# build_standalone.sh builds this enchant, with its hunspell provider,
-# and fetches the dictionaries. It replaces Homebrew's libenchant, which
+# build_standalone.sh builds this enchant, with its hunspell and
+# AppleSpell providers, and fetches the dictionaries. It replaces Homebrew's libenchant, which
 # GtkSpell links; pyi_rth_spelling.py points pyenchant at it.
 ENCHANT_PREFIX = ROOT / "build" / "enchant-macos" / "opt" / "virtaal-enchant"
 ENCHANT_LIBRARY = ENCHANT_PREFIX / "lib" / "libenchant-2.2.dylib"
 ENCHANT_PROVIDERS = [ENCHANT_PREFIX / "lib" / "enchant-2" / name
-                     for name in ("enchant_hunspell.so",)]
+                     for name in ("enchant_hunspell.so", "enchant_applespell.so")]
 DICTIONARIES = ROOT / "build" / "dictionaries" / "bundled"
 for _required in [ENCHANT_LIBRARY] + ENCHANT_PROVIDERS:
     if not _required.is_file():
@@ -100,6 +100,8 @@ datas += [
 ]
 datas += mo_files + gtkmac_mo_files
 datas += [(str(p), "share/hunspell") for p in sorted(DICTIONARIES.iterdir())]
+# hunspell first, then the system's AppleSpell.
+datas.append((str(PACKAGING / "enchant.ordering"), "libenchant/share/enchant-2"))
 
 a = Analysis(  # noqa: F821
     [str(ROOT / "bin" / "virtaal")],

@@ -1420,7 +1420,8 @@ jobs:
           dist/Virtaal.app/Contents/MacOS/virtaal --run-module virtaal.support.enchant_compat en_GB /tmp/enchant.txt
           cat /tmp/enchant.txt
           grep -q "^enchant: .*/Virtaal.app/Contents/Frameworks/libenchant/\.\./libenchant-2\.2\.dylib$" /tmp/enchant.txt
-          grep -q "^providers: hunspell$" /tmp/enchant.txt
+          grep -q "^providers: AppleSpell hunspell$" /tmp/enchant.txt
+          grep -q "^AppleSpell languages: ." /tmp/enchant.txt
           grep -q "^dictionary: True$" /tmp/enchant.txt
           grep -q "^typelib: .*/Virtaal.app/" /tmp/enchant.txt
           grep -q "^gtkspell: ok$" /tmp/enchant.txt
