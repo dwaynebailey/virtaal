@@ -318,10 +318,346 @@ class StringsConverter(PropertiesConverter):
         return text.encode('utf-16' if strings_personality(target) == 'strings' else 'utf-8')
 
 
+# JSON
+
+
+CLDR_CATEGORIES = ('zero', 'one', 'two', 'few', 'many', 'other')
+
+
+def plural_categories(language, ordinal=False):
+    """The CLDR plural categories of C{language}, in CLDR's order, or
+    C{None} if it isn't known."""
+    import babel
+
+    if not language:
+        return None
+    try:
+        locale = babel.Locale.parse(language.replace('-', '_'))
+    except (ValueError, babel.UnknownLocaleError):
+        return None
+    tags = (locale.ordinal_form if ordinal else locale.plural_form).tags | {'other'}
+    return [category for category in CLDR_CATEGORIES if category in tags]
+
+
+def _target_language(target_path):
+    from virtaal.models.fileset import path_language
+
+    return path_language(target_path) if target_path else None
+
+
+_JSON_SPACE = re.compile(r'[ \t\n\r]*')
+
+
+class _JsonLeaves:
+    """Each string in a JSON text, with its path of keys and indices and
+    where it is: [(path, text, start, end)] in file order."""
+
+    def __init__(self, text):
+        import json
+
+        json.loads(text)  # Malformed JSON raises ValueError here.
+        self.text = text
+        self.found = []
+        self._decoder = json.JSONDecoder()
+        self._value(0, ())
+
+    def _space(self, pos):
+        return _JSON_SPACE.match(self.text, pos).end()
+
+    def _value(self, pos, path):
+        from json.decoder import scanstring
+
+        pos = self._space(pos)
+        first = self.text[pos : pos + 1]
+        if first == '{':
+            return self._object(pos + 1, path)
+        if first == '[':
+            return self._array(pos + 1, path)
+        if first == '"':
+            value, end = scanstring(self.text, pos + 1)
+            self.found.append((path, value, pos, end))
+            return end
+        return self._decoder.raw_decode(self.text, pos)[1]
+
+    def _object(self, pos, path):
+        from json.decoder import scanstring
+
+        pos = self._space(pos)
+        if self.text[pos] == '}':
+            return pos + 1
+        while True:
+            key, pos = scanstring(self.text, self._space(pos) + 1)
+            pos = self._value(self._space(pos) + 1, path + (key,))
+            pos = self._space(pos)
+            if self.text[pos] == '}':
+                return pos + 1
+            pos += 1
+
+    def _array(self, pos, path):
+        pos = self._space(pos)
+        if self.text[pos] == ']':
+            return pos + 1
+        index = 0
+        while True:
+            pos = self._space(self._value(pos, path + (index,)))
+            index += 1
+            if self.text[pos] == ']':
+                return pos + 1
+            pos += 1
+
+
+def json_key(path):
+    """A JSON string's key: its path's keys and indices joined by dots,
+    as i18next names nested keys."""
+    return '.'.join(str(part) for part in path)
+
+
+def _is_metadata(path):
+    """ARB's @key and @@locale entries, and a top-level $schema."""
+    return path[0].startswith('@') or path[0] == '$schema'
+
+
+def _plural_suffix(key):
+    """(base, category, ordinal) of an i18next plural key like
+    item_one or place_ordinal_two, else None."""
+    base, _sep, category = key.rpartition('_')
+    if not base or category not in CLDR_CATEGORIES:
+        return None
+    if base.endswith('_ordinal'):
+        return base[: -len('_ordinal')], category, True
+    return base, category, False
+
+
+def _plural_groups(mapping):
+    """{(base, ordinal): {category: key}} of the i18next plural keys in a
+    JSON object: those whose "other" form is there."""
+    groups = {}
+    for key, value in mapping.items():
+        found = _plural_suffix(key)
+        if found and isinstance(value, str):
+            base, category, ordinal = found
+            groups.setdefault((base, ordinal), {})[category] = key
+    return {group: keys for group, keys in groups.items() if 'other' in keys}
+
+
+def _plural_key(base, category, ordinal):
+    return '%s_%s%s' % (base, 'ordinal_' if ordinal else '', category)
+
+
+def _arb_notes(template):
+    """{key: description} of an ARB template's @key entries."""
+    if not isinstance(template, dict):
+        return {}
+    return {
+        key[1:]: value['description']
+        for key, value in template.items()
+        if key.startswith('@')
+        and not key.startswith('@@')
+        and isinstance(value, dict)
+        and isinstance(value.get('description'), str)
+    }
+
+
+def _json_language(target_path):
+    """The target's language: from its path, else an ARB's @@locale."""
+    language = _target_language(target_path)
+    if language or not target_path or not os.path.isfile(target_path):
+        return language
+    try:
+        locale = JsonConverter._load(target_path).get('@@locale')
+    except (ValueError, AttributeError, OSError):
+        return None
+    return locale if isinstance(locale, str) and locale else None
+
+
+def _json_indent(text):
+    """The indent of a JSON text's first indented line: a tab, or so
+    many spaces; 2 if it has none."""
+    match = re.search(r'\n([ \t]+)\S', text)
+    if not match:
+        return 2
+    indent = match.group(1)
+    return '\t' if indent.startswith('\t') else len(indent)
+
+
+class _JsonWriter:
+    """A JSON template's tree with its strings translated: untranslated
+    ones keep the template's text or are left out, plural keys follow
+    the target language's forms, and ARB's @@locale is the target's.
+    ARB @key entries stay only where the target has them."""
+
+    def __init__(self, translations, skip_untranslated, language, target):
+        self.translations = translations
+        self.skip = skip_untranslated
+        self.language = language
+        self.target = target
+
+    def write(self, node, path):
+        """The output for C{node} at C{path}; C{None} to leave it out."""
+        if isinstance(node, dict):
+            return self._object(node, path)
+        if isinstance(node, list):
+            items = [self.write(value, path + (index,)) for index, value in enumerate(node)]
+            return [item for item in items if item is not None] or (None if node else [])
+        if isinstance(node, str) and path and not _is_metadata(path):
+            return self._text(json_key(path), node)
+        return node
+
+    def _text(self, key, source):
+        if key in self.translations:
+            return self.translations[key]
+        return None if self.skip else source
+
+    def _object(self, node, path):
+        groups = _plural_groups(node)
+        grouped = {key: group for group, keys in groups.items() for key in keys.values()}
+        output = {}
+        for key, value in node.items():
+            if key in grouped:
+                self._plural(output, node, grouped[key], groups, path)
+            elif not path and key.startswith('@'):
+                self._metadata(output, key, value)
+            else:
+                written = self.write(value, path + (key,))
+                if written is not None:
+                    output[key] = written
+        return output if output or not node else None
+
+    def _plural(self, output, node, group, groups, path):
+        keys = groups.pop(group, None)
+        if keys is None:
+            return
+        for name, source in JsonConverter._forms(node, group, keys, self.language):
+            text = self._text(json_key(path + (name,)), source)
+            if text is not None:
+                output[name] = text
+
+    def _metadata(self, output, key, value):
+        if key == '@@locale':
+            output[key] = self.language or value
+        elif key in self.target:
+            output[key] = value
+
+
+class JsonConverter(MonolingualConverter):
+    """JSON key-value files: flat or nested (i18next, with its _one,
+    _other... plural keys given the target language's forms), and
+    Flutter's ARB."""
+
+    id = 'json'
+    name = 'JSON file'
+    extensions = ('json', 'arb')
+    modules = ('babel',)
+
+    def in_folder(self, path, root):
+        from virtaal.models.fileset import path_language
+
+        return path.lower().endswith('.arb') or path_language(path, root) is not None
+
+    @staticmethod
+    def _text(data):
+        return data.decode('utf-8-sig')
+
+    def _strings(self, data):
+        """[(key, text, start, end)] of the strings to translate."""
+        leaves = _JsonLeaves(self._text(data)).found
+        return [
+            (json_key(path), text, start, end)
+            for path, text, start, end in leaves
+            if path and not _is_metadata(path)
+        ]
+
+    def values_of(self, data):
+        return {key: text for key, text, _start, _end in self._strings(data)}
+
+    def spans(self, data):
+        text = self._text(data)
+        return {
+            key: (text.count('\n', 0, start) + 1, text.count('\n', 0, end) + 1)
+            for key, _text, start, end in self._strings(data)
+        }
+
+    @staticmethod
+    def _load(path):
+        import json
+
+        return json.loads(_read(path).decode('utf-8-sig'))
+
+    def _units(self, template, language):
+        """[(key, source)] the template gives for C{language}."""
+        found = []
+        self._walk_units(template, (), language, found)
+        return found
+
+    def _walk_units(self, node, path, language, found):
+        if isinstance(node, list):
+            for index, value in enumerate(node):
+                self._walk_units(value, path + (index,), language, found)
+        elif isinstance(node, dict):
+            self._object_units(node, path, language, found)
+        elif isinstance(node, str) and path and not _is_metadata(path):
+            found.append((json_key(path), node))
+
+    def _object_units(self, node, path, language, found):
+        groups = _plural_groups(node)
+        grouped = {key for keys in groups.values() for key in keys.values()}
+        for key, value in node.items():
+            if key not in grouped:
+                self._walk_units(value, path + (key,), language, found)
+                continue
+            group = next(g for g, keys in groups.items() if key in keys.values())
+            if key != next(iter(groups[group].values())):
+                continue
+            for name, source in self._forms(node, group, groups[group], language):
+                found.append((json_key(path + (name,)), source))
+
+    @staticmethod
+    def _forms(node, group, keys, language):
+        """(key, source) of each plural form C{language} needs, with the
+        template's "other" text where the template lacks the form."""
+        base, ordinal = group
+        categories = plural_categories(language, ordinal) or list(keys)
+        for category in categories:
+            source = node[keys.get(category, keys['other'])]
+            yield _plural_key(base, category, ordinal), source
+
+    def to_bilingual(self, template_path, target_path):
+        from translate.storage import po
+
+        template = self._load(template_path)
+        notes = _arb_notes(template)
+        targets = self.values(target_path)
+        store = po.pofile()
+        for key, source in self._units(template, _json_language(target_path)):
+            unit = store.addsourceunit(source)
+            unit.addlocation(key)
+            unit.target = targets.get(key, '')
+            if notes.get(key):
+                unit.addnote(notes[key], 'developer')
+        return store
+
+    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
+        import json
+
+        template_text = _read(template_path).decode('utf-8-sig')
+        target = self._load(target_path) if target_path and os.path.isfile(target_path) else {}
+        writer = _JsonWriter(
+            translations,
+            skip_untranslated,
+            _json_language(target_path),
+            target if isinstance(target, dict) else {},
+        )
+        tree = writer.write(json.loads(template_text), ())
+        tree = {} if tree is None else tree
+        text = json.dumps(tree, ensure_ascii=False, indent=_json_indent(template_text))
+        return (text + '\n').encode('utf-8')
+
+
 MONOLINGUAL_CONVERTERS = [
     PropertiesConverter(),
     FluentConverter(),
     StringsConverter(),
+    JsonConverter(),
 ]
 
 

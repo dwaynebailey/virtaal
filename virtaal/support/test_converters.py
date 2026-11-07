@@ -278,3 +278,151 @@ def test_strings_spans_cover_each_messages_lines():
         'greeting': (4, 4),
         'quit': (5, 5),
     }
+
+
+# JSON
+
+EN_JSON = """\
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "title": "Notes",
+  "menu": {
+    "open": "Open",
+    "save": "Save"
+  },
+  "item_one": "{{count}} item",
+  "item_other": "{{count}} items",
+  "list": ["Red", "Green"],
+  "version": 3
+}
+"""
+
+
+def _json_project(tmp_path, language, target):
+    for code, text in (('en', EN_JSON), (language, target)):
+        (tmp_path / 'locales' / code).mkdir(parents=True, exist_ok=True)
+        _write(tmp_path / 'locales' / code / 'common.json', text)
+    en = str(tmp_path / 'locales' / 'en' / 'common.json')
+    return en, str(tmp_path / 'locales' / language / 'common.json')
+
+
+def test_json_pair_nests_keys_with_dots_and_gives_the_target_its_plural_forms(tmp_path):
+    en, ru = _json_project(tmp_path, 'ru', '{"title": "Заметки", "item_one": "{{count}} заметка"}')
+
+    store = converters.JsonConverter().to_bilingual(en, ru)
+
+    units = [(u.getlocations()[0], u.source, u.target) for u in store.units if not u.isheader()]
+    assert units == [
+        ('title', 'Notes', 'Заметки'),
+        ('menu.open', 'Open', ''),
+        ('menu.save', 'Save', ''),
+        ('item_one', '{{count}} item', '{{count}} заметка'),
+        # Russian has two forms English lacks: they start from "other".
+        ('item_few', '{{count}} items', ''),
+        ('item_many', '{{count}} items', ''),
+        ('item_other', '{{count}} items', ''),
+        ('list.0', 'Red', ''),
+        ('list.1', 'Green', ''),
+    ]
+
+
+def test_json_written_back_follows_the_template_and_the_target_language(tmp_path):
+    import json
+
+    en, ru = _json_project(tmp_path, 'ru', '{}')
+    wanted = {'menu.open': 'Открыть', 'item_few': '{{count}} заметки', 'list.1': 'Зелёный'}
+
+    data = converters.JsonConverter().to_monolingual(en, ru, wanted, skip_untranslated=True)
+
+    assert json.loads(data) == {
+        '$schema': 'https://inlang.com/schema/inlang-message-format',
+        'menu': {'open': 'Открыть'},
+        'item_few': '{{count}} заметки',
+        'list': ['Зелёный'],
+        'version': 3,
+    }
+    # Indented as the template is.
+    assert data.decode().startswith('{\n  "$schema"')
+    full = json.loads(converters.JsonConverter().to_monolingual(en, ru, wanted))
+    assert list(full) == [
+        '$schema',
+        'title',
+        'menu',
+        'item_one',
+        'item_few',
+        'item_many',
+        'item_other',
+        'list',
+        'version',
+    ]
+    assert full['title'] == 'Notes' and full['list'] == ['Red', 'Зелёный']
+
+
+def test_json_round_trip_keeps_every_translation(tmp_path):
+    en, af = _json_project(tmp_path, 'af', '{}')
+    converter = converters.JsonConverter()
+    wanted = {'title': 'Notas', 'menu.save': 'Stoor', 'item_one': '1 nota', 'item_other': 'notas'}
+
+    _write(
+        tmp_path / 'locales' / 'af' / 'common.json',
+        converter.to_monolingual(en, af, wanted, True).decode(),
+    )
+
+    assert {k: v for k, v in _translations(converter.to_bilingual(en, af)).items() if v} == wanted
+
+
+def test_json_spans_and_values_skip_metadata():
+    converter = converters.JsonConverter()
+    spans = converter.spans(EN_JSON.encode())
+
+    assert '$schema' not in spans
+    assert spans['menu.save'] == (6, 6)
+    assert spans['list.1'] == (10, 10)
+    assert converter.values_of(EN_JSON.encode())['item_other'] == '{{count}} items'
+
+
+def test_json_that_is_malformed_raises():
+    with pytest.raises(ValueError):
+        converters.JsonConverter().values_of(b'{"a": ')
+
+
+ARB_EN = """\
+{
+    "@@locale": "en",
+    "hello": "Hello {name}",
+    "@hello": {"description": "Greets the user", "placeholders": {"name": {}}},
+    "bye": "Goodbye"
+}
+"""
+
+
+def test_arb_pair_shows_descriptions_and_writes_its_own_locale(tmp_path):
+    import json
+
+    en = _write(tmp_path / 'app_en.arb', ARB_EN)
+    af = _write(tmp_path / 'app_af.arb', '{"@@locale": "af", "hello": "Hallo {name}"}\n')
+    converter = converters.JsonConverter()
+
+    store = converter.to_bilingual(en, af)
+
+    units = {u.getlocations()[0]: u for u in store.units if not u.isheader()}
+    assert (units['hello'].target, units['hello'].getnotes()) == ('Hallo {name}', 'Greets the user')
+    data = json.loads(converter.to_monolingual(en, af, {'bye': 'Totsiens'}, True))
+    # The target had no @hello: the template's metadata stays out of it.
+    assert data == {'@@locale': 'af', 'bye': 'Totsiens'}
+
+
+@pytest.mark.parametrize(
+    'language, ordinal, expected',
+    [
+        ('af', False, ['one', 'other']),
+        ('ru', False, ['one', 'few', 'many', 'other']),
+        ('ja', False, ['other']),
+        ('pt_BR', False, ['one', 'many', 'other']),
+        ('en', True, ['one', 'two', 'few', 'other']),
+        ('xx', False, None),
+        (None, False, None),
+    ],
+)
+def test_plural_categories_are_cldr_s(language, ordinal, expected):
+    assert converters.plural_categories(language, ordinal) == expected

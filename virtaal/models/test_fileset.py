@@ -245,3 +245,16 @@ def test_a_folder_scan_counts_luganda_files(tmp_path):
 
     assert files.languages() == {'lg': 2, 'zu': 1}
     assert len(files.for_language('lg')) == 2
+
+
+def test_a_folder_scan_takes_in_json_only_where_the_path_names_a_language(tmp_path):
+    en = _write(tmp_path, 'public/locales/en/translation.json', '{"a": "Open"}')
+    af = _write(tmp_path, 'public/locales/af/translation.json', '{"a": "Maak oop"}')
+    _write(tmp_path, 'package.json', '{"name": "app"}')
+    _write(tmp_path, 'src/config/settings.json', '{"a": "b"}')
+
+    files = FileSet.from_paths([str(tmp_path)])
+
+    assert [(e.path, e.template.template) for e in files] == [(af, en)]
+    assert [e.path for e in files.templates] == [en]
+    assert files.unpaired == []
