@@ -38,13 +38,17 @@ always come first. Suggestions from other sources count as 100%. When Amagama
 has more suggestions than Virtaal shows, it keeps those from projects with a
 higher weight. Each change applies to the next suggestions.
 
-To use only translations under licences that suit you, list them in the
-:guilabel:`Licenses` field as SPDX identifiers separated by commas, such as
-``GPL-*, MIT``: ``*`` stands for any characters, and ``!`` leaves a licence out,
-so ``!AGPL-*`` accepts every licence but the AGPL. A project whose licence
-offers a choice, such as ``MIT OR GPL-2.0-only``, is kept if one of the choices
-is listed. Projects with no known licence are then left out. Leave the field
-empty to accept any licence. The choice is kept as ``licence`` in the
+To use only translations under licences that suit you, choose them under
+:guilabel:`Licenses`: :guilabel:`Free software` keeps projects under free and
+open source licences, copyleft such as the GPL and permissive such as MIT;
+:guilabel:`Permissive only` keeps those under permissive licences, such as MIT,
+BSD, Apache or CC-BY. Hold the pointer over the choice to see the licences it
+keeps. For others, choose :guilabel:`Custom…` and list them as SPDX
+identifiers separated by commas, such as ``GPL-*, MIT``: ``*`` stands for any
+characters, and ``!`` leaves a licence out, so ``!AGPL-*`` accepts every
+licence but the AGPL. A project whose licence offers a choice, such as ``MIT OR
+GPL-2.0-only``, is kept if one of the choices is listed. Projects with no known
+licence are then left out. The choice is kept as ``licence`` in the
 ``[amagama]`` section of ``tm.ini``.
 
 Virtaal keeps the list of projects, so the window still works offline.

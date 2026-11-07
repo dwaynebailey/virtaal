@@ -18,6 +18,60 @@ from .models.amagama import MAX_WEIGHT, sources_for
 
 COL_USE, COL_TITLE, COL_LICENCE, COL_WEIGHT, COL_NAME, COL_DEFAULT = range(6)
 
+# SPDX identifier globs for the licence choices, as amaGama's licence=
+# matches them: a glob matches a whole identifier, whatever its case.
+PERMISSIVE = (
+    '0BSD',
+    'Apache-*',
+    'BSD-*',
+    'BSL-1.0',
+    'CC-BY-[0-9]*',
+    'CC0-1.0',
+    'ISC',
+    'MIT',
+    'MIT-*',
+    'PSF-2.0',
+    'Unlicense',
+    'X11',
+    'Zlib',
+)
+COPYLEFT = (
+    'AGPL-*',
+    'CC-BY-SA-[0-9]*',
+    'CDDL-*',
+    'EPL-*',
+    'EUPL-*',
+    'GPL-*',
+    'LGPL-*',
+    'MPL-*',
+    'OSL-*',
+)
+ANY, CUSTOM = 'any', 'custom'
+
+
+def licence_presets():
+    """(key, label, globs) of each licence choice, Custom last."""
+    return (
+        # l10n: A choice of licences: any at all, with no licence asked for
+        (ANY, _('Any license'), ()),
+        # l10n: A choice of licences: those of free and open source software, copyleft and permissive
+        ('free', _('Free software'), PERMISSIVE + COPYLEFT),
+        # l10n: A choice of licences: those that let translations be used in any software, such as MIT or Apache
+        ('permissive', _('Permissive only'), PERMISSIVE),
+        # l10n: A choice of licences: shows a field to list them
+        (CUSTOM, _('Custom…'), None),
+    )
+
+
+def preset_of(licence):
+    """The key of the choice whose globs licence (amaGama's licence=) is,
+    whatever their order or case; Custom for any other."""
+    globs = {glob.casefold() for glob in licence.split(',') if glob}
+    for key, _label, preset in licence_presets():
+        if preset is not None and globs == {glob.casefold() for glob in preset}:
+            return key
+    return CUSTOM
+
 
 def _compare_titles(model, a, b, _data):
     """Titles in alphabetical order, whatever their case."""
@@ -80,24 +134,32 @@ class AmagamaSourcesDialog:
         content.pack_start(self._licence_box(), False, False, 0)
 
     def _licence_box(self):
-        """The field for the licences to accept, and a note on what it
-        leaves out."""
+        """The choice of licences to accept, a field for any others, and a
+        note on what a choice leaves out."""
+        self.licence_combo = Gtk.ComboBoxText()
+        for key, label, _globs in licence_presets():
+            self.licence_combo.append(key, label)
         self.licence = Gtk.Entry(
             text=self.model.licence.replace(',', ', '),
             # l10n: Shown in the empty field of licences to accept
             placeholder_text=_('Any license'),
             hexpand=True,
+            no_show_all=True,
             tooltip_text=_(
                 # l10n: The licences field's tooltip. Leave GPL-*, MIT and !AGPL-* as they are.
                 'SPDX license identifiers, separated by commas: * stands for any'
                 ' characters, ! leaves a license out. For example: GPL-*, MIT or !AGPL-*'
             ),
         )
-        self.licence.connect('changed', self._on_licence_changed)
+        self.licence.connect('changed', lambda _entry: self._show_licence_note())
         self.licence.connect('activate', lambda _entry: self.apply_licence())
         self.licence.connect('focus-out-event', self._on_licence_focus_out)
-        # l10n: Before a field listing the licences a project's translations must be under
-        label = Gtk.Label(label=_('_Licenses:'), use_underline=True, mnemonic_widget=self.licence)
+        label = Gtk.Label(
+            # l10n: Before a choice of the licences a project's translations must be under
+            label=_('_Licenses:'),
+            use_underline=True,
+            mnemonic_widget=self.licence_combo,
+        )
         self.licence_note = Gtk.Label(
             # l10n: Shown under the licences field once licences are listed in it
             label=_('Projects with no known license are left out.'),
@@ -108,9 +170,12 @@ class AmagamaSourcesDialog:
         self.licence_note.get_style_context().add_class('dim-label')
         grid = Gtk.Grid(column_spacing=6, row_spacing=3)
         grid.attach(label, 0, 0, 1, 1)
-        grid.attach(self.licence, 1, 0, 1, 1)
-        grid.attach(self.licence_note, 1, 1, 1, 1)
-        self._on_licence_changed(self.licence)
+        grid.attach(self.licence_combo, 1, 0, 1, 1)
+        grid.attach(self.licence, 2, 0, 1, 1)
+        grid.attach(self.licence_note, 1, 1, 2, 1)
+        self.licence_combo.set_active_id(preset_of(self.model.licence))
+        self.licence_combo.connect('changed', self._on_preset_changed)
+        self._on_preset_changed(self.licence_combo, apply=False)
         return grid
 
     def _add_columns(self):
@@ -191,8 +256,18 @@ class AmagamaSourcesDialog:
         )
         self.model.set_choices(excluded, weights)
 
+    def licence_text(self):
+        """The licences chosen: the preset's, or those typed in."""
+        key = self.licence_combo.get_active_id()
+        if key == CUSTOM:
+            return self.licence.get_text()
+        return ','.join({k: g for k, _label, g in licence_presets()}[key])
+
     def apply_licence(self):
-        self.model.set_licence(self.licence.get_text())
+        self.model.set_licence(self.licence_text())
+
+    def _show_licence_note(self):
+        self.licence_note.set_visible(bool(self.licence_text().strip(' ,')))
 
     # EVENT HANDLERS #
     def _on_fetched(self, sources):
@@ -209,8 +284,21 @@ class AmagamaSourcesDialog:
         else:
             self._set_status(_('Could not get the list of projects from Amagama.'))
 
-    def _on_licence_changed(self, entry):
-        self.licence_note.set_visible(bool(entry.get_text().strip(' ,')))
+    def _on_preset_changed(self, combo, apply=True):
+        key = combo.get_active_id()
+        custom = key == CUSTOM
+        globs = self.licence_text()
+        # The field starts from the last preset, to change it.
+        if not custom:
+            self.licence.set_text(globs.replace(',', ', '))
+        combo.set_tooltip_text(None if custom else globs.replace(',', ', ') or None)
+        self.licence.set_visible(custom)
+        self._show_licence_note()
+        if apply:
+            self.apply_licence()
+        if custom and apply:
+            self.licence.grab_focus()
+            self.licence.set_position(-1)
 
     def _on_licence_focus_out(self, _entry, _event):
         if not self._closed:

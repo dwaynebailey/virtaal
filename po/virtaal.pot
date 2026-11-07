@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 19:06+0000\n"
+"POT-Creation-Date: 2026-11-07 19:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1756,6 +1756,27 @@ msgstr ""
 msgid "Translation memory suggestions"
 msgstr ""
 
+#. l10n: A choice of licences: any at all, with no licence asked for
+#. l10n: Shown in the empty field of licences to accept
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "Any license"
+msgstr ""
+
+#. l10n: A choice of licences: those of free and open source software, copyleft and permissive
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "Free software"
+msgstr ""
+
+#. l10n: A choice of licences: those that let translations be used in any software, such as MIT or Apache
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "Permissive only"
+msgstr ""
+
+#. l10n: A choice of licences: shows a field to list them
+#: virtaal/plugins/tm/amagamadialog.py
+msgid "Custom…"
+msgstr ""
+
 #. l10n: The title of the window listing the projects Amagama has translations from
 #: virtaal/plugins/tm/amagamadialog.py
 msgid "Amagama Sources"
@@ -1773,11 +1794,6 @@ msgid ""
 "each."
 msgstr ""
 
-#. l10n: Shown in the empty field of licences to accept
-#: virtaal/plugins/tm/amagamadialog.py
-msgid "Any license"
-msgstr ""
-
 #. l10n: The licences field's tooltip. Leave GPL-*, MIT and !AGPL-* as they are.
 #: virtaal/plugins/tm/amagamadialog.py
 msgid ""
@@ -1785,7 +1801,7 @@ msgid ""
 "characters, ! leaves a license out. For example: GPL-*, MIT or !AGPL-*"
 msgstr ""
 
-#. l10n: Before a field listing the licences a project's translations must be under
+#. l10n: Before a choice of the licences a project's translations must be under
 #: virtaal/plugins/tm/amagamadialog.py
 msgid "_Licenses:"
 msgstr ""
