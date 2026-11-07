@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 19:48+0000\n"
+"POT-Creation-Date: 2026-11-07 20:01+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1866,6 +1866,11 @@ msgid ""
 "again."
 msgstr ""
 
+#. l10n: Check box beside Clear Fetched Suggestions: also clear those of services that charge
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Also clear _paid services"
+msgstr ""
+
 #: virtaal/plugins/tm/fetchdialog.py
 msgid ""
 "Get suggestions now for about the next hour of work, from this unit on: "
@@ -1928,6 +1933,16 @@ msgid "Next hour (about %(count)s unit)"
 msgid_plural "Next hour (about %(count)s units)"
 msgstr[0] ""
 msgstr[1] ""
+
+#. l10n: Asked before forgetting suggestions fetched from services that charge
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Clear the suggestions fetched from paid services too?"
+msgstr ""
+
+#. l10n: Under "Clear the suggestions fetched from paid services too?"
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Fetching them again is charged again."
+msgstr ""
 
 #. l10n: Status: every unit asked for was answered
 #: virtaal/plugins/tm/fetchdialog.py

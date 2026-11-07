@@ -252,6 +252,7 @@ def test_clear_is_offered_only_with_fetched_suggestions_kept(made, tmp_path):
     dialog = _dialog(made, tmp_path, _Service('amagama'))
 
     assert not dialog.clear_button.get_sensitive()
+    assert not dialog.clear_paid.get_sensitive()
 
     dialog.dialog.response(RESPONSE_FETCH)
     assert not dialog.clear_button.get_sensitive()
@@ -260,26 +261,68 @@ def test_clear_is_offered_only_with_fetched_suggestions_kept(made, tmp_path):
     dialog._all_done()
 
     assert dialog.clear_button.get_sensitive()
+    assert not dialog.clear_paid.get_sensitive()
 
 
-def test_clearing_forgets_every_pairs_suggestions_and_plans_again(made, tmp_path):
+def _kept(tmp_path, **by_service):
+    """Fetched suggestions kept for every unit, by service, in af and de."""
     fetched = FetchedSuggestions(path=lambda: str(tmp_path / 'tm.db'))
-    fetched.load(UNITS, 'en', 'de')
-    fetched.keep('amagama', {'Open': []})
-    fetched.load(UNITS, 'en', 'af')
-    fetched.keep('amagama', {s: [] for s in ('Open', 'Close', 'Save')})
+    for lang in ('de', 'af'):
+        fetched.load(UNITS, 'en', lang)
+        for service, sources in by_service.items():
+            fetched.keep(service, {s: [] for s in sources})
     fetched.close()
-    dialog = _dialog(made, tmp_path, _Service('amagama'))
-    assert _rows(dialog, COL_AVAILABLE, COL_STATUS) == [(False, 'Nothing to fetch')]
-    assert dialog.clear_button.get_sensitive()
+
+
+ALL = ('Open', 'Close', 'Save')
+
+
+def test_clearing_forgets_free_services_suggestions_and_plans_again(made, tmp_path, monkeypatch):
+    _kept(tmp_path, amagama=ALL, google=ALL)
+    dialog = _dialog(made, tmp_path, _Service('amagama'), _Service('google', billed=True))
+    monkeypatch.setattr(dialog, 'confirm_clear_paid', lambda: pytest.fail('asked'))
+    assert _rows(dialog, COL_AVAILABLE, COL_STATUS) == [(False, 'Nothing to fetch')] * 2
+    assert dialog.clear_button.get_sensitive() and dialog.clear_paid.get_sensitive()
+    assert not dialog.clear_paid.get_active()
 
     dialog.dialog.response(RESPONSE_CLEAR)
 
-    assert dialog.controller.fetched.count() == 0
-    assert _rows(dialog, COL_AVAILABLE, COL_UNITS, COL_STATUS) == [(True, 'Whole file', '')]
+    assert dialog.controller.fetched_counts() == {'google': 6}
+    assert _rows(dialog, COL_AVAILABLE, COL_USE, COL_UNITS, COL_STATUS) == [
+        (True, True, 'Whole file', ''),
+        (False, False, 'Whole file', 'Nothing to fetch'),
+    ]
     assert dialog.fetch_button.get_sensitive()
+    # Only paid ones are left: Clear waits for the box to be ticked.
     assert not dialog.clear_button.get_sensitive()
+    dialog.clear_paid.set_active(True)
+    assert dialog.clear_button.get_sensitive()
     assert dialog.dialog.get_window() is not None
+
+
+@pytest.mark.parametrize('confirmed, left', [(True, {}), (False, {'amagama': 6, 'google': 6})])
+def test_clearing_paid_services_too_asks_first(made, tmp_path, monkeypatch, confirmed, left):
+    _kept(tmp_path, amagama=ALL, google=ALL)
+    dialog = _dialog(made, tmp_path, _Service('amagama'), _Service('google', billed=True))
+    asked = []
+    monkeypatch.setattr(dialog, 'confirm_clear_paid', lambda: asked.append(1) or confirmed)
+    dialog.clear_paid.set_active(True)
+
+    dialog.dialog.response(RESPONSE_CLEAR)
+
+    assert asked == [1]
+    assert dialog.controller.fetched_counts() == left
+
+
+def test_with_the_box_ticked_but_no_paid_suggestions_nothing_is_asked(made, tmp_path, monkeypatch):
+    _kept(tmp_path, amagama=ALL)
+    dialog = _dialog(made, tmp_path, _Service('amagama'), _Service('google', billed=True))
+    monkeypatch.setattr(dialog, 'confirm_clear_paid', lambda: pytest.fail('asked'))
+    dialog.clear_paid.set_active(True)
+
+    dialog.dialog.response(RESPONSE_CLEAR)
+
+    assert dialog.controller.fetched_counts() == {}
 
 
 def test_several_files_open_together_are_fetched_for_as_one(made, tmp_path):

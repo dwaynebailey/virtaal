@@ -318,6 +318,9 @@ Virtaal's settings folder, ``fetch_words`` sets how many words a fetch covers
 and ``cache_days`` how long its suggestions are kept. To ask again sooner, for
 example after changing a service's settings, click :guilabel:`Clear Fetched
 Suggestions`: it forgets the fetched suggestions for every file and language.
+Those of services that charge are kept, since fetching them again is charged
+again, unless :guilabel:`Also clear paid services` is ticked; Virtaal then asks
+first.
 
 .. _using_virtaal#navigation:
 

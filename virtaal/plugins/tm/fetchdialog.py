@@ -15,6 +15,7 @@ from virtaal.common.pan_app import ngettext
 from virtaal.support.libi18n.numbers import format_number
 
 from .bulkfetch import CANCELLED, DONE, REFUSED
+from .localtmdialog import _gtk_text
 
 COL_MODEL, COL_USE, COL_AVAILABLE, COL_NAME, COL_UNITS, COL_CHARS, COL_STATUS = range(7)
 
@@ -68,7 +69,17 @@ class FetchSuggestionsDialog:
             # l10n: Tooltip of the button that forgets the suggestions fetched before
             _('Forget the suggestions fetched for every file and language, to ask for them again.')
         )
-        self.clear_button.get_parent().set_child_secondary(self.clear_button, True)
+        self.clear_paid = Gtk.CheckButton(
+            # l10n: Check box beside Clear Fetched Suggestions: also clear those of services that charge
+            label=_('Also clear _paid services'),
+            use_underline=True,
+        )
+        self.clear_paid.connect('toggled', lambda _button: self._update_buttons())
+        action_area = self.clear_button.get_parent()
+        action_area.pack_start(self.clear_paid, False, False, 0)
+        action_area.set_child_secondary(self.clear_button, True)
+        action_area.set_child_secondary(self.clear_paid, True)
+        action_area.set_child_non_homogeneous(self.clear_paid, True)
         self.dialog.set_default_response(RESPONSE_FETCH)
         self.dialog.connect('response', self._on_response)
 
@@ -249,10 +260,47 @@ class FetchSuggestionsDialog:
         self._update_progress()
         self._update_buttons()
 
+    def _clear_targets(self):
+        """(the services whose fetched suggestions Clear forgets, the paid
+        ones of those kept)."""
+        kept = self.controller.fetched_counts()
+        models = [row[COL_MODEL] for row in self.liststore]
+        paid = self.controller.billed_services(kept, models)
+        if self.clear_paid.get_active():
+            return set(kept), paid
+        return set(kept) - paid, paid
+
+    def confirm_clear_paid(self):
+        """Whether the user wants paid services' suggestions forgotten."""
+        dialog = Gtk.MessageDialog(
+            transient_for=self.dialog,
+            modal=True,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.NONE,
+            # l10n: Asked before forgetting suggestions fetched from services that charge
+            text=_('Clear the suggestions fetched from paid services too?'),
+        )
+        dialog.format_secondary_text(
+            # l10n: Under "Clear the suggestions fetched from paid services too?"
+            _('Fetching them again is charged again.')
+        )
+        dialog.add_button(_gtk_text('_Cancel'), Gtk.ResponseType.CANCEL)
+        clear = dialog.add_button(_('C_lear Fetched Suggestions'), Gtk.ResponseType.ACCEPT)
+        clear.get_style_context().add_class('destructive-action')
+        dialog.set_default_response(Gtk.ResponseType.CANCEL)
+        try:
+            return dialog.run() == Gtk.ResponseType.ACCEPT
+        finally:
+            dialog.destroy()
+
     def clear(self):
-        """Forget every fetched suggestion, so each service's plan asks
-        for all the file needs again."""
-        self.controller.clear_fetched()
+        """Forget the fetched suggestions of free services, and of paid
+        ones if ticked and confirmed, so each one's plan asks for all the
+        file needs again."""
+        targets, paid = self._clear_targets()
+        if targets & paid and not self.confirm_clear_paid():
+            return
+        self.controller.clear_fetched(targets)
         self._results = {}
         for row in self.liststore:
             if row[COL_MODEL] not in self._checking:
@@ -281,7 +329,9 @@ class FetchSuggestionsDialog:
     def _update_buttons(self):
         running = bool(self._running())
         self.fetch_button.set_sensitive(not running and bool(self.ticked()))
-        self.clear_button.set_sensitive(not running and self.controller.fetched_count() > 0)
+        targets, paid = self._clear_targets()
+        self.clear_button.set_sensitive(not running and bool(targets))
+        self.clear_paid.set_sensitive(not running and bool(paid))
         self.stop_button.set_visible(running)
         self.treeview.set_sensitive(not running)
 

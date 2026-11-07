@@ -619,14 +619,31 @@ class TMController(BaseController):
             self.failing_units(),
         )
 
-    def fetched_count(self):
-        """How many fetched answers are kept, for every language pair."""
-        return 0 if self.fetched is None else self.fetched.count()
+    def fetched_counts(self):
+        """{service: how many of its fetched answers are kept}, for every
+        language pair."""
+        return {} if self.fetched is None else self.fetched.counts()
 
-    def clear_fetched(self):
-        """Drop every fetched suggestion kept, for every language pair."""
+    def clear_fetched(self, services):
+        """Drop the services' fetched suggestions, for every language pair."""
         if self.fetched is not None:
-            self.fetched.drop_all()
+            self.fetched.drop(services)
+
+    def billed_services(self, services, models=()):
+        """Those of services (internal names) that bill by the character,
+        as models or the backends say; one not found counts as billed."""
+        known = {model.internal_name: model for model in models}
+        plugin_controller = getattr(self, 'plugin_controller', None)
+        known = {**getattr(plugin_controller, 'plugins', {}), **known}
+        billed = set()
+        for service in services:
+            try:
+                backend = known.get(service) or plugin_controller._get_plugin_class(service)
+            except Exception:
+                backend = None
+            if getattr(backend, 'billed', True):
+                billed.add(service)
+        return billed
 
     def fetch_budget(self, model):
         """How many source words model may be asked for at once: the fetch

@@ -137,26 +137,47 @@ def test_opening_a_file_drops_what_its_translated_units_had(fetched, path):
     assert _stored(path, ['Open', 'Close']) == {'google_translate': {'Close': []}}
 
 
-def test_dropping_all_forgets_every_language_pairs_answers(fetched, path):
+def test_dropping_services_forgets_their_answers_for_every_pair(fetched, path):
     fetched.load([_unit('Open')], 'en', 'de')
     fetched.keep('amagama', {'Open': []})
     fetched.load([_unit('Open')], 'en', 'af')
+    fetched.keep('amagama', {'Open': []})
     fetched.keep('google_translate', {'Open': [MATCH]})
-    assert fetched.count() == 2
+    assert fetched.counts() == {'amagama': 2, 'google_translate': 1}
 
-    fetched.drop_all()
+    fetched.drop(['amagama'])
 
-    assert fetched.count() == 0
-    assert fetched.matches('google_translate', 'Open') is None
-    assert _stored(path, ['Open']) == {}
+    assert fetched.counts() == {'google_translate': 1}
+    assert fetched.matches('amagama', 'Open') is None
+    assert fetched.matches('google_translate', 'Open') == [MATCH]
+    assert _stored(path, ['Open']) == {'google_translate': {'Open': [MATCH]}}
     assert _stored(path, ['Open'], target_lang='de') == {}
 
 
 def test_with_no_usable_tm_file_nothing_is_kept(tmp_path):
     fetched = FetchedSuggestions(path=lambda: str(tmp_path / 'no' / 'such' / 'tm.db'))
 
-    assert fetched.count() == 0
-    fetched.drop_all()
+    assert fetched.counts() == {}
+    fetched.drop(['amagama'])
+
+
+def test_billed_services_are_told_by_their_backends():
+    controller = TMController.__new__(TMController)
+    free, paid = (
+        SimpleNamespace(internal_name='amagama', billed=False),
+        SimpleNamespace(billed=True),
+    )
+    controller.plugin_controller = SimpleNamespace(
+        plugins={'deepl': paid},
+        _get_plugin_class=lambda name: {'google_translate': paid}[name],
+    )
+
+    billed = controller.billed_services(
+        ['amagama', 'deepl', 'google_translate', 'gone'], models=[free]
+    )
+
+    # One no longer found is kept unless paid ones are cleared too.
+    assert billed == {'deepl', 'google_translate', 'gone'}
 
 
 def test_a_source_still_to_translate_elsewhere_in_the_file_keeps_them(fetched, path):

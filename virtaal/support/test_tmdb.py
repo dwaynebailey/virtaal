@@ -1999,17 +1999,18 @@ def test_cached_suggestions_expire(cache):
     assert cache.get('en', 'af', ['Old', 'New']) == {'amagama': {'New': []}}
 
 
-def test_cached_suggestions_are_counted_and_cleared_for_every_pair(cache):
-    assert cache.count() == 0
+def test_cached_suggestions_are_counted_and_cleared_by_service_for_every_pair(cache):
+    assert cache.counts() == {}
     cache.put('amagama', 'en', 'af', {'Open': [], 'Close': []})
+    cache.put('amagama', 'en', 'de', {'Open': []})
     cache.put('google_translate', 'en', 'de', {'Open': GOOGLE})
 
-    assert cache.count() == 3
-    cache.clear()
+    assert cache.counts() == {'amagama': 3, 'google_translate': 1}
+    cache.clear(['amagama'])
 
-    assert cache.count() == 0
+    assert cache.counts() == {'google_translate': 1}
     assert cache.get('en', 'af', ['Open', 'Close']) == {}
-    assert cache.get('en', 'de', ['Open']) == {}
+    assert cache.get('en', 'de', ['Open']) == {'google_translate': {'Open': GOOGLE}}
 
 
 def test_cached_suggestions_are_not_the_users_translations(db_path, cache):

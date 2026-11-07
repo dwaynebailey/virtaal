@@ -155,15 +155,17 @@ class FetchedSuggestions:
         self._pair = None
         self.by_service = {}
 
-    def count(self):
-        """How many answers are kept, for every language pair."""
-        return self._run('count', default=0)
+    def counts(self):
+        """{service: how many of its answers are kept}, for every language
+        pair."""
+        return self._run('counts', default={})
 
-    def drop_all(self):
-        """Drop every answer kept, for every language pair, so services
-        are asked again."""
-        self.by_service = {}
-        self._run('clear')
+    def drop(self, services):
+        """Drop every answer the services gave, for every language pair,
+        so they are asked again."""
+        for service in services:
+            self.by_service.pop(service, None)
+        self._run('clear', list(services))
 
     def matches(self, service, source):
         """service's fetched matches for source (a list, maybe empty), or
