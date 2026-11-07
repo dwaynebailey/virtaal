@@ -576,3 +576,12 @@ def test_show_preferences_shows_the_dialog(monkeypatch):
     view._show_preferences('menuitem')
 
     assert calls == [True]
+
+
+def test_lang_endonym_names_a_language_only_the_plural_table_has():
+    from virtaal.models.langmodel import LanguageModel
+
+    name = PreferencesView._lang_endonym(None, LanguageModel('lg'))
+
+    assert name and name != 'lg'
+    assert PreferencesView._lang_endonym(None, None) is None

@@ -6,10 +6,10 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 from gi.repository import GLib, GObject, Gtk
-from translate.lang.data import languages as toolkit_langs
 
 from virtaal.common import GObjectWrapper, pan_app
 from virtaal.common.platform import platform
+from virtaal.models.langmodel import LanguageModel
 from virtaal.support.translate_compat import tr_lang
 from virtaal.views.widgets.selectview import SelectView
 from virtaal.views.widgets.util import run_dialog
@@ -133,9 +133,9 @@ class PreferencesView(BaseView, GObjectWrapper):
         return '%s → %s' % (source_name, target_name)
 
     def _lang_endonym(self, lang):
-        if lang is None or lang.code not in toolkit_langs:
+        if lang is None or lang.code not in LanguageModel.languages:
             return None
-        return tr_lang(lang.code)(toolkit_langs[lang.code][0], lang.code)
+        return tr_lang(lang.code)(LanguageModel.languages[lang.code][0], lang.code)
 
     def _init_placeables_page(self):
         self.placeables_select = SelectView()

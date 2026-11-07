@@ -200,6 +200,15 @@ def test_create_dialogs_builds_both_dialogs():
     assert view.add_dialog.dialog.get_transient_for() is view.select_dialog.dialog
 
 
+def test_the_language_picker_lists_luganda():
+    view = _make_view()
+
+    view._create_dialogs()
+
+    codes = [row[1] for row in view.select_dialog.lst_langs_tgt]
+    assert 'lg' in codes
+
+
 def test_create_dialogs_wires_the_edit_button_to_on_editlang_clicked(monkeypatch):
     calls = []
     monkeypatch.setattr(

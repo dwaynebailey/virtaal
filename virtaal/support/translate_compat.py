@@ -184,23 +184,40 @@ def _translated(translation, msgid):
     return None
 
 
-def _name_by_code(code, langcode):
-    """The language with iso code code named in langcode's language, from
-    the catalog's own name for it ("Pedi", "Swahili (macrolanguage)",
-    or for a language family "Songhai languages") or else for its
-    inverted form ("Sami, Northern"), without a qualifier
-    like "(macrolanguage)" - or None if the catalog doesn't translate it."""
+def _iso_record(code):
+    """(pycountry's record for code's language, or else its language
+    family, and its catalog's domain), or (None, None)."""
     if pycountry is None or not code:
-        return None
+        return None, None
     base = code.split('@')[0].split('_')[0]
     language = (
         pycountry.languages.get(alpha_2=base)
         if len(base) == 2
         else pycountry.languages.get(alpha_3=base)
     )
-    domain = 'iso639-3'
-    if language is None and len(base) == 3:
-        language, domain = pycountry.language_families.get(alpha_3=base), 'iso639-5'
+    if language is not None:
+        return language, 'iso639-3'
+    if len(base) == 3:
+        family = pycountry.language_families.get(alpha_3=base)
+        if family is not None:
+            return family, 'iso639-5'
+    return None, None
+
+
+def english_name(code):
+    """ISO 639's English name for code's language ("Ganda" for lg), or
+    None."""
+    language, _domain = _iso_record(code)
+    return language.name if language is not None else None
+
+
+def _name_by_code(code, langcode):
+    """The language with iso code code named in langcode's language, from
+    the catalog's own name for it ("Pedi", "Swahili (macrolanguage)",
+    or for a language family "Songhai languages") or else for its
+    inverted form ("Sami, Northern"), without a qualifier
+    like "(macrolanguage)" - or None if the catalog doesn't translate it."""
+    language, domain = _iso_record(code)
     if language is None:
         return None
     translation = _translation(langcode, domain, pycountry.LOCALES_DIR)

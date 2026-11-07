@@ -97,6 +97,24 @@ def test_init_loads_previously_saved_new_languages(monkeypatch, tmp_path):
         LanguageModel.languages.pop('xx-saved', None)
 
 
+def test_a_saved_language_overrides_the_plural_tables_and_toolkits(monkeypatch, tmp_path):
+    saved = dict(LanguageModel.languages)
+    LanguageModel('und')
+    assert LanguageModel.languages['lg'] == ('Ganda', 2, '(n != 1)')
+    (tmp_path / 'langs.ini').write_text(
+        '[lg]\nname = Luganda\nnplurals = 1\nplural = 0\n'
+        '[de]\nname = Deutsch\nnplurals = 1\nplural = 0\n'
+    )
+    try:
+        _make_controller(monkeypatch, tmp_path)
+
+        assert LanguageModel.languages['lg'] == ('Luganda', 1, '0')
+        assert LanguageModel.languages['de'] == ('Deutsch', 1, '0')
+    finally:
+        LanguageModel.languages.clear()
+        LanguageModel.languages.update(saved)
+
+
 def test_load_recent_parses_saved_pairs(monkeypatch, tmp_path):
     controller, _ = _make_controller(
         monkeypatch, tmp_path, _FakeSettings(recentlangs='en,af|fr,de')
