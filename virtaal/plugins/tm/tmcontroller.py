@@ -11,6 +11,7 @@ import time
 
 from gi.repository import GLib, GObject
 from translate.lang.data import normalize
+from translate.search.lshtein import LevenshteinComparer
 
 from virtaal.common import pan_app
 from virtaal.controllers.basecontroller import BaseController
@@ -193,9 +194,8 @@ class TMController(BaseController):
             return
         self._tidy_matches(tmmodel, query_str, matches)
         unit = getattr(self, '_queried_unit', None)
-        if self.abstract_placeables:
-            accel_markers = self._accel_markers()
-            matches = [self._adapt(query_str, match, accel_markers, unit) for match in matches]
+        accel_markers = self._accel_markers() if self.abstract_placeables else ()
+        matches = [self._for_form(unit, match, accel_markers) for match in matches]
         matches = [self._cap_for_codes(unit, match) for match in matches]
 
         anything_new = False
@@ -240,6 +240,54 @@ class TMController(BaseController):
             self.matches.append(match)
             return True
         return False
+
+    def _for_form(self, unit, match, accel_markers):
+        """match adapted to unit, for the plural form being edited: for a
+        form after the first, the match's own form n scored on the source
+        plurals, if it has as many forms as the file and scores well
+        enough; otherwise its target scored on the source (#1392)."""
+        query_str = match['query_str']
+        adapted = match
+        if self.abstract_placeables:
+            adapted = self._adapt(query_str, match, accel_markers, unit)
+        form = self._plural_form(unit, match)
+        if form is None:
+            return adapted
+        if self.abstract_placeables:
+            form = self._adapt(form['query_str'], form, accel_markers)
+        if form['quality'] < getattr(self, 'min_quality', 75):
+            return adapted
+        return form
+
+    def _plural_form(self, unit, match):
+        """match's form target_n with its source plural, scored on unit's,
+        or None if it has no such form."""
+        target_n = getattr(self, 'target_n', 0)
+        forms, source = match.get('plural_targets'), match.get('plural_source')
+        if not (target_n and match.get('quality') and isinstance(source, str)):
+            return None
+        if not isinstance(forms, list) or len(forms) != self._nplurals() or target_n >= len(forms):
+            return None
+        target = forms[target_n]
+        if unit is None or not unit.hasplural() or not (isinstance(target, str) and target):
+            return None
+        sources = getattr(unit.source, 'strings', None) or [unit.source]
+        query = str(sources[min(1, len(sources) - 1)])
+        quality = int(LevenshteinComparer(1000).similarity(query, source, 0))
+        form = {k: v for k, v in match.items() if k not in ('source_markup', 'target_markup')}
+        form.update(
+            source=source,
+            target=target,
+            quality=quality,
+            raw_quality=quality,
+            query_str=query,
+        )
+        return form
+
+    def _nplurals(self):
+        main_controller = getattr(self, 'main_controller', None)
+        lang_controller = getattr(main_controller, 'lang_controller', None)
+        return lang_controller.get_target_nplurals() if lang_controller is not None else None
 
     def _accel_markers(self):
         checks_controller = getattr(

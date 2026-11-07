@@ -169,6 +169,89 @@ def test_accept_response_leaves_a_po_units_match_at_100():
     assert controller.matches[0]['quality'] == 100
 
 
+# A plural unit's suggestions for the form being edited (#1392).
+
+PLURAL_MATCH = {
+    'source': 'Delete %d file',
+    'target': 'Skrap %d lêer',
+    'quality': 100,
+    'plural_source': 'Delete %d files',
+    'plural_targets': ['Skrap %d lêer', 'Skrap %d lêers'],
+}
+
+
+def _plural_response(
+    match=PLURAL_MATCH, target_n=1, nplurals=2, source=None, plural=True, abstract=True
+):
+    from translate.misc.multistring import multistring
+    from translate.storage import po
+
+    source = source or ['Delete %d file', 'Delete %d files']
+    controller = _make_controller(current_query=source[0])
+    controller.min_quality = 75
+    controller.abstract_placeables = abstract
+    controller.target_n = target_n
+    controller.main_controller = SimpleNamespace(
+        lang_controller=SimpleNamespace(get_target_nplurals=lambda: nplurals)
+    )
+    unit = po.pounit(multistring(source) if plural else source[0])
+    controller._queried_unit = unit
+    controller.accept_response(_tmmodel(), source[0], [dict(match)])
+    return controller.matches
+
+
+def test_accept_response_offers_a_plural_matchs_form_for_the_form_edited():
+    (match,) = _plural_response()
+
+    assert (match['source'], match['target'], match['quality']) == (
+        'Delete %d files',
+        'Skrap %d lêers',
+        100,
+    )
+    assert match['query_str'] == 'Delete %d files'
+
+
+def test_accept_response_scores_a_later_form_on_the_source_plurals():
+    (match,) = _plural_response(source=['Delete %d file', 'Delete %d items'])
+
+    assert match['target'] == 'Skrap %d lêers'
+    assert 75 <= match['quality'] < 100
+
+
+def test_accept_response_gives_a_later_form_the_units_placeables():
+    (match,) = _plural_response(source=['Delete %s file', 'Delete %s files'])
+
+    assert match['target'] == 'Skrap %s lêers'
+
+
+@pytest.mark.parametrize(
+    'kwargs',
+    [
+        {'target_n': 0},
+        # Another plural equation: its forms are other numbers' (#1392).
+        {'nplurals': 3},
+        {'plural': False},
+        # The source plurals are too far apart.
+        {'source': ['Delete %d file', 'Remove every one of the files']},
+        {'match': {k: v for k, v in PLURAL_MATCH.items() if not k.startswith('plural')}},
+        # A reply of another shape from a remote server.
+        {'match': {**PLURAL_MATCH, 'plural_targets': 'Skrap %d lêers'}},
+        {'match': {**PLURAL_MATCH, 'plural_targets': ['Skrap %d lêer', 2]}},
+        {'match': {**PLURAL_MATCH, 'plural_source': None}},
+    ],
+)
+def test_accept_response_offers_the_first_form_otherwise(kwargs):
+    (match,) = _plural_response(**kwargs)
+
+    assert (match['source'], match['target']) == ('Delete %d file', 'Skrap %d lêer')
+
+
+def test_accept_response_offers_a_plural_matchs_form_without_abstraction():
+    (match,) = _plural_response(abstract=False)
+
+    assert (match['target'], match['quality']) == ('Skrap %d lêers', 100)
+
+
 def test_accept_response_defaults_a_missing_tmsource_to_the_models_display_name():
     controller = _make_controller()
 
