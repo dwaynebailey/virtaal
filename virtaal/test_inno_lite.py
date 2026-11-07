@@ -38,7 +38,7 @@ def _default_isl(inno, path, changed=None):
     lines = ["; *** Inno Setup version 9.9.9+ English messages ***", ""]
     for section, entries in sections.items():
         lines += ["[%s]" % section, "; *** A heading", "; used for example as 'X'"] + entries + [""]
-    path.write_text("\r\n".join(lines), encoding="utf-8")
+    path.write_text("\r\n".join(lines), encoding="utf-8", newline="")
     return path
 
 
