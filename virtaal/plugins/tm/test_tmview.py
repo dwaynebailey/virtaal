@@ -636,22 +636,28 @@ def test_suggestions_for_translated_units_can_only_be_changed_while_suggestions_
     assert view.mnu_translated.get_sensitive() is active
 
 
-@pytest.mark.parametrize('show', [True, False])
-def test_suggestions_for_translated_units_starts_as_last_left(show):
-    view, _main_window, _groups = _real_tmview(show_translated=show)
+@pytest.mark.parametrize('mode', ['always', 'attention', 'never'])
+def test_suggestions_for_translated_units_starts_as_last_left(mode):
+    view, _main_window, _groups = _real_tmview(translated_suggestions=mode)
 
     assert view.mnu_translated in view.menu.get_children()
-    assert view.mnu_translated.get_active() is show
+    items = view.mnu_translated.get_submenu().get_children()
+    assert [item.get_label() for item in items] == ['_Always', 'Needs A_ttention', '_Never']
+    assert [item.get_active() for item in items] == [
+        m == mode for m in ('always', 'attention', 'never')
+    ]
 
 
-def test_ticking_suggestions_for_translated_units_tells_the_controller():
+def test_choosing_suggestions_for_translated_units_tells_the_controller():
     changes = []
-    view, _main_window, _groups = _real_tmview(set_show_translated=changes.append)
+    view, _main_window, _groups = _real_tmview(set_translated_suggestions=changes.append)
 
-    view.mnu_translated.set_active(True)
-    view.mnu_translated.set_active(False)
+    view.mnu_translated_modes['attention'].set_active(True)
+    view.mnu_translated_modes['always'].set_active(True)
+    view.mnu_translated_modes['always'].set_active(True)
 
-    assert changes == [True, False]
+    assert changes == ['attention', 'always']
+    assert not view.mnu_translated_modes['never'].get_active()
 
 
 # get_target_width() / _get_selected_unit_view()
@@ -908,7 +914,7 @@ def test_setup_menu_items_adds_a_translation_suggestions_toggle():
         main_controller=SimpleNamespace(view=SimpleNamespace(menubar=None, gui=_real_builder())),
         update_suggestions=lambda: started.append('update'),
         summon=lambda: started.append('summon'),
-        show_translated=False,
+        translated_suggestions='never',
     )
 
     view._setup_menu_items()
@@ -940,7 +946,7 @@ class _FakeSignalSource(GObjectWrapper):
 
 def _real_tmview(**controller_attrs):
     controller_attrs.setdefault('update_suggestions', lambda: None)
-    controller_attrs.setdefault('show_translated', False)
+    controller_attrs.setdefault('translated_suggestions', 'never')
     main_window = Gtk.Window()
     store_controller = _FakeSignalSource()
     store_controller.view = SimpleNamespace(parent_widget=Gtk.ScrolledWindow())

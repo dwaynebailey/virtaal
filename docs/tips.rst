@@ -114,7 +114,11 @@ increase the setting for ``max_matches``.
 
 A translated unit only shows suggestions when you ask for them with F9
 (View > Suggestions for This Unit). To see them for every unit, for example
-while reviewing a translation, tick View > Suggestions for Translated Units.
+while reviewing a translation, choose View > Suggestions for Translated Units >
+Always. Needs Attention shows them only for translated units that need work or
+review, or fail a quality check Virtaal has run (in the Quality Checks mode, or
+for :menuselection:`File --> Fetch Suggestions for This File…`). Never is the
+default.
 
 To see translation memory suggestions exactly as the translation memory has
 them, without their placeables and accelerator key adapted to your text, set

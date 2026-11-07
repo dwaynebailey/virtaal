@@ -17,6 +17,7 @@ from virtaal.views.baseview import BaseView
 from virtaal.views.widgets.popupwidgetbutton import PopupWidgetButton
 from virtaal.views.widgets.wayland import set_popup_parent
 
+from .tmcontroller import ALWAYS, ATTENTION, NEVER
 from .tmwidgets import TMWindow
 
 
@@ -129,6 +130,29 @@ class TMView(BaseView, GObjectWrapper):
         mainview = self.controller.main_controller.view
         mainview.add_accel_group(self.accel_group)
 
+    def _translated_menu(self):
+        """View > Suggestions for Translated Units' choices (#1396)."""
+        menu, group = Gtk.Menu(), None
+        self.mnu_translated_modes = {}
+        for mode, label in (
+            # l10n: Suggestions for every translated unit
+            (ALWAYS, _('_Always')),
+            # l10n: Suggestions for translated units that need work or review, or fail a quality check
+            (ATTENTION, _('Needs A_ttention')),
+            # l10n: Suggestions for translated units only on request (F9)
+            (NEVER, _('_Never')),
+        ):
+            item = Gtk.RadioMenuItem.new_with_mnemonic_from_widget(group, label)
+            item.set_active(mode == self.controller.translated_suggestions)
+            item.connect('toggled', self._on_translated_mode_toggled, mode)
+            menu.append(item)
+            self.mnu_translated_modes[mode] = group = item
+        return menu
+
+    def _on_translated_mode_toggled(self, item, mode):
+        if item.get_active():
+            self.controller.set_translated_suggestions(mode)
+
     def _setup_menu_items(self):
         mainview = self.controller.main_controller.view
         self.mnui_view = mainview.gui.get_object('menuitem_view')
@@ -140,12 +164,12 @@ class TMView(BaseView, GObjectWrapper):
         self.mnu_suggestions.show()
         self.menu.append(self.mnu_suggestions)
 
-        self.mnu_translated = Gtk.CheckMenuItem.new_with_mnemonic(
-            # l10n: Shows suggestions for units already translated too, not only on request (F9).
+        self.mnu_translated = Gtk.MenuItem.new_with_mnemonic(
+            # l10n: A submenu: which units already translated show suggestions unasked, not only on request (F9).
             label=_('Suggestions for _Translated Units')
         )
-        self.mnu_translated.set_active(self.controller.show_translated)
-        self.mnu_translated.show()
+        self.mnu_translated.set_submenu(self._translated_menu())
+        self.mnu_translated.show_all()
         self.menu.append(self.mnu_translated)
 
         self.mnu_summon = Gtk.MenuItem.new_with_mnemonic(label=_('Suggestions for This _Unit'))
@@ -165,9 +189,6 @@ class TMView(BaseView, GObjectWrapper):
         self.menu.set_accel_group(accel_group)
 
         self.mnu_suggestions.connect('toggled', self._on_toggle_show_tm)
-        self.mnu_translated.connect(
-            'toggled', lambda item: self.controller.set_show_translated(item.get_active())
-        )
         self.mnu_suggestions.set_active(True)
         self.mnu_summon.connect('activate', lambda *_args: self.controller.summon())
 

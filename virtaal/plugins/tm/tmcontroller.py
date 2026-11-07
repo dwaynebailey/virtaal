@@ -12,6 +12,7 @@ import time
 from gi.repository import GLib, GObject
 from translate.lang.data import normalize
 from translate.search.lshtein import LevenshteinComparer
+from translate.storage.workflow import StateEnum
 
 from virtaal.common import pan_app
 from virtaal.controllers.basecontroller import BaseController
@@ -19,9 +20,21 @@ from virtaal.support import abstraction, inlinecodes, sdlxliff_compat
 from virtaal.support.httpclient import speculative
 from virtaal.support.translate_compat import forceunicode
 
+ALWAYS, ATTENTION, NEVER = 'always', 'attention', 'never'
+"""Which translated units get suggestions unasked (#1396)."""
+
 
 def _config_bool(value):
     return str(value).strip().lower() not in ('false', 'no', 'off', '0')
+
+
+def _translated_suggestions(config):
+    """config's translated_suggestions, or else its older show_translated
+    as ALWAYS or NEVER."""
+    mode = str(config.get('translated_suggestions', '')).strip().lower()
+    if mode in (ALWAYS, ATTENTION, NEVER):
+        return mode
+    return ALWAYS if _config_bool(config.get('show_translated', False)) else NEVER
 
 
 def _form_texts(unit):
@@ -86,9 +99,11 @@ class TMController(BaseController):
     """Whether TM matches are scored without their placeables and get the
         current unit's own: plugins.ini's [tm] abstract_placeables."""
 
-    show_translated = False
-    """Whether translated units get suggestions unasked too: View >
-        Suggestions for Translated Units, plugins.ini's [tm] show_translated."""
+    translated_suggestions = NEVER
+    """Which translated units get suggestions unasked too: View >
+        Suggestions for Translated Units, plugins.ini's [tm]
+        translated_suggestions. ATTENTION: those needing work or review,
+        or failing a quality check."""
 
     fetched = None
     """The open file's FetchedSuggestions (#1679)."""
@@ -111,7 +126,9 @@ class TMController(BaseController):
         self.max_matches = self.config.get('max_matches', 5)
         self.min_quality = self.config.get('min_quality', 75)
         self.abstract_placeables = _config_bool(self.config.get('abstract_placeables', True))
-        self.show_translated = _config_bool(self.config.get('show_translated', False))
+        self.translated_suggestions = _translated_suggestions(self.config)
+        if self.config.pop('show_translated', None) is not None:
+            self.config['translated_suggestions'] = self.translated_suggestions
 
         # plug-in signals:
         self._signal_ids = {}
@@ -643,7 +660,7 @@ class TMController(BaseController):
         upcoming = cursor.upcoming(max(depth for _m, depth in models))
         for distance, index in enumerate(upcoming, 1):
             unit = cursor.model[index]
-            if unit is None or not self._shows_unasked(unit):
+            if unit is None or not self._shows_unasked(unit, index):
                 continue
             for model, depth in models:
                 if _fetched(model, unit):
@@ -662,18 +679,30 @@ class TMController(BaseController):
             if getattr(model, 'PREFETCH_MAX', 0) > 0
         )
 
-    def _shows_unasked(self, unit):
-        """Whether unit gets suggestions unasked: one still to translate,
-        or any with show_translated on. A locked Trados segment can't take
+    def _shows_unasked(self, unit, index=None):
+        """Whether unit, at index if not the current one, gets suggestions
+        unasked: one still to translate, or a translated one as
+        translated_suggestions says. A locked Trados segment can't take
         one."""
         if sdlxliff_compat.is_locked(unit):
             return False
-        return self.show_translated or not unit.istranslated()
+        if not unit.istranslated() or self.translated_suggestions == ALWAYS:
+            return True
+        return self.translated_suggestions == ATTENTION and self._needs_attention(unit, index)
 
-    def set_show_translated(self, show):
-        """Turn suggestions for translated units on or off (#1396)."""
-        self.show_translated = show
-        self.config['show_translated'] = str(show)
+    def _needs_attention(self, unit, index):
+        """Whether translated unit needs work or review, or fails a quality
+        check, as far as the checks are known."""
+        if unit.get_state_n() < StateEnum.UNREVIEWED:
+            return True
+        if index is None:
+            index = getattr(self.storecursor, 'index', None)
+        return index in self.failing_units()
+
+    def set_translated_suggestions(self, mode):
+        """Choose which translated units get suggestions unasked (#1396)."""
+        self.translated_suggestions = mode
+        self.config['translated_suggestions'] = mode
         unit = getattr(self, 'unit', None)
         if unit is not None and unit.istranslated() and not self.view.summoned:
             self.update_suggestions()

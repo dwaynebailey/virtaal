@@ -1470,23 +1470,46 @@ def test_existing_target_before_any_unit_is_empty():
 # Suggestions for translated units (#1396) #
 
 
+def _state_unit(translated=True, state=100):
+    return SimpleNamespace(istranslated=lambda: translated, get_state_n=lambda: state)
+
+
 @pytest.mark.parametrize(
-    'translated, show_translated, expected',
+    'translated, state, mode, expected',
     [
-        (False, False, ['query']),
-        (True, False, ['hide']),
-        (False, True, ['query']),
-        (True, True, ['query']),
+        (False, 0, 'never', ['query']),
+        (True, 100, 'never', ['hide']),
+        (False, 0, 'always', ['query']),
+        (True, 100, 'always', ['query']),
+        (True, 120, 'always', ['query']),
+        (True, 100, 'attention', ['hide']),
+        (True, 120, 'attention', ['hide']),
+        (True, 30, 'attention', ['query']),  # needs work
+        (True, 60, 'attention', ['query']),  # rejected
+        (True, 80, 'attention', ['query']),  # needs review
+        (True, 80, 'never', ['hide']),
     ],
 )
-def test_translated_units_get_suggestions_unasked_only_when_asked_to(
-    translated, show_translated, expected
-):
-    unit = SimpleNamespace(istranslated=lambda: translated)
+def test_translated_units_get_suggestions_unasked_as_chosen(translated, state, mode, expected):
+    unit = _state_unit(translated, state)
     controller, events = _suggestions_controller(unit)
-    controller.show_translated = show_translated
+    controller.translated_suggestions = mode
+    controller.failing_units = lambda: frozenset()
 
     controller._on_cursor_changed(SimpleNamespace(deref=lambda: unit))
+
+    assert events == expected
+
+
+@pytest.mark.parametrize('index, expected', [(3, ['query']), (4, ['hide'])])
+def test_a_translated_unit_failing_a_check_needs_attention(index, expected):
+    unit = _state_unit()
+    controller, events = _suggestions_controller(unit)
+    controller.storecursor = SimpleNamespace(index=index)
+    controller.translated_suggestions = 'attention'
+    controller.failing_units = lambda: frozenset({1, 3})
+
+    controller.update_suggestions()
 
     assert events == expected
 
@@ -1503,7 +1526,7 @@ def test_suggestions_for_translated_units_still_skip_a_locked_trados_segment():
     )
     unit = xliff.xlifffile.parsestring(data).units[0]
     controller, events = _suggestions_controller(unit)
-    controller.show_translated = True
+    controller.translated_suggestions = 'always'
 
     controller.update_suggestions()
 
@@ -1511,50 +1534,93 @@ def test_suggestions_for_translated_units_still_skip_a_locked_trados_segment():
 
 
 @pytest.mark.parametrize(
-    'translated, summoned, show, expected',
+    'translated, summoned, mode, expected',
     [
-        (True, False, True, ['query']),
-        (True, False, False, ['hide']),
-        (True, True, False, []),  # asked for with F9
-        (False, False, False, []),  # unchanged for a unit still to translate
+        (True, False, 'always', ['query']),
+        (True, False, 'never', ['hide']),
+        (True, False, 'attention', ['hide']),
+        (True, True, 'never', []),  # asked for with F9
+        (False, False, 'never', []),  # unchanged for a unit still to translate
     ],
 )
-def test_set_show_translated_updates_the_current_units_suggestions(
-    translated, summoned, show, expected
+def test_set_translated_suggestions_updates_the_current_units_suggestions(
+    translated, summoned, mode, expected
 ):
-    unit = SimpleNamespace(istranslated=lambda: translated)
+    unit = _state_unit(translated)
     controller, events = _suggestions_controller(unit, summoned=summoned)
     controller.config = {}
+    controller.failing_units = lambda: frozenset()
 
-    controller.set_show_translated(show)
+    controller.set_translated_suggestions(mode)
 
-    assert controller.show_translated is show
-    assert controller.config == {'show_translated': str(show)}
+    assert controller.translated_suggestions == mode
+    assert controller.config == {'translated_suggestions': mode}
     assert events == expected
 
 
-@pytest.mark.parametrize('setting, expected', [('True', True), ('False', False), (None, False)])
-def test_init_reads_show_translated(monkeypatch, setting, expected):
+@pytest.mark.parametrize(
+    'config, expected',
+    [
+        ({}, 'never'),
+        ({'show_translated': 'True'}, 'always'),
+        ({'show_translated': 'False'}, 'never'),
+        ({'translated_suggestions': 'attention'}, 'attention'),
+        ({'translated_suggestions': ' Always '}, 'always'),
+        ({'translated_suggestions': 'never', 'show_translated': 'True'}, 'never'),
+        ({'translated_suggestions': 'sometimes', 'show_translated': 'True'}, 'always'),
+    ],
+)
+def test_init_reads_translated_suggestions_or_the_older_show_translated(
+    monkeypatch, config, expected
+):
     monkeypatch.setattr(TMController, '_load_timing', lambda self: None)
     monkeypatch.setattr(TMController, '_load_models', lambda self: None)
     monkeypatch.setattr(TMController, '_connect_plugin', lambda self: None)
     monkeypatch.setattr('virtaal.plugins.tm.tmview.TMView', lambda *args: None)
-    config = {} if setting is None else {'show_translated': setting}
 
-    controller = TMController(SimpleNamespace(), config)
+    controller = TMController(SimpleNamespace(), dict(config))
 
-    assert controller.show_translated is expected
+    assert controller.translated_suggestions == expected
+    # Saved in its new form only.
+    assert 'show_translated' not in controller.config
+    if 'show_translated' in config:
+        assert controller.config['translated_suggestions'] == expected
 
 
-def test_preloading_includes_translated_units_with_show_translated_on():
-    model = _PrefetchModel(2)
-    units = [_store_unit('now'), _store_unit('done', translated=True), _store_unit('after')]
-    controller, _asked = _prefetch_controller(model, units=units)
-    controller.show_translated = True
+@pytest.mark.parametrize(
+    'mode, expected',
+    [('always', ['done', 'review', 'after']), ('attention', ['review', 'after'])],
+)
+def test_preloading_includes_translated_units_as_chosen(mode, expected):
+    model = _PrefetchModel(3)
+    units = [
+        _store_unit('now'),
+        _store_unit('done', translated=True),
+        SimpleNamespace(source='review', istranslated=lambda: True, get_state_n=lambda: 80),
+        _store_unit('after'),
+    ]
+    units[1].get_state_n = lambda: 100
+    controller, _asked = _prefetch_controller(model, units=units, upcoming=(1, 2, 3))
+    controller.translated_suggestions = mode
+    controller.failing_units = lambda: frozenset()
 
     controller._prefetch_upcoming()
 
-    assert model.prefetched == ['done', 'after']
+    assert model.prefetched == expected
+
+
+def test_preloading_a_translated_unit_failing_a_check_needing_attention():
+    model = _PrefetchModel(2)
+    units = [_store_unit('now'), _store_unit('done', translated=True), _store_unit('ok', True)]
+    for unit in units:
+        unit.get_state_n = lambda: 100
+    controller, _asked = _prefetch_controller(model, units=units)
+    controller.translated_suggestions = 'attention'
+    controller.failing_units = lambda: frozenset({1})
+
+    controller._prefetch_upcoming()
+
+    assert model.prefetched == ['done']
 
 
 def test_preloads_are_marked_as_asked_ahead_of_need_and_queries_are_not(monkeypatch, tmp_path):

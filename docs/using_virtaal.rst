@@ -201,6 +201,13 @@ suggestion into the target text with :kbd:`Ctrl+1`, or use :kbd:`Ctrl+2`, etc.
 to select the others. You can also double click the suggestion to obtain the
 same effect.
 
+A translated unit shows suggestions only when you ask for them with :kbd:`F9`
+(:menuselection:`View --> Suggestions for This Unit`).
+:menuselection:`View --> Suggestions for Translated Units` shows them unasked
+for every translated unit (:guilabel:`Always`), only for those needing work or
+review or failing a quality check (:guilabel:`Needs Attention`), or for none
+(:guilabel:`Never`, the default).
+
 The source text of a translation memory suggestion is highlighted where it
 differs from yours. When the unit already has a translation, the suggested
 translation is also highlighted where it differs from that one.
