@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import re
+import unicodedata
 
 from diff_match_patch import diff_match_patch
 
@@ -47,16 +48,40 @@ def _fancyspaces(string):
     return '<span underline="error" foreground="grey">%s</span>' % spaces
 
 
-# The editor's labels (invisiblechars.MARKERS) for the zero-width
+# ZERO WIDTH NON-JOINER and ZERO WIDTH JOINER: a label between the
+# letters would split them, so they are underlined with their letters.
+_JOINERS = {'\u200c': 'double', '\u200d': 'single'}
+
+# The editor's labels (invisiblechars.MARKERS) for the other zero-width
 # characters not already marked as unusual spaces.
 _labelled_re = re.compile(
     '[%s]'
     % ''.join(
         char
         for char, marker in invisiblechars.MARKERS.items()
-        if marker.zero_width and not _unusual_spaces_re.fullmatch(char)
+        if marker.zero_width and char not in _JOINERS and not _unusual_spaces_re.fullmatch(char)
     )
 )
+
+# A joiner and the characters either side of it that aren't markup.
+_joiner_re = re.compile('([^\\s<>&;]{0,2})([%s])([^\\s<>&;]?)' % ''.join(_JOINERS))
+
+
+def _joiner_mark(match):
+    """The joiner and its letters underlined, which doesn't change their
+    shaping: once for ZWJ, twice for ZWNJ. The letter before is the one
+    a mark before the joiner (an Indic virama) belongs to."""
+    before, joiner, after = match.groups()
+    if len(before) == 2 and not unicodedata.category(before[1]).startswith('M'):
+        before, outside = before[1:], before[0]
+    else:
+        outside = ''
+    return '%s<span underline="%s" underline_color="%s">%s</span>' % (
+        outside,
+        _JOINERS[joiner],
+        current_theme['subtle_fg'],
+        before + joiner + after,
+    )
 
 
 def _invisible_label(match):
@@ -120,6 +145,7 @@ def markuptext(text, fancyspaces=True, markupescapes=True, diff_text="", codes=(
     if fancyspaces:
         text = _unusual_spaces_re.sub(_fancyspaces, text)
         text = _labelled_re.sub(_invisible_label, text)
+        text = _joiner_re.sub(_joiner_mark, text)
 
     if markupescapes:
         #        text = text.replace(u"\r\n", _subtle_escape(u'¶\r\n')

@@ -268,7 +268,7 @@ def test_markuptext_of_only_codes():
 LABELLED = [
     char
     for char, marker in invisiblechars.MARKERS.items()
-    if marker.zero_width and char != '\u200b'
+    if marker.zero_width and char not in '\u200b\u200c\u200d'
 ]
 
 
@@ -335,3 +335,47 @@ def test_a_label_doesnt_change_a_rows_height():
     labelled = _layout('abc\u200fdef', markuptext('abc\u200fdef'))
 
     assert labelled.get_pixel_size()[1] == plain.get_pixel_size()[1]
+
+
+def _underlined(style, text):
+    return '<span underline="%s" underline_color="%s">%s</span>' % (
+        style,
+        current_theme['subtle_fg'],
+        text,
+    )
+
+
+@pytest.mark.parametrize(
+    ('text', 'before', 'style', 'marked', 'after'),
+    [
+        ('ab\u200dcd', 'a', 'single', 'b\u200dc', 'd'),
+        ('ab\u200ccd', 'a', 'double', 'b\u200cc', 'd'),
+        # A virama before the joiner keeps its letter.
+        ('\u0915\u094d\u200d\u0937', '', 'single', '\u0915\u094d\u200d\u0937', ''),
+        ('\u200d', '', 'single', '\u200d', ''),
+        # Never markup.
+        ('a <\u200d', 'a &lt;', 'single', '\u200d', ''),
+    ],
+)
+def test_markuptext_underlines_a_joiner_with_its_letters(text, before, style, marked, after):
+    assert markuptext(text) == before + _underlined(style, marked) + after
+
+
+@pytest.mark.parametrize(
+    'text',
+    [
+        '\u062d\u0631\u0648\u0641\u200c\u0645\u062a\u0635\u0644\u0629',  # Arabic ZWNJ
+        '\u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645',  # Persian ZWNJ
+        '\u0644\u200d\u0627 \u0628\u200d',  # Arabic ZWJ
+        '\u0915\u094d\u200d\u0937 \u0915\u094d\u200c\u0937',  # Devanagari
+    ],
+)
+def test_a_joiners_mark_leaves_its_letters_shaped_as_they_are(text):
+    marked = _layout(text, markuptext(text))
+    plain = _layout(text)
+
+    assert marked.get_text() == text
+    assert marked.get_pixel_size() == plain.get_pixel_size()
+    assert [marked.index_to_pos(i).x for i in range(len(text.encode('utf-8')))] == [
+        plain.index_to_pos(i).x for i in range(len(text.encode('utf-8')))
+    ]
