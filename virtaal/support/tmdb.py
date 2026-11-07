@@ -214,19 +214,13 @@ class LanguageError(Exception):
         return str(self.value)
 
 
-class TMDB:
+class TMFile:
+    """A TM database file, brought up to the current schema version on
+    opening, with a connection per thread."""
+
     _tm_dbs = {}
 
-    def __init__(
-        self, db_file, max_candidates=3, min_similarity=75, max_length=1000, abstract=True
-    ) -> None:
-        self.max_candidates = max_candidates
-        self.min_similarity = min_similarity
-        self.max_length = max_length
-        self.abstract = abstract
-        """Whether matching looks past placeables and accelerators: if
-        not, candidates and scores are on the raw text alone."""
-
+    def __init__(self, db_file) -> None:
         if not isinstance(db_file, str):
             db_file = str(db_file)  # don't know which encoding
         self.db_file = db_file
@@ -234,22 +228,16 @@ class TMDB:
         if db_file not in self._tm_dbs:
             self._tm_dbs[db_file] = {}
         self._tm_db = self._tm_dbs[db_file]
-
-        # A corrupt or unreadable db_file raises here, so the TM server
-        # exits and Local TM gives no suggestions.
         self.init_database()
-        self.fulltext = False
-        self.init_fulltext()
 
-        self.comparer = LevenshteinComparer(self.max_length)
-
-        self.preload_db()
+    def _connect(self):
+        # Other Virtaal processes' TM servers use the same file (#1340).
+        return shareddb.connect(self.db_file)
 
     def _get_connection(self, index):
         current_thread = threading.current_thread()
         if current_thread not in self._tm_db:
-            # Other Virtaal processes' TM servers use the same file (#1340).
-            connection = shareddb.connect(self.db_file)
+            connection = self._connect()
             cursor = connection.cursor()
             self._tm_db[current_thread] = (connection, cursor)
         return self._tm_db[current_thread][index]
@@ -369,6 +357,28 @@ class TMDB:
         self.cursor.execute(
             "UPDATE stores SET updated = ? WHERE store_id = ?", (now, LEGACY_STORE_ID)
         )
+
+
+class TMDB(TMFile):
+    def __init__(
+        self, db_file, max_candidates=3, min_similarity=75, max_length=1000, abstract=True
+    ) -> None:
+        self.max_candidates = max_candidates
+        self.min_similarity = min_similarity
+        self.max_length = max_length
+        self.abstract = abstract
+        """Whether matching looks past placeables and accelerators: if
+        not, candidates and scores are on the raw text alone."""
+
+        # A corrupt or unreadable db_file raises here, so the TM server
+        # exits and Local TM gives no suggestions.
+        super().__init__(db_file)
+        self.fulltext = False
+        self.init_fulltext()
+
+        self.comparer = LevenshteinComparer(self.max_length)
+
+        self.preload_db()
 
     def backfill_abstracts(self, batch_size=BACKFILL_BATCH):
         """Fill in the abstracts that are missing, such as those of entries
