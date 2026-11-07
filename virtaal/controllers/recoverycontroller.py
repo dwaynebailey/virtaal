@@ -74,6 +74,30 @@ def _startup_target(target):
     return target
 
 
+def _choose_orphan(orphans, wanted):
+    """The first orphan with a target, and for wanted (absolute paths,
+    or None for any) only one for the same paths. The rest are closed."""
+    chosen = None
+    for slot in orphans:
+        target = _slot_target(slot)
+        if not target:
+            continue
+        if wanted is None or _as_paths(target) == wanted:
+            chosen = slot
+            break
+    for slot in orphans:
+        if slot is not chosen:
+            slot.close()
+    return chosen
+
+
+def _missing_paths(target):
+    """Those of a slot target's paths no longer on disk."""
+    if isinstance(target, list):
+        return [p for p in target if not os.path.exists(p)]
+    return [] if os.path.isfile(target) else [target]
+
+
 def _guarded(method):
     """Recovery must never get in the way of editing: log and carry on."""
 
@@ -139,19 +163,8 @@ class RecoveryController:
         list of paths, when there is one to resume, otherwise
         startupfile. With a start-up file (wanted: its path, or a list of
         paths), only a slot for the same paths resumes."""
-        orphans = recovery.find_orphans(self._root)
         wanted = _as_paths(wanted or startupfile) if startupfile else None
-        chosen = None
-        for slot in orphans:
-            target = _slot_target(slot)
-            if not target:
-                continue
-            if wanted is None or _as_paths(target) == wanted:
-                chosen = slot
-                break
-        for slot in orphans:
-            if slot is not chosen:
-                slot.close()
+        chosen = _choose_orphan(recovery.find_orphans(self._root), wanted)
         if chosen is None:
             return startupfile
 
@@ -161,10 +174,7 @@ class RecoveryController:
             self._blocked = (chosen.path, target)
             chosen.close()
             return startupfile
-        if isinstance(paths, list):
-            missing = [p for p in paths if not os.path.exists(p)]
-        else:
-            missing = [] if os.path.isfile(paths) else [paths]
+        missing = _missing_paths(paths)
         if missing:
             self._missing = missing[0]
             if chosen.has_unsaved_work():
@@ -240,25 +250,7 @@ class RecoveryController:
         when = slot.updated_at
         end_reason = slot.data.get('end_reason')
         position = slot.data.get('position')
-        stream = self.store_controller.is_stream()
-        by_doc = {}
-        unplaced = 0
-        for doc_id, doc in slot.data['documents'].items():
-            if self._replayable or (stream and doc.get('baseline', {}).get('kind') == 'disk'):
-                journal = slot.journal(doc_id)
-                draft = doc.get('draft')
-                if draft and draft.get('after_seq', 0) >= journal.seq:
-                    journal.append({key: draft.get(key) for key in _RECORD_KEYS})
-                records = journal.records()
-                baseline_ok = recovery.baseline_matches(doc['baseline'])
-                if stream and not baseline_ok:
-                    # Changed since: there is no Save As to keep both.
-                    unplaced += len(recovery.latest_per_unit(records))
-                elif records:
-                    by_doc[doc_id] = records
-                if not stream:
-                    self._baseline_ok = baseline_ok
-            doc['draft'] = None
+        by_doc, unplaced = self._replayable_records(slot)
         slot.data['end_reason'] = None
         slot.write()
         if by_doc:
@@ -279,6 +271,31 @@ class RecoveryController:
         if position:
             self._restore_position(position)
         GLib.timeout_add_seconds(STABLE_SECONDS, self._on_stable, slot)
+
+    def _replayable_records(self, slot):
+        """Each replayable document's journal, with its draft appended
+        if newer, as (records by document, units left out). The drafts
+        are cleared."""
+        stream = self.store_controller.is_stream()
+        by_doc = {}
+        unplaced = 0
+        for doc_id, doc in slot.data['documents'].items():
+            if self._replayable or (stream and doc.get('baseline', {}).get('kind') == 'disk'):
+                journal = slot.journal(doc_id)
+                draft = doc.get('draft')
+                if draft and draft.get('after_seq', 0) >= journal.seq:
+                    journal.append({key: draft.get(key) for key in _RECORD_KEYS})
+                records = journal.records()
+                baseline_ok = recovery.baseline_matches(doc['baseline'])
+                if stream and not baseline_ok:
+                    # Changed since: there is no Save As to keep both.
+                    unplaced += len(recovery.latest_per_unit(records))
+                elif records:
+                    by_doc[doc_id] = records
+                if not stream:
+                    self._baseline_ok = baseline_ok
+            doc['draft'] = None
+        return by_doc, unplaced
 
     # UNSAVED WORK #
     @_guarded

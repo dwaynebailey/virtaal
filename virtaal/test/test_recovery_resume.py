@@ -762,3 +762,14 @@ class TestStream(UnsavedScaffolding):
         assert self.notices == [('restored', 1, 0)]
         assert str(self.store_controller.store[4].target) == 'Nuut'
         assert self.store_controller.cursor.index == 4
+
+
+def test_missing_paths_lists_the_paths_gone_from_disk(tmp_path):
+    there = tmp_path / 'there.po'
+    there.write_text(PO, encoding='utf-8')
+    gone = str(tmp_path / 'gone.po')
+
+    assert recoverycontroller._missing_paths([str(tmp_path), gone]) == [gone]
+    assert recoverycontroller._missing_paths(str(there)) == []
+    # One file must be a file: a folder in its place is missing.
+    assert recoverycontroller._missing_paths(str(tmp_path)) == [str(tmp_path)]
