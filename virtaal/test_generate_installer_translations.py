@@ -52,6 +52,13 @@ def test_new_languages_have_valid_lang_options(gen):
         assert options.codepage in (0, 1252), code
 
 
+def test_no_vendored_file_claims_us_englishs_language_id(gen):
+    # Auto-detection matches LanguageID: $0409 is english's own.
+    for name in gen.INNO_LANGUAGES.values():
+        options = gen.inno_lite.parse(gen.inno_lite.read(gen.LANGUAGES_DIR / name))["LangOptions"]
+        assert int(options["LanguageID"].value.lstrip("$"), 16) != 0x0409, name
+
+
 def test_vendored_files_match_the_mapping(gen):
     vendored = {p.name for p in gen.LANGUAGES_DIR.iterdir()}
     assert vendored == set(gen.INNO_LANGUAGES.values())
