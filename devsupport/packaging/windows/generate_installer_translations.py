@@ -121,14 +121,14 @@ NEW_LANGUAGES = {
     "ak": ("Akan", inno_lite.LangOptions("Akan", 0, 0)),
     "am": ("Amharic", inno_lite.LangOptions("አማርኛ", 0x045E, 0)),
     "cgg": ("Chiga", inno_lite.LangOptions("Rukiga", 0, 1252)),
-    "ff": ("Fulah", inno_lite.LangOptions("Pulaar", 0x0867, 0)),
+    "ff": ("Fulah", inno_lite.LangOptions("Fula", 0x0867, 0)),
     "fo": ("Faroese", inno_lite.LangOptions("Føroyskt", 0x0438, 1252)),  # codespell:ignore fo
     "lg": ("Ganda", inno_lite.LangOptions("Luganda", 0, 0)),
     "nso": ("NorthernSotho", inno_lite.LangOptions("Sesotho sa Leboa", 0x046C, 1252)),
     # Inno's own Occitan.isl is Aranese, not the Occitan oc.po is in.
     "oc": ("Occitan", inno_lite.LangOptions("Occitan", 0x0482, 1252)),
     "pa": ("Punjabi", inno_lite.LangOptions("ਪੰਜਾਬੀ", 0x0446, 0)),
-    "son": ("Songhay", inno_lite.LangOptions("Soŋay", 0, 0)),
+    "son": ("Songhay", inno_lite.LangOptions("Songhay", 0, 0)),
     "st": ("Sesotho", inno_lite.LangOptions("Sesotho", 0x0430, 1252)),
     "sw": ("Swahili", inno_lite.LangOptions("Kiswahili", 0x0441, 1252)),
     "te": ("Telugu", inno_lite.LangOptions("తెలుగు", 0x044A, 0)),  # codespell:ignore te
