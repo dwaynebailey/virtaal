@@ -51,6 +51,7 @@ assets/
 # devsupport/packaging/windows/
 # generate_installer_translations.py's output - regenerated fresh from
 # po/*.po and po/lite/inno/ on every build_installer.ps1 run, not
-# committed.
+# committed - and CI's check that every installer lite catalog compiles.
 /devsupport/packaging/windows/installer-strings.iss
 /devsupport/packaging/windows/generated-languages/
+/devsupport/packaging/windows/inno-check.iss
