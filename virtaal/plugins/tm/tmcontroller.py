@@ -492,11 +492,17 @@ class TMController(BaseController):
         store = self.main_controller.store_controller.get_store()
         return store.get_units() if store is not None else []
 
-    def failing_units(self):
+    def failing_units(self, check=False):
         """The indices of the units failing the current checker's quality
-        checks, as far as they are known."""
-        store = self.main_controller.store_controller.get_store()
-        checks = getattr(store, 'checks', None) or {}
+        checks, as far as they are known; with check, checked first if
+        they aren't."""
+        store_controller = self.main_controller.store_controller
+        store = store_controller.get_store()
+        checks = getattr(store, 'checks', None)
+        if checks is None and check and store is not None:
+            checker = self.main_controller.checks_controller.get_checker()
+            checks = store_controller.update_store_checks(checker=checker)
+        checks = checks or {}
         return frozenset(index for indices in checks.values() for index in indices)
 
     def is_stream(self):
@@ -532,7 +538,7 @@ class TMController(BaseController):
         if not words:
             return [], False
         return self.fetched.plan(
-            model.internal_name, self.file_units(), start, words, self.failing_units()
+            model.internal_name, self.file_units(), start, words, self.failing_units(check=True)
         )
 
     @staticmethod

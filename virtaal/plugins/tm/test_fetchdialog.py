@@ -103,7 +103,7 @@ def made(tmp_path):
         fetched.close()
 
 
-def _dialog(made, tmp_path, *models, units=UNITS, stream=False, checks=None):
+def _dialog(made, tmp_path, *models, units=UNITS, stream=False, checks=frozenset()):
     fetched = FetchedSuggestions(path=lambda: str(tmp_path / 'tm.db'))
     fetched.load(units, 'en', 'af')
     controller = TMController.__new__(TMController)
@@ -112,7 +112,7 @@ def _dialog(made, tmp_path, *models, units=UNITS, stream=False, checks=None):
     controller.storecursor = SimpleNamespace(index=1)
     controller.main_controller = SimpleNamespace(
         store_controller=SimpleNamespace(
-            get_store=lambda: SimpleNamespace(get_units=lambda: units, checks=checks),
+            get_store=lambda: SimpleNamespace(get_units=lambda: units, checks=dict(checks)),
             is_stream=lambda: stream,
         )
     )

@@ -245,6 +245,9 @@ def test_a_model_without_fetched_suggestions_is_queried():
 
 
 class _Units:
+    # Checked: nothing fails.
+    checks = {}
+
     def __init__(self, units):
         self.units = units
 
@@ -335,6 +338,27 @@ def test_the_failing_units_are_those_any_check_lists():
     assert controller.failing_units() == {1, 4, 7}
     store.checks = None
     assert controller.failing_units() == frozenset()
+
+
+def test_a_fetch_plan_has_the_checks_run_if_they_havent_been():
+    controller = _controller(None, [])
+    store = SimpleNamespace(checks=None)
+    checked = []
+
+    def update_store_checks(checker):
+        checked.append(checker)
+        store.checks = {'check-endpunc': [2]}
+        return store.checks
+
+    controller.main_controller.store_controller = SimpleNamespace(
+        get_store=lambda: store, update_store_checks=update_store_checks
+    )
+    controller.main_controller.checks_controller = SimpleNamespace(get_checker=lambda: 'checker')
+
+    assert controller.failing_units(check=True) == {2}
+    assert checked == ['checker']
+    assert controller.failing_units(check=True) == {2}
+    assert checked == ['checker']
 
 
 @pytest.mark.parametrize('ceiling, expected', [(None, 1000), (300, 300), (5000, 1000), (0, 0)])
