@@ -3818,3 +3818,28 @@ def test_the_translations_menu_names_each_file_and_opens_it():
     items[1].activate()
     assert opened == [paths[1]]
     menu.destroy()
+
+
+def test_show_info_notice_with_an_action_runs_it_from_its_button():
+    view, _vbox = _view_for_same_lang_notice()
+    calls = []
+
+    notice = view.show_info_notice(
+        'Out of order.',
+        action=('_Number', lambda: calls.append('action')),
+        on_close=lambda: calls.append('closed'),
+    )
+    notice.emit('response', Gtk.ResponseType.OK)
+
+    assert calls == ['action']
+    assert view._info_infobar is None
+
+
+def test_show_info_notice_tells_when_it_is_closed():
+    view, _vbox = _view_for_same_lang_notice()
+    calls = []
+
+    notice = view.show_info_notice('Out of order.', on_close=lambda: calls.append('closed'))
+    notice.emit('response', Gtk.ResponseType.CLOSE)
+
+    assert calls == ['closed']

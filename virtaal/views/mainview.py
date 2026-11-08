@@ -1881,9 +1881,10 @@ class MainView(BaseView):
         menu.show_all()
         return menu
 
-    def show_info_notice(self, text):
+    def show_info_notice(self, text, action=None, on_close=None):
         """Show a dismissable notice with C{text}, in place of the last one,
-        and return it."""
+        and return it. action: (button label, function) for a button that
+        calls the function; on_close: called when the user closes it."""
         self.hide_info_notice()
 
         infobar = Gtk.InfoBar()
@@ -1892,9 +1893,15 @@ class MainView(BaseView):
         label = Gtk.Label(label=text)
         label.set_line_wrap(True)
         infobar.get_content_area().pack_start(label, True, True, 0)
+        if action is not None:
+            infobar.add_button(action[0], Gtk.ResponseType.OK)
 
         def on_response(infobar, response_id):
-            self.hide_info_notice()
+            self.hide_info_notice(infobar)
+            if response_id == Gtk.ResponseType.OK and action is not None:
+                action[1]()
+            elif on_close is not None:
+                on_close()
 
         infobar.connect('response', on_response)
 

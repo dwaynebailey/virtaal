@@ -60,6 +60,7 @@ virtaal/views/filepanelview.py
 virtaal/views/langview.py
 virtaal/views/mainview.py
 virtaal/views/modeview.py
+virtaal/views/placeholdernumbering.py
 virtaal/views/prefsview.py
 virtaal/views/propertiesview.py
 virtaal/views/setscanview.py

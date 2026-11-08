@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 15:47+0000\n"
+"POT-Creation-Date: 2026-11-08 15:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3125,6 +3125,25 @@ msgstr ""
 #. navigation mode only goes to some units
 #: virtaal/views/modeview.py
 msgid "Conte_xt:"
+msgstr ""
+
+#. l10n: Changes %s, %d... in the translation into %1$s, %2$d... by
+#. their order in the source, so that they can be in another order
+#: virtaal/views/placeholdernumbering.py
+msgid "Number the Placeholders"
+msgstr ""
+
+#. l10n: The translation has placeholders like %s and %d in another
+#. order than the source. Numbered (%2$d, %1$s), each keeps its value.
+#: virtaal/views/placeholdernumbering.py
+msgid ""
+"The placeholders are in a different order from the source, so they would "
+"show the wrong values. Numbering them keeps each one's value."
+msgstr ""
+
+#. l10n: Button: number the placeholders (%s to %1$s)
+#: virtaal/views/placeholdernumbering.py
+msgid "_Number Them"
 msgstr ""
 
 #: virtaal/views/prefsview.py

@@ -24,6 +24,7 @@ from virtaal.support import dismissedchecks, sdlxliff_compat
 
 from . import rendering
 from .baseview import BaseView
+from .placeholdernumbering import PlaceholderNumbering
 from .theme import state_style, unit_style
 from .widgets.listnav import ListNavigator
 from .widgets.textbox import TextBox
@@ -555,6 +556,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             self.targets[i]._source_text = unit.source
             self.targets[i]._opened_height = None
         self.select_first_placeables()
+        self._numbering.unit_loaded()
 
         self._modified = False
 
@@ -723,6 +725,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         self.emit('editor-popup-toggled', showing)
 
     def _on_populate_popup(self, textbox, menu):
+        self._numbering.populate_popup(textbox, menu)
         self._on_popup_toggled(menu, True)
         menu.connect('hide', self._on_popup_toggled, False)
 
@@ -1148,6 +1151,12 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         # Clear selected elements
         self.editing_done()
 
+    @property
+    def _numbering(self):
+        if '_numbering_offer' not in self.__dict__:
+            self._numbering_offer = PlaceholderNumbering(self)
+        return self._numbering_offer
+
     def _on_target_changed(self, buffer, index):
         tgt = self.targets[index]
         nplurals = self._plural_count()
@@ -1176,6 +1185,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if self.unit.STATE and self._widgets['state']:
             self._widgets['state'].set_unselectable(self._unselectable_states())
         self.modified()
+        self._numbering.update()
 
     def _on_target_insert_text(self, textbox, ins_text, offset, elem, target_num):
         # logging.debug('emit("insert-text", ins_text="%s", offset=%d, elem=%s, target_num=%d)' % (ins_text, offset, repr(elem), target_num))
