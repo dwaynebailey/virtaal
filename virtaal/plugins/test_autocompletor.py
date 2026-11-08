@@ -15,6 +15,7 @@ from translate.storage.placeables import StringElem, general
 from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.plugins.autocompletor import AutoCompletor, NameForms, Plugin
+from virtaal.support import formatplaceables
 from virtaal.views.widgets.textbox import TextBox
 
 
@@ -218,20 +219,50 @@ def test_set_unit_keeps_two_character_placeables_that_start_with_a_sigil():
     assert ac._fast_candidates == ['%s', '42']
 
 
-def test_set_unit_adds_variables_the_parsers_leave_out_in_source_order():
-    ac = _parsing_ac(*general.parsers)
+_FLAGGED = formatplaceables.parsers_for(None, {'python-brace-format', 'sh-format', 'ruby-format'})
 
-    ac.set_unit(_unit('{user} sent %1$s to ${dir} and $HOME in {{ count }}, %{n} {0}'))
+
+def test_set_unit_adds_the_format_parsers_variables_in_source_order():
+    ac = _parsing_ac(*_FLAGGED, *general.parsers)
+
+    ac.set_unit(_unit('{user} sent %1$s to ${dir} and $HOME, %{n} {0} {0:N2} %1$@'))
 
     assert ac._fast_candidates == [
         '{user}',
         '%1$s',
         '${dir}',
         '$HOME',
-        '{{ count }}',
         '%{n}',
         '{0}',
+        '{0:N2}',
+        '%1$@',
     ]
+
+
+def test_set_unit_takes_the_parsers_for_the_unit():
+    unit = _unit('{{ count }} files in {dir}')
+    asked = []
+
+    def get_parsers(for_unit):
+        asked.append(for_unit)
+        return [formatplaceables.I18NextPlaceable.parse, *general.parsers]
+
+    main_controller = SimpleNamespace(
+        placeables_controller=SimpleNamespace(get_parsers=get_parsers)
+    )
+    ac = AutoCompletor(main_controller=main_controller, comp_len=1)
+    ac.set_unit(unit)
+
+    assert asked == [unit]
+    assert ac._fast_candidates == ['{{ count }}']
+
+
+def test_set_unit_leaves_out_brace_variables_the_format_doesnt_use():
+    ac = _parsing_ac(*formatplaceables.parsers_for(None), *general.parsers)
+
+    ac.set_unit(_unit('{user} sent $HOME %{n}'))
+
+    assert ac._fast_candidates == ['HOME']
 
 
 def _languages_ac(target, source='en'):
@@ -359,7 +390,7 @@ def test_autocomplete_fast_needs_the_fast_completion_length():
     ],
 )
 def test_autocomplete_fast_completes_a_sigil_from_one_character(source, typed, expected):
-    ac = _parsing_ac(*general.parsers)
+    ac = _parsing_ac(*_FLAGGED, *general.parsers)
     ac.set_unit(_unit(source))
 
     assert ac.autocomplete_fast(typed) == expected

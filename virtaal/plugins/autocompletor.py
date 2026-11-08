@@ -181,10 +181,6 @@ class AutoCompletor:
     wordsep_re = re.compile(r'[^%s]+' % _WORD_CHARS)
     word_re = re.compile(r'[%s]+' % _WORD_CHARS)
 
-    # Variables the placeables parsers leave out: {name}, {{ name }},
-    # ${name}, $name and %{name}.
-    variable_re = re.compile(r'\{\{ ?\w+ ?\}\}|[$%]?\{\w+\}|\$[A-Za-z_]\w*')
-
     DEFAULT_COMPLETION_LENGTH = 4  # The default minimum length of a word that may
     # be auto-completed.
     FAST_COMPLETION_LENGTH = 2  # The minimum typed length that completes a
@@ -318,7 +314,7 @@ class AutoCompletor:
         self._capitalised = first.isupper()
         names = NameForms.names(sources)
         candidates = []
-        for text, cased in self._placeable_candidates(sources):
+        for text, cased in self._placeable_candidates(sources, unit):
             forms = self.names.forms(text) if text in names else [text]
             candidates.append((forms[0], cased))
             self._folded.setdefault(forms[0], [self.fold(f) for f in forms])
@@ -465,14 +461,19 @@ class AutoCompletor:
 
             GLib.idle_add(suggest_completion, priority=GLib.PRIORITY_HIGH)
 
-    def _placeable_candidates(self, sources):
+    def _parsers(self, unit):
+        """The placeables parsers for unit's format, but the invisible
+        characters', as a single one is never offered."""
         placeables_controller = getattr(self.main_controller, 'placeables_controller', None)
-        # A single invisible character is never offered.
-        parsers = [
-            p
-            for p in getattr(placeables_controller, 'parsers', None) or ()
-            if p != InvisiblePlaceable.parse
-        ]
+        get_parsers = getattr(placeables_controller, 'get_parsers', None)
+        if get_parsers is not None:
+            parsers = get_parsers(unit)
+        else:
+            parsers = getattr(placeables_controller, 'parsers', None) or ()
+        return [p for p in parsers if p != InvisiblePlaceable.parse]
+
+    def _placeable_candidates(self, sources, unit=None):
+        parsers = self._parsers(unit)
         if not parsers:
             return []
         languages = self._languages()
@@ -490,12 +491,6 @@ class AutoCompletor:
                     node, general.PunctuationPlaceable
                 ):
                     found.append((start, end, str(node), False))
-            for match in self.variable_re.finditer(text):
-                start, end = match.span()
-                inside = [f for f in found if start <= f[0] and f[1] <= end]
-                if any(f[0] < end and start < f[1] for f in found if f not in inside):
-                    continue  # Part of a placeable, like the $s of %1$s.
-                found = [f for f in found if f not in inside] + [(start, end, match.group(), False)]
             candidates.extend(f[2:] for f in sorted(found, key=lambda f: f[0]))
         return [
             (c, cased)
