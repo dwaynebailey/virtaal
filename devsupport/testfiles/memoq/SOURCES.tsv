@@ -1,4 +1,5 @@
 file	licence	source	kind
+disfr/ChangeTracking_memoQ_1.mqxliff	BSD-1-Clause (disfr/LICENSE)	https://github.com/AlissaSabre/disfr/blob/7f47558659e07308c300342af68caac8f87f1db6/UnitTestDisfrDoc/Samples/ChangeTracking_memoQ_1.mqxliff	memoQ export: tracked changes, version history
 mqxliff-viewer/translation_status_sample.xlsx_jpn.mqxliff	MIT (mqxliff-viewer/LICENSE, which says only "MIT")	https://github.com/ikuehirata/mqxliff-viewer/blob/616d3afce618d1a75457497bee1e8ae902e93421/sample/translation_status_sample.xlsx_jpn.mqxliff	memoQ 11.6 export: one row per status, locks, comments, UTF-8 BOM
 blackbird-openai/locked.mqxliff	MIT (blackbird-openai/LICENSE)	https://github.com/bb-io/OpenAI/blob/253b614638b2d0f34f69b2c1d8fe9b6ffa095d6d/Tests.OpenAI/Input/locked.mqxliff	memoQ export: a locked Proofread row
 xliffkit/input.mqxliff	MIT (xliffkit/LICENSE)	https://github.com/ikuehirata/xliffkit/blob/a1db2b747ab87782b4d49ffa4b7c7466096f2dc1/examples/01_fix_ph_to_bpt_ept/input.mqxliff	memoQ export: ph/bpt/ept inline codes

@@ -913,8 +913,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         return notes
 
     def _memoq_notes(self):
-        """Lines about the unit's memoQ row: its match rate, comments and
-        who changed it last."""
+        """Lines about the unit's memoQ row: its match rate, comments, who
+        changed it last and whether it has tracked changes."""
         if catxliff_compat.flavour(self.unit) != 'memoq':
             return []
         notes = []
@@ -930,6 +930,14 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
                     "Last changed by %(user)s"
                 )
                 % {'user': user}
+            )
+        if memoq_compat.has_tracked_changes(self.unit.get_target_dom()):
+            notes.append(
+                _(
+                    # l10n: memoQ keeps the edits it tracks in the file until
+                    # they are accepted there. Deleted text isn't shown here.
+                    "Tracked changes: text memoQ marks as deleted isn't shown."
+                )
             )
         return notes
 

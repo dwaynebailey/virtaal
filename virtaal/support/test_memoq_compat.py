@@ -370,3 +370,94 @@ def test_a_crlf_file_keeps_its_line_ends():
 
     assert saved.count(b'\r\n') == data.count(b'\r\n') + 1
     assert b'\n' not in saved.replace(b'\r\n', b'')
+
+
+# Tracked changes
+
+TRACKED = os.path.join(MEMOQ, 'disfr', 'ChangeTracking_memoQ_1.mqxliff')
+
+
+def test_tracked_deletions_are_not_part_of_the_target():
+    units = factory.getobject(TRACKED).units
+
+    assert [u.target for u in units] == [
+        'CHANGE TRACKING',
+        '#1.',
+        'PARAGRAPH #2 INSERTED.',
+        'WITH <i>TAGS</i>, <b>PARAGRAPH</b> #3.',
+        '<b>ABRACADABRA</b> #4 with <i>TAGS</i>.',
+    ]
+    assert str(units[1].rich_target[0]) == '#1.'
+
+
+def _tracked(target):
+    return _store(
+        '<trans-unit id="1" mq:status="PartiallyEdited"><source>Paragraph one.</source>'
+        f'<target xml:space="preserve">{target}</target></trans-unit>'
+    ).units[0]
+
+
+def _content(unit):
+    target = etree.tostring(unit.get_target_dom(), encoding='unicode', with_tail=False)
+    return target.split('>', 1)[1].rsplit('<', 1)[0].replace(' xmlns:mq="MQXliff"', '')
+
+
+DEL = '<mrk mtype="x-mq-tc" mq:tctype="del" mq:tcuser="R">PARAGRAPH </mrk>'
+INS = '<mrk mtype="x-mq-tc" mq:tctype="ins" mq:tcuser="R"> NEW</mrk>'
+
+
+def test_showing_a_tracked_target_leaves_it_alone():
+    unit = _tracked(f'{DEL}ONE{INS}.')
+
+    unit.rich_target = unit.rich_target
+    unit.target = 'ONE NEW.'
+
+    assert _content(unit) == f'{DEL}ONE{INS}.'
+
+
+def test_an_edit_keeps_the_tracked_changes_round_the_text_that_stayed():
+    unit = _tracked(f'{DEL}ONE{INS}.')
+
+    unit.target = 'ONE NEW!'
+
+    assert _content(unit) == f'{DEL}ONE{INS}!'
+    assert unit.xmlelement.get(MQ + 'status') == 'ManuallyConfirmed'
+
+
+def test_text_typed_into_an_insertion_is_plain():
+    unit = _tracked(f'ONE{INS}.')
+
+    unit.target = 'ONE NEWER.'
+
+    assert _content(unit) == f'ONE{INS}ER.'
+    assert unit.target == 'ONE NEWER.'
+
+
+def test_a_retyped_target_keeps_its_deletions():
+    unit = _tracked(f'{DEL}ONE{INS}.')
+
+    unit.rich_target = [StringElem('Eins')]
+
+    assert _content(unit) == f'{DEL}Eins'
+    assert unit.target == 'Eins'
+
+
+def test_tags_inside_tracked_changes_stay():
+    units = factory.getobject(TRACKED).units
+    target = units[3].get_target_dom()
+    before = etree.tostring(target, with_tail=False)
+
+    units[3].rich_target = units[3].rich_target
+
+    assert etree.tostring(target, with_tail=False) == before
+
+
+def test_a_locked_tracked_target_is_kept():
+    unit = _store(
+        '<trans-unit id="1" mq:status="PartiallyEdited" mq:locked="locked"><source>a</source>'
+        f'<target xml:space="preserve">{DEL}ONE</target></trans-unit>'
+    ).units[0]
+
+    unit.target = 'Neu'
+
+    assert _content(unit) == f'{DEL}ONE'

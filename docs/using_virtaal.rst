@@ -620,6 +620,10 @@ Each unit uses what the tool keeps with its segment:
   placeables, and the :guilabel:`Phrase tags` check reports a tag missing from
   the translation, or one the original doesn't have: Phrase rebuilds the
   file's formatting from them.
+- memoQ keeps the changes it tracks in the file. Text memoQ marks as deleted
+  isn't shown, inserted text shows as plain text, and both stay marked in the
+  file for memoQ to accept or reject; a deletion stays next to the text it was
+  beside when you edit the translation.
 
 Virtaal saves only the units you changed: the rest of the file, the byte order
 mark included, stays as it was. Virtaal writes only memoQ's and Phrase's own

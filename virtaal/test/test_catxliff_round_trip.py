@@ -33,6 +33,7 @@ STATUSES = os.path.join(
     TESTFILES, 'memoq', 'mqxliff-viewer', 'translation_status_sample.xlsx_jpn.mqxliff'
 )
 MEMOQ_LOCK = os.path.join(TESTFILES, 'memoq', 'patois', 'sample.mqxliff')
+TRACKED = os.path.join(TESTFILES, 'memoq', 'disfr', 'ChangeTracking_memoQ_1.mqxliff')
 PHRASE = os.path.join(TESTFILES, 'phrase', 'patois', 'sample.mxliff')
 PHRASE_TAGS = os.path.join(TESTFILES, 'phrase', 'xlfql', 'sample.mxliff')
 
@@ -175,6 +176,20 @@ class TestCatXliffRoundTrip(TestScaffolding):
 
         # Its comment is its note too, shown above the source.
         assert self._notes(view) == 'Match: 101%\nLast changed by Ikue'
+
+    def test_a_tracked_deletion_is_not_shown_and_stays_on_save(self, tmp_path):
+        path, before = self._open_copy(TRACKED, tmp_path)
+        _unit, view = self._load(1)
+
+        assert view.targets[0].get_text() == '#1.'
+        assert 'Tracked changes' in self._notes(view)
+        self._type(view, '#1!')
+        self.store_controller.save_file()
+
+        changed = _changed_lines(before, path.read_bytes())
+        assert any(
+            b'mq:tctype="del"' in new and b'PARAGRAPH </mrk>#1!' in new for _o, new in changed
+        )
 
     def test_a_memoq_file_saved_as_xlf_opens_with_its_states(self, tmp_path):
         self._open_copy(STATUSES, tmp_path, 'statuses.xlf')

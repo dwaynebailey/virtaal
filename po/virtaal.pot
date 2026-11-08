@@ -3358,6 +3358,12 @@ msgstr ""
 msgid "Last changed by %(user)s"
 msgstr ""
 
+#. l10n: memoQ keeps the edits it tracks in the file until
+#. they are accepted there. Deleted text isn't shown here.
+#: virtaal/views/unitview.py
+msgid "Tracked changes: text memoQ marks as deleted isn't shown."
+msgstr ""
+
 #: virtaal/views/unitview.py
 #, python-format
 msgid "Removed %(count)d character this file format can't store."

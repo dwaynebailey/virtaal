@@ -111,6 +111,7 @@ _set_state_n = xliff.xliffunit.set_state_n
 _isapproved = xliff.xliffunit.isapproved
 _markapproved = xliff.xliffunit.markapproved
 _markfuzzy = xliff.xliffunit.markfuzzy
+_gettarget = xliff.xliffunit.gettarget
 _settarget = xliff.xliffunit.settarget
 _get_rich_target = xliff.xliffunit.get_rich_target
 _set_rich_target = xliff.xliffunit.set_rich_target
@@ -169,14 +170,32 @@ def _ensure_preserve(self):
     _ensure_xml_space_preserve(self)
 
 
+def _shown_target(unit, node):
+    """The target node C{unit} shows: memoQ's with its tracked changes
+    accepted, or None if C{node} is."""
+    if node is None or flavour(unit) != "memoq" or not memoq_compat.has_tracked_changes(node):
+        return None
+    return memoq_compat.accepted(node)
+
+
+def gettarget(self, lang=None):
+    shown = _shown_target(self, self.get_target_dom(lang))
+    if shown is None:
+        return _gettarget(self, lang)
+    return self.getNodeText(shown, getXMLspace(self.xmlelement, self._default_xml_space))
+
+
 def get_rich_target(self, lang=None):
     target = self.get_target_dom(lang)
-    if target is None or _tool(self) is None:
+    shown = _shown_target(self, target)
+    if shown is None and target is not None and _tool(self) is not None:
+        # xml_to_strelem() changes the whitespace of what it reads.
+        shown = copy.deepcopy(target)
+    if shown is None:
         return _get_rich_target(self, lang)
     if self._rich_target is None:
         xml_space = getXMLspace(self.xmlelement, self._default_xml_space)
-        # xml_to_strelem() changes the whitespace of what it reads.
-        self._rich_target = [xml_to_strelem(copy.deepcopy(target), xml_space)]
+        self._rich_target = [xml_to_strelem(shown, xml_space)]
     return self._rich_target
 
 
@@ -189,10 +208,15 @@ def _content(node):
     ]
 
 
-def _edited(unit, tool):
-    """Before C{unit}'s target changes: an edited memoQ pre-translation."""
-    if tool is memoq_compat:
-        memoq_compat.mark_edited(unit)
+def _merge(unit, new):
+    """Write C{new}'s content into a memoQ target with tracked changes,
+    keeping them; False if the target has none."""
+    target = unit.get_target_dom()
+    if _shown_target(unit, target) is None:
+        return False
+    unit._rich_target = None
+    memoq_compat.merge_target(target, new)
+    return True
 
 
 def settarget(self, target, lang="xx", append=False):
@@ -204,7 +228,12 @@ def settarget(self, target, lang="xx", append=False):
         if (self.target or "") == str(target):
             self._rich_target = None
             return
-        _edited(self, tool)
+        new = etree.Element("target")
+        new.text = str(target) or None
+        if _edit(self, tool, new):
+            if target:
+                self.marktranslated()
+            return
     _settarget(self, target, lang, append)
 
 
@@ -217,12 +246,24 @@ def set_rich_target(self, value, lang="xx", append=False):
         new = etree.Element("target")
         strelem_to_xml(new, value[0])
         target = self.get_target_dom()
-        if target is not None and _content(target) == _content(new):
+        shown = _shown_target(self, target)
+        if target is not None and _content(target if shown is None else shown) == _content(new):
             # Showing a unit sets its target.
             self._rich_target = None
             return
-        _edited(self, tool)
+        if _edit(self, tool, new):
+            return
     _set_rich_target(self, value, lang, append)
+
+
+def _edit(unit, tool, new):
+    """Before C{unit}'s target changes to C{new}'s content: mark an edited
+    memoQ pre-translation, and write a target with tracked changes. True
+    if the target is written."""
+    if tool is not memoq_compat:
+        return False
+    memoq_compat.mark_edited(unit)
+    return _merge(unit, new)
 
 
 xliff.xliffunit.STATE = _State(xliff.xliffunit.__dict__["STATE"])
@@ -232,6 +273,7 @@ xliff.xliffunit.isapproved = isapproved
 xliff.xliffunit.markapproved = markapproved
 xliff.xliffunit.markfuzzy = markfuzzy
 xliff.xliffunit._ensure_xml_space_preserve = _ensure_preserve
+xliff.xliffunit.gettarget = gettarget
 xliff.xliffunit.get_rich_target = get_rich_target
 xliff.xliffunit.settarget = settarget
 xliff.xliffunit.set_rich_target = set_rich_target
