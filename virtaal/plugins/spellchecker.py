@@ -116,12 +116,11 @@ class Plugin(BasePlugin):
         enchant = import_enchant()
         if enchant is None:
             raise PluginUnsupported("pyenchant isn't installed")
-        if platform.is_windows:
+        if platform.is_windows and not platform.bundles_spelling:
             # hunspell can't open a dictionary in a folder with a non-ASCII
-            # name there, and enchant then marks every word: the user's
-            # downloaded ones, or this build's own.
-            folders = [enchant.get_user_config_dir()] + ([platform.bundle_dir] if platform.is_frozen else [])
-            if not all(folder.isascii() for folder in folders):
+            # name there, and enchant then marks every word. The bundled
+            # enchant gives it paths it can open.
+            if not enchant.get_user_config_dir().isascii():
                 raise PluginUnsupported("Spell checking is not supported with a non-ASCII folder name")
         self.gtkspell = gtkspell
         self.enchant = enchant
