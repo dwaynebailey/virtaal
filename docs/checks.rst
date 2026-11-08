@@ -38,15 +38,20 @@ Dismissing a result
 -------------------
 If a translation is right in spite of a check, click :guilabel:`Dismiss`
 beside the result in the details. Virtaal stops reporting that check for
-the translation, also in the Quality Checks navigation mode, and dims it in
-the details, where :guilabel:`Restore` brings it back. Once the source or
-the translation changes, the check is reported again.
+the translation, also in the Quality Checks navigation mode, and lists it
+under the others in the details, where :guilabel:`Restore` brings it back.
+When only dismissed results are left, the checks button says how many,
+for example "✓ 2 dismissed". Once the source or the translation changes,
+the check is reported again; undoing the change dismisses it again.
 
-Virtaal remembers a dismissed result in the file, so it goes wherever the
-file goes: as a translator comment in PO files, which survives ``msgmerge``,
-for example ``# (dismissed-check) endpunc 3f2a9c1e``, and as a translator
-note in XLIFF and Qt .ts files. Other formats can't remember one, so they
-have no :guilabel:`Dismiss` button.
+Virtaal remembers a dismissed result in the file where it can, so it goes
+wherever the file goes: as a translator comment in PO files, which survives
+``msgmerge``, for example ``# (dismissed-check) endpunc 3f2a9c1e``, as a
+translator note in XLIFF and Qt .ts files, and as a comment just before the
+key in Java .properties, Fluent, Apple .strings and Android strings.xml
+files. Virtaal also keeps them for you when you save, which is all a JSON or
+ARB file has, and brings back any that another program removed from the
+file while the translation is still the same.
 
 .. _checks#msgfmt:
 
