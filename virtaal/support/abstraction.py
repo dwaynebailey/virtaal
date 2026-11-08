@@ -25,7 +25,9 @@ from typing import NamedTuple
 from translate.search.lshtein import LevenshteinComparer
 from translate.storage.placeables import StringElem, general, parse
 
-ABSTRACTION_VERSION = 1
+from virtaal.support import formatplaceables as fp
+
+ABSTRACTION_VERSION = 2
 """Changes whenever an abstract of the same text could change: the parser
 list, the parser fixes, the accelerator rule or the ellipsis rule."""
 
@@ -61,8 +63,16 @@ class _UrlPlaceable(general.UrlPlaceable):
 
 
 # Fixed, and not the user's placeable settings, so stored abstracts don't
-# drift between users and sessions. In translate-toolkit's parser order.
+# drift between users and sessions. Any file's: {name} adapts like %s
+# wherever it is. Virtaal's first, in their order, then
+# translate-toolkit's in its order.
 _CLASSES = (
+    (fp.I18NextPlaceable, VARIABLE),
+    (fp.FluentReferencePlaceable, VARIABLE),
+    (fp.RubyPlaceable, VARIABLE),
+    (fp.ApplePlaceable, VARIABLE),
+    (fp.DotNetPlaceable, VARIABLE),
+    (fp.BracePlaceable, VARIABLE),
     (general.XMLTagPlaceable, None),
     (general.XMLEntityPlaceable, ENTITY),
     (general.PythonFormattingPlaceable, VARIABLE),

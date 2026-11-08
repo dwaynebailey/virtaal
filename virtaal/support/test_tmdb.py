@@ -358,6 +358,27 @@ def old_tmdb():
             connection.close()
 
 
+def _before_abstraction_2(monkeypatch):
+    """Stop the migrations at version 8, the last to keep abstracts of
+    abstraction 1."""
+    monkeypatch.setattr(tmdb, 'SCHEMA_VERSION', 8)
+    monkeypatch.delitem(tmdb.MIGRATIONS, 9)
+
+
+def test_a_v8_file_recomputes_its_abstracts_for_abstraction_2(db_path, monkeypatch):
+    with monkeypatch.context() as patch:
+        _before_abstraction_2(patch)
+        db = tmdb.TMDB(db_path)
+        db.add_dict({'source': '{n} files', 'target': '{n} lêers', 'context': ''}, 'en', 'af')
+        _close(db_path)
+
+    db = tmdb.TMDB(db_path)
+
+    assert _abstracts(db, 'sources') == [('{n} files', None)]
+    assert db.backfill_abstracts() == 2
+    assert _abstracts(db, 'sources') == [('{n} files', '\ue001 files')]
+
+
 def _close(db_path):
     for connection, _cursor in tmdb.TMDB._tm_dbs.pop(db_path, {}).values():
         connection.close()
@@ -1214,6 +1235,7 @@ def _import_tagged(db):
 
 
 def test_a_v1_file_gains_the_markup_columns_and_keeps_its_abstracts(db_path, monkeypatch):
+    _before_abstraction_2(monkeypatch)
     with monkeypatch.context() as patch:
         patch.setattr(tmdb, 'SCHEMA_VERSION', 1)
         patch.delitem(tmdb.MIGRATIONS, 2)
@@ -1392,6 +1414,7 @@ def test_a_long_native_code_doesnt_keep_an_entry_out_of_the_candidates(db_path, 
 
 
 def test_a_v2_file_gets_its_plain_lengths_from_its_markup(db_path, monkeypatch):
+    _before_abstraction_2(monkeypatch)
     with monkeypatch.context() as patch:
         patch.setattr(tmdb, 'SCHEMA_VERSION', 2)
         patch.delitem(tmdb.MIGRATIONS, 3)
@@ -1786,6 +1809,7 @@ def test_a_synced_tmx_joins_its_marked_forms(db_path):
 
 
 def test_a_v3_file_gains_the_plural_columns_and_keeps_its_abstracts(db_path, monkeypatch):
+    _before_abstraction_2(monkeypatch)
     with monkeypatch.context() as patch:
         patch.setattr(tmdb, 'SCHEMA_VERSION', 3)
         patch.delitem(tmdb.MIGRATIONS, 4)

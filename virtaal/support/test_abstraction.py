@@ -220,7 +220,7 @@ def test_rebuild_keeps_the_translators_order():
     assert adapt('Copy %1 to %2', 'Copy %1 to %2', 'Kopieer %2 na %1', 100).target == (
         'Kopieer %2 na %1'
     )
-    assert adapt('Copy {a} to {b}', 'Copy {0} to {1}', '{1} na {0}', 60).target == '{1} na {0}'
+    assert adapt('Copy {a} to {b}', 'Copy {0} to {1}', '{1} na {0}', 60).target == '{b} na {a}'
     assert adapt('Copy %(a)s to %(b)s', 'Copy %s to %d', '%d na %s', 60).target == (
         '%(b)s na %(a)s'
     )
@@ -336,8 +336,8 @@ def test_import_needs_no_gtk():
     )
 
 
-def test_the_version_is_one():
-    assert abstraction.ABSTRACTION_VERSION == 1
+def test_the_version_is_two():
+    assert abstraction.ABSTRACTION_VERSION == 2
 
 
 @pytest.mark.parametrize(
@@ -364,3 +364,36 @@ def test_the_version_is_one():
 )
 def test_transfer(text, from_source, to_source, expected):
     assert abstraction.transfer(text, from_source, to_source) == expected
+
+
+@pytest.mark.parametrize(
+    ('query', 'source', 'target', 'expected'),
+    [
+        ('{{n}} files', '{{count}} files', '{{count}} lêers', '{{n}} lêers'),
+        ('{n} files', '{count} files', '{count} lêers', '{n} lêers'),
+        ('Hello { $name }', 'Hello { $user }', 'Hallo { $user }', 'Hallo { $name }'),
+        ('Hi %{name}', 'Hi %{user}', 'Hallo %{user}', 'Hallo %{name}'),
+        ('Open %2$@', 'Open %1$@', 'Maak %1$@ oop', 'Maak %2$@ oop'),
+        ('Value {1:N2}', 'Value {0:N2}', 'Waarde {0:N2}', 'Waarde {1:N2}'),
+        ('Save as %s', 'Save as {name}', 'Stoor as {name}', 'Stoor as %s'),
+    ],
+)
+def test_a_format_placeholder_adapts_like_printf(query, source, target, expected):
+    adapted = adapt(query, source, target, 70)
+
+    assert adapted.target == expected
+    assert adapted.rebuilt.unresolved == 0
+
+
+@pytest.mark.parametrize(
+    ('text', 'expected'),
+    [
+        ('{{count}} notes', [('{{count}}', 0, 9)]),
+        ('Hi %1$@', [('%1$@', 3, 7)]),
+        ('V {0:N2}', [('{0:N2}', 2, 8)]),
+        ('Hi %<n>d', [('%<n>d', 3, 8)]),
+    ],
+)
+def test_a_format_placeholder_is_one_variable(text, expected):
+    assert [(p.raw, p.start, p.end) for p in placeables(text)] == expected
+    assert {p.marker for p in placeables(text)} == {abstraction.VARIABLE}

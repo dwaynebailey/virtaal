@@ -57,10 +57,10 @@ from virtaal.support.tmx_compat import tuv_lang
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 """PRAGMA user_version of the schema below; 0 is a file an older Virtaal made."""
 
-SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1}
+SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2}
 """The abstraction algorithm whose abstracts each schema version stores.
 A new algorithm needs a new schema version, whose migration clears the
 abstracts for the backfill to recompute, so that one file never mixes
@@ -222,6 +222,10 @@ SCHEMA_V7 = ("ALTER TABLE targets ADD COLUMN plural_layout VARCHAR DEFAULT NULL"
 # plural layouts of version 7's existing plurals: the names of those done.
 SCHEMA_V8 = ("CREATE TABLE done_jobs (name VARCHAR PRIMARY KEY) WITHOUT ROWID",)
 
+# Abstraction 2 takes the format placeholders {name}, {{count}}, %@ and
+# their kin as variables.
+SCHEMA_V9 = CLEAR_ABSTRACTS
+
 MIGRATIONS = {
     1: SCHEMA_V0 + SCHEMA_V1,
     2: SCHEMA_V2,
@@ -231,6 +235,7 @@ MIGRATIONS = {
     6: SCHEMA_V6,
     7: SCHEMA_V7,
     8: SCHEMA_V8,
+    9: SCHEMA_V9,
 }
 """The statements, or functions of a cursor, bringing a file up to each
 schema version from the one before. A later version that changes only
