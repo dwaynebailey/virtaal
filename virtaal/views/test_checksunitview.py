@@ -267,19 +267,20 @@ def test_each_failure_gets_a_dismiss_button_and_each_dismissed_one_restore():
     assert dimmed and not view.check_rows[0][0].get_style_context().has_class('dim-label')
 
 
-def test_only_dismissed_checks_leave_a_dimmed_button_to_restore_them():
+def test_only_dismissed_checks_leave_the_button_counting_them():
     view = _make_view()
 
-    _update(view, {}, {'urls': 'Different URLs'}, True)
+    _update(view, {}, {'urls': 'Different URLs', 'xmltags': 'Different XML tags'}, True)
 
     assert view.btn_checks.get_opacity() == 1
-    assert view.lbl_btnchecks.get_text() == 'urls'
-    assert view.lbl_btnchecks.get_style_context().has_class('dim-label')
-    assert view.btn_checks.get_accessible().get_name() == 'Dismissed: urls'
+    assert view.lbl_btnchecks.get_text() == '\u2713 2 dismissed'
+    # Not dimmed: that would look disabled.
+    assert not view.lbl_btnchecks.get_style_context().has_class('dim-label')
+    assert view.btn_checks.get_accessible().get_name() == 'Dismissed: urls, xmltags'
 
     _update(view, {'xmltags': 'Different XML tags'}, {'urls': 'Different URLs'}, True)
 
-    assert not view.lbl_btnchecks.get_style_context().has_class('dim-label')
+    assert view.lbl_btnchecks.get_text() == 'xmltags'
 
 
 def test_no_buttons_where_the_format_cant_remember_a_dismissal():

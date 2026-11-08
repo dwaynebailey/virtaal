@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 05:03+0000\n"
+"POT-Creation-Date: 2026-11-08 07:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2730,6 +2730,15 @@ msgstr ""
 #, python-format
 msgid "Dismissed: %(checks)s"
 msgstr ""
+
+#. l10n: On the quality checks button: this many checks on the
+#. unit were marked as fine. A check mark goes before it.
+#: virtaal/views/checksunitview.py
+#, python-format
+msgid "%(count)d dismissed"
+msgid_plural "%(count)d dismissed"
+msgstr[0] ""
+msgstr[1] ""
 
 #. l10n: Show a quality check result again that was marked as fine
 #: virtaal/views/checksunitview.py

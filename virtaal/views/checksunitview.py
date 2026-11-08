@@ -10,7 +10,7 @@ import locale
 from gi.repository import Gdk, Gtk, Pango
 from translate.lang import factory as lang_factory
 
-from virtaal.common.pan_app import ui_language
+from virtaal.common.pan_app import ngettext, ui_language
 from virtaal.views.widgets.popupwidgetbutton import POS_SE_NE, PopupWidgetButton
 
 from .baseview import BaseView
@@ -141,17 +141,22 @@ class ChecksUnitView(BaseView):
         dismissed_names = self._add_rows(dismissed, True, can_dismiss)
         self.box_checks.show_all()
 
-        style = self.lbl_btnchecks.get_style_context()
         if names:
             name_str = self._listsep.join(names)
             accessible = name_str
-            style.remove_class('dim-label')
         else:
-            # Only dismissed ones: dimmed, still there to restore.
-            name_str = self._listsep.join(dismissed_names)
+            # Only dismissed ones: still there to restore, and not
+            # dimmed, which would look disabled.
             # l10n: The quality checks a translator marked as fine on this unit
-            accessible = _("Dismissed: %(checks)s") % {'checks': name_str}
-            style.add_class('dim-label')
+            accessible = _("Dismissed: %(checks)s") % {
+                'checks': self._listsep.join(dismissed_names)
+            }
+            count = len(dismissed_names)
+            # l10n: On the quality checks button: this many checks on the
+            # unit were marked as fine. A check mark goes before it.
+            name_str = '\u2713 ' + ngettext('%(count)d dismissed', '%(count)d dismissed', count) % {
+                'count': count
+            }
         self.lbl_btnchecks.set_text(name_str)
         self.btn_checks.get_accessible().set_name(accessible)
         self.btn_checks.set_opacity(1)
