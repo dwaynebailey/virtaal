@@ -5,6 +5,8 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import time
+
 import cairo
 import pytest
 from gi.repository import Gdk, Gtk
@@ -212,8 +214,14 @@ class TestTextBoxMarkers(TestScaffolding):
     def _leaves(self, elem):
         return [(type(e).__name__, str(e)) for e in elem.flatten()]
 
-    def _settle(self):
-        for _ in range(500):
+    def _settle(self, textbox):
+        # Until the idle parsing is done: a slow runner needs more passes.
+        deadline = time.monotonic() + 60
+        while (
+            textbox._pending_leaves or textbox._pending_id is not None
+        ) and time.monotonic() < deadline:
+            Gtk.main_iteration_do(False)
+        for _ in range(50):
             Gtk.main_iteration_do(False)
 
     LONG = 'a\u00a0b\u200bc\n' * 2000
@@ -231,7 +239,7 @@ class TestTextBoxMarkers(TestScaffolding):
 
         assert 0 < at_once < 4000
         assert textbox.has_selectable_elems()
-        self._settle()
+        self._settle(textbox)
         assert len(self._invisibles(textbox)) == 4000
         assert self._leaves(textbox.elem) == self._leaves(full)
         assert textbox.get_text() == self.LONG
@@ -258,7 +266,7 @@ class TestTextBoxMarkers(TestScaffolding):
         text = '\u200b' + 'word ' * 2000 + 'x\u200by\u00a0z'
         textbox = self._shown(text)
         textbox.select_first_elem()
-        self._settle()
+        self._settle(textbox)
 
         textbox.move_elem_selection(1)
 
