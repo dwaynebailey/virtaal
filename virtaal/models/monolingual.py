@@ -13,7 +13,7 @@ import os
 
 from translate.storage import base, xliff
 
-from virtaal.support import baseline, converters
+from virtaal.support import baseline, converters, dismissedchecks
 from virtaal.support.baseline import (
     NEEDS_REVIEW,
     NEEDS_WORK,
@@ -223,6 +223,8 @@ class MonolingualPair:
             self.converter.to_bilingual(self.template, self.target, self.language)
         )
         self.store.filename = self.target
+        if not self.source_only:
+            self._read_dismissals()
         if self.source_only:
             language = ''
             for _key, unit in self.units():
@@ -239,6 +241,16 @@ class MonolingualPair:
         self._recall = recall
         if not self.source_only:
             self._compare()
+
+    def _read_dismissals(self):
+        """The dismissed checks the target keeps in comments, as its
+        units' notes."""
+        if not os.path.isfile(self.target):
+            return
+        found = self.converter.dismissals(converters._read(self.target))
+        for key, unit in self.units():
+            if key in found:
+                unit.addnote('\n'.join(found[key]), 'translator')
 
     @property
     def name(self):
@@ -421,6 +433,8 @@ class MonolingualPair:
         data = self.converter.to_monolingual(
             self.template, self.target, translations, self.skip_untranslated, self.language
         )
+        dismissals = {key: dismissedchecks.lines(unit) for key, unit in self.units()}
+        data = self.converter.with_dismissals(data, dismissals)
         with open(path, 'wb') as f:
             f.write(data)
         old = baseline.load(self.target) if path == self.target else None

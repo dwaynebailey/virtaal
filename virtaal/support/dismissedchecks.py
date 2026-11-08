@@ -9,7 +9,9 @@
 
 Kept in the file where it can hold a comment, so they go with it: a
 translator note per check, a "#" comment in PO (which msgmerge keeps), a
-<note from="translator"> in XLIFF and a translator comment in Qt .ts:
+<note from="translator"> in XLIFF, a translator comment in Qt .ts, and a
+comment before the key in the monolingual formats that have comments
+(see converters.MonolingualConverter.comment):
 
     (dismissed-check) endpunc 3f2a9c1e
 

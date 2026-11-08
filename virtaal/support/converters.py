@@ -141,6 +141,68 @@ class MonolingualConverter:
         message in the bytes of a file in this format."""
         raise NotImplementedError
 
+    comment = None
+    """A comment line in this format, with %s for its text, or None if
+    it has no comments: it keeps a dismissed check (dismissedchecks)
+    just before the key."""
+
+    def dismissals(self, data):
+        """{key: [dismissal line]} kept in comments just before each key
+        in the bytes of a file in this format."""
+        if self.comment is None or b'(dismissed-check)' not in data:
+            return {}
+        from virtaal.support import dismissedchecks
+
+        lines = data.split(b'\n')
+        found = {}
+        for key, (start, _end) in self._spans(data).items():
+            number = start - 2
+            texts = []
+            while number >= 0:
+                text = self._comment_text(lines[number])
+                if text is None or dismissedchecks.parse(text) is None:
+                    break
+                texts.insert(0, text)
+                number -= 1
+            if texts:
+                found[key] = texts
+        return found
+
+    def with_dismissals(self, data, dismissals):
+        """The bytes of a file in this format, with C{dismissals}
+        ({key: [dismissal line]}) in comments just before each key."""
+        if self.comment is None or not dismissals:
+            return data
+        lines = data.split(b'\n')
+        spans = self._spans(data)
+        for key, (start, _end) in sorted(spans.items(), key=lambda item: item[1][0], reverse=True):
+            if not dismissals.get(key):
+                continue
+            entry = lines[start - 1]
+            indent = entry[: len(entry) - len(entry.lstrip())]
+            ending = b'\r' if entry.endswith(b'\r') else b''
+            lines[start - 1 : start - 1] = [
+                indent + (self.comment % text).encode('ascii') + ending for text in dismissals[key]
+            ]
+        return b'\n'.join(lines)
+
+    def _spans(self, data):
+        try:
+            return self.spans(data)
+        except Exception:
+            return {}
+
+    def _comment_text(self, line):
+        before, after = self.comment.encode('ascii').split(b'%s')
+        line = line.strip()
+        if line.startswith(before.strip()) and line.endswith(after.strip()):
+            return (
+                line[len(before.strip()) : len(line) - len(after.strip())]
+                .strip()
+                .decode('ascii', 'replace')
+            )
+        return None
+
 
 def _continues(line):
     """Whether a .properties line goes on to the next."""
@@ -165,6 +227,7 @@ class PropertiesConverter(MonolingualConverter):
     id = 'properties'
     name = 'Java Properties'
     extensions = ('properties',)
+    comment = '# %s'
     modules = ('translate.convert.prop2po', 'translate.convert.po2prop')
 
     @staticmethod
@@ -249,6 +312,7 @@ class FluentConverter(MonolingualConverter):
     id = 'fluent'
     name = 'Fluent file'
     extensions = ('ftl',)
+    comment = '# %s'
     modules = ('fluent.syntax', 'translate.convert.fluent2po')
 
     @staticmethod
@@ -339,6 +403,7 @@ class StringsConverter(PropertiesConverter):
     id = 'strings'
     name = 'Apple Strings'
     extensions = ('strings',)
+    comment = '/* %s */'
 
     def is_source_path(self, path):
         from virtaal.support.templatefinder import is_source_folder
@@ -1122,6 +1187,7 @@ class AndroidConverter(MonolingualConverter):
     name = 'Android String Resources'
     extensions = ('xml',)
     modules = ('lxml', 'babel', 'translate.storage.aresource')
+    comment = '<!-- %s -->'
     leaves_out_untranslated = True
 
     def handles(self, path):

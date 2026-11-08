@@ -620,3 +620,64 @@ def test_an_ordinal_group_is_its_own_plural_with_ordinal_forms(tmp_path):
     # Afrikaans ordinals have one form.
     assert unit.plural_tags == ['other'] and unit.plural_ordinal
     assert _strings(unit.source) == ['{{count}}st', '{{count}}th']
+
+
+# Dismissed checks kept in the target's comments (#3276) #
+
+_COMMENTED = {
+    'properties': (
+        'en.properties',
+        'af.properties',
+        b'# Greeting\nhello=Hello.\nbye=Goodbye\n',
+        b'hello=Hallo\nbye=Totsiens\n',
+        b'# (dismissed-check) endpunc ',
+    ),
+    'fluent': (
+        'en.ftl',
+        'af.ftl',
+        b'hello = Hello.\nbye = Goodbye\n',
+        b'hello = Hallo\nbye = Totsiens\n',
+        b'# (dismissed-check) endpunc ',
+    ),
+    'strings': (
+        'en.strings',
+        'af.strings',
+        b'"hello" = "Hello.";\n"bye" = "Goodbye";\n',
+        b'"hello" = "Hallo";\n"bye" = "Totsiens";\n',
+        b'/* (dismissed-check) endpunc ',
+    ),
+    'android': (
+        'values/strings.xml',
+        'values-af/strings.xml',
+        b'<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+        b'    <string name="hello">Hello.</string>\n'
+        b'    <string name="bye">Goodbye</string>\n</resources>\n',
+        b'<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+        b'    <string name="hello">Hallo</string>\n'
+        b'    <string name="bye">Totsiens</string>\n</resources>\n',
+        b'    <!-- (dismissed-check) endpunc ',
+    ),
+}
+
+
+@pytest.mark.parametrize('kind', list(_COMMENTED))
+def test_a_dismissed_check_is_kept_in_a_comment_before_the_key(tmp_path, kind):
+    from virtaal.support import dismissedchecks
+
+    template, target, template_data, target_data, comment = _COMMENTED[kind]
+    for name, data in ((template, template_data), (target, target_data)):
+        (tmp_path / name).parent.mkdir(exist_ok=True)
+        (tmp_path / name).write_bytes(data)
+    pair = MonolingualPair(str(tmp_path / target), str(tmp_path / template), language='af')
+
+    dismissedchecks.set_dismissed(_units(pair)['hello'], 'endpunc')
+    pair.save()
+
+    saved = (tmp_path / target).read_bytes()
+    before, after = saved.split(comment)
+    assert after.split(b'\n', 1)[1].lstrip().startswith((b'hello', b'"hello"', b'<string'))
+    again = MonolingualPair(str(tmp_path / target), str(tmp_path / template), language='af')
+    assert dismissedchecks.dismissed(_units(again)['hello']) == {'endpunc'}
+    assert dismissedchecks.dismissed(_units(again)['bye']) == set()
+    again.save()
+    assert (tmp_path / target).read_bytes() == saved
