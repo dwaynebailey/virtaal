@@ -31,11 +31,15 @@ def popup_position(anchor, size, bounds, rtl=False):
 
 def announce(accessible, text):
     """Have a screen reader say text, from accessible: ATK's
-    notification (2.50 on), else its older announcement."""
-    for signal, args in (('notification', (text, Atk.Live.POLITE)), ('announcement', (text,))):
-        if GObject.signal_lookup(signal, accessible):
-            accessible.emit(signal, *args)
-            return True
+    notification (2.50 on), else its older announcement. An older ATK
+    (as on Windows) has neither Atk.Live nor notification."""
+    live = getattr(Atk, 'Live', None)
+    if live is not None and GObject.signal_lookup('notification', accessible):
+        accessible.emit('notification', text, live.POLITE)
+        return True
+    if GObject.signal_lookup('announcement', accessible):
+        accessible.emit('announcement', text)
+        return True
     return False
 
 

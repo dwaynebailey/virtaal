@@ -311,3 +311,16 @@ def test_dismiss_releases_the_native_window():
     popup.dismiss()
 
     assert not popup.get_realized()
+
+
+def test_announce_works_with_an_atk_without_live(monkeypatch):
+    # Windows' GTK ships an ATK older than 2.50: no Atk.Live, no notification.
+    from virtaal.views.widgets import completionpopup
+
+    said = []
+    accessible = Atk.NoOpObject.new(Gtk.Label())
+    accessible.connect('announcement', lambda accessible, text: said.append(text))
+    monkeypatch.setattr(completionpopup, 'Atk', SimpleNamespace(), raising=True)
+
+    assert completionpopup.announce(accessible, 'Herroep, 1 of 2')
+    assert said == ['Herroep, 1 of 2']
