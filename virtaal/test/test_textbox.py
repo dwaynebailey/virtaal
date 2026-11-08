@@ -1052,25 +1052,41 @@ class TestTextBox(TestScaffolding):
         assert not textbox.buffer.get_has_selection()
         assert not popup.is_showing()
 
-    def test_enter_takes_a_completion_only_once_one_was_picked(self, monkeypatch):
+    def test_enter_takes_the_grey_completion_while_the_list_shows(self, monkeypatch):
         textbox = self._target_for('%s files copied')
         popup = self._suggest(monkeypatch, textbox)
         emitted = []
         monkeypatch.setattr(textbox, 'emit', lambda signal, *args: emitted.append(signal))
 
-        textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Return))
+        assert textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Return)) is True
 
-        assert 'key-pressed' in emitted  # on to the next unit
-        assert textbox.get_text() == 'Ka'
+        assert 'key-pressed' not in emitted  # Not on to the next unit.
+        assert textbox.get_text() == 'Kanselleer'
         assert not popup.is_showing()
 
-        popup = self._suggest(monkeypatch, textbox)
-        emitted.clear()
+    def test_enter_takes_the_completion_picked_in_the_list(self, monkeypatch):
+        textbox = self._target_for('%s files copied')
+        self._suggest(monkeypatch, textbox)
+        emitted = []
+        monkeypatch.setattr(textbox, 'emit', lambda signal, *args: emitted.append(signal))
+
         textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Down))
         textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Return))
 
         assert 'key-pressed' not in emitted
         assert textbox.get_text() == 'Kansel'
+
+    def test_enter_with_one_grey_completion_and_no_list_moves_on(self, monkeypatch):
+        textbox = self._target_for('%s files copied')
+        popup = self._suggest(monkeypatch, textbox, ('Kanselleer',))
+        emitted = []
+        monkeypatch.setattr(textbox, 'emit', lambda signal, *args: emitted.append(signal))
+
+        textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Return))
+
+        assert not popup.is_showing()
+        assert 'key-pressed' in emitted  # On to the next unit, as before.
+        assert textbox.get_text() == 'Ka'
 
     def test_escape_closes_the_list_and_the_grey_text(self, monkeypatch):
         textbox = self._target_for('%s files copied')

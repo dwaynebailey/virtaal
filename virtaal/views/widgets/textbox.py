@@ -1623,9 +1623,7 @@ class TextBox(Gtk.TextView):
         if key in ('up', 'down'):
             popup.move_selection(-1 if key == 'up' else 1)
             return True
-        # Enter accepts a completion only once picked with Up or Down, so
-        # that Enter after typing a word still goes on to the next unit.
-        if key == 'tab' or (key == 'enter' and (self._list_kind == 'insert' or popup.navigated)):
+        if key in ('tab', 'enter'):
             popup.accept()
             return True
         popup.dismiss()

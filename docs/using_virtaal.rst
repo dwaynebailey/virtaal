@@ -177,9 +177,9 @@ you last wrote it in this file, in Latin letters or in your own script.
 
 The best suggestion shows in grey after the cursor; press :kbd:`Tab` to accept
 it. When there are several, they are also listed under the word: :kbd:`Up` and
-:kbd:`Down` pick another (it shows in grey instead), :kbd:`Tab`, or
-:kbd:`Enter` once you have picked one, accepts it, and :kbd:`Esc` closes the
-list. If the suggestion is not what you want, you can simply continue typing
+:kbd:`Down` pick another (it shows in grey instead), :kbd:`Tab` or
+:kbd:`Enter` accepts it, and :kbd:`Esc` closes the list. With no list showing,
+:kbd:`Enter` moves on as usual and leaves the grey suggestion out. If the suggestion is not what you want, you can simply continue typing
 the word you had in mind: the list follows what you type. If you accepted a
 suggestion that you don't want, you can simply undo normally with
 :kbd:`Ctrl+Z`.
