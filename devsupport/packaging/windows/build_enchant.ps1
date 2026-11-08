@@ -69,7 +69,9 @@ Push-Location $enchant
 try {
     git apply --whitespace=nowarn "$src\gvsbuild\enchant-headers.patch"
     if ($LASTEXITCODE) { throw "enchant-headers.patch didn't apply" }
-    git apply --whitespace=nowarn $Patch
+    # A checkout can give it CRLF line ends.
+    [System.IO.File]::WriteAllText("$src\utf8-paths.patch", ((Get-Content $Patch -Raw) -replace "`r`n", "`n"))
+    git apply --whitespace=nowarn "$src\utf8-paths.patch"
     if ($LASTEXITCODE) { throw "$Patch didn't apply" }
 } finally {
     Pop-Location
