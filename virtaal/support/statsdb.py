@@ -46,6 +46,7 @@ from translate.storage import factory
 from translate.storage.workflow import StateEnum
 
 from virtaal.support import (
+    catxliff_compat,  # noqa: F401 - applies its patch on import
     sdlxliff_compat,  # noqa: F401 - applies its patch on import
     shareddb,
     tmx_compat,  # noqa: F401 - applies its patch on import
@@ -58,7 +59,8 @@ logger = logging.getLogger(__name__)
 # translate-toolkit's reading of it and Virtaal's. Raise REVISION when
 # Virtaal reads some files' units differently, and caches made before
 # are dropped. 1: a Trados segment is a unit, with its own state (#4625).
-REVISION = 1
+# 2: memoQ units have memoQ's states (#4734).
+REVISION = 2
 CACHE_BUILD = toolkitversion.build * 100 + REVISION
 
 brtagre = re.compile(r"<br\s*?/?>")

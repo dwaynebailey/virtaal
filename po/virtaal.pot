@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 16:50+0000\n"
+"POT-Creation-Date: 2026-11-08 17:05+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -584,6 +584,11 @@ msgstr ""
 
 #: devsupport/tmp_strings.py
 msgid "Trados Studio Translation Memory"
+msgstr ""
+
+#: devsupport/tmp_strings.py
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
+msgid "memoQ XLIFF Translation File"
 msgstr ""
 
 #: devsupport/tmp_strings.py
@@ -3277,11 +3282,6 @@ msgstr ""
 msgid "Translation"
 msgstr ""
 
-#. l10n: A Trados Studio file can lock a translation.
-#: virtaal/views/unitview.py
-msgid "Locked: this translation can't be changed."
-msgstr ""
-
 #. l10n: Where Trados Studio's translation came from, e.g.
 #. "tm (Main TM), 100% match". The origin is Trados's own
 #. name: tm, mt, interactive, auto-propagated and others.
@@ -3298,10 +3298,29 @@ msgstr ""
 msgid "Origin: %(origin)s"
 msgstr ""
 
-#. l10n: A comment in a Trados Studio file, and who wrote it.
+#. l10n: The translation memory match a memoQ file's translation
+#. was inserted from, e.g. "Match: 101%" (a context match).
+#: virtaal/views/unitview.py
+#, python-format
+msgid "Match: %(percent)s%%"
+msgstr ""
+
+#. l10n: A comment in a Trados Studio or memoQ file, and who
+#. wrote it.
 #: virtaal/views/unitview.py
 #, python-format
 msgid "Comment from %(user)s: %(comment)s"
+msgstr ""
+
+#. l10n: A Trados Studio or memoQ file can lock a translation.
+#: virtaal/views/unitview.py
+msgid "Locked: this translation can't be changed."
+msgstr ""
+
+#. l10n: Who last changed this row in memoQ.
+#: virtaal/views/unitview.py
+#, python-format
+msgid "Last changed by %(user)s"
 msgstr ""
 
 #: virtaal/views/unitview.py

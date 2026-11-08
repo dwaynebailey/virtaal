@@ -20,7 +20,12 @@ from translate.storage.workflow import StateEnum
 from virtaal.common import GObjectWrapper, pan_app
 from virtaal.common.pan_app import ngettext
 from virtaal.common.platform import platform
-from virtaal.support import dismissedchecks, sdlxliff_compat
+from virtaal.support import (
+    catxliff_compat,
+    dismissedchecks,
+    memoq_compat,
+    sdlxliff_compat,
+)
 
 from . import rendering
 from .baseview import BaseView
@@ -88,6 +93,45 @@ def _programmer_notes(unit):
         for line in (unit.getnotes() or '').splitlines()
         if line in programmer or line not in translator
     )
+
+
+def _origin_line(origin, percent=None):
+    """Where Trados's translation came from, as a line of the notes."""
+    if percent:
+        return _(
+            # l10n: Where Trados Studio's translation came from, e.g.
+            # "tm (Main TM), 100% match". The origin is Trados's own
+            # name: tm, mt, interactive, auto-propagated and others.
+            "Origin: %(origin)s, %(percent)s%% match"
+        ) % {'origin': origin, 'percent': percent}
+    return _(
+        # l10n: Where Trados Studio's translation came from, e.g.
+        # "interactive". The origin is Trados's own name: tm, mt,
+        # interactive, auto-propagated and others.
+        "Origin: %(origin)s"
+    ) % {'origin': origin}
+
+
+def _match_line(percent):
+    return _(
+        # l10n: The translation memory match a memoQ file's translation
+        # was inserted from, e.g. "Match: 101%" (a context match).
+        "Match: %(percent)s%%"
+    ) % {'percent': percent}
+
+
+def _comment_lines(comments):
+    """(user, comment) of a CAT tool's comments, as lines of the notes."""
+    lines = []
+    for user, comment in comments:
+        if user:
+            comment = _(
+                # l10n: A comment in a Trados Studio or memoQ file, and who
+                # wrote it.
+                "Comment from %(user)s: %(comment)s"
+            ) % {'user': user, 'comment': comment}
+        lines.append(comment)
+    return lines
 
 
 class _NotesView(Gtk.ScrolledWindow):
@@ -392,8 +436,9 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
     @property
     def locked(self):
-        """Whether the unit is shown read-only: a locked Trados segment."""
-        return sdlxliff_compat.is_locked(self.unit)
+        """Whether the unit is shown read-only: a locked Trados or memoQ
+        segment."""
+        return catxliff_compat.is_locked(self.unit)
 
     def _on_store_closed(self, *args):
         self.copied = None
@@ -825,7 +870,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             note_text = _programmer_notes(self.unit)
         else:
             notes = dismissedchecks.without_dismissals(self.unit.getnotes(origin))
-            note_text = '\n'.join(line for line in [notes] + self._trados_notes() if line)
+            notes = [notes, *self._trados_notes(), *self._memoq_notes()]
+            note_text = '\n'.join(line for line in notes if line)
 
         if (
             origin == "programmer"
@@ -849,7 +895,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if self.locked:
             notes.append(
                 _(
-                    # l10n: A Trados Studio file can lock a translation.
+                    # l10n: A Trados Studio or memoQ file can lock a translation.
                     "Locked: this translation can't be changed."
                 )
             )
@@ -859,33 +905,30 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         )
         if origin and system:
             origin = f"{origin} ({system})"
-        if origin and percent:
+        if origin:
+            notes.append(_origin_line(origin, percent))
+        notes += _comment_lines(sdlxliff_compat.comments(self.unit))
+        return notes
+
+    def _memoq_notes(self):
+        """Lines about the unit's memoQ row: its match rate, comments and
+        who changed it last."""
+        if catxliff_compat.flavour(self.unit) != 'memoq':
+            return []
+        notes = []
+        percent = memoq_compat.match_rate(self.unit)
+        if percent:
+            notes.append(_match_line(percent))
+        notes += _comment_lines(memoq_compat.comments(self.unit))
+        user = memoq_compat.last_user(self.unit)
+        if user:
             notes.append(
                 _(
-                    # l10n: Where Trados Studio's translation came from, e.g.
-                    # "tm (Main TM), 100% match". The origin is Trados's own
-                    # name: tm, mt, interactive, auto-propagated and others.
-                    "Origin: %(origin)s, %(percent)s%% match"
+                    # l10n: Who last changed this row in memoQ.
+                    "Last changed by %(user)s"
                 )
-                % {'origin': origin, 'percent': percent}
+                % {'user': user}
             )
-        elif origin:
-            notes.append(
-                _(
-                    # l10n: Where Trados Studio's translation came from, e.g.
-                    # "interactive". The origin is Trados's own name: tm, mt,
-                    # interactive, auto-propagated and others.
-                    "Origin: %(origin)s"
-                )
-                % {'origin': origin}
-            )
-        for user, comment in sdlxliff_compat.comments(self.unit):
-            if user:
-                comment = _(
-                    # l10n: A comment in a Trados Studio file, and who wrote it.
-                    "Comment from %(user)s: %(comment)s"
-                ) % {'user': user, 'comment': comment}
-            notes.append(comment)
         return notes
 
     def _layout_update_sources(self):

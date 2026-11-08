@@ -206,6 +206,8 @@ def add_translation_file_filters(chooser, extra_formats=()):
     chooser.add_filter(all_supported_filter)
     from translate.storage import factory as storage_factory
 
+    from virtaal.support import catxliff_compat  # noqa: F401 - adds memoQ's XLIFF
+
     formats = list(storage_factory.supported_files())
     formats += [(name, extensions, []) for name, extensions in extra_formats]
     supported_files_dict = dict(

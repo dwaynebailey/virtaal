@@ -12,6 +12,7 @@ import os
 from virtaal.common import pan_app
 from virtaal.common.platform import platform
 from virtaal.support import (
+    catxliff_compat,  # noqa: F401 - applies its patch on import
     dismissedchecks,
     fluent_compat,  # noqa: F401 - applies its patch on import
     lisa_compat,  # noqa: F401 - applies its patch on import

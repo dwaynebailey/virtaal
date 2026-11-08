@@ -100,6 +100,8 @@ Virtaal supports many file formats:
 - OmegaT glossary (.tab and .utf8)
 - Trados Studio bilingual files (.sdlxliff), a unit per Trados segment with its
   Trados status (see :ref:`using_virtaal#trados`)
+- memoQ bilingual files (.mqxliff), with memoQ's status and locks (see
+  :ref:`using_virtaal#memoq_phrase`)
 
 Files that hold one language each are translated against their English (or
 other source-language) file (see :ref:`using_virtaal#one_language_files`):

@@ -584,6 +584,39 @@ Windows and macOS packages, the Flatpak and the AppImage include. Without it,
 export the termbase from MultiTerm as MultiTerm XML and add that file instead.
 
 
+.. _using_virtaal#memoq_phrase:
+
+memoQ files
+-----------
+memoQ bilingual files (.mqxliff) open like other XLIFF files, and so does such
+a file saved as .xlf. Each unit uses what memoQ keeps with its row:
+
+- memoQ's row status is the unit's state:
+
+  ============================================== ==============
+  memoQ status                                   Virtaal state
+  ============================================== ==============
+  Not started                                    Untranslated
+  Not started, with text                         Needs work
+  Rejected                                       Rejected
+  Pre-translated, Machine translated, Edited     Needs review
+  Translator confirmed                           Translated
+  Reviewer 1 confirmed, Reviewer 2 confirmed     Reviewed
+  ============================================== ==============
+
+  Marking a unit Translated confirms it as the translator; Reviewed sets
+  Reviewer 1 confirmed. Changing a pre-translated or machine translation
+  makes it Edited, still to confirm.
+- A locked row shows its translation and state but can't be
+  changed, and Replace skips it.
+- memoQ's match rate, comments and who last changed the row show below the
+  translation.
+
+Virtaal writes only memoQ's own status, not XLIFF's state. These files were
+checked by comparing their XML before and after, not by opening them in memoQ
+again.
+
+
 .. _using_virtaal#network_based_translation_memory:
 
 Network Based Translation Memory

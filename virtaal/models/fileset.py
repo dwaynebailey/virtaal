@@ -14,7 +14,7 @@ from collections import Counter
 
 # Bilingual formats a scan picks up. Monolingual ones need a template,
 # and templates themselves (.pot) are not translated in place.
-SCAN_EXTENSIONS = ('.po', '.xlf', '.xliff', '.sdlxliff', '.ts')
+SCAN_EXTENSIONS = ('.po', '.xlf', '.xliff', '.sdlxliff', '.mqxliff', '.ts')
 TEMPLATE_EXTENSIONS = ('.pot', '.xlt')
 SKIP_DIRS = {'node_modules', '__pycache__', 'CVS'}
 

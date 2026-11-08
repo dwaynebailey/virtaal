@@ -15,7 +15,7 @@ import os
 from sqlite3 import dbapi2
 
 from virtaal.common import pan_app
-from virtaal.support import sdlxliff_compat, statsdb
+from virtaal.support import catxliff_compat, statsdb
 
 DAYS = 7
 """How many days fetched suggestions are kept: tm.ini's [suggestions]
@@ -39,7 +39,7 @@ def needs_suggestions(unit, failing=False):
     suggestion."""
     return (
         (failing or not unit.istranslated())
-        and not sdlxliff_compat.is_locked(unit)
+        and not catxliff_compat.is_locked(unit)
         and bool(str(unit.source).strip())
     )
 

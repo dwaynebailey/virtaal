@@ -110,6 +110,11 @@ Root: HKCU; Subkey: "Software\Classes\Virtaal.SdlXliffFile\DefaultIcon"; ValueTy
 Root: HKCU; Subkey: "Software\Classes\Virtaal.SdlXliffFile\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc
 Root: HKCU; Subkey: "Software\Classes\.sdlxliff"; ValueType: string; ValueData: "Virtaal.SdlXliffFile"; Tasks: fileassoc; Flags: uninsdeletevalue
 
+Root: HKCU; Subkey: "Software\Classes\Virtaal.MemoqXliffFile"; ValueType: string; ValueName: ""; ValueData: "{cm:MemoqXliffFileType}"; Tasks: fileassoc; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Virtaal.MemoqXliffFile\DefaultIcon"; ValueType: string; ValueData: "{app}\share\icons\x-translation.ico"; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\Virtaal.MemoqXliffFile\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.mqxliff"; ValueType: string; ValueData: "Virtaal.MemoqXliffFile"; Tasks: fileassoc; Flags: uninsdeletevalue
+
 Root: HKCU; Subkey: "Software\Classes\Virtaal.GettextMoFile"; ValueType: string; ValueName: ""; ValueData: "{cm:MoFileType}"; Tasks: fileassoc; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\Virtaal.GettextMoFile\DefaultIcon"; ValueType: string; ValueData: "{app}\share\icons\x-translation.ico"; Tasks: fileassoc
 Root: HKCU; Subkey: "Software\Classes\Virtaal.GettextMoFile\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc

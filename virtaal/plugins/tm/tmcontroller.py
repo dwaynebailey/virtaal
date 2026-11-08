@@ -16,7 +16,7 @@ from translate.storage.workflow import StateEnum
 
 from virtaal.common import pan_app
 from virtaal.controllers.basecontroller import BaseController
-from virtaal.support import abstraction, inlinecodes, sdlxliff_compat
+from virtaal.support import abstraction, catxliff_compat, inlinecodes
 from virtaal.support.httpclient import speculative
 from virtaal.support.translate_compat import forceunicode
 
@@ -830,9 +830,9 @@ class TMController(BaseController):
     def _shows_unasked(self, unit, index=None):
         """Whether unit, at index if not the current one, gets suggestions
         unasked: one still to translate, or a translated one as
-        translated_suggestions says. A locked Trados segment can't take
-        one."""
-        if sdlxliff_compat.is_locked(unit):
+        translated_suggestions says. A locked Trados or memoQ segment
+        can't take one."""
+        if catxliff_compat.is_locked(unit):
             return False
         if not unit.istranslated() or self.translated_suggestions == ALWAYS:
             return True

@@ -47,6 +47,13 @@ See: http://standards.freedesktop.org/shared-mime-info-spec/shared-mime-info-spe
     </magic>
   </mime-type>
 
+  <!-- memoQ has registered no type: this is Virtaal's own. -->
+  <mime-type type="application/x-memoq-xliff">
+    <sub-class-of type="application/xliff+xml"/>
+    <comment its:translate="yes">memoQ XLIFF Translation File</comment>
+    <glob pattern="*.mqxliff"/>
+  </mime-type>
+
   <mime-type type="application/x-qm">
     <comment its:translate="yes">Qt Message File</comment>
     <glob pattern="*.qm"/>

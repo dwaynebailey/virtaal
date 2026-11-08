@@ -147,6 +147,7 @@ MESSAGE_KEY_TO_MSGID = {
     "MoFileType": "Gettext MO file",
     "XliffFileType": "XLIFF Translation File",
     "SdlXliffFileType": "SDL XLIFF Translation File",
+    "MemoqXliffFileType": "memoQ XLIFF Translation File",
     "QmFileType": "Qt Message File",
     "TbxFileType": "TBX Glossary",
     "TmxFileType": "TMX Translation Memory",

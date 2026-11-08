@@ -13,15 +13,16 @@ from gi.repository import Gdk, GLib, Gtk
 from translate.storage.placeables import StringElem
 
 from virtaal.controllers.cursor import Cursor
-from virtaal.support import pogrep_compat, sdlxliff_compat
+from virtaal.support import catxliff_compat, pogrep_compat
 from virtaal.views.theme import base_color, current_theme, rgba_to_str
 
 from .basemode import BaseMode
 
 
 def _replaceable(match):
-    """Replace changes targets, and never a locked Trados segment's."""
-    return match.part == 'target' and not sdlxliff_compat.is_locked(match.unit)
+    """Replace changes targets, and never a locked Trados or memoQ
+    segment's."""
+    return match.part == 'target' and not catxliff_compat.is_locked(match.unit)
 
 
 def _rich_offset(rich, plain, offset):
