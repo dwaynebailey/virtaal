@@ -18,7 +18,6 @@ $HunspellSha256 = "11ddfa39afe28c28539fe65fc4f1592d410c1e9b6dd7d8a91ca25d85e9ec6
 $Gvsbuild = "https://raw.githubusercontent.com/wingtk/gvsbuild/64c7871cce839215ccb2f16e027c4b909fb91da2/gvsbuild/patches/enchant"
 $GvsbuildFiles = [ordered]@{
     "src/config.h" = "a430e9c3d0862c3c3cfb63fffffe8ba77a64fa7706a0329f0ef2e54ec9809f9e"
-    "src/configmake.h" = "38719dacbfe818fc8f449e5781217da12c080474dcce764b839a3ab2ffbaa1ab"
     "src/gnulib-compat.h" = "7cbe1efb6e66d797419ada60ce19950d187c340b0382a5fe17979f2c2026a1a8"
     "src/sys/file.h" = "6bc613acf69e5f07ffe7ea38aac227200f99aaea5ee34b5c89e9a041e9593c31"
 }
@@ -78,6 +77,12 @@ try {
 #define INSTALLPREFIX "C:/gtk"
 #define INSTALLDIR "C:/gtk/bin"
 "@ | Set-Content -Path "$enchant\src\virtaal-paths.h" -Encoding ascii
+# enchant adds the "-2" itself; gvsbuild's configmake.h has it already.
+@"
+#define PKGDATADIR INSTALLPREFIX "/share/enchant"
+#define PKGLIBDIR INSTALLPREFIX "/lib/enchant"
+#define SYSCONFDIR INSTALLPREFIX "/etc"
+"@ | Set-Content -Path "$enchant\src\configmake.h" -Encoding ascii
 $includes = @("$enchant", "$enchant\src", "$enchant\lib", "$enchant\libgnu", $hunspell,
     "$Gtk\include\glib-2.0", "$Gtk\lib\glib-2.0\include") | ForEach-Object { "/I$_" }
 $common = @("/nologo", "/O2", "/MD", "/W1", "/DWIN32", "/D_WIN32", "/D_WINDOWS",
