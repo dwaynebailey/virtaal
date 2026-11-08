@@ -231,6 +231,8 @@ class ChecksController(BaseController):
             return
         unit._modified = True
         self.store_controller.mark_unit_modified(unit)
+        # So crash recovery keeps it too.
+        self.main_controller.unit_controller.emit('unit-modified', unit)
         self.check_unit(unit)
 
     def _check_timer_expired(self, unit):

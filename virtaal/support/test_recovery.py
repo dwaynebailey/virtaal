@@ -207,6 +207,23 @@ def test_apply_fields_sets_the_state(tmp_path):
     assert unit.get_state_n() == 120
 
 
+def test_recovered_fields_keep_the_dismissed_checks(tmp_path):
+    from virtaal.support import dismissedchecks
+
+    path = tmp_path / 'open.xlf'
+    path.write_bytes(XLIFF)
+    edited = factory.getobject(str(path)).units[0]
+    edited.target = 'maak oop'
+    dismissedchecks.set_dismissed(edited, 'startcaps')
+    recovered = factory.getobject(str(path)).units[0]
+
+    recovery.apply_fields(recovered, recovery.unit_fields(edited))
+
+    assert dismissedchecks.dismissed(recovered) == {'startcaps'}
+    recovery.apply_fields(recovered, dict(recovery.unit_fields(edited), dismissed=[]))
+    assert dismissedchecks.dismissed(recovered) == set()
+
+
 def test_apply_fields_ignores_keys_it_doesnt_know(tmp_path):
     store, _trans = _po_store(tmp_path)
 

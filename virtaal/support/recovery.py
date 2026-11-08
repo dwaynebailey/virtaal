@@ -30,6 +30,7 @@ import time
 import uuid
 
 from virtaal.common.platform import platform
+from virtaal.support import dismissedchecks
 
 FORMAT = 1
 LOCK_NAME = 'lock'
@@ -229,7 +230,8 @@ def unit_key(unit, index):
 
 
 def unit_fields(unit, state=None):
-    """What Virtaal can edit in a unit: its target forms and state."""
+    """What Virtaal can edit in a unit: its target forms, state and
+    dismissed checks."""
     if unit.hasplural():
         targets = [str(s) for s in unit.target.strings] if unit.target else []
     else:
@@ -237,6 +239,7 @@ def unit_fields(unit, state=None):
     fields = {'targets': targets}
     if unit.STATE:
         fields['state'] = unit.get_state_n() if state is None else state
+    fields['dismissed'] = sorted(dismissedchecks.dismissed(unit))
     return fields
 
 
@@ -254,6 +257,11 @@ def apply_fields(unit, fields):
     state = fields.get('state')
     if state is not None and unit.STATE:
         unit.set_state_n(state)
+    dismissed = fields.get('dismissed')
+    if dismissed is not None:
+        have = dismissedchecks.dismissed(unit)
+        for check in set(dismissed) ^ have:
+            dismissedchecks.set_dismissed(unit, check, check not in have)
 
 
 def _matches(unit, record):
