@@ -248,6 +248,8 @@ class StreamModel(BaseModel):
         segment = FileSegment(entry, offset, model.get_units(), model.stats, model._valid_units)
         segment.model = model
         segment.peek = None
+        # A save drops the dismissed checks that no longer count.
+        segment.modified = model.stale_dismissals
         return segment
 
     def insert_file(self, entry):
@@ -323,6 +325,7 @@ class StreamModel(BaseModel):
             # Changed on disk since its stats were read.
             logging.warning('%s now has %d units, not %d', segment.path, len(model), segment.count)
         segment.model = model
+        segment.modified = segment.modified or model.stale_dismissals
         if model.get_checker() is None and self._checker is not None:
             model._checker = self._checker
         if self._adopted_language:

@@ -205,3 +205,4 @@ def test_without_dismissals_hides_the_lines_from_the_notes_shown():
 
     assert dismissedchecks.without_dismissals(unit.getnotes()) == 'A note\nFor translators'
     assert dismissedchecks.without_dismissals('') == ''
+

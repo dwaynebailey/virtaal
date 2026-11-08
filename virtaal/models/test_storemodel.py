@@ -921,3 +921,56 @@ def test_a_po_files_dismissed_check_dropped_elsewhere_comes_back_from_the_record
     again = StoreModel(str(path), _SavingController('af'))
 
     assert dismissedchecks.dismissed(again.get_units()[0]) == {'endpunc'}
+
+
+def _po_with_dismissal(path, target):
+    from translate.storage import pypo
+
+    from virtaal.support import dismissedchecks
+
+    store = pypo.pofile.parsestring(_OLD_PO)
+    dismissedchecks.set_dismissed(store.units[-1], 'endpunc')
+    store.units[-1].target = target
+    path.write_bytes(bytes(store))
+
+
+def test_a_file_whose_dismissals_still_fit_opens_unchanged(tmp_path):
+    path = tmp_path / 'af.po'
+    _po_with_dismissal(path, 'Hallo')
+
+    model = StoreModel(str(path), _SavingController('af'))
+
+    assert model.stale_dismissals is False
+
+
+def test_a_file_keeping_a_dismissal_that_no_longer_fits_needs_saving(tmp_path):
+    from virtaal.support import dismissedchecks
+
+    path = tmp_path / 'af.po'
+    _po_with_dismissal(path, 'Hallo daar')
+
+    model = StoreModel(str(path), _SavingController('af'))
+    assert model.stale_dismissals is True
+    model.save_file()
+
+    assert b'dismissed-check' not in path.read_bytes()
+    assert (
+        dismissedchecks.has_stale(StoreModel(str(path), _SavingController('af')).get_units())
+        is False
+    )
+
+
+def test_a_stale_dismissal_only_in_the_record_doesnt_need_saving(tmp_path):
+    from virtaal.support import dismissedchecks
+
+    path = tmp_path / 'af.po'
+    _po_with_dismissal(path, 'Hallo')
+    model = StoreModel(str(path), _SavingController('af'))
+    model.save_file()
+    # Elsewhere: the comment goes, and the translation changes.
+    path.write_bytes(_OLD_PO.replace(b'msgstr "Hallo"', b'msgstr "Hallo daar"'))
+
+    again = StoreModel(str(path), _SavingController('af'))
+
+    assert again.stale_dismissals is False
+    assert dismissedchecks.dismissed(again.get_units()[0]) == set()

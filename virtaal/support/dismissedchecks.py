@@ -181,6 +181,18 @@ def stale_left_out(units):
             _set_notes(unit, notes)
 
 
+def has_stale(units):
+    """Whether any of units keeps, in its file, a dismissal that no
+    longer counts: a save removes it."""
+    for unit in units:
+        if not _in_notes(unit):
+            continue
+        entries = [p for p in map(parse, _notes(unit)) if p]
+        if entries and any(mark != fingerprint(unit) for _check, mark in entries):
+            return True
+    return False
+
+
 def without_dismissals(notes):
     """notes, without the lines that record dismissals."""
     if not notes or MARKER not in notes:
@@ -268,3 +280,4 @@ def apply_record(filename, units):
         for check, mark in sorted(entries.items()):
             if mark == current and check not in have:
                 set_dismissed(unit, check)
+
