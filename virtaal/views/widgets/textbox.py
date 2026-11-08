@@ -250,6 +250,9 @@ class TextBox(Gtk.TextView):
         self.selected_elem_index = None
         self._suggestion = None
         self._completion_popup = None
+        self._list_kind = None
+        self._listed = None
+        self._insert_list = None
         # The tag table is shared (search highlight, gtkspell): remove only ours.
         self._placeable_tags = []
         self._pilcrow_tag = None
@@ -295,6 +298,7 @@ class TextBox(Gtk.TextView):
             self.hide_suggestion()
             self._suggestion = None
             self.get_style_context().remove_class('suggestion')
+            self._close_list('suggestion', soon=True)
             return
 
         if not (
@@ -307,11 +311,73 @@ class TextBox(Gtk.TextView):
             raise ValueError('invalid suggestion dictionary: %s' % (value))
 
         if self.suggestion_is_visible():
-            self.suggestion = None
+            self.hide_suggestion()
         self._suggestion = value
         self.show_suggestion()
+        self._list_suggestions(value)
 
     suggestion = property(_get_suggestion, _set_suggestion)
+
+    # THE LIST OF COMPLETIONS #
+    # One popup list at the cursor serves both autocomplete's completions
+    # (kind 'suggestion': the selected one is the grey text after the
+    # cursor) and the translations of a term to insert (kind 'insert').
+
+    def _list_suggestions(self, suggestion):
+        """List suggestion's candidates when it has more than one."""
+        candidates = suggestion.get('candidates') or ()
+        if len(candidates) < 2:
+            self._close_list('suggestion')
+            return
+        popup = self.completion_popup
+        if self._list_kind == 'suggestion' and popup.is_showing() and self._listed is candidates:
+            return  # Another of the same list selected.
+        self._list_kind = 'suggestion'
+        self._listed = candidates
+
+        def show():
+            current = self._suggestion
+            if current is None or current.get('candidates') is not candidates:
+                return False
+            if not self.get_mapped():
+                return False
+            first = candidates[0]
+            popup.show_at(
+                self,
+                first['offset'] - (len(first['word']) - len(first['text'])),
+                [c['word'] for c in candidates],
+                lambda _word: self._accept_visible_suggestion(),
+                self._select_suggestion,
+                current.get('index', 0),
+            )
+            return False
+
+        # Deferred so the text layout is valid when positioning the popup.
+        GLib.idle_add(show)
+
+    def _select_suggestion(self, index):
+        candidates = self._listed
+        if self._suggestion is None or not candidates or index >= len(candidates):
+            return
+        self.suggestion = dict(candidates[index], candidates=candidates, index=index)
+
+    def _accept_visible_suggestion(self):
+        if not self.suggestion_is_visible():
+            return False
+        self.hide_suggestion()
+        self._accept_suggestion(self.suggestion)
+        self.suggestion = None
+        self.emit("changed")
+        return True
+
+    def _close_list(self, kind, soon=False):
+        popup = self._completion_popup
+        if popup is None or self._list_kind != kind or not popup.is_showing():
+            return
+        if soon:
+            popup.dismiss_soon()
+        else:
+            popup.dismiss()
 
     @property
     def completion_popup(self):
@@ -717,15 +783,46 @@ class TextBox(Gtk.TextView):
                 start, end = (itr.get_offset() for itr in bounds)
             else:
                 start = end = self.buffer.props.cursor_position
-            self.completion_popup.show_at(
-                self,
-                start,
-                candidates,
-                lambda text: self._insert_candidate(text, start, end),
-            )
+            self._list_kind = 'insert'
+            self._insert_list = {'candidates': list(candidates), 'start': start, 'end': end}
+            self._show_insert_list(list(candidates))
             return False
 
         GLib.idle_add(show)
+
+    def _show_insert_list(self, candidates):
+        insert_list = self._insert_list
+        self.completion_popup.show_at(
+            self,
+            insert_list['start'],
+            candidates,
+            lambda text: self._insert_candidate(text, insert_list['start'], insert_list['end']),
+        )
+
+    def _filter_insert_list(self):
+        """After a key while a term's translations are listed: list those
+        that start with what was typed since, ignoring case, or close
+        the list when none does or the cursor left the typed text."""
+        insert_list = self._insert_list
+        if self._list_kind != 'insert' or insert_list is None:
+            return False
+        if not self.completion_popup.is_showing():
+            return False
+        start = insert_list['start']
+        cursor = self.buffer.props.cursor_position
+        if cursor < start:
+            self.completion_popup.dismiss()
+            return False
+        typed = self.get_text(start, cursor)
+        if typed:
+            insert_list['end'] = cursor
+        folded = typed.casefold()
+        matches = [c for c in insert_list['candidates'] if c.casefold().startswith(folded)]
+        if not matches:
+            self.completion_popup.dismiss()
+        else:
+            self._show_insert_list(matches)
+        return False
 
     def _accept_suggestion(self, suggestion):
         """Insert suggestion's text; with a 'replace' text, that replaces
@@ -1444,10 +1541,7 @@ class TextBox(Gtk.TextView):
 
         if self.suggestion_is_visible():
             if event.keyval == Gdk.KEY_Tab:
-                self.hide_suggestion()
-                self._accept_suggestion(self.suggestion)
-                self.suggestion = None
-                self.emit("changed")
+                self._accept_visible_suggestion()
                 return True
             self.suggestion = None
 
@@ -1483,6 +1577,17 @@ class TextBox(Gtk.TextView):
 
         return self.emit('key-pressed', event, evname)
 
+    _LIST_KEYS = {
+        Gdk.KEY_Up: 'up',
+        Gdk.KEY_KP_Up: 'up',
+        Gdk.KEY_Down: 'down',
+        Gdk.KEY_KP_Down: 'down',
+        Gdk.KEY_Tab: 'tab',
+        Gdk.KEY_Return: 'enter',
+        Gdk.KEY_KP_Enter: 'enter',
+        Gdk.KEY_Escape: 'escape',
+    }
+
     def _on_completion_key(self, event):
         """Handle a key press while the completion popup is showing.
         Returns C{True} if the key was used by the popup."""
@@ -1494,21 +1599,40 @@ class TextBox(Gtk.TextView):
             | Gdk.ModifierType.MOD4_MASK
             | Gdk.ModifierType.SHIFT_MASK
         )
+        key = None if state else self._LIST_KEYS.get(event.keyval)
+        if key is not None:
+            return self._on_list_key(key)
         popup = self._completion_popup
-        if not state:
-            if event.keyval in (Gdk.KEY_Up, Gdk.KEY_KP_Up):
-                popup.move_selection(-1)
-                return True
-            if event.keyval in (Gdk.KEY_Down, Gdk.KEY_KP_Down):
-                popup.move_selection(1)
-                return True
-            if event.keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_Tab):
-                popup.accept()
-                return True
-            if event.keyval == Gdk.KEY_Escape:
-                popup.dismiss()
-                return True
+        typing = not state & (
+            Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK | Gdk.ModifierType.MOD4_MASK
+        )
+        if self._list_kind == 'insert' and typing:
+            # Typing filters the term's translations.
+            GLib.idle_add(self._filter_insert_list)
+        elif self._list_kind == 'suggestion':
+            # The next character's completions refill the list.
+            popup.dismiss_soon()
+        else:
+            popup.dismiss()
+        return False
+
+    def _on_list_key(self, key):
+        """Up, Down, Tab, Enter or Escape while the list shows; whether
+        the list used it."""
+        popup = self._completion_popup
+        if key in ('up', 'down'):
+            popup.move_selection(-1 if key == 'up' else 1)
+            return True
+        # Enter accepts a completion only once picked with Up or Down, so
+        # that Enter after typing a word still goes on to the next unit.
+        if key == 'tab' or (key == 'enter' and (self._list_kind == 'insert' or popup.navigated)):
+            popup.accept()
+            return True
         popup.dismiss()
+        if key == 'escape':
+            if self._list_kind == 'suggestion':
+                self.suggestion = None
+            return True
         return False
 
     def _on_event_remove_suggestion(self, *args):

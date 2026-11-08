@@ -961,15 +961,141 @@ class TestTextBox(TestScaffolding):
         assert popup.is_showing()
         popup.dismiss()
 
-    def test_typing_dismisses_the_popup_and_passes_the_key_on(self, monkeypatch):
+    def _type_into_list(self, textbox, text, keyval=Gdk.KEY_a, state=0):
+        """A key while a list is showing, then its text as typed."""
+        result = textbox._on_key_pressed(textbox, _FakeKeyEvent(keyval, state))
+        textbox.buffer.insert_at_cursor(text)
+        textbox._filter_insert_list()
+        return result
+
+    def test_typing_filters_a_terms_translations(self, monkeypatch):
+        textbox = self._target_for('%s files copied')
+        textbox.set_text('')
+        popup = self._open_candidates(monkeypatch, textbox, ('drank', 'Dryf', 'water'))
+        monkeypatch.setattr(textbox, 'emit', lambda signal, *args: False)
+
+        assert self._type_into_list(textbox, 'D', Gdk.KEY_D, Gdk.ModifierType.SHIFT_MASK) is False
+        assert popup._candidates == ['drank', 'Dryf']
+        self._type_into_list(textbox, 'r')
+        self._type_into_list(textbox, 'y')
+        assert popup._candidates == ['Dryf']
+
+        popup.accept()
+
+        assert textbox.get_text() == 'Dryf'
+
+    def test_typing_what_no_translation_starts_with_closes_the_list(self, monkeypatch):
+        textbox = self._target_for('%s files copied')
+        textbox.set_text('')
+        popup = self._open_candidates(monkeypatch, textbox)
+        monkeypatch.setattr(textbox, 'emit', lambda signal, *args: False)
+
+        self._type_into_list(textbox, 'x', Gdk.KEY_x)
+
+        assert not popup.is_showing()
+        assert textbox.get_text() == 'x'
+
+    def test_a_shortcut_closes_a_terms_list_and_passes_the_key_on(self, monkeypatch):
         textbox = self._target_for('%s files copied')
         popup = self._open_candidates(monkeypatch, textbox)
         monkeypatch.setattr(textbox, 'emit', lambda signal, *args: False)
 
-        result = textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_a))
+        result = textbox._on_key_pressed(
+            textbox, _FakeKeyEvent(Gdk.KEY_s, Gdk.ModifierType.CONTROL_MASK)
+        )
 
         assert result is False
         assert not popup.is_showing()
+
+    # The list of autocomplete's completions #
+
+    def _suggest(self, monkeypatch, textbox, words=('Kanselleer', 'Kansel', 'Kans')):
+        """Autocomplete's suggestion after "Ka" typed at the start."""
+        monkeypatch.setattr(textbox_module.GLib, 'idle_add', lambda func, *a, **k: func())
+        monkeypatch.setattr(textbox, 'get_mapped', lambda: True)
+        textbox.set_text('Ka')
+        textbox.buffer.place_cursor(textbox.buffer.get_end_iter())
+        candidates = [{'text': w[2:], 'offset': 2, 'word': w} for w in words]
+        textbox.suggestion = dict(candidates[0], candidates=candidates)
+        return textbox.completion_popup
+
+    def test_several_completions_are_listed_with_the_first_shown_in_the_text(self, monkeypatch):
+        textbox = self._target_for('%s files copied')
+        popup = self._suggest(monkeypatch, textbox)
+
+        assert popup.is_showing()
+        assert popup._candidates == ['Kanselleer', 'Kansel', 'Kans']
+        assert textbox.get_text() == 'Kanselleer'
+        assert textbox.suggestion_is_visible()
+        popup.dismiss()
+
+    def test_one_completion_is_not_listed(self, monkeypatch):
+        textbox = self._target_for('%s files copied')
+        popup = self._suggest(monkeypatch, textbox, ('Kanselleer',))
+
+        assert not popup.is_showing()
+        assert textbox.get_text() == 'Kanselleer'
+
+    def test_down_shows_the_next_completion_in_the_text_and_tab_takes_it(self, monkeypatch):
+        textbox = self._target_for('%s files copied')
+        popup = self._suggest(monkeypatch, textbox)
+        monkeypatch.setattr(textbox, 'emit', lambda signal, *args: False)
+
+        textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Down))
+        assert textbox.get_text() == 'Kansel'
+        assert textbox.suggestion_is_visible()
+        assert popup.is_showing()
+        textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Tab))
+
+        assert textbox.get_text() == 'Kansel'
+        assert not textbox.suggestion_is_visible()
+        assert not textbox.buffer.get_has_selection()
+        assert not popup.is_showing()
+
+    def test_enter_takes_a_completion_only_once_one_was_picked(self, monkeypatch):
+        textbox = self._target_for('%s files copied')
+        popup = self._suggest(monkeypatch, textbox)
+        emitted = []
+        monkeypatch.setattr(textbox, 'emit', lambda signal, *args: emitted.append(signal))
+
+        textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Return))
+
+        assert 'key-pressed' in emitted  # on to the next unit
+        assert textbox.get_text() == 'Ka'
+        assert not popup.is_showing()
+
+        popup = self._suggest(monkeypatch, textbox)
+        emitted.clear()
+        textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Down))
+        textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Return))
+
+        assert 'key-pressed' not in emitted
+        assert textbox.get_text() == 'Kansel'
+
+    def test_escape_closes_the_list_and_the_grey_text(self, monkeypatch):
+        textbox = self._target_for('%s files copied')
+        popup = self._suggest(monkeypatch, textbox)
+
+        assert textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_Escape)) is True
+
+        assert not popup.is_showing()
+        assert textbox.get_text() == 'Ka'
+
+    def test_typing_keeps_the_list_for_the_next_characters_completions(self, monkeypatch):
+        textbox = self._target_for('%s files copied')
+        popup = self._suggest(monkeypatch, textbox)
+        monkeypatch.setattr(textbox, 'emit', lambda signal, *args: False)
+        idle = []
+        monkeypatch.setattr(
+            textbox_module.GLib, 'idle_add', lambda func, *a, **k: idle.append(func) or 1
+        )
+        monkeypatch.setattr(textbox_module.GLib, 'source_remove', lambda source: True)
+
+        textbox._on_key_pressed(textbox, _FakeKeyEvent(Gdk.KEY_n))
+
+        assert popup.is_showing()  # until idle, unless refilled
+        assert popup._dismiss_id is not None
+        popup.dismiss()
 
     def test_unit_view_signals_when_the_popup_opens_and_closes(self, monkeypatch):
         textbox = self._target_for('%s files copied')

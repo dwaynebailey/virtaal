@@ -6,8 +6,9 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import time
+from types import SimpleNamespace
 
-from gi.repository import Gdk, Gtk
+from gi.repository import Atk, Gtk
 
 from virtaal.views.widgets.completionpopup import CompletionPopup, popup_position
 
@@ -130,15 +131,91 @@ def test_reshowing_with_a_shorter_list_shrinks_the_popup():
     assert popup.get_size().height < long_height
 
 
-def test_moving_the_main_window_dismisses():
+def _configure(popup, x=10, y=20, width=800, height=600):
+    event = SimpleNamespace(x=x, y=y, width=width, height=height)
+    popup._on_configure_toplevel(None, event)
+
+
+def test_moving_the_main_window_hides_the_list_until_it_settles(monkeypatch):
+    timers = []
+    monkeypatch.setattr(
+        'virtaal.views.widgets.completionpopup.GLib.timeout_add',
+        lambda ms, func: timers.append((ms, func)) or len(timers),
+    )
+    monkeypatch.setattr('virtaal.views.widgets.completionpopup.GLib.source_remove', lambda i: True)
+    popup, accepted = _show(_textbox_in_window())
+    popup._toplevel_geometry = (10, 20, 800, 600)  # Where it starts.
+
+    _configure(popup, x=50)
+    _configure(popup, x=90)
+
+    assert not popup.get_visible()
+    assert popup.is_showing()  # Still taking its keys.
+    assert [ms for ms, _func in timers] == [CompletionPopup.SETTLE_MS] * 2
+    timers[-1][1]()
+    assert popup.get_visible()
+    assert accepted == []
+    popup.dismiss()
+
+
+def test_a_configure_without_a_move_leaves_the_list_alone():
+    popup, _accepted = _show(_textbox_in_window())
+    popup._toplevel_geometry = (10, 20, 800, 600)
+    visible = popup.get_visible()
+
+    _configure(popup)
+
+    assert popup.get_visible() == visible
+    popup.dismiss()
+
+
+def test_dismiss_soon_waits_for_idle_and_showing_again_cancels_it():
     textbox = _textbox_in_window()
     popup, accepted = _show(textbox)
 
-    toplevel = textbox.get_toplevel()
-    toplevel.emit('configure-event', Gdk.Event.new(Gdk.EventType.CONFIGURE))
+    popup.dismiss_soon()
+    assert popup.is_showing()
+    popup.show_at(textbox, 0, ['argief'], accepted.append)
+    _flush()
+    assert popup.is_showing()
 
+    popup.dismiss_soon()
+    _flush()
     assert not popup.is_showing()
-    assert accepted == []
+
+
+def test_selecting_another_row_is_reported_and_counts_as_navigating():
+    selected = []
+    popup = CompletionPopup()
+    popup.show_at(_textbox_in_window(), 0, ['a', 'b', 'c'], print, selected.append)
+
+    assert not popup.navigated
+    popup.move_selection(1)
+    popup.move_selection(1)
+    popup.move_selection(1)
+
+    assert selected == [1, 2]
+    assert popup.navigated
+    popup.dismiss()
+
+
+def test_show_at_can_select_another_row_first():
+    popup = CompletionPopup()
+    popup.show_at(_textbox_in_window(), 0, ['a', 'b', 'c'], print, selected=2)
+
+    assert popup.selected_index() == 2
+    popup.dismiss()
+
+
+def test_the_list_and_its_rows_are_named_for_screen_readers():
+    popup, _accepted = _show(_textbox_in_window())
+
+    listbox = popup.listbox.get_accessible()
+    assert listbox.get_name() == 'Suggestions'
+    assert listbox.get_role() == Atk.Role.LIST
+    rows = [row.get_accessible().get_name() for row in popup.listbox.get_children()]
+    assert rows == ['argief', 'dokument', 'lêer']
+    popup.dismiss()
 
 
 def test_popup_on_an_empty_target_is_placed_below_the_cursor_line(monkeypatch):

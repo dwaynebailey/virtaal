@@ -67,6 +67,7 @@ virtaal/views/setscanview.py
 virtaal/views/storeview.py
 virtaal/views/unitview.py
 virtaal/views/widgets/aboutdialog.py
+virtaal/views/widgets/completionpopup.py
 virtaal/views/widgets/langadddialog.py
 virtaal/views/widgets/langselectdialog.py
 virtaal/views/widgets/selectdialog.py
