@@ -1,0 +1,22 @@
+--- a/providers/enchant_hunspell.cpp
++++ b/providers/enchant_hunspell.cpp
+@@ -270,7 +270,19 @@
+                 wordchars = NULL;
+         }
+ 	std::string aff(s_correspondingAffFile(dic));
++#ifdef _WIN32
++	/* hunspell opens a UTF-8 path as such only after this prefix. */
++	std::string dic_path(dic);
++	for (std::string *path : {&aff, &dic_path}) {
++		for (char &c : *path)
++			if (c == '/')
++				c = '\\';
++		path->insert(0, "\\\\?\\");
++	}
++        hunspell = new Hunspell(aff.c_str(), dic_path.c_str());
++#else
+         hunspell = new Hunspell(aff.c_str(), dic);
++#endif
+ 	free(dic);
+ 	if(hunspell == NULL)
+ 		return false;

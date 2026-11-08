@@ -33,12 +33,18 @@ if (-not $pyinstallerInstalled) {
     & $Python -m pip install pyinstaller
 }
 
-# pyenchant's Windows wheel is self-contained (libenchant + backends +
-# dictionaries) - virtaal.spec bundles its data/ dir from this install.
+# pyenchant's Python code; virtaal.spec bundles build_enchant.ps1's
+# enchant, not the wheel's.
 $pyenchantInstalled = & $Python -m pip show pyenchant 2>$null
 if (-not $pyenchantInstalled) {
     & $Python -m pip install pyenchant
 }
+
+# The dictionaries bundled: en_US (the usual source language) and en_GB
+# (checks.po's target language). The rest are downloaded.
+Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build\dictionaries\bundled
+& $Python devsupport\packaging\fetch_dictionaries.py build\dictionaries\bundled en_US en_GB
+if ($LASTEXITCODE) { throw "Couldn't fetch the bundled dictionaries" }
 
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build\virtaal, dist\virtaal
 

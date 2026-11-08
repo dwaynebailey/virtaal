@@ -30,18 +30,19 @@ sys.path.insert(0, str(ROOT))
 from virtaal.__version__ import ver as virtaal_version  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "devsupport" / "packaging"))
-import enchant_data  # noqa: E402
 import pyinstaller_common as common  # noqa: E402
 
-# pyenchant's Windows wheel is self-contained (libenchant + backends +
-# English dictionaries under enchant/data/); _enchant.py finds it via
-# its own __file__ at runtime, so bundling the dir at the same relative
-# path is enough - see module_collection_mode below.
-try:
-    import enchant
-    ENCHANT_DATA = Path(enchant.__file__).parent / "data"
-except ImportError:
-    ENCHANT_DATA = None
+# build_enchant.ps1's enchant, with its hunspell and winspell providers,
+# not the one in pyenchant's wheel; pyi_rth_spelling.py points pyenchant
+# at it. build_standalone.ps1 fetches the dictionaries.
+ENCHANT_BUILD = Path(r"C:\enchant")
+ENCHANT_LIBRARY = ENCHANT_BUILD / "bin" / "libenchant.dll"
+ENCHANT_PROVIDERS = [ENCHANT_BUILD / "lib" / "enchant-2" / name
+                     for name in ("enchant_hunspell.dll", "enchant_winspell.dll")]
+DICTIONARIES = ROOT / "build" / "dictionaries" / "bundled"
+for _required in [ENCHANT_LIBRARY] + ENCHANT_PROVIDERS:
+    if not _required.is_file():
+        raise SystemExit("Not found (run build_enchant.ps1): %s" % _required)
 
 
 def _version_tuple(ver):
@@ -112,20 +113,13 @@ GETTEXTPO = GTK_ROOT / "bin" / "gettextpo.dll"
 if not GETTEXTPO.is_file():
     raise SystemExit("libgettextpo not found: %s" % GETTEXTPO)
 binaries.append((str(GETTEXTPO), "."))
+binaries.append((str(ENCHANT_LIBRARY), "."))
+binaries += [(str(p), "libenchant/lib/enchant-2") for p in ENCHANT_PROVIDERS]
 
 datas = common.datas(ROOT) + mo_files
-if ENCHANT_DATA is not None and ENCHANT_DATA.is_dir():
-    # Only en_US (the traditional software source language) and en_GB
-    # (checks.po's own target language, exercised by ci.yml's bundle-
-    # launch check) - the rest comes via download, not bundled (~20MB
-    # of unused dictionaries otherwise).
-    BUNDLED_DICTS = ("en_US", "en_GB")
-    for p in ENCHANT_DATA.rglob("*"):
-        if p.is_dir():
-            continue
-        if p.parent.name == "hunspell" and p.stem not in BUNDLED_DICTS:
-            continue
-        datas.append((str(p), str(Path("enchant/data") / p.relative_to(ENCHANT_DATA).parent)))
+datas += [(str(p), "share/hunspell") for p in sorted(DICTIONARIES.iterdir())]
+# hunspell first, then Windows' own spell checker.
+datas.append((str(ROOT / "devsupport" / "packaging" / "windows" / "enchant.ordering"), "libenchant/share/enchant-2"))
 
 a = Analysis(  # noqa: F821
     [str(ROOT / "bin" / "virtaal")],
@@ -133,8 +127,7 @@ a = Analysis(  # noqa: F821
     binaries=binaries,
     datas=datas,
     # Overrides pyinstaller-hooks-contrib's own hook-enchant.py, which
-    # bundles every dictionary in the wheel regardless of the en_GB
-    # filtering above - see that file's own docstring. And GtkSpell's,
+    # bundles the wheel's own enchant and dictionaries. And GtkSpell's,
     # build_gtkspell.ps1's build.
     hookspath=[
         str(ROOT / "devsupport" / "packaging" / "windows" / "pyinstaller-hooks"),
@@ -142,29 +135,25 @@ a = Analysis(  # noqa: F821
     ],
     runtime_hooks=[str(ROOT / "devsupport" / "packaging" / "windows" / "pyi_rth_spelling.py")],
     hiddenimports=common.hiddenimports(),
-    # Keep enchant's .py files loose on disk, not archived - its
-    # __file__-relative data lookup above needs a real path.
-    module_collection_mode={"enchant": "py"},
     hooksconfig=common.hooksconfig(LANGUAGES, {"GtkSpell": "3.0"}),
     excludes=common.EXCLUDES,
     noarchive=False,
 )
 a.datas = common.trim(a.datas, ROOT)
-if ENCHANT_DATA is not None and ENCHANT_DATA.is_dir():
-    a.binaries = enchant_data.trim(a.binaries, ENCHANT_DATA / "mingw64")
-    a.datas = enchant_data.trim(a.datas, ENCHANT_DATA / "mingw64")
 
 # The Toolkit's spelling check imports enchant.checker.
-if not any(Path(entry[0]) == Path("enchant", "checker", "__init__.py") for entry in a.datas):
+if "enchant.checker" not in {entry[0] for entry in a.pure}:
     raise SystemExit("enchant.checker isn't bundled")
-# The spell checker plugin needs GtkSpell, linking the wheel's enchant:
-# one enchant.
+# The spell checker plugin needs GtkSpell, linking our enchant: one
+# enchant, nothing from the wheel.
 _names = {Path(entry[0]).name.lower(): Path(entry[0]) for entry in a.datas + a.binaries}
 if "gtkspell-3.0.typelib" not in _names or "libgtkspell3-3-0.dll" not in _names:
     raise SystemExit("GtkSpell isn't bundled")
 _enchants = sorted({str(Path(entry[0])) for entry in a.datas + a.binaries
-                    if Path(entry[0]).name.lower() == "libenchant-2.dll"})
-if _enchants != [str(Path("enchant", "data", "mingw64", "bin", "libenchant-2.dll"))]:
+                    if "enchant" in Path(entry[0]).name.lower() and Path(entry[0]).suffix.lower() == ".dll"})
+_expected = sorted([ENCHANT_LIBRARY.name] + [str(Path("libenchant", "lib", "enchant-2", p.name))
+                                            for p in ENCHANT_PROVIDERS])
+if _enchants != _expected or any(Path(entry[0]).parts[:2] == ("enchant", "data") for entry in a.datas + a.binaries):
     raise SystemExit("Bundled the wrong enchant: %r" % _enchants)
 
 common.check_catalogs(a.datas, mo_files, LANGUAGES)

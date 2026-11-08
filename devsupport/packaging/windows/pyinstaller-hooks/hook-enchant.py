@@ -6,16 +6,9 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """Overrides pyinstaller-hooks-contrib's own hook-enchant.py, which
-collects the entire pyenchant wheel's data (all bundled dictionaries)
-unconditionally via collect_data_files('enchant') - undermining
-virtaal.spec's own deliberate dictionary filtering regardless of it,
-since PyInstaller merges every hook's contributions. hookspath puts
-this file ahead of the contributed one. Binaries (the actual enchant
-backend DLLs) still need collecting; data doesn't - virtaal.spec's
-own datas loop already adds exactly the dictionaries wanted."""
+collects the pyenchant wheel's own enchant and dictionaries: the bundle
+has build_enchant.ps1's (virtaal.spec)."""
 
-from PyInstaller.utils.hooks import collect_dynamic_libs
-
-binaries = collect_dynamic_libs('enchant')
+binaries = []
 datas = []
 excludedimports = ['enchant.tests']

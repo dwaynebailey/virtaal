@@ -826,18 +826,29 @@ jobs:
       - name: Install virtaal
         run: pip install .[spellcheck]
 
+      - name: Cache enchant
+        # build_enchant.ps1 rebuilds only when its pins change. Not in
+        # C:\gtk: test-windows restores that.
+        uses: actions/cache@v6
+        with:
+          path: C:\enchant
+          key: windows-enchant-${{ env.gvsbuild_version }}-${{ hashFiles('devsupport/packaging/windows/build_enchant.ps1', 'devsupport/packaging/windows/enchant-hunspell-utf8-paths.patch') }}
+
+      - name: Build enchant
+        shell: pwsh
+        run: devsupport\packaging\windows\build_enchant.ps1 C:\enchant
+
       - name: Cache gtkspell3
-        # build_gtkspell.ps1 rebuilds only when its pins or the wheel's
-        # enchant change. Not in C:\gtk: test-windows restores that.
+        # build_gtkspell.ps1 rebuilds only when its pins or enchant change.
         uses: actions/cache@v6
         with:
           path: C:\gtkspell
-          key: windows-gtkspell-${{ env.gvsbuild_version }}-${{ hashFiles('devsupport/packaging/windows/build_gtkspell.ps1', 'devsupport/packaging/windows/GtkSpell-3.0.gir', 'pyproject.toml') }}
+          key: windows-gtkspell-${{ env.gvsbuild_version }}-${{ hashFiles('devsupport/packaging/windows/build_gtkspell.ps1', 'devsupport/packaging/windows/GtkSpell-3.0.gir', 'devsupport/packaging/windows/build_enchant.ps1', 'devsupport/packaging/windows/enchant-hunspell-utf8-paths.patch') }}
 
       - name: Build gtkspell3
         shell: pwsh
         run: |
-          devsupport\packaging\windows\build_gtkspell.ps1 C:\gtkspell
+          devsupport\packaging\windows\build_gtkspell.ps1 C:\gtkspell C:\enchant
           echo "C:\gtkspell\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "GI_TYPELIB_PATH=C:\gtk\lib\girepository-1.0;C:\gtkspell\lib\girepository-1.0" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -873,7 +884,9 @@ jobs:
       - name: Verify spell checking
         # The bundled enchant and GtkSpell mark a misspelt word, and
         # nothing loads C:\gtk's or another copy. Then Hungarian, whose
-        # compounding crashed old hunspell (#1958).
+        # compounding crashed old hunspell (#1958), from a folder with a
+        # non-ASCII name; and Windows' own spell checker, for a language
+        # with no hunspell dictionary here.
         timeout-minutes: 3
         shell: pwsh
         run: |
@@ -881,19 +894,35 @@ jobs:
           $result = devsupport\packaging\windows\run_module.ps1 dist\virtaal virtaal.support.enchant_compat -Arguments en_GB
           if ($LASTEXITCODE) { exit 1 }
           $result
-          foreach ($expected in '^enchant: .*\\dist\\virtaal\\enchant\\data\\mingw64\\bin\\libenchant-2\.dll$', '^providers: hunspell$',
+          foreach ($expected in '^enchant: .*\\dist\\virtaal\\libenchant\\\.\.\\libenchant\.dll$', '^providers: hunspell winspell$',
+                               '^dictionary provider: hunspell$',
                                '^dictionary: True$', '^typelib: .*\\dist\\virtaal\\', '^gtkspell: ok$', '^marked: tset$',
                                '^foreign: *$', '^duplicates: *$') {
             if (-not ($result -match $expected)) { throw "Not in the report: $expected" }
           }
-          $config = Join-Path $env:RUNNER_TEMP "enchant-hu"
+          $languages = @{}
+          foreach ($line in $result -match '^(hunspell|winspell) languages: ') {
+            $name, $tags = $line -split ' languages: ', 2
+            $languages[$name] = @($tags -split ' ' | Where-Object { $_ })
+          }
+          $config = Join-Path $env:RUNNER_TEMP "enchant-Ünïcödé"
           New-Item -ItemType Directory -Force -Path "$config\hunspell" | Out-Null
           Copy-Item build\dictionaries\hu_HU\hu_HU.aff, build\dictionaries\hu_HU\hu_HU.dic "$config\hunspell"
           $env:ENCHANT_CONFIG_DIR = $config
           $result = devsupport\packaging\windows\run_module.ps1 dist\virtaal virtaal.support.enchant_compat -Arguments hu_HU
           if ($LASTEXITCODE) { exit 1 }
           $result
-          foreach ($expected in '^dictionary: True$', '^gtkspell: ok$', '^marked: xqzwy$') {
+          foreach ($expected in '^dictionary: True$', '^gtkspell: ok$', '^unknown: xqzwy$', '^marked: xqzwy$') {
+            if (-not ($result -match $expected)) { throw "Not in the report: $expected" }
+          }
+          Remove-Item Env:ENCHANT_CONFIG_DIR
+          $winspell = @($languages['winspell'] | Where-Object { $languages['hunspell'] -notcontains $_ })
+          Write-Host "winspell has: $($languages['winspell'] -join ' '); hunspell doesn't: $($winspell -join ' ')"
+          if (-not $winspell) { throw "winspell has no language hunspell lacks here" }
+          $result = devsupport\packaging\windows\run_module.ps1 dist\virtaal virtaal.support.enchant_compat -Arguments $winspell[0]
+          if ($LASTEXITCODE) { exit 1 }
+          $result
+          foreach ($expected in '^dictionary: True$', '^dictionary provider: winspell$', '^gtkspell: ok$', '^unknown: .*tset') {
             if (-not ($result -match $expected)) { throw "Not in the report: $expected" }
           }
 
