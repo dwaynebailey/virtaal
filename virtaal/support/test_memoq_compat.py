@@ -278,6 +278,44 @@ def test_the_version_history_is_not_the_unit():
     assert historical.get(MQ + 'status') == 'NotStarted'
 
 
+@pytest.mark.parametrize('sample', SAMPLES, ids=os.path.basename)
+def test_a_sample_saves_byte_for_byte(sample):
+    with open(sample, 'rb') as f:
+        data = f.read()
+
+    store = factory.getobject(sample)
+    for unit in store.units:
+        # What showing a unit does.
+        unit.rich_target = unit.rich_target
+
+    assert _saved(store) == data
+
+
+@pytest.mark.parametrize('sample', SAMPLES, ids=os.path.basename)
+def test_an_edit_changes_only_that_target_and_status(sample, tmp_path):
+    with open(sample, 'rb') as f:
+        data = f.read()
+    store = factory.getobject(sample)
+    unit = [u for u in store.units if u.istranslatable() and not catxliff_compat.is_locked(u)][-1]
+    status = unit.xmlelement.get(MQ + 'status')
+
+    unit.target = 'Neu & <so>'
+    saved = _saved(store)
+
+    old_lines, new_lines = data.splitlines(), saved.splitlines()
+    assert len(old_lines) == len(new_lines)
+    changed = [(a, b) for a, b in zip(old_lines, new_lines, strict=True) if a != b]
+    # The target's line and the trans-unit's, unless they are one.
+    assert 1 <= len(changed) <= 2
+    assert any(b'Neu &amp; &lt;so&gt;</target>' in new for _old, new in changed)
+    for old, new in changed:
+        old = old.replace(f'mq:status="{status}"'.encode(), b'mq:status="ManuallyConfirmed"')
+        assert old == new or b'Neu &amp; &lt;so&gt;</target>' in new
+    assert saved[:3] == data[:3]
+    reopened = xliff.xlifffile.parsestring(saved)
+    assert [u.target for u in reopened.units].count('Neu & <so>') == 1
+
+
 def test_a_memoq_file_saved_as_xlf_gets_the_same(tmp_path):
     path = tmp_path / 'statuses.xlf'
     shutil.copy(STATUSES, path)
@@ -286,3 +324,48 @@ def test_a_memoq_file_saved_as_xlf_gets_the_same(tmp_path):
 
     assert units[3].get_state_n() == StateEnum.UNREVIEWED
     assert catxliff_compat.is_locked(units[-1])
+
+
+def test_a_later_save_compares_with_the_last_one():
+    store = factory.getobject(STATUSES)
+    store.units[1].target = 'Eins'
+    first = _saved(store)
+
+    store.units[2].target = 'Zwei'
+    second = _saved(store)
+
+    assert first.count(b'Eins') == second.count(b'Eins') == 1
+    assert len(first.splitlines()) == len(second.splitlines())
+
+
+def test_a_change_outside_the_units_saves_through_translate_toolkit():
+    with open(STATUSES, 'rb') as f:
+        data = f.read()
+    store = factory.getobject(STATUSES)
+
+    store.settargetlanguage('de')
+    saved = _saved(store)
+
+    assert saved.startswith(b'\xef\xbb\xbf<?xml')
+    assert b'target-language="de"' in saved
+    assert saved != data
+    assert len(xliff.xlifffile.parsestring(saved).units) == 12
+
+
+def test_a_crlf_file_keeps_its_line_ends():
+    data = (
+        '<?xml version="1.0" encoding="utf-8"?>\r\n<xliff version="1.2"'
+        ' xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:mq="MQXliff">\r\n<file'
+        ' original="a" source-language="en" datatype="plaintext">\r\n<body>\r\n'
+        + _row('NotStarted', None).replace('><', '>\r\n<')
+        + '\r\n'
+        + _row('NotStarted', None).replace('id="1"', 'id="2"').replace('><', '>\r\n<')
+        + '\r\n</body>\r\n</file>\r\n</xliff>\r\n'
+    ).encode('utf-8')
+    store = xliff.xlifffile.parsestring(data)
+
+    store.units[1].target = 'Hallo\nWelt'
+    saved = _saved(store)
+
+    assert saved.count(b'\r\n') == data.count(b'\r\n') + 1
+    assert b'\n' not in saved.replace(b'\r\n', b'')

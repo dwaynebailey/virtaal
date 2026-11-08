@@ -612,9 +612,10 @@ a file saved as .xlf. Each unit uses what memoQ keeps with its row:
 - memoQ's match rate, comments and who last changed the row show below the
   translation.
 
-Virtaal writes only memoQ's own status, not XLIFF's state. These files were
-checked by comparing their XML before and after, not by opening them in memoQ
-again.
+Virtaal saves only the units you changed: the rest of the file, the byte order
+mark included, stays as it was. Virtaal writes only memoQ's own status, not
+XLIFF's state. These files were checked by comparing their XML before and
+after, not by opening them in memoQ again.
 
 
 .. _using_virtaal#network_based_translation_memory:
