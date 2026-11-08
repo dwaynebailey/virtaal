@@ -46,6 +46,26 @@ class _FakeEnchant:
         self.checked.append(language)
         return language in self.known_dicts
 
+    def Dict(self, language):
+        if language not in self.known_dicts:
+            raise LookupError(language)
+        return 'dictionary:' + language
+
+
+class _FakeChunked:
+    """Stands in for ChunkedChecker."""
+
+    def __init__(self, text_view, dictionary):
+        self.text_view = text_view
+        self.dictionary = dictionary
+        self.stopped = None
+
+    def set_dictionary(self, dictionary):
+        self.dictionary = dictionary
+
+    def stop(self, clear=False):
+        self.stopped = 'cleared' if clear else 'kept'
+
 
 def _text_view(text='', **attrs):
     """A stand-in text view holding text in a real buffer."""
@@ -383,6 +403,7 @@ def _lang_plugin(monkeypatch, known_dicts):
     plugin._enchant_languages = sorted(known_dicts)
     scheduled = []
     monkeypatch.setattr(spellchecker.GLib, 'idle_add', lambda func, *args, **kw: scheduled.append((func, args)))
+    monkeypatch.setattr(spellchecker, 'ChunkedChecker', _FakeChunked)
     return plugin, created, scheduled
 
 
@@ -445,7 +466,7 @@ def test_a_small_insert_is_left_to_gtkspell(monkeypatch):
     assert scheduled == []
 
 
-def test_text_with_a_very_long_line_is_not_checked(monkeypatch):
+def test_text_with_a_very_long_line_is_checked_in_chunks(monkeypatch):
     plugin, created, scheduled = _lang_plugin(monkeypatch, {'en_US'})
     text_view = _text_view('short\n' + 'x' * (spellchecker.LONGEST_CHECKED_LINE + 1))
 
@@ -453,6 +474,37 @@ def test_text_with_a_very_long_line_is_not_checked(monkeypatch):
     _run(scheduled)
 
     assert created == []
+    assert text_view.spell_chunked.dictionary == 'dictionary:en_US'
+    assert text_view.spell_lang == 'en_US'
+
+
+def test_a_language_change_rechecks_long_text(monkeypatch):
+    plugin, created, scheduled = _lang_plugin(monkeypatch, {'en_US', 'af_ZA'})
+    text_view = _text_view('x' * (spellchecker.LONGEST_CHECKED_LINE + 1))
+    plugin._on_unit_lang_changed(None, text_view, 'en')
+    _run(scheduled)
+    chunked = text_view.spell_chunked
+
+    plugin._on_unit_lang_changed(None, text_view, 'af')
+    _run(scheduled)
+
+    assert text_view.spell_chunked is chunked
+    assert chunked.dictionary == 'dictionary:af_ZA'
+    assert text_view.spell_lang == 'af_ZA'
+
+
+def test_long_text_stops_being_checked_with_no_dictionary(monkeypatch):
+    plugin, created, scheduled = _lang_plugin(monkeypatch, {'en_US'})
+    text_view = _text_view('x' * (spellchecker.LONGEST_CHECKED_LINE + 1))
+    plugin._on_unit_lang_changed(None, text_view, 'en')
+    _run(scheduled)
+    chunked = text_view.spell_chunked
+
+    plugin._on_unit_lang_changed(None, text_view, 'xx')
+    _run(scheduled)
+
+    assert chunked.stopped == 'cleared'
+    assert text_view.spell_chunked is None
     assert text_view.spell_lang is None
 
 
@@ -467,12 +519,13 @@ def test_many_lines_of_a_long_text_are_checked(monkeypatch):
 
 
 @pytest.mark.parametrize('edit', ['insert', 'delete'])
-def test_checking_resumes_once_the_long_line_is_gone(monkeypatch, edit):
+def test_gtkspell_takes_over_once_the_long_line_is_gone(monkeypatch, edit):
     plugin, created, scheduled = _lang_plugin(monkeypatch, {'en_US'})
     text_view = _text_view('x' * (spellchecker.LONGEST_CHECKED_LINE + 1))
     buffer = text_view.get_buffer()
     plugin._on_unit_lang_changed(None, text_view, 'en')
     _run(scheduled)
+    chunked = text_view.spell_chunked
 
     buffer.set_text('short')
     if edit == 'insert':
@@ -481,7 +534,25 @@ def test_checking_resumes_once_the_long_line_is_gone(monkeypatch, edit):
         plugin._on_delete_range(buffer, None, None, text_view)
     _run(scheduled)
 
+    assert chunked.stopped == 'cleared'
+    assert len(created) == 1 and created[0].attached_to is text_view
     assert text_view.spell_lang == 'en_US'
+
+
+def test_an_edit_in_long_text_keeps_its_chunked_checker(monkeypatch):
+    plugin, created, scheduled = _lang_plugin(monkeypatch, {'en_US'})
+    text_view = _text_view('x' * (spellchecker.LONGEST_CHECKED_LINE + 1))
+    plugin._on_unit_lang_changed(None, text_view, 'en')
+    _run(scheduled)
+    chunked = text_view.spell_chunked
+
+    plugin._on_insert_text(text_view.get_buffer(), None, 'y' * spellchecker.LARGE_INSERT, -1, text_view)
+    plugin._on_insert_text(text_view.get_buffer(), None, 'z', -1, text_view)
+    assert len(scheduled) == 1  # one reconsideration for both
+    _run(scheduled)
+
+    assert text_view.spell_chunked is chunked and chunked.stopped is None
+    assert created == []
 
 
 def test_an_insert_doesnt_turn_checking_back_on_once_disabled(monkeypatch):
@@ -497,7 +568,7 @@ def test_an_insert_doesnt_turn_checking_back_on_once_disabled(monkeypatch):
     assert text_view.spell_lang is None
 
 
-def test_several_long_lines_together_are_not_checked(monkeypatch):
+def test_several_long_lines_together_are_checked_in_chunks(monkeypatch):
     plugin, created, scheduled = _lang_plugin(monkeypatch, {'en_US'})
     line = 'x' * (spellchecker.LONGEST_CHECKED_LINE * 3 // 4)
     text_view = _text_view('\n'.join([line] * 2))
@@ -506,7 +577,7 @@ def test_several_long_lines_together_are_not_checked(monkeypatch):
     _run(scheduled)
 
     assert created == []
-    assert text_view.spell_lang is None
+    assert text_view.spell_chunked is not None
 
 
 @pytest.mark.parametrize('text,expected', [
