@@ -57,10 +57,10 @@ from virtaal.support.tmx_compat import tuv_lang
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 """PRAGMA user_version of the schema below; 0 is a file an older Virtaal made."""
 
-SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1}
+SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1}
 """The abstraction algorithm whose abstracts each schema version stores.
 A new algorithm needs a new schema version, whose migration clears the
 abstracts for the backfill to recompute, so that one file never mixes
@@ -218,6 +218,10 @@ SCHEMA_V6 = (
 # NULL for those stored before, read as the language's usual layout.
 SCHEMA_V7 = ("ALTER TABLE targets ADD COLUMN plural_layout VARCHAR DEFAULT NULL",)
 
+# One-off jobs a server runs on the file once, such as filling in the
+# plural layouts of version 7's existing plurals: the names of those done.
+SCHEMA_V8 = ("CREATE TABLE done_jobs (name VARCHAR PRIMARY KEY) WITHOUT ROWID",)
+
 MIGRATIONS = {
     1: SCHEMA_V0 + SCHEMA_V1,
     2: SCHEMA_V2,
@@ -226,6 +230,7 @@ MIGRATIONS = {
     5: SCHEMA_V5,
     6: SCHEMA_V6,
     7: SCHEMA_V7,
+    8: SCHEMA_V8,
 }
 """The statements, or functions of a cursor, bringing a file up to each
 schema version from the one before. A later version that changes only
@@ -252,6 +257,32 @@ def _layout_values(layout):
 
 def _layout_select():
     return "t.plural_layout" if _has_layouts() else "NULL"
+
+
+_PO_EXTENSIONS = (".po", ".pot")
+_HEADER_BYTES = 65536
+
+
+def po_header_layout(path):
+    """The layout name (pluralmap) of the Plural-Forms in the header of
+    the PO file at C{path}, or None: not a PO file, missing, unreadable,
+    or no Plural-Forms. Only the header is read."""
+    from translate.storage import po
+
+    from virtaal.support import pluralmap
+
+    if not path.lower().endswith(_PO_EXTENSIONS):
+        return None
+    try:
+        with open(path, "rb") as f:
+            head = f.read(_HEADER_BYTES)
+        # The header entry ends at the first blank line.
+        header = re.split(rb"\r?\n[ \t]*\r?\n", head, maxsplit=1)[0]
+        nplurals, plural = po.pofile.parsestring(header + b"\n").getheaderplural()
+        return pluralmap.gettext_name(int(nplurals), plural) if nplurals and plural else None
+    except Exception as e:
+        logger.debug("No plural layout from %s: %s", path, e)
+        return None
 
 
 class LanguageError(Exception):
@@ -567,9 +598,74 @@ class TMDB(TMFile):
                 filled += len(rows)
         return filled
 
+    LAYOUT_JOB = "plural-layouts"
+
+    def backfill_plural_layouts(self):
+        """Once per file: give the plurals stored before Virtaal kept their
+        layout (schema 7) their PO file's Plural-Forms, read from the
+        header of the file still at the store's path. Nothing is imported
+        and no file is changed; a missing or unreadable file, or another
+        format, leaves its plurals unknown. Stops early, to carry on at
+        the next start, when another process holds the file. Returns how
+        many it filled."""
+        if self._user_version() != SCHEMA_VERSION or self._job_done(self.LAYOUT_JOB):
+            return 0
+        rows = self.cursor.execute(
+            "SELECT DISTINCT s.path, t.tid FROM targets t "
+            "JOIN origins o ON o.tid = t.tid JOIN stores s ON s.store_id = o.store_id "
+            "WHERE t.plural_targets IS NOT NULL AND t.plural_layout IS NULL AND s.member = ''"
+        ).fetchall()
+        self.connection.commit()
+        by_path = {}
+        for path, tid in rows:
+            by_path.setdefault(path, []).append(tid)
+        filled = 0
+        for path, tids in by_path.items():
+            # Stores that moved share a path: its file now says.
+            layout = po_header_layout(path)
+            if layout is None:
+                continue
+            if not self._fill_layouts(layout, tids):
+                return filled
+            filled += len(tids)
+        self._mark_done(self.LAYOUT_JOB)
+        return filled
+
+    def _fill_layouts(self, layout, tids):
+        try:
+            self._begin()
+            self.cursor.executemany(
+                "UPDATE targets SET plural_layout = ? WHERE tid = ? AND plural_layout IS NULL",
+                [(layout, tid) for tid in tids],
+            )
+            self.connection.commit()
+        except dbapi2.OperationalError as e:
+            self.connection.rollback()
+            if not shareddb.is_locked(e):
+                raise
+            logger.warning("Left TM plural layouts for later: %s", e)
+            return False
+        return True
+
+    def _job_done(self, name):
+        found = self.cursor.execute("SELECT 1 FROM done_jobs WHERE name = ?", (name,)).fetchone()
+        self.connection.commit()
+        return found is not None
+
+    def _mark_done(self, name):
+        try:
+            self._begin()
+            self.cursor.execute("INSERT OR IGNORE INTO done_jobs (name) VALUES (?)", (name,))
+            self.connection.commit()
+        except dbapi2.OperationalError as e:
+            self.connection.rollback()
+            if not shareddb.is_locked(e):
+                raise
+
     def start_backfill(self):
-        """Run backfill_abstracts() in a thread of its own, with its own
-        connection, so the server answers meanwhile."""
+        """Run backfill_abstracts() and backfill_plural_layouts() in a
+        thread of its own, with its own connection, so the server answers
+        meanwhile."""
         if self.db_file == ":memory:" or self.db_file.startswith("file:"):
             # Another thread's connection is another database.
             return None
@@ -579,6 +675,9 @@ class TMDB(TMFile):
                 filled = self.backfill_abstracts()
                 if filled:
                     logger.debug("Filled %d TM abstracts", filled)
+                filled = self.backfill_plural_layouts()
+                if filled:
+                    logger.debug("Filled %d TM plural layouts", filled)
             except Exception:
                 logger.exception("Could not fill TM abstracts")
             finally:

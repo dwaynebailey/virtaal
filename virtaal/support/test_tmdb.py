@@ -2104,7 +2104,7 @@ def test_a_v6_file_gains_plural_layouts_its_plurals_don_t_know(db_path, monkeypa
 
     db = tmdb.TMDB(db_path)
 
-    assert db._user_version() == tmdb.SCHEMA_VERSION == 7
+    assert db._user_version() == tmdb.SCHEMA_VERSION
     # Not known: read as the language's usual layout when matched.
     assert _layouts(db) == [None]
     (match,) = db.translate_unit('Delete %d file', 'en', 'af')
@@ -2121,3 +2121,90 @@ def test_a_v6_file_gains_plural_layouts_its_plurals_don_t_know(db_path, monkeypa
 )
 def test_a_monolingual_plural_s_layout_is_cldr_s(unit, expected):
     assert tmdb.plural_layout(unit) == expected
+
+
+# Filling in the layouts of plurals stored before schema 7
+
+KDE_PO = (
+    'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
+    '"Plural-Forms: nplurals=4; plural=n==1 ? 3 : n%10==1 && n%100!=11 ? 0 : "\n'
+    '"n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\\n"\n\n'
+    'msgid "Delete %d file"\nmsgid_plural "Delete %d files"\n'
+    'msgstr[0] "a"\nmsgstr[1] "b"\nmsgstr[2] "c"\nmsgstr[3] "d"\n'
+)
+KDE_LAYOUT = (
+    'nplurals=4;plural=n==1?3:n%10==1&&n%100!=11?0:n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?1:2'
+)
+
+
+def _v6_plurals(db_path, monkeypatch, *paths):
+    """A schema 6 file holding the KDE plural, imported from each of C{paths}."""
+    with monkeypatch.context() as patch:
+        patch.setattr(tmdb, 'SCHEMA_VERSION', 6)
+        patch.delitem(tmdb.MIGRATIONS, 7)
+        patch.delitem(tmdb.MIGRATIONS, 8)
+        db = tmdb.TMDB(db_path)
+        for path in paths:
+            db.import_store(_plural_po(KDE_PO), path, 'en', 'ru')
+        _close(db_path)
+    return tmdb.TMDB(db_path)
+
+
+def test_an_old_plural_takes_the_layout_its_po_file_still_has(db_path, monkeypatch, tmp_path):
+    po_file = tmp_path / 'ru.po'
+    po_file.write_text(KDE_PO, encoding='utf-8')
+    before = po_file.read_bytes()
+    db = _v6_plurals(db_path, monkeypatch, str(po_file))
+    assert _layouts(db) == [None]
+
+    assert db.backfill_plural_layouts() == 1
+
+    assert _layouts(db) == [KDE_LAYOUT]
+    assert db.translate_unit('Delete %d file', 'en', 'ru')[0]['plural_layout'] == KDE_LAYOUT
+    assert po_file.read_bytes() == before
+
+
+def test_an_old_plural_whose_file_is_gone_stays_unknown(db_path, monkeypatch, tmp_path):
+    db = _v6_plurals(db_path, monkeypatch, str(tmp_path / 'gone.po'))
+
+    assert db.backfill_plural_layouts() == 0
+
+    assert _layouts(db) == [None]
+
+
+def test_the_layout_backfill_runs_once(db_path, monkeypatch, tmp_path):
+    po_file = tmp_path / 'ru.po'
+    db = _v6_plurals(db_path, monkeypatch, str(po_file))
+    db.backfill_plural_layouts()
+    # The file turns up later: done is done.
+    po_file.write_text(KDE_PO, encoding='utf-8')
+
+    assert db.backfill_plural_layouts() == 0
+    assert _layouts(db) == [None]
+
+
+def test_the_layout_backfill_runs_beside_the_server(db_path, monkeypatch, tmp_path):
+    import threading
+
+    po_file = tmp_path / 'ru.po'
+    po_file.write_text(KDE_PO, encoding='utf-8')
+    db = _v6_plurals(db_path, monkeypatch, str(po_file))
+    release = threading.Event()
+    reading = threading.Event()
+    real = tmdb.po_header_layout
+
+    def slow(path):
+        reading.set()
+        release.wait(10)
+        return real(path)
+
+    monkeypatch.setattr(tmdb, 'po_header_layout', slow)
+
+    thread = db.start_backfill()
+    assert reading.wait(10) and thread.is_alive()
+    # The server answers meanwhile.
+    assert db.translate_unit('Delete %d file', 'en', 'ru')
+    release.set()
+    thread.join(10)
+
+    assert _layouts(db) == [KDE_LAYOUT]
