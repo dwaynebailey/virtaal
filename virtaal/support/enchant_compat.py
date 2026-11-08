@@ -221,7 +221,19 @@ def self_check(lang):
                 unknown.append(word)
             times.append(time.perf_counter() - start)
         lines.append('check time: first %.3f s, longest after %.3f s' % (times[0], max(times[1:] or [0])))
-        lines.append('unknown: %s' % ' '.join(unknown))
+        # A checker answering through another process (AppleSpell) can
+        # give different answers at first.
+        start = time.perf_counter()
+        settled = unknown
+        while time.perf_counter() - start < 3:
+            time.sleep(0.05)
+            again = [word for word in words if not dictionary.check(word)]
+            if again == settled:
+                break
+            settled = again
+        if settled != unknown:
+            lines.append('first unknown: %s, settled in %.2f s' % (' '.join(unknown), time.perf_counter() - start))
+        lines.append('unknown: %s' % ' '.join(settled))
         lines.append('suggestions: %s' % ' '.join(dictionary.suggest(words[-1])[:3]))
     try:
         lines += _gtkspell_lines(lang)
