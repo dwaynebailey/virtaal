@@ -13,6 +13,7 @@ from gi.repository import GLib
 from virtaal.common import SignalTracker
 from virtaal.common.platform import platform
 from virtaal.controllers.baseplugin import BasePlugin, PluginUnsupported
+from virtaal.support.chunked_spelling import ChunkedChecker
 from virtaal.support.dictionary_source import DEFAULT_REGIONS
 from virtaal.support.enchant_compat import enchant_tag, import_enchant
 from virtaal.support.libi18n.locale import rebind_library_domain
@@ -21,8 +22,8 @@ from virtaal.support.libi18n.locale import rebind_library_domain
 # checking text takes time growing with the square of its lines' lengths
 # (#4443): several seconds for a line of 10,000 characters. A large
 # insert is checked in one go after it instead, and text that would take
-# more than a few tenths of a second, a line of 2,000 characters, isn't
-# checked at all.
+# GtkSpell more than a few tenths of a second, a line of 2,000
+# characters, is checked a chunk at a time (ChunkedChecker).
 LARGE_INSERT = 1000
 LONGEST_CHECKED_LINE = 2000
 CHECK_COST_LIMIT = LONGEST_CHECKED_LINE ** 2
@@ -197,6 +198,7 @@ class Plugin(BasePlugin):
             logging.debug("gtkspell.Checker.get_from_text_view() raised: %s", e)
         if not spell is None:
             spell.detach()
+        self._stop_chunked(text_view)
         text_view.spell_lang = None
 
 
@@ -256,8 +258,9 @@ class Plugin(BasePlugin):
             return
         text_view.spell_too_long = _check_cost(text_view.get_buffer()) > CHECK_COST_LIMIT
         if text_view.spell_too_long:
-            self._detach(text_view)
+            self._check_in_chunks(text_view, language)
             return
+        self._stop_chunked(text_view)
         try:
             spell = None
             try:
@@ -285,14 +288,62 @@ class Plugin(BasePlugin):
             self.gtkspell = None
             #TODO: unload plugin
 
+    def _check_in_chunks(self, text_view, language):
+        """Check text too long for GtkSpell with a ChunkedChecker."""
+        spell = None
+        try:
+            spell = self.gtkspell.Checker.get_from_text_view(text_view)
+        except SystemError as e:
+            logging.debug("gtkspell.Checker.get_from_text_view() raised: %s", e)
+        if spell is not None:
+            spell.detach()
+        try:
+            dictionary = self.enchant.Dict(language)
+        except Exception as e:
+            logging.debug("No dictionary for %s: %s", language, e)
+            self._stop_chunked(text_view)
+            text_view.spell_lang = None
+            return
+        chunked = getattr(text_view, 'spell_chunked', None)
+        if chunked is None:
+            text_view.spell_chunked = ChunkedChecker(text_view, dictionary)
+        elif getattr(text_view, 'spell_lang', None) != language:
+            chunked.set_dictionary(dictionary)
+        text_view.spell_lang = language
+
+    def _stop_chunked(self, text_view):
+        chunked = getattr(text_view, 'spell_chunked', None)
+        if chunked is not None:
+            chunked.stop(clear=True)
+            text_view.spell_chunked = None
+
     def _on_insert_text(self, buffer, iter, text, length, text_view):
         """Check a large insert after it, not word by word as it goes in."""
-        if len(text) >= LARGE_INSERT or getattr(text_view, 'spell_too_long', False):
+        if getattr(text_view, 'spell_chunked', None) is not None:
+            # It checks around the insert itself; GtkSpell may do again.
+            self._reconsider(text_view)
+        elif len(text) >= LARGE_INSERT or getattr(text_view, 'spell_too_long', False):
             self._check_again(text_view)
 
     def _on_delete_range(self, buffer, start, end, text_view):
-        if getattr(text_view, 'spell_too_long', False):
+        if getattr(text_view, 'spell_chunked', None) is not None:
+            self._reconsider(text_view)
+        elif getattr(text_view, 'spell_too_long', False):
             self._check_again(text_view)
+
+    def _reconsider(self, text_view):
+        """Once idle, give text that has become short enough back to GtkSpell."""
+        if getattr(text_view, 'spell_reconsidering', False):
+            return
+        text_view.spell_reconsidering = True
+
+        def reconsider():
+            text_view.spell_reconsidering = False
+            if (getattr(text_view, 'spell_chunked', None) is not None
+                    and _check_cost(text_view.get_buffer()) <= CHECK_COST_LIMIT):
+                self._check_again(text_view)
+            return False
+        GLib.idle_add(reconsider, priority=GLib.PRIORITY_LOW)
 
     def _check_again(self, text_view):
         """Check text_view's text on idle, from scratch."""
@@ -322,6 +373,9 @@ class Plugin(BasePlugin):
     def _on_populate_popup_start(self, textbox, menu):
         # Runs before gtkspell's own handler builds its items.
         self._popup_filter = _NoIsoCodesWarnings().__enter__()
+        chunked = getattr(textbox, 'spell_chunked', None)
+        if chunked is not None:
+            chunked.populate_popup(menu, _gtkspell_text)
 
     def _on_populate_popup(self, textbox, menu):
         popup_filter, self._popup_filter = getattr(self, '_popup_filter', None), None
