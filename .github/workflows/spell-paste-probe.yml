@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   probe:
-    runs-on: macos-15
+    runs-on: macos-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
@@ -36,15 +36,18 @@ jobs:
       - name: Sample the spelling sweep's 100k paste
         timeout-minutes: 25
         run: |
-          python devsupport/testing/fuzz/fuzz_ui.py --sections spelling --no-random --case-timeout 90 --results fuzz-results > fuzz.out 2>&1 &
-          for i in $(seq 600); do
-            grep -qs '"case": "100k chars"' fuzz-results/spelling-0.log && break
+          python devsupport/testing/fuzz/fuzz_ui.py --sections spelling --no-random --results fuzz-results > fuzz.out 2>&1 &
+          fuzz=$!
+          n=0
+          while kill -0 "$fuzz" 2>/dev/null; do
+            pid=$(pgrep -f "sweep.py spelling" | head -1 || true)
+            if [ -n "$pid" ]; then
+              n=$((n + 1))
+              sample "$pid" 2 -file "sample-$n.txt" >/dev/null 2>&1 || true
+            fi
             sleep 1
           done
-          pid=$(pgrep -f "sweep.py spelling" | head -1)
-          echo "pid $pid after ${i}s"
-          sleep 4
-          sample "$pid" 6 -file sample.txt || true
-          awk '/Call graph:/,/Total number in stack/' sample.txt | grep -v "^ *[0-9]* *Thread_" | head -120 | cut -c1-220
-          wait || true
+          best=$(grep -c "gtk_text_buffer_insert_interactive" sample-*.txt 2>/dev/null | sort -t: -k2 -n | tail -1 | cut -d: -f1)
+          echo "samples: $n, deepest insert: $best"
+          [ -n "$best" ] && awk '/Call graph:/,/Total number in stack/' "$best" | grep -v "^ *[0-9]* *Thread_" | head -150 | cut -c1-220
           tail -30 fuzz.out
