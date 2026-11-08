@@ -1,0 +1,53 @@
+#
+# Copyright (C) Virtaal contributors.
+#
+# This file is part of Virtaal. It is distributed under the GPL2 or
+# later license. See the LICENSE file for a copy of the license and
+# the AUTHORS.md file for copyright and authorship information.
+
+from virtaal.support import applespell
+from virtaal.support.applespell import WarmUp
+
+
+def _warm_up():
+    spawned, timeouts = [], []
+    warm_up = WarmUp(spawn=lambda argv, on_exit: spawned.append((argv, on_exit)),
+                     timeout_add=lambda seconds, func: timeouts.append(func))
+    return warm_up, spawned, timeouts
+
+
+def test_warms_a_language_up_once():
+    warm_up, spawned, timeouts = _warm_up()
+    results = []
+
+    warm_up.request('is', results.append)
+    warm_up.request('is', results.append)
+    assert len(spawned) == 1 and results == []
+    argv, on_exit = spawned[0]
+    assert argv[:3] == [applespell.OSASCRIPT, '-l', 'JavaScript'] and argv[-1] == 'is'
+
+    on_exit(True)
+    assert results == [True, True] and warm_up.is_ready('is')
+    warm_up.request('is', results.append)
+    assert results == [True, True, True] and len(spawned) == 1
+
+
+def test_a_warm_up_that_takes_too_long_fails():
+    warm_up, spawned, timeouts = _warm_up()
+    results = []
+    warm_up.request('nb', results.append)
+
+    timeouts[0]()
+    spawned[0][1](True)  # too late
+
+    assert results == [False] and warm_up.has_failed('nb') and not warm_up.is_ready('nb')
+
+
+def test_a_failed_warm_up():
+    warm_up, spawned, timeouts = _warm_up()
+    results = []
+    warm_up.request('ko', results.append)
+
+    spawned[0][1](False)
+
+    assert results == [False] and warm_up.has_failed('ko')

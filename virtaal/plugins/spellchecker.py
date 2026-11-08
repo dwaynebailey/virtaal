@@ -13,6 +13,7 @@ from gi.repository import GLib
 from virtaal.common import SignalTracker
 from virtaal.common.platform import platform
 from virtaal.controllers.baseplugin import BasePlugin, PluginUnsupported
+from virtaal.support.applespell import WarmUp
 from virtaal.support.chunked_spelling import ChunkedChecker
 from virtaal.support.dictionary_source import DEFAULT_REGIONS
 from virtaal.support.enchant_compat import enchant_tag, import_enchant
@@ -129,6 +130,7 @@ class Plugin(BasePlugin):
         self._seen_languages = {}
         # languages supported by enchant:
         self._enchant_languages = self.enchant.list_languages()
+        self._applespell = WarmUp()
 
         unit_view = main_controller.unit_controller.view
         self.unit_view = unit_view
@@ -209,6 +211,7 @@ class Plugin(BasePlugin):
 
         # enchant doesn't like anything except plain strings (bug 1852)
         language = str(language)
+        self._warm_up_for_checks(language)
 
         # A bare code tries its default region first (en: en_US, #4675),
         # then the search below for any of its regions.
@@ -251,10 +254,33 @@ class Plugin(BasePlugin):
             return
         GLib.idle_add(self._activate_checker, text_view, language, priority=GLib.PRIORITY_LOW)
 
+    def _warm_up_for_checks(self, language):
+        """The Toolkit's spelling check asks enchant for the language code
+            as it is, on the main thread too."""
+        applespell = getattr(self, '_applespell', None)
+        if applespell is not None and not applespell.is_ready(language) and self._uses_applespell(language):
+            applespell.request(language, lambda ok: None)
+
+    def _uses_applespell(self, language):
+        if not platform.is_mac:
+            return False
+        return any(tag == language and provider.name == 'AppleSpell'
+                   for tag, provider in self.enchant.Broker().list_dicts())
+
     def _activate_checker(self, text_view, language):
         # All the expensive stuff in here called on idle.
         if getattr(text_view, 'spell_pending', None) != language:
             # The language changed again before this ran.
+            return
+        applespell = getattr(self, '_applespell', None)
+        if applespell is not None and not applespell.is_ready(language) and self._uses_applespell(language):
+            # Not on the main thread's first check (applespell.py).
+            def warmed(ok):
+                if ok:
+                    GLib.idle_add(self._activate_checker, text_view, language, priority=GLib.PRIORITY_LOW)
+                elif getattr(text_view, 'spell_pending', None) == language:
+                    self._detach(text_view)
+            applespell.request(language, warmed)
             return
         text_view.spell_too_long = _check_cost(text_view.get_buffer()) > CHECK_COST_LIMIT
         if text_view.spell_too_long:
