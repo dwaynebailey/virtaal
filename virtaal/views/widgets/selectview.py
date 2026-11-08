@@ -74,6 +74,7 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
     def _connect_events(self):
         self.get_selection().connect('changed', self._on_selection_change)
         self.connect('key-press-event', self._on_key_press)
+        self.connect('size-allocate', self._on_size_allocate)
 
     def _set_defaults(self):
         self.props.activate_on_single_click = True
@@ -148,8 +149,20 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
             btnconf.connect('clicked', clicked)
             btnconf.config_func = item['config']
             hbox.pack_start(btnconf, False, True, 0)
+            self._make_room(vbox, btnconf)
 
         return hbox
+
+    def _make_room(self, vbox, button):
+        """Wrap the text narrower by the button's width: a row wider than
+        the list puts its editing widget over the Enabled column."""
+        if self.get_direction() != Gtk.TextDirection.LTR:
+            return
+        button.show_all()
+        width = DEFAULT_WIDTH - button.get_preferred_width()[1]
+        for label in (vbox.lbl_desc, vbox.lbl_notice):
+            if label is not None:
+                label.set_size_request(width, -1)
 
     @staticmethod
     def _notice_markup(extras, link):
@@ -292,7 +305,7 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
             for row in items:
                 widget = self._create_widget_for_item(row)
                 widget.show_all()
-                widest = max(widest, widget.get_preferred_width()[1])
+                widest = max(widest, widget.get_preferred_width()[0])
                 self._model.append(
                     [
                         row.get('enabled', False),
@@ -318,6 +331,13 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
             self.emit('item-enabled', item_info)
         else:
             self.emit('item-disabled', item_info)
+
+    def _on_size_allocate(self, widget, allocation):
+        # Rows were measured before the list had a width: measure them
+        # again for the room they have.
+        if allocation.width != getattr(self, '_measured_width', None):
+            self._measured_width = allocation.width
+            GLib.idle_add(self.columns_autosize)
 
     def _on_selection_change(self, selection):
         model, iter = selection.get_selected()

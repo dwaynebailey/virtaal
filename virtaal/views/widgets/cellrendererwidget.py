@@ -56,16 +56,16 @@ class CellRendererWidget(Gtk.CellRenderer):
                 cell_area.height - 2 * self.YPAD,
             )
 
-        width = widget.get_allocation().width
-        if width <= 1:
-            width = self.default_width
-        layout = self.create_pango_layout(self.strfunc(self.widget), widget, width)
+        # Wrapped to the room the other columns leave: a wider row puts
+        # its editing widget over them.
+        room = self._room(widget)
+        layout = self.create_pango_layout(self.strfunc(self.widget), widget, room)
         width, height = layout.get_pixel_size()
 
         if self.widget:
-            _minimum, natural = self.widget.get_preferred_size()
-            width = max(width, natural.width)
-            height = max(height, natural.height)
+            width = max(width, self.widget.get_preferred_width()[0])
+            measure = max(width, room)
+            height = max(height, self.widget.get_preferred_height_for_width(measure)[1])
 
         height += self.YPAD * 2
         width += self.XPAD * 2
@@ -101,6 +101,16 @@ class CellRendererWidget(Gtk.CellRenderer):
             return editable
 
     # METHODS #
+    def _room(self, treeview):
+        """The width the tree view leaves this renderer's column."""
+        width = treeview.get_allocation().width
+        if width <= 1 or not hasattr(treeview, 'get_columns'):
+            return self.default_width
+        for column in treeview.get_columns():
+            if self in column.get_cells():
+                return max(width - column.get_x_offset(), 1)
+        return width
+
     def create_pango_layout(self, string, widget, width):
         font = widget.get_pango_context().get_font_description()
         layout = Pango.Layout(widget.get_pango_context())

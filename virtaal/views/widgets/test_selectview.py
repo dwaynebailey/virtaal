@@ -326,3 +326,48 @@ def test_set_item_config_adds_and_removes_a_rows_configure_button():
     sview.set_item_config('a', None)
 
     assert 'config' not in sview.get_item(sview.get_model().get_iter_first())
+
+
+def _settle():
+    import time
+
+    deadline = time.monotonic() + 1
+    while time.monotonic() < deadline:
+        while Gtk.events_pending():
+            Gtk.main_iteration()
+        time.sleep(0.01)
+
+
+def test_a_rows_editing_widget_stays_in_its_column():
+    # A row wider than the list used to put its Configure… button and
+    # text over the Enabled column.
+    sview = SelectView(
+        items=[
+            {
+                'name': 'A',
+                'desc': 'Unreviewed machine translations from a service',
+                'notice': 'Sends the text you translate to a service far away',
+                'link': ('Terms of service', 'https://example.com'),
+                'data': 'a',
+                'enabled': True,
+                'config': lambda parent: None,
+            }
+        ]
+    )
+    window = Gtk.Window()
+    scrolled = Gtk.ScrolledWindow()
+    scrolled.set_size_request(560, 120)
+    scrolled.add(sview)
+    window.add(scrolled)
+    window.show_all()
+    _settle()
+    path = Gtk.TreePath(0)
+
+    sview.set_cursor(path, sview.namedesc_col, True)
+    _settle()
+
+    (editable,) = sview.get_children()
+    cell = sview.get_cell_area(path, sview.namedesc_col)
+    assert editable.get_allocation().x >= cell.x
+    assert editable.get_allocation().x + editable.get_allocation().width <= 560
+    window.destroy()
