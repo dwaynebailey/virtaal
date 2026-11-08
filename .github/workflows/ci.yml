@@ -1828,6 +1828,7 @@ jobs:
           grep -q "^dictionary: True$" enchant-hu.txt
           grep -q "^gtkspell: ok$" enchant-hu.txt
           grep -q "^marked: xqzwy$" enchant-hu.txt
+          grep -qx "foreign: *" enchant-hu.txt
 
       - name: Run the tests inside the installed Flatpak
         if: steps.queue.outputs.tested != 'true'
