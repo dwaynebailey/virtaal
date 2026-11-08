@@ -260,6 +260,13 @@ class Virtaal:
             defer(self._check_for_update)
         # Deferred jobs run at low priority, after the plugins' own idle jobs.
         defer(main_controller.view.hide_progress)
+        defer(self._prune_dismissed_checks)
+
+    @staticmethod
+    def _prune_dismissed_checks():
+        from virtaal.support import dismissedchecks
+
+        dismissedchecks.prune_in_background()
 
     def _check_for_config_recovery(self):
         from virtaal.common import pan_app

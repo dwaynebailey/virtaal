@@ -206,3 +206,44 @@ def test_without_dismissals_hides_the_lines_from_the_notes_shown():
     assert dismissedchecks.without_dismissals(unit.getnotes()) == 'A note\nFor translators'
     assert dismissedchecks.without_dismissals('') == ''
 
+
+def _record_for(path, state_dir):
+    store = _po()
+    dismissedchecks.set_dismissed(store.units[-1], 'endpunc')
+    dismissedchecks.save_record(str(path), store.units)
+    return dismissedchecks.record_path(str(path))
+
+
+def test_pruning_drops_only_the_records_of_files_that_are_gone(tmp_path, state_dir, caplog):
+    kept = tmp_path / 'kept.po'
+    kept.write_bytes(b'')
+    kept_record = _record_for(kept, state_dir)
+    gone_record = _record_for(tmp_path / 'gone.po', state_dir)
+    unreadable = os.path.join(os.path.dirname(kept_record), 'unreadable.json')
+    with open(unreadable, 'w', encoding='utf-8') as f:
+        f.write('not json')
+
+    with caplog.at_level('DEBUG'):
+        assert dismissedchecks.prune_records() == 1
+
+    assert os.path.exists(kept_record)
+    assert not os.path.exists(gone_record)
+    assert os.path.exists(unreadable)
+    assert 'Dropped 1 records' in caplog.text
+
+
+def test_pruning_without_any_records_drops_nothing(state_dir):
+    assert dismissedchecks.prune_records() == 0
+
+
+def test_pruning_runs_once_a_session_in_the_background(monkeypatch):
+    ran = []
+    monkeypatch.setattr(dismissedchecks, '_pruning', None)
+    monkeypatch.setattr(dismissedchecks, 'prune_records', lambda: ran.append(True))
+
+    thread = dismissedchecks.prune_in_background()
+    thread.join()
+
+    assert ran == [True]
+    assert thread.daemon
+    assert dismissedchecks.prune_in_background() is None

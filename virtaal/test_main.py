@@ -360,6 +360,7 @@ def test_load_extras_defers_the_remaining_controllers_and_config_recovery(monkey
         'load-plugins',
         v._check_for_config_recovery,
         'hide-progress',
+        v._prune_dismissed_checks,
     ]
 
 
@@ -374,7 +375,22 @@ def test_load_extras_also_defers_the_update_check_when_frozen(monkeypatch):
 
     v._load_extras()
 
-    assert [f for f, a in deferred][-2:] == [v._check_for_update, 'hide-progress']
+    assert [f for f, a in deferred][-3:] == [
+        v._check_for_update,
+        'hide-progress',
+        v._prune_dismissed_checks,
+    ]
+
+
+def test_pruning_the_dismissed_checks_record_starts_in_the_background(monkeypatch):
+    from virtaal.support import dismissedchecks
+
+    started = []
+    monkeypatch.setattr(dismissedchecks, 'prune_in_background', lambda: started.append(True))
+
+    Virtaal._prune_dismissed_checks()
+
+    assert started == [True]
 
 
 # Virtaal._check_for_config_recovery() / ._check_for_update() #

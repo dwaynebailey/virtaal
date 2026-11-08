@@ -33,6 +33,7 @@ import hashlib
 import json
 import logging
 import os
+import threading
 
 MARKER = '(dismissed-check)'
 RECORD_FORMAT = 1
@@ -281,3 +282,47 @@ def apply_record(filename, units):
             if mark == current and check not in have:
                 set_dismissed(unit, check)
 
+
+_pruning = None
+
+
+def prune_in_background():
+    """Once a session, drop in a background thread the records of files
+    that are gone. A renamed file's record goes with its old path.
+    @returns: The thread, or None if it ran already."""
+    global _pruning
+    if _pruning is not None:
+        return None
+    _pruning = threading.Thread(target=prune_records, name='prune-dismissed-checks', daemon=True)
+    _pruning.start()
+    return _pruning
+
+
+def prune_records():
+    """Drop the records of files that no longer exist.
+    @returns: How many were dropped."""
+    from virtaal.common import pan_app
+
+    folder = os.path.join(pan_app.get_state_dir(), RECORD_DIRECTORY)
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        names = []
+    dropped = 0
+    for name in names:
+        if not name.endswith('.json'):
+            continue
+        path = os.path.join(folder, name)
+        try:
+            with open(path, encoding='utf-8') as f:
+                target = json.load(f).get('file')
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(target, str) and not os.path.exists(target):
+            try:
+                os.remove(path)
+                dropped += 1
+            except OSError:
+                pass
+    logging.debug('Dropped %d records of dismissed checks for files that are gone', dropped)
+    return dropped
