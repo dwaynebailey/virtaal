@@ -123,6 +123,7 @@ class NavRibbon(Gtk.DrawingArea):
             store_controller.connect('store-loaded', self._on_store_changed),
             store_controller.connect('store-saved', self._on_store_changed),
             store_controller.connect('store-closed', self._on_store_changed),
+            store_controller.connect('files-changed', self._on_store_changed),
         ]
         self._on_store_changed(store_controller)
 

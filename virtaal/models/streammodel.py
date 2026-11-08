@@ -250,6 +250,42 @@ class StreamModel(BaseModel):
         segment.peek = None
         return segment
 
+    def insert_file(self, entry):
+        """Add the monolingual file C{entry}, a FileEntry of L{fileset}
+        just paired with its template, in its place, read now, without
+        reading the others again: the files after it, their stats,
+        checks and edits move along.
+        @returns: Its segment, or C{None} if it has no units."""
+        entries = self.fileset.entries
+        position = entries.index(entry)
+        number = sum(1 for s in self.segments if entries.index(s.entry) < position)
+        offset = self.segments[number].offset if number < len(self.segments) else self._len
+        segment = self._paired_segment(entry, offset, sourcehistory.budgeted(self.RECALL_SECONDS))
+        if segment is None:
+            return None
+        count = segment.count
+        for later in self.segments[number:]:
+            later.offset += count
+        if self.segments and self.current >= number:
+            self.current += 1
+        self.segments.insert(number, segment)
+        self._offsets = [s.offset for s in self.segments]
+        self._len += count
+
+        def moved(index):
+            return index + count if index >= offset else index
+
+        self._edited_units = {moved(index) for index in self._edited_units}
+        if self.checks is not None:
+            checks = {key: [moved(i) for i in indices] for key, indices in self.checks.items()}
+            if self._checker is not None:
+                for key, indices in segment.model.update_checks(self._checker).items():
+                    checks.setdefault(key, []).extend(i + offset for i in indices)
+            self.checks = {key: sorted(indices) for key, indices in checks.items()}
+        self.generation += 1
+        self.update_stats()
+        return segment
+
     # SPECIAL METHODS #
     def __getitem__(self, index):
         return self.get_unit(index)

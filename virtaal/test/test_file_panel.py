@@ -312,35 +312,49 @@ class TestFilePanel(TestScaffolding):
         paths = [segment.entry.path for segment in self.store_controller.store.segments]
         assert lone in paths
 
-    def test_pairing_asks_to_save_edits_first_and_keeps_them(self, monkeypatch):
+    def test_pairing_adds_the_file_in_place_and_keeps_unsaved_edits(self, monkeypatch):
         view, lone = self._unpaired_folder(monkeypatch)
         self._edit_first_unit()
+        sc = self.store_controller
+        store = sc.store
+        edited = store[1]
+        checker = StandardChecker()
+        store.update_checks(checker)
         asked = []
         monkeypatch.setattr(
             self.main_controller, '_show_save_confirm_dialog', lambda: asked.append(1) or 'save'
         )
-        errors = []
-        monkeypatch.setattr(self.main_controller, 'show_error', errors.append)
 
         view.pair_menu(lone).get_children()[0].activate()
 
-        assert asked == [1]
-        assert errors == []
+        # Nothing asked, saved or read again: the same store and units.
+        assert asked == []
+        assert sc.store is store and store[1] is edited
+        assert edited.target == 'Twee' and sc.is_modified()
         with open(self.dir / 'app' / 'af.po', encoding='utf-8') as f:
-            assert 'msgstr "Twee"' in f.read()
-        assert lone in [segment.entry.path for segment in self.store_controller.store.segments]
-
-    def test_pairing_cancelled_at_the_save_question_leaves_the_edits_open(self, monkeypatch):
-        view, lone = self._unpaired_folder(monkeypatch)
-        self._edit_first_unit()
-        store = self.store_controller.store
-        monkeypatch.setattr(self.main_controller, '_show_save_confirm_dialog', lambda: 'cancel')
-
-        view.pair_menu(lone).get_children()[0].activate()
-
-        assert self.store_controller.store is store
-        assert self.store_controller.is_modified()
-        assert store[1].target == 'Twee'
+            assert 'msgstr "Twee"' not in f.read()
+        paths = [segment.entry.path for segment in store.segments]
+        assert lone in paths
+        segment = store.segments[paths.index(lone)]
+        later = store.segments[paths.index(lone) + 1]
+        assert later.offset == segment.offset + segment.count
+        assert len(store) == sum(s.count for s in store.segments)
+        assert len(store.stats['total']) == len(store)
+        # The checks moved with the files after it, and take it in.
+        moved = {key: sorted(indices) for key, indices in store.checks.items() if indices}
+        store.update_checks(checker)
+        assert moved == {key: sorted(i) for key, i in store.checks.items() if i}
+        rows = _rows(view)
+        # Its language isn't known: it joins the language shown.
+        assert rows['app/lone.properties (?)'][filepanelview.COL_SENSITIVE] is True
+        template = rows['app/lone.properties (?)/base.properties']
+        assert template[filepanelview.COL_SENSITIVE] is False
+        # The template is no longer a file waiting to be paired.
+        assert 'app/base.properties' not in rows
+        until = time.monotonic() + 2
+        while sc.cursor.index != segment.offset and time.monotonic() < until:
+            Gtk.main_iteration_do(False)
+        assert sc.cursor.index == segment.offset
 
     def test_a_folder_of_only_unpaired_files_opens_empty_and_pairs(self, monkeypatch, tmp_path):
         folder = tmp_path / 'only'
@@ -383,8 +397,9 @@ class TestFilePanel(TestScaffolding):
 
         view.pair_menu(str(lone)).get_children()[0].activate()
 
-        # The folder now holds one file to translate: it opens as one does.
-        assert sc.store.get_filename() == str(lone)
+        # Still a folder, with the files panel, though it holds one file.
+        assert sc.is_stream() and self.panel.view.shown
+        assert [segment.entry.path for segment in sc.store.segments] == [str(lone)]
         assert len(sc.store) == 2 and sc.cursor.index == 0
 
     def test_a_folder_with_nothing_to_translate_still_says_so(self, tmp_path, monkeypatch):

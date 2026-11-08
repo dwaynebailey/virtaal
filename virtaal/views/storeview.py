@@ -266,6 +266,11 @@ class StoreView(BaseView):
             self._set_menu_items_sensitive(False)
             self._treeview.set_model(None)
 
+    def reload_rows(self):
+        """Show the store's units again after units joined it."""
+        self._treeview.set_model(self.store)
+        self._update_visible_rows()
+
     def show(self):
         child = self.parent_widget.get_child()
         if child and child is not self._treeview:

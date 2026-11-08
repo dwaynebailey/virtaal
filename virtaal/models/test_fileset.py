@@ -289,3 +289,31 @@ def test_a_folder_scan_takes_in_json_only_where_the_path_names_a_language(tmp_pa
     assert [(e.path, e.template.template) for e in files] == [(af, en)]
     assert [e.path for e in files.templates] == [en]
     assert files.unpaired == []
+
+
+def test_pairing_a_waiting_file_puts_it_in_path_order(tmp_path):
+    from virtaal.support.templatefinder import TemplateMatch
+
+    po_a = _write(tmp_path, 'a/af.po', 'msgid "a"\nmsgstr "b"\n')
+    lone = _write(tmp_path, 'b/lone.properties')
+    base = _write(tmp_path, 'b/base.properties')
+    po_c = _write(tmp_path, 'c/af.po', 'msgid "a"\nmsgstr "b"\n')
+    files = FileSet.from_paths([str(tmp_path)])
+    assert {e.path for e in files.unpaired} == {lone, base}
+
+    entry = files.pair(lone, TemplateMatch(base, None, 'chosen'))
+
+    assert files.paths == [po_a, lone, po_c]
+    assert entry.template.template == base
+    # Its template no longer waits: it's a source-language file.
+    assert files.unpaired == []
+
+
+def test_a_waiting_file_called_its_own_source_becomes_a_template(tmp_path):
+    from virtaal.support.templatefinder import TemplateMatch
+
+    lone = _write(tmp_path, 'lone.properties')
+    files = FileSet.from_paths([str(tmp_path)])
+
+    assert files.pair(lone, TemplateMatch(lone, None, 'chosen')) is None
+    assert [e.path for e in files.templates] == [lone] and files.unpaired == []

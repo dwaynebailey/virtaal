@@ -27,6 +27,8 @@ class StoreController(BaseController):
         'stats-changed': (GObject.SignalFlags.RUN_FIRST, None, ()),
         # The quality check failures (store.checks) changed.
         'checks-changed': (GObject.SignalFlags.RUN_FIRST, None, ()),
+        # A file joined the open stream (a monolingual file just paired).
+        'files-changed': (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
     # With several files open: the paths given, every file found in
@@ -296,6 +298,28 @@ class StoreController(BaseController):
         language = all_files.choose_language(target)
         replaced = target if target and language and not same_language(target, language) else None
         self._open_stream(all_files, language, paths, replaced)
+
+    def pair_in_stream(self, path, match):
+        """Pair the open folder's monolingual file C{path} as the
+        L{TemplateMatch} C{match} says, in place: its units join the
+        stream where it goes; nothing else is read again, so unsaved
+        edits stay as they are.
+        @returns: Its segment, or C{None} if no units joined (the user
+            said it's a source-language file, or it has none)."""
+        self.unit_controller.prepare_for_save()
+        entry = None
+        for fileset in {id(f): f for f in (self.all_files, self.fileset)}.values():
+            paired = fileset.pair(path, match)
+            if fileset is self.fileset:
+                entry = paired
+        segment = self.store.insert_file(entry) if entry is not None else None
+        if segment is None and entry is not None:
+            self.store.skipped.append(entry)
+        self.view.reload_rows()
+        self.main_controller.mode_controller.refresh_mode()
+        self.emit('files-changed')
+        self.emit('stats-changed')
+        return segment
 
     def open_stream_language(self, language):
         """Open the files in C{language} of those already open."""

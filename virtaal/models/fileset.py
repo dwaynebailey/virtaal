@@ -262,6 +262,34 @@ class FileSet:
                     entries.append(FileEntry(name, root, paired.get(name)))
         return cls(entries, root, templates, unpaired)
 
+    def pair(self, path, match):
+        """Take the file C{path} out of L{unpaired}, paired as the
+        L{TemplateMatch} C{match} says: a file in its place among
+        L{entries}, returned, or one of L{templates} if the user said it
+        is the source-language file (C{None} is returned then)."""
+        path = os.path.abspath(path)
+        # The template too, if it waited: it's a source-language file now.
+        done = {path, os.path.abspath(match.template)}
+        self.unpaired = [entry for entry in self.unpaired if entry.path not in done]
+        if os.path.normcase(os.path.abspath(match.template)) == os.path.normcase(path):
+            self.templates.append(FileEntry(path, self.root))
+            return None
+        entry = FileEntry(path, self.root, match)
+        self.entries.insert(self.position(entry), entry)
+        return entry
+
+    def position(self, entry):
+        """Where C{entry} goes among L{entries}: in path order, as a scan
+        lists them."""
+
+        def key(other):
+            return os.path.relpath(other.path, self.root or os.path.dirname(other.path)).split(
+                os.sep
+            )
+
+        wanted = key(entry)
+        return sum(1 for other in self.entries if key(other) < wanted)
+
     def __len__(self):
         return len(self.entries)
 

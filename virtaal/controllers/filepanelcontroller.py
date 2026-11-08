@@ -5,7 +5,6 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-import os
 import time
 
 from gi.repository import GLib
@@ -54,6 +53,7 @@ class FilePanelController(BaseController):
         store_controller.connect('store-closed', self._on_store_closed)
         store_controller.connect('stats-changed', self._on_stats_changed)
         store_controller.connect('store-saved', self._on_stats_changed)
+        store_controller.connect('files-changed', self._on_files_changed)
         self.menu_item = main_controller.view.gui.get_object('mnu_files_panel')
         self.menu_item.connect('toggled', self._on_menu_toggled)
         from .setscancontroller import SetScanController
@@ -102,20 +102,20 @@ class FilePanelController(BaseController):
 
     def pair_file(self, path):
         """Ask for the template of C{path}, a monolingual file the folder
-        scan couldn't pair, then open the files again with it paired and
-        go to it."""
+        scan couldn't pair, and add it to the open files in its place,
+        then go to it: nothing else is read again."""
+        from virtaal.support.templatefinder import TemplateMatch
+
         sc = self.store_controller
-        paths = sc.opened_paths
-        if not sc.is_stream() or not paths or not self.main_controller.choose_template(path):
+        if not sc.is_stream():
             return
-        if not self.main_controller.open_files(list(paths)) or not sc.is_stream():
+        chosen = self.main_controller.choose_template(path)
+        if not chosen:
             return
-        path = os.path.abspath(path)
-        for segment in sc.store.segments:
-            if segment.entry.path == path and segment.count:
-                until = time.monotonic() + self.GO_TO_SECONDS
-                GLib.timeout_add(50, self._go_to, sc.store, segment.offset, until)
-                break
+        segment = sc.pair_in_stream(path, TemplateMatch(chosen, None, 'chosen'))
+        if segment is not None:
+            until = time.monotonic() + self.GO_TO_SECONDS
+            GLib.timeout_add(50, self._go_to, sc.store, segment.offset, until)
 
     def _go_to(self, store, index, until):
         """Move once the units view has started editing the first unit:
@@ -167,22 +167,32 @@ class FilePanelController(BaseController):
             self.set_shown(False)
             return
         view = self._ensure_view()
-        languages = stream_languages(sc.all_files)
         reloaded = self._opened_paths == sc.opened_paths
-        self._notify_language(sc, languages)
-        view.load(
-            [segment.entry for segment in sc.store.segments],
-            languages,
-            sc.stream_language,
-            sc.all_files.templates,
-            sc.store.fileset.unpaired,
-        )
-        view.update_progress(sc.store.segment_counts())
+        self._notify_language(sc, stream_languages(sc.all_files))
+        self._load_view(sc)
         self.menu_item.set_sensitive(True)
         self.set_shown(view.shown if reloaded else panel_shown_at_open(sc))
         self._opened_paths = sc.opened_paths
         self._follow_cursor(sc.cursor)
         self._on_cursor_changed(sc.cursor)
+
+    def _on_files_changed(self, sc):
+        """A file joined: show it among the others, its template under it."""
+        if self.view is None or not sc.is_stream():
+            return
+        self._load_view(sc)
+        self.set_shown(True)
+        self._follow_cursor(sc.cursor)
+
+    def _load_view(self, sc):
+        self.view.load(
+            [segment.entry for segment in sc.store.segments],
+            stream_languages(sc.all_files),
+            sc.stream_language,
+            sc.all_files.templates,
+            sc.store.fileset.unpaired,
+        )
+        self.view.update_progress(sc.store.segment_counts())
 
     def _on_store_closed(self, _sc):
         self._follow_cursor(None)
