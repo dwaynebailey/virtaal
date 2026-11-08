@@ -8,7 +8,8 @@
 import time
 from types import SimpleNamespace
 
-from gi.repository import Atk, Gtk
+import pytest
+from gi.repository import Atk, GObject, Gtk
 
 from virtaal.views.widgets.completionpopup import CompletionPopup, popup_position
 
@@ -197,6 +198,19 @@ def test_selecting_another_row_is_reported():
     popup.dismiss()
 
 
+def _atk_signal(name):
+    return bool(GObject.signal_lookup(name, Atk.Object))
+
+
+# Windows' GTK ships an ATK too old for either signal; announce() then says nothing.
+_needs_notification = pytest.mark.skipif(
+    not _atk_signal('notification'), reason='ATK before 2.50 has no notification signal'
+)
+_needs_announcement = pytest.mark.skipif(
+    not _atk_signal('announcement'), reason='this ATK has no announcement signal'
+)
+
+
 def _notifications(textbox):
     said = []
     textbox.get_accessible().connect(
@@ -205,6 +219,7 @@ def _notifications(textbox):
     return said
 
 
+@_needs_notification
 def test_the_first_candidate_is_announced_when_the_list_shows():
     textbox = _textbox_in_window()
     said = _notifications(textbox)
@@ -215,6 +230,7 @@ def test_the_first_candidate_is_announced_when_the_list_shows():
     popup.dismiss()
 
 
+@_needs_notification
 def test_each_newly_selected_candidate_is_announced_once():
     textbox = _textbox_in_window()
     said = _notifications(textbox)
@@ -233,6 +249,7 @@ def test_each_newly_selected_candidate_is_announced_once():
     popup.dismiss()
 
 
+@_needs_announcement
 def test_announce_falls_back_to_the_older_signal(monkeypatch):
     from virtaal.views.widgets import completionpopup
 
@@ -313,6 +330,7 @@ def test_dismiss_releases_the_native_window():
     assert not popup.get_realized()
 
 
+@_needs_announcement
 def test_announce_works_with_an_atk_without_live(monkeypatch):
     # Windows' GTK ships an ATK older than 2.50: no Atk.Live, no notification.
     from virtaal.views.widgets import completionpopup
@@ -324,3 +342,11 @@ def test_announce_works_with_an_atk_without_live(monkeypatch):
 
     assert completionpopup.announce(accessible, 'Herroep, 1 of 2')
     assert said == ['Herroep, 1 of 2']
+
+
+def test_announce_says_nothing_when_atk_has_neither_signal(monkeypatch):
+    from virtaal.views.widgets import completionpopup
+
+    monkeypatch.setattr(completionpopup.GObject, 'signal_lookup', lambda name, instance: 0)
+
+    assert not completionpopup.announce(Atk.NoOpObject.new(Gtk.Label()), 'Herroep, 1 of 2')
