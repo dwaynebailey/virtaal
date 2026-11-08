@@ -1807,6 +1807,28 @@ jobs:
             flatpak run --command=python3 io.github.translate.Virtaal -c \
             "from virtaal.common import pan_app; n = len(pan_app.get_available_ui_languages()); print(n, 'UI languages'); assert n > 20"
 
+      - name: Cache the hu_HU dictionary
+        if: steps.queue.outputs.tested != 'true'
+        # For the spell checking check (#1958); fetched only on a cache miss.
+        uses: actions/cache@v6
+        with:
+          path: build/dictionaries/hu_HU
+          key: dictionary-hu_HU-${{ runner.os }}-${{ hashFiles('devsupport/packaging/fetch_dictionaries.py') }}
+
+      - name: Smoke test - spell checking Hungarian
+        if: steps.queue.outputs.tested != 'true'
+        run: |
+          python3 devsupport/packaging/fetch_dictionaries.py build/dictionaries/hu_HU hu_HU
+          config="$RUNNER_TEMP/enchant-hu"
+          mkdir -p "$config/hunspell"
+          cp build/dictionaries/hu_HU/hu_HU.aff build/dictionaries/hu_HU/hu_HU.dic "$config/hunspell"
+          xvfb-run -a --server-args="-screen 0 1024x768x24" \
+            flatpak run --env=ENCHANT_CONFIG_DIR="$config" --filesystem="$config" io.github.translate.Virtaal \
+            --run-module virtaal.support.enchant_compat hu_HU | tee enchant-hu.txt
+          grep -q "^dictionary: True$" enchant-hu.txt
+          grep -q "^gtkspell: ok$" enchant-hu.txt
+          grep -q "^marked: xqzwy$" enchant-hu.txt
+
       - name: Run the tests inside the installed Flatpak
         if: steps.queue.outputs.tested != 'true'
         # The GNOME runtime's own Python and GTK, which the Flatpak ships;
