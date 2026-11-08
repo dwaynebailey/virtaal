@@ -16,7 +16,7 @@ from gi.repository import GLib
 from virtaal.common import pan_app
 from virtaal.common.platform import platform
 from virtaal.controllers.baseplugin import PluginUnsupported
-from virtaal.support import inlinecodes, tmdb
+from virtaal.support import inlinecodes, shareddb, tmdb
 
 from . import remotetm
 from .basetmmodel import BaseTMModel
@@ -55,6 +55,7 @@ class TMModel(remotetm.TMModel):
         self.internal_name = internal_name
         self.load_config()
         self._check_config()
+        self._set_aside_damaged_tmdb(controller)
 
         port = self._pick_port()
         command = self._build_tmserver_command(port, controller)
@@ -98,6 +99,13 @@ class TMModel(remotetm.TMModel):
         self.config["tmdb"] = os.path.join(
             pan_app.get_config_dir(), os.path.expanduser(self.config["tmdb"])
         )
+
+    def _set_aside_damaged_tmdb(self, controller):
+        """Start a new tm.db if it's damaged, keeping the old one (#4710):
+        the server can't open it and would give no suggestions."""
+        kept = shareddb.set_aside_if_damaged(self.config["tmdb"])
+        if kept is not None:
+            controller.main_controller.view.show_tm_recovery_notice(kept)
 
     def _pick_port(self):
         # test if port specified in config is free

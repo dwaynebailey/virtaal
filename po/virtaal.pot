@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 04:37+0000\n"
+"POT-Creation-Date: 2026-11-08 04:40+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2896,6 +2896,13 @@ msgstr ""
 msgid ""
 "Your settings file could not be read, so Virtaal started with default "
 "settings. The old file was kept at: %s"
+msgstr ""
+
+#: virtaal/views/mainview.py
+#, python-format
+msgid ""
+"Your translation memory could not be read, so Virtaal started a new one. The "
+"old file was kept at: %s"
 msgstr ""
 
 #: virtaal/views/mainview.py

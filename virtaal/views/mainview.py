@@ -1450,16 +1450,29 @@ class MainView(BaseView):
     def show_config_recovery_notice(self, backup_path):
         """Called at most once per session, if pan_app.Settings found
         virtaal.ini unreadable and started fresh with defaults."""
-        infobar = Gtk.InfoBar()
-        infobar.set_message_type(Gtk.MessageType.WARNING)
-        infobar.set_show_close_button(True)
-        label = Gtk.Label(
-            label=_(
+        self._show_recovery_notice(
+            _(
                 "Your settings file could not be read, so Virtaal started with "
                 "default settings. The old file was kept at: %s"
             )
             % backup_path
         )
+
+    def show_tm_recovery_notice(self, kept_path):
+        """Called when Local TM found tm.db damaged and moved it aside."""
+        self._show_recovery_notice(
+            _(
+                "Your translation memory could not be read, so Virtaal started "
+                "a new one. The old file was kept at: %s"
+            )
+            % kept_path
+        )
+
+    def _show_recovery_notice(self, text):
+        infobar = Gtk.InfoBar()
+        infobar.set_message_type(Gtk.MessageType.WARNING)
+        infobar.set_show_close_button(True)
+        label = Gtk.Label(label=text)
         label.set_line_wrap(True)
         infobar.get_content_area().pack_start(label, True, True, 0)
 

@@ -2616,6 +2616,19 @@ def test_show_config_recovery_notice_dismisses_on_response():
     assert infobar.get_parent() is None
 
 
+def test_show_tm_recovery_notice_names_the_kept_file():
+    vbox = _FakeVboxMain()
+    view = MainView.__new__(MainView)
+    view.gui = SimpleNamespace(get_object=lambda name: vbox)
+
+    view.show_tm_recovery_notice('/tmp/tm-damaged.db')
+
+    (infobar,) = vbox.packed
+    assert infobar.get_message_type() == Gtk.MessageType.WARNING
+    (label,) = infobar.get_content_area().get_children()
+    assert label.get_text().endswith('/tmp/tm-damaged.db')
+
+
 # show_loading_notice() / hide_loading_notice() - a lightweight status
 # label shown while main.py's deferred startup-file open is in progress #
 

@@ -10,8 +10,10 @@ process's TM server opens tm.db, and every process and its stats worker
 stats.db."""
 
 import contextlib
+import itertools
 import logging
 import os
+import pathlib
 from sqlite3 import dbapi2
 
 logger = logging.getLogger(__name__)
@@ -53,3 +55,41 @@ def remove(path):
         # Missing, or (Windows) still open in another process.
         with contextlib.suppress(OSError):
             os.unlink(path + suffix)
+
+
+def set_aside_if_damaged(path, timeout=1):
+    """Move the file at C{path} aside, with SQLite's files beside it, if
+    it isn't a readable database, so a new one can start there.
+
+    @param timeout: Seconds to wait for another process's lock.
+    @return: where it was moved, or None if it was left in place."""
+    if not os.path.isfile(path):
+        return None
+    try:
+        # Read-only: closing a writable connection deletes a -wal here.
+        uri = pathlib.Path(os.path.abspath(path)).as_uri() + '?mode=ro'
+        connection = dbapi2.connect(uri, timeout=timeout, uri=True)
+        try:
+            connection.execute('SELECT count(*) FROM sqlite_master').fetchone()
+        finally:
+            connection.close()
+        return None
+    except dbapi2.OperationalError:
+        # Locked or can't be opened: not damaged, so left alone.
+        return None
+    except dbapi2.DatabaseError as e:
+        logger.warning("%s can't be read: %s", path, e)
+    root, ext = os.path.splitext(path)
+    for n in itertools.count(1):
+        kept = '%s-damaged%s%s' % (root, '-%d' % n if n > 1 else '', ext)
+        if not os.path.lexists(kept):
+            break
+    try:
+        os.rename(path, kept)
+    except OSError:
+        logger.warning("Could not move %s aside", path, exc_info=True)
+        return None
+    for suffix in ('-wal', '-shm', '-journal'):
+        with contextlib.suppress(OSError):
+            os.rename(path + suffix, kept + suffix)
+    return kept

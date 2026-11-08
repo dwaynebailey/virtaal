@@ -140,6 +140,7 @@ def test_no_free_port_leaves_the_local_tm_off_without_starting_a_server(monkeypa
         TMModel, 'load_config', lambda self: setattr(self, 'config', dict(TMModel.default_config))
     )
     monkeypatch.setattr(TMModel, '_check_config', lambda self: None)
+    monkeypatch.setattr(TMModel, '_set_aside_damaged_tmdb', lambda self, controller: None)
     monkeypatch.setattr(localtm, 'test_port', lambda host, port: False)
     monkeypatch.setattr(localtm, 'find_free_port', lambda host, lo, hi: None)
     started = []
@@ -150,6 +151,39 @@ def test_no_free_port_leaves_the_local_tm_off_without_starting_a_server(monkeypa
 
     assert started == []
     assert 'No free port' in caplog.text
+
+
+# _set_aside_damaged_tmdb() - #4710 #
+
+
+def _controller_with_view(shown):
+    view = SimpleNamespace(show_tm_recovery_notice=shown.append)
+    return SimpleNamespace(main_controller=SimpleNamespace(view=view))
+
+
+def test_a_damaged_tm_database_is_kept_aside_and_the_user_told(tmp_path):
+    tm_db = tmp_path / 'tm.db'
+    tm_db.write_bytes(b'garbage' * 1000)
+    model = _model_with_config(tmdb=str(tm_db))
+    shown = []
+
+    model._set_aside_damaged_tmdb(_controller_with_view(shown))
+
+    assert shown == [str(tmp_path / 'tm-damaged.db')]
+    assert (tmp_path / 'tm-damaged.db').read_bytes() == b'garbage' * 1000
+    assert not tm_db.exists()
+
+
+def test_a_readable_tm_database_is_left_alone(tmp_path):
+    tm_db = tmp_path / 'tm.db'
+    tm_db.write_bytes(b'')  # SQLite's empty database
+    model = _model_with_config(tmdb=str(tm_db))
+    shown = []
+
+    model._set_aside_damaged_tmdb(_controller_with_view(shown))
+
+    assert shown == []
+    assert tm_db.exists()
 
 
 # _build_tmserver_command() #
@@ -1061,6 +1095,7 @@ def test_the_local_tm_model_opens_the_dialog_from_configure(monkeypatch):
         lambda self: setattr(self, 'config', dict(TMModel.default_config)),
     )
     monkeypatch.setattr(TMModel, '_check_config', lambda self: None)
+    monkeypatch.setattr(TMModel, '_set_aside_damaged_tmdb', lambda self, controller: None)
     monkeypatch.setattr(TMModel, '_pick_port', lambda self: 1)
     monkeypatch.setattr(TMModel, '_launch_tmserver', lambda self, command, port: None)
     controller = fake_controller()
