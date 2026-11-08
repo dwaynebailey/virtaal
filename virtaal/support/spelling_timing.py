@@ -18,18 +18,23 @@ SIZES = (2000, 10000, 100000)
 
 
 def _pump(seconds=300):
-    """Runs the main loop until nothing is pending; returns how long that took."""
+    """Runs the main loop until nothing is pending; returns how long that
+        took and the longest single iteration."""
     from gi.repository import GLib
     context = GLib.MainContext.default()
     start = time.perf_counter()
+    longest = 0
     while context.pending() and time.perf_counter() - start < seconds:
+        before = time.perf_counter()
         context.iteration(False)
-    return time.perf_counter() - start
+        longest = max(longest, time.perf_counter() - before)
+    return time.perf_counter() - start, longest
 
 
 def _paste(view, text):
-    """Inserts text as a paste does, timing the insert and what it left
-        for the main loop."""
+    """Inserts text as a paste does: the insert's time, the longest time
+        the app is then busy at once, and the time until it's idle with
+        the text fully checked."""
     buffer = view.get_buffer()
     buffer.set_text('')
     _pump()
@@ -38,13 +43,15 @@ def _paste(view, text):
     buffer.insert_interactive_at_cursor(text, -1, True)
     buffer.end_user_action()
     inserted = time.perf_counter() - start
-    return inserted, inserted + _pump()
+    idle, longest = _pump()
+    return inserted, max(inserted, longest), inserted + idle
 
 
-def _type(view, text):
+def _type(view, text, clear=True):
     """The longest single keystroke, typing text."""
     buffer = view.get_buffer()
-    buffer.set_text('')
+    if clear:
+        buffer.set_text('')
     _pump()
     longest = 0
     for char in text:
@@ -104,9 +111,10 @@ def _gtkspell_view(lang):
 
 
 def timings(lang, sizes=SIZES):
-    """Report lines: per size, the insert's time and the time until the
-        main loop is idle, through the plugin and through GtkSpell alone;
-        and the longest keystroke typing a sentence with the plugin."""
+    """Report lines: per size, the insert's time, the longest the app is
+        busy at once and the time until it's idle with the text checked,
+        through the plugin and through GtkSpell alone; and the longest
+        keystroke typing with the plugin, in short and in long text."""
     import gi
     gi.require_version('Gtk', '3.0')
     lines = []
@@ -115,15 +123,21 @@ def timings(lang, sizes=SIZES):
     lines.append('typing: longest keystroke %.3f s, %d marked' % (_type(view, 'This is a tset of typing'), _marked(view)))
     for size in sizes:
         text = (FILLER * (size // len(FILLER) + 1))[:size]
-        inserted, idle = _paste(view, text)
-        lines.append('plugin %d: insert %.3f s, idle %.3f s, %d marked' % (size, inserted, idle, _marked(view)))
+        inserted, busy, idle = _paste(view, text)
+        lines.append('plugin %d: insert %.3f s, busy %.3f s, idle %.3f s, %d marked'
+                     % (size, inserted, busy, idle, _marked(view)))
+    # Typing in the middle of the longest text.
+    buffer = view.get_buffer()
+    buffer.place_cursor(buffer.get_iter_at_offset(buffer.get_char_count() // 2))
+    lines.append('typing in %d: longest keystroke %.3f s' % (sizes[-1], _type(view, ' blorft tset ', clear=False)))
     plugin.destroy()
     # GtkSpell alone takes minutes for 100k characters.
     checker, view = _gtkspell_view(lang)
     for size in [s for s in sizes if s <= 10000]:
         text = (FILLER * (size // len(FILLER) + 1))[:size]
-        inserted, idle = _paste(view, text)
-        lines.append('gtkspell %d: insert %.3f s, idle %.3f s, %d marked' % (size, inserted, idle, _marked(view)))
+        inserted, busy, idle = _paste(view, text)
+        lines.append('gtkspell %d: insert %.3f s, busy %.3f s, idle %.3f s, %d marked'
+                     % (size, inserted, busy, idle, _marked(view)))
     checker.detach()
     return '\n'.join(lines) + '\n'
 

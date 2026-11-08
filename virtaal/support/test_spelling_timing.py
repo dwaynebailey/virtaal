@@ -34,6 +34,8 @@ def test_timings_report_each_paste():
 
     assert report.splitlines()[0] == 'plugin: checking'
     assert re.search(r'^typing: longest keystroke [0-9.]+ s, 1 marked$', report, re.M)
-    marked = re.search(r'^plugin 300: insert [0-9.]+ s, idle [0-9.]+ s, (\d+) marked$', report, re.M)
+    marked = re.search(r'^plugin 300: insert [0-9.]+ s, busy [0-9.]+ s, idle [0-9.]+ s, (\d+) marked$', report, re.M)
     assert marked and int(marked.group(1)) > 0
-    assert re.search(r'^gtkspell 300: insert [0-9.]+ s, idle [0-9.]+ s, %s marked$' % marked.group(1), report, re.M)
+    assert re.search(r'^typing in 300: longest keystroke [0-9.]+ s$', report, re.M)
+    assert re.search(r'^gtkspell 300: insert [0-9.]+ s, busy [0-9.]+ s, idle [0-9.]+ s, %s marked$' % marked.group(1),
+                     report, re.M)
