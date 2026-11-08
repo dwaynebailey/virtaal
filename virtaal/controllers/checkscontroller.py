@@ -187,11 +187,12 @@ class ChecksController(BaseController):
             target_lang = None
         self._checker = self.checker_info.get(code, self.checker_info[None])()
         self._checker.config.updatetargetlanguage(target_lang)
-        store = self.store_controller.get_store()
-        if store is not None:
-            from virtaal.support.extrachecks import with_extra_checks
+        from virtaal.support.extrachecks import with_extra_checks
 
-            self._checker = with_extra_checks(self._checker, store._trans_store)
+        store = self.store_controller.get_store()
+        self._checker = with_extra_checks(
+            self._checker, store._trans_store if store is not None else None
+        )
 
         self.emit('checker-set', code)
         self.projview.set_checker_name(

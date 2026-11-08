@@ -34,7 +34,8 @@ def describe(checker):
     checker that isn't one of L{checker_classes}."""
     from virtaal.support.extrachecks import ExtraChecksFilter
 
-    extra = []
+    # None: not wrapped, so not leaving out dismissed checks either.
+    extra = None
     base = checker
     if isinstance(checker, ExtraChecksFilter):
         base = checker.checker
@@ -57,8 +58,8 @@ def build(spec):
 
     checker = checker_classes()[spec['code']]()
     checker.config.updatetargetlanguage(spec['language'])
-    checks = [cls() for cls in EXTRA_CHECKS if cls.name in spec['extra']]
-    if checks:
+    if spec['extra'] is not None:
+        checks = [cls() for cls in EXTRA_CHECKS if cls.name in spec['extra']]
         checker = ExtraChecksFilter(checker, checks)
     if str(checker.config.__dict__) != spec['config']:
         return None

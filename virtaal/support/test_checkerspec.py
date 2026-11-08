@@ -54,3 +54,14 @@ def test_a_checker_that_comes_out_differently_is_not_built():
     spec['config'] = spec['config'].replace("'targetlanguage': None", "'targetlanguage': 'af'")
 
     assert checkerspec.build(spec) is None
+
+
+def test_a_wrapped_checker_without_extra_checks_is_built_wrapped(monkeypatch):
+    # So another process leaves out dismissed checks too (#3276).
+    monkeypatch.setattr(extrachecks, 'EXTRA_CHECKS', [])
+    checker = extrachecks.ExtraChecksFilter(checks.StandardChecker(), [])
+
+    built = checkerspec.build(checkerspec.describe(checker))
+
+    assert isinstance(built, extrachecks.ExtraChecksFilter)
+    assert str(built.config.__dict__) == str(checker.config.__dict__)

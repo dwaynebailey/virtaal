@@ -10,7 +10,7 @@ from translate.filters import checks
 from translate.filters.decorators import Category
 from translate.storage import po, ts2
 
-from virtaal.support import extrachecks, gettextpo, statsdb
+from virtaal.support import dismissedchecks, extrachecks, gettextpo, statsdb
 
 HEADER = b'''msgid ""
 msgstr ""
@@ -68,11 +68,28 @@ def test_filter_categorised(length_check_only):
     assert failures['toolong'] == {'message': 'Too long', 'category': Category.COSMETIC}
 
 
-def test_no_wrapper_without_extra_checks(monkeypatch):
+def test_without_extra_checks_the_wrapper_only_leaves_out_dismissed_checks(monkeypatch):
     monkeypatch.setattr(extrachecks, 'EXTRA_CHECKS', [UnavailableCheck])
-    inner = checks.StandardChecker()
+    store = po.pofile.parsestring(HEADER + b'msgid "Open."\nmsgstr "oop"\n')
+    unit = store.units[-1]
+    dismissedchecks.set_dismissed(unit, 'endpunc')
 
-    assert extrachecks.with_extra_checks(inner, po.pofile()) is inner
+    checker = extrachecks.with_extra_checks(checks.StandardChecker(), store)
+
+    assert checker.checks == []
+    assert 'endpunc' not in checker.run_filters(unit)
+    assert 'startcaps' in checker.run_filters(unit)
+    assert 'endpunc' in checker.run_filters(unit, with_dismissed=True)
+
+
+def test_a_dismissed_extra_check_is_left_out(length_check_only):
+    store = po.pofile.parsestring(HEADER + b'msgid "a"\nmsgstr "abcdefg"\n')
+    unit = store.units[-1]
+    dismissedchecks.set_dismissed(unit, 'toolong')
+
+    checker = extrachecks.with_extra_checks(checks.StandardChecker(), store)
+
+    assert 'toolong' not in checker.run_filters(unit, categorised=True)
 
 
 def test_filter_delegates_to_the_checker(length_check_only):
@@ -91,10 +108,7 @@ def test_msgfmt_is_registered():
 
     assert 'format specifications' in failures['msgfmt']
     assert 'printf' in failures
-    assert (
-        extrachecks.with_extra_checks(checks.StandardChecker(), ts2.tsfile()).__class__
-        is checks.StandardChecker
-    )
+    assert extrachecks.with_extra_checks(checks.StandardChecker(), ts2.tsfile()).checks == []
 
 
 def test_statsdb_does_not_reuse_checks_cached_without_extra_checks(tmp_path, length_check_only):
@@ -110,3 +124,19 @@ def test_statsdb_does_not_reuse_checks_cached_without_extra_checks(tmp_path, len
 
     assert 'check-toolong' not in plain
     assert extra['check-toolong'] == [1]
+
+
+def test_statsdb_leaves_out_checks_dismissed_in_the_file(tmp_path):
+    po_file = tmp_path / "test.po"
+    store = po.pofile.parsestring(HEADER + b'msgid "Open."\nmsgstr "oop"\n')
+    dismissedchecks.set_dismissed(store.units[-1], 'endpunc')
+    po_file.write_bytes(bytes(store))
+    store = po.pofile.parsefile(str(po_file))
+    cache = statsdb.StatsCache(str(tmp_path / "stats.db"))
+
+    found = cache.filechecks(
+        str(po_file), extrachecks.with_extra_checks(checks.StandardChecker(), store), store
+    )
+
+    assert 'check-endpunc' not in found
+    assert found['check-startcaps'] == [1]

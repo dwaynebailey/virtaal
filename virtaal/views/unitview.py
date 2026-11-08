@@ -20,7 +20,7 @@ from translate.storage.workflow import StateEnum
 from virtaal.common import GObjectWrapper, pan_app
 from virtaal.common.pan_app import ngettext
 from virtaal.common.platform import platform
-from virtaal.support import sdlxliff_compat
+from virtaal.support import dismissedchecks, sdlxliff_compat
 
 from . import rendering
 from .baseview import BaseView
@@ -820,9 +820,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if origin == 'programmer':
             note_text = _programmer_notes(self.unit)
         else:
-            note_text = '\n'.join(
-                line for line in [self.unit.getnotes(origin)] + self._trados_notes() if line
-            )
+            notes = dismissedchecks.without_dismissals(self.unit.getnotes(origin))
+            note_text = '\n'.join(line for line in [notes] + self._trados_notes() if line)
 
         if (
             origin == "programmer"

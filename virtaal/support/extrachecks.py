@@ -16,6 +16,7 @@ An extra check is a class with:
 - ``check(unit)``: the failure message for unit, or None.
 """
 
+from virtaal.support import dismissedchecks
 from virtaal.support.gettextpo import MsgfmtCheck
 
 EXTRA_CHECKS = [MsgfmtCheck]
@@ -27,8 +28,9 @@ def checks_for(store):
 
 
 class ExtraChecksFilter:
-    """A toolkit checker that also runs extra checks. Delegates
-    everything else to the checker."""
+    """A toolkit checker that also runs extra checks, and leaves out the
+    checks dismissed on a unit (#3276). Delegates everything else to
+    the checker."""
 
     def __init__(self, checker, checks):
         self.checker = checker
@@ -39,7 +41,8 @@ class ExtraChecksFilter:
     def __getattr__(self, name):
         return getattr(self.checker, name)
 
-    def run_filters(self, unit, categorised=False):
+    def run_filters(self, unit, categorised=False, with_dismissed=False):
+        """unit's failures; with_dismissed: also the dismissed ones."""
         failures = self.checker.run_filters(unit, categorised)
         for check in self.checks:
             message = check.check(unit)
@@ -49,10 +52,12 @@ class ExtraChecksFilter:
                 failures[check.name] = {'message': message, 'category': check.category}
             else:
                 failures[check.name] = message
-        return failures
+        if with_dismissed:
+            return failures
+        return dismissedchecks.filter_failures(unit, failures)
 
 
 def with_extra_checks(checker, store):
-    """checker, wrapped to also run the extra checks for store, if any."""
-    checks = checks_for(store)
-    return ExtraChecksFilter(checker, checks) if checks else checker
+    """checker, wrapped to also run the extra checks for store, if any,
+    and leave out dismissed checks."""
+    return ExtraChecksFilter(checker, checks_for(store) if store is not None else [])

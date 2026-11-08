@@ -9,6 +9,7 @@ from bisect import bisect_left
 
 from gi.repository import GObject, Gtk
 
+from virtaal.support import dismissedchecks
 from virtaal.views import markup
 
 COLUMN_NOTE, COLUMN_UNIT, COLUMN_EDITABLE = 0, 1, 2
@@ -97,7 +98,7 @@ class StoreTreeModel(GObject.GObject, Gtk.TreeModel):
         if column <= 1:
             unit = self._peek(index)
             if column == 0:
-                note_text = unit.getnotes()
+                note_text = dismissedchecks.without_dismissals(unit.getnotes())
                 if not note_text:
                     locations = unit.getlocations()
                     if locations:
