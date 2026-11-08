@@ -98,9 +98,20 @@ def remembered_template(target):
     return template if template and os.path.isfile(template) else None
 
 
-def remember_template(target, template):
+def remembered_language(target):
+    """The language the target was given when paired, if its path
+    named none."""
+    data = load(target)
+    return (data and data.get('chosen') and data.get('language')) or None
+
+
+def remember_template(target, template, language=None):
+    """Remember the template the user chose for C{target}, and the
+    language it was given (C{None} to keep the one remembered)."""
     data = load(target) or {'units': {}}
     data.update(template=os.path.abspath(template), chosen=True)
+    if language:
+        data['language'] = language
     save(target, data)
 
 

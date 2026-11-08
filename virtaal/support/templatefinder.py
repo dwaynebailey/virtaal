@@ -573,7 +573,8 @@ def known_template(target):
     if match is None:
         remembered = baseline.remembered_template(target)
         if remembered:
-            match = TemplateMatch(remembered, None, 'remembered')
+            language = path_language(target) or baseline.remembered_language(target)
+            match = TemplateMatch(remembered, language, 'remembered')
     return match
 
 

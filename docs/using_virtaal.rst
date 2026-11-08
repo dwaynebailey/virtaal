@@ -123,8 +123,10 @@ greyed under it. A file whose English file Virtaal can't find is greyed too and
 isn't part of the units: double-click it, press :kbd:`Enter` or choose
 :menuselection:`Choose Source-Language File…` from its menu to pick its English
 file; it joins the others in its place, without reading them again or asking to
-save, and Virtaal goes to its first unit. A folder holding only such files opens
-with no units, ready to pair them.
+save, and Virtaal goes to its first unit. In a folder of several languages, a
+file whose name and folders don't say its language takes the language shown,
+and keeps it the next time. A folder holding only such files opens with no
+units, ready to pair them.
 
 When the English changes under a translation, Virtaal marks the translation
 for review and shows the earlier English, from what you last saw, your

@@ -217,7 +217,11 @@ class MonolingualPair:
         self.target = os.path.abspath(target)
         self.template = os.path.abspath(template)
         self.source_only = os.path.normcase(self.target) == os.path.normcase(self.template)
-        self.store = _working_store(self.converter.to_bilingual(self.template, self.target))
+        # Given when the path doesn't name it: plural forms follow it.
+        self.language = None if self.source_only else language
+        self.store = _working_store(
+            self.converter.to_bilingual(self.template, self.target, self.language)
+        )
         self.store.filename = self.target
         if self.source_only:
             language = ''
@@ -275,7 +279,11 @@ class MonolingualPair:
         # Kept until a save, so a rename still carries over on a later open.
         units = {key: e for key, e in old_units.items() if key not in keys}
         renamed = {e.get('source_hash'): key for key, e in units.items()}
-        values = self.converter.target_values(self.template, self.target) if renamed else {}
+        values = (
+            self.converter.target_values(self.template, self.target, self.language)
+            if renamed
+            else {}
+        )
         recalled = self._recalled() if not old_units else {}
         for key, unit in self.units():
             previous = old_units.get(key)
@@ -411,7 +419,7 @@ class MonolingualPair:
             if _target_text(unit)
         }
         data = self.converter.to_monolingual(
-            self.template, self.target, translations, self.skip_untranslated
+            self.template, self.target, translations, self.skip_untranslated, self.language
         )
         with open(path, 'wb') as f:
             f.write(data)
@@ -419,7 +427,7 @@ class MonolingualPair:
         self.source_only = False
         self.target = path
         self.store.filename = path
-        saved = self.converter.target_values(self.template, path)
+        saved = self.converter.target_values(self.template, path, self.language)
         units = {}
         for key, unit in self.units():
             target = saved.get(key)

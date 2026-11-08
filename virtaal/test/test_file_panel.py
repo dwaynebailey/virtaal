@@ -16,6 +16,7 @@ from translate.filters.checks import StandardChecker
 
 from virtaal.controllers.filepanelcontroller import FilePanelController
 from virtaal.controllers.placeablescontroller import PlaceablesController
+from virtaal.models.fileset import FileSet
 from virtaal.models.langmodel import LanguageModel
 from virtaal.views import filepanelview
 
@@ -345,9 +346,12 @@ class TestFilePanel(TestScaffolding):
         store.update_checks(checker)
         assert moved == {key: sorted(i) for key, i in store.checks.items() if i}
         rows = _rows(view)
-        # Its language isn't known: it joins the language shown.
-        assert rows['app/lone.properties (?)'][filepanelview.COL_SENSITIVE] is True
-        template = rows['app/lone.properties (?)/base.properties']
+        # Its path names no language: it takes the one shown, for good.
+        assert rows['app/lone.properties'][filepanelview.COL_SENSITIVE] is True
+        assert segment.entry.language == 'af'
+        again = FileSet.from_paths([str(self.dir)])
+        assert next(e for e in again if e.path == lone).language == 'af'
+        template = rows['app/lone.properties/base.properties']
         assert template[filepanelview.COL_SENSITIVE] is False
         # The template is no longer a file waiting to be paired.
         assert 'app/base.properties' not in rows
@@ -411,3 +415,20 @@ class TestFilePanel(TestScaffolding):
 
         assert not self.main_controller.open_files([str(folder)])
         assert 'nothing to translate' in errors[0]
+
+    def test_a_paired_file_whose_path_names_a_language_keeps_it(self):
+        lone = self.dir / 'help' / 'de' / 'extra.properties'
+        lone.parent.mkdir()
+        lone.write_text('hello=Hallo\n', encoding='utf-8')
+        self._open_folder()
+
+        assert self.panel._assigned_language(str(lone)) is None
+
+    def test_a_folder_in_one_language_assigns_none(self, monkeypatch, tmp_path):
+        folder = tmp_path / 'one'
+        _po(folder / 'af.po', [('One', 'Een')])
+        lone = folder / 'lone.properties'
+        lone.write_text('hello=Hallo\n', encoding='utf-8')
+        assert self.main_controller.open_files([str(folder)])
+
+        assert self.panel._assigned_language(str(lone)) is None

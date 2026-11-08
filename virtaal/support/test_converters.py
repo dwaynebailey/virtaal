@@ -411,6 +411,24 @@ def test_json_spans_and_values_skip_metadata():
     assert converter.values_of(EN_JSON.encode())['item'] == '{{count}} item\x1e{{count}} items'
 
 
+def test_json_plurals_follow_a_language_the_path_doesn_t_name(tmp_path):
+    en = _write(tmp_path / 'en.json', '{"item_one": "1 note", "item_other": "n notes"}')
+    target = _write(tmp_path / 'messages.json', '{}')
+
+    store = converters.JsonConverter().to_bilingual(en, target, 'ru')
+
+    assert store.units[1].plural_tags == ['one', 'few', 'many', 'other']
+
+
+def test_an_arb_s_own_locale_wins_over_a_language_it_was_given(tmp_path):
+    en = _write(tmp_path / 'intl_en.arb', '{"@@locale": "en", "a": "A"}')
+    target = _write(tmp_path / 'intl_messages.arb', '{"@@locale": "de", "a": "Ä"}')
+
+    data = converters.JsonConverter().to_monolingual(en, target, {'a': 'Ä'}, language='af')
+
+    assert '"@@locale": "de"' in data.decode()
+
+
 def test_json_that_is_malformed_raises():
     with pytest.raises(ValueError):
         converters.JsonConverter().values_of(b'{"a": ')

@@ -112,10 +112,26 @@ class FilePanelController(BaseController):
         chosen = self.main_controller.choose_template(path)
         if not chosen:
             return
-        segment = sc.pair_in_stream(path, TemplateMatch(chosen, None, 'chosen'))
+        language = self._assigned_language(path)
+        if language:
+            from virtaal.support import baseline
+
+            baseline.remember_template(path, chosen, language)
+        segment = sc.pair_in_stream(path, TemplateMatch(chosen, language, 'chosen'))
         if segment is not None:
             until = time.monotonic() + self.GO_TO_SECONDS
             GLib.timeout_add(50, self._go_to, sc.store, segment.offset, until)
+
+    def _assigned_language(self, path):
+        """The language a file just paired takes when its path names none
+        and the folder has several: the one shown. None otherwise."""
+        from virtaal.models.fileset import path_language
+
+        sc = self.store_controller
+        root = sc.all_files.root if sc.all_files is not None else None
+        if path_language(path, root) or len(stream_languages(sc.all_files)) < 2:
+            return None
+        return sc.stream_language
 
     def _go_to(self, store, index, until):
         """Move once the units view has started editing the first unit:

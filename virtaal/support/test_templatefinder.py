@@ -250,6 +250,18 @@ def test_a_file_nothing_translates_has_no_translations(tmp_path):
     assert templatefinder.translations_of(lone) == []
 
 
+def test_a_remembered_pairing_gives_the_language_it_was_given(tmp_path):
+    from virtaal.support import baseline
+
+    en, lone, de = _touch(tmp_path, 'base.properties', 'lone.properties', 'de/extra.properties')
+    baseline.remember_template(lone, en, 'af')
+    baseline.remember_template(de, en, 'af')
+
+    assert templatefinder.known_template(lone).language == 'af'
+    # A language the path names wins.
+    assert templatefinder.known_template(de).language == 'de'
+
+
 def test_translations_of_android_and_apple_sources(tmp_path):
     values, af, ru = _touch(
         tmp_path,

@@ -99,12 +99,15 @@ class MonolingualConverter:
         """Whether C{path}'s place says it's a source-language file."""
         return False
 
-    def to_bilingual(self, template_path, target_path):
+    def to_bilingual(self, template_path, target_path, language=None):
         """A PO store with the template's units, translated from the
-        target's. Each unit's first location is its key."""
+        target's. Each unit's first location is its key. C{language} is
+        the target's, if its path doesn't say (plurals need it)."""
         raise NotImplementedError
 
-    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
+    def to_monolingual(
+        self, template_path, target_path, translations, skip_untranslated=False, language=None
+    ):
         """The bytes of the target file: the template with each key in
         C{translations} ({key: text}, a list of forms for a plural
         message) translated, and every other message
@@ -116,12 +119,12 @@ class MonolingualConverter:
         """{key: text} of a file in this format."""
         return self.values_of(_read(path))
 
-    def target_values(self, template_path, target_path):
+    def target_values(self, template_path, target_path, language=None):
         """{key: text} of a target file, its plural messages keyed and
         given as L{plural_text()} as the pair's units are: those of
         L{values()} plus the template's keys the target translates."""
         found = self.values(target_path)
-        for unit in self.to_bilingual(template_path, target_path).units:
+        for unit in self.to_bilingual(template_path, target_path, language).units:
             if unit.isheader() or not unit.getlocations():
                 continue
             text = unit_text(unit.target, unit)
@@ -200,12 +203,14 @@ class PropertiesConverter(MonolingualConverter):
             return {}
         return dict(zip(names, spans, strict=True))
 
-    def to_bilingual(self, template_path, target_path):
+    def to_bilingual(self, template_path, target_path, language=None):
         from translate.convert import prop2po
 
         return prop2po.prop2po().mergestore(self._store(template_path), self._store(target_path))
 
-    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
+    def to_monolingual(
+        self, template_path, target_path, translations, skip_untranslated=False, language=None
+    ):
         from translate.convert import po2prop
         from translate.storage import po
 
@@ -287,14 +292,16 @@ class FluentConverter(MonolingualConverter):
             found[key] = (found[key][0], last)
         return found
 
-    def to_bilingual(self, template_path, target_path):
+    def to_bilingual(self, template_path, target_path, language=None):
         from translate.convert import fluent2po
 
         return fluent2po.fluent2po().merge_store(
             self._store(template_path), self._store(target_path)
         )
 
-    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
+    def to_monolingual(
+        self, template_path, target_path, translations, skip_untranslated=False, language=None
+    ):
         store = self._store(template_path)
         for unit in self._messages(store):
             if unit.getid() in translations:
@@ -361,7 +368,9 @@ class StringsConverter(PropertiesConverter):
             for name, start in zip(names, starts, strict=True)
         }
 
-    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
+    def to_monolingual(
+        self, template_path, target_path, translations, skip_untranslated=False, language=None
+    ):
         store = self._store(template_path)
         for unit in list(store.units):
             if unit.isblank():
@@ -982,13 +991,14 @@ class JsonConverter(MonolingualConverter):
 
         return json.loads(_read(path).decode('utf-8-sig'))
 
-    def to_bilingual(self, template_path, target_path):
+    def to_bilingual(self, template_path, target_path, language=None):
         from translate.storage import po
 
         data = _read(template_path)
         notes = _arb_notes(self._load(template_path))
         targets = self._raw_values(target_path)
-        language = _json_language(target_path)
+        # What the file says wins over a language it was given.
+        language = _json_language(target_path) or language
         store = po.pofile()
         for message in _json_messages(data):
             if message.forms is not None:
@@ -1010,7 +1020,9 @@ class JsonConverter(MonolingualConverter):
                 unit.addnote(notes[message.key], 'developer')
         return store
 
-    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
+    def to_monolingual(
+        self, template_path, target_path, translations, skip_untranslated=False, language=None
+    ):
         import json
 
         template_text = _read(template_path).decode('utf-8-sig')
@@ -1018,7 +1030,7 @@ class JsonConverter(MonolingualConverter):
         writer = _JsonWriter(
             translations,
             skip_untranslated,
-            _json_language(target_path),
+            _json_language(target_path) or language,
             target if isinstance(target, dict) else {},
         )
         tree = writer.write(json.loads(template_text), ())
@@ -1161,12 +1173,12 @@ class AndroidConverter(MonolingualConverter):
             for key, element, items in _android_entries(_android_root(_read(target_path)))
         }
 
-    def to_bilingual(self, template_path, target_path):
+    def to_bilingual(self, template_path, target_path, language=None):
         from translate.storage import po
 
         root = _android_root(_read(template_path))
         targets = self._targets(target_path)
-        language = _target_language(target_path)
+        language = language or _target_language(target_path)
         store = po.pofile()
         for key, element, items in _android_entries(root):
             note = _android_note(element if element.tag != 'item' else element.getparent())
@@ -1194,13 +1206,17 @@ class AndroidConverter(MonolingualConverter):
                 unit.addnote(note, 'developer')
         return store
 
-    def to_monolingual(self, template_path, target_path, translations, skip_untranslated=False):
+    def to_monolingual(
+        self, template_path, target_path, translations, skip_untranslated=False, language=None
+    ):
         from lxml import etree
 
         data = _read(template_path)
         root = _android_root(data)
         writer = _AndroidWriter(
-            translations, skip_untranslated, plural_categories(_target_language(target_path))
+            translations,
+            skip_untranslated,
+            plural_categories(language or _target_language(target_path)),
         )
         writer.write(root)
         declaration = re.match(rb'<\?xml[^>]*\?>\s*', data)
