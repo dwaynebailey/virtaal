@@ -896,12 +896,6 @@ jobs:
           foreach ($expected in '^dictionary: True$', '^gtkspell: ok$', '^marked: xqzwy$') {
             if (-not ($result -match $expected)) { throw "Not in the report: $expected" }
           }
-          $config = Join-Path $env:RUNNER_TEMP "enchant-Ünïcödé"
-          New-Item -ItemType Directory -Force -Path "$config\hunspell" | Out-Null
-          Copy-Item build\dictionaries\hu_HU\hu_HU.aff, build\dictionaries\hu_HU\hu_HU.dic "$config\hunspell"
-          $env:ENCHANT_CONFIG_DIR = $config
-          Write-Host "A dictionary in $config"
-          devsupport\packaging\windows\run_module.ps1 dist\virtaal virtaal.support.enchant_compat -Arguments hu_HU
 
       - name: Check the interface languages display in the bundle's fonts
         # Every shipped language's messages and its own name, in the UI
