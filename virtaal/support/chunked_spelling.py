@@ -25,9 +25,10 @@ CHUNK = 2000
 STEP_SECONDS = 0.01
 # GTK lays out a line with many marks in time growing faster than their
 # number (a keystroke in a line of 100,000 characters takes over a second
-# with 10,000 marks, 0.04 s with 1,000): in a longer line only this many
-# characters around the cursor, or what's in view, are marked.
-WINDOW = 8000
+# with 10,000 marks, 0.25 s with 1,100 on a CI Mac): in a longer line
+# only this many characters around the cursor, or what's in view, are
+# marked.
+WINDOW = 4000
 # Suggestions shown before the rest go into a "More..." submenu, as GtkSpell.
 SUGGESTIONS_PER_MENU = 10
 _APOSTROPHES = ("'", '\u2019')
