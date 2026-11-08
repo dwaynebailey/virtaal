@@ -34,20 +34,23 @@ WARM_UP = (
 # Longer than the service takes to start; a warm-up still running then
 # counts as failed.
 TIMEOUT_SECONDS = 15
-# After the service has started, this process's own first check of a
-# language starts loading it here, and answers stay wrong for a while
-# (1.75 s on a CI Intel Mac): checking waits this long after it.
-SETTLE_SECONDS = 3
+# After the service has started, this process loads the language too:
+# until then NSSpellChecker refuses it and goes on checking in the last
+# language it had (wrong for 1.75 s and more on the CI Macs). How often,
+# and how long, to see whether it takes it.
+POLL_MILLISECONDS = 100
+LOAD_SECONDS = 10
 
 
 class WarmUp:
-    """Warms the service up for languages once, then this process with
-        prime(language); calls each on_done(ok) when done."""
+    """Warms the service up for languages once, then waits for
+        loaded(language) here; calls each on_done(ok) when done."""
 
-    def __init__(self, prime=None, spawn=None, timeout_add=None):
-        self._prime = prime
+    def __init__(self, loaded=None, spawn=None, timeout_add=None, poll_add=None):
+        self._loaded = loaded or language_loaded
         self._spawn = spawn or _spawn
         self._timeout_add = timeout_add or GLib.timeout_add_seconds
+        self._poll_add = poll_add or GLib.timeout_add
         self._ready = set()
         self._failed = set()
         self._waiting = {}  # language -> callbacks
@@ -72,21 +75,26 @@ class WarmUp:
         def started(ok):
             if finished:
                 return
-            if not ok or self._prime is None:
-                done(ok)
+            if not ok:
+                done(False)
                 return
             finished.append('started')
-            try:
-                self._prime(language)
-            except Exception as e:
-                logging.debug("Couldn't check %s: %s", language, e)
-                settled(False)
-                return
-            self._timeout_add(SETTLE_SECONDS, lambda: settled(True) or False)
+            polls = [LOAD_SECONDS * 1000 // POLL_MILLISECONDS]
 
-        def settled(ok):
-            finished.clear()
-            done(ok)
+            def poll():
+                try:
+                    ok = self._loaded(language)
+                except Exception as e:
+                    logging.debug("Couldn't ask for %s: %s", language, e)
+                    ok = None
+                polls[0] -= 1
+                if ok is None or ok or polls[0] <= 0:
+                    finished.clear()
+                    done(bool(ok))
+                    return False
+                return True
+            if poll():
+                self._poll_add(POLL_MILLISECONDS, poll)
 
         def done(ok):
             if finished:
@@ -104,6 +112,25 @@ class WarmUp:
             done(False)
             return
         self._timeout_add(TIMEOUT_SECONDS, lambda: started(False) or False)
+
+
+def language_loaded(language):
+    """Whether NSSpellChecker in this process takes language now."""
+    import ctypes
+    from ctypes import c_bool, c_char_p, c_void_p
+    objc = ctypes.cdll.LoadLibrary('/usr/lib/libobjc.dylib')
+    objc.objc_getClass.restype = c_void_p
+    objc.objc_getClass.argtypes = [c_char_p]
+    objc.sel_registerName.restype = c_void_p
+    objc.sel_registerName.argtypes = [c_char_p]
+    send = ctypes.cast(objc.objc_msgSend, c_void_p).value
+    send_id = ctypes.CFUNCTYPE(c_void_p, c_void_p, c_void_p)(send)
+    send_str = ctypes.CFUNCTYPE(c_void_p, c_void_p, c_void_p, c_char_p)(send)
+    send_bool = ctypes.CFUNCTYPE(c_bool, c_void_p, c_void_p, c_void_p)(send)
+    checker = send_id(objc.objc_getClass(b'NSSpellChecker'), objc.sel_registerName(b'sharedSpellChecker'))
+    name = send_str(objc.objc_getClass(b'NSString'), objc.sel_registerName(b'stringWithUTF8String:'),
+                    language.encode('utf-8'))
+    return bool(send_bool(checker, objc.sel_registerName(b'setLanguage:'), name))
 
 
 def _spawn(argv, on_exit):
