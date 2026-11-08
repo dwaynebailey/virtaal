@@ -15,6 +15,7 @@ on the main thread. A JavaScript for Automation script, its own process,
 starts it and loads the languages instead."""
 
 import logging
+import subprocess
 
 from gi.repository import GLib
 
@@ -74,7 +75,7 @@ class WarmUp:
                 callback(ok)
         try:
             self._spawn([OSASCRIPT, '-l', 'JavaScript', '-e', WARM_UP, language], done)
-        except GLib.Error as e:
+        except OSError as e:
             logging.debug("Couldn't start %s: %s", OSASCRIPT, e)
             done(False)
             return
@@ -83,16 +84,12 @@ class WarmUp:
 
 def _spawn(argv, on_exit):
     """Runs argv without waiting; on_exit(succeeded) when it exits."""
-    flags = (GLib.SpawnFlags.DO_NOT_REAP_CHILD | GLib.SpawnFlags.STDOUT_TO_DEV_NULL
-             | GLib.SpawnFlags.STDERR_TO_DEV_NULL)
-    pid, _stdin, _stdout, _stderr = GLib.spawn_async(argv, flags=flags)
+    process = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL)
 
-    def exited(pid, status):
-        GLib.spawn_close_pid(pid)
-        check = getattr(GLib, 'spawn_check_wait_status', None) or GLib.spawn_check_exit_status
-        try:
-            ok = check(status)
-        except GLib.Error:
-            ok = False
-        on_exit(ok)
-    GLib.child_watch_add(GLib.PRIORITY_DEFAULT, pid, exited)
+    def poll():
+        if process.poll() is None:
+            return True
+        on_exit(process.returncode == 0)
+        return False
+    GLib.timeout_add(50, poll)

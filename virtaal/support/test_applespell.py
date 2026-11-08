@@ -51,3 +51,23 @@ def test_a_failed_warm_up():
     spawned[0][1](False)
 
     assert results == [False] and warm_up.has_failed('ko')
+
+
+def _exit_of(code):
+    import sys
+    import time
+
+    from gi.repository import GLib
+    results = []
+    applespell._spawn([sys.executable, '-c', 'raise SystemExit(%d)' % code], results.append)
+    context = GLib.MainContext.default()
+    deadline = time.monotonic() + 30
+    while not results and time.monotonic() < deadline:
+        context.iteration(False)
+        time.sleep(0.01)
+    return results
+
+
+def test_spawn_reports_how_the_process_exited():
+    assert _exit_of(0) == [True]
+    assert _exit_of(3) == [False]
