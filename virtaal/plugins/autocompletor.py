@@ -186,6 +186,7 @@ class AutoCompletor:
     FAST_COMPLETION_LENGTH = 2  # The minimum typed length that completes a
     # placeable or term translation from the current unit's source.
     SIGILS = '%${<&'  # These and digits complete a placeable from one character.
+    MAX_CANDIDATES = 8  # The most completions listed at once.
 
     def __init__(self, main_controller, word_list=None, comp_len=DEFAULT_COMPLETION_LENGTH):
         """Constructor.
@@ -226,37 +227,54 @@ class AutoCompletor:
         """Complete word to one of the current unit's words, or else to a
         long word typed elsewhere in C{target}, ignoring case: see
         L{_cased()}."""
+        return next(self._word_completions(word, target, at_start), (None, ''))
+
+    def _word_completions(self, word, target, at_start):
+        """(completed word, the part to add) for each word that word
+        completes to, best first, as L{autocomplete()}."""
         folded = self.fold(word)
         typed = [w for w in self.wordsep_re.split(target) if self.isusable(w)]
         for w in itertools.chain(self._word_list, typed):
             if (self._word_folds.get(w) or self.fold(w)).startswith(folded):
                 if w not in self._proper and not self._proper_in(w, target):
                     w = self._cased(w, word, at_start)
-                return w, w[len(word) :]
-        return None, ''
+                yield w, w[len(word) :]
 
     def autocomplete_fast(self, prefix, target=''):
         """Complete the end of C{prefix} to one of the current unit's
         placeables or term translations, which may contain spaces and
         punctuation. Those not yet in C{target} as often as in the source
         come first, each group in source order."""
+        return next(self._fast_completions(prefix, target), (None, ''))
+
+    def _fast_completions(self, prefix, target):
+        """(completed placeable or term, the part to add) for each that
+        the end of prefix completes to, in L{autocomplete_fast()}'s order."""
         folded_prefix = self.fold(prefix)
         for candidate in self._ordered_fast_candidates(target):
-            for folded in self._folded[candidate]:
-                first = max(0, len(prefix) - min(len(folded), len(candidate)) + 1)
-                for start in range(first, len(prefix)):
-                    typed = prefix[start:]
-                    if len(typed) < self.FAST_COMPLETION_LENGTH and not self._is_sigil(typed[0]):
-                        continue
-                    if not folded.startswith(folded_prefix[start:]):
-                        continue
-                    # Don't complete "ab" in "tab" to "about".
-                    if start > 0 and self._isword(prefix[start - 1]) and self._isword(folded[0]):
-                        continue
-                    if candidate in self._cased_candidates:
-                        candidate = self._cased(candidate, typed, self.at_start(prefix[:start]))
-                    return candidate, candidate[len(typed) :]
-        return None, ''
+            typed = self._fast_typed(candidate, prefix, folded_prefix)
+            if typed is None:
+                continue
+            if candidate in self._cased_candidates:
+                before = prefix[: len(prefix) - len(typed)]
+                candidate = self._cased(candidate, typed, self.at_start(before))
+            yield candidate, candidate[len(typed) :]
+
+    def _fast_typed(self, candidate, prefix, folded_prefix):
+        """The end of prefix that starts candidate, or None."""
+        for folded in self._folded[candidate]:
+            first = max(0, len(prefix) - min(len(folded), len(candidate)) + 1)
+            for start in range(first, len(prefix)):
+                typed = prefix[start:]
+                if len(typed) < self.FAST_COMPLETION_LENGTH and not self._is_sigil(typed[0]):
+                    continue
+                if not folded.startswith(folded_prefix[start:]):
+                    continue
+                # Don't complete "ab" in "tab" to "about".
+                if start > 0 and self._isword(prefix[start - 1]) and self._isword(folded[0]):
+                    continue
+                return typed
+        return None
 
     def at_start(self, before):
         """Whether a word after C{before} in the target starts a sentence:
@@ -401,16 +419,31 @@ class AutoCompletor:
     def _completion(self, prefix, postfix, text):
         """(completed word, the part of it to add) for text just typed
         between prefix and postfix."""
-        completed_word, word_postfix = self.autocomplete_fast(prefix, prefix + postfix)
-        if completed_word:
-            return completed_word, word_postfix
+        return next(iter(self._completions(prefix, postfix, text, 1)), (None, ''))
+
+    def _completions(self, prefix, postfix, text, limit=MAX_CANDIDATES):
+        """Up to limit (completed word, the part of it to add), best first,
+        for text just typed between prefix and postfix: placeables and
+        term translations, then words."""
+        found = []
+        seen = set()
+
+        def add(pairs):
+            for word, rest in pairs:
+                if len(found) >= limit:
+                    return
+                if rest and word not in seen:
+                    seen.add(word)
+                    found.append((word, rest))
+
+        add(self._fast_completions(prefix, prefix + postfix))
         if self.wordsep_re.match(text):
-            return None, ''
+            return found
         lastword = self.wordsep_re.split(prefix)[-1]
-        if len(lastword) < self.comp_len:
-            return None, ''
-        before = prefix[: len(prefix) - len(lastword)]
-        return self.autocomplete(lastword, before + ' ' + postfix, self.at_start(before))
+        if len(lastword) >= self.comp_len:
+            before = prefix[: len(prefix) - len(lastword)]
+            add(self._word_completions(lastword, before + ' ' + postfix, self.at_start(before)))
+        return found
 
     def _on_insert_text(self, textbox, text, offset, elem):
         if not isinstance(text, str) or text.isspace():
@@ -425,23 +458,22 @@ class AutoCompletor:
 
         prefix = str(textbox.get_text(0, offset) + text)
         postfix = str(textbox.get_text(offset))
-        buffer = textbox.buffer
 
         # Quick fix to check that we don't autocomplete in the middle of a word.
         right_lim = len(postfix) > 0 and postfix[0] or ' '
         if not self.wordsep_re.match(right_lim):
             return
 
-        completed_word, word_postfix = self._completion(prefix, postfix, text)
-        if completed_word and word_postfix:
+        completions = self._completions(prefix, postfix, text)
+        if completions:
             # Updating of the buffer is deferred until after this signal
             # and its side effects are taken care of. We abuse
             # GLib.idle_add for that.
             insert_offset = offset + 1  # len(text) == 1
-            suggestion = {'text': word_postfix, 'offset': insert_offset}
-            typed_len = len(completed_word) - len(word_postfix)
-            if completed_word[:typed_len] != prefix[len(prefix) - typed_len :]:
-                suggestion['replace'] = completed_word[:typed_len]
+            candidates = [
+                self._suggestion(word, rest, prefix, insert_offset) for word, rest in completions
+            ]
+            suggestion = dict(candidates[0], candidates=candidates)
 
             def suggest_completion():
                 if getattr(textbox, '_render_pending', False):
@@ -453,13 +485,25 @@ class AutoCompletor:
                 textbox.suggestion = suggestion
                 textbox.handler_unblock(self._textbox_insert_ids[textbox])
 
+                buffer = textbox.buffer
+                rest = suggestion['text']
                 sel_iter_start = buffer.get_iter_at_offset(insert_offset)
-                sel_iter_end = buffer.get_iter_at_offset(insert_offset + len(word_postfix))
+                sel_iter_end = buffer.get_iter_at_offset(insert_offset + len(rest))
                 buffer.select_range(sel_iter_start, sel_iter_end)
-
                 return False
 
             GLib.idle_add(suggest_completion, priority=GLib.PRIORITY_HIGH)
+
+    @staticmethod
+    def _suggestion(word, rest, prefix, offset):
+        """The text box suggestion that completes prefix to word by adding
+        rest at offset; with the typed part replaced if word differs from
+        it (another case, other digits)."""
+        suggestion = {'text': rest, 'offset': offset, 'word': word}
+        typed_len = len(word) - len(rest)
+        if word[:typed_len] != prefix[len(prefix) - typed_len :]:
+            suggestion['replace'] = word[:typed_len]
+        return suggestion
 
     def _parsers(self, unit):
         """The placeables parsers for unit's format, but the invisible

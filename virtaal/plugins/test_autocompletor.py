@@ -82,6 +82,11 @@ def test_add_words_accumulates_frequency_across_calls():
 # set_unit() - the per-unit candidate pool #
 
 
+def _shown(suggestion):
+    """suggestion as the text box shows it, without the list."""
+    return {k: v for k, v in suggestion.items() if k not in ('word', 'candidates')}
+
+
 def _unit(source, target=''):
     return SimpleNamespace(source=source, target=target)
 
@@ -823,7 +828,7 @@ def test_on_insert_text_schedules_and_applies_a_deferred_suggestion(monkeypatch)
     assert priority == GLib.PRIORITY_HIGH
 
     assert func() is False  # runs the deferred suggestion for real
-    assert textbox.suggestion == {'text': 'sinki', 'offset': 3}
+    assert _shown(textbox.suggestion) == {'text': 'sinki', 'offset': 3}
     assert calls == [('block', 'sigid'), ('unblock', 'sigid')]
     start, end = textbox.buffer.get_selection_bounds()
     assert (start.get_offset(), end.get_offset()) == (3, 8)
@@ -843,7 +848,7 @@ def test_on_insert_text_suggests_a_term_translation_below_comp_len(monkeypatch):
     ac._on_insert_text(textbox, text='a', offset=1, elem=None)
 
     scheduled[0]()
-    assert textbox.suggestion == {'text': 'nselleer', 'offset': 2}
+    assert _shown(textbox.suggestion) == {'text': 'nselleer', 'offset': 2}
 
 
 def test_on_insert_text_suggests_a_placeable_after_a_separator_character(monkeypatch):
@@ -860,7 +865,7 @@ def test_on_insert_text_suggests_a_placeable_after_a_separator_character(monkeyp
     ac._on_insert_text(textbox, text='/', offset=1, elem=None)
 
     scheduled[0]()
-    assert textbox.suggestion == {'text': 'b>', 'offset': 2}
+    assert _shown(textbox.suggestion) == {'text': 'b>', 'offset': 2}
 
 
 def test_on_insert_text_suggests_the_missing_placeable_after_one_sigil(monkeypatch):
@@ -877,7 +882,7 @@ def test_on_insert_text_suggests_the_missing_placeable_after_one_sigil(monkeypat
     ac._on_insert_text(textbox, text='%', offset=0, elem=None)
 
     scheduled[0]()
-    assert textbox.suggestion == {'text': 'd', 'offset': 1}
+    assert _shown(textbox.suggestion) == {'text': 'd', 'offset': 1}
 
 
 def test_on_insert_text_suggests_replacing_digits_typed_in_another_script(monkeypatch):
@@ -894,7 +899,7 @@ def test_on_insert_text_suggests_replacing_digits_typed_in_another_script(monkey
     ac._on_insert_text(textbox, text='1', offset=0, elem=None)
 
     scheduled[0]()
-    assert textbox.suggestion == {'text': '২৩৪', 'offset': 1, 'replace': '১'}
+    assert _shown(textbox.suggestion) == {'text': '২৩৪', 'offset': 1, 'replace': '১'}
 
 
 def test_on_insert_text_suggests_a_word_typed_earlier_in_the_target(monkeypatch):
@@ -942,7 +947,7 @@ def test_on_insert_text_suggests_replacing_the_typed_case_of_a_name(monkeypatch)
     ac._on_insert_text(textbox, text='l', offset=9, elem=None)
 
     scheduled[0]()
-    assert textbox.suggestion == {'text': 'sinki', 'offset': 10, 'replace': 'Hel'}
+    assert _shown(textbox.suggestion) == {'text': 'sinki', 'offset': 10, 'replace': 'Hel'}
 
 
 def test_on_insert_text_suggests_a_capital_at_the_start_of_a_sentence(monkeypatch):
@@ -961,7 +966,7 @@ def test_on_insert_text_suggests_a_capital_at_the_start_of_a_sentence(monkeypatc
     ac._on_insert_text(textbox, text='w', offset=12, elem=None)
 
     scheduled[0]()
-    assert textbox.suggestion == {'text': 'nload', 'offset': 13, 'replace': 'Dow'}
+    assert _shown(textbox.suggestion) == {'text': 'nload', 'offset': 13, 'replace': 'Dow'}
 
 
 def test_on_insert_text_suggests_after_the_target_is_rendered_again(monkeypatch):
@@ -985,7 +990,7 @@ def test_on_insert_text_suggests_after_the_target_is_rendered_again(monkeypatch)
     assert scheduled[1][1] > GLib.PRIORITY_DEFAULT_IDLE
     textbox._render_pending = False
     scheduled[1][0]()
-    assert textbox.suggestion == {'text': '026', 'offset': 1}
+    assert _shown(textbox.suggestion) == {'text': '026', 'offset': 1}
 
 
 def test_on_insert_text_ignores_a_space_even_with_fast_candidates():
@@ -1296,3 +1301,51 @@ def test_on_store_loaded_disconnects_a_previous_cursor_subscription(monkeypatch)
 
     assert disconnected == ['old-sig']
     assert plugin._cursor_changed_id == 'new-sig'
+
+
+# _completions() - several at once, for the list #
+
+
+def test_completions_lists_term_translations_then_words():
+    ac = _parsing_ac(_term_parser('Cancel', 'Kanselleer', 'Kanselleer nou'), comp_len=1)
+    ac.set_unit(_unit('Cancel the Kansas trip', 'Kanaal'))
+
+    words = [word for word, _rest in ac._completions('Ka', '', 'a')]
+
+    assert words[:2] == ['Kanselleer', 'Kanselleer nou']
+    assert set(words[2:]) == {'Kansas', 'Kanaal'}
+
+
+def test_completions_are_at_most_the_limit_and_never_repeat():
+    ac = _ac(comp_len=1)
+    ac.add_words(['woord%d' % i for i in range(20)] + ['woord1'])
+
+    found = ac._completions('woo', '', 'o')
+
+    assert len(found) == AutoCompletor.MAX_CANDIDATES
+    assert len({word for word, _rest in found}) == len(found)
+
+
+def test_completions_leave_out_what_is_typed_in_full():
+    ac = _ac(comp_len=1)
+    ac.add_words(['huis', 'huisie'])
+
+    assert ac._completions('huis', '', 's') == [('huisie', 'ie')]
+
+
+def test_on_insert_text_gives_the_suggestion_every_completion(monkeypatch):
+    ac = _ac(comp_len=1)
+    ac.add_words(['helsinki', 'help'])
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append(f),
+    )
+    textbox, _calls = _insert_text_box(prefix='he', suffix='', buffer_text='helsinki')
+    ac._textbox_insert_ids = {textbox: 'sigid'}
+
+    ac._on_insert_text(textbox, text='l', offset=2, elem=None)
+    scheduled[0]()
+
+    assert [c['word'] for c in textbox.suggestion['candidates']] == ['helsinki', 'help']
+    assert textbox.suggestion['candidates'][1] == {'text': 'p', 'offset': 3, 'word': 'help'}
