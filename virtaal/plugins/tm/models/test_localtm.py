@@ -419,6 +419,8 @@ def test_push_store_sends_every_form_of_a_plural_unit(tmp_path):
             'key': '%d file',
             'plural_source': '%d files',
             'plural_targets': ['%d lêer', '%d lêers'],
+            # The file's own Plural-Forms, without spaces.
+            'plural_layout': 'nplurals=2;plural=(n!=1)',
         },
         {'source': '%d day', 'target': '%d dag', 'context': '', 'key': '%d day'},
     ]

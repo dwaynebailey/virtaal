@@ -1922,7 +1922,7 @@ def test_a_v5_file_gets_a_table_for_fetched_suggestions(db_path, monkeypatch):
 
     db = tmdb.TMDB(db_path)
 
-    assert db._user_version() == tmdb.SCHEMA_VERSION == 6
+    assert db._user_version() == tmdb.SCHEMA_VERSION
     assert _columns(db, 'cached') == [
         'service',
         'source_lang',
@@ -2042,3 +2042,82 @@ def test_the_cache_gives_up_soon_on_another_process_lock(cache, db_path, monkeyp
     cache.put('amagama', 'en', 'af', {'Open': []})
     assert cache.get('en', 'af', ['Open']) == {'amagama': {'Open': []}}
     cache.close()
+
+
+# How a plural's forms are laid out (schema 7)
+
+AF_LAYOUT = 'nplurals=2;plural=(n!=1)'
+
+
+def _layouts(db):
+    return [row[0] for row in db.cursor.execute('SELECT plural_layout FROM targets ORDER BY tid')]
+
+
+def test_import_and_add_store_record_the_file_s_plural_forms(db_path):
+    db = tmdb.TMDB(db_path)
+
+    db.import_store(_plural_po(), '/x/af.po', 'en', 'af')
+    db.add_store(_plural_po(THREE_FORMS_PO), 'en', 'af')
+
+    assert _layouts(db) == [AF_LAYOUT, 'nplurals=3;plural=(n==1?0:n==2?1:2)', None]
+    (match,) = db.translate_unit('Delete %d file', 'en', 'af')[:1]
+    assert match['plural_layout'] in (AF_LAYOUT, 'nplurals=3;plural=(n==1?0:n==2?1:2)')
+
+
+def test_a_synced_unit_dict_records_its_layout(db_path):
+    db = tmdb.TMDB(db_path)
+    unit = {
+        'source': 'Delete %d file',
+        'target': PLURAL_FORMS[0],
+        'key': 'k',
+        'plural_source': 'Delete %d files',
+        'plural_targets': PLURAL_FORMS,
+        'plural_layout': 'cldr',
+    }
+
+    db.sync_store('/x/af.json', [unit], 'en', 'af')
+
+    assert _layouts(db) == ['cldr']
+    assert db.translate_unit('Delete %d file', 'en', 'af')[0]['plural_layout'] == 'cldr'
+
+
+def test_an_exported_plural_keeps_its_layout(db_path, tmp_path):
+    db = tmdb.TMDB(db_path)
+    db.import_store(_plural_po(THREE_FORMS_PO), '/x/af.po', 'en', 'af')
+    other = str(tmp_path / 'other.db')
+    try:
+        again = tmdb.TMDB(other)
+        again.import_store(tmx.tmxfile(db.export_tmx('en', 'af')), '/x/e.tmx')
+
+        assert _layouts(again)[0] == 'nplurals=3;plural=(n==1?0:n==2?1:2)'
+    finally:
+        _close(other)
+
+
+def test_a_v6_file_gains_plural_layouts_its_plurals_don_t_know(db_path, monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr(tmdb, 'SCHEMA_VERSION', 6)
+        patch.delitem(tmdb.MIGRATIONS, 7)
+        db = tmdb.TMDB(db_path)
+        db.import_store(_plural_po(), '/x/af.po', 'en', 'af')
+        _close(db_path)
+
+    db = tmdb.TMDB(db_path)
+
+    assert db._user_version() == tmdb.SCHEMA_VERSION == 7
+    # Not known: read as the language's usual layout when matched.
+    assert _layouts(db) == [None]
+    (match,) = db.translate_unit('Delete %d file', 'en', 'af')
+    assert 'plural_layout' not in match and match['plural_targets'] == PLURAL_FORMS
+
+
+@pytest.mark.parametrize(
+    'unit, expected',
+    [
+        (types.SimpleNamespace(plural_tags=['one', 'other'], plural_ordinal=False), 'cldr'),
+        (types.SimpleNamespace(plural_tags=['other'], plural_ordinal=True), 'cldr-ordinal'),
+        (types.SimpleNamespace(_store=None), None),
+    ],
+)
+def test_a_monolingual_plural_s_layout_is_cldr_s(unit, expected):
+    assert tmdb.plural_layout(unit) == expected

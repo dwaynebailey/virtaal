@@ -1803,7 +1803,18 @@ RU_PO_MATCH = {
     'plural_targets': ['Удалить %d файл', 'Удалить %d файла', 'Удалить %d файлов'],
 }
 RU_CLDR_MATCH = dict(
-    RU_PO_MATCH, plural_targets=RU_PO_MATCH['plural_targets'] + ['Удалить %d файла (2)']
+    RU_PO_MATCH,
+    plural_targets=RU_PO_MATCH['plural_targets'] + ['Удалить %d файла (2)'],
+    plural_layout='cldr',
+)
+KDE_RU = (
+    'n==1 ? 3 : n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2'
+)
+# KDE's Russian: a fourth form for exactly 1, often without the number.
+RU_KDE_MATCH = dict(
+    RU_PO_MATCH,
+    plural_targets=RU_PO_MATCH['plural_targets'] + ['Удалить файл'],
+    plural_layout='nplurals=4;plural=' + KDE_RU.replace(' ', ''),
 )
 
 
@@ -1879,5 +1890,35 @@ def test_layouts_with_as_many_forms_need_no_mapping(language):
 )
 def test_a_plural_that_cant_be_mapped_offers_its_first_form(kwargs):
     (match,) = _mapped_response(RU_PO_MATCH, 1, **kwargs)
+
+    assert match['target'] == 'Удалить %d файл'
+
+
+@pytest.mark.parametrize(
+    'target_n, target, quality',
+    [
+        (1, 'Удалить %d файла', 99),
+        (2, 'Удалить %d файлов', 99),
+        (3, 'Удалить %d файла', 94),
+    ],
+)
+def test_kde_s_four_russian_forms_are_mapped_onto_cldr_s_four(target_n, target, quality):
+    # As many forms, but laid out otherwise: never form by form, and
+    # KDE's exactly-1 form ("Удалить файл") never stands for another.
+    (match,) = _mapped_response(RU_KDE_MATCH, target_n, 'ru', RU_TAGS, nplurals=4)
+
+    assert (match['target'], match['quality']) == (target, quality)
+
+
+def test_a_plural_in_the_unit_s_own_layout_is_used_form_by_form():
+    (match,) = _mapped_response(dict(RU_CLDR_MATCH), 3, 'ru', RU_TAGS, nplurals=4)
+
+    assert (match['target'], match['quality']) == ('Удалить %d файла (2)', 100)
+
+
+def test_a_plural_of_unknown_layout_with_another_count_is_not_mapped():
+    unknown = {k: v for k, v in RU_CLDR_MATCH.items() if k != 'plural_layout'}
+
+    (match,) = _mapped_response(unknown, 2, 'ru')
 
     assert match['target'] == 'Удалить %d файл'

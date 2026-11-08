@@ -11,6 +11,7 @@ file's). Each form is matched by the numbers that take it, so no
 per-language table is needed. No GTK here."""
 
 import functools
+import re
 import warnings
 from collections import Counter
 
@@ -26,6 +27,12 @@ class Layout:
         self.count = count
         self.form = form
 
+    def same(self, other):
+        """Whether C{other} gives every sample number the same form."""
+        return self.count == other.count and all(
+            self.form(number) == other.form(number) for number in SAMPLES
+        )
+
     @functools.cached_property
     def samples(self):
         """{form: [numbers]} of the sample numbers each form takes."""
@@ -35,12 +42,22 @@ class Layout:
         return found
 
 
+CLDR = 'cldr'
+CLDR_ORDINAL = 'cldr-ordinal'
+"""The layout names stored for a monolingual file's CLDR forms."""
+
+
+def gettext_name(nplurals, plural):
+    """The layout name of a gettext Plural-Forms: the header's own text,
+    without its spaces, so that the same rule gives the same name."""
+    plural = re.sub(r'\s+', '', str(plural)).rstrip(';')
+    return 'nplurals=%d;plural=%s' % (int(nplurals), plural)
+
+
 @functools.cache
 def gettext_layout(language):
     """The gettext layout of C{language}'s plurals, or None if Virtaal
     knows no plural rule for it."""
-    import gettext
-
     from virtaal.models.langmodel import LanguageModel
 
     try:
@@ -49,11 +66,29 @@ def gettext_layout(language):
         return None
     if not model.nplurals or not model.plural:
         return None
+    return expression_layout(int(model.nplurals), model.plural)
+
+
+@functools.cache
+def expression_layout(nplurals, plural):
+    """The layout of a gettext Plural-Forms, or None if it can't be read."""
+    import gettext
+
     try:
-        rule = gettext.c2py(model.plural)
-    except (ValueError, SyntaxError):
+        count = int(nplurals)
+        rule = gettext.c2py(str(plural).strip().rstrip(';'))
+    except (ValueError, SyntaxError, TypeError):
         return None
-    return Layout(int(model.nplurals), _bounded(rule, int(model.nplurals)))
+    return Layout(count, _bounded(rule, count)) if count > 0 else None
+
+
+def named_layout(name, language):
+    """The layout a stored name gives (see L{gettext_name}, L{CLDR},
+    L{CLDR_ORDINAL}) for C{language}, or None."""
+    if name in (CLDR, CLDR_ORDINAL):
+        return cldr_layout(language, name == CLDR_ORDINAL)
+    match = re.fullmatch(r'nplurals=(\d+);plural=(.+)', name or '')
+    return expression_layout(int(match.group(1)), match.group(2)) if match else None
 
 
 def _bounded(rule, count):

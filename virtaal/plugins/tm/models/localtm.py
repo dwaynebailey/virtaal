@@ -437,7 +437,7 @@ def _unit_dict(unit):
     unit_dict = {
         **remotetm.unit2dict(unit),
         'key': unit.getid(),
-        **tmdb.plural_fields(unit.source, unit.target),
+        **tmdb.plural_fields(unit.source, unit.target, unit),
         **tmdb.plural_marker(unit),
     }
     source_markup, target_markup = inlinecodes.unit_markup(unit)

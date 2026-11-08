@@ -343,23 +343,21 @@ class TMController(BaseController):
         """match's form for the form target_n being edited, with its
         source plural, scored on unit's; or None if it has none. A
         stored plural laid out otherwise than the unit (a PO file's
-        gettext forms for an i18next or Android unit's CLDR ones, or the
-        other way) gives the form the same numbers take, scored lower
-        (L{MAPPED_PENALTY}, and L{GUESS_PENALTY} more if the numbers
-        don't say which form) and never 100."""
+        gettext forms for an i18next or Android unit's CLDR ones, KDE's
+        four Russian forms for CLDR's four, or the other way) gives the
+        form the same numbers take, scored lower (L{MAPPED_PENALTY}, and
+        L{GUESS_PENALTY} more if the numbers don't decide it) and never
+        100."""
         target_n = getattr(self, 'target_n', 0) or 0
         forms, source = match.get('plural_targets'), match.get('plural_source')
         if not (match.get('quality') and isinstance(source, str) and isinstance(forms, list)):
             return None
         if unit is None or not unit.hasplural():
             return None
-        index, penalty = target_n, 0
-        if len(forms) != self._unit_nplurals(unit):
-            mapped = self._mapped_form(unit, len(forms), target_n)
-            if mapped is None:
-                return None
-            index, guessed = mapped
-            penalty = self.MAPPED_PENALTY + (self.GUESS_PENALTY if guessed else 0)
+        found = self._stored_form(unit, match, len(forms), target_n)
+        if found is None:
+            return None
+        index, penalty = found
         if not index or index >= len(forms):
             # Form 0, the singular, is the match itself.
             return None
@@ -368,11 +366,10 @@ class TMController(BaseController):
             return None
         sources = getattr(unit.source, 'strings', None) or [unit.source]
         query = str(sources[min(1, len(sources) - 1)])
-        stored = source
-        quality = int(LevenshteinComparer(1000).similarity(query, stored, 0))
+        quality = int(LevenshteinComparer(1000).similarity(query, source, 0))
         form = {k: v for k, v in match.items() if k not in ('source_markup', 'target_markup')}
         form.update(
-            source=stored,
+            source=source,
             target=target,
             quality=quality,
             raw_quality=quality,
@@ -392,34 +389,57 @@ class TMController(BaseController):
         tags = getattr(unit, 'plural_tags', None)
         return len(tags) if tags else self._nplurals()
 
-    def _layouts(self, unit):
-        """(the unit's plural layout, the other layout a stored plural
-        may have), or None: an ordinal unit maps from nothing."""
+    def _stored_form(self, unit, match, count, target_n):
+        """(the stored plural's form for the unit's form target_n, the
+        penalty), or None if its forms can't be matched to the unit's.
+        A plural stored without its layout (before Virtaal kept it) is
+        read as the language's usual gettext one if it has that many
+        forms, else as the unit's own if it has as many as the unit."""
         from virtaal.support import pluralmap
 
         language = self._target_language()
-        if not language or getattr(unit, 'plural_ordinal', False):
+        own = self._unit_layout(unit, language)
+        name = match.get('plural_layout')
+        ordinal = getattr(unit, 'plural_ordinal', False)
+        stored = pluralmap.named_layout(name, language) if name else None
+        if name is None:
+            usual = pluralmap.gettext_layout(language) if language else None
+            stored = usual if usual is not None and usual.count == count else None
+            if stored is None and own is not None and own.count == count and not ordinal:
+                stored = own
+        if own is None or stored is None or stored.count != count:
+            # Nothing to read the forms by: form by form if they agree.
+            same = name is None and count == self._unit_nplurals(unit)
+            return (target_n, 0) if same else None
+        if stored.same(own):
+            return target_n, 0
+        if ordinal != (name == pluralmap.CLDR_ORDINAL) or target_n >= own.count:
+            # Ordinal forms say nothing about cardinal ones.
             return None
-        gettext, cldr = pluralmap.gettext_layout(language), pluralmap.cldr_layout(language)
-        if gettext is None or cldr is None:
-            return None
-        return (cldr, gettext) if getattr(unit, 'plural_tags', None) else (gettext, cldr)
+        guesses = {}
+        if getattr(unit, 'plural_tags', None):
+            guesses = pluralmap.cldr_guesses(language, ordinal)
+        index, guessed = pluralmap.form_map(stored, own, guesses)[target_n]
+        return index, self.MAPPED_PENALTY + (self.GUESS_PENALTY if guessed else 0)
 
-    def _mapped_form(self, unit, count, target_n):
-        """(the stored form for the unit's form target_n, guessed) when
-        the stored plural's C{count} forms are the other layout's, else
-        None."""
-        language = self._target_language()
-        layouts = self._layouts(unit)
-        if layouts is None:
-            return None
-        own, other = layouts
-        if other.count != count or own.count == count or target_n >= own.count:
-            return None
+    @staticmethod
+    def _unit_layout(unit, language):
+        """The unit's plural layout: CLDR's for a monolingual file's, its
+        file's Plural-Forms for a PO file's, else the language's."""
         from virtaal.support import pluralmap
 
-        guesses = pluralmap.cldr_guesses(language) if getattr(unit, 'plural_tags', None) else {}
-        return pluralmap.form_map(other, own, guesses)[target_n]
+        if not language:
+            return None
+        if getattr(unit, 'plural_tags', None):
+            return pluralmap.cldr_layout(language, getattr(unit, 'plural_ordinal', False))
+        getheaderplural = getattr(getattr(unit, '_store', None), 'getheaderplural', None)
+        if getheaderplural is not None:
+            nplurals, plural = getheaderplural()
+            if nplurals and plural:
+                layout = pluralmap.expression_layout(int(nplurals), plural)
+                if layout is not None:
+                    return layout
+        return pluralmap.gettext_layout(language)
 
     def _target_language(self):
         main_controller = getattr(self, 'main_controller', None)

@@ -57,10 +57,10 @@ from virtaal.support.tmx_compat import tuv_lang
 logger = logging.getLogger(__name__)
 STRIP_REGEXP = re.compile(r"\W", re.UNICODE)
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 """PRAGMA user_version of the schema below; 0 is a file an older Virtaal made."""
 
-SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}
+SCHEMA_ABSTRACTION = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1}
 """The abstraction algorithm whose abstracts each schema version stores.
 A new algorithm needs a new schema version, whose migration clears the
 abstracts for the backfill to recompute, so that one file never mixes
@@ -213,6 +213,11 @@ SCHEMA_V6 = (
     "CREATE INDEX cached_fetched_idx ON cached (fetched)",
 )
 
+# How a plural target's forms are laid out (pluralmap): its file's
+# gettext Plural-Forms, or CLDR's categories for a monolingual file's.
+# NULL for those stored before, read as the language's usual layout.
+SCHEMA_V7 = ("ALTER TABLE targets ADD COLUMN plural_layout VARCHAR DEFAULT NULL",)
+
 MIGRATIONS = {
     1: SCHEMA_V0 + SCHEMA_V1,
     2: SCHEMA_V2,
@@ -220,6 +225,7 @@ MIGRATIONS = {
     4: SCHEMA_V4,
     5: SCHEMA_V5,
     6: SCHEMA_V6,
+    7: SCHEMA_V7,
 }
 """The statements, or functions of a cursor, bringing a file up to each
 schema version from the one before. A later version that changes only
@@ -229,6 +235,23 @@ the abstraction algorithm migrates with CLEAR_ABSTRACTS."""
 # an older one leaves NULL for the newer one to fill. Read in the same
 # statement as the write, so a migration can't come in between.
 _ABSTRACT_IF_CURRENT = "CASE WHEN (SELECT user_version FROM pragma_user_version) = ? THEN ? END"
+
+
+def _has_layouts():
+    """Whether this schema has targets.plural_layout (from version 7)."""
+    return SCHEMA_VERSION >= 7
+
+
+def _layout_sql(sql):
+    return sql if _has_layouts() else ""
+
+
+def _layout_values(layout):
+    return (layout,) if _has_layouts() else ()
+
+
+def _layout_select():
+    return "t.plural_layout" if _has_layouts() else "NULL"
 
 
 class LanguageError(Exception):
@@ -651,7 +674,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             "context": unit.getcontext(),
             "source_markup": source_markup,
             "target_markup": target_markup,
-            **plural_fields(unit.source, unit.target),
+            **plural_fields(unit.source, unit.target, unit),
         }
         self.add_dict(unitdict, source_lang, target_lang, commit)
 
@@ -703,12 +726,14 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         source_markup, target_markup = _markup(unit)
         plain_length = _plain_length(source_markup)
         plural_source, plural_targets = _plurals(unit)
+        plural_layout = _plural_layout(unit) if plural_targets is not None else None
         try:
             self.cursor.execute(
                 "INSERT INTO targets "
                 "(sid, text, lang, time, abstract, source_markup, target_markup, plain_length, "
-                "plural_source, plural_targets) "
-                "VALUES (?, ?, ?, ?, %s, ?, ?, ?, ?, ?)" % _ABSTRACT_IF_CURRENT,
+                "plural_source, plural_targets%s) "
+                "VALUES (?, ?, ?, ?, %s, ?, ?, ?, ?, ?%s)"
+                % (_layout_sql(", plural_layout"), _ABSTRACT_IF_CURRENT, _layout_sql(", ?")),
                 (
                     sid,
                     unit["target"],
@@ -721,6 +746,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                     plain_length,
                     plural_source,
                     plural_targets,
+                    *_layout_values(plural_layout),
                 ),
             )
             return self.cursor.lastrowid
@@ -733,9 +759,21 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             if plural_targets is not None:
                 # The latest forms; a singular unit keeps those it has.
                 self.cursor.execute(
-                    "UPDATE targets SET plural_source = ?, plural_targets = ? "
-                    "WHERE tid = ? AND (plural_source IS NOT ? OR plural_targets IS NOT ?)",
-                    (plural_source, plural_targets, tid, plural_source, plural_targets),
+                    "UPDATE targets SET plural_source = ?, plural_targets = ?%s "
+                    "WHERE tid = ? AND (plural_source IS NOT ? OR plural_targets IS NOT ?%s)"
+                    % (
+                        _layout_sql(", plural_layout = ?"),
+                        _layout_sql(" OR plural_layout IS NOT ?"),
+                    ),
+                    (
+                        plural_source,
+                        plural_targets,
+                        *_layout_values(plural_layout),
+                        tid,
+                        plural_source,
+                        plural_targets,
+                        *_layout_values(plural_layout),
+                    ),
                 )
             if source_markup is not None:
                 # The latest codes; plain text keeps those it has.
@@ -827,7 +865,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                         "key": unit.getid(),
                         "source_markup": markup[0],
                         "target_markup": markup[1],
-                        **plural_fields(source, target),
+                        **plural_fields(source, target, unit),
                         **plural_marker(unit),
                     }
                 )
@@ -1083,9 +1121,9 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         store at C{path}'s if given (None if it is unknown)."""
         query = (
             "SELECT s.text, t.text, s.context, t.source_markup, t.target_markup, "
-            "t.plural_source, t.plural_targets "
+            "t.plural_source, t.plural_targets, %s "
             "FROM sources s JOIN targets t ON s.sid = t.sid "
-            "WHERE s.lang = ? AND t.lang = ?"
+            "WHERE s.lang = ? AND t.lang = ?" % _layout_select()
         )
         params = [data.normalize_code(source_lang), data.normalize_code(target_lang)]
         if path is not None:
@@ -1107,7 +1145,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             forms = _forms(*row[5:7])
             if forms:
                 group = plural_group_key(params[:2], context, source, row[5], forms)
-                _add_forms(store, (source_tag, target_tag), group, row[5], forms, context)
+                _add_forms(store, (source_tag, target_tag), group, row[5], forms, context, row[7])
         return bytes(store)
 
     def forget_unit(self, source, target, source_lang, target_lang, context=None):
@@ -1182,7 +1220,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
 
         columns = (
             "s.text, t.text, s.context, s.abstract, t.source_markup, t.target_markup, "
-            "t.plural_source, t.plural_targets"
+            "t.plural_source, t.plural_targets, %s" % _layout_select()
         )
         if self.fulltext and len(unit_words) > 3:
             logger.debug("fulltext matching")
@@ -1274,6 +1312,8 @@ def _with_plurals(match, row):
     if forms is not None:
         match["plural_source"] = plural_source
         match["plural_targets"] = forms
+        if len(row) > 8 and row[8]:
+            match["plural_layout"] = row[8]
     return match
 
 
@@ -1293,6 +1333,7 @@ def _forms(plural_source, plural_targets):
 # as gettext pairs them. These properties put the forms back together.
 PLURAL_GROUP_PROP = "x-plural-group"
 PLURAL_FORM_PROP = "x-plural-form"
+PLURAL_LAYOUT_PROP = "x-plural-layout"
 
 
 def plural_group_key(langs, context, source, plural_source, forms):
@@ -1303,20 +1344,24 @@ def plural_group_key(langs, context, source, plural_source, forms):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
-def _add_forms(store, tags, group, plural_source, forms, context):
+def _add_forms(store, tags, group, plural_source, forms, context, layout=None):
     """Add the plural forms after the first to the TMX C{store}, whose
     last unit is the first, marking each as one of C{group}."""
     source_tag, target_tag = tags
-    _mark_plural(store.units[-1], group, 0)
+    _mark_plural(store.units[-1], group, 0, layout)
     for form, text in enumerate(forms[1:], 1):
         store.addtranslation(plural_source, source_tag, text, target_tag, context=context or None)
         _mark_plural(store.units[-1], group, form)
 
 
-def _mark_plural(unit, group, form):
-    """Mark the TMX unit as form C{form} of the plural C{group}."""
+def _mark_plural(unit, group, form, layout=None):
+    """Mark the TMX unit as form C{form} of the plural C{group}, the
+    first with the plural's layout if known."""
     tuv = unit.xmlelement.find(unit.namespaced(unit.languageNode))
-    for prop_type, value in ((PLURAL_GROUP_PROP, group), (PLURAL_FORM_PROP, str(form))):
+    props = [(PLURAL_GROUP_PROP, group), (PLURAL_FORM_PROP, str(form))]
+    if layout:
+        props.append((PLURAL_LAYOUT_PROP, layout))
+    for prop_type, value in props:
         prop = unit.xmlelement.makeelement(unit.namespaced("prop"), {"type": prop_type})
         prop.text = value
         tuv.addprevious(prop)
@@ -1329,13 +1374,16 @@ def plural_marker(unit):
         return {}
     props = {}
     for prop in unit.xmlelement.iterfind(unit.namespaced("prop")):
-        if prop.get("type") in (PLURAL_GROUP_PROP, PLURAL_FORM_PROP):
+        if prop.get("type") in (PLURAL_GROUP_PROP, PLURAL_FORM_PROP, PLURAL_LAYOUT_PROP):
             props.setdefault(prop.get("type"), (prop.text or "").strip())
     group = props.get(PLURAL_GROUP_PROP)
     form = props.get(PLURAL_FORM_PROP, "")
     if not group or not (form.isascii() and form.isdigit()):
         return {}
-    return {"plural_group": group, "plural_form": int(form)}
+    marker = {"plural_group": group, "plural_form": int(form)}
+    if props.get(PLURAL_LAYOUT_PROP):
+        marker["plural_layout"] = props[PLURAL_LAYOUT_PROP]
+    return marker
 
 
 def join_plurals(units):
@@ -1357,6 +1405,8 @@ def join_plurals(units):
             "plural_source": forms[1]["source"],
             "plural_targets": [unit["target"] for unit in forms],
         }
+        if forms[0].get("plural_layout"):
+            joined[id(forms[0])]["plural_layout"] = forms[0]["plural_layout"]
     if not joined:
         return units
     return [
@@ -1384,16 +1434,45 @@ def _group_forms(members):
     return forms
 
 
-def plural_fields(source, target):
+def plural_fields(source, target, unit=None):
     """The "plural_source" and "plural_targets" a unit dictionary gives a
     plural unit's C{source} and C{target} (multistrings) with every form
-    translated; none for any other."""
+    translated, and its "plural_layout" if C{unit} says; none for any
+    other."""
     targets = [str(form) for form in getattr(target, "strings", ())]
     if len(targets) < 2 or not all(targets):
         return {}
     # .qm and .ts: one source for every form.
     sources = getattr(source, "strings", None) or [source]
-    return {"plural_source": str(sources[min(1, len(sources) - 1)]), "plural_targets": targets}
+    fields = {"plural_source": str(sources[min(1, len(sources) - 1)]), "plural_targets": targets}
+    layout = plural_layout(unit) if unit is not None else None
+    if layout:
+        fields["plural_layout"] = layout
+    return fields
+
+
+def plural_layout(unit):
+    """How C{unit}'s plural forms are laid out (pluralmap's names): CLDR's
+    for a monolingual file's plural, its file's Plural-Forms for a PO
+    file's, else None (not known)."""
+    from virtaal.support import pluralmap
+
+    if getattr(unit, "plural_tags", None):
+        return pluralmap.CLDR_ORDINAL if getattr(unit, "plural_ordinal", False) else pluralmap.CLDR
+    store = getattr(unit, "_store", None)
+    getheaderplural = getattr(store, "getheaderplural", None)
+    if getheaderplural is None:
+        return None
+    nplurals, plural = getheaderplural()
+    try:
+        return pluralmap.gettext_name(int(nplurals), plural) if plural else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _plural_layout(unit):
+    layout = unit.get("plural_layout")
+    return layout if isinstance(layout, str) and layout else None
 
 
 def _plurals(unit):
