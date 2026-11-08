@@ -332,34 +332,96 @@ class TMController(BaseController):
             return adapted
         if self.abstract_placeables:
             form = self._adapt(form['query_str'], form, accel_markers)
+        if form.get('form_penalty'):
+            # Scored again on adapting: take the penalty off that score.
+            form['quality'] = min(form['quality'] - form['form_penalty'], 99)
         if form['quality'] < getattr(self, 'min_quality', 75):
             return adapted
         return form
 
     def _plural_form(self, unit, match):
-        """match's form target_n with its source plural, scored on unit's,
-        or None if it has no such form."""
-        target_n = getattr(self, 'target_n', 0)
+        """match's form for the form target_n being edited, with its
+        source plural, scored on unit's; or None if it has none. A
+        stored plural laid out otherwise than the unit (a PO file's
+        gettext forms for an i18next or Android unit's CLDR ones, or the
+        other way) gives the form the same numbers take, scored lower
+        (L{MAPPED_PENALTY}, and L{GUESS_PENALTY} more if the numbers
+        don't say which form) and never 100."""
+        target_n = getattr(self, 'target_n', 0) or 0
         forms, source = match.get('plural_targets'), match.get('plural_source')
-        if not (target_n and match.get('quality') and isinstance(source, str)):
+        if not (match.get('quality') and isinstance(source, str) and isinstance(forms, list)):
             return None
-        if not isinstance(forms, list) or len(forms) != self._nplurals() or target_n >= len(forms):
+        if unit is None or not unit.hasplural():
             return None
-        target = forms[target_n]
-        if unit is None or not unit.hasplural() or not (isinstance(target, str) and target):
+        index, penalty = target_n, 0
+        if len(forms) != self._unit_nplurals(unit):
+            mapped = self._mapped_form(unit, len(forms), target_n)
+            if mapped is None:
+                return None
+            index, guessed = mapped
+            penalty = self.MAPPED_PENALTY + (self.GUESS_PENALTY if guessed else 0)
+        if not index or index >= len(forms):
+            # Form 0, the singular, is the match itself.
+            return None
+        target = forms[index]
+        if not (isinstance(target, str) and target):
             return None
         sources = getattr(unit.source, 'strings', None) or [unit.source]
         query = str(sources[min(1, len(sources) - 1)])
-        quality = int(LevenshteinComparer(1000).similarity(query, source, 0))
+        stored = source
+        quality = int(LevenshteinComparer(1000).similarity(query, stored, 0))
         form = {k: v for k, v in match.items() if k not in ('source_markup', 'target_markup')}
         form.update(
-            source=source,
+            source=stored,
             target=target,
             quality=quality,
             raw_quality=quality,
             query_str=query,
+            form_penalty=penalty,
         )
         return form
+
+    # A plural form taken from a stored plural laid out otherwise.
+    MAPPED_PENALTY = 1
+    # And when the numbers don't say which stored form it is.
+    GUESS_PENALTY = 1
+
+    def _unit_nplurals(self, unit):
+        tags = getattr(unit, 'plural_tags', None)
+        return len(tags) if tags else self._nplurals()
+
+    def _layouts(self, unit):
+        """(the unit's plural layout, the other layout a stored plural
+        may have), or None: an ordinal unit maps from nothing."""
+        from virtaal.support import pluralmap
+
+        language = self._target_language()
+        if not language or getattr(unit, 'plural_ordinal', False):
+            return None
+        gettext, cldr = pluralmap.gettext_layout(language), pluralmap.cldr_layout(language)
+        if gettext is None or cldr is None:
+            return None
+        return (cldr, gettext) if getattr(unit, 'plural_tags', None) else (gettext, cldr)
+
+    def _mapped_form(self, unit, count, target_n):
+        """(the stored form for the unit's form target_n, guessed) when
+        the stored plural's C{count} forms are the other layout's, else
+        None."""
+        layouts = self._layouts(unit)
+        if layouts is None:
+            return None
+        own, other = layouts
+        if other.count != count or own.count == count or target_n >= own.count:
+            return None
+        from virtaal.support import pluralmap
+
+        return pluralmap.form_map(other, own)[target_n]
+
+    def _target_language(self):
+        main_controller = getattr(self, 'main_controller', None)
+        lang_controller = getattr(main_controller, 'lang_controller', None)
+        target = getattr(lang_controller, 'target_lang', None)
+        return getattr(target, 'code', None)
 
     def _nplurals(self):
         main_controller = getattr(self, 'main_controller', None)

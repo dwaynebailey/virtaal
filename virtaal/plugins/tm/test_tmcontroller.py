@@ -1790,3 +1790,93 @@ def test_preloads_are_marked_as_asked_ahead_of_need_and_queries_are_not(monkeypa
     assert 'Sec-Purpose: prefetch' in preload.headers
     assert 'Sec-Purpose: prefetch;bulk' not in preload.headers
     assert not any(h.startswith('Sec-Purpose') for h in query.headers)
+
+
+# A stored plural laid out otherwise than the unit: gettext's forms for
+# a monolingual file's CLDR ones, or the other way.
+
+RU_PO_MATCH = {
+    'source': 'Delete %d file',
+    'target': 'Удалить %d файл',
+    'quality': 100,
+    'plural_source': 'Delete %d files',
+    'plural_targets': ['Удалить %d файл', 'Удалить %d файла', 'Удалить %d файлов'],
+}
+RU_CLDR_MATCH = dict(
+    RU_PO_MATCH, plural_targets=RU_PO_MATCH['plural_targets'] + ['Удалить %d файла (2)']
+)
+
+
+def _mapped_response(
+    match, target_n, language, tags=None, nplurals=3, ordinal=False, abstract=False
+):
+    from translate.misc.multistring import multistring
+    from translate.storage import po
+
+    controller = _make_controller(current_query='Delete %d file')
+    controller.min_quality = 75
+    controller.abstract_placeables = abstract
+    controller.target_n = target_n
+    controller.main_controller = SimpleNamespace(
+        lang_controller=SimpleNamespace(
+            get_target_nplurals=lambda: nplurals, target_lang=SimpleNamespace(code=language)
+        )
+    )
+    unit = po.pounit(multistring(['Delete %d file', 'Delete %d files']))
+    if tags:
+        unit.plural_tags = tags
+        unit.plural_ordinal = ordinal
+    controller._queried_unit = unit
+    controller.accept_response(_tmmodel(), 'Delete %d file', [dict(match)])
+    return controller.matches
+
+
+RU_TAGS = ['one', 'few', 'many', 'other']
+
+
+@pytest.mark.parametrize(
+    'target_n, target, quality',
+    [
+        (1, 'Удалить %d файла', 99),
+        (2, 'Удалить %d файлов', 99),
+        # Fractions: no whole number says which; the commonest form.
+        (3, 'Удалить %d файлов', 98),
+    ],
+)
+@pytest.mark.parametrize('abstract', [False, True])
+def test_a_po_plural_is_offered_to_a_cldr_unit_by_what_its_forms_mean(
+    target_n, target, quality, abstract
+):
+    (match,) = _mapped_response(RU_PO_MATCH, target_n, 'ru', RU_TAGS, nplurals=4, abstract=abstract)
+
+    assert (match['target'], match['quality']) == (target, quality)
+
+
+def test_a_cldr_plural_is_offered_to_a_po_unit_by_what_its_forms_mean():
+    (match,) = _mapped_response(RU_CLDR_MATCH, 2, 'ru')
+
+    assert (match['target'], match['quality']) == ('Удалить %d файлов', 99)
+
+
+@pytest.mark.parametrize('language', ['af', 'de'])
+def test_layouts_with_as_many_forms_need_no_mapping(language):
+    match = dict(PLURAL_MATCH)
+
+    (found,) = _mapped_response(match, 1, language, ['one', 'other'], nplurals=2)
+
+    assert (found['target'], found['quality']) == ('Skrap %d lêers', 100)
+
+
+@pytest.mark.parametrize(
+    'kwargs',
+    [
+        # A language with no known rules.
+        {'language': 'xx', 'tags': ['one', 'few', 'many', 'other'], 'nplurals': 4},
+        # Ordinal forms mean something else.
+        {'language': 'ru', 'tags': ['other', 'x', 'y', 'z'], 'nplurals': 4, 'ordinal': True},
+    ],
+)
+def test_a_plural_that_cant_be_mapped_offers_its_first_form(kwargs):
+    (match,) = _mapped_response(RU_PO_MATCH, 1, **kwargs)
+
+    assert match['target'] == 'Удалить %d файл'
