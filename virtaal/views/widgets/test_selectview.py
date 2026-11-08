@@ -302,3 +302,27 @@ def test_get_item_keeps_the_notice_and_link():
 
     assert item['notice'] == _online_item()['notice']
     assert item['link'] == _online_item()['link']
+
+
+def test_set_item_config_adds_and_removes_a_rows_configure_button():
+    # A source ticked in the dialog gets Configure… at once (#4715).
+    calls = []
+    sview = SelectView(
+        items=[
+            {'name': 'A', 'data': 'a', 'notice': 'Sends text'},
+            {'name': 'B', 'data': 'b'},
+        ]
+    )
+
+    sview.set_item_config('a', calls.append)
+
+    item = sview.get_item(sview.get_model().get_iter_first())
+    assert item['config'] == calls.append
+    assert item['notice'] == 'Sends text'
+    sview.get_model()[0][4].get_children()[-1].emit('clicked')
+    assert len(calls) == 1
+    assert 'config' not in sview.get_item(sview.get_model()[1].iter)
+
+    sview.set_item_config('a', None)
+
+    assert 'config' not in sview.get_item(sview.get_model().get_iter_first())

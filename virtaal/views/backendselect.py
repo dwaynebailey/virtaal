@@ -47,12 +47,16 @@ def select_backends(
         plugin_controller.enable_plugin(internal_name)
         if internal_name in config['disabled_models']:
             config['disabled_models'].remove(internal_name)
+        # Configure… as soon as it's enabled (#4715).
+        plugin = plugin_controller.plugins.get(internal_name)
+        dlg.sview.set_item_config(item['data'], getattr(plugin, 'configure_func', None))
 
     def item_disabled(dlg, item):
         internal_name = item['data']['internal_name']
         plugin_controller.disable_plugin(internal_name)
         if internal_name not in config['disabled_models']:
             config['disabled_models'].append(internal_name)
+        dlg.sview.set_item_config(item['data'], None)
 
     selectdlg.connect('item-enabled', item_enabled)
     selectdlg.connect('item-disabled', item_disabled)

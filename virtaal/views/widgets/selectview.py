@@ -222,6 +222,20 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
 
         return item
 
+    def set_item_config(self, data, config):
+        """Give the row whose 'data' is C{data} a Configure… button that
+        runs C{config}, or no button if it's None."""
+        for row in self._model:
+            if row[COL_DATA] == data:
+                item = self.get_item(row.iter)
+                item.pop('config', None)
+                if config:
+                    item['config'] = config
+                widget = self._create_widget_for_item(item)
+                widget.show_all()
+                row[COL_WIDGET] = widget
+                return
+
     def get_scroll_position(self):
         vadj = self.props.vadjustment
         return vadj.get_value() if vadj else None

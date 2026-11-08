@@ -20,6 +20,7 @@ class _FakeSelectDialog:
         self.icon = None
         self.handlers = {}
         self.items = None
+        self.sview = _FakeSelectView()
 
     def set_icon(self, icon):
         self.icon = icon
@@ -29,6 +30,14 @@ class _FakeSelectDialog:
 
     def run(self, items=None):
         self.items = items
+
+
+class _FakeSelectView:
+    def __init__(self):
+        self.configs = []
+
+    def set_item_config(self, data, config):
+        self.configs.append((data, config))
 
 
 class _FakePlugin:
@@ -52,6 +61,7 @@ class _FakePluginController:
 
     def enable_plugin(self, name):
         self.enabled.append(name)
+        self.plugins.setdefault(name, _FakePlugin(configure_func=print))
 
     def disable_plugin(self, name):
         self.disabled.append(name)
@@ -184,6 +194,8 @@ def test_item_enabled_removes_the_backend_from_disabled_models(monkeypatch):
 
     assert 'backend1' in pc.enabled
     assert 'backend1' not in config['disabled_models']
+    # Its Configure… appears without reopening the dialog (#4715).
+    assert captured['dlg'].sview.configs == [({'internal_name': 'backend1'}, print)]
 
 
 def test_item_disabled_adds_the_backend_to_disabled_models(monkeypatch):
@@ -216,6 +228,7 @@ def test_item_disabled_adds_the_backend_to_disabled_models(monkeypatch):
 
     assert 'backend1' in pc.disabled
     assert 'backend1' in config['disabled_models']
+    assert captured['dlg'].sview.configs == [({'internal_name': 'backend1'}, None)]
 
 
 def _items_for(monkeypatch, infos):
