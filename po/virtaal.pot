@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 17:07+0000\n"
+"POT-Creation-Date: 2026-11-08 17:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3359,9 +3359,10 @@ msgid "Last changed by %(user)s"
 msgstr ""
 
 #. l10n: memoQ keeps the edits it tracks in the file until
-#. they are accepted there. Deleted text isn't shown here.
+#. they are accepted there. Deleted text isn't shown here,
+#. and the user's own edits are tracked as theirs.
 #: virtaal/views/unitview.py
-msgid "Tracked changes: text memoQ marks as deleted isn't shown."
+msgid "Tracked changes: deleted text isn't shown, and your edits are tracked."
 msgstr ""
 
 #: virtaal/views/unitview.py

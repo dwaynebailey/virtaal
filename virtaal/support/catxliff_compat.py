@@ -24,9 +24,11 @@ changed, is written by translate-toolkit."""
 
 import codecs
 import copy
+import datetime
 import difflib
 import io
 import re
+import sys
 
 from lxml import etree
 from translate.misc.xml_helpers import getXMLspace
@@ -208,14 +210,27 @@ def _content(node):
     ]
 
 
+def tracking_user():
+    """Whose memoQ tracked changes an edit is: the translator's name in
+    Virtaal's settings, or "Virtaal" without one."""
+    pan_app = sys.modules.get("virtaal.common.pan_app")
+    translator = getattr(getattr(pan_app, "settings", None), "translator", None) or {}
+    return (translator.get("name") or "").strip() or "Virtaal"
+
+
+def tracking_time():
+    """Now, as memoQ writes a tracked change's time: 2019-05-05T05:46:18Z."""
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _merge(unit, new):
-    """Write C{new}'s content into a memoQ target with tracked changes,
-    keeping them; False if the target has none."""
+    """Write C{new}'s content into a memoQ target whose edits are tracked,
+    as tracked changes; False if they aren't."""
     target = unit.get_target_dom()
-    if _shown_target(unit, target) is None:
+    if target is None or not memoq_compat.tracks_changes(unit):
         return False
     unit._rich_target = None
-    memoq_compat.merge_target(target, new)
+    memoq_compat.merge_target(target, new, tracking_user(), tracking_time())
     return True
 
 

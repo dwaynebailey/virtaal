@@ -622,8 +622,12 @@ Each unit uses what the tool keeps with its segment:
   file's formatting from them.
 - memoQ keeps the changes it tracks in the file. Text memoQ marks as deleted
   isn't shown, inserted text shows as plain text, and both stay marked in the
-  file for memoQ to accept or reject; a deletion stays next to the text it was
-  beside when you edit the translation.
+  file for memoQ to accept or reject. In a row with tracked changes, or in
+  any row of a file memoQ exported with change tracking on, your own edits
+  are tracked too, under the translator name in Virtaal's preferences
+  ("Virtaal" if it is empty): text you type is an insertion, text you delete
+  a deletion, as a reviewer sees them in memoQ. Deleting text you inserted
+  takes it out, and undoing an edit puts the row back as it was.
 
 Virtaal saves only the units you changed: the rest of the file, the byte order
 mark included, stays as it was. Virtaal writes only memoQ's and Phrase's own

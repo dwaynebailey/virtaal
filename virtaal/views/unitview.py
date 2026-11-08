@@ -931,12 +931,13 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
                 )
                 % {'user': user}
             )
-        if memoq_compat.has_tracked_changes(self.unit.get_target_dom()):
+        if memoq_compat.tracks_changes(self.unit):
             notes.append(
                 _(
                     # l10n: memoQ keeps the edits it tracks in the file until
-                    # they are accepted there. Deleted text isn't shown here.
-                    "Tracked changes: text memoQ marks as deleted isn't shown."
+                    # they are accepted there. Deleted text isn't shown here,
+                    # and the user's own edits are tracked as theirs.
+                    "Tracked changes: deleted text isn't shown, and your edits are tracked."
                 )
             )
         return notes

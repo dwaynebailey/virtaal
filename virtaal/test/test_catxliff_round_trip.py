@@ -177,19 +177,30 @@ class TestCatXliffRoundTrip(TestScaffolding):
         # Its comment is its note too, shown above the source.
         assert self._notes(view) == 'Match: 101%\nLast changed by Ikue'
 
-    def test_a_tracked_deletion_is_not_shown_and_stays_on_save(self, tmp_path):
+    def test_an_edit_in_a_tracked_row_is_tracked_and_undone(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(catxliff_compat, 'tracking_user', lambda: 'Me')
+        monkeypatch.setattr(catxliff_compat, 'tracking_time', lambda: '2026-11-09T10:00:00Z')
         path, before = self._open_copy(TRACKED, tmp_path)
-        _unit, view = self._load(1)
-
+        unit, view = self._load(1)
         assert view.targets[0].get_text() == '#1.'
-        assert 'Tracked changes' in self._notes(view)
-        self._type(view, '#1!')
+        assert 'your edits are tracked' in self._notes(view)
+        self.undo_controller.model.clear()
+
+        editor = _Editor(self, view.targets[0])
+        editor.buffer.place_cursor(editor.buffer.get_end_iter())
+        editor.type('!')
         self.store_controller.save_file()
 
-        changed = _changed_lines(before, path.read_bytes())
-        assert any(
-            b'mq:tctype="del"' in new and b'PARAGRAPH </mrk>#1!' in new for _o, new in changed
+        ((old, new),) = _changed_lines(before, path.read_bytes())
+        assert new == old.replace(
+            b'#1.</target>',
+            b'#1.<mrk mtype="x-mq-tc" mq:tctype="ins" mq:tcuser="Me"'
+            b' mq:tctime="2026-11-09T10:00:00Z">!</mrk></target>',
         )
+        editor.undo()
+        unit._modified = True
+        self.store_controller.save_file()
+        assert path.read_bytes() == before
 
     def test_a_memoq_file_saved_as_xlf_opens_with_its_states(self, tmp_path):
         self._open_copy(STATUSES, tmp_path, 'statuses.xlf')

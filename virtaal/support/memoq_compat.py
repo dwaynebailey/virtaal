@@ -15,13 +15,16 @@ memoQ keeps tracked changes in a target as <mrk mtype="x-mq-tc"
 mq:tctype="ins|del">. A deletion isn't part of the translation, and an
 insertion is plain text, until memoQ accepts or rejects them (#4737).
 L{accepted} is the target as shown; L{merge_target} writes an edited
-target back with the markup of the text that stayed.
+target back with the markup of the text that stayed, and the edit
+tracked as the user's own insertions and deletions, as memoQ tracks a
+reviewer's.
 
 L{virtaal.support.catxliff_compat} puts these into translate-toolkit's
 XLIFF units."""
 
 import copy
 import difflib
+import re
 
 from lxml import etree
 from translate.storage.workflow import StateEnum
@@ -173,6 +176,18 @@ def accepted(node):
     return node
 
 
+def tracks_changes(unit):
+    """Whether edits to C{unit}'s target are tracked: its target already
+    has tracked changes, or memoQ exported the document with change
+    tracking on (mq:changetrackingenabledstates holds an On)."""
+    if has_tracked_changes(unit.get_target_dom()):
+        return True
+    root = unit.xmlelement.getroottree().getroot()
+    info = next(root.iter(MQ + "docinformation"), None)
+    states = "" if info is None else info.get(MQ + "changetrackingenabledstates") or ""
+    return "On" in states.split(",")
+
+
 def _key(atom):
     if isinstance(atom, str):
         return atom
@@ -186,72 +201,152 @@ def _detached(element):
     return element
 
 
-def _atoms(node, container, atoms, anchors):
-    """Append the visible pieces of node's content, (char or element,
-    the insertion it is in), to atoms, and (position, deletion) to
-    anchors."""
-    atoms.extend((char, container) for char in node.text or "")
-    for child in node:
-        kind = _tc_kind(child) if container is None else None
-        if kind == "del":
-            anchors.append((len(atoms), _detached(child)))
-        elif kind is not None:
-            _atoms(child, child, atoms, anchors)
+# The pieces an edit is tracked in, as a reviewer reads it: words, runs
+# of spaces, and each other character.
+_WORD = re.compile(r"\w+|\s+|[^\w\s]")
+
+# Where a piece of the edited target goes, besides an existing marker.
+_NEW_INS, _NEW_DEL, _ANCHOR = "ins", "del", "anchor"
+
+
+class _Tracker:
+    """Merges an edited target into one with memoQ's tracked changes,
+    tracking the edit as C{user}'s, at C{time}."""
+
+    def __init__(self, old, user, time):
+        self.old, self.user, self.time = old, user, time
+
+    def own(self, marker):
+        return marker.get(MQ + "tcuser") == self.user
+
+    def atoms(self, node, container, atoms, anchors):
+        """Append the pieces of node's content, (word or element, the
+        marker it is in), to atoms: what shows, and the user's own
+        deletions, which an undo can bring back. Other users'
+        deletions go to anchors as (position, deletion)."""
+        atoms.extend((word, container) for word in _WORD.findall(node.text or ""))
+        for child in node:
+            kind = _tc_kind(child) if container is None else None
+            if kind == "del" and not self.own(child):
+                anchors.append((len(atoms), _detached(child)))
+            elif kind is not None:
+                self.atoms(child, child, atoms, anchors)
+            else:
+                atoms.append((_detached(child), container))
+            atoms.extend((word, container) for word in _WORD.findall(child.tail or ""))
+
+    def deleted(self, atom, container):
+        """What deleting a piece does: the user's own insertion goes, a
+        deletion stays, anything else becomes the user's deletion."""
+        if container is None or _tc_kind(container) == "ins" and not self.own(container):
+            return [(atom, _NEW_DEL)]
+        if _tc_kind(container) == "del":
+            return [(atom, container)]
+        return []
+
+    def place(self, new):
+        old_atoms, anchors = [], []
+        self.atoms(self.old, None, old_atoms, anchors)
+        new_atoms = []
+        self.atoms(new, None, new_atoms, [])
+        deletions = {}
+        for position, deletion in anchors:
+            deletions.setdefault(position, []).append((deletion, _ANCHOR))
+        matcher = difflib.SequenceMatcher(
+            None, [_key(a) for a, _c in old_atoms], [_key(a) for a, _c in new_atoms], autojunk=False
+        )
+        placed = []
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            for i in range(i1, i2):
+                placed.extend(deletions.pop(i, []))
+                atom, container = old_atoms[i]
+                if tag != "equal":
+                    placed.extend(self.deleted(atom, container))
+                elif container is not None and _tc_kind(container) == "del":
+                    # The user's own deletion, typed back: undone.
+                    placed.append((atom, None))
+                else:
+                    placed.append((atom, container))
+            if tag != "equal":
+                placed.extend((atom, _NEW_INS) for atom, _c in new_atoms[j1:j2])
+        placed.extend(deletions.pop(len(old_atoms), []))
+        return placed
+
+    def kind(self, key):
+        """ "ins" or "del" for the user's own markers, new or old."""
+        if key in (_NEW_INS, _NEW_DEL):
+            return key
+        if key is None or isinstance(key, str) or not self.own(key):
+            return None
+        return _tc_kind(key)
+
+    def marker(self, key):
+        if isinstance(key, str):
+            return self.old.makeelement(
+                "{%s}mrk" % etree.QName(self.old).namespace,
+                {
+                    "mtype": "x-mq-tc",
+                    MQ + "tctype": key,
+                    MQ + "tcuser": self.user,
+                    MQ + "tctime": self.time,
+                },
+            )
+        return self.old.makeelement(key.tag, dict(key.attrib))
+
+    def write(self, placed):
+        old = self.old
+        for child in list(old):
+            old.remove(child)
+        old.text = None
+        group = None
+        for atom, key in placed:
+            if key == _ANCHOR:
+                old.append(atom)
+                group = None
+                continue
+            parent = old
+            if key is None:
+                group = None
+            else:
+                group = self.grouped(group, key)
+                parent = group.element
+            if isinstance(atom, str):
+                _append_text(parent, atom)
+            else:
+                parent.append(atom)
+
+    def grouped(self, group, key):
+        """The marker a piece with C{key} goes in: C{group}'s, if it is
+        the same marker, or the user's of the same kind with something
+        new in it; else a new one."""
+        new = key in (_NEW_INS, _NEW_DEL)
+        if group is not None and (
+            key is group.key
+            or (self.kind(key) and self.kind(key) == self.kind(group.key) and (new or group.new))
+        ):
+            group.new = group.new or new
         else:
-            atoms.append((_detached(child), container))
-        atoms.extend((char, container) for char in child.tail or "")
+            group = _Group(key, self.marker(key), new)
+            self.old.append(group.element)
+        if new:
+            # The user's marker, new or grown: their name, now.
+            group.element.set(MQ + "tcuser", self.user)
+            group.element.set(MQ + "tctime", self.time)
+        return group
 
 
-def _place(old, new):
-    """The pieces of the content of new, in order: (piece, the insertion
-    of old it stays in, or None), and old's deletions as (deletion,
-    False), each beside the text it was beside."""
-    old_atoms, anchors = [], []
-    _atoms(old, None, old_atoms, anchors)
-    new_atoms = []
-    _atoms(new, None, new_atoms, [])
-    deletions = {}
-    for position, deletion in anchors:
-        deletions.setdefault(position, []).append((deletion, False))
-    matcher = difflib.SequenceMatcher(
-        None, [_key(a) for a, _c in old_atoms], [_key(a) for a, _c in new_atoms], autojunk=False
-    )
-    placed = []
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        for i in range(i1, i2):
-            placed.extend(deletions.pop(i, []))
-            if tag == "equal":
-                placed.append(old_atoms[i])
-        if tag != "equal":
-            placed.extend((atom, None) for atom, _c in new_atoms[j1:j2])
-    placed.extend(deletions.pop(len(old_atoms), []))
-    return placed
+class _Group:
+    def __init__(self, key, element, new):
+        self.key, self.element, self.new = key, element, new
 
 
-def merge_target(old, new):
+def merge_target(old, new, user, time):
     """Replace target C{old}'s content with the content of C{new} (an
-    element holding the edited translation), keeping memoQ's tracked
-    deletions and insertions around the text that didn't change."""
-    placed = _place(old, new)
-    for child in list(old):
-        old.remove(child)
-    old.text = None
-    group, group_of = None, None
-    for atom, container in placed:
-        parent = old
-        if container is False:
-            old.append(atom)
-            group_of = None
-            continue
-        if container is not None:
-            if group_of is not container:
-                group = old.makeelement(container.tag, dict(container.attrib))
-                old.append(group)
-                group_of = container
-            parent = group
-        else:
-            group_of = None
-        if isinstance(atom, str):
-            _append_text(parent, atom)
-        else:
-            parent.append(atom)
+    element holding the edited translation) as memoQ tracks it: text
+    the edit took out is C{user}'s deletion, and text it added C{user}'s
+    insertion, at C{time} (UTC, as 2019-05-05T05:46:18Z). Deleting the
+    user's own insertion takes it out, and typing back the user's own
+    deletion undoes it. Other users' deletions stay beside the text they
+    were beside."""
+    tracker = _Tracker(old, user, time)
+    tracker.write(tracker.place(new))

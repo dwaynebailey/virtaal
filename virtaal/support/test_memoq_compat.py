@@ -8,6 +8,7 @@
 import glob
 import io
 import os
+import re
 import shutil
 
 import pytest
@@ -29,12 +30,14 @@ MQ = memoq_compat.MQ
 XLIFF = '{urn:oasis:names:tc:xliff:document:1.2}'
 
 
-def _store(rows, extra_ns=''):
+def _store(rows, header=''):
     data = (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2"'
-        f' xmlns:mq="MQXliff"{extra_ns}><file original="a" source-language="en"'
-        ' target-language="de" datatype="plaintext"><body>' + rows + '</body></file></xliff>'
+        ' xmlns:mq="MQXliff"><file original="a" source-language="en"'
+        f' target-language="de" datatype="plaintext">{header}<body>'
+        + rows
+        + '</body></file></xliff>'
     )
     return xliff.xlifffile.parsestring(data.encode('utf-8'))
 
@@ -300,7 +303,7 @@ def test_an_edit_changes_only_that_target_and_status(sample, tmp_path):
     unit = [u for u in store.units if u.istranslatable() and not catxliff_compat.is_locked(u)][-1]
     status = unit.xmlelement.get(MQ + 'status')
 
-    unit.target = 'Neu & <so>'
+    unit.target = 'Neu&<so>'
     saved = _saved(store)
 
     old_lines, new_lines = data.splitlines(), saved.splitlines()
@@ -308,13 +311,13 @@ def test_an_edit_changes_only_that_target_and_status(sample, tmp_path):
     changed = [(a, b) for a, b in zip(old_lines, new_lines, strict=True) if a != b]
     # The target's line and the trans-unit's, unless they are one.
     assert 1 <= len(changed) <= 2
-    assert any(b'Neu &amp; &lt;so&gt;</target>' in new for _old, new in changed)
+    assert any(b'Neu&amp;&lt;so&gt;' in new for _old, new in changed)
     for old, new in changed:
         old = old.replace(f'mq:status="{status}"'.encode(), b'mq:status="ManuallyConfirmed"')
-        assert old == new or b'Neu &amp; &lt;so&gt;</target>' in new
+        assert old == new or b'Neu&amp;&lt;so&gt;' in new
     assert saved[:3] == data[:3]
     reopened = xliff.xlifffile.parsestring(saved)
-    assert [u.target for u in reopened.units].count('Neu & <so>') == 1
+    assert [u.target for u in reopened.units].count('Neu&<so>') == 1
 
 
 def test_a_memoq_file_saved_as_xlf_gets_the_same(tmp_path):
@@ -390,10 +393,22 @@ def test_tracked_deletions_are_not_part_of_the_target():
     assert str(units[1].rich_target[0]) == '#1.'
 
 
-def _tracked(target):
+ME = 'Me'
+NOW = '2026-11-09T10:00:00Z'
+
+
+@pytest.fixture(autouse=True)
+def _tracking(monkeypatch):
+    monkeypatch.setattr(catxliff_compat, 'tracking_user', lambda: ME)
+    monkeypatch.setattr(catxliff_compat, 'tracking_time', lambda: NOW)
+
+
+def _tracked(target, on=False):
+    states = 'Off,Off,Off,On' if on else 'Off,Off,Off,Off'
     return _store(
         '<trans-unit id="1" mq:status="PartiallyEdited"><source>Paragraph one.</source>'
-        f'<target xml:space="preserve">{target}</target></trans-unit>'
+        f'<target xml:space="preserve">{target}</target></trans-unit>',
+        header=f'<header><mq:docinformation mq:changetrackingenabledstates="{states}"/></header>',
     ).units[0]
 
 
@@ -402,8 +417,19 @@ def _content(unit):
     return target.split('>', 1)[1].rsplit('<', 1)[0].replace(' xmlns:mq="MQXliff"', '')
 
 
-DEL = '<mrk mtype="x-mq-tc" mq:tctype="del" mq:tcuser="R">PARAGRAPH </mrk>'
-INS = '<mrk mtype="x-mq-tc" mq:tctype="ins" mq:tcuser="R"> NEW</mrk>'
+def _mrk(kind, text, user='R', time='T'):
+    return (
+        f'<mrk mtype="x-mq-tc" mq:tctype="{kind}" mq:tcuser="{user}"'
+        f' mq:tctime="{time}">{text}</mrk>'
+    )
+
+
+DEL = _mrk('del', 'PARAGRAPH ')
+INS = _mrk('ins', ' NEW')
+
+
+def _mine(kind, text):
+    return _mrk(kind, text, ME, NOW)
 
 
 def test_showing_a_tracked_target_leaves_it_alone():
@@ -415,31 +441,119 @@ def test_showing_a_tracked_target_leaves_it_alone():
     assert _content(unit) == f'{DEL}ONE{INS}.'
 
 
-def test_an_edit_keeps_the_tracked_changes_round_the_text_that_stayed():
+def test_typed_text_is_the_users_insertion():
     unit = _tracked(f'{DEL}ONE{INS}.')
 
-    unit.target = 'ONE NEW!'
+    unit.target = 'ONE NEW!.'
 
-    assert _content(unit) == f'{DEL}ONE{INS}!'
+    assert _content(unit) == f'{DEL}ONE{INS}{_mine("ins", "!")}.'
+    assert unit.target == 'ONE NEW!.'
     assert unit.xmlelement.get(MQ + 'status') == 'ManuallyConfirmed'
 
 
-def test_text_typed_into_an_insertion_is_plain():
+def test_deleted_text_is_the_users_deletion():
+    unit = _tracked(f'{DEL}ONE TWO{INS}.')
+
+    unit.target = 'ONE NEW.'
+
+    assert _content(unit) == f'{DEL}ONE{_mine("del", " TWO")}{INS}.'
+    assert unit.target == 'ONE NEW.'
+
+
+def test_replaced_text_is_a_deletion_then_an_insertion():
+    unit = _tracked(f'{DEL}ONE{INS}.')
+
+    unit.rich_target = [StringElem('EINS NEW.')]
+
+    assert _content(unit) == f'{DEL}{_mine("del", "ONE")}{_mine("ins", "EINS")}{INS}.'
+
+
+def test_text_typed_inside_another_users_insertion_is_the_users_own():
+    unit = _tracked(f'ONE{_mrk("ins", " NEW WORDS")}.')
+
+    unit.target = 'ONE NEW BIG WORDS.'
+
+    assert _content(unit) == (
+        f'ONE{_mrk("ins", " NEW ")}{_mine("ins", "BIG ")}{_mrk("ins", "WORDS")}.'
+    )
+
+
+def test_deleting_another_users_insertion_is_a_deletion():
     unit = _tracked(f'ONE{INS}.')
+
+    unit.target = 'ONE.'
+
+    assert _content(unit) == f'ONE{_mine("del", " NEW")}.'
+
+
+def test_typing_into_the_users_own_insertion_extends_it():
+    unit = _tracked(f'ONE{_mrk("ins", " NEW", ME, "earlier")}.')
 
     unit.target = 'ONE NEWER.'
 
-    assert _content(unit) == f'ONE{INS}ER.'
-    assert unit.target == 'ONE NEWER.'
+    assert _content(unit) == f'ONE{_mine("ins", " NEWER")}.'
 
 
-def test_a_retyped_target_keeps_its_deletions():
-    unit = _tracked(f'{DEL}ONE{INS}.')
+def test_deleting_the_users_own_insertion_takes_it_out():
+    unit = _tracked(f'ONE{_mrk("ins", " NEW", ME, "earlier")}.')
 
-    unit.rich_target = [StringElem('Eins')]
+    unit.target = 'ONE.'
 
-    assert _content(unit) == f'{DEL}Eins'
-    assert unit.target == 'Eins'
+    assert _content(unit) == 'ONE.'
+
+
+def test_undoing_an_edit_restores_the_target():
+    unit = _tracked(f'{DEL}ONE TWO{INS}.')
+    before = _content(unit)
+
+    unit.target = 'ONE 3 NEW.'
+    assert _content(unit) == (f'{DEL}ONE {_mine("del", "TWO")}{_mine("ins", "3")}{INS}.')
+    unit.target = 'ONE TWO NEW.'
+
+    assert _content(unit) == before
+
+
+def test_a_row_without_tracked_changes_is_tracked_when_memoq_tracks_the_file():
+    tracked, untracked = _tracked('ONE.', on=True), _tracked('ONE.')
+
+    tracked.target = 'TWO.'
+    untracked.target = 'TWO.'
+
+    assert _content(tracked) == f'{_mine("del", "ONE")}{_mine("ins", "TWO")}.'
+    assert _content(untracked) == 'TWO.'
+
+
+def test_the_tracking_user_is_the_translator_or_virtaal(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    monkeypatch.undo()
+    fake = SimpleNamespace(settings=SimpleNamespace(translator={'name': ' Ann '}))
+    monkeypatch.setitem(sys.modules, 'virtaal.common.pan_app', fake)
+    assert catxliff_compat.tracking_user() == 'Ann'
+    fake.settings.translator['name'] = ''
+    assert catxliff_compat.tracking_user() == 'Virtaal'
+    assert re.fullmatch(r'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ', catxliff_compat.tracking_time())
+
+
+def test_a_tracked_edit_adds_only_the_markers(tmp_path):
+    with open(TRACKED, 'rb') as f:
+        data = f.read()
+    store = factory.getobject(TRACKED)
+
+    store.units[2].target = 'PARAGRAPH #2 INSERTED!'
+    saved = _saved(store)
+
+    expected = data.replace(
+        b'INSERTED</mrk>.</target>',
+        b'INSERTED</mrk><mrk mtype="x-mq-tc" mq:tctype="del" mq:tcuser="Me"'
+        b' mq:tctime="2026-11-09T10:00:00Z">.</mrk><mrk mtype="x-mq-tc" mq:tctype="ins"'
+        b' mq:tcuser="Me" mq:tctime="2026-11-09T10:00:00Z">!</mrk></target>',
+        1,
+    ).replace(b'mq:status="PartiallyEdited"', b'mq:status="ManuallyConfirmed"', 3)
+    # Only unit 3's status changed: put units 1 and 2's back.
+    expected = expected.replace(b'mq:status="ManuallyConfirmed"', b'mq:status="PartiallyEdited"', 2)
+    assert saved == expected
 
 
 def test_tags_inside_tracked_changes_stay():
