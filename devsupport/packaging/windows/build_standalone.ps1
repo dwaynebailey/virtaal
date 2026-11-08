@@ -71,6 +71,9 @@ if ($env:VIRTAAL_BUILD_COMMIT) {
 "commit = `"$commit`"" | Set-Content -Path virtaal\_build_info.py -Encoding utf8
 Write-Host "Building from commit $commit"
 
+# PyInstaller imports pyenchant too: not the wheel's enchant, whose
+# folder it would then search for libraries.
+$env:PYENCHANT_LIBRARY_PATH = "C:\enchant\bin\libenchant.dll"
 & $Python -m PyInstaller -y devsupport\packaging\windows\virtaal.spec
 
 Write-Host "Built dist\virtaal\virtaal.exe (self-contained)"

@@ -153,8 +153,9 @@ _enchants = sorted({str(Path(entry[0])) for entry in a.datas + a.binaries
                     if "enchant" in Path(entry[0]).name.lower() and Path(entry[0]).suffix.lower() == ".dll"})
 _expected = sorted([ENCHANT_LIBRARY.name] + [str(Path("libenchant", "lib", "enchant-2", p.name))
                                             for p in ENCHANT_PROVIDERS])
-if _enchants != _expected or any(Path(entry[0]).parts[:2] == ("enchant", "data") for entry in a.datas + a.binaries):
-    raise SystemExit("Bundled the wrong enchant: %r" % _enchants)
+_wheel = [entry[0] for entry in a.datas + a.binaries if Path(entry[0]).parts[:2] == ("enchant", "data")]
+if _enchants != _expected or _wheel:
+    raise SystemExit("Bundled the wrong enchant: %r %r" % (_enchants, _wheel[:10]))
 
 common.check_catalogs(a.datas, mo_files, LANGUAGES)
 
