@@ -14,7 +14,7 @@ import sys
 import time
 
 FILLER = 'Lorem ipsum dolor sit amet. '
-SIZES = (10000, 100000)
+SIZES = (2000, 10000, 100000)
 
 
 def _pump(seconds=300):
