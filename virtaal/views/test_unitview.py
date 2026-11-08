@@ -17,6 +17,7 @@ from gi.repository import Gdk, Gtk
 from translate.misc.multistring import multistring
 from translate.storage.placeables.strelem import StringElem
 
+from virtaal.common import pan_app
 from virtaal.views.unitview import (
     UnitView,
     _active_dialog,
@@ -128,7 +129,10 @@ class _FakeLabel:
         self.shown = False
 
 
-def test_a_monolingual_plural_shows_a_box_per_cldr_form_each_labelled():
+def test_a_monolingual_plural_shows_a_box_per_cldr_form_each_labelled(monkeypatch):
+    # The example numbers are formatted in the UI language; another test
+    # may leave one set.
+    monkeypatch.setattr(pan_app, 'ui_language', 'en')
     # Russian: gettext has 3 forms, CLDR (an i18next or Android file) 4.
     view = _make_view(['%d note', '%d notes'], multistring(['a', 'b', 'c', 'd']))
     view.unit.plural_tags = ['one', 'few', 'many', 'other']
