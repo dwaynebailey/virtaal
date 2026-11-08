@@ -71,3 +71,33 @@ def _exit_of(code):
 def test_spawn_reports_how_the_process_exited():
     assert _exit_of(0) == [True]
     assert _exit_of(3) == [False]
+
+
+def test_primes_this_process_then_waits_for_its_answers_to_settle():
+    primed, spawned, timeouts, results = [], [], [], []
+    warm_up = WarmUp(prime=primed.append, spawn=lambda argv, on_exit: spawned.append(on_exit),
+                     timeout_add=lambda seconds, func: timeouts.append((seconds, func)))
+    warm_up.request('is', results.append)
+
+    spawned[0](True)
+    assert primed == ['is'] and results == []
+    seconds, settle = timeouts[-1]
+    assert seconds == applespell.SETTLE_SECONDS
+
+    settle()
+    assert results == [True] and warm_up.is_ready('is')
+    timeouts[0][1]()  # the start's own timeout, too late
+    assert results == [True]
+
+
+def test_a_failed_prime():
+    def prime(language):
+        raise LookupError(language)
+    spawned, results = [], []
+    warm_up = WarmUp(prime=prime, spawn=lambda argv, on_exit: spawned.append(on_exit),
+                     timeout_add=lambda seconds, func: None)
+    warm_up.request('is', results.append)
+
+    spawned[0](True)
+
+    assert results == [False] and warm_up.has_failed('is')

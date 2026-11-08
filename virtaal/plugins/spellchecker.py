@@ -130,7 +130,7 @@ class Plugin(BasePlugin):
         self._seen_languages = {}
         # languages supported by enchant:
         self._enchant_languages = self.enchant.list_languages()
-        self._applespell = WarmUp()
+        self._applespell = WarmUp(prime=lambda language: self.enchant.Dict(language).check('a'))
 
         unit_view = main_controller.unit_controller.view
         self.unit_view = unit_view

@@ -34,13 +34,18 @@ WARM_UP = (
 # Longer than the service takes to start; a warm-up still running then
 # counts as failed.
 TIMEOUT_SECONDS = 15
+# After the service has started, this process's own first check of a
+# language starts loading it here, and answers stay wrong for a while
+# (1.75 s on a CI Intel Mac): checking waits this long after it.
+SETTLE_SECONDS = 3
 
 
 class WarmUp:
-    """Warms the service up for languages once; calls each on_done(ok)
-        when done."""
+    """Warms the service up for languages once, then this process with
+        prime(language); calls each on_done(ok) when done."""
 
-    def __init__(self, spawn=None, timeout_add=None):
+    def __init__(self, prime=None, spawn=None, timeout_add=None):
+        self._prime = prime
         self._spawn = spawn or _spawn
         self._timeout_add = timeout_add or GLib.timeout_add_seconds
         self._ready = set()
@@ -64,6 +69,25 @@ class WarmUp:
         self._waiting[language] = [on_done]
         finished = []
 
+        def started(ok):
+            if finished:
+                return
+            if not ok or self._prime is None:
+                done(ok)
+                return
+            finished.append('started')
+            try:
+                self._prime(language)
+            except Exception as e:
+                logging.debug("Couldn't check %s: %s", language, e)
+                settled(False)
+                return
+            self._timeout_add(SETTLE_SECONDS, lambda: settled(True) or False)
+
+        def settled(ok):
+            finished.clear()
+            done(ok)
+
         def done(ok):
             if finished:
                 return
@@ -74,12 +98,12 @@ class WarmUp:
             for callback in self._waiting.pop(language, []):
                 callback(ok)
         try:
-            self._spawn([OSASCRIPT, '-l', 'JavaScript', '-e', WARM_UP, language], done)
+            self._spawn([OSASCRIPT, '-l', 'JavaScript', '-e', WARM_UP, language], started)
         except OSError as e:
             logging.debug("Couldn't start %s: %s", OSASCRIPT, e)
             done(False)
             return
-        self._timeout_add(TIMEOUT_SECONDS, lambda: done(False) or False)
+        self._timeout_add(TIMEOUT_SECONDS, lambda: started(False) or False)
 
 
 def _spawn(argv, on_exit):
