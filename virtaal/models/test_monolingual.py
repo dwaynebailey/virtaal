@@ -660,7 +660,15 @@ _COMMENTED = {
 }
 
 
-@pytest.mark.parametrize('kind', list(_COMMENTED))
+_NO_FLUENT = pytest.mark.skipif(
+    not FluentConverter().available(), reason='translate-toolkit before 3.18 has no fluent2po'
+)
+_COMMENTED_KINDS = [
+    pytest.param(kind, marks=_NO_FLUENT) if kind == 'fluent' else kind for kind in _COMMENTED
+]
+
+
+@pytest.mark.parametrize('kind', _COMMENTED_KINDS)
 def test_a_dismissed_check_is_kept_in_a_comment_before_the_key(tmp_path, kind):
     from virtaal.support import dismissedchecks
 
