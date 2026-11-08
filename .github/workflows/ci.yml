@@ -1407,6 +1407,7 @@ jobs:
           dist/Virtaal.app/Contents/MacOS/virtaal --run-module virtaal.support.enchant_compat is /tmp/enchant-is.txt
           cat /tmp/enchant-is.txt
           grep -q "^dictionary provider: AppleSpell$" /tmp/enchant-is.txt
+          grep -q "^unknown: xqzwy$" /tmp/enchant-is.txt
           grep -q "^marked: xqzwy$" /tmp/enchant-is.txt
 
       - name: Verify the bundle launches cleanly

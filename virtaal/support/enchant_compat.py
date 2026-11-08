@@ -224,15 +224,14 @@ def self_check(lang):
         # A checker answering through another process (AppleSpell) can
         # give different answers at first.
         start = time.perf_counter()
-        settled = unknown
-        while time.perf_counter() - start < 3:
+        settled, changed = unknown, None
+        while time.perf_counter() - start < 2:
             time.sleep(0.05)
             again = [word for word in words if not dictionary.check(word)]
-            if again == settled:
-                break
-            settled = again
-        if settled != unknown:
-            lines.append('first unknown: %s, settled in %.2f s' % (' '.join(unknown), time.perf_counter() - start))
+            if again != settled:
+                settled, changed = again, time.perf_counter() - start
+        if changed is not None:
+            lines.append('first unknown: %s, changed after %.2f s' % (' '.join(unknown), changed))
         lines.append('unknown: %s' % ' '.join(settled))
         lines.append('suggestions: %s' % ' '.join(dictionary.suggest(words[-1])[:3]))
     try:
