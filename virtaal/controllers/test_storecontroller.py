@@ -425,19 +425,6 @@ def test_open_file_loads_and_shows_a_plain_file(monkeypatch):
     assert emitted == [True]
 
 
-def test_open_file_marks_a_file_keeping_stale_dismissed_checks_modified(monkeypatch):
-    # A save drops them, as it would any other change (#3276).
-    controller = _open_file_controller(monkeypatch, units=[object()])
-    monkeypatch.setattr(
-        'virtaal.models.storemodel.StoreModel.stale_dismissals', True, raising=False
-    )
-
-    controller.open_file('file.po')
-
-    assert controller._modified is True
-    assert controller.saveable_calls == [True]
-
-
 def test_open_file_shows_a_notice_for_an_invalid_plural_equation(monkeypatch):
     controller = _open_file_controller(monkeypatch, units=[object()])
     shown, hidden = [], []

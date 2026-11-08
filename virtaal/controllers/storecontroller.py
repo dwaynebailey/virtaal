@@ -423,12 +423,9 @@ class StoreController(BaseController):
             self.close_file()
             raise ValueError('The file contains nothing to translate.')
 
-        # A translation carried over from a renamed key isn't in the file
-        # yet, and a save drops dismissed checks that no longer count.
+        # A translation carried over from a renamed key isn't in the file yet.
         pair = getattr(self.store, 'pair', None)
-        self._modified = bool(pair and pair.carried) or getattr(
-            self.store, 'stale_dismissals', False
-        )
+        self._modified = bool(pair and pair.carried)
 
         # if file is a template, force saveas
         filename, force_saveas = self._rename_pot_template(filename, force_saveas)

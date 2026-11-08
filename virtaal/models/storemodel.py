@@ -340,10 +340,7 @@ class StoreModel(BaseModel):
 
             self._trans_store = factory.getobject(fileobj)
         self.filename = filename
-        units = self._dismissable_units()
-        # The file keeps dismissals that no longer count: a save drops them.
-        self.stale_dismissals = dismissedchecks.has_stale(units)
-        dismissedchecks.apply_record(filename, units)
+        dismissedchecks.apply_record(filename, self._dismissable_units())
         self._checker = None
         self.checks = None
         # Indices of units that may differ from the file on disk.
