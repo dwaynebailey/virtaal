@@ -29,8 +29,8 @@ def _make_view():
     return view
 
 
-def _update(view, failures):
-    view.update(failures)
+def _update(view, failures, dismissed=None, can_dismiss=False):
+    view.update(failures, dismissed, can_dismiss)
     btn = view.btn_checks
     if btn._show_tick_id:
         btn.remove_tick_callback(btn._show_tick_id)
@@ -236,3 +236,55 @@ def test_a_scrolling_popup_shows_only_whole_rows():
     )[3]
 
     assert height == 10 + 3 * row + 2 * spacing
+
+
+# Dismissing a check's result (#3276) #
+
+
+def _buttons(view):
+    return [
+        row.get_children()[-1]
+        for row in view.box_checks.get_children()
+        if isinstance(row.get_children()[-1], Gtk.Button)
+    ]
+
+
+def test_each_failure_gets_a_dismiss_button_and_each_dismissed_one_restore():
+    view = _make_view()
+    calls = []
+    view.controller.dismiss_check = lambda check, dismiss: calls.append((check, dismiss))
+
+    _update(view, {'xmltags': 'Different XML tags'}, {'urls': 'Different URLs'}, True)
+
+    assert _rows(view) == [('xmltags', 'Different XML tags'), ('urls', 'Different URLs')]
+    dismiss, restore = _buttons(view)
+    assert (dismiss.get_label(), restore.get_label()) == ('Dismiss', 'Restore')
+    dismiss.clicked()
+    restore.clicked()
+    assert calls == [('xmltags', True), ('urls', False)]
+    assert view.lbl_btnchecks.get_text() == 'xmltags'
+    dimmed = view.check_rows[1][0].get_style_context().has_class('dim-label')
+    assert dimmed and not view.check_rows[0][0].get_style_context().has_class('dim-label')
+
+
+def test_only_dismissed_checks_leave_a_dimmed_button_to_restore_them():
+    view = _make_view()
+
+    _update(view, {}, {'urls': 'Different URLs'}, True)
+
+    assert view.btn_checks.get_opacity() == 1
+    assert view.lbl_btnchecks.get_text() == 'urls'
+    assert view.lbl_btnchecks.get_style_context().has_class('dim-label')
+    assert view.btn_checks.get_accessible().get_name() == 'Dismissed: urls'
+
+    _update(view, {'xmltags': 'Different XML tags'}, {'urls': 'Different URLs'}, True)
+
+    assert not view.lbl_btnchecks.get_style_context().has_class('dim-label')
+
+
+def test_no_buttons_where_the_format_cant_remember_a_dismissal():
+    view = _make_view()
+
+    _update(view, {'xmltags': 'Different XML tags'}, {}, False)
+
+    assert _buttons(view) == []

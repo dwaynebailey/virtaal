@@ -644,6 +644,10 @@ class StoreController(BaseController):
         if index is not None and self.store.update_unit_checks(index, failures):
             self.emit('checks-changed')
 
+    def mark_unit_modified(self, unit):
+        """Note a change to unit made other than by editing it."""
+        self._unit_modified(None, unit)
+
     def _unit_modified(self, emitter, unit):
         # Guard against a late "modified" signal from a just-closed or
         # just-replaced file's teardown - both no file open at all, and

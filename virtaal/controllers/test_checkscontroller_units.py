@@ -16,6 +16,7 @@ from translate.filters import checks
 from virtaal.controllers import checkscontroller as checkscontroller_module
 from virtaal.controllers.checkscontroller import ChecksController
 from virtaal.controllers.langcontroller import LanguageController
+from virtaal.support import dismissedchecks
 from virtaal.test.test_scaffolding import TestScaffolding
 
 
@@ -118,3 +119,44 @@ class TestChecksOnAStore(TestScaffolding):
             assert started.last_unit is self.unit
         finally:
             self.main_controller.checks_controller = self.checks_controller
+
+    # Dismissing a check's result (#3276) #
+
+    def _failing_check(self):
+        self.unit.target = 'oop'  # Fails, at least, starting capitals.
+        failures = self.checks_controller.check_unit(self.unit)
+        return sorted(failures)[0]
+
+    def test_a_dismissed_check_is_hidden_and_the_file_modified(self):
+        controller = self.checks_controller
+        check = self._failing_check()
+
+        controller.dismiss_check(check)
+
+        assert check not in controller.last_failures
+        assert dismissedchecks.dismissed(self.unit) == {check}
+        assert self.store_controller.is_modified()
+        assert self.checked[-1] is self.unit
+        view = controller.unitview
+        assert check in view._prev_failures[1]
+
+    def test_a_restored_check_shows_again(self):
+        controller = self.checks_controller
+        check = self._failing_check()
+        controller.dismiss_check(check)
+
+        controller.dismiss_check(check, False)
+
+        assert check in controller.last_failures
+        assert dismissedchecks.dismissed(self.unit) == set()
+
+    def test_an_edit_takes_back_a_dismissal(self):
+        controller = self.checks_controller
+        check = self._failing_check()
+        controller.dismiss_check(check)
+
+        self.unit.target = 'oop oop'
+        controller.check_unit(self.unit)
+
+        assert check in controller.last_failures
+        assert dismissedchecks.MARKER not in self.unit.getnotes()

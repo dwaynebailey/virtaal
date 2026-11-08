@@ -111,13 +111,17 @@ class ChecksUnitView(BaseView):
         if self.btn_checks.get_active():
             self.btn_checks.clicked()
 
-    def update(self, failures):
+    def update(self, failures, dismissed=None, can_dismiss=False):
+        """Show failures, and the dismissed checks that fail too, with a
+        button to dismiss or restore each if can_dismiss (#3276)."""
         # We don't want to show "untranslated"
         failures.pop('untranslated', None)
-        if failures == self._prev_failures:
+        dismissed = dismissed or {}
+        state = (failures, dismissed, can_dismiss)
+        if state == self._prev_failures:
             return
-        self._prev_failures = failures
-        if not failures:
+        self._prev_failures = state
+        if not failures and not dismissed:
             # We want an empty button, but this causes a bug where subsequent
             # updates don't show, so we set it to an invisible character
             self.lbl_btnchecks.set_text("\u202a")
@@ -133,24 +137,63 @@ class ChecksUnitView(BaseView):
         for name_label, _desc_label in self.check_rows:
             name_label.get_parent().destroy()
         self.check_rows = []
-        nice_name = self.controller.get_check_name
-        sorted_failures = sorted(failures.items(), key=lambda x: locale.strxfrm(nice_name(x[0])))
-        names = []
-        for testname, desc in sorted_failures:
-            testname = nice_name(testname)
-            labels = (self._make_label(testname), self._make_label(desc, wrap=True))
-            self.check_rows.append(labels)
-            self.box_checks.pack_start(self._make_row(*labels), False, False, 0)
-            names.append(testname)
+        names = self._add_rows(failures, False, can_dismiss)
+        dismissed_names = self._add_rows(dismissed, True, can_dismiss)
         self.box_checks.show_all()
 
-        name_str = self._listsep.join(names)
+        style = self.lbl_btnchecks.get_style_context()
+        if names:
+            name_str = self._listsep.join(names)
+            accessible = name_str
+            style.remove_class('dim-label')
+        else:
+            # Only dismissed ones: dimmed, still there to restore.
+            name_str = self._listsep.join(dismissed_names)
+            # l10n: The quality checks a translator marked as fine on this unit
+            accessible = _("Dismissed: %(checks)s") % {'checks': name_str}
+            style.add_class('dim-label')
         self.lbl_btnchecks.set_text(name_str)
-        self.btn_checks.get_accessible().set_name(name_str)
+        self.btn_checks.get_accessible().set_name(accessible)
         self.btn_checks.set_opacity(1)
         self.btn_checks.set_can_focus(True)
         self.popup_content.show()
         self.btn_checks.update_popup()
+
+    def _add_rows(self, failures, dismissed, can_dismiss):
+        """A row per failure, sorted by name; returns the names."""
+        nice_name = self.controller.get_check_name
+        names = []
+        for check, desc in sorted(failures.items(), key=lambda x: locale.strxfrm(nice_name(x[0]))):
+            labels = (self._make_label(nice_name(check)), self._make_label(desc, wrap=True))
+            self.check_rows.append(labels)
+            row = self._make_row(*labels)
+            if dismissed:
+                for label in labels:
+                    label.get_style_context().add_class('dim-label')
+            if can_dismiss:
+                row.pack_end(self._make_dismiss_button(check, dismissed), False, False, 0)
+            self.box_checks.pack_start(row, False, False, 0)
+            names.append(nice_name(check))
+        return names
+
+    def _make_dismiss_button(self, check, dismissed):
+        if dismissed:
+            # l10n: Show a quality check result again that was marked as fine
+            button = Gtk.Button(label=_("Restore"))
+            button.set_tooltip_text(_("Show this check's result on this unit again"))
+        else:
+            # l10n: Mark a quality check result as fine (a false positive)
+            button = Gtk.Button(label=_("Dismiss"))
+            button.set_tooltip_text(
+                _(
+                    "Mark this result as fine: it stays hidden until the source or translation changes"
+                )
+            )
+        button.set_valign(Gtk.Align.START)
+        button.connect(
+            'clicked', lambda _button: self.controller.dismiss_check(check, not dismissed)
+        )
+        return button
 
     def update_geometry(self, popup, popup_alloc, btn_alloc, btn_window_xy, geom):
         x, y, width, height = geom

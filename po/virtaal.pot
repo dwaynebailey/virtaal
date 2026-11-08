@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 04:45+0000\n"
+"POT-Creation-Date: 2026-11-08 05:03+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2723,6 +2723,32 @@ msgstr ""
 
 #: virtaal/views/checksunitview.py virtaal/views/widgets/welcomescreen.py
 msgid "Quality checks"
+msgstr ""
+
+#. l10n: The quality checks a translator marked as fine on this unit
+#: virtaal/views/checksunitview.py
+#, python-format
+msgid "Dismissed: %(checks)s"
+msgstr ""
+
+#. l10n: Show a quality check result again that was marked as fine
+#: virtaal/views/checksunitview.py
+msgid "Restore"
+msgstr ""
+
+#: virtaal/views/checksunitview.py
+msgid "Show this check's result on this unit again"
+msgstr ""
+
+#. l10n: Mark a quality check result as fine (a false positive)
+#: virtaal/views/checksunitview.py
+msgid "Dismiss"
+msgstr ""
+
+#: virtaal/views/checksunitview.py
+msgid ""
+"Mark this result as fine: it stays hidden until the source or translation "
+"changes"
 msgstr ""
 
 #. l10n: A language in the files panel's list, and how many of the open files are in it

@@ -32,6 +32,22 @@ information about the possible error.
 You can also read the detailed descriptions of the
 :ref:`pofilter checks <toolkit:pofilter_tests>`.
 
+.. _checks#dismiss:
+
+Dismissing a result
+-------------------
+If a translation is right in spite of a check, click :guilabel:`Dismiss`
+beside the result in the details. Virtaal stops reporting that check for
+the translation, also in the Quality Checks navigation mode, and dims it in
+the details, where :guilabel:`Restore` brings it back. Once the source or
+the translation changes, the check is reported again.
+
+Virtaal remembers a dismissed result in the file, so it goes wherever the
+file goes: as a translator comment in PO files, which survives ``msgmerge``,
+for example ``# (dismissed-check) endpunc 3f2a9c1e``, and as a translator
+note in XLIFF and Qt .ts files. Other formats can't remember one, so they
+have no :guilabel:`Dismiss` button.
+
 .. _checks#msgfmt:
 
 msgfmt

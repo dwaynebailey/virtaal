@@ -10,6 +10,7 @@ import logging
 from gi.repository import GLib, GObject
 
 from virtaal.common import GObjectWrapper
+from virtaal.support import dismissedchecks
 
 from .basecontroller import BaseController
 
@@ -208,12 +209,32 @@ class ChecksController(BaseController):
         if not checker:
             logging.debug('No checker instantiated :(')
             return
-        self.last_failures = checker.run_filters(unit)
+        from virtaal.support.extrachecks import ExtraChecksFilter
+
+        # An edit takes back what was dismissed before it.
+        if getattr(unit, '_modified', False):
+            dismissedchecks.drop_stale(unit)
+        if isinstance(checker, ExtraChecksFilter):
+            everything = checker.run_filters(unit, with_dismissed=True)
+        else:
+            everything = checker.run_filters(unit)
+        self.last_failures = dismissedchecks.filter_failures(unit, everything)
         if self.last_failures:
             logging.debug('Failures: %s' % (self.last_failures))
-        self.unitview.update(self.last_failures)
+        dismissed = {k: v for k, v in everything.items() if k not in self.last_failures}
+        self.unitview.update(self.last_failures, dismissed, dismissedchecks.can_dismiss(unit))
         self.emit('unit-checked', unit, checker, self.last_failures)
         return self.last_failures
+
+    def dismiss_check(self, check, dismiss=True):
+        """Dismiss check's result on the current unit as fine, or take
+        that back (#3276)."""
+        unit = self.last_unit
+        if unit is None or not dismissedchecks.set_dismissed(unit, check, dismiss):
+            return
+        unit._modified = True
+        self.store_controller.mark_unit_modified(unit)
+        self.check_unit(unit)
 
     def _check_timer_expired(self, unit):
         self._check_timer_active = False
