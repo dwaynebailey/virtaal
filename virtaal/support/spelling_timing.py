@@ -94,8 +94,14 @@ def _plugin_view(lang):
     controller = type('MainController', (), {})()
     controller.unit_controller = type('UnitController', (), {'view': unit_view})
     controller.lang_controller = lang_controller
+    start = time.perf_counter()
     plugin = Plugin('spellchecker', controller)
-    _pump()
+    # Until it checks: it may wait for macOS's spell checker to start.
+    while getattr(view, 'spell_lang', None) is None and time.perf_counter() - start < 20:
+        _pump()
+        time.sleep(0.01)
+    _, longest = _pump()
+    view.spell_ready = time.perf_counter() - start, longest
     return plugin, view
 
 
@@ -119,7 +125,10 @@ def timings(lang, sizes=SIZES):
     gi.require_version('Gtk', '3.0')
     lines = []
     plugin, view = _plugin_view(lang)
-    lines.append('plugin: %s' % ('checking' if getattr(view, 'spell_lang', None) else 'not checking'))
+    if getattr(view, 'spell_lang', None):
+        lines.append('plugin: checking, ready in %.3f s, busy %.3f s' % view.spell_ready)
+    else:
+        lines.append('plugin: not checking')
     lines.append('typing: longest keystroke %.3f s, %d marked' % (_type(view, 'This is a tset of typing'), _marked(view)))
     for size in sizes:
         text = (FILLER * (size // len(FILLER) + 1))[:size]

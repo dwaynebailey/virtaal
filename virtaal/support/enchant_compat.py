@@ -18,6 +18,7 @@ _USED = ('dict_exists', 'list_languages', 'get_user_config_dir')
 # by language. Hungarian's long compounds stress hunspell (#1958).
 SAMPLES = {
     'en': 'This is a tset',
+    'is': '\u00deetta er hestur xqzwy',
     'hu': 'Ez a számítógép legeslegmegszentségteleníthetetlenebbek kerékpárjavító-műhelyekben xqzwy',
 }
 _SPELLING_LIBRARY_RE = re.compile(r'enchant|gtkspell|hunspell|aspell|nuspell|winspell', re.IGNORECASE)
@@ -176,8 +177,11 @@ def _gtkspell_lines(lang):
     checker = GtkSpell.Checker()
     checker.set_language(lang)
     checker.attach(view)
+    # Bounded: AppKit's run loop sources can keep the context busy.
+    import time
     context = GLib.MainContext.default()
-    while context.iteration(False):
+    deadline = time.perf_counter() + 2
+    while context.iteration(False) and time.perf_counter() < deadline:
         pass
     lines.append('gtkspell: ok')
     lines.append('marked: %s' % ' '.join(marked_words(view.get_buffer())))
@@ -204,9 +208,20 @@ def self_check(lang):
         by_provider.setdefault(provider.name, []).append(tag)
     lines += ['%s languages: %s' % (name, ' '.join(sorted(tags))) for name, tags in sorted(by_provider.items())]
     if enchant.dict_exists(lang):
+        import time
+        lines.append('dictionary provider: %s' % ' '.join(
+            provider.name for tag, provider in enchant.Broker().list_dicts() if tag == lang))
         dictionary = enchant.Dict(lang)
         words = sample_text(lang).split()
-        lines.append('unknown: %s' % ' '.join(w for w in words if not dictionary.check(w)))
+        times = []
+        unknown = []
+        for word in words:
+            start = time.perf_counter()
+            if not dictionary.check(word):
+                unknown.append(word)
+            times.append(time.perf_counter() - start)
+        lines.append('check time: first %.3f s, longest after %.3f s' % (times[0], max(times[1:] or [0])))
+        lines.append('unknown: %s' % ' '.join(unknown))
         lines.append('suggestions: %s' % ' '.join(dictionary.suggest(words[-1])[:3]))
     try:
         lines += _gtkspell_lines(lang)
