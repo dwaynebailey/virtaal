@@ -37,9 +37,10 @@ _("MultiTerm Termbase")
 _("MultiTerm XML Termbase")
 _("Trados Studio Translation Memory")
 
-# memoQ's XLIFF (virtaal/support/catxliff_compat.py), named in the Open
-# dialog and the Windows installer.
+# memoQ's and Phrase's XLIFF (virtaal/support/catxliff_compat.py), named
+# in the Open dialog and the Windows installer.
 _("memoQ XLIFF Translation File")
+_("Phrase XLIFF Translation File")
 
 # Windows installer only (devsupport/packaging/windows/virtaal.iss).
 _("SDL XLIFF Translation File")

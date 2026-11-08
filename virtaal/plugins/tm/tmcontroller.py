@@ -830,8 +830,8 @@ class TMController(BaseController):
     def _shows_unasked(self, unit, index=None):
         """Whether unit, at index if not the current one, gets suggestions
         unasked: one still to translate, or a translated one as
-        translated_suggestions says. A locked Trados or memoQ segment
-        can't take one."""
+        translated_suggestions says. A locked segment (Trados, memoQ,
+        Phrase) can't take one."""
         if catxliff_compat.is_locked(unit):
             return False
         if not unit.istranslated() or self.translated_suggestions == ALWAYS:

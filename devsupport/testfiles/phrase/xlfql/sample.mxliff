@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns:m="http://www.memsource.com/mxlf/2.0" xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2" m:version="2.15" m:level="1">
+<file original="content-control1.docx" source-language="ja-jp" target-language="en-us" datatype="x-undefined" m:task-id="task-id" m:file-format="DOC" m:project-uid="project-uid" m:job-uid="job-uid" m:transmem-ignore-tag-metadata="yes">
+<header>
+<in-ctx-preview-skel bilingual="false"><![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN" "http://www.w3.org/Math/DTD/mathml2/xhtml-math11-f.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en-US"><!--This file was converted to xhtml by LibreOffice - see https://cgit.freedesktop.org/libreoffice/core/tree/filter/source/xslt for the code.--><head profile="http://dublincore.org/documents/dcmi-terms/"><title xml:lang="en-US">- no title specified</title><meta name="DCTERMS.title" content="" xml:lang="en-US"/><meta name="DCTERMS.language" content="en-US" scheme="DCTERMS.RFC4646"/><meta name="DCTERMS.source" content="http://xml.openoffice.org/odf2xhtml"/><meta name="DCTERMS.creator" content="test user"/><meta name="DCTERMS.issued" content="2026-04-03T16:32:00" scheme="DCTERMS.W3CDTF"/><meta name="DCTERMS.contributor" content="test user"/><meta name="DCTERMS.modified" content="2026-04-03T16:35:00" scheme="DCTERMS.W3CDTF"/><meta name="xsl:vendor" content="libxslt"/><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/" hreflang="en"/><link rel="schema.DCTERMS" href="http://purl.org/dc/terms/" hreflang="en"/><link rel="schema.DCTYPE" href="http://purl.org/dc/dcmitype/" hreflang="en"/><link rel="schema.DCAM" href="http://purl.org/dc/dcam/" hreflang="en"/><style>
+    table { border-collapse:collapse; border-spacing:0; empty-cells:show }
+    td, th { vertical-align:top; font-size:12pt;}
+    h1, h2, h3, h4, h5, h6 { clear:both;}
+    ol, ul { margin:0; padding:0;}
+    li { list-style: none; margin:0; padding:0;}
+    span.footnodeNumber { padding-right:1em; }
+    span.annotation_style_by_filter { font-size:95%; font-family:Arial; background-color:#fff000;  margin:0; border:0; padding:0;  }
+    span.heading_numbering { margin-right: 0.8rem; }* { margin:0;}
+    .Standard { font-size:11pt; font-family:游明朝; writing-mode:horizontal-tb; direction:ltr; margin-top:0in; margin-bottom:0.111in; line-height:108%; text-align:left ! important; }
+    /* ODF styles with no properties representable as CSS:
+    .dp1 .T1  { } */
+</style><meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+<meta charset="UTF-8">
+</head><body dir="ltr" style="max-width:8.2681in;margin-top:1.3783in; margin-bottom:1.1811in; margin-left:1.1811in; margin-right:1.1811in; "><p class="Standard"><span class="T1"><span id="m-tgroup_0" class="m-tgroup"></span><span class="T1"> </span><span id="m-tgroup_1" class="m-tgroup"></span></span></p></body></html>
+]]></in-ctx-preview-skel>
+</header>
+<body>
+<group id="0" m:para-id="0">
+<context-group>
+<context context-type="x-file-part">word/document.xml::body</context>
+</context-group>
+<m:in-ctx-preview-metadata>
+<m:mark id="1">
+<m:open-mark-content><![CDATA[</span><a id="テキスト11"/><span class="T1">]]></m:open-mark-content>
+</m:mark>
+<m:mark id="2">
+<m:open-mark-content><![CDATA[</span><span class="T1">FORMTEXT</span><span class="T1">]]></m:open-mark-content>
+</m:mark>
+</m:in-ctx-preview-metadata>
+<trans-unit id="task-id:0" m:para-id="0" xml:space="preserve" m:score="0" m:gross-score="0" m:trans-origin="null" m:confirmed="1" m:locked="false" m:created-at="1775268971135" m:created-by="5911" m:modified-at="1775269133659" m:modified-by="5911" m:level-edited="false">
+<source>{1}{2}これはテストです。</source>
+<target>{1}{2}That is a test.</target>
+<alt-trans origin="memsource-tm" match-quality="0.99">
+<target>This is a test.</target>
+</alt-trans>
+<m:tunit-metadata>
+<m:mark id="1">
+<m:content>&lt;w:bookmarkStart w:id=&quot;0&quot;&gt;&lt;/w:bookmarkStart&gt;</m:content>
+</m:mark>
+<m:mark id="2">
+<m:content>&lt;mem:runGroup&gt;&lt;/mem:runGroup&gt;</m:content>
+</m:mark>
+</m:tunit-metadata>
+<m:tunit-target-metadata>
+<m:mark id="1">
+<m:content>&lt;w:bookmarkStart w:id=&quot;0&quot;&gt;&lt;/w:bookmarkStart&gt;</m:content>
+</m:mark>
+<m:mark id="2">
+<m:content>&lt;mem:runGroup&gt;&lt;/mem:runGroup&gt;</m:content>
+</m:mark>
+</m:tunit-target-metadata>
+<m:editing-stats>
+<m:thinking-time>3110</m:thinking-time>
+<m:editing-time>23330</m:editing-time>
+</m:editing-stats>
+</trans-unit>
+</group>
+<group id="1" m:para-id="0">
+<context-group>
+<context context-type="x-file-part">word/document.xml::body</context>
+</context-group>
+<m:in-ctx-preview-metadata>
+<m:mark id="3">
+<m:open-mark-content><![CDATA[</span><a id="Bookmark"/><span class="T1">]]></m:open-mark-content>
+</m:mark>
+</m:in-ctx-preview-metadata>
+<trans-unit id="task-id:1" m:para-id="0" xml:space="preserve" m:trans-origin-detail="nt_ai" m:score="1" m:gross-score="1" m:trans-origin="nt" m:confirmed="1" m:locked="false" m:created-at="1775269134782" m:created-by="5911" m:modified-at="1775269134892" m:modified-by="5911" m:level-edited="false">
+<source>{3}</source>
+<target>{3}</target>
+<alt-trans origin="memsource-tm" match-quality="0.99">
+<target>{1}{2}</target>
+</alt-trans>
+<m:tunit-metadata>
+<m:mark id="3">
+<m:content>&lt;w:bookmarkEnd w:id=&quot;0&quot;&gt;&lt;/w:bookmarkEnd&gt;</m:content>
+</m:mark>
+</m:tunit-metadata>
+<m:tunit-target-metadata>
+<m:mark id="3">
+<m:content>&lt;w:bookmarkEnd w:id=&quot;0&quot;&gt;&lt;/w:bookmarkEnd&gt;</m:content>
+</m:mark>
+</m:tunit-target-metadata>
+<m:latest-trans-props>
+<m:trans-prop name="score">1</m:trans-prop>
+<m:trans-prop name="gross-score">1</m:trans-prop>
+<m:trans-prop name="origin">nt</m:trans-prop>
+<m:trans-prop name="origin-detail">nt_ai</m:trans-prop>
+</m:latest-trans-props>
+<m:editing-stats>
+<m:thinking-time>923</m:thinking-time>
+<m:editing-time>1258</m:editing-time>
+</m:editing-stats>
+</trans-unit>
+</group>
+<group id="2" m:para-id="1">
+<context-group>
+<context context-type="x-file-part">word/document.xml::body</context>
+<context context-type="x-key-note">default/@val</context>
+</context-group>
+<m:in-ctx-preview-metadata/>
+<trans-unit id="task-id:2" m:para-id="1" xml:space="preserve" m:score="0" m:gross-score="0" m:trans-origin="null" m:confirmed="1" m:locked="false" m:created-at="1775268968658" m:created-by="5911" m:modified-at="1775268988953" m:modified-by="5911" m:level-edited="false">
+<source>これはテストです。</source>
+<target>This is a test.</target>
+<m:editing-stats>
+<m:thinking-time>26701</m:thinking-time>
+<m:editing-time>179463</m:editing-time>
+</m:editing-stats>
+</trans-unit>
+</group>
+</body>
+</file>
+<m:extra>
+<m:users>
+<m:user id="5911" uid="abcde" username="test.user" fullname="Test User"/>
+</m:users>
+</m:extra>
+</xliff>

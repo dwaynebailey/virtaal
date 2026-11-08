@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 # translate-toolkit's reading of it and Virtaal's. Raise REVISION when
 # Virtaal reads some files' units differently, and caches made before
 # are dropped. 1: a Trados segment is a unit, with its own state (#4625).
-# 2: memoQ units have memoQ's states (#4734).
+# 2: memoQ and Phrase units have their tools' states (#4734, #4735).
 REVISION = 2
 CACHE_BUILD = toolkitversion.build * 100 + REVISION
 

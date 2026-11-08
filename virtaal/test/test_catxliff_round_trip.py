@@ -5,9 +5,9 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""memoQ files from devsupport/testfiles opened, edited through the
-target TextBox, saved and reopened: the file changes only in the
-edited trans-unit, and memoQ's states, locks and notes show."""
+"""memoQ and Phrase files from devsupport/testfiles opened, edited
+through the target TextBox, saved and reopened: the file changes only
+in the edited trans-unit, and the tools' states, locks and notes show."""
 
 import glob
 import os
@@ -25,11 +25,15 @@ from virtaal.support import catxliff_compat
 from virtaal.views.widgets import textbox as textbox_module
 
 TESTFILES = os.path.join('devsupport', 'testfiles')
-SAMPLES = sorted(glob.glob(os.path.join(TESTFILES, 'memoq', '*', '*.mqxliff')))
+SAMPLES = sorted(
+    glob.glob(os.path.join(TESTFILES, 'memoq', '*', '*.mqxliff'))
+    + glob.glob(os.path.join(TESTFILES, 'phrase', '*', '*.mxliff'))
+)
 STATUSES = os.path.join(
     TESTFILES, 'memoq', 'mqxliff-viewer', 'translation_status_sample.xlsx_jpn.mqxliff'
 )
 MEMOQ_LOCK = os.path.join(TESTFILES, 'memoq', 'patois', 'sample.mqxliff')
+PHRASE = os.path.join(TESTFILES, 'phrase', 'patois', 'sample.mxliff')
 
 
 def _changed_lines(before, after):
@@ -178,3 +182,23 @@ class TestCatXliffRoundTrip(TestScaffolding):
 
         assert unit.get_state_n() == StateEnum.UNREVIEWED
         assert view._widgets['state'].get_sensitive()
+
+    def test_the_phrase_states_lock_and_origin(self, tmp_path):
+        path, before = self._open_copy(PHRASE, tmp_path)
+        assert [u.get_state_n() for u in self.store_controller.store.get_units()] == [
+            StateEnum.EMPTY,
+            StateEnum.NEEDS_REVIEW,
+            StateEnum.UNREVIEWED,
+            StateEnum.NEEDS_REVIEW,
+        ]
+        _unit, view = self._load(1)
+        assert not view.targets[0].get_editable()
+        assert "Locked: this translation can't be changed." in self._notes(view)
+        _unit, view = self._load(3)
+        assert self._notes(view) == 'Origin: mt, 62% match'
+
+        self.unit_controller.set_current_state(StateEnum.UNREVIEWED, from_user=True)
+        self.store_controller.save_file()
+
+        ((old, new),) = _changed_lines(before, path.read_bytes())
+        assert old.replace(b'm:confirmed="0"', b'm:confirmed="1"') == new

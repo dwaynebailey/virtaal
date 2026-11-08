@@ -24,6 +24,7 @@ from virtaal.support import (
     catxliff_compat,
     dismissedchecks,
     memoq_compat,
+    phrase_compat,
     sdlxliff_compat,
 )
 
@@ -96,26 +97,26 @@ def _programmer_notes(unit):
 
 
 def _origin_line(origin, percent=None):
-    """Where Trados's translation came from, as a line of the notes."""
+    """Where a CAT tool's translation came from, as a line of the notes."""
     if percent:
         return _(
-            # l10n: Where Trados Studio's translation came from, e.g.
-            # "tm (Main TM), 100% match". The origin is Trados's own
-            # name: tm, mt, interactive, auto-propagated and others.
+            # l10n: Where a translation in a Trados Studio or Phrase file came
+            # from, e.g. "tm (Main TM), 100% match". The origin is the
+            # tool's own name: tm, mt, interactive and others.
             "Origin: %(origin)s, %(percent)s%% match"
         ) % {'origin': origin, 'percent': percent}
     return _(
-        # l10n: Where Trados Studio's translation came from, e.g.
-        # "interactive". The origin is Trados's own name: tm, mt,
-        # interactive, auto-propagated and others.
+        # l10n: Where a translation in a Trados Studio or Phrase file came
+        # from, e.g. "interactive". The origin is the tool's own name: tm,
+        # mt, interactive and others.
         "Origin: %(origin)s"
     ) % {'origin': origin}
 
 
 def _match_line(percent):
     return _(
-        # l10n: The translation memory match a memoQ file's translation
-        # was inserted from, e.g. "Match: 101%" (a context match).
+        # l10n: The translation memory match a memoQ or Phrase file's
+        # translation was inserted from, e.g. "Match: 101%" (a context match).
         "Match: %(percent)s%%"
     ) % {'percent': percent}
 
@@ -436,8 +437,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
     @property
     def locked(self):
-        """Whether the unit is shown read-only: a locked Trados or memoQ
-        segment."""
+        """Whether the unit is shown read-only: a locked Trados, memoQ or
+        Phrase segment."""
         return catxliff_compat.is_locked(self.unit)
 
     def _on_store_closed(self, *args):
@@ -870,7 +871,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             note_text = _programmer_notes(self.unit)
         else:
             notes = dismissedchecks.without_dismissals(self.unit.getnotes(origin))
-            notes = [notes, *self._trados_notes(), *self._memoq_notes()]
+            notes = [notes, *self._trados_notes(), *self._memoq_notes(), *self._phrase_notes()]
             note_text = '\n'.join(line for line in notes if line)
 
         if (
@@ -895,7 +896,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if self.locked:
             notes.append(
                 _(
-                    # l10n: A Trados Studio or memoQ file can lock a translation.
+                    # l10n: A Trados Studio, memoQ or Phrase file can lock a
+                    # translation.
                     "Locked: this translation can't be changed."
                 )
             )
@@ -930,6 +932,16 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
                 % {'user': user}
             )
         return notes
+
+    def _phrase_notes(self):
+        """Lines about the unit's Phrase segment: where its translation
+        came from and its score."""
+        if catxliff_compat.flavour(self.unit) != 'phrase':
+            return []
+        origin, percent = phrase_compat.origin(self.unit)
+        if origin:
+            return [_origin_line(origin, percent)]
+        return [_match_line(percent)] if percent else []
 
     def _layout_update_sources(self):
         num_source_widgets = len(self.sources)

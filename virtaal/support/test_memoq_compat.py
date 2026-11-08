@@ -72,18 +72,19 @@ def test_translate_toolkit_still_ignores_the_memoq_status(monkeypatch):
 
 
 def test_the_extensions_open_as_xliff():
-    assert factory.getclass('a.mqxliff') is xliff.Xliff1File
-    assert any('mqxliff' in extensions for _name, extensions, _m in factory.supported_files())
-    assert '.mqxliff' in fileset.SCAN_EXTENSIONS
+    for extension in ('mqxliff', 'mxliff'):
+        assert factory.getclass(f'a.{extension}') is xliff.Xliff1File
+        assert any(extension in extensions for _name, extensions, _m in factory.supported_files())
+    assert {'.mqxliff', '.mxliff'} <= set(fileset.SCAN_EXTENSIONS)
 
 
-def test_a_folder_scan_finds_memoq_files(tmp_path):
-    for name in ('a.mqxliff', 'c.txt'):
+def test_a_folder_scan_finds_memoq_and_phrase_files(tmp_path):
+    for name in ('a.mqxliff', 'b.mxliff', 'c.txt'):
         (tmp_path / name).write_bytes(b'')
 
     found = fileset.scan_directory(str(tmp_path))
 
-    assert sorted(os.path.basename(path) for path in found) == ['a.mqxliff']
+    assert sorted(os.path.basename(path) for path in found) == ['a.mqxliff', 'b.mxliff']
 
 
 @pytest.mark.parametrize(

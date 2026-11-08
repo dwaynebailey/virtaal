@@ -20,8 +20,8 @@ from .basemode import BaseMode
 
 
 def _replaceable(match):
-    """Replace changes targets, and never a locked Trados or memoQ
-    segment's."""
+    """Replace changes targets, and never a locked segment's (Trados,
+    memoQ, Phrase)."""
     return match.part == 'target' and not catxliff_compat.is_locked(match.unit)
 
 

@@ -5,11 +5,12 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""memoQ's .mqxliff, which is XLIFF 1.2 that translate-toolkit's
-factory doesn't know by its extension. Here the factory opens it as
-XLIFF, and its units take the state, lock and target from
-L{memoq_compat}. Which tool a file is from is known by its namespace,
-so a memoQ file saved as .xlf gets the same.
+"""memoQ's .mqxliff and Phrase's .mxliff, which are XLIFF 1.2 that
+translate-toolkit's factory doesn't know by their extensions. Here the
+factory opens them as XLIFF, and their units take the state, lock and
+target from L{memoq_compat} or L{phrase_compat}. Which tool a file is
+from is known by its namespace, so a memoQ or Phrase file saved as .xlf
+gets the same.
 
 A unit's state is written in the tool's own attribute alone, without
 the XLIFF state and approved that translate-toolkit would add (the
@@ -32,12 +33,13 @@ from translate.misc.xml_helpers import getXMLspace
 from translate.storage import factory, xliff
 from translate.storage.placeables.lisa import strelem_to_xml, xml_to_strelem
 
-from virtaal.support import memoq_compat, sdlxliff_compat
+from virtaal.support import memoq_compat, phrase_compat, sdlxliff_compat
 
 # (extension, the Open dialog's name, Virtaal's own MIME type). The
 # names are in devsupport/tmp_strings.py.
 FORMATS = [
     ("mqxliff", "memoQ XLIFF Translation File", "application/x-memoq-xliff"),
+    ("mxliff", "Phrase XLIFF Translation File", "application/x-phrase-xliff"),
 ]
 
 for _extension, _name, _mimetype in FORMATS:
@@ -50,11 +52,13 @@ def _flavour_of_root(root):
     for uri in root.nsmap.values():
         if uri == memoq_compat.NAMESPACE:
             return "memoq"
+        if uri and uri.startswith(phrase_compat.NAMESPACE_PREFIX):
+            return "phrase"
     return None
 
 
 def flavour(unit):
-    """The tool a unit's file is from, "memoq", or None."""
+    """The tool a unit's file is from, "memoq" or "phrase", or None."""
     if not isinstance(unit, xliff.xliffunit) or isinstance(unit, sdlxliff_compat.SegmentUnit):
         return None
     found = unit.__dict__.get("_cat_flavour", False)
@@ -65,13 +69,14 @@ def flavour(unit):
 
 
 def store_flavour(store):
-    """The tool a translate-toolkit store is from, "memoq", or None."""
+    """The tool a translate-toolkit store is from, "memoq" or "phrase",
+    or None."""
     if not isinstance(store, xliff.xlifffile) or getattr(store, "document", None) is None:
         return None
     return _flavour_of_root(store.document.getroot())
 
 
-_TOOLS = {"memoq": memoq_compat}
+_TOOLS = {"memoq": memoq_compat, "phrase": phrase_compat}
 
 
 def _tool(unit):
@@ -79,7 +84,7 @@ def _tool(unit):
 
 
 def is_locked(unit):
-    """Whether C{unit} is a locked memoQ or Trados segment."""
+    """Whether C{unit} is a locked memoQ, Phrase or Trados segment."""
     tool = _tool(unit)
     if tool is not None:
         return tool.is_locked(unit)

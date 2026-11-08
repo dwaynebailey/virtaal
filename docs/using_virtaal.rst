@@ -586,10 +586,11 @@ export the termbase from MultiTerm as MultiTerm XML and add that file instead.
 
 .. _using_virtaal#memoq_phrase:
 
-memoQ files
------------
-memoQ bilingual files (.mqxliff) open like other XLIFF files, and so does such
-a file saved as .xlf. Each unit uses what memoQ keeps with its row:
+memoQ and Phrase files
+----------------------
+memoQ bilingual files (.mqxliff) and Phrase (formerly Memsource) files
+(.mxliff) open like other XLIFF files, and so does such a file saved as .xlf.
+Each unit uses what the tool keeps with its segment:
 
 - memoQ's row status is the unit's state:
 
@@ -607,15 +608,19 @@ a file saved as .xlf. Each unit uses what memoQ keeps with its row:
   Marking a unit Translated confirms it as the translator; Reviewed sets
   Reviewer 1 confirmed. Changing a pre-translated or machine translation
   makes it Edited, still to confirm.
-- A locked row shows its translation and state but can't be
+- Phrase's segment is Needs review until it is confirmed, and Translated
+  once it is. Marking a unit Translated confirms it at the file's workflow
+  step.
+- A locked row or segment shows its translation and state but can't be
   changed, and Replace skips it.
-- memoQ's match rate, comments and who last changed the row show below the
-  translation.
+- memoQ's match rate, comments and who last changed the row, and where a
+  Phrase translation came from (tm, mt, nt for non-translatable) with its
+  score, show below the translation.
 
 Virtaal saves only the units you changed: the rest of the file, the byte order
-mark included, stays as it was. Virtaal writes only memoQ's own status, not
-XLIFF's state. These files were checked by comparing their XML before and
-after, not by opening them in memoQ again.
+mark included, stays as it was. Virtaal writes only memoQ's and Phrase's own
+status, not XLIFF's state. These files were checked by comparing their XML
+before and after, not by opening them in memoQ or Phrase again.
 
 
 .. _using_virtaal#network_based_translation_memory:

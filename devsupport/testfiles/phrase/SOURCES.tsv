@@ -1,0 +1,4 @@
+file	licence	source	kind
+xlfql/sample.mxliff	MIT (xlfql/LICENSE)	https://github.com/capybara-translation/xlfql/blob/119f1d61f64a574930437d0c67d84952db601d5b/data/sample.mxliff	Phrase TMS export (m:version 2.15): {1} tags, m:tunit-metadata
+patois/sample.mxliff	Apache-2.0 (patois/LICENSE)	https://github.com/patois-labs/localization-os/blob/0ba039575755045ae39ba8951b8e83aff9cad0a8/tests/fixtures/formats/catxliff/sample.mxliff	hand-written, not a Phrase export: confirmed 0/1, a lock, score, origin
+otc/sample.mxliff	MPL-2.0 (otc/LICENSE)	https://github.com/KlinsBt/open-translation-client/blob/c85df168680ca38974c84a7bcfc72959738117ab/src/test/fixtures/xliff-profiles/sample.mxliff	hand-written, not a Phrase export: a lock, a percentage score

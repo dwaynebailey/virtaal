@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 17:05+0000\n"
+"POT-Creation-Date: 2026-11-08 17:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -589,6 +589,11 @@ msgstr ""
 #: devsupport/tmp_strings.py
 #: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "memoQ XLIFF Translation File"
+msgstr ""
+
+#: devsupport/tmp_strings.py
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
+msgid "Phrase XLIFF Translation File"
 msgstr ""
 
 #: devsupport/tmp_strings.py
@@ -3282,24 +3287,24 @@ msgstr ""
 msgid "Translation"
 msgstr ""
 
-#. l10n: Where Trados Studio's translation came from, e.g.
-#. "tm (Main TM), 100% match". The origin is Trados's own
-#. name: tm, mt, interactive, auto-propagated and others.
+#. l10n: Where a translation in a Trados Studio or Phrase file came
+#. from, e.g. "tm (Main TM), 100% match". The origin is the
+#. tool's own name: tm, mt, interactive and others.
 #: virtaal/views/unitview.py
 #, python-format
 msgid "Origin: %(origin)s, %(percent)s%% match"
 msgstr ""
 
-#. l10n: Where Trados Studio's translation came from, e.g.
-#. "interactive". The origin is Trados's own name: tm, mt,
-#. interactive, auto-propagated and others.
+#. l10n: Where a translation in a Trados Studio or Phrase file came
+#. from, e.g. "interactive". The origin is the tool's own name: tm,
+#. mt, interactive and others.
 #: virtaal/views/unitview.py
 #, python-format
 msgid "Origin: %(origin)s"
 msgstr ""
 
-#. l10n: The translation memory match a memoQ file's translation
-#. was inserted from, e.g. "Match: 101%" (a context match).
+#. l10n: The translation memory match a memoQ or Phrase file's
+#. translation was inserted from, e.g. "Match: 101%" (a context match).
 #: virtaal/views/unitview.py
 #, python-format
 msgid "Match: %(percent)s%%"
@@ -3312,7 +3317,8 @@ msgstr ""
 msgid "Comment from %(user)s: %(comment)s"
 msgstr ""
 
-#. l10n: A Trados Studio or memoQ file can lock a translation.
+#. l10n: A Trados Studio, memoQ or Phrase file can lock a
+#. translation.
 #: virtaal/views/unitview.py
 msgid "Locked: this translation can't be changed."
 msgstr ""
