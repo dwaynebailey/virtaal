@@ -1312,10 +1312,11 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
                 max_levenshtein_length(length, self.min_similarity, self.max_length),
             ]
 
-        # split source into words (the plain source's, if given), remove
-        # punctuation and special chars, keep words at least 3 chars long
-        unit_words = STRIP_REGEXP.sub(" ", queries[-1][1]).split()
-        unit_words = list(filter(lambda word: len(word) > 2, unit_words))
+        # A source too long for any candidate's length, as with a unit
+        # of thousands of lines, has none.
+        if all(window_params[i] > window_params[i + 1] for i in range(0, len(window_params), 2)):
+            return []
+        unit_words = _fulltext_words(queries[-1][1])
 
         columns = (
             "s.text, t.text, s.context, s.abstract, t.source_markup, t.target_markup, "
@@ -1729,6 +1730,22 @@ def unit_key(unit):
     if unit.get("context"):
         return "%s\x04%s" % (unit["context"], unit["source"])
     return unit["source"]
+
+
+FULLTEXT_WORDS = 500
+"""Most words a full-text query searches on: SQLite allows 4095 terms
+(#4732), and a match for a longer text must be close to its length."""
+
+
+def _fulltext_words(text):
+    """The words of text, without punctuation and special characters,
+    at least 3 characters long: each once, the longest if too many."""
+    words = [word for word in STRIP_REGEXP.sub(" ", text).split() if len(word) > 2]
+    words = list(dict.fromkeys(words))
+    if len(words) > FULLTEXT_WORDS:
+        longest = set(sorted(words, key=len, reverse=True)[:FULLTEXT_WORDS])
+        words = [word for word in words if word in longest]
+    return words
 
 
 def min_levenshtein_length(length, min_similarity):

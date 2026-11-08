@@ -2208,3 +2208,45 @@ def test_the_layout_backfill_runs_beside_the_server(db_path, monkeypatch, tmp_pa
     thread.join(10)
 
     assert _layouts(db) == [KDE_LAYOUT]
+
+
+# A unit of thousands of words (#4732) #
+
+
+def _long_text(lines):
+    return '\n'.join('Line %d of the document, word%d' % (i, i) for i in range(lines))
+
+
+def test_a_source_too_long_for_any_candidate_gets_none_without_an_error(db_path, caplog):
+    db = tmdb.TMDB(db_path)
+    text = _long_text(5000)
+    db.add_list([{'source': text, 'target': text.upper(), 'context': ''}], 'en', 'af')
+
+    with caplog.at_level(logging.WARNING):
+        assert db.translate_unit(text, 'en', 'af') == []
+
+    assert caplog.text == ''
+
+
+def test_a_long_source_is_searched_on_some_of_its_words(db_path):
+    db = tmdb.TMDB(db_path, max_length=10**6)
+    text = _long_text(5000)
+    db.add_list(
+        [
+            {'source': text, 'target': 'Lang', 'context': ''},
+            {'source': 'Line of the document', 'target': 'Kort', 'context': ''},
+        ],
+        'en',
+        'af',
+    )
+
+    (match,) = db.translate_unit(text + ' more', 'en', 'af')
+
+    assert match['target'] == 'Lang'
+
+
+def test_fulltext_words_are_each_word_once_the_longest_if_too_many(monkeypatch):
+    monkeypatch.setattr(tmdb, 'FULLTEXT_WORDS', 3)
+
+    assert tmdb._fulltext_words('an apple, an apple; pear') == ['apple', 'pear']
+    assert tmdb._fulltext_words('abc defgh ijkl mnopqr abc stu') == ['defgh', 'ijkl', 'mnopqr']
