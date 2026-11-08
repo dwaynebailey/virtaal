@@ -21,6 +21,7 @@ from virtaal.support.enchant_compat import (
     foreign_libraries,
     import_enchant,
     loaded_libraries,
+    mapped_libraries,
     marked_words,
     sample_text,
     self_check,
@@ -229,3 +230,18 @@ def test_duplicate_libraries():
     assert duplicate_libraries(paths[:2], ['/usr/lib'], 'darwin') == []
     windows = [r'C:\x\FOO.dll', r'C:\y\foo.dll', r'C:\Windows\foo.dll']
     assert duplicate_libraries(windows, [r'C:\Windows'], 'win32') == windows[:2]
+
+
+def test_mapped_libraries():
+    maps = [
+        '7f00-7f10 r-xp 00000000 08:01 1 /usr/lib/x86_64-linux-gnu/libc.so.6\n',
+        '7f10-7f20 r--p 00000000 08:01 2 /app/lib/libgtkspell3-3.so.0.2.0\n',
+        '7f20-7f30 r--p 00000000 08:01 3 /usr/lib/enchant-2/enchant_hunspell.so\n',
+        '7f30-7f40 r--p 00000000 08:01 4 /etc/ld.so.cache (deleted)\n',
+        '7f40-7f50 rw-p 00000000 00:00 0 [heap]\n',
+        '7f50-7f60 r--p 00000000 08:01 5 /usr/share/locale/de/LC_MESSAGES/gtk30.mo\n',
+    ]
+    assert mapped_libraries(maps) == [
+        '/app/lib/libgtkspell3-3.so.0.2.0', '/usr/lib/enchant-2/enchant_hunspell.so',
+        '/usr/lib/x86_64-linux-gnu/libc.so.6',
+    ]

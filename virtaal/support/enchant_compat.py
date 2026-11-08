@@ -78,9 +78,14 @@ def loaded_libraries():
                 paths.append(buf.value)
         return paths
     with open('/proc/self/maps', encoding='utf-8', errors='replace') as maps:
-        fields = (line.split(None, 5) for line in maps)
-        paths = {f[5].strip() for f in fields if len(f) == 6 and f[5].startswith('/')}
-    return sorted(p for p in paths if re.search(r'\.so(\.|$)', os.path.basename(p)))
+        return mapped_libraries(maps)
+
+
+def mapped_libraries(maps):
+    """The shared libraries in /proc/<pid>/maps lines."""
+    fields = (line.split(None, 5) for line in maps)
+    paths = {f[5].strip() for f in fields if len(f) == 6 and f[5].startswith('/')}
+    return sorted(p for p in paths if re.search(r'\.so(\.[0-9]+)*$', p))
 
 
 def bundle_roots():
