@@ -80,7 +80,7 @@ def loaded_libraries():
     with open('/proc/self/maps', encoding='utf-8', errors='replace') as maps:
         fields = (line.split(None, 5) for line in maps)
         paths = {f[5].strip() for f in fields if len(f) == 6 and f[5].startswith('/')}
-    return sorted(p for p in paths if '.so' in os.path.basename(p))
+    return sorted(p for p in paths if re.search(r'\.so(\.|$)', os.path.basename(p)))
 
 
 def bundle_roots():
