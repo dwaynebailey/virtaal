@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 16:09+0000\n"
+"POT-Creation-Date: 2026-11-08 16:14+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1233,6 +1233,16 @@ msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
 msgid "Placeholders such as {{count}} and $t(key) in i18next files"
+msgstr ""
+
+#. l10n: vue-i18n is a JavaScript localisation library
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeholders (vue-i18n)"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+#, python-brace-format
+msgid "Placeholders such as {name} and @:key in vue-i18n files"
 msgstr ""
 
 #. l10n: Fluent is Mozilla's localisation format

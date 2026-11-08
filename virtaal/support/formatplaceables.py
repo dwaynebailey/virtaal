@@ -110,6 +110,18 @@ class ShellVariablePlaceable(_EscapingRegexPlaceable):
     regex = re.compile(r'\$\$|(?<![\w%])(?P<ph>\$\{[A-Za-z_]\w*\}|\$[A-Za-z_]\w*)')
 
 
+class VuePlaceable(_EscapingRegexPlaceable):
+    """A vue-i18n interpolation {name}, {0} or {'@'}, a linked message
+    @:common.save or @.lower:name, or the | between plural forms."""
+
+    regex = re.compile(
+        r"""(?P<ph>\{\s*(?:[A-Za-z_$][\w.$]*|\d+|'[^'{}]*')\s*\}
+        |@(?:\.[A-Za-z]+)?:(?:[\w.\-]+|\([\w.\-]+\))
+        |(?<=\s)\|(?=\s))""",
+        re.VERBOSE,
+    )
+
+
 class FluentReferencePlaceable(_EscapingRegexPlaceable):
     """A plain Fluent reference { $user }, { -brand-name } or
     { msg.attr }, for matching across formats; L{FluentPlaceable}
@@ -429,6 +441,8 @@ FORMAT_PARSERS = {
     'arb': (ICUPlaceable,),
     'fluent': (FluentPlaceable,),
     'json': (I18NextPlaceable,),
+    'json-icu': (ICUPlaceable,),
+    'json-vue': (VuePlaceable,),
     'strings': (ApplePlaceable,),
 }
 """Format (see L{format_of}) -> the parsers its text needs."""
@@ -447,6 +461,7 @@ PLACEABLES = (
     FluentPlaceable,
     ICUPlaceable,
     I18NextPlaceable,
+    VuePlaceable,
     RubyPlaceable,
     ApplePlaceable,
     DotNetPlaceable,
@@ -481,9 +496,79 @@ def format_of(store, unit=None):
     if pair is None:
         return None
     key = pair.converter.id
-    if key == 'json' and str(getattr(pair, 'target', '')).lower().endswith('.arb'):
+    if key != 'json':
+        return key
+    if str(getattr(pair, 'target', '')).lower().endswith('.arb'):
         return 'arb'
-    return key
+    flavour = getattr(pair, 'json_flavour', None)
+    if flavour is None:
+        flavour = json_flavour(_sample(pair))
+        pair.json_flavour = flavour
+    return flavour
+
+
+# Which JSON a file is: from what its strings hold
+
+JSON_FLAVOURS = (
+    (
+        'json',  # i18next
+        (
+            (re.compile(r'\{\{[^{}]+\}\}'), 2),
+            (re.compile(r'\$t\('), 3),
+        ),
+    ),
+    (
+        'json-vue',  # vue-i18n
+        (
+            (re.compile(r'(?<!\{)\{\s*[A-Za-z_$][\w.$]*\s*\}(?!\})|(?<!\{)\{\d+\}(?!\})'), 1),
+            (re.compile(r'@(?:\.[A-Za-z]+)?:[\w(]'), 3),
+            (re.compile(r'\s\|\s'), 2),
+        ),
+    ),
+    (
+        'json-icu',  # FormatJS and other ICU MessageFormat
+        (
+            (re.compile(r'\{\s*\w+\s*,\s*(?:plural|select|selectordinal)\s*,'), 4),
+            (re.compile(r'\{\s*\w+\s*,\s*(?:number|date|time)\s*[,}]'), 3),
+        ),
+    ),
+)
+"""(format, ((pattern, weight), ...)) for each kind of JSON file: the
+one whose patterns score most over a file's strings wins."""
+
+JSON_SAMPLE = 200
+"""How many units' strings a JSON file is judged by."""
+
+
+def _sample(pair):
+    """Up to L{JSON_SAMPLE} units' source and target texts of pair, and
+    whether any is a plural (i18next's key_one/key_other)."""
+    texts = []
+    plural = False
+    store = getattr(pair, 'store', None)
+    for unit in store.units[:JSON_SAMPLE] if store is not None else ():
+        plural = plural or unit.hasplural()
+        for text in (unit.source, unit.target):
+            texts.extend(str(form) for form in getattr(text, 'strings', [text]) if form)
+    return texts, plural
+
+
+def json_flavour(sample):
+    """The L{JSON_FLAVOURS} format that best fits sample, (texts, has
+    i18next plurals); i18next ('json') when none fits better."""
+    texts, plural = sample
+    scores = {}
+    for fmt, patterns in JSON_FLAVOURS:
+        scores[fmt] = sum(
+            weight * len(regex.findall(t)) for regex, weight in patterns for t in texts
+        )
+    if plural:
+        scores['json'] += 4
+    best = max(scores.values())
+    winners = [fmt for fmt, score in scores.items() if score == best]
+    if best == 0 or len(winners) > 1:
+        return 'json'
+    return winners[0]
 
 
 def unit_flags(unit):

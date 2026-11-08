@@ -357,3 +357,95 @@ def test_any_mix_of_syntax_characters_parses_back_to_itself():
     for _ in range(3000):
         text = ''.join(rng.choice(alphabet) for _ in range(rng.randint(1, 30)))
         assert str(parse(StringElem(text), parsers)) == text
+
+
+# Which JSON a file is
+
+I18NEXT_JSON = {
+    'notes_one': 'You have {{count}} note',
+    'notes_other': 'You have {{count}} notes',
+    'welcome': 'Welcome, {{ user.name }}',
+    'save': 'Press $t(common.save) to keep it',
+}
+VUE_JSON = {
+    'message': {
+        'hello': 'Hello {name}!',
+        'apples': 'no apples | one apple | {count} apples',
+        'home': '@:common.home page',
+        'mail': "{account}{'@'}{domain}",
+    }
+}
+FORMATJS_JSON = {
+    'files': 'You have {count, plural, one {# file} other {# files}}',
+    'greeting': 'Hello {name}',
+    'total': 'Total: {amount, number}',
+}
+PLAIN_JSON = {'open': 'Open', 'close': 'Close the window'}
+
+
+def _write_json(folder, data):
+    import json
+
+    (folder / 'en').mkdir(parents=True)
+    (folder / 'af').mkdir()
+    (folder / 'en' / 'messages.json').write_bytes(json.dumps(data, indent=2).encode('utf-8'))
+    (folder / 'af' / 'messages.json').write_bytes(b'{}\n')
+    return folder / 'af' / 'messages.json', folder / 'en' / 'messages.json'
+
+
+@pytest.mark.parametrize(
+    ('data', 'expected'),
+    [
+        (I18NEXT_JSON, 'json'),
+        (VUE_JSON, 'json-vue'),
+        (FORMATJS_JSON, 'json-icu'),
+        (PLAIN_JSON, 'json'),
+    ],
+)
+def test_a_json_file_is_parsed_for_what_its_strings_hold(tmp_path, data, expected):
+    from virtaal.models.monolingual import MonolingualPair
+
+    target, template = _write_json(tmp_path, data)
+    pair = MonolingualPair(str(target), str(template))
+
+    assert fp.format_of(SimpleNamespace(pair=pair)) == expected
+    assert pair.json_flavour == expected  # Judged once per file.
+
+
+def test_an_arb_file_is_icu_without_looking():
+    pair = SimpleNamespace(converter=SimpleNamespace(id='json'), target='app_af.arb')
+
+    assert fp.format_of(SimpleNamespace(pair=pair)) == 'arb'
+
+
+@pytest.mark.parametrize(
+    ('texts', 'plural', 'expected'),
+    [
+        (['Hi {{name}}'], False, 'json'),
+        (['Hello', 'World'], True, 'json'),  # i18next plural keys
+        (['Hello {name}', '@:common.save'], False, 'json-vue'),
+        (['{n, plural, one {x} other {y}}', 'Hi {name}'], False, 'json-icu'),
+        (['Hello'], False, 'json'),
+        (['Hi {{a}}', 'Hi {b}', 'Hi {c}'], False, 'json'),  # A tie: i18next.
+    ],
+)
+def test_json_flavour(texts, plural, expected):
+    assert fp.json_flavour((texts, plural)) == expected
+
+
+@pytest.mark.parametrize(
+    ('text', 'expected'),
+    [
+        ('Hello {name}!', ['{name}']),
+        ('Item {0} of {1}', ['{0}', '{1}']),
+        ("{account}{'@'}{domain}", ['{account}', "{'@'}", '{domain}']),
+        ('@:common.home page', ['@:common.home']),
+        ('See @.lower:message.title', ['@.lower:message.title']),
+        ('no apples | one apple | {count} apples', ['|', '|', '{count}']),
+        ('a|b', []),
+        ('mail me@example.org', []),
+    ],
+)
+def test_vue_placeholders(text, expected):
+    pieces = _pieces(text, 'json-vue')
+    assert [p for cls, p in pieces if cls == 'VuePlaceable'] == expected

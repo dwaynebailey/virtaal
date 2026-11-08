@@ -177,6 +177,11 @@ class PlaceablesController(BaseController):
             _('Placeholders (i18next)'),
             _('Placeholders such as {{count}} and $t(key) in i18next files'),
         )
+        self.parser_info[fp.VuePlaceable.parse] = (
+            # l10n: vue-i18n is a JavaScript localisation library
+            _('Placeholders (vue-i18n)'),
+            _('Placeholders such as {name} and @:key in vue-i18n files'),
+        )
         self.parser_info[fp.FluentPlaceable.parse] = (
             # l10n: Fluent is Mozilla's localisation format
             _('Placeables (Fluent)'),
