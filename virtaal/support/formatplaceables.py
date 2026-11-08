@@ -8,7 +8,7 @@
 """Placeholders of formats that translate-toolkit's general parsers
 don't know: brace {name}, i18next {{count}} and $t(key), Fluent
 { $user }, ICU MessageFormat {count, plural, ...}, Apple %@, .NET
-{0:N2}, Ruby %{name} and shell $name.
+{0:N2}, Ruby %{name} and shell $name; and Phrase's inline tags {1}.
 
 Most are ordinary text in other formats, so L{parsers_for} gives each
 only to the formats, and the gettext flags, that use it. In a plural or
@@ -128,6 +128,18 @@ class FluentReferencePlaceable(_EscapingRegexPlaceable):
     parses a Fluent pattern in full."""
 
     regex = re.compile(r'(?P<ph>\{ *-?\$?[A-Za-z][\w-]*(?:\.[A-Za-z][\w-]*)? *\})')
+
+
+class PhraseTagPlaceable(_EscapingRegexPlaceable):
+    """A Phrase (Memsource) .mxliff inline tag, which Phrase writes as
+    text: {1}, the {1> and <1} around text, and {b> <b}, {i> <i},
+    {u> <u}, {sup> <sup} and {sub> <sub} for formatting."""
+
+    regex = re.compile(r'(?P<ph>\{\d+\}|\{(?:\d+|b|i|u|sup|sub)>|<(?:\d+|b|i|u|sup|sub)\})')
+
+
+PHRASE_NAMESPACE = 'http://www.memsource.com/mxlf/'
+"""The start of Phrase's namespace URI, mxlf/2.0 in today's files."""
 
 
 # ICU MessageFormat
@@ -443,6 +455,7 @@ FORMAT_PARSERS = {
     'json': (I18NextPlaceable,),
     'json-icu': (ICUPlaceable,),
     'json-vue': (VuePlaceable,),
+    'mxliff': (PhraseTagPlaceable,),
     'strings': (ApplePlaceable,),
 }
 """Format (see L{format_of}) -> the parsers its text needs."""
@@ -458,6 +471,7 @@ FLAG_PARSERS = {
 """gettext flag (#, python-brace-format) -> the parsers it calls for."""
 
 PLACEABLES = (
+    PhraseTagPlaceable,
     FluentPlaceable,
     ICUPlaceable,
     I18NextPlaceable,
@@ -471,7 +485,8 @@ PLACEABLES = (
 """All of them, in the order they parse, before translate-toolkit's:
 a Fluent or ICU message first, as a whole, then {{count}} before a
 brace or Java {0} takes its inside, %{name} and ${name} before
-{name}, and %1$@ before Qt's %1."""
+{name}, and %1$@ before Qt's %1. Phrase's {1} before anything else
+reads it as a number in braces."""
 
 parsers = [cls.parse for cls in PLACEABLES]
 
@@ -492,9 +507,10 @@ def format_of(store, unit=None):
     """The key in L{FORMAT_PARSERS} of the file of unit in store (a
     L{virtaal.models.storemodel.StoreModel} or a stream of them), or
     None."""
-    pair = getattr(_model_of(store, unit), 'pair', None)
+    model = _model_of(store, unit)
+    pair = getattr(model, 'pair', None)
     if pair is None:
-        return None
+        return _bilingual_format(model)
     key = pair.converter.id
     if key != 'json':
         return key
@@ -505,6 +521,18 @@ def format_of(store, unit=None):
         flavour = json_flavour(_sample(pair))
         pair.json_flavour = flavour
     return flavour
+
+
+def _bilingual_format(model):
+    """'mxliff' for a Phrase XLIFF file, whatever its extension, else
+    None."""
+    document = getattr(getattr(model, '_trans_store', None), 'document', None)
+    root = document.getroot() if document is not None else None
+    if root is not None and any(
+        str(uri).startswith(PHRASE_NAMESPACE) for uri in root.nsmap.values()
+    ):
+        return 'mxliff'
+    return None
 
 
 # Which JSON a file is: from what its strings hold

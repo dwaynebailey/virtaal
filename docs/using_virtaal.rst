@@ -616,6 +616,10 @@ Each unit uses what the tool keeps with its segment:
 - memoQ's match rate, comments and who last changed the row, and where a
   Phrase translation came from (tm, mt, nt for non-translatable) with its
   score, show below the translation.
+- Phrase writes its tags as text, such as ``{1}`` or ``{1>bold<1}``. They are
+  placeables, and the :guilabel:`Phrase tags` check reports a tag missing from
+  the translation, or one the original doesn't have: Phrase rebuilds the
+  file's formatting from them.
 
 Virtaal saves only the units you changed: the rest of the file, the byte order
 mark included, stays as it was. Virtaal writes only memoQ's and Phrase's own

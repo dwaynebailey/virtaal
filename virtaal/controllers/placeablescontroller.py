@@ -200,6 +200,11 @@ class PlaceablesController(BaseController):
             _('Placeholders (Ruby)'),
             _('Placeholders such as %{name} in Ruby strings'),
         )
+        self.parser_info[fp.PhraseTagPlaceable.parse] = (
+            # l10n: Phrase (formerly Memsource) is a translation management system
+            _('Tags (Phrase)'),
+            _('Tags such as {1} in Phrase files'),
+        )
         self.parser_info[fp.ShellVariablePlaceable.parse] = (
             _('Variables (shell)'),
             _('Variables such as $HOME in shell strings'),

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 17:06+0000\n"
+"POT-Creation-Date: 2026-11-08 17:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -882,6 +882,11 @@ msgstr ""
 msgid "Options"
 msgstr ""
 
+#. l10n: Name of a quality check: the tags such as {1} in a Phrase (Memsource) file
+#: virtaal/controllers/checkscontroller.py
+msgid "Phrase tags"
+msgstr ""
+
 #: virtaal/controllers/checkscontroller.py
 msgid "printf()"
 msgstr ""
@@ -1289,6 +1294,16 @@ msgstr ""
 #: virtaal/controllers/placeablescontroller.py
 #, python-brace-format
 msgid "Placeholders such as %{name} in Ruby strings"
+msgstr ""
+
+#. l10n: Phrase (formerly Memsource) is a translation management system
+#: virtaal/controllers/placeablescontroller.py
+msgid "Tags (Phrase)"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+#, python-brace-format
+msgid "Tags such as {1} in Phrase files"
 msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
@@ -2424,6 +2439,20 @@ msgstr ""
 
 #: virtaal/support/crash_dialog.py
 msgid "Report This Bug…"
+msgstr ""
+
+#. l10n: Phrase (Memsource) tags such as {1} or {1>, which
+#. a translation must keep. %s is the list of them.
+#: virtaal/support/phrase_compat.py
+#, python-format
+msgid "Missing Phrase tags: %s"
+msgstr ""
+
+#. l10n: Phrase (Memsource) tags such as {1} or {1>, which
+#. the source doesn't have. %s is the list of them.
+#: virtaal/support/phrase_compat.py
+#, python-format
+msgid "Phrase tags not in the source: %s"
 msgstr ""
 
 #: virtaal/support/tutorial.py

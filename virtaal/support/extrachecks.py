@@ -18,8 +18,9 @@ An extra check is a class with:
 
 from virtaal.support import dismissedchecks
 from virtaal.support.gettextpo import MsgfmtCheck
+from virtaal.support.phrase_compat import PhraseTagCheck
 
-EXTRA_CHECKS = [MsgfmtCheck]
+EXTRA_CHECKS = [MsgfmtCheck, PhraseTagCheck]
 
 
 def checks_for(store):

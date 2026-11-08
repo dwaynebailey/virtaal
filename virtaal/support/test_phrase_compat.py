@@ -213,3 +213,37 @@ def test_a_phrase_file_saved_as_xlf_gets_the_same(tmp_path):
 
     assert units[2].get_state_n() == StateEnum.UNREVIEWED
     assert catxliff_compat.is_locked(units[1])
+
+
+# Tags
+
+
+@pytest.mark.parametrize(
+    'source, target, message',
+    [
+        ('{1}{2}Test', '{1}{2}Test', None),
+        ('Click {1>Save<1}', 'Klicke {1>Speichern<1}', None),
+        ('{b>Bold<b} {2}', '{2} {b>Fett<b}', None),
+        ('Click {1>Save<1}', 'Klicke Speichern', 'Missing Phrase tags: {1> <1}'),
+        ('{1}a', '{1}{1}a', 'Phrase tags not in the source: {1}'),
+        ('{1}a', '{2}a', 'Missing Phrase tags: {1}\nPhrase tags not in the source: {2}'),
+        ('{1}a', '', None),
+    ],
+)
+def test_the_tag_check(source, target, message):
+    unit = _store(
+        '<trans-unit id="s1" m:confirmed="0"><source>%s</source><target>%s</target></trans-unit>'
+        % (source.replace('<', '&lt;'), target.replace('<', '&lt;'))
+    ).units[0]
+
+    assert phrase_compat.PhraseTagCheck().check(unit) == message
+
+
+def test_the_tag_check_is_for_phrase_files_only():
+    plain = xliff.xlifffile.parsestring(
+        b'<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2"><file original="a"'
+        b' source-language="en" datatype="plaintext"><body/></file></xliff>'
+    )
+
+    assert phrase_compat.PhraseTagCheck.applies_to(factory.getobject(XLFQL))
+    assert not phrase_compat.PhraseTagCheck.applies_to(plain)

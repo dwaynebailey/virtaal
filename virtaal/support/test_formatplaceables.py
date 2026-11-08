@@ -449,3 +449,39 @@ def test_json_flavour(texts, plural, expected):
 def test_vue_placeholders(text, expected):
     pieces = _pieces(text, 'json-vue')
     assert [p for cls, p in pieces if cls == 'VuePlaceable'] == expected
+
+
+@pytest.mark.parametrize(
+    ('text', 'expected'),
+    [
+        ('{1}{2}That is a test.', ['{1}', '{2}']),
+        ('Click {1>Save<1} now', ['{1>', '<1}']),
+        ('{b>Bold<b} and {sup>2<sup}', ['{b>', '<b}', '{sup>', '<sup}']),
+        ('a < b and {c} > d', []),
+    ],
+)
+def test_phrase_tags(text, expected):
+    pieces = _pieces(text, 'mxliff')
+    assert [p for cls, p in pieces if cls == 'PhraseTagPlaceable'] == expected
+
+
+def test_phrase_tags_only_in_phrase_files():
+    assert 'PhraseTagPlaceable' not in [cls for cls, _p in _pieces('Click {1>Save<1}')]
+
+
+def _xliff_model(namespace):
+    from translate.storage import xliff
+
+    data = (
+        '<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2"%s>'
+        '<file original="a" source-language="en" datatype="plaintext"><body/></file></xliff>'
+    ) % namespace
+    return SimpleNamespace(pair=None, _trans_store=xliff.xlifffile.parsestring(data.encode()))
+
+
+def test_a_phrase_file_is_mxliff_whatever_its_name():
+    phrase = _xliff_model(' xmlns:m="http://www.memsource.com/mxlf/2.0"')
+
+    assert fp.format_of(phrase) == 'mxliff'
+    assert fp.format_of(_xliff_model(' xmlns:mq="MQXliff"')) is None
+    assert fp.format_of(_xliff_model('')) is None

@@ -21,7 +21,7 @@ from translate.storage import factory
 from translate.storage.workflow import StateEnum
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
-from virtaal.support import catxliff_compat
+from virtaal.support import catxliff_compat, formatplaceables
 from virtaal.views.widgets import textbox as textbox_module
 
 TESTFILES = os.path.join('devsupport', 'testfiles')
@@ -34,6 +34,7 @@ STATUSES = os.path.join(
 )
 MEMOQ_LOCK = os.path.join(TESTFILES, 'memoq', 'patois', 'sample.mqxliff')
 PHRASE = os.path.join(TESTFILES, 'phrase', 'patois', 'sample.mxliff')
+PHRASE_TAGS = os.path.join(TESTFILES, 'phrase', 'xlfql', 'sample.mxliff')
 
 
 def _changed_lines(before, after):
@@ -202,3 +203,16 @@ class TestCatXliffRoundTrip(TestScaffolding):
 
         ((old, new),) = _changed_lines(before, path.read_bytes())
         assert old.replace(b'm:confirmed="0"', b'm:confirmed="1"') == new
+
+    def test_phrase_tags_are_placeables_and_checked(self, tmp_path):
+        self._open_copy(PHRASE_TAGS, tmp_path)
+        unit, view = self._load(0)
+
+        assert formatplaceables.format_of(self.store_controller.get_store(), unit) == 'mxliff'
+        parsers = self.main_controller.placeables_controller.get_parsers_for_textbox(
+            view.targets[0]
+        )
+        assert formatplaceables.PhraseTagPlaceable.parse in parsers
+        self._type(view, 'That is a test.')
+        failures = self.main_controller.checks_controller.check_unit(unit)
+        assert failures['phrasetags'] == 'Missing Phrase tags: {1} {2}'

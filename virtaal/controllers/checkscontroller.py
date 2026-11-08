@@ -42,6 +42,8 @@ check_names = {
     'notranslatewords': _("Don't translate words"),
     'numbers': _("Numbers"),
     'options': _("Options"),
+    # l10n: Name of a quality check: the tags such as {1} in a Phrase (Memsource) file
+    'phrasetags': _("Phrase tags"),
     'printf': _("printf()"),
     'puncspacing': _("Punctuation spacing"),
     # l10n: Name of a quality check: Python format placeholders such as {name}
