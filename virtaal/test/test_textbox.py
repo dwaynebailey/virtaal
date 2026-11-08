@@ -291,6 +291,53 @@ class TestTextBox(TestScaffolding):
 
         assert tagtable.get_size() == size
 
+    def _po_target(self, po_bytes):
+        unit = po.pofile(BytesIO(po_bytes)).units[-1]
+        for textbox in self.unit_controller.view.targets:
+            textbox._suggestion = None
+        return self.unit_controller.load_unit(unit).targets[0]
+
+    def test_a_brace_flagged_unit_navigates_and_copies_its_fields(self):
+        target = self._po_target(
+            b'#, python-brace-format\nmsgid "Hi {name}, {n} left"\nmsgstr ""\n'
+        )
+        source = target.selector_textbox
+        assert [str(e) for e in source.selectable_elems()] == ['{name}', '{n}']
+
+        target.move_elem_selection(1)  # Alt+Right
+        target.set_text('')
+        assert target.insert_translation(source.selected_elem)  # Alt+Down
+
+        assert target.get_text() == '{n}'
+
+    def test_an_unflagged_po_unit_leaves_braces_as_text(self):
+        target = self._po_target(b'msgid "Hi {name}, {{count}}"\nmsgstr ""\n')
+
+        assert target.selector_textbox.selectable_elems() == []
+
+    def test_a_fluent_select_selects_only_its_structure_and_references(self, monkeypatch):
+        from virtaal.support import formatplaceables
+
+        monkeypatch.setattr(formatplaceables, 'format_of', lambda store, unit=None: 'fluent')
+        target = self._po_target(
+            b'msgid ""\n"{ $n ->\\n"\n" [one] One from { $user }\\n"\n" *[other] { $n } more\\n"\n"}"\n'
+            b'msgstr ""\n'
+        )
+
+        found = [str(e) for e in target.selector_textbox.selectable_elems()]
+
+        assert found == [
+            '{ $n ->',
+            '\n',
+            '[one]',
+            '{ $user }',
+            '\n',
+            '*[other]',
+            '{ $n }',
+            '\n',
+            '}',
+        ]
+
     def test_move_elem_selection_selects_via_the_selector_textbox(self):
         textbox = self._target_for('%s files copied')
 

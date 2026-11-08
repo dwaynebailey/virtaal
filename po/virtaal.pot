@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 07:32+0000\n"
+"POT-Creation-Date: 2026-11-08 15:47+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1207,6 +1207,76 @@ msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
 msgid "Placeholders in Drupal strings"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeholders (brace)"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+#, python-brace-format
+msgid "Placeholders such as {name} in Python, C# and Perl strings"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeholders (.NET)"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Format items such as {0:N2} in .NET strings"
+msgstr ""
+
+#. l10n: i18next is a JavaScript localisation library
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeholders (i18next)"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeholders such as {{count}} and $t(key) in i18next files"
+msgstr ""
+
+#. l10n: Fluent is Mozilla's localisation format
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeables (Fluent)"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeables such as { $user } in Fluent files"
+msgstr ""
+
+#. l10n: ICU MessageFormat, as used in Flutter's ARB files
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeholders (ICU)"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+#, python-brace-format
+msgid "Arguments such as {count} and the parts of plurals, in ARB files"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeholders (Apple)"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeholders such as %@ in Apple strings"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Placeholders (Ruby)"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+#, python-brace-format
+msgid "Placeholders such as %{name} in Ruby strings"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Variables (shell)"
+msgstr ""
+
+#: virtaal/controllers/placeablescontroller.py
+msgid "Variables such as $HOME in shell strings"
 msgstr ""
 
 #. l10n: Shown on opening a file whose plural forms header gettext would

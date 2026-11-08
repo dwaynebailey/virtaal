@@ -10,6 +10,7 @@ from translate.storage.placeables import StringElem, general
 from translate.storage.placeables import parse as parse_placeables
 
 from virtaal.common import GObjectWrapper, pan_app
+from virtaal.support import formatplaceables
 from virtaal.support.invisiblechars import InvisiblePlaceable
 from virtaal.views import placeablesguiinfo
 
@@ -24,8 +25,11 @@ class PlaceablesController(BaseController):
         'parsers-changed': (GObject.SignalFlags.RUN_FIRST, None, tuple()),
     }
 
-    own_parsers = [InvisiblePlaceable.parse]
+    own_parsers = [*formatplaceables.parsers, InvisiblePlaceable.parse]
     """Virtaal's parsers, beside translate-toolkit's."""
+
+    first_parsers = formatplaceables.parsers
+    """Virtaal's parsers that go before translate-toolkit's."""
 
     parsers = []
     """The list of parsers that should be used by the main placeables C{parse()}
@@ -138,6 +142,7 @@ class PlaceablesController(BaseController):
             # l10n: Characters that show as nothing or as an ordinary space
             _('No-break spaces, zero-width characters and direction marks'),
         )
+        self._init_format_parser_descriptions()
         # This code should eventually be used to add the SpacesPlaceable, but
         # it is not working well yet. We add the strings for translation so
         # that we won't need to break the string freeze later when it works.
@@ -157,6 +162,44 @@ class PlaceablesController(BaseController):
         (_('Placeholders (Drupal)'),)
         _('Placeholders in Drupal strings')
 
+    def _init_format_parser_descriptions(self):
+        fp = formatplaceables
+        self.parser_info[fp.BracePlaceable.parse] = (
+            _('Placeholders (brace)'),
+            _('Placeholders such as {name} in Python, C# and Perl strings'),
+        )
+        self.parser_info[fp.DotNetPlaceable.parse] = (
+            _('Placeholders (.NET)'),
+            _('Format items such as {0:N2} in .NET strings'),
+        )
+        self.parser_info[fp.I18NextPlaceable.parse] = (
+            # l10n: i18next is a JavaScript localisation library
+            _('Placeholders (i18next)'),
+            _('Placeholders such as {{count}} and $t(key) in i18next files'),
+        )
+        self.parser_info[fp.FluentPlaceable.parse] = (
+            # l10n: Fluent is Mozilla's localisation format
+            _('Placeables (Fluent)'),
+            _('Placeables such as { $user } in Fluent files'),
+        )
+        self.parser_info[fp.ICUPlaceable.parse] = (
+            # l10n: ICU MessageFormat, as used in Flutter's ARB files
+            _('Placeholders (ICU)'),
+            _('Arguments such as {count} and the parts of plurals, in ARB files'),
+        )
+        self.parser_info[fp.ApplePlaceable.parse] = (
+            _('Placeholders (Apple)'),
+            _('Placeholders such as %@ in Apple strings'),
+        )
+        self.parser_info[fp.RubyPlaceable.parse] = (
+            _('Placeholders (Ruby)'),
+            _('Placeholders such as %{name} in Ruby strings'),
+        )
+        self.parser_info[fp.ShellVariablePlaceable.parse] = (
+            _('Variables (shell)'),
+            _('Variables such as $HOME in shell strings'),
+        )
+
     # METHODS #
     def add_parsers(self, *newparsers):
         """Add the specified parsers to the list of placeables parser functions."""
@@ -165,13 +208,13 @@ class PlaceablesController(BaseController):
 
         sortedparsers = []
 
-        # First add parsers from general.parsers in order
-        for parser in general.parsers:
+        # First the format parsers and general.parsers, in order
+        for parser in self.first_parsers + general.parsers:
             if parser in (self.parsers + list(newparsers)):
                 sortedparsers.append(parser)
         # Then the others, those already added first
         for parser in self.parsers + list(newparsers):
-            if parser not in general.parsers and parser not in sortedparsers:
+            if parser not in sortedparsers:
                 sortedparsers.append(parser)
 
         self.parsers = sortedparsers
@@ -186,20 +229,34 @@ class PlaceablesController(BaseController):
             elems = [elems]
 
         if parsers is None:
-            parsers = self.parsers
+            parsers = self.get_parsers()
 
         for elem in elems:
             parse_placeables(elem, parsers)
         return elems
+
+    def get_parsers(self, unit=None):
+        """The enabled parsers for unit (by default the current unit): a
+        format's own parsers only for its format and gettext flags (see
+        L{formatplaceables})."""
+        if unit is None:
+            unit = getattr(self.main_controller.unit_controller, 'current_unit', None)
+        store_controller = getattr(self.main_controller, 'store_controller', None)
+        store = store_controller.get_store() if store_controller is not None else None
+        wanted = formatplaceables.parsers_for(
+            formatplaceables.format_of(store, unit), formatplaceables.unit_flags(unit)
+        )
+        return [p for p in self.parsers if p not in self.first_parsers or p in wanted]
 
     def get_parsers_for_textbox(self, textbox):
         """Get the parsers that should be applied to the given text box.
         This is intended for use by C{TextBox} to supply it with appropriate
         parsers, based on whether the text box is used for source- or target
         text."""
+        parsers = self.get_parsers()
         if textbox in self.main_controller.unit_controller.view.targets:
-            return [p for p in self.parsers if p.__self__ not in self.non_target_placeables]
-        return self.parsers
+            return [p for p in parsers if p.__self__ not in self.non_target_placeables]
+        return parsers
 
     def get_gui_info(self, placeable):
         """Get an appropriate C{StringElemGUI} or sub-class instance based on

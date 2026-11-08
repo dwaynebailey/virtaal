@@ -11,6 +11,8 @@ from gi.repository import Gtk
 from translate.storage.placeables import general
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
+from virtaal.support import formatplaceables
+from virtaal.support.invisiblechars import InvisiblePlaceable
 from virtaal.views import placeablesguiinfo
 
 
@@ -114,3 +116,59 @@ def test_adding_a_parser_keeps_the_parsers_added_before_it():
         first,
         second,
     ]
+
+
+def _gating_controller(store=None, current_unit=None):
+    controller = _controller()
+    controller.main_controller.unit_controller.current_unit = current_unit
+    controller.main_controller.store_controller = SimpleNamespace(get_store=lambda: store)
+    controller.parsers = []
+    controller.emit = lambda signal: None
+    controller.add_parsers(*general.parsers, *controller.own_parsers)
+    return controller
+
+
+def _fluent_store():
+    pair = SimpleNamespace(converter=SimpleNamespace(id='fluent'), target='af.ftl')
+    return SimpleNamespace(pair=pair)
+
+
+def test_the_format_parsers_go_before_the_toolkits():
+    parsers = _gating_controller().parsers
+
+    assert parsers[: len(formatplaceables.parsers)] == formatplaceables.parsers
+    assert parsers[-1] == InvisiblePlaceable.parse
+
+
+def test_get_parsers_gives_a_format_only_its_own_parsers():
+    po_parsers = _gating_controller().get_parsers()
+    fluent_parsers = _gating_controller(_fluent_store()).get_parsers()
+
+    assert formatplaceables.FluentPlaceable.parse not in po_parsers
+    assert formatplaceables.BracePlaceable.parse not in po_parsers
+    assert formatplaceables.ApplePlaceable.parse in po_parsers
+    assert formatplaceables.FluentPlaceable.parse in fluent_parsers
+    assert general.XMLTagPlaceable.parse in fluent_parsers
+
+
+def test_get_parsers_follows_the_units_gettext_flags():
+    flagged = SimpleNamespace(typecomments=['#, python-brace-format\n'])
+    controller = _gating_controller(current_unit=SimpleNamespace(typecomments=[]))
+
+    assert formatplaceables.BracePlaceable.parse not in controller.get_parsers()
+    assert formatplaceables.BracePlaceable.parse in controller.get_parsers(flagged)
+
+
+def test_get_parsers_leaves_out_a_disabled_format_parser():
+    controller = _gating_controller(_fluent_store())
+    controller.remove_parsers(formatplaceables.FluentPlaceable.parse)
+
+    assert formatplaceables.FluentPlaceable.parse not in controller.get_parsers()
+
+
+def test_every_format_parser_has_a_label():
+    controller = _controller()
+    controller.parser_info = {}
+    controller._init_format_parser_descriptions()
+
+    assert set(controller.parser_info) == set(formatplaceables.parsers)

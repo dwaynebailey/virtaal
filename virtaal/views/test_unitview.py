@@ -1643,3 +1643,21 @@ def test_focus_text_view_emits_once(monkeypatch):
 
     assert view.focused_target_n == 1
     assert emitted == [('target-focused', 1)]
+
+
+def test_copy_original_leaves_a_format_placeholders_punctuation_alone():
+    from translate.storage.placeables import general, parse
+
+    from virtaal.support import formatplaceables
+
+    view, textbox, _undo, set_calls, _refresh = _copy_original_view('Total {0:N2}: %1$@?', 'fr')
+    parsers = formatplaceables.parsers_for(None) + general.parsers
+    pc = view.controller.main_controller.placeables_controller
+    pc.get_parsers_for_textbox = lambda tb: parsers
+    pc.apply_parsers = lambda elem, ps: [parse(elem, ps)]
+
+    view.copy_original(textbox)
+
+    assert '{0:N2}' in set_calls[-1]
+    assert '%1$@' in set_calls[-1]
+    assert set_calls[-1] != set_calls[0]
