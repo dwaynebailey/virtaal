@@ -107,6 +107,7 @@ def test_markers_are_the_reserved_block():
 
 
 def test_strings_differing_only_in_placeables_share_an_abstract():
+    assert abstract('Hi %{name}')[0] == abstract('Hi %s')[0]
     assert abstract('Delete %(count)s files')[0] == abstract('Delete {0} files')[0]
     assert abstract('Click <b>here</b>')[0] == abstract('Click <strong>here</strong>')[0]
     assert abstract('Version 3.5 of 10')[0] == abstract('Version 2.1 of 12')[0]

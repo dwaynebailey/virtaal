@@ -68,8 +68,9 @@ class _UrlPlaceable(general.UrlPlaceable):
 # translate-toolkit's in its order.
 _CLASSES = (
     (fp.I18NextPlaceable, VARIABLE),
-    (fp.FluentReferencePlaceable, VARIABLE),
+    # Before Fluent's, whose { name } would take the braces of %{name}.
     (fp.RubyPlaceable, VARIABLE),
+    (fp.FluentReferencePlaceable, VARIABLE),
     (fp.ApplePlaceable, VARIABLE),
     (fp.DotNetPlaceable, VARIABLE),
     (fp.BracePlaceable, VARIABLE),
