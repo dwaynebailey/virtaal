@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-07 20:23+0000\n"
+"POT-Creation-Date: 2026-11-08 04:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1330,6 +1330,13 @@ msgstr ""
 
 #: virtaal/modes/qualitycheckmode.py
 msgid "Quality Checks"
+msgstr ""
+
+#. l10n: A quality check in the filter menu. %(check)s is the
+#. name of the check, %(count)d the number of units failing it
+#: virtaal/modes/qualitycheckmode.py
+#, python-format
+msgid "%(check)s (%(count)d)"
 msgstr ""
 
 #. l10n: On the button for selecting quality checks, while files are still being checked

@@ -160,10 +160,13 @@ class QualityCheckMode(BaseMode):
         for check_name, display_name in sorted(
             self.checks_names.items(), key=lambda x: locale.strxfrm(x[1])
         ):
-            # l10n: %s is the name of the check and must be first. %d is the number of failures
-            menuitem = Gtk.CheckMenuItem(
-                label="%s (%d)" % (display_name, len(self.stats.get(check_name, [])))
-            )
+            # l10n: A quality check in the filter menu. %(check)s is the
+            # name of the check, %(count)d the number of units failing it
+            label = _('%(check)s (%(count)d)') % {
+                'check': display_name,
+                'count': len(self.stats.get(check_name, [])),
+            }
+            menuitem = Gtk.CheckMenuItem(label=label)
             menuitem.set_active(check_name in self.filter_checks)
             menuitem.show()
             self._menuitem_checks[menuitem] = (

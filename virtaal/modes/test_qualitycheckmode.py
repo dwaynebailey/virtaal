@@ -225,6 +225,18 @@ def test_create_menu_entries_builds_one_item_per_named_check():
     assert mode._menuitem_checks[items[0]][0] == 'brackets'
 
 
+def test_create_menu_entries_label_is_translatable(monkeypatch):
+    monkeypatch.setattr(
+        'builtins._', lambda s: {'%(check)s (%(count)d)': '[%(count)d] %(check)s'}[s]
+    )
+    mode = _mode(checks_names={'brackets': 'Brackets'}, filter_checks=[], stats={'brackets': [0]})
+    menu = Gtk.Menu()
+
+    mode._create_menu_entries(menu)
+
+    assert menu.get_children()[0].get_label() == '[1] Brackets'
+
+
 def test_create_menu_entries_clears_previous_entries_first():
     mode = _mode(checks_names={}, filter_checks=[], stats={})
     menu = Gtk.Menu()
