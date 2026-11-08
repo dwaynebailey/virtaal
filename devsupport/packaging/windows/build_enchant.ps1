@@ -5,7 +5,7 @@
 # Writes bin\libenchant.dll and .lib, include\, and lib\enchant-2\ with
 # the providers; skipped when the output already has this build. Run in
 # an MSVC developer shell. gvsbuild's own build of enchant has winspell
-# only; this uses its nmake files, pinned.
+# only; this uses its MSVC headers, pinned, and its compiler flags.
 
 param([Parameter(Mandatory = $true)][string]$Out)
 
@@ -17,12 +17,9 @@ $HunspellVersion = "1.7.2"
 $HunspellSha256 = "11ddfa39afe28c28539fe65fc4f1592d410c1e9b6dd7d8a91ca25d85e9ec65b8"
 $Gvsbuild = "https://raw.githubusercontent.com/wingtk/gvsbuild/64c7871cce839215ccb2f16e027c4b909fb91da2/gvsbuild/patches/enchant"
 $GvsbuildFiles = [ordered]@{
-    "enchant-headers.patch" = "4780e8d61626971dfa3de2553d2a7c0a86d85abe52f79a56662b18af5a61c1d1"
     "src/config.h" = "a430e9c3d0862c3c3cfb63fffffe8ba77a64fa7706a0329f0ef2e54ec9809f9e"
     "src/configmake.h" = "38719dacbfe818fc8f449e5781217da12c080474dcce764b839a3ab2ffbaa1ab"
     "src/gnulib-compat.h" = "7cbe1efb6e66d797419ada60ce19950d187c340b0382a5fe17979f2c2026a1a8"
-    "src/libenchant.rc" = "34072f90e19ba8accc7c6f35fef3c5a77db88666fec26a17b0e26e645d33e1d4"
-    "src/makefile-2.mak" = "66f3faeb15343fdf02a47525a188ae20dee712aab9f5dd75a05b66ff32c74f18"
     "src/sys/file.h" = "6bc613acf69e5f07ffe7ea38aac227200f99aaea5ee34b5c89e9a041e9593c31"
 }
 $Gtk = "C:\gtk"
@@ -67,8 +64,6 @@ $hunspell = Join-Path $src "hunspell-$HunspellVersion\src\hunspell"
 Copy-Item -Recurse -Force "$src\gvsbuild\src\*" "$enchant\src"
 Push-Location $enchant
 try {
-    git apply --whitespace=nowarn "$src\gvsbuild\enchant-headers.patch"
-    if ($LASTEXITCODE) { throw "enchant-headers.patch didn't apply" }
     # A checkout can give it CRLF line ends.
     [System.IO.File]::WriteAllText("$src\utf8-paths.patch", ((Get-Content $Patch -Raw) -replace "`r`n", "`n"))
     git apply --whitespace=nowarn "$src\utf8-paths.patch"
@@ -77,33 +72,67 @@ try {
     Pop-Location
 }
 
-# libenchant and the winspell provider, as gvsbuild builds them.
-Push-Location "$enchant\src"
-try {
-    nmake /nologo -f makefile-2.mak DLL=1 X64=1 MFLAGS=/MD "GLIBDIR=$Gtk\include\glib-2.0" "CPREFIX=C:/gtk" makedirs libenchant enchant_winspell
-    if ($LASTEXITCODE) { throw "nmake failed" }
-} finally {
-    Pop-Location
-}
-$release = "$enchant\bin\release"
-
-# The hunspell provider, with hunspell built in.
+# What the build system would define. In a header: quotes don't survive
+# PowerShell's command lines.
+@"
+#define INSTALLPREFIX "C:/gtk"
+#define INSTALLDIR "C:/gtk/bin"
+"@ | Set-Content -Path "$enchant\src\virtaal-paths.h" -Encoding ascii
 $includes = @("$enchant", "$enchant\src", "$enchant\lib", "$enchant\libgnu", $hunspell,
     "$Gtk\include\glib-2.0", "$Gtk\lib\glib-2.0\include") | ForEach-Object { "/I$_" }
-$sources = @("$enchant\providers\enchant_hunspell.cpp") + (Get-ChildItem "$hunspell\*.cxx").FullName
-Push-Location $src
-try {
-    cl /nologo /O2 /MD /EHsc /std:c++17 /W1 /DWIN32 /D_WIN32 /D_CRT_SECURE_NO_WARNINGS /DHUNSPELL_STATIC `
-        /D_ENCHANT_BUILD=1 "/FI$enchant\src\config.h" @includes @sources `
-        /LD /Fe:enchant_hunspell.dll /link "/LIBPATH:$Gtk\lib" "$release\libenchant.lib" `
-        glib-2.0.lib gobject-2.0.lib /EXPORT:init_enchant_provider
+$common = @("/nologo", "/O2", "/MD", "/W1", "/DWIN32", "/D_WIN32", "/D_WINDOWS",
+    "/DUNICODE", "/D_UNICODE", "/D_CRT_SECURE_NO_WARNINGS", "/D_ENCHANT_BUILD=1", "/DVALA_EXTERN=extern",
+    "/FI$enchant\src\virtaal-paths.h", "/FI$enchant\src\config.h") + $includes
+$glib = "glib-2.0.lib", "gobject-2.0.lib", "gmodule-2.0.lib", "gio-2.0.lib"
+$release = "$src\release"
+New-Item -ItemType Directory -Force -Path "$release\lib", "$release\winspell", "$release\hunspell" | Out-Null
+
+function Invoke-Cl($Arguments) {
+    cl @Arguments
     if ($LASTEXITCODE) { throw "cl failed" }
+}
+
+# libenchant, exporting its enchant_ functions.
+Push-Location "$release\lib"
+try {
+    $sources = @((Get-ChildItem "$enchant\lib\*.c").FullName) + @("$enchant\libgnu\flock.c", "$enchant\libgnu\relocatable.c")
+    Invoke-Cl ($common + @("/DENABLE_RELOCATABLE=1", "/DENABLE_COSTLY_RELOCATABLE=1", "/DNO_XMALLOC=1",
+        "/DPIC=1", "/DBUILDING_DLL=1", "/c") + $sources)
+    $exports = dumpbin /nologo /symbols *.obj | ForEach-Object {
+        if ($_ -match 'SECT[0-9A-F]+\s.*External\s+\|\s+(enchant_\w+)$') { $Matches[1] }
+    } | Sort-Object -Unique
+    if (-not ($exports -contains "enchant_broker_init")) { throw "No enchant_ functions to export" }
+    (@("LIBRARY libenchant", "EXPORTS") + $exports) | Set-Content -Path libenchant.def -Encoding ascii
+    link /nologo /DLL /OUT:libenchant.dll /DEF:libenchant.def *.obj "/LIBPATH:$Gtk\lib" @glib advapi32.lib
+    if ($LASTEXITCODE) { throw "link failed" }
 } finally {
     Pop-Location
 }
 
-Copy-Item "$release\libenchant.dll", "$release\libenchant.lib" "$Out\bin"
-Copy-Item "$release\enchant_winspell.dll", "$src\enchant_hunspell.dll" "$Out\lib\enchant-2"
+# The winspell provider, as gvsbuild builds it.
+Push-Location "$release\winspell"
+try {
+    Invoke-Cl ($common + @("/EHsc", "/std:c++17", "/D_WIN32_WINNT=_WIN32_WINNT_WIN8", "/DNTDDI_VERSION=NTDDI_WIN8",
+        "/FI$enchant\src\gnulib-compat.h", "$enchant\providers\enchant_winspell.cpp", "$enchant\libgnu\bcp47.c",
+        "/LD", "/Fe:enchant_winspell.dll", "/link", "/LIBPATH:$Gtk\lib", "$release\lib\libenchant.lib") + $glib + @(
+        "ole32.lib", "oleaut32.lib", "uuid.lib", "/EXPORT:init_enchant_provider"))
+} finally {
+    Pop-Location
+}
+
+# The hunspell provider, with hunspell built in.
+Push-Location "$release\hunspell"
+try {
+    $sources = @("$enchant\providers\enchant_hunspell.cpp") + (Get-ChildItem "$hunspell\*.cxx").FullName
+    Invoke-Cl ($common + @("/EHsc", "/std:c++17", "/DHUNSPELL_STATIC") + $sources + @("/LD", "/Fe:enchant_hunspell.dll",
+        "/link", "/LIBPATH:$Gtk\lib", "$release\lib\libenchant.lib", "glib-2.0.lib", "gobject-2.0.lib",
+        "/EXPORT:init_enchant_provider"))
+} finally {
+    Pop-Location
+}
+
+Copy-Item "$release\lib\libenchant.dll", "$release\lib\libenchant.lib" "$Out\bin"
+Copy-Item "$release\winspell\enchant_winspell.dll", "$release\hunspell\enchant_hunspell.dll" "$Out\lib\enchant-2"
 Copy-Item "$enchant\lib\enchant.h", "$enchant\lib\enchant-provider.h" "$Out\include"
 foreach ($dll in "$Out\bin\libenchant.dll", "$Out\lib\enchant-2\enchant_hunspell.dll", "$Out\lib\enchant-2\enchant_winspell.dll") {
     dumpbin /nologo /dependents $dll
