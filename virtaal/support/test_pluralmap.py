@@ -40,3 +40,13 @@ def test_an_unknown_language_has_no_layouts():
 
 def test_ordinal_layouts_are_cldr_s_ordinal_forms():
     assert pluralmap.cldr_layout('en', ordinal=True).count == 4
+
+
+def test_russian_other_is_guessed_from_few():
+    gettext, cldr = pluralmap.gettext_layout('ru'), pluralmap.cldr_layout('ru')
+
+    mapped = pluralmap.form_map(gettext, cldr, pluralmap.cldr_guesses('ru'))
+
+    assert mapped == [(0, False), (1, False), (2, False), (1, True)]
+    # Only Russian has an entry; Ukrainian keeps the general rule.
+    assert pluralmap.cldr_guesses('uk') == {}

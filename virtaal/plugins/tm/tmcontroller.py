@@ -383,8 +383,10 @@ class TMController(BaseController):
 
     # A plural form taken from a stored plural laid out otherwise.
     MAPPED_PENALTY = 1
-    # And when the numbers don't say which stored form it is.
-    GUESS_PENALTY = 1
+    # And when the numbers don't decide which stored form it is: even the
+    # best guess (Russian "other" from "few") is right only about half
+    # the time in real files, so it ranks clearly below exact forms.
+    GUESS_PENALTY = 5
 
     def _unit_nplurals(self, unit):
         tags = getattr(unit, 'plural_tags', None)
@@ -407,6 +409,7 @@ class TMController(BaseController):
         """(the stored form for the unit's form target_n, guessed) when
         the stored plural's C{count} forms are the other layout's, else
         None."""
+        language = self._target_language()
         layouts = self._layouts(unit)
         if layouts is None:
             return None
@@ -415,7 +418,8 @@ class TMController(BaseController):
             return None
         from virtaal.support import pluralmap
 
-        return pluralmap.form_map(other, own)[target_n]
+        guesses = pluralmap.cldr_guesses(language) if getattr(unit, 'plural_tags', None) else {}
+        return pluralmap.form_map(other, own, guesses)[target_n]
 
     def _target_language(self):
         main_controller = getattr(self, 'main_controller', None)

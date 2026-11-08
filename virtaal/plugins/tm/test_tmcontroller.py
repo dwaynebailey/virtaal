@@ -1839,8 +1839,9 @@ RU_TAGS = ['one', 'few', 'many', 'other']
     [
         (1, 'Удалить %d файла', 99),
         (2, 'Удалить %d файлов', 99),
-        # Fractions: no whole number says which; the commonest form.
-        (3, 'Удалить %d файлов', 98),
+        # Fractions: no whole number says which. Russian takes "few"'s
+        # (pluralmap.GUESSES), and a guess scores well below.
+        (3, 'Удалить %d файла', 94),
     ],
 )
 @pytest.mark.parametrize('abstract', [False, True])

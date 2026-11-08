@@ -82,20 +82,53 @@ def cldr_layout(language, ordinal=False):
     return Layout(len(categories), lambda number: categories.index(rule(number)))
 
 
-def form_map(source, target):
+GUESSES = {
+    # Russian "other" is only for fractions (1,5 минуты). Its noun takes
+    # the genitive singular, as "few" does (2 минуты), not "many"'s
+    # genitive plural (5 минут). Real CLDR Russian files (Android and
+    # i18next, 2026-11-08) copy "other" from "few" in 131 plurals of 248,
+    # from "many" in 97, so "few" is the better guess on both counts.
+    # Ukrainian, Belarusian and Polish weren't checked against files,
+    # and in Polish and Ukrainian a fraction takes a form that is neither
+    # (the genitive singular), so they keep the general rule.
+    ('ru', 'other'): 2,
+}
+"""(language, CLDR category): a number whose form a guessed category
+takes instead of the one most numbers take. Used only where the numbers
+alone can't decide."""
+
+
+def form_map(source, target, guesses=None):
     """[(source form, guessed)] for each form of the layout C{target}:
     the form of C{source} that the same numbers take. A form whose
     numbers C{source} splits between forms takes the one most of them
     take; a form no whole number takes (Russian "other", for fractions)
-    takes C{source}'s form most numbers take. Either is a guess."""
+    takes the form of the number C{guesses} gives for it ({target form:
+    number}), else C{source}'s form most numbers take. Either is a
+    guess."""
     general = max(source.samples, key=lambda form: len(source.samples[form]))
+    guesses = guesses or {}
     found = []
     for form in range(target.count):
         numbers = target.samples.get(form)
         if not numbers:
-            found.append((general, True))
+            number = guesses.get(form)
+            found.append((general if number is None else source.form(number), True))
             continue
         counts = Counter(source.form(number) for number in numbers)
         best = counts.most_common(1)[0][0]
         found.append((best, len(counts) > 1))
     return found
+
+
+def cldr_guesses(language, ordinal=False):
+    """{form: number} of L{GUESSES} for C{language}'s CLDR layout."""
+    from virtaal.support.converters import plural_categories
+
+    categories = plural_categories(language, ordinal) or []
+    base = (language or '').replace('-', '_').split('_')[0]
+    return {
+        categories.index(category): number
+        for (code, category), number in GUESSES.items()
+        if code == base and category in categories and not ordinal
+    }
