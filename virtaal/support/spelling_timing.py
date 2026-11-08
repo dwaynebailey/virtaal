@@ -130,7 +130,10 @@ def timings(lang, sizes=SIZES):
     else:
         lines.append('plugin: not checking')
     from virtaal.support.enchant_compat import marked_words, sample_text
-    view.get_buffer().set_text(sample_text(lang))
+    buffer = view.get_buffer()
+    buffer.set_text(sample_text(lang))
+    # GtkSpell checks the last word once the cursor leaves it.
+    buffer.place_cursor(buffer.get_start_iter())
     _pump()
     lines.append('sample marked: %s' % ' '.join(marked_words(view.get_buffer())))
     lines.append('typing: longest keystroke %.3f s, %d marked' % (_type(view, 'This is a tset of typing'), _marked(view)))
