@@ -129,6 +129,10 @@ def timings(lang, sizes=SIZES):
         lines.append('plugin: checking, ready in %.3f s, busy %.3f s' % view.spell_ready)
     else:
         lines.append('plugin: not checking')
+    from virtaal.support.enchant_compat import marked_words, sample_text
+    view.get_buffer().set_text(sample_text(lang))
+    _pump()
+    lines.append('sample marked: %s' % ' '.join(marked_words(view.get_buffer())))
     lines.append('typing: longest keystroke %.3f s, %d marked' % (_type(view, 'This is a tset of typing'), _marked(view)))
     for size in sizes:
         text = (FILLER * (size // len(FILLER) + 1))[:size]

@@ -1391,8 +1391,8 @@ jobs:
         # Icelandic, which here only AppleSpell has. Its service quits when
         # idle and makes the first check wait about a second, so the plugin
         # starts it from another process first (applespell.py): ready
-        # within 15 s, never busy for 0.5 s at once. Before anything here
-        # has used it.
+        # within 15 s, never busy for 0.5 s at once, and marking only the
+        # nonsense word. Before anything here has used it.
         timeout-minutes: 5
         run: |
           launchctl managername
@@ -1400,6 +1400,7 @@ jobs:
           dist/Virtaal.app/Contents/MacOS/virtaal --run-module virtaal.support.spelling_timing is /tmp/applespell-timing.txt
           cat /tmp/applespell-timing.txt
           grep -q "^plugin: checking, " /tmp/applespell-timing.txt
+          grep -q "^sample marked: xqzwy$" /tmp/applespell-timing.txt
           awk '/^plugin: checking/ { if ($5 + 0 >= 15 || $8 + 0 >= 0.5) slow = 1 }
                /^plugin [0-9]+:/ { if ($7 + 0 >= 3 || $10 + 0 >= 15) slow = 1 }
                /^typing/ { split($0, after, "keystroke "); if (after[2] + 0 >= 0.5) slow = 1 }
@@ -1470,6 +1471,7 @@ jobs:
           dist/Virtaal.app/Contents/MacOS/virtaal --run-module virtaal.support.spelling_timing en_GB /tmp/spelling-timing.txt
           cat /tmp/spelling-timing.txt
           grep -q "^plugin: checking, " /tmp/spelling-timing.txt
+          grep -q "^sample marked: tset$" /tmp/spelling-timing.txt
           grep -Eq "^plugin 2000: .*, [1-9][0-9]* marked$" /tmp/spelling-timing.txt
           grep -Eq "^plugin 100000: .*, [1-9][0-9]* marked$" /tmp/spelling-timing.txt
           awk '/^plugin [0-9]+:/ { if ($7 + 0 >= 3 || $10 + 0 >= 15) slow = 1 }

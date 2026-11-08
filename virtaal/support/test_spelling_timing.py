@@ -33,6 +33,7 @@ def test_timings_report_each_paste():
     report = spelling_timing.timings('en_US', sizes=(300,))
 
     assert re.match(r'plugin: checking, ready in [0-9.]+ s, busy [0-9.]+ s$', report.splitlines()[0])
+    assert re.search(r'^sample marked: tset$', report, re.M)
     assert re.search(r'^typing: longest keystroke [0-9.]+ s, 1 marked$', report, re.M)
     marked = re.search(r'^plugin 300: insert [0-9.]+ s, busy [0-9.]+ s, idle [0-9.]+ s, (\d+) marked$', report, re.M)
     assert marked and int(marked.group(1)) > 0
