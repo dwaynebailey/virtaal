@@ -211,9 +211,6 @@ class ChecksController(BaseController):
             return
         from virtaal.support.extrachecks import ExtraChecksFilter
 
-        # An edit takes back what was dismissed before it.
-        if getattr(unit, '_modified', False):
-            dismissedchecks.drop_stale(unit)
         if isinstance(checker, ExtraChecksFilter):
             everything = checker.run_filters(unit, with_dismissed=True)
         else:

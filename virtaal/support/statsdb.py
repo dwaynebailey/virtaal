@@ -742,7 +742,11 @@ class StatsCache:
         if callable(store):
             store = store()
         else:
-            store = store or factory.getobject(filename)
+            if store is None:
+                from virtaal.support import dismissedchecks
+
+                store = factory.getobject(filename)
+                dismissedchecks.apply_record(filename, store.units)
 
         if os.path.exists(suggestion_filename(filename)):
             checker.setsuggestionstore(

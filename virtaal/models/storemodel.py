@@ -12,6 +12,7 @@ import os
 from virtaal.common import pan_app
 from virtaal.common.platform import platform
 from virtaal.support import (
+    dismissedchecks,
     fluent_compat,  # noqa: F401 - applies its patch on import
     lisa_compat,  # noqa: F401 - applies its patch on import
     poparser_compat,  # noqa: F401 - applies its patch on import
@@ -339,6 +340,7 @@ class StoreModel(BaseModel):
 
             self._trans_store = factory.getobject(fileobj)
         self.filename = filename
+        dismissedchecks.apply_record(filename, self._dismissable_units())
         self._checker = None
         self.checks = None
         # Indices of units that may differ from the file on disk.
@@ -353,19 +355,26 @@ class StoreModel(BaseModel):
     def save_file(self, filename=None):
         if filename is None:
             filename = self.filename
-        if self.pair is not None:
-            # The working store's header isn't written anywhere.
-            self.pair.save(filename)
-        elif filename == self.filename:
-            self._update_header()
-            self._trans_store.save()
-        else:
-            self._update_header()
-            self._trans_store.savefile(filename)
+        units = self._dismissable_units()
+        with dismissedchecks.stale_left_out(units):
+            if self.pair is not None:
+                # The working store's header isn't written anywhere.
+                self.pair.save(filename)
+            elif filename == self.filename:
+                self._update_header()
+                self._trans_store.save()
+            else:
+                self._update_header()
+                self._trans_store.savefile(filename)
         self.filename = filename
+        dismissedchecks.save_record(filename, units)
         self._edited_units = set()
         self.update_stats()
         self._fill_stats_cache()
+
+    def _dismissable_units(self):
+        """The units a quality check result can be dismissed on."""
+        return [unit for unit in self._trans_store.units if unit.istranslatable()]
 
     def _cached(self):
         """Whether the stats cache can read the file on disk: it can't

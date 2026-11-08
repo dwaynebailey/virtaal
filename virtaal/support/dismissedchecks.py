@@ -7,30 +7,58 @@
 
 """Quality check results a translator dismissed as fine on a unit (#3276).
 
-Kept in the file, so they go with it: a translator note per check, a
-"#" comment in PO (which msgmerge keeps), a <note from="translator"> in
-XLIFF and a translator comment in Qt .ts:
+Kept in the file where it can hold a comment, so they go with it: a
+translator note per check, a "#" comment in PO (which msgmerge keeps), a
+<note from="translator"> in XLIFF and a translator comment in Qt .ts:
 
     (dismissed-check) endpunc 3f2a9c1e
 
 The last word is a fingerprint of the unit's source and translation
 when it was dismissed: once either changes, the dismissal no longer
-counts, and Virtaal drops it when the unit is next edited.
+counts. It stays with the unit while the file is open, so undoing the
+change brings it back, but a save leaves it out.
+
+Each save also keeps the file's dismissals in a record of this user's
+(L{record_path}), for a format without comments and in case another
+tool drops them; on opening, the file's own win, and one only in the
+record counts if its fingerprint fits.
 
 Not pofilter's "(pofilter) check: message" marker, which makes pofilter
 skip the whole unit and the toolkit's isreview check fail."""
 
+import contextlib
 import hashlib
+import json
+import logging
+import os
 
 MARKER = '(dismissed-check)'
+RECORD_FORMAT = 1
+RECORD_DIRECTORY = 'dismissed-checks'
+_ATTRIBUTE = '_dismissed_checks'
+"""{check: fingerprint} on a unit whose format has no note for them."""
 
 
-def can_dismiss(unit):
+def _in_notes(unit):
     """Whether unit's format keeps a translator note to remember a
     dismissal in."""
     from translate.storage import pocommon, ts2, xliff
 
     return isinstance(unit, (pocommon.pounit, xliff.xliffunit, ts2.tsunit))
+
+
+def unit_key(unit):
+    """What identifies unit in its file, or None."""
+    try:
+        return unit.getid() or None
+    except Exception:
+        return None
+
+
+def can_dismiss(unit):
+    """Whether a dismissal on unit can be remembered: in the file, or
+    in the record by the unit's key."""
+    return _in_notes(unit) or unit_key(unit) is not None
 
 
 def fingerprint(unit):
@@ -54,7 +82,7 @@ def _notes(unit):
     return notes.splitlines() if notes else []
 
 
-def _parse(line):
+def parse(line):
     """(check, fingerprint) of a dismissal line, else None."""
     words = line.split()
     if len(words) == 3 and words[0] == MARKER:
@@ -62,55 +90,100 @@ def _parse(line):
     return None
 
 
+def line(check, mark):
+    return '%s %s %s' % (MARKER, check, mark)
+
+
+def _entries(unit):
+    """(check, fingerprint) of every dismissal on unit, counting or not."""
+    entries = list(getattr(unit, _ATTRIBUTE, {}).items())
+    if _in_notes(unit):
+        entries += [p for p in map(parse, _notes(unit)) if p]
+    return entries
+
+
 def dismissed(unit):
     """The checks dismissed on unit that still count."""
-    if not can_dismiss(unit):
-        return set()
-    lines = [_parse(line) for line in _notes(unit) if MARKER in line]
-    if not any(lines):
+    entries = _entries(unit)
+    if not entries:
         return set()
     current = fingerprint(unit)
-    return {check for check, mark in filter(None, lines) if mark == current}
+    return {check for check, mark in entries if mark == current}
+
+
+def lines(unit):
+    """The dismissal lines that count on unit, for a file to keep."""
+    current = fingerprint(unit)
+    return [line(check, current) for check in sorted(dismissed(unit))]
 
 
 def set_dismissed(unit, check, dismiss=True):
     """Dismiss check on unit, or take that back; either way drop the
     dismissals that no longer count.
-    @returns: Whether unit's notes changed."""
+    @returns: Whether unit's dismissals changed."""
+    if not _in_notes(unit):
+        return _set_attribute(unit, check, dismiss)
     return _rewrite(unit, check, dismiss)
 
 
-def drop_stale(unit):
-    """Drop the dismissals made for another source or translation.
-    @returns: Whether unit's notes changed."""
-    return _rewrite(unit)
+def _set_attribute(unit, check, dismiss):
+    old = getattr(unit, _ATTRIBUTE, {})
+    current = fingerprint(unit)
+    new = {c: mark for c, mark in old.items() if mark == current and c != check}
+    if dismiss:
+        new[check] = current
+    if new == old:
+        return False
+    setattr(unit, _ATTRIBUTE, new)
+    return True
 
 
 def _rewrite(unit, check=None, dismiss=False):
-    lines = _notes(unit)
-    if not any(MARKER in line for line in lines) and not dismiss:
+    notes = _notes(unit)
+    if not dismiss and not any(MARKER in note for note in notes):
         return False
     current = fingerprint(unit)
     kept = [
-        line
-        for line in lines
-        if not (parsed := _parse(line)) or (parsed[1] == current and parsed[0] != check)
+        note
+        for note in notes
+        if not (parsed := parse(note)) or (parsed[1] == current and parsed[0] != check)
     ]
     if dismiss:
-        kept.append('%s %s %s' % (MARKER, check, current))
-    if kept == lines:
+        kept.append(line(check, current))
+    if kept == notes:
         return False
-    unit.removenotes('translator')
-    if kept:
-        unit.addnote(getattr(unit, 'newline', '\n').join(kept), 'translator')
+    _set_notes(unit, kept)
     return True
+
+
+def _set_notes(unit, notes):
+    unit.removenotes('translator')
+    if notes:
+        unit.addnote(getattr(unit, 'newline', '\n').join(notes), 'translator')
+
+
+@contextlib.contextmanager
+def stale_left_out(units):
+    """While saving units: without the dismissals that no longer count,
+    which come back afterwards for an undo to find."""
+    put_back = []
+    for unit in units:
+        if _in_notes(unit):
+            notes = _notes(unit)
+            if _rewrite(unit):
+                put_back.append((unit, notes))
+    try:
+        yield
+    finally:
+        for unit, notes in put_back:
+            _set_notes(unit, notes)
 
 
 def without_dismissals(notes):
     """notes, without the lines that record dismissals."""
     if not notes or MARKER not in notes:
         return notes
-    return '\n'.join(line for line in notes.splitlines() if not _parse(line))
+    return '\n'.join(note for note in notes.splitlines() if not parse(note))
 
 
 def filter_failures(unit, failures):
@@ -121,3 +194,75 @@ def filter_failures(unit, failures):
     if not checks:
         return failures
     return {name: value for name, value in failures.items() if name not in checks}
+
+
+# The record #
+
+
+def record_path(filename):
+    from virtaal.common import pan_app
+
+    key = os.path.normcase(os.path.abspath(filename))
+    name = hashlib.sha256(key.encode('utf-8')).hexdigest()[:32] + '.json'
+    return os.path.join(pan_app.get_state_dir(), RECORD_DIRECTORY, name)
+
+
+def load_record(filename):
+    """{unit key: {check: fingerprint}} recorded for filename."""
+    path = record_path(filename)
+    try:
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError):
+        logging.warning('Ignoring an unreadable record of dismissed checks: %s', path)
+        return {}
+    if not isinstance(data, dict) or data.get('format') != RECORD_FORMAT:
+        return {}
+    units = data.get('units')
+    return units if isinstance(units, dict) else {}
+
+
+def save_record(filename, units):
+    """Record the dismissals that count on units, saved as filename."""
+    found = {}
+    for unit in units:
+        key = unit_key(unit)
+        checks = dismissed(unit)
+        if key is not None and checks:
+            current = fingerprint(unit)
+            found[key] = {check: current for check in sorted(checks)}
+    path = record_path(filename)
+    if not found and not os.path.exists(path):
+        return
+    data = {
+        'format': RECORD_FORMAT,
+        'file': os.path.normcase(os.path.abspath(filename)),
+        'units': found,
+    }
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        partial = '%s.%d.tmp' % (path, os.getpid())
+        with open(partial, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, sort_keys=True)
+        os.replace(partial, path)
+    except OSError:
+        logging.warning('Could not record the dismissed checks of %s', filename, exc_info=True)
+
+
+def apply_record(filename, units):
+    """Add to units the recorded dismissals their file lacks that still
+    count."""
+    record = load_record(filename)
+    if not record:
+        return
+    for unit in units:
+        entries = record.get(unit_key(unit))
+        if not isinstance(entries, dict):
+            continue
+        current = fingerprint(unit)
+        have = dismissed(unit)
+        for check, mark in sorted(entries.items()):
+            if mark == current and check not in have:
+                set_dismissed(unit, check)

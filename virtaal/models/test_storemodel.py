@@ -883,3 +883,41 @@ def test_saving_remembers_only_the_translator_details_given(tmp_path, monkeypatc
 
     assert translator == {"name": "Ann", "email": "old@example.org", "team": "Old team"}
     assert writes == [True]
+
+
+# Dismissed checks kept in this user's record too (#3276) #
+
+
+def test_a_json_files_dismissed_check_is_kept_in_the_record(tmp_path):
+    from virtaal.support import dismissedchecks
+
+    (tmp_path / 'en.json').write_text('{"hello": "Hello.", "bye": "Goodbye"}\n', encoding='utf-8')
+    (tmp_path / 'af.json').write_text('{"hello": "Hallo", "bye": "Totsiens"}\n', encoding='utf-8')
+    target, template = str(tmp_path / 'af.json'), str(tmp_path / 'en.json')
+    model = StoreModel(target, _FakeController(), template=template, language='af')
+    dismissedchecks.set_dismissed(model.get_units()[0], 'endpunc')
+
+    model.save_file()
+
+    assert 'dismissed' not in (tmp_path / 'af.json').read_text(encoding='utf-8')
+    again = StoreModel(target, _FakeController(), template=template, language='af')
+    assert dismissedchecks.dismissed(again.get_units()[0]) == {'endpunc'}
+
+
+def test_a_po_files_dismissed_check_dropped_elsewhere_comes_back_from_the_record(tmp_path):
+    from virtaal.support import dismissedchecks
+
+    path = tmp_path / 'af.po'
+    path.write_bytes(_OLD_PO)
+    model = StoreModel(str(path), _SavingController('af'))
+    dismissedchecks.set_dismissed(model.get_units()[0], 'endpunc')
+    model.save_file()
+    assert b'(dismissed-check) endpunc' in path.read_bytes()
+    # Another tool drops the comment.
+    path.write_bytes(
+        b'\n'.join(line for line in path.read_bytes().split(b'\n') if b'dismissed' not in line)
+    )
+
+    again = StoreModel(str(path), _SavingController('af'))
+
+    assert dismissedchecks.dismissed(again.get_units()[0]) == {'endpunc'}

@@ -150,13 +150,15 @@ class TestChecksOnAStore(TestScaffolding):
         assert check in controller.last_failures
         assert dismissedchecks.dismissed(self.unit) == set()
 
-    def test_an_edit_takes_back_a_dismissal(self):
+    def test_an_edit_takes_back_a_dismissal_and_undoing_it_restores_it(self):
         controller = self.checks_controller
         check = self._failing_check()
         controller.dismiss_check(check)
 
         self.unit.target = 'oop oop'
         controller.check_unit(self.unit)
-
         assert check in controller.last_failures
-        assert dismissedchecks.MARKER not in self.unit.getnotes()
+
+        self.unit.target = 'oop'
+        controller.check_unit(self.unit)
+        assert check not in controller.last_failures
