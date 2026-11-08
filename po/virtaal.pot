@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 04:40+0000\n"
+"POT-Creation-Date: 2026-11-08 04:45+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1322,9 +1322,7 @@ msgstr ""
 msgid "Priority Files"
 msgstr ""
 
-#: virtaal/modes/prioritymode.py
-#: virtaal/plugins/terminology/models/localfile/localfileview.py
-#: virtaal/views/mainview.py
+#: virtaal/modes/prioritymode.py virtaal/views/mainview.py
 msgid "All Files"
 msgstr ""
 
@@ -1677,11 +1675,6 @@ msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
 msgid "Add Files"
-msgstr ""
-
-#: virtaal/plugins/terminology/models/localfile/localfileview.py
-#: virtaal/views/mainview.py
-msgid "All Supported Files"
 msgstr ""
 
 #. l10n: Shown when a Trados MultiTerm termbase (.sdltb) can't be
@@ -2783,6 +2776,10 @@ msgstr ""
 
 #: virtaal/views/langview.py
 msgid "_New Language Pair…"
+msgstr ""
+
+#: virtaal/views/mainview.py
+msgid "All Supported Files"
 msgstr ""
 
 #: virtaal/views/mainview.py virtaal/views/widgets/settingsdialog.py

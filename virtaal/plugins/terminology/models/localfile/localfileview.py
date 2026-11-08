@@ -5,7 +5,6 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-import locale
 
 from gi.repository import Gdk, GLib, Gtk, Pango
 from translate.storage import factory as store_factory
@@ -221,7 +220,8 @@ class FileSelectDialog:
         cell.set_property('visible', extendable)
 
     def _init_add_chooser(self):
-        # The following code was mostly copied from virtaal.views.MainView._create_dialogs()
+        from virtaal.views.mainview import add_translation_file_filters
+
         dlg = Gtk.FileChooserNative.new(
             _('Add Files'),
             self.controller.main_controller.view.main_window,
@@ -229,38 +229,9 @@ class FileSelectDialog:
             None,
             None,
         )
-        all_supported_filter = Gtk.FileFilter()
-        all_supported_filter.set_name(_("All Supported Files"))
-        dlg.add_filter(all_supported_filter)
-        formats = list(store_factory.supported_files())
-        formats += [(name, extensions, []) for name, extensions in TERMINOLOGY_FORMATS]
-        supported_files_dict = dict(
-            [(_(name), (extension, mimetype)) for name, extension, mimetype in formats]
-        )
-        supported_file_names = list(supported_files_dict.keys())
-        supported_file_names.sort(key=locale.strxfrm)
-        for name in supported_file_names:
-            extensions, mimetypes = supported_files_dict[name]
-            new_filter = Gtk.FileFilter()
-            new_filter.set_name(name)
-            if extensions:
-                for extension in extensions:
-                    new_filter.add_pattern("*." + extension)
-                    all_supported_filter.add_pattern("*." + extension)
-                    for compress_extension in store_factory.decompressclass.keys():
-                        new_filter.add_pattern("*.%s.%s" % (extension, compress_extension))
-                        all_supported_filter.add_pattern(
-                            "*.%s.%s" % (extension, compress_extension)
-                        )
-            if mimetypes:
-                for mimetype in mimetypes:
-                    new_filter.add_mime_type(mimetype)
-                    all_supported_filter.add_mime_type(mimetype)
-            dlg.add_filter(new_filter)
-        all_filter = Gtk.FileFilter()
-        all_filter.set_name(_("All Files"))
-        all_filter.add_pattern("*")
-        dlg.add_filter(all_filter)
+        # Extensions only, as for File > Open: a mime type filter makes
+        # Windows use GTK's own dialog (#4712).
+        add_translation_file_filters(dlg, TERMINOLOGY_FORMATS)
         dlg.set_select_multiple(True)
 
         self.add_chooser = dlg
