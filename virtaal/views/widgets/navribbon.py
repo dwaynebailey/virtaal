@@ -56,6 +56,13 @@ _THEME_KEYS = {
 }
 
 
+def _step(state_n):
+    """The StateEnum step a state number is in: XLIFF's final and
+    memoQ's Proofread are 121, in Reviewed."""
+    steps = [step for step in _THEME_KEYS if step != CHECK_FAILURE and step <= state_n]
+    return max(steps, default=StateEnum.EMPTY)
+
+
 class NavRibbon(Gtk.DrawingArea):
     """One coloured mark per unit (or per bin, for large files), plus
     a viewport indicator, click/drag to jump."""
@@ -230,7 +237,7 @@ class NavRibbon(Gtk.DrawingArea):
             if index in failing:
                 key = CHECK_FAILURE
             else:
-                key = units[index].get_state_n()
+                key = _step(units[index].get_state_n())
             self._marks.append((file_id, index, key))
             self._mark_indices.append(index)
 

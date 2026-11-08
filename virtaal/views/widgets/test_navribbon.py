@@ -164,6 +164,20 @@ def test_refresh_marks_reads_live_unit_state():
     ]
 
 
+def test_a_state_between_steps_takes_its_steps_colour():
+    # XLIFF's final, Trados's Approved Sign-off and memoQ's Proofread are
+    # 121; XLIFF's new is 1.
+    stats = {'total': [0, 1, 2]}
+    units = [FakeUnit(StateEnum.FINAL + 1), FakeUnit(StateEnum.EMPTY + 1), FakeUnit(-100)]
+    ribbon, _, _ = make_ribbon(stats, {}, units=units)
+
+    assert [key for _f, _i, key in ribbon._marks] == [
+        StateEnum.FINAL,
+        StateEnum.EMPTY,
+        StateEnum.EMPTY,
+    ]
+
+
 def test_refresh_marks_check_failure_overrides_workflow_state():
     # A unit can be translated (even FINAL) *and* fail a quality check -
     # the check failure must win the mark's colour.
