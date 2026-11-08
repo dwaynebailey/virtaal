@@ -173,11 +173,19 @@ Case doesn't matter while you type: names keep their own case, and other words
 start with a capital at the start of a sentence. Numbers are suggested with
 your language's decimal and group separators and digits, and typing a digit in
 either script finds them. A name in capitals or CamelCase is suggested the way
-you last wrote it in this file, in Latin letters or in your own script. You
-will see the auto-completion suggesting a possible word, and the suggestion can
-be accepted by pressing :kbd:`Tab`. If the suggestion is not what you want, you can simply
-continue typing the word you had in mind. If you accepted a suggestion that you
-don't want, you can simply undo normally with :kbd:`Ctrl+Z`.
+you last wrote it in this file, in Latin letters or in your own script.
+
+The best suggestion shows in grey after the cursor; press :kbd:`Tab` to accept
+it. When there are several, they are also listed under the word: :kbd:`Up` and
+:kbd:`Down` pick another (it shows in grey instead), :kbd:`Tab`, or
+:kbd:`Enter` once you have picked one, accepts it, and :kbd:`Esc` closes the
+list. If the suggestion is not what you want, you can simply continue typing
+the word you had in mind: the list follows what you type. If you accepted a
+suggestion that you don't want, you can simply undo normally with
+:kbd:`Ctrl+Z`.
+
+When a term has several translations, inserting it with :kbd:`Alt+Down` lists
+them the same way; typing the start of one narrows the list.
 
 .. _using_virtaal#auto-correction:
 
