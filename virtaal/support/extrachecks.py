@@ -14,6 +14,9 @@ An extra check is a class with:
 - ``applies_to(store)``: whether it checks this toolkit store.
 - ``available()``: whether it can run here, e.g. its library loads.
 - ``check(unit)``: the failure message for unit, or None.
+
+and may have ``toolkit_unit(unit)``: what the toolkit's checks see of
+unit, for text they would misread, such as Phrase's tags.
 """
 
 from virtaal.support import dismissedchecks
@@ -44,7 +47,10 @@ class ExtraChecksFilter:
 
     def run_filters(self, unit, categorised=False, with_dismissed=False):
         """unit's failures; with_dismissed: also the dismissed ones."""
-        failures = self.checker.run_filters(unit, categorised)
+        checked = unit
+        for check in self.checks:
+            checked = getattr(check, 'toolkit_unit', lambda u: u)(checked)
+        failures = self.checker.run_filters(checked, categorised)
         for check in self.checks:
             message = check.check(unit)
             if not message:

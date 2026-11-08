@@ -116,6 +116,30 @@ def tags(text):
     return TAG.findall(text or "")
 
 
+def _without_tags(text):
+    return None if text is None else TAG.sub("", str(text))
+
+
+class _WithoutTags:
+    """A unit as translate-toolkit's checks see it: its source and target
+    without Phrase tags, which they read as brackets, numbers and Python
+    braces."""
+
+    def __init__(self, unit):
+        self._unit = unit
+
+    def __getattr__(self, name):
+        return getattr(self._unit, name)
+
+    @property
+    def source(self):
+        return _without_tags(self._unit.source)
+
+    @property
+    def target(self):
+        return _without_tags(self._unit.target)
+
+
 class PhraseTagCheck:
     """The "phrasetags" extra check: the target's Phrase tags, which
     Phrase rebuilds the file's codes from, aren't the source's."""
@@ -132,6 +156,11 @@ class PhraseTagCheck:
     @staticmethod
     def available():
         return True
+
+    @staticmethod
+    def toolkit_unit(unit):
+        """unit without its tags, which this check checks instead."""
+        return _WithoutTags(unit)
 
     def check(self, unit):
         if not unit.target:

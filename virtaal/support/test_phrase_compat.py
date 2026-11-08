@@ -247,3 +247,44 @@ def test_the_tag_check_is_for_phrase_files_only():
 
     assert phrase_compat.PhraseTagCheck.applies_to(factory.getobject(XLFQL))
     assert not phrase_compat.PhraseTagCheck.applies_to(plain)
+
+
+def _checked(source, target):
+    from translate.filters import checks
+
+    from virtaal.support.extrachecks import with_extra_checks
+
+    store = _store(
+        '<trans-unit id="s1" m:confirmed="1"><source>%s</source><target>%s</target></trans-unit>'
+        % (source.replace('<', '&lt;'), target.replace('<', '&lt;'))
+    )
+    checker = with_extra_checks(checks.StandardChecker(), store)
+    return checker.run_filters(store.units[0])
+
+
+def test_the_toolkits_checks_dont_see_phrase_tags():
+    failures = _checked('Click {1>Save<1}.', 'Klicke Speichern.')
+
+    assert set(failures) == {'phrasetags'}
+
+
+def test_the_toolkits_checks_still_see_the_text_round_the_tags():
+    failures = _checked('Click {1>Save<1} (2 files).', 'Klicke {1>Speichern<1} 3 Dateien).')
+
+    assert {'brackets', 'numbers'} <= set(failures)
+    assert 'phrasetags' not in failures
+
+
+def test_other_files_keep_the_toolkits_view():
+    from translate.filters import checks
+
+    from virtaal.support.extrachecks import with_extra_checks
+
+    plain = xliff.xlifffile.parsestring(
+        b'<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2"><file original="a"'
+        b' source-language="en" datatype="plaintext"><body><trans-unit id="1"><source>a {1}'
+        b'</source><target>a</target></trans-unit></body></file></xliff>'
+    )
+    checker = with_extra_checks(checks.StandardChecker(), plain)
+
+    assert 'brackets' in checker.run_filters(plain.units[0])
