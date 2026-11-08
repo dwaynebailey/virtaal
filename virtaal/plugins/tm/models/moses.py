@@ -56,15 +56,13 @@ class TMModel(BaseTMModel):
 
     # METHODS #
     def query(self, tmcontroller, unit):
-        if self.source_lang in self.clients and self.target_lang in self.clients[self.source_lang]:
-            query_str = str(unit.source)  # cast in case of multistrings
-            if query_str in self.cache:
-                self.emit('match-found', query_str, [self.cache[query_str]])
-                return
-
-            client = self.clients[self.source_lang][self.target_lang]
-            client.translate_unit(query_str, self._handle_response, self.target_lang)
+        if not self.bulk_ready():
             return
+        query_str = str(unit.source)  # cast in case of multistrings
+        if query_str in self.cache:
+            self.emit('match-found', query_str, [self.cache[query_str]])
+            return
+        self._client().translate_unit(query_str, self._handle_response, self.target_lang)
 
     def requests_in_flight(self):
         clients = {id(c): c for targets in self.clients.values() for c in targets.values()}
@@ -82,7 +80,8 @@ class TMModel(BaseTMModel):
         return self.clients.get(self.source_lang, {}).get(self.target_lang)
 
     def bulk_ready(self):
-        return self._client() is not None
+        client = self._client()
+        return client is not None and client.serves(self.target_lang)
 
     def bulk_send(self, batch):
         (query_str,) = batch
@@ -90,7 +89,7 @@ class TMModel(BaseTMModel):
 
     def bulk_parse(self, batch, reply):
         (query_str,) = batch
-        response = self._client()._handle_response(query_str, reply)
+        response = self._client()._handle_response(query_str, reply, self.target_lang)
         return {query_str: [_match(query_str, response)] if response else []}
 
 

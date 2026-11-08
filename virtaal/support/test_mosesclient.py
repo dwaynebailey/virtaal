@@ -123,17 +123,26 @@ def test_loads_safe_returns_the_decoded_struct():
     assert client._loads_safe(body) == {'text': 'jou'}
 
 
-def test_loads_safe_disables_multilang_on_unknown_system_fault():
+def test_an_unknown_system_fault_stops_only_that_language():
     client = MosesClient('http://example.com')
     client.set_multilang(True)
     fault_body = xmlrpclib.dumps(
         xmlrpclib.Fault(1, 'Unknown translation system id: xx'), methodresponse=True
     )
 
-    result = client._loads_safe(fault_body)
+    result = client._loads_safe(fault_body, 'xx')
 
     assert result is None
-    assert client.multilang is False
+    assert client.multilang is True
+    assert not client.serves('xx')
+    assert client.serves('fr')
+
+
+def test_a_single_system_server_serves_any_language():
+    client = MosesClient('http://example.com')
+    client.unknown_systems.add('xx')
+
+    assert client.serves('xx')
 
 
 def test_loads_safe_returns_none_for_any_other_fault():
@@ -153,7 +162,7 @@ def test_loads_safe_returns_none_for_unparseable_data():
 
 def test_handle_response_returns_none_without_a_suggestion(monkeypatch):
     client = MosesClient('http://example.com')
-    monkeypatch.setattr(client, '_loads_safe', lambda response: None)
+    monkeypatch.setattr(client, '_loads_safe', lambda response, target: None)
 
     assert client._handle_response('src', b'ignored') is None
 

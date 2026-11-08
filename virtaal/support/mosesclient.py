@@ -60,6 +60,8 @@ class MosesClient(GObject.GObject, HTTPClient):
 
         self.url = url + '/RPC2'
         self.multilang = False
+        # Target languages the server said it has no system for.
+        self.unknown_systems = set()
 
     def set_multilang(self, state=True):
         """Enable multilingual support.
@@ -67,6 +69,10 @@ class MosesClient(GObject.GObject, HTTPClient):
         If this is set, the plugin will specify the 'system' parameter when
         communicating with the Moses XML RPC server."""
         self.multilang = state
+
+    def serves(self, target_language):
+        """Whether to ask this server for target_language at all."""
+        return not (self.multilang and target_language in self.unknown_systems)
 
     def translate_unit(self, unit_source, callback=None, target_language=None):
         """Ask for unit_source's translation.
@@ -85,27 +91,30 @@ class MosesClient(GObject.GObject, HTTPClient):
             headers=["Content-Type: text/xml", "Content-Length: %s" % len(request_body)],
         )
         request.source_text = unit_source
+        request.target_language = target_language
         self.add(request)
 
         if callback:
 
             def call_callback(request, response):
                 return callback(
-                    request.source_text, self._handle_response(request.source_text, response)
+                    request.source_text,
+                    self._handle_response(request.source_text, response, request.target_language),
                 )
 
             request.connect("http-success", call_callback)
         return request
 
-    def _loads_safe(self, response):
+    def _loads_safe(self, response, target_language=None):
         """Does the loading of the XML-RPC response, but handles exceptions."""
         try:
             (data,), _fish = xmlrpclib.loads(response)
         except xmlrpclib.Fault as exc:
-            if "Unknown translation system id" in exc.faultString:
-                self.set_multilang(False)
-                # Not retried without 'system': on a server shared by several
-                # language pairs that could answer for the wrong pair.
+            if "Unknown translation system id" in exc.faultString and self.multilang:
+                # Only this language: without 'system' a server shared by
+                # several pairs answers in its default one (#4711).
+                logging.info("%s has no Moses system for %s", self.url, target_language)
+                self.unknown_systems.add(target_language)
             else:
                 logging.debug('XML-RPC fault: %s' % (exc.faultString))
             return None
@@ -114,9 +123,9 @@ class MosesClient(GObject.GObject, HTTPClient):
             return None
         return data
 
-    def _handle_response(self, id, response):
+    def _handle_response(self, id, response, target_language=None):
         """Use the same format as tmserver."""
-        suggestion = self._loads_safe(response)
+        suggestion = self._loads_safe(response, target_language)
         if not suggestion:
             return None
         return fixup(id, forceunicode(suggestion['text']))

@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import xmlrpc.client as xmlrpclib
 from types import SimpleNamespace
 
 from gi.repository import GObject
@@ -31,6 +32,9 @@ class _FakeMosesClient:
 
     def set_multilang(self):
         self.multilang = True
+
+    def serves(self, target_lang):
+        return True
 
     def translate_unit(self, query_str, callback, target_lang):
         self.translated.append((query_str, callback, target_lang))
@@ -126,6 +130,31 @@ def test_query_delegates_to_the_matching_language_pairs_client():
     assert client.translated == [('bonjour', model._handle_response, 'en')]
 
 
+def test_one_unknown_system_leaves_the_other_pairs_on_a_shared_server(monkeypatch):
+    from virtaal.support import mosesclient
+
+    sent = []
+    monkeypatch.setattr(mosesclient.MosesClient, 'add', lambda self, request: sent.append(request))
+    model = _model()
+    model.config = {'en->af': 'http://moses', 'en->fr': 'http://moses'}
+    model._init_plugin()
+    model.source_lang, model.target_lang = 'en', 'af'
+    model.query(None, SimpleNamespace(source='one'))
+    fault = xmlrpclib.dumps(
+        xmlrpclib.Fault(1, 'Unknown translation system id: af'), methodresponse=True
+    )
+    sent[0].emit('http-success', fault)
+
+    model.query(None, SimpleNamespace(source='two'))
+    assert len(sent) == 1
+    assert not model.bulk_ready()
+
+    model.target_lang = 'fr'
+    model.query(None, SimpleNamespace(source='three'))
+    (params,), _method = xmlrpclib.loads(sent[1].data)
+    assert params['system'] == 'fr'
+
+
 def test_handle_response_ignores_an_empty_response():
     model = _model()
 
@@ -154,7 +183,8 @@ def test_a_file_fetch_asks_the_language_pairs_server_a_unit_at_a_time():
     sent = []
     client = SimpleNamespace(
         translate_unit=lambda q, callback, target: sent.append((q, callback, target)) or 'request',
-        _handle_response=lambda q, reply: {b'good': 'Goed', b'': None}[reply],
+        serves=lambda target: True,
+        _handle_response=lambda q, reply, target: {b'good': 'Goed', b'': None}[reply],
     )
     assert not model.bulk_ready()
     model.clients = {'en': {'af': client}}
