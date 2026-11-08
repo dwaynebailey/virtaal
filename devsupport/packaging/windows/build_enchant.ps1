@@ -80,7 +80,7 @@ try {
 # libenchant and the winspell provider, as gvsbuild builds them.
 Push-Location "$enchant\src"
 try {
-    nmake /nologo -f makefile-2.mak DLL=1 X64=1 MFLAGS=/MD "GLIBDIR=$Gtk\include\glib-2.0" "CPREFIX=C:/gtk" libenchant enchant_winspell
+    nmake /nologo -f makefile-2.mak DLL=1 X64=1 MFLAGS=/MD "GLIBDIR=$Gtk\include\glib-2.0" "CPREFIX=C:/gtk" makedirs libenchant enchant_winspell
     if ($LASTEXITCODE) { throw "nmake failed" }
 } finally {
     Pop-Location
