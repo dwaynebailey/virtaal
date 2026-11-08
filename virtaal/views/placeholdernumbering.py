@@ -10,6 +10,8 @@ placeholders once they are out of the source's order (see
 L{virtaal.support.positionalprintf}): a notice when it happens, and an
 entry in the target's context menu."""
 
+import weakref
+
 from gi.repository import Gtk
 
 from virtaal.support import formatplaceables, positionalprintf
@@ -21,6 +23,10 @@ class PlaceholderNumbering:
         self._notice = None
         self._closed_for = None
         """The unit whose notice was closed: not shown again for it."""
+        self._edited = []  # Weak references: units compare equal by text.
+        """Units whose target was edited this session: the notice is only
+        for those, not for a translation opened out of order."""
+        self._loading = False
 
     @property
     def _main_controller(self):
@@ -63,14 +69,34 @@ class PlaceholderNumbering:
         self.update()
 
     def update(self):
-        """Offer numbering when a target needs it, else take the offer
-        back."""
+        """Offer numbering when an edited target needs it, else take the
+        offer back."""
         if not self.forms():
             self._hide()
-        elif self._notice is None and self._closed_for is not self.view.unit:
+        elif (
+            self._notice is None
+            and self._closed_for is not self.view.unit
+            and self._was_edited(self.view.unit)
+        ):
             self._show()
 
+    def target_changed(self):
+        """A target's text changed: an edit, unless a unit is loading."""
+        if self._loading or not self._applies():
+            return
+        if not self._was_edited(self.view.unit):
+            self._edited = [ref for ref in self._edited if ref() is not None]
+            self._edited.append(weakref.ref(self.view.unit))
+        self.update()
+
+    def _was_edited(self, unit):
+        return any(ref() is unit for ref in self._edited)
+
+    def unit_loading(self):
+        self._loading = True
+
     def unit_loaded(self):
+        self._loading = False
         self._closed_for = None
         self._hide()
         self.update()

@@ -131,3 +131,17 @@ class TestPlaceholderNumbering(TestScaffolding):
             assert menu.get_children() == []
         finally:
             menu.destroy()
+
+    def test_opening_an_out_of_order_translation_offers_nothing_until_an_edit(self):
+        unit = self._load(b'#, c-format\nmsgid "%s of %d"\nmsgstr "%d van %s"\n')
+        target = self.view.targets[0]
+
+        assert self._offers() == []
+        assert self.view._numbering.forms()  # The context menu still has it.
+
+        target.set_text('%d van die %s')
+        assert len(self._offers()) == 1
+
+        self._load(b'#, c-format\nmsgid "%s"\nmsgstr ""\n')
+        self.view = self.unit_controller.load_unit(unit)  # Back to the edited one.
+        assert len(self._offers()) == 2

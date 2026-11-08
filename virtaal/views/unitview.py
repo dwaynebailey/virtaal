@@ -548,6 +548,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         self.unit = unit
         self._set_background(unit_style(unit).get('background'))
         self.disable_signals(['modified', 'insert-text', 'delete-text'])
+        self._numbering.unit_loading()
         self._update_editor_gui()
         self.enable_signals(['modified', 'insert-text', 'delete-text'])
 
@@ -1185,7 +1186,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if self.unit.STATE and self._widgets['state']:
             self._widgets['state'].set_unselectable(self._unselectable_states())
         self.modified()
-        self._numbering.update()
+        self._numbering.target_changed()
 
     def _on_target_insert_text(self, textbox, ins_text, offset, elem, target_num):
         # logging.debug('emit("insert-text", ins_text="%s", offset=%d, elem=%s, target_num=%d)' % (ins_text, offset, repr(elem), target_num))
