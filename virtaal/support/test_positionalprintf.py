@@ -110,7 +110,10 @@ def test_msgfmt_accepts_a_numbered_translation_of_an_unnumbered_source(tmp_path,
     path.write_bytes(bytes(store))
 
     result = subprocess.run(
-        ['msgfmt', '-c', '-o', '/dev/null', str(path)], capture_output=True, text=True, check=False
+        ['msgfmt', '-c', '-o', str(tmp_path / 'numbered.mo'), str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
     )
 
     assert result.returncode == 0, result.stderr
@@ -125,7 +128,10 @@ def test_msgfmt_rejects_mixed_numbering(tmp_path):
     path.write_bytes(bytes(store))
 
     result = subprocess.run(
-        ['msgfmt', '-c', '-o', '/dev/null', str(path)], capture_output=True, text=True, check=False
+        ['msgfmt', '-c', '-o', str(tmp_path / 'numbered.mo'), str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
     )
 
     assert result.returncode != 0
