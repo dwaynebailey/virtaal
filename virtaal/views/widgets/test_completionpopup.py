@@ -184,19 +184,70 @@ def test_dismiss_soon_waits_for_idle_and_showing_again_cancels_it():
     assert not popup.is_showing()
 
 
-def test_selecting_another_row_is_reported_and_counts_as_navigating():
+def test_selecting_another_row_is_reported():
     selected = []
     popup = CompletionPopup()
     popup.show_at(_textbox_in_window(), 0, ['a', 'b', 'c'], print, selected.append)
 
-    assert not popup.navigated
     popup.move_selection(1)
     popup.move_selection(1)
     popup.move_selection(1)
 
     assert selected == [1, 2]
-    assert popup.navigated
     popup.dismiss()
+
+
+def _notifications(textbox):
+    said = []
+    textbox.get_accessible().connect(
+        'notification', lambda accessible, text, live: said.append((text, live))
+    )
+    return said
+
+
+def test_the_first_candidate_is_announced_when_the_list_shows():
+    textbox = _textbox_in_window()
+    said = _notifications(textbox)
+
+    popup, _accepted = _show(textbox)
+
+    assert said == [('argief, 1 of 3', Atk.Live.POLITE)]
+    popup.dismiss()
+
+
+def test_each_newly_selected_candidate_is_announced_once():
+    textbox = _textbox_in_window()
+    said = _notifications(textbox)
+    popup, accepted = _show(textbox)
+
+    popup.move_selection(1)
+    popup.move_selection(5)
+    popup.move_selection(1)  # Already the last: nothing new to say.
+    popup.show_at(textbox, 0, ['lêer', 'argief'], accepted.append)  # Typing refills it.
+
+    assert [text for text, _live in said] == [
+        'argief, 1 of 3',
+        'dokument, 2 of 3',
+        'lêer, 3 of 3',
+    ]
+    popup.dismiss()
+
+
+def test_announce_falls_back_to_the_older_signal(monkeypatch):
+    from virtaal.views.widgets import completionpopup
+
+    said = []
+    accessible = Atk.NoOpObject.new(Gtk.Label())
+    accessible.connect('announcement', lambda accessible, text: said.append(text))
+    real_lookup = completionpopup.GObject.signal_lookup
+    monkeypatch.setattr(
+        completionpopup.GObject,
+        'signal_lookup',
+        lambda name, instance: 0 if name == 'notification' else real_lookup(name, instance),
+    )
+
+    assert completionpopup.announce(accessible, 'Herroep, 1 of 2')
+    assert said == ['Herroep, 1 of 2']
 
 
 def test_show_at_can_select_another_row_first():

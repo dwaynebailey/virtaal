@@ -5,7 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from gi.repository import Atk, Gdk, GLib, Gtk, Pango
+from gi.repository import Atk, Gdk, GLib, GObject, Gtk, Pango
 
 from virtaal.views import rendering
 
@@ -27,6 +27,16 @@ def popup_position(anchor, size, bounds, rtl=False):
         y = ay - height
     x = max(bx, min(x, bx + bw - width))
     return x, y
+
+
+def announce(accessible, text):
+    """Have a screen reader say text, from accessible: ATK's
+    notification (2.50 on), else its older announcement."""
+    for signal, args in (('notification', (text, Atk.Live.POLITE)), ('announcement', (text,))):
+        if GObject.signal_lookup(signal, accessible):
+            accessible.emit(signal, *args)
+            return True
+    return False
 
 
 def _window_geometry(toplevel):
@@ -65,8 +75,7 @@ class CompletionPopup(Gtk.Window):
         self._dismiss_id = None
         self._settle_id = None
         self._toplevel_geometry = None
-        self.navigated = False
-        """Whether the user moved through the list since it was shown."""
+        self._announced = None
 
         self._candidates = []
         self.listbox = Gtk.ListBox()
@@ -107,7 +116,6 @@ class CompletionPopup(Gtk.Window):
         self._fill(candidates, font or rendering.get_target_font_description())
         self._on_select = None
         self.select_index(selected)
-        self.navigated = False
 
         self._on_accept = on_accept
         self._on_select = on_select
@@ -127,6 +135,7 @@ class CompletionPopup(Gtk.Window):
         self.scrolled_window.show_all()
         self._update_geometry(textview, offset)
         self.show()
+        self._announce()
 
     def select_index(self, index):
         if not self._candidates:
@@ -137,9 +146,29 @@ class CompletionPopup(Gtk.Window):
         self.listbox.select_row(row)
         if changed and self._on_select is not None:
             self._on_select(index)
+        if changed and self.is_showing():
+            self._announce()
         alloc = row.get_allocation()
         if alloc.height > 1:
             self.scrolled_window.get_vadjustment().clamp_page(alloc.y, alloc.y + alloc.height)
+
+    def _announce(self):
+        """Have a screen reader say the selected candidate, and where it
+        is in the list, when it changed: the list never has the focus
+        that would make it speak."""
+        index = self.selected_index()
+        if index is None or self._textview is None:
+            return
+        candidate = self._candidates[index]
+        if candidate == self._announced:
+            return
+        self._announced = candidate
+        text = _(
+            # l10n: Said by a screen reader for the suggestion picked in the
+            # list of suggestions while typing: "Kanselleer, 2 of 3"
+            '%(candidate)s, %(position)d of %(count)d'
+        ) % {'candidate': candidate, 'position': index + 1, 'count': len(self._candidates)}
+        announce(self._textview.get_accessible(), text)
 
     def selected_index(self):
         row = self.listbox.get_selected_row()
@@ -147,7 +176,6 @@ class CompletionPopup(Gtk.Window):
 
     def move_selection(self, delta):
         index = self.selected_index()
-        self.navigated = True
         self.select_index(delta if index is None else index + delta)
 
     def accept(self):
@@ -185,7 +213,7 @@ class CompletionPopup(Gtk.Window):
             GLib.source_remove(self._settle_id)
             self._settle_id = None
         self._toplevel_geometry = None
-        self.navigated = False
+        self._announced = None
         if self._configure_id is not None:
             self._textview.get_toplevel().disconnect(self._configure_id)
             self._configure_id = None

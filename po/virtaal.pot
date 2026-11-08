@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 16:14+0000\n"
+"POT-Creation-Date: 2026-11-08 16:50+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3373,6 +3373,13 @@ msgstr ""
 #. l10n: The list of completions shown while typing a translation
 #: virtaal/views/widgets/completionpopup.py
 msgid "Suggestions"
+msgstr ""
+
+#. l10n: Said by a screen reader for the suggestion picked in the
+#. list of suggestions while typing: "Kanselleer, 2 of 3"
+#: virtaal/views/widgets/completionpopup.py
+#, python-format
+msgid "%(candidate)s, %(position)d of %(count)d"
 msgstr ""
 
 #: virtaal/views/widgets/langadddialog.py
