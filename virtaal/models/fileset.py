@@ -323,14 +323,15 @@ class FileSet:
         return FileSet(wanted(self.entries), self.root, self.templates, wanted(self.unpaired))
 
     def choose_language(self, current=None):
-        """The language to open: current if some file has it, else the
-        most common one. None when no file says."""
+        """The language to open, as the files have it: current's (fr_CA
+        for fr) if some file has it, else the most common one. None when
+        no file says."""
         from virtaal.models.langmodel import same_language
 
         counts = self.languages()
-        known = [(code, n) for code, n in counts.most_common() if code]
+        known = [code for code, _n in counts.most_common() if code]
         if not known:
             return None
-        if current and any(same_language(code, current) for code, _n in known):
+        if current in known:
             return current
-        return known[0][0]
+        return next((code for code in known if same_language(code, current)), known[0])

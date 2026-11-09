@@ -213,6 +213,23 @@ class TestFilePanel(TestScaffolding):
         assert self.store_controller.stream_language == 'af'
         assert len(notices) == 1 and 'Afrikaans' in notices[0]
 
+    def test_a_regional_folder_of_the_target_language_is_shown_chosen(self, monkeypatch):
+        notices = []
+        monkeypatch.setattr(self.main_controller.view, 'show_info_notice', notices.append)
+        for name in ('af', 'de'):
+            (self.dir / 'app' / ('%s.po' % name)).unlink()
+        (self.dir / 'help' / 'af' / 'guide.po').unlink()
+        (self.dir / 'help' / 'af' / 'faq.po').unlink()
+        _po(self.dir / 'fr-CA' / 'a.po', [('One', '')], language=None)
+        _po(self.dir / 'pl-PL' / 'a.po', [('One', '')], language=None)
+        self.lang_controller._target_lang = LanguageModel('fr')
+
+        view = self._open_folder()
+
+        assert self.store_controller.stream_language == 'fr_CA'
+        assert view._languages[view.language_combo.get_active()] == 'fr_CA'
+        assert notices == []
+
     def test_accessible_names(self):
         view = self._open_folder()
 

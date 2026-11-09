@@ -112,6 +112,17 @@ def test_the_current_language_is_chosen_when_a_file_has_it(tmp_path):
     assert fileset.choose_language('de') == 'zu'
 
 
+def test_the_current_language_is_chosen_as_the_files_have_it(tmp_path):
+    _po(tmp_path / 'fr-CA' / 'a.po')
+    _po(tmp_path / 'pl-PL' / 'a.po')
+    _po(tmp_path / 'pl-PL' / 'b.po')
+    fileset = FileSet.from_paths([str(tmp_path)])
+
+    assert fileset.choose_language('fr') == 'fr_CA'
+    assert fileset.choose_language('fr_CA') == 'fr_CA'
+    assert fileset.choose_language('pl') == 'pl_PL'
+
+
 def test_for_language_keeps_unknown_languages(tmp_path):
     _po(tmp_path / 'af.po')
     _po(tmp_path / 'zu.po')

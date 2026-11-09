@@ -321,7 +321,8 @@ class StoreController(BaseController):
         target = self.main_controller.lang_controller
         target = target and target.target_lang and target.target_lang.code
         language = all_files.choose_language(target)
-        replaced = target if target and language and not same_language(target, language) else None
+        same = language == target or same_language(language, target)
+        replaced = target if target and language and not same else None
         self._open_stream(all_files, language, paths, replaced)
 
     def pair_in_stream(self, path, match):
