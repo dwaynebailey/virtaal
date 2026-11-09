@@ -103,6 +103,7 @@ Virtaal supports many file formats:
   Trados status (see :ref:`using_virtaal#trados`)
 - memoQ bilingual files (.mqxliff) and Phrase (Memsource) files (.mxliff),
   with the tool's status and locks (see :ref:`using_virtaal#memoq_phrase`)
+- Wordfast Pro bilingual files (.txml) (see :ref:`using_virtaal#wordfast`)
 
 Files that hold one language each are translated against their English (or
 other source-language) file (see :ref:`using_virtaal#one_language_files`):

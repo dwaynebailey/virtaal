@@ -653,6 +653,27 @@ gender and a plural together, shows each case as a unit of its own, with the
 case above its text.
 
 
+
+.. _using_virtaal#wordfast:
+
+Wordfast files
+--------------
+Wordfast Pro bilingual files (.txml) open with a unit for each Wordfast
+segment:
+
+- A segment with no translation is Untranslated. A machine translation you
+  haven't changed, or a segment Wordfast marks unconfirmed, needs review.
+  Any other translation is Translated.
+- Wordfast's tags are placeables, as in XLIFF files.
+- A machine translation says so below the translation, and a segment's
+  comments show as its notes.
+
+Marking a unit Translated confirms the segment, and Needs review marks it
+unconfirmed. Virtaal saves only the segments you changed: the rest of the
+file stays as it was. Wordfast has no public description of the format, so
+these files were checked against Okapi's reading of it and by comparing them
+before and after, not by opening them in Wordfast again.
+
 .. _using_virtaal#network_based_translation_memory:
 
 Network Based Translation Memory

@@ -35,6 +35,7 @@ from virtaal.support import (
     sdlxliff_compat,  # noqa: F401 - applies its patch on import
     tmdb,
     trados_compat,  # noqa: F401 - applies its patch on import
+    txml_compat,  # noqa: F401 - adds Wordfast's TXML
     xliff2_compat,  # noqa: F401 - applies its patch on import
 )
 

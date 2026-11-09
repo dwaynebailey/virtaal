@@ -120,6 +120,11 @@ Root: HKCU; Subkey: "Software\Classes\Virtaal.PhraseXliffFile\DefaultIcon"; Valu
 Root: HKCU; Subkey: "Software\Classes\Virtaal.PhraseXliffFile\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc
 Root: HKCU; Subkey: "Software\Classes\.mxliff"; ValueType: string; ValueData: "Virtaal.PhraseXliffFile"; Tasks: fileassoc; Flags: uninsdeletevalue
 
+Root: HKCU; Subkey: "Software\Classes\Virtaal.WordfastTxmlFile"; ValueType: string; ValueName: ""; ValueData: "{cm:WordfastTxmlFileType}"; Tasks: fileassoc; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Virtaal.WordfastTxmlFile\DefaultIcon"; ValueType: string; ValueData: "{app}\share\icons\x-translation.ico"; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\Virtaal.WordfastTxmlFile\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.txml"; ValueType: string; ValueData: "Virtaal.WordfastTxmlFile"; Tasks: fileassoc; Flags: uninsdeletevalue
+
 Root: HKCU; Subkey: "Software\Classes\Virtaal.GettextMoFile"; ValueType: string; ValueName: ""; ValueData: "{cm:MoFileType}"; Tasks: fileassoc; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\Virtaal.GettextMoFile\DefaultIcon"; ValueType: string; ValueData: "{app}\share\icons\x-translation.ico"; Tasks: fileassoc
 Root: HKCU; Subkey: "Software\Classes\Virtaal.GettextMoFile\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc

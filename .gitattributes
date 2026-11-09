@@ -5,3 +5,4 @@ devsupport/testfiles/trados/** -text
 # memoQ and Phrase samples, kept byte for byte too (BOM).
 devsupport/testfiles/memoq/** -text
 devsupport/testfiles/phrase/** -text
+devsupport/testfiles/wordfast/** -text

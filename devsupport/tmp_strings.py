@@ -42,6 +42,10 @@ _("Trados Studio Translation Memory")
 _("memoQ XLIFF Translation File")
 _("Phrase XLIFF Translation File")
 
+# Wordfast Pro's .txml (virtaal/support/txml_compat.py), named in the Open
+# dialog and the Windows installer.
+_("Wordfast TXML Translation File")
+
 # Windows installer only (devsupport/packaging/windows/virtaal.iss).
 _("SDL XLIFF Translation File")
 _("Associate Virtaal with translation file types (.po, .xlf, .tmx, ...)")

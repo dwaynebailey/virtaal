@@ -20,6 +20,7 @@ from virtaal.support import (
     qm_compat,  # noqa: F401 - applies its patch on import
     sdlxliff_compat,  # noqa: F401 - applies its patch on import
     tmx_compat,  # noqa: F401 - applies its patch on import
+    txml_compat,  # noqa: F401 - adds Wordfast's TXML
     xliff2_compat,  # noqa: F401 - applies its patch on import
     xliff_compat,  # noqa: F401 - applies its patch on import
 )

@@ -26,6 +26,7 @@ from virtaal.support import (
     memoq_compat,
     phrase_compat,
     sdlxliff_compat,
+    txml_compat,
 )
 
 from . import rendering
@@ -100,15 +101,15 @@ def _origin_line(origin, percent=None):
     """Where a CAT tool's translation came from, as a line of the notes."""
     if percent:
         return _(
-            # l10n: Where a translation in a Trados Studio or Phrase file came
-            # from, e.g. "tm (Main TM), 100% match". The origin is the
-            # tool's own name: tm, mt, interactive and others.
+            # l10n: Where a translation in a Trados Studio, Phrase or Wordfast
+            # file came from, e.g. "tm (Main TM), 100% match". The origin is
+            # the tool's own name: tm, mt, interactive and others.
             "Origin: %(origin)s, %(percent)s%% match"
         ) % {'origin': origin, 'percent': percent}
     return _(
-        # l10n: Where a translation in a Trados Studio or Phrase file came
-        # from, e.g. "interactive". The origin is the tool's own name: tm,
-        # mt, interactive and others.
+        # l10n: Where a translation in a Trados Studio, Phrase or Wordfast
+        # file came from, e.g. "interactive". The origin is the tool's own
+        # name: tm, mt, interactive and others.
         "Origin: %(origin)s"
     ) % {'origin': origin}
 
@@ -871,7 +872,13 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             note_text = _programmer_notes(self.unit)
         else:
             notes = dismissedchecks.without_dismissals(self.unit.getnotes(origin))
-            notes = [notes, *self._trados_notes(), *self._memoq_notes(), *self._phrase_notes()]
+            notes = [
+                notes,
+                *self._trados_notes(),
+                *self._memoq_notes(),
+                *self._phrase_notes(),
+                *self._wordfast_notes(),
+            ]
             note_text = '\n'.join(line for line in notes if line)
 
         if (
@@ -951,6 +958,13 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if origin:
             return [_origin_line(origin, percent)]
         return [_match_line(percent)] if percent else []
+
+    def _wordfast_notes(self):
+        """A line about the unit's Wordfast segment: whether it is a
+        machine translation, with its score. Its comments are its notes."""
+        if isinstance(self.unit, txml_compat.TxmlUnit) and self.unit.is_machine_translation():
+            return [_origin_line('mt', self.unit.match_score())]
+        return []
 
     def _layout_update_sources(self):
         num_source_widgets = len(self.sources)
@@ -1049,7 +1063,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
         visible_sources = [src for src in self.sources if src.props.visible]
 
-        text_filter = self._xml_text_filter if isinstance(self.unit, LISAunit) else None
+        xml = isinstance(self.unit, (LISAunit, txml_compat.TxmlUnit))
+        text_filter = self._xml_text_filter if xml else None
         for textbox in self.targets:
             textbox.text_filter = text_filter
             textbox.set_editable(not self.locked)

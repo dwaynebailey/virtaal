@@ -1,0 +1,4 @@
+file	licence	source	kind
+okapi/Test01.docx.txml	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/e7a413ca6f34bdbf62eec3185486a2e47b251522/okapi/filters/txml/src/test/resources/Test01.docx.txml	Okapi TXML filter test file, Wordfast Pro 2.4.1: segments with modified/unconfirmed/gtmt, score; ut inline codes; ws between segments
+okapi/Test02.html.txml	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/e7a413ca6f34bdbf62eec3185486a2e47b251522/okapi/filters/txml/src/test/resources/Test02.html.txml	Okapi TXML filter test file, Wordfast Pro 2.4.1: html datatype
+okapi/Test03.mif.txml	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/e7a413ca6f34bdbf62eec3185486a2e47b251522/okapi/filters/txml/src/test/resources/Test03.mif.txml	Okapi TXML filter test file, Wordfast Pro 2.4.1: mif datatype; skeleton elements; 240+ blocks

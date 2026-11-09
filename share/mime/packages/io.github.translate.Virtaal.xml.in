@@ -60,6 +60,13 @@ See: http://standards.freedesktop.org/shared-mime-info-spec/shared-mime-info-spe
     <glob pattern="*.mxliff"/>
   </mime-type>
 
+  <!-- Wordfast has registered no type for its bilingual files either. -->
+  <mime-type type="application/x-wordfast-txml">
+    <sub-class-of type="application/xml"/>
+    <comment its:translate="yes">Wordfast TXML Translation File</comment>
+    <glob pattern="*.txml"/>
+  </mime-type>
+
   <mime-type type="application/x-qm">
     <comment its:translate="yes">Qt Message File</comment>
     <glob pattern="*.qm"/>

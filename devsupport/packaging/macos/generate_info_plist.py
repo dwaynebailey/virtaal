@@ -24,7 +24,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from translate.storage import factory
 
 from virtaal.__version__ import ver as virtaal_version
-from virtaal.support import catxliff_compat  # noqa: F401 - adds memoQ's and Phrase's XLIFF
+from virtaal.support import (
+    catxliff_compat,  # noqa: F401 - adds memoQ's and Phrase's XLIFF
+    txml_compat,  # noqa: F401 - adds Wordfast's TXML
+)
 from virtaal.support.libi18n.lite import read_linguas
 
 ROOT = Path(__file__).resolve().parents[3]

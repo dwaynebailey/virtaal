@@ -8,7 +8,10 @@
 from gi.repository import Gtk
 from translate.storage import factory
 
-from virtaal.support import catxliff_compat  # noqa: F401 - adds memoQ's and Phrase's XLIFF
+from virtaal.support import (
+    catxliff_compat,  # noqa: F401 - adds memoQ's and Phrase's XLIFF
+    txml_compat,  # noqa: F401 - adds Wordfast's TXML
+)
 
 rf = Gtk.RecentFilter()
 for _name, extensions, mimetypes in factory.supported_files():

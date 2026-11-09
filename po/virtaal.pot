@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-08 17:32+0000\n"
+"POT-Creation-Date: 2026-11-09 19:31+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -594,6 +594,11 @@ msgstr ""
 #: devsupport/tmp_strings.py
 #: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "Phrase XLIFF Translation File"
+msgstr ""
+
+#: devsupport/tmp_strings.py
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
+msgid "Wordfast TXML Translation File"
 msgstr ""
 
 #: devsupport/tmp_strings.py
@@ -3316,17 +3321,17 @@ msgstr ""
 msgid "Translation"
 msgstr ""
 
-#. l10n: Where a translation in a Trados Studio or Phrase file came
-#. from, e.g. "tm (Main TM), 100% match". The origin is the
-#. tool's own name: tm, mt, interactive and others.
+#. l10n: Where a translation in a Trados Studio, Phrase or Wordfast
+#. file came from, e.g. "tm (Main TM), 100% match". The origin is
+#. the tool's own name: tm, mt, interactive and others.
 #: virtaal/views/unitview.py
 #, python-format
 msgid "Origin: %(origin)s, %(percent)s%% match"
 msgstr ""
 
-#. l10n: Where a translation in a Trados Studio or Phrase file came
-#. from, e.g. "interactive". The origin is the tool's own name: tm,
-#. mt, interactive and others.
+#. l10n: Where a translation in a Trados Studio, Phrase or Wordfast
+#. file came from, e.g. "interactive". The origin is the tool's own
+#. name: tm, mt, interactive and others.
 #: virtaal/views/unitview.py
 #, python-format
 msgid "Origin: %(origin)s"
