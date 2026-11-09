@@ -11,8 +11,10 @@ package on saving. No GTK here.
 
   - Trados project and return packages (.sdlppx, .sdlrpx): the target
     languages' .sdlxliff files, by the .sdlproj's language directions.
-    A project package gives a return package (.sdlrpx): the .sdlproj
-    marked ReturnPackage and the .sdlxliff files, as Studio writes one.
+    A project package gives a return package (.sdlrpx) as OpenXLIFF
+    writes one: the .sdlproj marked ReturnPackage, without its termbase
+    settings, automatic tasks and reports, and the source and target
+    languages' folders.
   - WorldServer packages (.wsxz): the XLIFF and SDLXLIFF files in them.
     The package itself goes back.
   - TIPP 1.5 and 2.0 (.tipp, or a .zip with a TIPP manifest): the
@@ -153,9 +155,10 @@ def _copy_member(source, info, target):
     target._didModify = True
 
 
-def _new_member(info, data, target):
-    member = zipfile.ZipInfo(info.orig_filename, datetime.datetime.now().timetuple()[:6])
-    member.filename = info.orig_filename
+def _new_member(info, data, target, name=None):
+    name = name or info.orig_filename
+    member = zipfile.ZipInfo(name, datetime.datetime.now().timetuple()[:6])
+    member.filename = name
     member.compress_type = info.compress_type
     member.external_attr = info.external_attr
     member.create_system = info.create_system
@@ -163,12 +166,14 @@ def _new_member(info, data, target):
     target.writestr(member, data)
 
 
-def rewrite(source, target, replace=None, keep=None, add=()):
+def rewrite(source, target, replace=None, keep=None, add=(), names=None):
     """Write the zip C{source} (a path or binary file) to C{target} (a
     binary file): each member C{keep} (a test of its name, all if None)
     takes, copied byte for byte unless C{replace} gives its new data by
-    name; then the (name, data) pairs of C{add}."""
+    name (and C{names} its new name); then the (name, data) pairs of
+    C{add}."""
     replace = replace or {}
+    names = names or {}
     with contextlib.ExitStack() as stack:
         if isinstance(source, (str, os.PathLike)):
             source = stack.enter_context(open(source, "rb"))
@@ -178,7 +183,7 @@ def rewrite(source, target, replace=None, keep=None, add=()):
             if keep is not None and not keep(info.orig_filename):
                 continue
             if info.orig_filename in replace:
-                _new_member(info, replace[info.orig_filename], out)
+                _new_member(info, replace[info.orig_filename], out, names.get(info.orig_filename))
             else:
                 _copy_member(source, info, out)
         for name, data in add:
@@ -224,14 +229,16 @@ def _xml(data):
 
 
 def _trados(archive):
-    """(target language codes, the .sdlproj's member, its type)."""
+    """(source and target language codes, the .sdlproj's member, its
+    type)."""
     projects = _root_members(archive, ".sdlproj")
     if len(projects) != 1:
         raise PackageError("A Trados package needs one .sdlproj file.")
     root = _xml(_read(archive, projects[0]))
     directions = root.findall("LanguageDirections/LanguageDirection")
+    sources = {d.get("SourceLanguageCode", "").lower() for d in directions} - {""}
     targets = {d.get("TargetLanguageCode", "").lower() for d in directions} - {""}
-    return targets, projects[0], root.get("PackageType")
+    return (sources, targets), projects[0], root.get("PackageType")
 
 
 def _tipp_manifest(archive):
@@ -294,6 +301,8 @@ class Package:
         self.manifest = None
         self.package_type = None
         self.version = None
+        # A Trados package's (source, target) language codes.
+        self.languages = (set(), set())
         self._extract()
 
     # Opening
@@ -320,7 +329,8 @@ class Package:
         self.members[path] = (inner, info.orig_filename, hashlib.sha256(data).hexdigest())
 
     def _extract_trados(self, archive):
-        targets, project, self.package_type = _trados(archive)
+        self.languages, project, self.package_type = _trados(archive)
+        targets = self.languages[1]
         self.manifest = project.orig_filename
         for info in archive.infolist():
             names = parts(info.filename)
@@ -426,11 +436,20 @@ class Package:
     def _return_trados(self, out):
         with zipfile.ZipFile(self.path) as archive:
             project = archive.read(self.manifest)
+        sources, targets = self.languages
+        folders = sources | targets
+        now = datetime.datetime.now(datetime.timezone.utc)
 
         def keep(name):
-            return name == self.manifest or name.lower().endswith(".sdlxliff")
+            return name == self.manifest or parts(name)[0].lower() in folders
 
-        rewrite(self.path, out, {self.manifest: _return_project(project)}, keep)
+        rewrite(
+            self.path,
+            out,
+            {self.manifest: _return_project(project, sources, targets, now)},
+            keep,
+            names={self.manifest: _return_project_name(self.manifest, now)},
+        )
 
     def _return_tipp(self, out):
         manifest = etree.tostring(
@@ -477,14 +496,166 @@ def _under(folder):
     return keep
 
 
-def _return_project(data):
-    """A .sdlproj's bytes marked as a return package's, otherwise as
-    they were."""
-    pattern = r"""(PackageType\s*=\s*["'])ProjectPackage(["'])"""
-    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
-        text = data.decode("utf-16")
-        return re.sub(pattern, r"\1ReturnPackage\2", text, count=1).encode("utf-16")
-    return re.sub(pattern.encode(), rb"\1ReturnPackage\2", data, count=1)
+# A Trados return package's .sdlproj, edited where OpenXLIFF's
+# Xliff2Sdlrpx edits it and left as it was everywhere else.
+
+_TAG = re.compile(
+    r"""<!--.*?-->|<!\[CDATA\[.*?\]\]>|<[?!].*?>"""
+    r"""|<(/?)([^\s/>]+)((?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(/?)>""",
+    re.S,
+)
+
+
+def _attribute(tag, name):
+    found = re.search(r"""\s%s\s*=\s*(["'])(.*?)\1""" % name, tag, re.S)
+    return found.group(2) if found else None
+
+
+def _set_attribute(tag, name, value):
+    """The start tag C{tag} with the attribute C{name} set to C{value}."""
+    pattern = r"""(\s%s\s*=\s*)(["']).*?\2""" % name
+    if re.search(pattern, tag, re.S):
+        return re.sub(
+            pattern,
+            lambda m: m.group(1) + m.group(2) + value + m.group(2),
+            tag,
+            count=1,
+            flags=re.S,
+        )
+    end = len(tag) - (2 if tag.endswith("/>") else 1)
+    return '%s %s="%s"%s' % (tag[:end].rstrip(), name, value, tag[end:])
+
+
+class _ProjectEdits:
+    """The edits a return package makes to a .sdlproj's text, as OpenXLIFF
+    makes them: PackageType ReturnPackage; no TermbaseConfiguration or
+    Tasks/AutomaticTask; every Reports outside the language files
+    emptied; the target languages' FileVersions timestamped; the language
+    files of other languages than these removed."""
+
+    def __init__(self, text, sources, targets, stamp):
+        self.text = text
+        self.sources = sources
+        self.targets = targets
+        self.stamp = stamp
+        self.edits = []
+        # (name, start, end of start tag, what to do at its end tag, mode)
+        self.stack = []
+
+    def run(self):
+        for match in _TAG.finditer(self.text):
+            if match.group(2) is None:
+                continue
+            if match.group(1):
+                self._end(match)
+            else:
+                self._start(match)
+        if self.stack:
+            raise PackageError("The package's project file can't be read.")
+        return self.edits
+
+    def _mode(self):
+        return self.stack[-1][4] if self.stack else None
+
+    def _path(self, name):
+        return [entry[0] for entry in self.stack] + [name]
+
+    def _start(self, match):
+        name, tag = match.group(2), match.group(0)
+        mode, action = self._mode(), None
+        if mode is None:
+            action, mode = self._project_start(name, tag, match)
+        elif mode == "target" and self._path(name)[-3:] == [
+            "LanguageFile",
+            "FileVersions",
+            "FileVersion",
+        ]:
+            self._replace(match, _set_attribute(tag, "FileTimeStamp", self.stamp))
+        if action == "remove" and match.group(4):
+            self.edits.append((self._line_start(match.start()), match.end(), ""))
+        elif not match.group(4):
+            self.stack.append((name, match.start(), match.end(), action, mode))
+
+    def _project_start(self, name, tag, match):
+        """(what to do at the end tag, the mode inside) of an element
+        outside any element whose content is left or removed."""
+        path = self._path(name)
+        if len(path) == 1:
+            self._replace(match, _set_attribute(tag, "PackageType", "ReturnPackage"))
+            return None, None
+        if path[1:] in (["TermbaseConfiguration"], ["Tasks", "AutomaticTask"]):
+            return "remove", "frozen"
+        if name == "Reports":
+            return "empty", "frozen"
+        if name == "LanguageFile":
+            return self._language_file(tag)
+        return None, None
+
+    def _language_file(self, tag):
+        code = (_attribute(tag, "LanguageCode") or "").lower()
+        if code in self.targets:
+            return None, "target"
+        if code in self.sources:
+            return None, "frozen"
+        return "remove", "frozen"
+
+    def _end(self, match):
+        if not self.stack or self.stack[-1][0] != match.group(2):
+            raise PackageError("The package's project file can't be read.")
+        _name, start, start_end, action, _mode = self.stack.pop()
+        if action == "remove":
+            self.edits.append((self._line_start(start), match.end(), ""))
+        elif action == "empty" and self.text[start_end : match.start()]:
+            tag = self.text[start:start_end]
+            self.edits.append((start, match.end(), tag[:-1].rstrip() + " />"))
+
+    def _replace(self, match, tag):
+        if tag != match.group(0):
+            self.edits.append((match.start(), match.end(), tag))
+
+    def _line_start(self, start):
+        """C{start}, or the end of the line before it if only white space
+        is between."""
+        found = re.search(r"\r?\n[ \t]*\Z", self.text[:start])
+        return found.start() if found else start
+
+
+def _decode(data):
+    """(text, encoding, byte order mark) of a .sdlproj's bytes."""
+    for bom, encoding in (
+        (b"\xef\xbb\xbf", "utf-8"),
+        (b"\xff\xfe", "utf-16-le"),
+        (b"\xfe\xff", "utf-16-be"),
+    ):
+        if data.startswith(bom):
+            return data[len(bom) :].decode(encoding), encoding, bom
+    return data.decode("utf-8"), "utf-8", b""
+
+
+def _return_project(data, sources=(), targets=(), now=None):
+    """A .sdlproj's bytes edited for a return package (L{_ProjectEdits}),
+    otherwise as they were."""
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    stamp = now.strftime("%Y-%m-%dT%H:%M:%S.") + "%03d0000Z" % (now.microsecond // 1000)
+    try:
+        text, encoding, bom = _decode(data)
+    except UnicodeDecodeError as exc:
+        raise PackageError("The package's project file can't be read.") from exc
+    edits = _ProjectEdits(text, set(sources), set(targets), stamp).run()
+    for start, end, new in sorted(edits, reverse=True):
+        text = text[:start] + new + text[end:]
+    return bom + text.encode(encoding)
+
+
+def _return_project_name(name, now):
+    """The .sdlproj's name in the return package: its two last "-" parts
+    (Studio's date and time) replaced by the time now, as OpenXLIFF names
+    it."""
+    stem = name[: -len(".sdlproj")] if name.lower().endswith(".sdlproj") else None
+    if stem is None or stem.count("-") < 2:
+        return name
+    stem = stem.rsplit("-", 2)[0]
+    return "%s-%s.sdlproj" % (stem, now.astimezone().strftime("%Y%m%d-%Hh%Mm%Ss"))
 
 
 def _creator_name():

@@ -5,8 +5,10 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import datetime
 import io
 import os
+import re
 import shutil
 import zipfile
 
@@ -127,22 +129,118 @@ def test_saving_writes_only_the_edited_file_back_byte_for_byte_otherwise(tmp_pat
     assert not package.write_back()
 
 
-def test_a_return_package_has_the_project_marked_and_the_sdlxliff_files(tmp_path):
+def _project(archive):
+    name = next(n for n in archive.namelist() if n.endswith('.sdlproj'))
+    return name, archive.read(name)
+
+
+def _outside_language_files(root, tag):
+    return [e for e in root.iter(tag) if not list(e.iterancestors('LanguageFile'))]
+
+
+def _stamps(root):
+    return {
+        (e.getparent().getparent().get('LanguageCode'), e.get('Guid')): e.get('FileTimeStamp')
+        for e in root.iter('FileVersion')
+    }
+
+
+def test_a_return_package_is_written_as_openxliff_writes_one(tmp_path):
     path, package = _open(tmp_path, os.path.join(OKAPI, 'test-packages.sdlppx'))
     _edit(package.files()[0])
-    package.write_back()
-    target = tmp_path / 'out.sdlrpx'
+    package.write_return(str(tmp_path / 'out.sdlrpx'))
 
-    package.write_return(str(target))
-
-    with zipfile.ZipFile(path) as original, zipfile.ZipFile(target) as returned:
-        names = returned.namelist()
-        assert names == [n for n in original.namelist() if not n.startswith('Reports/')]
-        project = names[0]
-        assert returned.read(project) == original.read(project).replace(
-            b'PackageType="ProjectPackage"', b'PackageType="ReturnPackage"'
-        )
+    with (
+        zipfile.ZipFile(path) as original,
+        zipfile.ZipFile(tmp_path / 'out.sdlrpx') as returned,
+        zipfile.ZipFile(os.path.join(OKAPI, 'test-packages.sdlrpx')) as studio,
+    ):
+        names, studio_names = returned.namelist(), studio.namelist()
+        # The project renamed for the time now, the reports left out.
+        assert re.fullmatch(r'test-packages-\d{8}-\d\dh\d\dm\d\ds\.sdlproj', names[0])
+        assert names[1:] == studio_names[1:]
         assert all(returned.read(n) == original.read(n) for n in names[1:])
+        _name, before = _project(original)
+        _name, after = _project(returned)
+        _name, theirs = _project(studio)
+
+    ours, studio_root, before_root = (etree.fromstring(d) for d in (after, theirs, before))
+    assert ours.get('PackageType') == studio_root.get('PackageType') == 'ReturnPackage'
+    assert [c.tag for c in ours] == [c.tag for c in studio_root]
+    assert [c.tag for c in ours.find('Tasks')] == ['ManualTask']
+    assert all(len(e) == 0 for e in _outside_language_files(ours, 'Reports'))
+    stamps, old = _stamps(ours), _stamps(before_root)
+    assert {k for k in stamps if stamps[k] != old[k]} == {
+        k for k in stamps if k[0] == 'zh-x-hmn-SDL'
+    }
+    assert all(re.fullmatch(r'\S+T\S+\.\d{7}Z', v) for v in stamps.values())
+    # Every other line is as it was, CRLF and all.
+    changed = set(after.split(b'\r\n')) - set(before.split(b'\r\n'))
+    assert all(b'<PackageProject ' in line or b'<FileVersion ' in line for line in changed), changed
+    assert len(after.split(b'\r\n')) == len(before.split(b'\r\n')) - 36
+
+
+def test_a_return_package_keeps_every_target_language(tmp_path):
+    _path, package = _open(tmp_path, os.path.join(OKAPI, 'ts2017-test01.sdlppx'))
+
+    package.write_return(str(tmp_path / 'out.sdlrpx'))
+
+    with zipfile.ZipFile(tmp_path / 'out.sdlrpx') as returned:
+        assert returned.namelist()[1:] == [
+            'en-US/Test.docx.sdlxliff',
+            'fr-CA/Test.docx.sdlxliff',
+            'pl-PL/Test.docx.sdlxliff',
+        ]
+        _name, project = _project(returned)
+    codes = {e.get('LanguageCode') for e in etree.fromstring(project).iter('LanguageFile')}
+    assert codes == {'en-US', 'fr-CA', 'pl-PL'}
+
+
+def test_the_project_edits_leave_other_languages_out_and_keep_the_rest():
+    project = (
+        '<P PackageType="ProjectPackage"><TermbaseConfiguration a="1"/>'
+        '<Tasks><ManualTask><Reports><R/></Reports></ManualTask><AutomaticTask/></Tasks>'
+        '<Reports/><!-- <Reports><R/></Reports> --><F>'
+        '<LanguageFile LanguageCode="de-DE"><FileVersions><FileVersion/></FileVersions>'
+        '</LanguageFile><LanguageFile LanguageCode="en-US"><Reports><R/></Reports>'
+        '<FileVersions><FileVersion FileTimeStamp="old"/></FileVersions></LanguageFile>'
+        "<LanguageFile LanguageCode='FR-fr'><FileVersions><FileVersion FileTimeStamp='old' />"
+        '</FileVersions></LanguageFile></F></P>'
+    )
+    now = datetime.datetime(2026, 1, 2, 3, 4, 5, 678000, tzinfo=datetime.timezone.utc)
+
+    for encoding, bom in (('utf-8', b''), ('utf-16-le', b'\xff\xfe'), ('utf-16-be', b'\xfe\xff')):
+        data = bom + project.encode(encoding)
+        returned = packages._return_project(data, {'en-us'}, {'fr-fr'}, now)
+        assert returned.startswith(bom)
+        assert returned[len(bom) :].decode(encoding) == (
+            '<P PackageType="ReturnPackage">'
+            '<Tasks><ManualTask><Reports /></ManualTask></Tasks>'
+            '<Reports/><!-- <Reports><R/></Reports> --><F>'
+            '<LanguageFile LanguageCode="en-US"><Reports><R/></Reports>'
+            '<FileVersions><FileVersion FileTimeStamp="old"/></FileVersions></LanguageFile>'
+            "<LanguageFile LanguageCode='FR-fr'><FileVersions>"
+            "<FileVersion FileTimeStamp='2026-01-02T03:04:05.6780000Z' />"
+            '</FileVersions></LanguageFile></F></P>'
+        )
+
+
+def test_a_project_file_that_cant_be_read_is_refused():
+    with pytest.raises(packages.PackageError):
+        packages._return_project(b'<P><A></P>')
+    with pytest.raises(packages.PackageError):
+        packages._return_project(b'<P>\xff</P>')
+
+
+def test_the_project_is_renamed_only_when_named_as_studio_names_it():
+    now = datetime.datetime(2026, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc)
+    local = now.astimezone().strftime('%Y%m%d-%Hh%Mm%Ss')
+
+    assert packages._return_project_name('Project 1-2017924-6h7m51s.sdlproj', now) == (
+        'Project 1-%s.sdlproj' % local
+    )
+    assert packages._return_project_name('project.sdlproj', now) == 'project.sdlproj'
+    assert packages._return_project_name('a-b.sdlproj', now) == 'a-b.sdlproj'
 
 
 def test_a_return_package_needs_no_return_and_a_worldserver_package_goes_back_itself(tmp_path):
@@ -286,12 +384,3 @@ def test_a_package_with_nothing_to_translate_is_refused(tmp_path):
 
     with pytest.raises(packages.PackageError, match='no file to translate'):
         packages.open_package(str(path), str(tmp_path / 'work'))
-
-
-def test_a_utf16_project_is_marked_too():
-    project = '<PackageProject PackageType="ProjectPackage"/>'.encode('utf-16')
-
-    assert (
-        packages._return_project(project).decode('utf-16')
-        == '<PackageProject PackageType="ReturnPackage"/>'
-    )
