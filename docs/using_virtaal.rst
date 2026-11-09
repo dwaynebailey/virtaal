@@ -690,6 +690,10 @@ to translate in them listed together, as with a folder:
 
 Saving writes the files you changed back into the package; everything else in
 it stays exactly as it was. A WorldServer package goes back as it is.
+:menuselection:`File --> Create Return Package…` writes the package a Trados
+project package or a TIPP request asks for in return: for Trados, a return
+package (.sdlrpx) with the project file and the .sdlxliff files; for TIPP, a
+response package with the bilingual files. The files are saved first.
 
 Translation memories and termbases in a package aren't used yet. memoQ's
 packages (.mqxlz, .mqout, .mqback) and WorldServer's older .xlz don't open:

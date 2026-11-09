@@ -424,6 +424,34 @@ class MainController(BaseController):
         finally:
             self._opening_file = False
 
+    def create_return_package(self):
+        """Write the open package's return package, saving first.
+        @returns: Whether it was written."""
+        package = self.store_controller.package
+        if package is None or not package.can_return():
+            return False
+        if self.store_controller.is_modified() and not self.save_file():
+            return False
+        filename = self.view.show_save_dialog(
+            current_filename=package.return_name(), title=_("Save")
+        )
+        if not filename:
+            return False
+        try:
+            package.write_return(filename)
+            return True
+        except Exception as exc:
+            import logging
+
+            logging.exception('MainController.create_return_package(%r)', filename)
+            self.show_error(
+                _(
+                    "Could not export file.\n\n%(error_message)s\n\nTry saving to a different location."
+                )
+                % {'error_message': str(exc)}
+            )
+            return False
+
     def _show_save_confirm_dialog(self):
         if getattr(self.store_controller, 'fileset', None) is None:
             return self.view.show_save_confirm_dialog()

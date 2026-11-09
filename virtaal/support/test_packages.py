@@ -11,6 +11,7 @@ import shutil
 import zipfile
 
 import pytest
+from lxml import etree
 
 from virtaal.support import packages
 
@@ -103,6 +104,8 @@ def test_a_trados_package_opens_its_target_languages_files(tmp_path):
 
     assert (package.kind, package.package_type) == (packages.TRADOS, 'ProjectPackage')
     assert _relative(package) == ['fr-CA/Test.docx.sdlxliff', 'pl-PL/Test.docx.sdlxliff']
+    assert package.can_return()
+    assert package.return_name().endswith('ts2017-test01.sdlrpx')
 
 
 def test_saving_writes_only_the_edited_file_back_byte_for_byte_otherwise(tmp_path):
@@ -124,13 +127,33 @@ def test_saving_writes_only_the_edited_file_back_byte_for_byte_otherwise(tmp_pat
     assert not package.write_back()
 
 
-def test_a_worldserver_package_keeps_its_backslashed_names(tmp_path):
+def test_a_return_package_has_the_project_marked_and_the_sdlxliff_files(tmp_path):
+    path, package = _open(tmp_path, os.path.join(OKAPI, 'test-packages.sdlppx'))
+    _edit(package.files()[0])
+    package.write_back()
+    target = tmp_path / 'out.sdlrpx'
+
+    package.write_return(str(target))
+
+    with zipfile.ZipFile(path) as original, zipfile.ZipFile(target) as returned:
+        names = returned.namelist()
+        assert names == [n for n in original.namelist() if not n.startswith('Reports/')]
+        project = names[0]
+        assert returned.read(project) == original.read(project).replace(
+            b'PackageType="ProjectPackage"', b'PackageType="ReturnPackage"'
+        )
+        assert all(returned.read(n) == original.read(n) for n in names[1:])
+
+
+def test_a_return_package_needs_no_return_and_a_worldserver_package_goes_back_itself(tmp_path):
     _path, returned = _open(tmp_path, os.path.join(OKAPI, 'test-packages.sdlrpx'))
     path, package = _open(tmp_path, os.path.join(OKAPI, 'test1.wsxz'))
 
-    assert returned.package_type == 'ReturnPackage' and len(returned.files()) == 2
-    assert package.kind == packages.WORLDSERVER
+    assert not returned.can_return()
+    assert (package.kind, package.can_return()) == (packages.WORLDSERVER, False)
     assert _relative(package) == ['okapi_intro_test15977.sdlxliff']
+    with pytest.raises(packages.PackageError):
+        package.write_return(str(tmp_path / 'x.wsxz'))
     before = _raw(str(path))
     _edit(package.files()[0])
     package.write_back()
@@ -161,7 +184,41 @@ def test_a_tipp_1_5_package_writes_into_its_nested_resources(tmp_path):
         assert inner.read('preview/a.html') == b'<p>Hello</p>'
 
 
-def test_a_tipp_2_0_zip_opens(tmp_path):
+def _response(path):
+    with zipfile.ZipFile(path) as archive:
+        return archive, etree.fromstring(archive.read('manifest.xml'))
+
+
+def test_a_tipp_1_5_response_answers_the_request(tmp_path, monkeypatch):
+    resources = _zip_bytes([('bilingual/a.xlf', XLIFF), ('preview/a.html', b'<p>Hello</p>')])
+    path = _zip(tmp_path / 'job.tipp', [('manifest.xml', TIPP_1), ('resources.zip', resources)])
+    package = packages.open_package(str(path), str(tmp_path / 'work'))
+    monkeypatch.setattr(packages, '_creator_name', lambda: 'Ann')
+
+    package.write_return(package.return_name())
+
+    target = str(tmp_path / 'job-response.tipp')
+    archive, manifest = _response(target)
+    assert archive.namelist() == ['manifest.xml', 'resources.zip']
+    inner = zipfile.ZipFile(io.BytesIO(zipfile.ZipFile(target).read('resources.zip')))
+    assert inner.namelist() == ['bilingual/a.xlf']
+    answered = manifest.find('TaskResponse/InResponseTo')
+    assert [e.tag for e in answered] == [
+        'TaskType',
+        'SourceLanguage',
+        'TargetLanguage',
+        'UniquePackageID',
+        'Creator',
+    ]
+    assert answered.findtext('UniquePackageID') == 'urn:uuid:request-1'
+    assert manifest.findtext('TaskResponse/Response') == 'Success'
+    assert manifest.findtext('GlobalDescriptor/Creator/Name') == 'Ann'
+    assert manifest.findtext('GlobalDescriptor/Creator/Tool/ToolName') == 'Virtaal'
+    assert manifest.findtext('Resources/Bilingual/FileResource/Location') == 'a.xlf'
+    assert manifest.find('Resources/Preview') is None
+
+
+def test_a_tipp_2_0_zip_opens_and_answers(tmp_path):
     path = _zip(
         tmp_path / 'job.zip',
         [
@@ -174,6 +231,11 @@ def test_a_tipp_2_0_zip_opens(tmp_path):
     package = packages.open_package(str(path), str(tmp_path / 'work'))
 
     assert (package.version, _relative(package)) == ('2.0', ['bilingual/a.xlf'])
+    package.write_return(package.return_name())
+    archive, manifest = _response(str(tmp_path / 'job-response.zip'))
+    assert archive.namelist() == ['manifest.xml', 'resources/bilingual/a.xlf']
+    namespace = '{https://github.com/tipp-specification/2_0/}'
+    assert manifest.findtext(f'{namespace}TaskResponse/{namespace}Response') == 'Success'
 
 
 def test_a_tipp_task_virtaal_cant_do_is_refused(tmp_path):
@@ -224,3 +286,12 @@ def test_a_package_with_nothing_to_translate_is_refused(tmp_path):
 
     with pytest.raises(packages.PackageError, match='no file to translate'):
         packages.open_package(str(path), str(tmp_path / 'work'))
+
+
+def test_a_utf16_project_is_marked_too():
+    project = '<PackageProject PackageType="ProjectPackage"/>'.encode('utf-16')
+
+    assert (
+        packages._return_project(project).decode('utf-16')
+        == '<PackageProject PackageType="ReturnPackage"/>'
+    )

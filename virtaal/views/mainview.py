@@ -371,6 +371,7 @@ class MainView(BaseView):
         self.gui.get_object('mnu_close').connect('activate', self._on_file_close)
         self.gui.get_object('mnu_update').connect('activate', self._on_file_update)
         self.gui.get_object('mnu_binary_export').connect('activate', self._on_file_binary_export)
+        self.gui.get_object('mnu_return_package').connect('activate', self._on_return_package)
         self.gui.get_object('mnu_revert').connect('activate', self._on_file_revert)
         self.gui.get_object('mnu_quit').connect('activate', self._on_quit)
         # Navigation menu signals
@@ -1946,6 +1947,9 @@ class MainView(BaseView):
     def _on_file_binary_export(self, widget=None):
         self.controller.binary_export()
 
+    def _on_return_package(self, widget=None):
+        self.controller.create_return_package()
+
     def _on_file_close(self, widget=None):
         self.controller.close_file()
 
@@ -2088,6 +2092,7 @@ class MainView(BaseView):
             'mnu_update',
             'mnu_properties',
             'mnu_binary_export',
+            'mnu_return_package',
             'mnu_next_unit',
             'mnu_state_advance',
             'mnu_state_reverse',
@@ -2107,6 +2112,10 @@ class MainView(BaseView):
         self.gui.get_object('mnu_state_advance').set_sensitive(True)
         self.gui.get_object('mnu_state_reverse').set_sensitive(True)
         self.gui.get_object('mnu_binary_export').set_sensitive(store_controller.can_binary_export())
+        package = getattr(store_controller, 'package', None)
+        self.gui.get_object('mnu_return_package').set_sensitive(
+            package is not None and package.can_return()
+        )
 
         self.status_bar.set_sensitive(True)
         self._add_recent_file(store_controller)

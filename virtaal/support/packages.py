@@ -11,10 +11,14 @@ package on saving. No GTK here.
 
   - Trados project and return packages (.sdlppx, .sdlrpx): the target
     languages' .sdlxliff files, by the .sdlproj's language directions.
+    A project package gives a return package (.sdlrpx): the .sdlproj
+    marked ReturnPackage and the .sdlxliff files, as Studio writes one.
   - WorldServer packages (.wsxz): the XLIFF and SDLXLIFF files in them.
+    The package itself goes back.
   - TIPP 1.5 and 2.0 (.tipp, or a .zip with a TIPP manifest): the
     bilingual files the manifest lists, in 1.5's nested resources.zip or
-    2.0's resources folder.
+    2.0's resources folder. A request gives a response package: a
+    manifest answering the request and the bilingual files.
 
 Writing back copies every other member of the package as it was, byte
 for byte (its compressed data too); only the edited files are written
@@ -30,7 +34,9 @@ import os
 import re
 import shutil
 import struct
+import sys
 import tempfile
+import uuid
 import zipfile
 
 from lxml import etree
@@ -55,6 +61,7 @@ MAX_MEMBERS = 20000
 _TIPP_1 = None
 _TIPP_2 = "https://github.com/tipp-specification/2_0/"
 _RESOURCES_1 = "resources.zip"
+HOMEPAGE = "https://virtaal.translatehouse.org"
 _PARSER = etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=False)
 
 
@@ -392,6 +399,162 @@ class Package:
             with open(path, "rb") as f:
                 self.members[path] = (inner, member, hashlib.sha256(f.read()).hexdigest())
         return True
+
+    # Return packages
+
+    def can_return(self):
+        """Whether the package asks for a package back that isn't itself."""
+        if self.kind == TRADOS:
+            return self.package_type == "ProjectPackage"
+        return self.kind == TIPP and self.package_type == "request"
+
+    def return_name(self):
+        """The usual name of the return package, beside this one."""
+        stem, extension = os.path.splitext(self.path)
+        if self.kind == TRADOS:
+            return stem + ".sdlrpx"
+        return stem + "-response" + extension
+
+    def write_return(self, path):
+        """Write the return package to C{path}, from the package as saved."""
+        if not self.can_return():
+            raise PackageError("This package needs no return package.")
+        if os.path.abspath(path) == self.path:
+            raise PackageError("The return package can't replace the package.")
+        _replace_file(path, getattr(self, "_return_" + self.kind))
+
+    def _return_trados(self, out):
+        with zipfile.ZipFile(self.path) as archive:
+            project = archive.read(self.manifest)
+
+        def keep(name):
+            return name == self.manifest or name.lower().endswith(".sdlxliff")
+
+        rewrite(self.path, out, {self.manifest: _return_project(project)}, keep)
+
+    def _return_tipp(self, out):
+        manifest = etree.tostring(
+            _response_manifest(self.manifest), xml_declaration=True, encoding="UTF-8"
+        )
+        folder, _locations = _tipp_bilingual(self.manifest)
+        if self.version.startswith("1."):
+            with zipfile.ZipFile(self.path) as archive:
+                nested_name = next(
+                    i.orig_filename for i in archive.infolist() if _key(i.filename) == _RESOURCES_1
+                )
+                nested = io.BytesIO()
+                rewrite(io.BytesIO(archive.read(nested_name)), nested, keep=_under(folder))
+                manifest_name = next(
+                    i.orig_filename
+                    for i in archive.infolist()
+                    if _key(i.filename) == "manifest.xml"
+                )
+            replace = {manifest_name: manifest, nested_name: nested.getvalue()}
+            rewrite(self.path, out, replace, keep=lambda name: name in replace)
+            return
+
+        def keep(name):
+            return (
+                _key(name) == "manifest.xml"
+                or _under("resources/" + folder)(name)
+                or _key(name) == "resources"
+            )
+
+        with zipfile.ZipFile(self.path) as archive:
+            manifest_name = next(
+                i.orig_filename for i in archive.infolist() if _key(i.filename) == "manifest.xml"
+            )
+        rewrite(self.path, out, {manifest_name: manifest}, keep)
+
+
+def _under(folder):
+    prefix = "/".join(parts(folder))
+
+    def keep(name):
+        key = "/".join(p for p in re.split(r"[\\/]", name) if p)
+        return key == prefix or key.startswith(prefix + "/")
+
+    return keep
+
+
+def _return_project(data):
+    """A .sdlproj's bytes marked as a return package's, otherwise as
+    they were."""
+    pattern = r"""(PackageType\s*=\s*["'])ProjectPackage(["'])"""
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        text = data.decode("utf-16")
+        return re.sub(pattern, r"\1ReturnPackage\2", text, count=1).encode("utf-16")
+    return re.sub(pattern.encode(), rb"\1ReturnPackage\2", data, count=1)
+
+
+def _creator_name():
+    """Who the response is from: the translator's name in Virtaal's
+    settings, or "Virtaal"."""
+    pan_app = sys.modules.get("virtaal.common.pan_app")
+    translator = getattr(getattr(pan_app, "settings", None), "translator", None) or {}
+    return (translator.get("name") or "").strip() or "Virtaal"
+
+
+def _response_manifest(request):
+    """A TIPP response manifest answering the request manifest
+    C{request}, as the specification's samples have it."""
+    from virtaal.__version__ import ver
+
+    def name(local):
+        return _namespaced(request, local)
+
+    root = etree.Element(request.tag, nsmap=request.nsmap)
+    for attribute, value in request.attrib.items():
+        root.set(attribute, value)
+    descriptor = etree.SubElement(root, name("GlobalDescriptor"))
+    etree.SubElement(descriptor, name("UniquePackageID")).text = "urn:uuid:%s" % uuid.uuid4()
+    creator = etree.SubElement(descriptor, name("Creator"))
+    etree.SubElement(creator, name("Name")).text = _creator_name()
+    etree.SubElement(creator, name("ID")).text = HOMEPAGE
+    now = datetime.datetime.now(datetime.timezone.utc)
+    etree.SubElement(creator, name("Date")).text = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    tool = etree.SubElement(creator, name("Tool"))
+    etree.SubElement(tool, name("ToolName")).text = "Virtaal"
+    etree.SubElement(tool, name("ToolID")).text = HOMEPAGE
+    etree.SubElement(tool, name("ToolVersion")).text = ver
+
+    response = etree.SubElement(root, name("TaskResponse"))
+    answered = etree.SubElement(response, name("InResponseTo"))
+    task = request.find(name("TaskRequest"))
+    for child in task if task is not None else ():
+        if isinstance(child.tag, str):
+            answered.append(_clean(child))
+    request_descriptor = request.find(name("GlobalDescriptor"))
+    for local in ("UniquePackageID", "Creator"):
+        found = request_descriptor.find(name(local)) if request_descriptor is not None else None
+        if found is not None:
+            answered.append(_clean(found))
+    etree.SubElement(response, name("Response")).text = "Success"
+    etree.SubElement(response, name("Comment"))
+
+    resources = etree.SubElement(root, name("Resources"))
+    bilingual = request.find(name("Resources") + "/" + name("Bilingual"))
+    if bilingual is not None:
+        resources.append(_clean(bilingual))
+    if hasattr(etree, "indent"):
+        etree.indent(root, "  ")
+    return root
+
+
+def _clean(element):
+    """A copy of C{element} without its comments."""
+    copied = copy.deepcopy(element)
+    for comment in copied.xpath(".//comment()"):
+        parent = comment.getparent()
+        if comment.tail:
+            previous = comment.getprevious()
+            if previous is not None:
+                previous.tail = (previous.tail or "") + comment.tail
+            else:
+                parent.text = (parent.text or "") + comment.tail
+        parent.remove(comment)
+    copied.tail = None
+    return copied
 
 
 def work_folder(path):

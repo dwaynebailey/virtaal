@@ -5,8 +5,8 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""CAT tool packages opened through the main controller, edited and saved
-back into the package."""
+"""CAT tool packages opened through the main controller, edited, saved
+back into the package and answered with a return package."""
 
 import os
 import shutil
@@ -63,6 +63,7 @@ class TestPackagesOpen(TestScaffolding):
         sc = self.store_controller
         assert sc.is_stream() and sc.package_path() == path
         assert sc.stream_name() == 'test-packages.sdlppx'
+        assert self.main_controller.view.gui.get_object('mnu_return_package').get_sensitive()
         self._edit(0, 'Neu')
         assert self.main_controller.save_file()
 
@@ -77,10 +78,31 @@ class TestPackagesOpen(TestScaffolding):
         assert self.main_controller.open_file(path)
         sc = self.store_controller
         assert not sc.is_stream() and sc.package_path() == path
+        assert not self.main_controller.view.gui.get_object('mnu_return_package').get_sensitive()
         self._edit(0, 'Neu')
         assert self.main_controller.save_file()
         with zipfile.ZipFile(path) as archive:
             assert b'Neu' in archive.read('okapi_intro_test15977.sdlxliff')
+
+    def test_create_return_package_saves_first_and_writes_it(self, monkeypatch):
+        path = self._copy('test-packages.sdlppx')
+        self.main_controller.open_file(path)
+        self._edit(0, 'Neu')
+        target = str(self.dir / 'back.sdlrpx')
+        asked = []
+
+        def save_dialog(current_filename, title):
+            asked.append(current_filename)
+            return target
+
+        monkeypatch.setattr(self.main_controller.view, 'show_save_dialog', save_dialog)
+        assert self.main_controller.create_return_package()
+
+        assert asked == [str(self.dir / 'test-packages.sdlrpx')]
+        assert not self.store_controller.is_modified()
+        with zipfile.ZipFile(target) as archive:
+            assert b'Neu' in archive.read('zh-x-hmn-SDL/dir1/subdir/test-in-subdir.txt.sdlxliff')
+            assert not any(name.startswith('Reports/') for name in archive.namelist())
 
     def test_closing_or_opening_another_file_forgets_the_package(self):
         self.main_controller.open_file(self._copy('test1.wsxz'))

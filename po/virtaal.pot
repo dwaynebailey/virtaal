@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-09 19:47+0000\n"
+"POT-Creation-Date: 2026-11-09 19:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -121,6 +121,11 @@ msgstr ""
 
 #: share/virtaal/virtaal.ui
 msgid "_Export"
+msgstr ""
+
+#. l10n: Writes the package a Trados or TIPP package asks to be sent back, with the translated files
+#: share/virtaal/virtaal.ui
+msgid "Create Re_turn Package…"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -1038,6 +1043,16 @@ msgstr ""
 #: virtaal/controllers/maincontroller.py
 #, python-format
 msgid ""
+"Could not export file.\n"
+"\n"
+"%(error_message)s\n"
+"\n"
+"Try saving to a different location."
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
+#, python-format
+msgid ""
 "%(filename)s is read-only.\n"
 "\n"
 "Try saving to a different location."
@@ -1067,16 +1082,6 @@ msgstr ""
 
 #: virtaal/controllers/maincontroller.py
 msgid "Export"
-msgstr ""
-
-#: virtaal/controllers/maincontroller.py
-#, python-format
-msgid ""
-"Could not export file.\n"
-"\n"
-"%(error_message)s\n"
-"\n"
-"Try saving to a different location."
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
