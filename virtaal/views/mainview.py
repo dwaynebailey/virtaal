@@ -582,9 +582,9 @@ class MainView(BaseView):
             None,
             None,
         )
-        from virtaal.support import converters
+        from virtaal.support import converters, packages
 
-        add_translation_file_filters(chooser, converters.open_formats())
+        add_translation_file_filters(chooser, converters.open_formats() + packages.open_formats())
         chooser.set_select_multiple(True)
         return chooser
 
@@ -2123,8 +2123,11 @@ class MainView(BaseView):
             if platform.is_mac:
                 _note_recent_document(path)
         else:
-            folder = store_controller.opened_folder()
-            path = os.path.abspath(folder or store_controller.store.filename)
+            # A package's files are in a folder of Virtaal's: the package.
+            package = getattr(store_controller, 'package', None)
+            package = package.path if package is not None else None
+            folder = None if package else store_controller.opened_folder()
+            path = os.path.abspath(package or folder or store_controller.store.filename)
             if platform.is_windows:
                 url = 'file:///' + path
             else:

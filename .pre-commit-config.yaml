@@ -5,9 +5,9 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: \.pot?$|\.patch$|^devsupport/packaging/windows/languages/|^devsupport/testfiles/(trados|memoq|phrase|wordfast)/
+        exclude: \.pot?$|\.patch$|^devsupport/packaging/windows/languages/|^devsupport/testfiles/(trados|memoq|phrase|wordfast|packages)/
       - id: end-of-file-fixer
-        exclude: \.pot?$|^devsupport/packaging/windows/languages/|^devsupport/testfiles/(trados|memoq|phrase|wordfast)/
+        exclude: \.pot?$|^devsupport/packaging/windows/languages/|^devsupport/testfiles/(trados|memoq|phrase|wordfast|packages)/
       - id: check-yaml
       - id: check-toml
       - id: check-merge-conflict

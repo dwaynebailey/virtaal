@@ -205,6 +205,10 @@ class MainController(BaseController):
             return None
         if filename and os.path.isdir(_strip_file_uri(filename)):
             return self.open_files([filename])
+        from virtaal.support import packages
+
+        if filename and packages.kind_of(_strip_file_uri(filename)):
+            return self.open_package(_strip_file_uri(filename))
         self._opening_file = True
         try:
             return self._open_file(filename, uri, forget_dir)
@@ -380,6 +384,40 @@ class MainController(BaseController):
             logging.exception('MainController.open_stream_language(%r)', language)
             self.show_error(
                 _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
+                % {'error_message': str(exc)}
+            )
+            return False
+        finally:
+            self._opening_file = False
+
+    def open_package(self, path):
+        """Open a CAT tool package's bilingual files.
+        @returns: Whether they opened."""
+        if self._opening_file:
+            return None
+        self._opening_file = True
+        try:
+            self._wait_for_controllers()
+            if self.store_controller.is_modified():
+                response = self._show_save_confirm_dialog()
+                if response == 'save':
+                    if not self.save_file():
+                        return False
+                elif response == 'cancel':
+                    return False
+            with self.view.busy(_("Loading '%s'…") % os.path.basename(path)):
+                self.store_controller.open_package(path)
+                self.mode_controller.refresh_mode()
+            return True
+        except Exception as exc:
+            import logging
+
+            logging.exception('MainController.open_package(%r)', path)
+            self.last_open_error = str(exc)
+            self.show_error(
+                path
+                + ":\n"
+                + _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
                 % {'error_message': str(exc)}
             )
             return False

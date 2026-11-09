@@ -10,6 +10,7 @@ from translate.storage import factory
 
 from virtaal.support import (
     catxliff_compat,  # noqa: F401 - adds memoQ's and Phrase's XLIFF
+    packages,
     txml_compat,  # noqa: F401 - adds Wordfast's TXML
 )
 
@@ -25,6 +26,8 @@ for _name, extensions, mimetypes in factory.supported_files():
     if mimetypes:
         for mimetype in mimetypes:
             rf.add_mime_type(mimetype)
+for extension in packages.EXTENSIONS:
+    rf.add_pattern("*.%s" % extension)
 for app in ("virtaal", "Virtaal", "poedit", "kbabel", "lokalize", "gtranslator"):
     rf.add_application(app)
 

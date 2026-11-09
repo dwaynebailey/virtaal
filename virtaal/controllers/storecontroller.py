@@ -39,6 +39,10 @@ class StoreController(BaseController):
     fileset = None
     # The target language the user had, when the files opened aren't in it.
     stream_language_replaced = None
+    # The CAT tool package whose files are open (virtaal.support.packages),
+    # and the one being opened.
+    package = None
+    _opening_package = None
     _stream_handlers = None
 
     arrival = None
@@ -111,6 +115,27 @@ class StoreController(BaseController):
 
     def get_store(self):
         return self.store
+
+    def open_package(self, path):
+        """Open the bilingual files of the CAT tool package C{path}, to
+        be written back into it on saving."""
+        from virtaal.support import packages
+
+        package = packages.open_package(path)
+        files = package.files()
+        self._opening_package = package
+        try:
+            if len(files) == 1:
+                self.open_file(files[0])
+            else:
+                # The folder, named as the package, for the stream's name.
+                self.open_files([package.work_dir])
+        finally:
+            self._opening_package = None
+
+    def package_path(self):
+        """The package whose files are open, or None."""
+        return self.package.path if self.package is not None else None
 
     def is_stream(self):
         """Whether several files are open as one list."""
@@ -323,7 +348,15 @@ class StoreController(BaseController):
 
     def open_stream_language(self, language):
         """Open the files in C{language} of those already open."""
-        self._open_stream(self.all_files, language, self.opened_paths)
+        self._reopen(lambda: self._open_stream(self.all_files, language, self.opened_paths))
+
+    def _reopen(self, open_again):
+        """Open the files again, still the package's if they were."""
+        self._opening_package = self.package
+        try:
+            open_again()
+        finally:
+            self._opening_package = None
 
     def stream_name(self):
         """The name of the folder, or first file, opened."""
@@ -340,6 +373,7 @@ class StoreController(BaseController):
     def _open_stream(self, all_files, language, paths, replaced=None):
         from virtaal.models.streammodel import StreamModel
 
+        self.package = self._opening_package
         fileset = all_files.for_language(language) if language else all_files
         # Files waiting to be paired open with no units, to be paired.
         if not len(fileset) and not fileset.unpaired:
@@ -407,6 +441,7 @@ class StoreController(BaseController):
     def open_file(self, filename, uri='', forget_dir=False, template=None):
         """@param template: A L{TemplateMatch} for a monolingual file;
         found with L{find_template()} if not given."""
+        self.package = self._opening_package
         extension = filename.split(os.extsep)[-1]
         force_saveas = False
         readonly = self._is_readonly(filename)
@@ -486,6 +521,9 @@ class StoreController(BaseController):
 
     def save_file(self, filename=None):
         self.unit_controller.prepare_for_save()
+        if filename:
+            # Saved elsewhere, the file is no longer the package's.
+            self.package = None
         if self.project is None:
             self.store.save_file(
                 filename
@@ -503,6 +541,8 @@ class StoreController(BaseController):
             outputfile, _fname = self.project.convert_forward(proj_fname, overwrite_output=True)
             outputfile.close()
             self.project.save()
+        if self.package is not None:
+            self.package.write_back()
         self.set_modified(False)
         # reaching here means the write succeeded, so any stale notice goes
         self.main_controller.view.hide_read_only_notice()
@@ -520,6 +560,7 @@ class StoreController(BaseController):
             binary_output.write(compiler.convertstore(self.store._trans_store))
 
     def close_file(self):
+        self.package = None
         self._forget_stream()
         del self.project
         self.project = None
@@ -540,7 +581,8 @@ class StoreController(BaseController):
         if self.is_stream():
             self.open_stream_language(self.stream_language)
             return
-        self.open_file(self.store.filename)
+        filename = self.store.filename
+        self._reopen(lambda: self.open_file(filename))
 
     def update_file(self, filename, uri=''):
         if not self.store:

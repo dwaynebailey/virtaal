@@ -46,6 +46,9 @@ _("Phrase XLIFF Translation File")
 # dialog and the Windows installer.
 _("Wordfast TXML Translation File")
 
+# CAT tools' packages (virtaal/support/packages.py), named in the Open dialog.
+_("Translation Packages")
+
 # Windows installer only (devsupport/packaging/windows/virtaal.iss).
 _("SDL XLIFF Translation File")
 _("Associate Virtaal with translation file types (.po, .xlf, .tmx, ...)")

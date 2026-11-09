@@ -1,0 +1,5 @@
+file	licence	source	kind
+okapi/test-packages.sdlppx	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/37edac5ae16320df4bfcc210c0a6a76ff76efd00/okapi/filters/sdlpackage/src/test/resources/test-packages.sdlppx	Okapi sdlpackage filter test file: Trados Studio package
+okapi/test-packages.sdlrpx	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/37edac5ae16320df4bfcc210c0a6a76ff76efd00/okapi/filters/sdlpackage/src/test/resources/test-packages.sdlrpx	Okapi sdlpackage filter test file: Trados Studio package
+okapi/ts2017-test01.sdlppx	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/37edac5ae16320df4bfcc210c0a6a76ff76efd00/okapi/filters/sdlpackage/src/test/resources/ts2017-test01.sdlppx	Okapi sdlpackage filter test file: Trados Studio package
+okapi/test1.wsxz	Apache-2.0 (okapi/LICENSE)	https://gitlab.com/okapiframework/okapi/-/blob/e7a413ca6f34bdbf62eec3185486a2e47b251522/okapi/filters/wsxzpackage/src/test/resources/test1.wsxz	Okapi wsxzpackage filter test file: one .sdlxliff, backslash member names

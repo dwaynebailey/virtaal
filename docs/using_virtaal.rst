@@ -674,6 +674,28 @@ file stays as it was. Wordfast has no public description of the format, so
 these files were checked against Okapi's reading of it and by comparing them
 before and after, not by opening them in Wordfast again.
 
+
+.. _using_virtaal#packages:
+
+Packages from other CAT tools
+-----------------------------
+Virtaal opens the packages other CAT tools send translators, with the files
+to translate in them listed together, as with a folder:
+
+- Trados Studio project packages (.sdlppx) and return packages (.sdlrpx): the
+  .sdlxliff files of the package's target languages.
+- WorldServer packages (.wsxz): the XLIFF and SDLXLIFF files in them.
+- TIPP packages (.tipp, or a .zip holding a TIPP manifest), versions 1.5 and
+  2.0: the bilingual files the package lists, for a translation task.
+
+Saving writes the files you changed back into the package; everything else in
+it stays exactly as it was. A WorldServer package goes back as it is.
+
+Translation memories and termbases in a package aren't used yet. memoQ's
+packages (.mqxlz, .mqout, .mqback) and WorldServer's older .xlz don't open:
+there is no sample of them to check against. These packages were checked by
+comparing them before and after, not by opening them in the tools again.
+
 .. _using_virtaal#network_based_translation_memory:
 
 Network Based Translation Memory
