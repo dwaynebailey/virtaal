@@ -18,11 +18,15 @@ them, not inside the <segment>.
 A file is saved as it was read, apart from the <unit>s that changed
 (L{xmlinplace})."""
 
+import copy
 import os
 import re
 
 from lxml import etree
+from translate.misc.xml_helpers import getXMLspace
 from translate.storage import factory, xliff2
+from translate.storage.placeables import StringElem
+from translate.storage.placeables.lisa import strelem_to_xml, xml_to_strelem
 from translate.storage.workflow import StateEnum
 
 from virtaal.support import xmlinplace
@@ -167,6 +171,64 @@ Xliff2Unit.set_state_n = set_state_n
 Xliff2Unit.getnotes = getnotes
 Xliff2Unit.addnote = addnote
 Xliff2Unit.removenotes = removenotes
+
+
+# Showing a unit
+
+
+def _rich(unit, node):
+    # From a copy: xml_to_strelem() normalises the whitespace of what it
+    # reads, which would change the file.
+    if node is not None:
+        node = copy.deepcopy(node)
+    return [xml_to_strelem(node, getXMLspace(unit.xmlelement, unit._default_xml_space))]
+
+
+def get_rich_source(self):
+    return _rich(self, self.source_dom)
+
+
+def get_rich_target(self, lang=None):
+    if self._rich_target is None:
+        self._rich_target = _rich(self, self.get_target_dom(lang))
+    return self._rich_target
+
+
+def _content(node):
+    return [node.text or ""] + [
+        (etree.QName(e).localname, dict(e.attrib), e.text or "", e.tail or "")
+        for e in node.iterdescendants(etree.Element)
+    ]
+
+
+def _written(value):
+    node = etree.Element("target")
+    strelem_to_xml(node, value)
+    return _content(node)
+
+
+def _same_content(unit, value):
+    """Whether C{unit}'s target already reads as C{value}, a StringElem,
+    with its whitespace read as Virtaal shows it."""
+    node = unit.get_target_dom()
+    if node is None:
+        return not str(value)
+    return _written(_rich(unit, node)[0]) == _written(value)
+
+
+def set_rich_target(self, value, lang="xx", append=False):
+    # Showing a unit sets its target: leave the file as it is then.
+    form = value[0] if value else None
+    if not append and isinstance(form, StringElem) and _same_content(self, form):
+        self._rich_target = None
+        return
+    _set_rich_target(self, value, lang, append)
+
+
+_set_rich_target = Xliff2Unit.set_rich_target
+Xliff2Unit.rich_source = property(get_rich_source, Xliff2Unit.rich_source.fset)
+Xliff2Unit.get_rich_target = get_rich_target
+Xliff2Unit.set_rich_target = set_rich_target
 
 
 _parse = xliff2.Xliff2File.parse

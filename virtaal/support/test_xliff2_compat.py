@@ -191,3 +191,32 @@ def test_a_change_outside_the_units_saves_through_the_toolkit():
     assert saved.startswith(b'\xef\xbb\xbf<?xml version="1.0" encoding="UTF-8"?>\n')
     assert b'trgLang="nl"' in saved
     assert [u.target for u in xliff2.Xliff2File.parsestring(saved).units] == [None, 'Maak toe']
+
+
+SPACED = (
+    b'<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="af">\n'
+    b'  <file id="f1">\n'
+    b'    <unit id="1">\n'
+    b'      <segment state="translated" subState="my:done">\n'
+    b'        <source>Open   <ph id="1"/>  now</source>\n'
+    b'        <target>Maak   <ph id="1"/>  oop</target>\n'
+    b'      </segment>\n'
+    b'    </unit>\n'
+    b'    <unit id="2">\n'
+    b'      <segment>\n'
+    b'        <source>Close</source>\n'
+    b'      </segment>\n'
+    b'    </unit>\n'
+    b'  </file>\n'
+    b'</xliff>\n'
+)
+
+
+def test_reading_and_setting_the_text_it_has_leaves_the_file_as_it_was():
+    store = xliff2.Xliff2File.parsestring(SPACED)
+    for unit in store.units:
+        assert unit.rich_source
+        unit.rich_target = unit.rich_target
+
+    assert [str(u.rich_target[0]) for u in store.units] == ['Maak  oop', '']
+    assert bytes(store) == SPACED
