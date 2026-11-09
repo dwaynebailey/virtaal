@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Written for Virtaal's tests; CC0 1.0 (public domain). -->
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.2" xmlns:pgs="urn:oasis:names:tc:xliff:pgs:1.0"
+       version="2.2" srcLang="en" trgLang="ru">
+  <file id="f1">
+    <unit id="title">
+      <segment state="translated">
+        <source>Files</source>
+        <target>Файлы</target>
+      </segment>
+    </unit>
+    <unit id="deleted" pgs:switch="plural:count">
+      <notes>
+        <note appliesTo="target" ref="deleted_few" category="plural_examples">2~4, 22~24</note>
+      </notes>
+      <segment id="deleted_one" pgs:case="one" state="translated">
+        <source>You deleted <ph id="1" disp="count"/> file.</source>
+        <target>Вы удалили <ph id="1" disp="count"/> файл.</target>
+      </segment>
+      <segment id="deleted_few" pgs:case="few" state="translated">
+        <source>You deleted <ph id="1" disp="count"/> files.</source>
+        <target>Вы удалили <ph id="1" disp="count"/> файла.</target>
+      </segment>
+      <segment id="deleted_many" pgs:case="many" state="initial">
+        <source>You deleted <ph id="1" disp="count"/> files.</source>
+        <target>Вы удалили <ph id="1" disp="count"/> файлов.</target>
+      </segment>
+      <segment id="deleted_other" pgs:case="other">
+        <source>You deleted <ph id="1" disp="count"/> files.</source>
+      </segment>
+    </unit>
+    <unit id="copied" pgs:switch="plural:count">
+      <segment id="copied_0" pgs:case="0">
+        <source>No files copied.</source>
+      </segment>
+      <segment id="copied_1" pgs:case="1">
+        <source>One file copied.</source>
+      </segment>
+      <segment id="copied_other" pgs:case="other">
+        <source><ph id="1" disp="count"/> files copied.</source>
+      </segment>
+    </unit>
+    <unit id="invited" pgs:switch="gender:host">
+      <segment id="invited_f" pgs:case="feminine" state="final">
+        <source>You are invited to her party.</source>
+        <target>Вас пригласили на её вечеринку.</target>
+      </segment>
+      <segment id="invited_m" pgs:case="masculine" state="final">
+        <source>You are invited to his party.</source>
+        <target>Вас пригласили на его вечеринку.</target>
+      </segment>
+      <segment id="invited_o" pgs:case="other" state="reviewed">
+        <source>You are invited to their party.</source>
+        <target>Вас пригласили на их вечеринку.</target>
+      </segment>
+    </unit>
+    <unit id="place" pgs:switch="ordinal:place">
+      <segment id="place_other" pgs:case="other">
+        <source>You came <ph id="1" disp="place"/>th.</source>
+      </segment>
+    </unit>
+    <unit id="party" pgs:switch="gender:host plural:guests">
+      <segment id="party_f0" pgs:case="feminine 0">
+        <source>She invited nobody.</source>
+      </segment>
+      <segment id="party_f1" pgs:case="feminine 1">
+        <source>She invited one guest.</source>
+      </segment>
+      <segment id="party_fo" pgs:case="feminine other">
+        <source>She invited <ph id="1" disp="guests"/> guests.</source>
+      </segment>
+      <segment id="party_m0" pgs:case="masculine 0">
+        <source>He invited nobody.</source>
+      </segment>
+      <segment id="party_m1" pgs:case="masculine 1">
+        <source>He invited one guest.</source>
+      </segment>
+      <segment id="party_mo" pgs:case="masculine other">
+        <source>He invited <ph id="1" disp="guests"/> guests.</source>
+      </segment>
+      <segment id="party_o0" pgs:case="other 0">
+        <source>They invited nobody.</source>
+      </segment>
+    </unit>
+  </file>
+</xliff>

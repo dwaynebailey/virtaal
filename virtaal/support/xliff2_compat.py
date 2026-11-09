@@ -16,13 +16,22 @@ Its notes are read from and written to the <unit>, where XLIFF 2 keeps
 them, not inside the <segment>.
 
 A file is saved as it was read, apart from the <unit>s that changed
-(L{xmlinplace})."""
+(L{xmlinplace}).
+
+XLIFF 2.2's plural, gender and select module keeps a message's variants
+as the segments of one <unit>: the unit's pgs:switch names the selectors
+(plural:count gender:host), and each segment's pgs:case the values it is
+for (one, few, feminine, 0, "feminine 0"). Such a unit is one plural unit
+here (L{VariantUnit}), each case a form labelled with it, unless it has
+more cases than Virtaal shows boxes: then each case is a unit of its
+own, with the case as its context."""
 
 import copy
 import os
 import re
 
 from lxml import etree
+from translate.misc.multistring import multistring
 from translate.misc.xml_helpers import getXMLspace
 from translate.storage import factory, xliff2
 from translate.storage.placeables import StringElem
@@ -267,6 +276,201 @@ _set_target_dom = Xliff2Unit.set_target_dom
 Xliff2Unit.set_target_dom = set_target_dom
 
 
+# Plural, gender and select
+
+PGS = "urn:oasis:names:tc:xliff:pgs:1.0"
+SWITCH = "{%s}switch" % PGS
+CASE = "{%s}case" % PGS
+# UnitView.MAX_TARGETS: the target boxes Virtaal shows.
+MAX_FORMS = 6
+
+
+def _switch(segment_unit):
+    """The pgs:switch of a segment's <unit>, or None."""
+    parent = segment_unit.xmlelement.getparent()
+    return parent.get(SWITCH) if parent is not None else None
+
+
+def getcontext(self):
+    switch = _switch(self)
+    case = self.xmlelement.get(CASE)
+    if switch is None or case is None:
+        return _getcontext(self)
+    return f"{switch} = {case}"
+
+
+_getcontext = Xliff2Unit.getcontext
+Xliff2Unit.getcontext = getcontext
+
+
+class VariantUnit(Xliff2Unit):
+    """The segments of a <unit> with a pgs:switch, one per pgs:case, as
+    one plural unit: each case's source and target is a form. Its
+    C{plural_tags} are the cases."""
+
+    def __init__(self, segments):
+        super().__init__(None, empty=True)
+        self.segments = list(segments)
+        self.namespace = self.segments[0].namespace
+        self.xmlelement = self.segments[0].xmlelement
+        switch = self.getunitelement().get(SWITCH) or ""
+        self.selectors = [item.partition(":")[0] for item in switch.split()]
+        self.plural_tags = [segment.xmlelement.get(CASE) for segment in self.segments]
+        self.plural_ordinal = self.selectors == ["ordinal"]
+        # Whether the cases are numbers' plural categories.
+        self.plural_numbered = self.selectors in (["plural"], ["ordinal"])
+
+    @staticmethod
+    def fits(segments):
+        """Whether C{segments}, a pgs <unit>'s, can be one unit."""
+        cases = [segment.xmlelement.get(CASE) for segment in segments]
+        return 0 < len(cases) <= MAX_FORMS and None not in cases and len(set(cases)) == len(cases)
+
+    @property
+    def plural_cldr(self):
+        """Whether the cases are the target language's CLDR categories,
+        in CLDR's order, as a monolingual file's plural forms are."""
+        from virtaal.support.converters import plural_categories
+
+        store = getattr(self, "_store", None)
+        language = store.gettargetlanguage() if store is not None else None
+        if not self.plural_numbered or not language:
+            return False
+        return self.plural_tags == list(plural_categories(language, self.plural_ordinal) or [])
+
+    def hasplural(self):
+        return True
+
+    def getid(self):
+        return self.getunitelement().get("id")
+
+    def getcontext(self):
+        return ""
+
+    @property
+    def source(self):
+        return multistring([segment.source or "" for segment in self.segments])
+
+    @source.setter
+    def source(self, source):
+        forms = getattr(source, "strings", [source])
+        for index, segment in enumerate(self.segments):
+            segment.source = forms[index] if index < len(forms) else ""
+
+    @property
+    def rich_source(self):
+        return [segment.rich_source[0] for segment in self.segments]
+
+    @rich_source.setter
+    def rich_source(self, value):
+        for segment, form in zip(self.segments, value, strict=False):
+            segment.rich_source = [form]
+
+    @property
+    def target(self):
+        return multistring([segment.target or "" for segment in self.segments])
+
+    @target.setter
+    def target(self, target):
+        if isinstance(target, (list, tuple)):
+            forms = list(target)
+        else:
+            forms = getattr(target, "strings", [target])
+        for index, segment in enumerate(self.segments):
+            form = str(forms[index]) if index < len(forms) and forms[index] else ""
+            if (segment.target or "") != form:
+                segment.target = form or None
+
+    def gettarget(self, lang=None):
+        return self.target
+
+    def settarget(self, target, lang="xx", append=False):
+        self.target = target
+
+    def get_rich_target(self, lang=None):
+        return [segment.rich_target[0] for segment in self.segments]
+
+    def set_rich_target(self, value, lang="xx", append=False):
+        forms = list(value or [])
+        for index, segment in enumerate(self.segments):
+            form = forms[index] if index < len(forms) else ""
+            if not isinstance(form, StringElem):
+                form = StringElem(form or "")
+            if str(form):
+                segment.rich_target = [form]
+            elif segment.target:
+                segment.target = None
+
+    rich_target = property(get_rich_target, set_rich_target)
+
+    def _translated_segments(self):
+        return [segment for segment in self.segments if segment.target]
+
+    def get_state_n(self):
+        translated = self._translated_segments()
+        if not translated:
+            return StateEnum.EMPTY
+        if len(translated) < len(self.segments):
+            return StateEnum.NEEDS_WORK
+        return min(segment.get_state_n() for segment in translated)
+
+    def set_state_n(self, value):
+        if self.get_state_id(value) == self.get_state_id():
+            # Its cases keep their own states within the step.
+            return
+        for segment in self._translated_segments():
+            if segment.get_state_id() != segment.get_state_id(value):
+                segment.set_state_n(value)
+
+    def isfuzzy(self):
+        return self.get_state_n() == StateEnum.NEEDS_WORK
+
+    def istranslated(self):
+        return self.get_state_n() >= StateEnum.UNREVIEWED
+
+    def isapproved(self):
+        return self.get_state_n() >= StateEnum.FINAL
+
+    def markfuzzy(self, value=True):
+        if value:
+            self.set_state_n(StateEnum.NEEDS_WORK)
+        elif self.isfuzzy():
+            self.set_state_n(StateEnum.UNREVIEWED)
+
+    def marktranslated(self):
+        self.set_state_n(StateEnum.UNREVIEWED)
+
+    def markapproved(self, value=True):
+        self.set_state_n(StateEnum.FINAL if value else StateEnum.UNREVIEWED)
+
+
+def _variant_groups(units):
+    """Each pgs <unit>'s segment units, by the <unit> element."""
+    groups = {}
+    for unit in units:
+        if _switch(unit) is not None:
+            groups.setdefault(unit.xmlelement.getparent(), []).append(unit)
+    return groups
+
+
+def group_variants(store):
+    """Make each pgs <unit> of C{store} one L{VariantUnit} where it fits."""
+    groups = _variant_groups(store.units)
+    if not groups:
+        return
+    units = []
+    for unit in store.units:
+        segments = groups.get(unit.xmlelement.getparent())
+        if segments is None or not VariantUnit.fits(segments):
+            units.append(unit)
+        elif unit is segments[0]:
+            variant = VariantUnit(segments)
+            variant._store = store
+            units.append(variant)
+    store.units = units
+    store.id_index = {}
+
+
 _parse = xliff2.Xliff2File.parse
 _serialize = xliff2.Xliff2File.serialize
 
@@ -274,6 +478,7 @@ _serialize = xliff2.Xliff2File.serialize
 def parse(self, xml, *args, **kwargs):
     data = xmlinplace.read_data(xml)
     _parse(self, xml, *args, **kwargs)
+    group_variants(self)
     self._inplace_original = None
     if data is not None:
         xmlinplace.remember(self, data, "unit")

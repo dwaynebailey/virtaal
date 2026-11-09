@@ -431,6 +431,9 @@ class TMController(BaseController):
         if not language:
             return None
         if getattr(unit, 'plural_tags', None):
+            if not getattr(unit, 'plural_cldr', True):
+                # An XLIFF 2.2 unit's own cases, such as 0, 1 and other.
+                return None
             return pluralmap.cldr_layout(language, getattr(unit, 'plural_ordinal', False))
         getheaderplural = getattr(getattr(unit, '_store', None), 'getheaderplural', None)
         if getheaderplural is not None:

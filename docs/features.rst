@@ -91,7 +91,8 @@ Wide Format Support
 Virtaal supports many file formats:
 
 - Gettext (.po and .mo)
-- XLIFF (.xlf)
+- XLIFF (.xlf) 1.2 and 2.0-2.2, with XLIFF 2.2's plural and gender variants
+  (see :ref:`using_virtaal#xliff2`)
 - TMX
 - TBX
 - WordFast TM (.txt)

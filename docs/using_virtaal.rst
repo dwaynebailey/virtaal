@@ -635,6 +635,24 @@ status, not XLIFF's state. These files were checked by comparing their XML
 before and after, not by opening them in memoQ or Phrase again.
 
 
+.. _using_virtaal#xliff2:
+
+XLIFF 2 files
+-------------
+Virtaal saves only the units you changed in an XLIFF 2 file: the rest of the
+file stays as it was.
+
+XLIFF 2.2 can keep a message's plural, gender or other variants together, one
+for each case, such as one, few, many and other, or feminine, masculine and
+other. Such a message is one unit with a box for each case the file has,
+named with the case, and with numbers that take it for plural cases, such as
+"few: 2, 3, 4". The unit is translated once every case is. Virtaal doesn't
+add or remove cases: one your language needs but the file lacks has to be
+added where the file was made. A message with more than six cases, such as a
+gender and a plural together, shows each case as a unit of its own, with the
+case above its text.
+
+
 .. _using_virtaal#network_based_translation_memory:
 
 Network Based Translation Memory

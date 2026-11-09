@@ -1922,3 +1922,14 @@ def test_a_plural_of_unknown_layout_with_another_count_is_not_mapped():
     (match,) = _mapped_response(unknown, 2, 'ru')
 
     assert match['target'] == 'Удалить %d файл'
+
+
+def test_an_xliff22_units_own_cases_have_no_plural_layout():
+    from translate.storage import factory
+
+    from virtaal.support import xliff2_compat  # noqa: F401 - groups the cases
+
+    units = {u.getid(): u for u in factory.getobject('devsupport/testfiles/xliff2/pgs.xlf').units}
+
+    assert TMController._unit_layout(units['copied'], 'ru') is None
+    assert TMController._unit_layout(units['deleted'], 'ru') is not None

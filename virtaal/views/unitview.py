@@ -1108,7 +1108,10 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         from virtaal.support.libi18n.numbers import format_number
 
         language = self.controller.main_controller.lang_controller.target_lang.code
-        examples = plural_examples(language, getattr(self.unit, 'plural_ordinal', False))
+        examples = {}
+        # An XLIFF 2.2 gender or select unit's cases aren't for numbers.
+        if getattr(self.unit, 'plural_numbered', True):
+            examples = plural_examples(language, getattr(self.unit, 'plural_ordinal', False))
         labels = []
         for tag in tags:
             numbers = [format_number(n) for n in examples.get(tag, [])]

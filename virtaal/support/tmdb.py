@@ -1563,6 +1563,9 @@ def plural_layout(unit):
     from virtaal.support import pluralmap
 
     if getattr(unit, "plural_tags", None):
+        if not getattr(unit, "plural_cldr", True):
+            # An XLIFF 2.2 unit's own cases, such as 0, 1 and other.
+            return None
         return pluralmap.CLDR_ORDINAL if getattr(unit, "plural_ordinal", False) else pluralmap.CLDR
     store = getattr(unit, "_store", None)
     getheaderplural = getattr(store, "getheaderplural", None)

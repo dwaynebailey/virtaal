@@ -148,6 +148,21 @@ def test_a_monolingual_plural_shows_a_box_per_cldr_form_each_labelled(monkeypatc
     assert view._plural_count() == 4
 
 
+def test_gender_cases_are_labelled_without_numbers(monkeypatch):
+    # An XLIFF 2.2 gender unit: its "other" isn't the plural category.
+    monkeypatch.setattr(pan_app, 'ui_language', 'en')
+    view = _make_view(['her', 'his', 'their'], multistring(['a', 'b', 'c']))
+    view.unit.plural_tags = ['feminine', 'masculine', 'other']
+    view.unit.plural_numbered = False
+    view.controller.main_controller.lang_controller.target_lang = SimpleNamespace(code='ru')
+    view._form_label_widgets = [_FakeLabel() for _ in range(UnitView.MAX_TARGETS)]
+
+    view._layout_update_targets()
+
+    labels = [label.text for label in view._form_label_widgets if label.shown]
+    assert labels == ['feminine', 'masculine', 'other']
+
+
 def test_a_gettext_plural_has_no_form_labels():
     view = _make_view(['%d file', '%d files'], multistring(['form 0', 'form 1']))
     view._form_label_widgets = [_FakeLabel() for _ in range(UnitView.MAX_TARGETS)]
