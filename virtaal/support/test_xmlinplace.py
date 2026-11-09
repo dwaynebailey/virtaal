@@ -5,6 +5,10 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import io
+
+from lxml import etree
+
 from virtaal.support import xmlinplace
 
 
@@ -33,3 +37,25 @@ def test_a_greater_than_sign_in_an_attribute_value_stays_in_its_tag():
     new = '<pc id="1" dispEnd="&lt;/b&gt;">New</pc>'
 
     assert xmlinplace.minimal(old, new) == '<pc id="1" dispEnd="&lt;/b>">New</pc>'
+
+
+class _Store:
+    encoding = 'UTF-8'
+
+    def __init__(self, data):
+        self.document = etree.fromstring(data).getroottree()
+
+
+def test_units_in_a_comment_are_not_units_and_ids_can_have_another_name():
+    data = (
+        b'<doc><!--<seg segmentId="0">x</seg>--><seg segmentId="1"><t>Old</t></seg>'
+        b'<![CDATA[<seg segmentId="9">]]><seg segmentId="2"/></doc>'
+    )
+    store = _Store(data)
+    xmlinplace.remember(store, data, 'seg', 'segmentId')
+
+    assert store._inplace_original is not None
+    store.document.getroot().find('seg')[0].text = 'New'
+    out = io.BytesIO()
+    xmlinplace.serialize(store, out, None)
+    assert out.getvalue() == data.replace(b'<t>Old</t>', b'<t>New</t>')

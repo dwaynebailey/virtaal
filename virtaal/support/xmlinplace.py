@@ -31,10 +31,16 @@ _ENTITIES = {"lt": "<", "gt": ">", "amp": "&", "quot": '"', "apos": "'"}
 
 
 def _unit_pattern(name):
-    """A unit's text: an empty one, or up to its end tag. Units don't
-    nest; the count is checked against the parsed file."""
+    """A unit's text: an empty one, or up to its end tag, or a comment or
+    CDATA section, which hold no unit. Units don't nest; the count is
+    checked against the parsed file."""
     start = r"<%s(?=[\s/>])" % re.escape(name)
-    return re.compile(r"%s[^>]*?/>|%s.*?</%s\s*>" % (start, start, re.escape(name)), re.DOTALL)
+    unit = r"%s[^>]*?/>|%s.*?</%s\s*>" % (start, start, re.escape(name))
+    return re.compile(r"<!--.*?-->|<!\[CDATA\[.*?\]\]>|(%s)" % unit, re.DOTALL)
+
+
+def _spans(pattern, text):
+    return [m.span(1) for m in pattern.finditer(text) if m.group(1) is not None]
 
 
 def _unescape(text):
@@ -124,14 +130,16 @@ class Original:
     """The text a file was read from, and where each unit (the elements
     named C{name} in the root's namespace) is in it."""
 
-    def __init__(self, store, data, name):
+    def __init__(self, store, data, name, id_attribute="id"):
         self.bom = data.startswith(codecs.BOM_UTF8)
         self.text = data[len(codecs.BOM_UTF8) if self.bom else 0 :].decode("utf-8")
         root = store.document.getroot()
-        self.tag = "{%s}%s" % (etree.QName(root).namespace, name)
+        namespace = etree.QName(root).namespace
+        self.tag = "{%s}%s" % (namespace, name) if namespace else name
         self.pattern = _unit_pattern(name)
+        self.id_attribute = id_attribute
         self.units = list(root.iter(self.tag))
-        self.spans = [m.span() for m in self.pattern.finditer(self.text)]
+        self.spans = _spans(self.pattern, self.text)
         self.canonical = [_canonical(unit) for unit in self.units]
         self.outside = _outside_units(root, self.tag)
 
@@ -140,7 +148,11 @@ class Original:
             return False
         for unit, (start, end) in zip(self.units, self.spans, strict=True):
             head = re.match(r"<[^>]*", self.text[start:end]).group()
-            if f'id="{unit.get("id")}"' not in head and f"id='{unit.get('id')}'" not in head:
+            key = unit.get(self.id_attribute)
+            if (
+                f' {self.id_attribute}="{key}"' not in head
+                and f" {self.id_attribute}='{key}'" not in head
+            ):
                 return False
         return True
 
@@ -162,7 +174,7 @@ class Original:
                 continue
             if written is None:
                 written = etree.tostring(document, encoding="unicode")
-                written_spans = [m.span() for m in self.pattern.finditer(written)]
+                written_spans = _spans(self.pattern, written)
                 if len(written_spans) != len(self.spans):
                     return None
             new = minimal(self.text[start:end], written[slice(*written_spans[index])])
@@ -189,17 +201,18 @@ def read_data(xml):
     return data if isinstance(data, bytes) else None
 
 
-def remember(store, data, name):
-    """Keep C{data}, the file's text, to save the units that change
-    into; or only whether it starts with a byte order mark, if they can't
-    be found in it."""
+def remember(store, data, name, id_attribute="id"):
+    """Keep C{data}, the file's text, to save the units (the elements
+    named C{name}, told apart by C{id_attribute}) that change into; or
+    only whether it starts with a byte order mark, if they can't be found
+    in it."""
     store._inplace_original = None
     store._inplace_bom = data.startswith(codecs.BOM_UTF8)
-    store._inplace_name = name
+    store._inplace_name = (name, id_attribute)
     if not _is_utf8(store.encoding):
         return
     try:
-        original = Original(store, data, name)
+        original = Original(store, data, name, id_attribute)
     except UnicodeDecodeError:
         return
     if original.usable():
@@ -224,4 +237,4 @@ def serialize(store, out, fallback):
     name = getattr(store, "_inplace_name", None)
     if name and (original is None or text != original.text):
         # The next save compares with what this one wrote.
-        remember(store, data, name)
+        remember(store, data, *name)
