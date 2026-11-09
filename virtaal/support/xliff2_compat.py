@@ -117,13 +117,17 @@ def get_state_n(self):
 
 
 def set_state_n(self, value):
+    before = self.xmlelement.get("state")
     if value >= StateEnum.FINAL:
-        if self.xmlelement.get("state") != "final":
+        if before != "final":
             self.xmlelement.set("state", "reviewed")
     elif value >= StateEnum.UNREVIEWED:
         self.xmlelement.set("state", "translated")
-    elif value >= StateEnum.NEEDS_WORK or self.xmlelement.get("state"):
+    elif value >= StateEnum.NEEDS_WORK or before:
         self.xmlelement.set("state", "initial")
+    if self.xmlelement.get("state") != before:
+        # Its subState was for the state it had.
+        self.xmlelement.attrib.pop("subState", None)
 
 
 def _notes(self, create=False):
@@ -229,6 +233,38 @@ _set_rich_target = Xliff2Unit.set_rich_target
 Xliff2Unit.rich_source = property(get_rich_source, Xliff2Unit.rich_source.fset)
 Xliff2Unit.get_rich_target = get_rich_target
 Xliff2Unit.set_rich_target = set_rich_target
+
+
+# Writing a target
+
+
+def _blank(text):
+    return text is not None and not text.strip()
+
+
+def set_target_dom(self, dom_node, append=False):
+    """As translate-toolkit, laying a new or removed target out as the
+    segment's source is: on its own line, indented alike. A segment left
+    without a target is initial."""
+    source, old = self.source_dom, self.get_target_dom()
+    _set_target_dom(self, dom_node, append)
+    new = self.get_target_dom()
+    if new is None and self.xmlelement.get("state") not in (None, "initial"):
+        # Only an initial segment may have no target.
+        self.set_state_n(StateEnum.NEEDS_WORK)
+    if source is None or new is old or not _blank(source.tail):
+        return
+    if old is None and source.getnext() is new and _blank(self.xmlelement.text):
+        new.tail, source.tail = source.tail, self.xmlelement.text
+    elif old is not None:
+        if new is None:
+            source.tail = old.tail
+        else:
+            new.tail = old.tail
+
+
+_set_target_dom = Xliff2Unit.set_target_dom
+Xliff2Unit.set_target_dom = set_target_dom
 
 
 _parse = xliff2.Xliff2File.parse

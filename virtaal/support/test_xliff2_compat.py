@@ -220,3 +220,34 @@ def test_reading_and_setting_the_text_it_has_leaves_the_file_as_it_was():
 
     assert [str(u.rich_target[0]) for u in store.units] == ['Maak  oop', '']
     assert bytes(store) == SPACED
+
+
+def test_a_new_target_goes_on_its_own_line():
+    store = xliff2.Xliff2File.parsestring(SPACED)
+
+    store.units[1].target = 'Maak toe'
+
+    assert bytes(store) == SPACED.replace(
+        b'<source>Close</source>\n',
+        b'<source>Close</source>\n        <target>Maak toe</target>\n',
+    )
+
+
+def test_a_removed_target_takes_its_line_and_leaves_the_segment_initial():
+    store = xliff2.Xliff2File.parsestring(SPACED)
+
+    store.units[0].target = None
+
+    assert bytes(store) == SPACED.replace(
+        b'        <target>Maak   <ph id="1"/>  oop</target>\n', b''
+    ).replace(b'state="translated" subState="my:done"', b'state="initial"')
+
+
+def test_a_new_state_drops_the_old_substate():
+    store = xliff2.Xliff2File.parsestring(SPACED)
+    segment = store.units[0].xmlelement
+
+    store.units[0].set_state_n(StateEnum.UNREVIEWED)
+    assert segment.get('subState') == 'my:done'
+    store.units[0].set_state_n(StateEnum.FINAL)
+    assert (segment.get('state'), segment.get('subState')) == ('reviewed', None)
