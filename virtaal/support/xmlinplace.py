@@ -21,7 +21,10 @@ import re
 
 from lxml import etree
 
-_TOKEN = re.compile(r"<!\[CDATA\[.*?\]\]>|<!--.*?-->|<\?.*?\?>|<[^>]*>|[^<]+", re.DOTALL)
+# A tag ends at the first ">" outside its attribute values.
+_TOKEN = re.compile(
+    r"""<!\[CDATA\[.*?\]\]>|<!--.*?-->|<\?.*?\?>|<(?:[^>"']|"[^"]*"|'[^']*')*>|[^<]+""", re.DOTALL
+)
 _ATTRIBUTE = re.compile(r"""([^\s=/<>]+)\s*=\s*("[^"]*"|'[^']*')""")
 _REFERENCE = re.compile(r"&(?:#x([0-9A-Fa-f]+)|#([0-9]+)|(lt|gt|amp|quot|apos));")
 _ENTITIES = {"lt": "<", "gt": ">", "amp": "&", "quot": '"', "apos": "'"}
@@ -52,7 +55,8 @@ def _token_key(token):
     name = re.match(r"</?([^\s/>]+)", token).group(1)
     if token.startswith("</"):
         return ("end", name)
-    attributes = tuple((k, _unescape(v[1:-1])) for k, v in _ATTRIBUTE.findall(token))
+    # In any order: lxml writes namespace declarations first.
+    attributes = tuple(sorted((k, _unescape(v[1:-1])) for k, v in _ATTRIBUTE.findall(token)))
     return ("empty" if token.endswith("/>") else "start", name, attributes)
 
 
