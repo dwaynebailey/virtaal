@@ -17,7 +17,7 @@ from translate.storage.placeables.xliff import UnknownXML
 from translate.storage.workflow import StateEnum
 
 from virtaal.models import fileset
-from virtaal.support import txml_compat
+from virtaal.support import inlinecodes, txml_compat
 
 OKAPI = os.path.join('devsupport', 'testfiles', 'wordfast', 'okapi')
 SAMPLES = sorted(glob.glob(os.path.join(OKAPI, '*.txml')))
@@ -163,6 +163,7 @@ def test_inline_codes_are_placeables_written_back_as_ut():
     assert b'<target score="0">Text in <ut type="unknown" x="1">&lt;b&gt;</ut>bold' in bytes(store)
     target = etree.fromstring(bytes(store)).findall('.//segment')[1].find('target')
     assert [ut.get('id') for ut in target] == [None] * 4
+    assert inlinecodes.unit_markup(unit)[0].startswith('Text in <ph id="1">&lt;b&gt;</ph>bold')
 
 
 def test_clearing_a_target_removes_it():

@@ -246,13 +246,16 @@ def pair(source_elem, target_elem):
 
 
 def unit_markup(unit):
-    """(source markup, target markup) of an XLIFF or TMX unit, or
-    (None, None) for a unit with no inline codes or of another format."""
+    """(source markup, target markup) of an XLIFF, Wordfast TXML or TMX
+    unit, or (None, None) for a unit with no inline codes or of another
+    format."""
     from translate.storage import tmx, xliff
+
+    from virtaal.support import txml_compat
 
     if isinstance(unit, tmx.tmxunit):
         return _tmx_unit_markup(unit)
-    if not isinstance(unit, xliff.xliffunit) or unit.hasplural():
+    if not isinstance(unit, (xliff.xliffunit, txml_compat.TxmlUnit)) or unit.hasplural():
         return None, None
     sources = unit.rich_source
     targets = unit.rich_target if unit.target else []
