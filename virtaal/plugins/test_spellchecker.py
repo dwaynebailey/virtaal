@@ -779,7 +779,7 @@ def test_a_build_with_its_own_gtkspell_passes_the_frozen_build_check(monkeypatch
         Plugin('spellchecker', None)
 
 
-def _windows_plugin(monkeypatch, config_dir, bundle_dir=None):
+def _windows_plugin(monkeypatch, config_dir, bundled=False):
     """Plugin() on Windows, with enchant's user folder config_dir: stops
         just after the non-ASCII folder check."""
     try:
@@ -789,9 +789,8 @@ def _windows_plugin(monkeypatch, config_dir, bundle_dir=None):
     except (ImportError, ValueError):
         pytest.skip("GtkSpell 3.0 typelib not installed - optional")
     monkeypatch.setattr(platform, 'is_windows', True)
-    monkeypatch.setattr(platform, 'is_frozen', bundle_dir is not None)
-    monkeypatch.setattr(platform, 'bundles_spelling', True)
-    monkeypatch.setattr(platform, 'bundle_dir', bundle_dir)
+    monkeypatch.setattr(platform, 'is_frozen', bundled)
+    monkeypatch.setattr(platform, 'bundles_spelling', bundled)
     enchant = SimpleNamespace(get_user_config_dir=lambda: config_dir)
     monkeypatch.setattr(spellchecker, 'import_enchant', lambda: enchant)
     Plugin('spellchecker', None)
@@ -803,17 +802,15 @@ def test_unsupported_on_windows_with_a_non_ascii_user_folder(monkeypatch):
         _windows_plugin(monkeypatch, 'C:\\Users\\\u00e9lise\\AppData\\Local\\enchant')
 
 
-def test_unsupported_on_windows_installed_in_a_non_ascii_folder(monkeypatch):
-    with pytest.raises(PluginUnsupported, match='non-ASCII'):
-        _windows_plugin(monkeypatch, 'C:\\Users\\x\\AppData\\Local\\enchant',
-                        'C:\\Users\\\u00e9lise\\AppData\\Local\\Programs\\Virtaal')
-
-
-def test_supported_on_windows_with_ascii_folders(monkeypatch):
+def test_the_windows_build_handles_a_non_ascii_user_folder(monkeypatch):
     # Gets past the check, to where it needs a main_controller.
     with pytest.raises(AttributeError):
-        _windows_plugin(monkeypatch, 'C:\\Users\\elise\\AppData\\Local\\enchant',
-                        'C:\\Program Files (x86)\\Virtaal')
+        _windows_plugin(monkeypatch, 'C:\\Users\\\u00e9lise\\AppData\\Local\\enchant', bundled=True)
+
+
+def test_supported_on_windows_with_an_ascii_user_folder(monkeypatch):
+    with pytest.raises(AttributeError):
+        _windows_plugin(monkeypatch, 'C:\\Users\\elise\\AppData\\Local\\enchant')
 
 
 def test_unsupported_without_gtkspell(monkeypatch):
