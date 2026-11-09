@@ -148,3 +148,46 @@ def test_storemodel_opens_and_saves_an_xliff2_file(tmp_path):
     assert len(saved) == 4
     assert saved.get_units()[0].target == 'Oop'
     assert b'version="2.0"' in path.read_bytes()
+
+
+ODD_LAYOUT = (
+    b"\xef\xbb\xbf<?xml version='1.0' encoding='UTF-8'?>\r\n"
+    b"<xliff xmlns='urn:oasis:names:tc:xliff:document:2.0' version='2.0' srcLang='en' trgLang='af'>\r\n"
+    b"<file id='f1'><unit id='1'><segment><source>Open</source></segment></unit>\r\n"
+    b"      <unit id='2' ><segment state='initial'><source>Close &amp; quit</source>"
+    b"<target>Maak toe</target></segment></unit>\r\n"
+    b"</file></xliff>"
+)
+
+
+def test_an_unchanged_file_saves_byte_for_byte():
+    store = xliff2.Xliff2File.parsestring(ODD_LAYOUT)
+    for unit in store.units:
+        unit.target = unit.target
+
+    assert bytes(store) == ODD_LAYOUT
+
+
+def test_an_edit_changes_only_its_unit():
+    store = xliff2.Xliff2File.parsestring(ODD_LAYOUT)
+
+    store.units[0].target = 'Oop'
+    store.units[0].set_state_n(StateEnum.UNREVIEWED)
+
+    saved = bytes(store)
+    assert saved == ODD_LAYOUT.replace(
+        b"<segment><source>Open</source></segment>",
+        b"<segment state=\"translated\"><source>Open</source><target>Oop</target></segment>",
+    )
+    assert bytes(xliff2.Xliff2File.parsestring(saved)) == saved
+
+
+def test_a_change_outside_the_units_saves_through_the_toolkit():
+    store = xliff2.Xliff2File.parsestring(ODD_LAYOUT)
+
+    store.settargetlanguage('nl')
+
+    saved = bytes(store)
+    assert saved.startswith(b'\xef\xbb\xbf<?xml version="1.0" encoding="UTF-8"?>\n')
+    assert b'trgLang="nl"' in saved
+    assert [u.target for u in xliff2.Xliff2File.parsestring(saved).units] == [None, 'Maak toe']

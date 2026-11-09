@@ -13,7 +13,10 @@ Xliff2Unit's state table has an empty range for "translated" and sorts
 so here a segment's state maps to Virtaal's Untranslated, Needs work
 (initial with a target), Translated and Reviewed (reviewed or final).
 Its notes are read from and written to the <unit>, where XLIFF 2 keeps
-them, not inside the <segment>."""
+them, not inside the <segment>.
+
+A file is saved as it was read, apart from the <unit>s that changed
+(L{xmlinplace})."""
 
 import os
 import re
@@ -21,6 +24,8 @@ import re
 from lxml import etree
 from translate.storage import factory, xliff2
 from translate.storage.workflow import StateEnum
+
+from virtaal.support import xmlinplace
 
 _ROOT = re.compile(rb"<(?:[\w.-]+:)?xliff\b[^>]*>")
 # Not a namespaced attribute: ITS tools put its:version="2.0" on XLIFF 1.2.
@@ -162,3 +167,23 @@ Xliff2Unit.set_state_n = set_state_n
 Xliff2Unit.getnotes = getnotes
 Xliff2Unit.addnote = addnote
 Xliff2Unit.removenotes = removenotes
+
+
+_parse = xliff2.Xliff2File.parse
+_serialize = xliff2.Xliff2File.serialize
+
+
+def parse(self, xml, *args, **kwargs):
+    data = xmlinplace.read_data(xml)
+    _parse(self, xml, *args, **kwargs)
+    self._inplace_original = None
+    if data is not None:
+        xmlinplace.remember(self, data, "unit")
+
+
+def serialize(self, out):
+    xmlinplace.serialize(self, out, _serialize)
+
+
+xliff2.Xliff2File.parse = parse
+xliff2.Xliff2File.serialize = serialize
