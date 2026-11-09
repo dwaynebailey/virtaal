@@ -312,7 +312,13 @@ class FileSet:
         from virtaal.models.langmodel import same_language
 
         def wanted(entries):
-            return [e for e in entries if e.language is None or same_language(e.language, code)]
+            return [
+                e
+                for e in entries
+                # A code Virtaal knows only in part (zh-x-hmn-SDL) is
+                # chosen as the files have it.
+                if e.language is None or e.language == code or same_language(e.language, code)
+            ]
 
         return FileSet(wanted(self.entries), self.root, self.templates, wanted(self.unpaired))
 

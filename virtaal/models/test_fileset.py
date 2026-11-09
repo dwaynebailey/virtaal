@@ -317,3 +317,18 @@ def test_a_waiting_file_called_its_own_source_becomes_a_template(tmp_path):
 
     assert files.pair(lone, TemplateMatch(lone, None, 'chosen')) is None
     assert [e.path for e in files.templates] == [lone] and files.unpaired == []
+
+
+def test_a_language_virtaal_knows_only_in_part_keeps_its_files(tmp_path):
+    for name in ('a', 'b'):
+        path = tmp_path / ('%s.xlf' % name)
+        path.write_bytes(
+            b'<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">'
+            b'<file original="a" source-language="en-US" target-language="zh-x-hmn-SDL"'
+            b' datatype="plaintext"><body/></file></xliff>'
+        )
+    fileset = FileSet.from_paths([str(tmp_path)])
+
+    language = fileset.choose_language('af')
+
+    assert len(fileset.for_language(language)) == 2
