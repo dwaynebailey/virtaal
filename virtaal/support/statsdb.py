@@ -60,7 +60,8 @@ logger = logging.getLogger(__name__)
 # Virtaal reads some files' units differently, and caches made before
 # are dropped. 1: a Trados segment is a unit, with its own state (#4625).
 # 2: memoQ and Phrase units have their tools' states (#4734, #4735).
-REVISION = 2
+# 3: an XLIFF 2.2 unit's plural or gender cases are one unit.
+REVISION = 3
 CACHE_BUILD = toolkitversion.build * 100 + REVISION
 
 brtagre = re.compile(r"<br\s*?/?>")
