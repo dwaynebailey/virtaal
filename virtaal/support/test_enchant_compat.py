@@ -86,6 +86,10 @@ def test_self_check_reports_the_enchant_library_and_providers():
     assert report['enchant'] == _enchant.enchant_lib_path
     assert report['providers'] == ' '.join(sorted(p.name for p in enchant.Broker().describe()))
     assert report['dictionary'] == str(enchant.dict_exists('en_US'))
+    for tag, provider in enchant.Broker().list_dicts():
+        assert tag in report['%s languages' % provider.name].split()
+    if enchant.dict_exists('en_US'):
+        assert set(report['dictionary provider'].split()) <= set(report['providers'].split())
 
 
 @needs_enchant

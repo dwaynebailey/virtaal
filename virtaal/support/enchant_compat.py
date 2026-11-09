@@ -199,7 +199,13 @@ def self_check(lang):
         'providers: %s' % ' '.join(sorted(p.name for p in enchant.Broker().describe())),
         'dictionary: %s' % enchant.dict_exists(lang),
     ]
+    by_provider = {}
+    for tag, provider in enchant.Broker().list_dicts():
+        by_provider.setdefault(provider.name, []).append(tag)
+    lines += ['%s languages: %s' % (name, ' '.join(sorted(tags))) for name, tags in sorted(by_provider.items())]
     if enchant.dict_exists(lang):
+        lines.append('dictionary provider: %s' % ' '.join(
+            provider.name for tag, provider in enchant.Broker().list_dicts() if tag == lang))
         dictionary = enchant.Dict(lang)
         words = sample_text(lang).split()
         lines.append('unknown: %s' % ' '.join(w for w in words if not dictionary.check(w)))
