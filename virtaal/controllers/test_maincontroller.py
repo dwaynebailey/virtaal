@@ -921,7 +921,9 @@ def test_quit_saves_first_when_the_user_confirms_the_save_prompt(monkeypatch):
     calls = []
     controller = MainController.__new__(MainController)
     GObjectWrapper.__init__(controller)
-    controller._store_controller = SimpleNamespace(is_modified=lambda: True)
+    controller._store_controller = SimpleNamespace(
+        is_modified=lambda: True, leave_package=lambda: None
+    )
     controller.view = SimpleNamespace(
         show_save_confirm_dialog=lambda: 'save',
         hide=lambda: calls.append('hide'),
@@ -940,7 +942,9 @@ def test_quit_saves_first_when_the_user_confirms_the_save_prompt(monkeypatch):
 def test_quit_stays_open_when_the_save_itself_fails(monkeypatch):
     monkeypatch.setattr(Gtk.Window, 'list_toplevels', lambda: [])
     controller = MainController.__new__(MainController)
-    controller._store_controller = SimpleNamespace(is_modified=lambda: True)
+    controller._store_controller = SimpleNamespace(
+        is_modified=lambda: True, leave_package=lambda: None
+    )
     controller.view = SimpleNamespace(show_save_confirm_dialog=lambda: 'save')
     controller.save_file = lambda: False
 
@@ -950,7 +954,9 @@ def test_quit_stays_open_when_the_save_itself_fails(monkeypatch):
 def test_quit_stays_open_when_the_user_backs_out_without_discarding(monkeypatch):
     monkeypatch.setattr(Gtk.Window, 'list_toplevels', lambda: [])
     controller = MainController.__new__(MainController)
-    controller._store_controller = SimpleNamespace(is_modified=lambda: True)
+    controller._store_controller = SimpleNamespace(
+        is_modified=lambda: True, leave_package=lambda: None
+    )
     controller.view = SimpleNamespace(show_save_confirm_dialog=lambda: 'cancel')
 
     assert controller.quit() is True
@@ -961,7 +967,9 @@ def test_quit_discards_changes_and_shuts_down(monkeypatch):
     calls = []
     controller = MainController.__new__(MainController)
     GObjectWrapper.__init__(controller)
-    controller._store_controller = SimpleNamespace(is_modified=lambda: True)
+    controller._store_controller = SimpleNamespace(
+        is_modified=lambda: True, leave_package=lambda: None
+    )
     controller.view = SimpleNamespace(
         show_save_confirm_dialog=lambda: 'discard',
         hide=lambda: calls.append('hide'),
@@ -981,7 +989,9 @@ def _controller_for_restart(monkeypatch, response='discard', saved=True, modifie
     calls = []
     controller = MainController.__new__(MainController)
     GObjectWrapper.__init__(controller)
-    controller._store_controller = SimpleNamespace(is_modified=lambda: modified)
+    controller._store_controller = SimpleNamespace(
+        is_modified=lambda: modified, leave_package=lambda: None
+    )
     controller.view = SimpleNamespace(
         show_save_confirm_dialog=lambda: calls.append('prompt') or response,
         hide=lambda: calls.append('hide'),
@@ -1059,7 +1069,9 @@ def test_quit_shuts_down_the_plugin_controller_when_one_is_registered(monkeypatc
     calls = []
     controller = MainController.__new__(MainController)
     GObjectWrapper.__init__(controller)
-    controller._store_controller = SimpleNamespace(is_modified=lambda: False)
+    controller._store_controller = SimpleNamespace(
+        is_modified=lambda: False, leave_package=lambda: None
+    )
     controller.view = SimpleNamespace(hide=lambda: None, quit=lambda: None)
     controller._plugin_controller = SimpleNamespace(shutdown=lambda: calls.append('shutdown'))
 
@@ -1073,7 +1085,9 @@ def test_quit_forces_past_unsaved_changes(monkeypatch):
     calls = []
     controller = MainController.__new__(MainController)
     GObjectWrapper.__init__(controller)
-    controller._store_controller = SimpleNamespace(is_modified=lambda: True)
+    controller._store_controller = SimpleNamespace(
+        is_modified=lambda: True, leave_package=lambda: None
+    )
     controller.view = SimpleNamespace(
         hide=lambda: calls.append('hide'),
         quit=lambda: calls.append('view-quit'),
@@ -1085,6 +1099,23 @@ def test_quit_forces_past_unsaved_changes(monkeypatch):
 
     assert result is False
     assert calls == ['hide', 'quit-signal', 'view-quit']
+
+
+@pytest.mark.parametrize(
+    ('force', 'modified', 'left'),
+    [(False, False, True), (True, False, True), (False, True, True), (True, True, False)],
+)
+def test_quit_leaves_the_package_unless_forced_past_unsaved_changes(
+    monkeypatch, force, modified, left
+):
+    controller, _calls = _controller_for_restart(monkeypatch, modified=modified)
+    calls = []
+    controller._store_controller.leave_package = lambda: calls.append('left')
+
+    controller.quit(force=force)
+
+    # Unsaved edits stay in the work folder for recovery.
+    assert calls == (['left'] if left else [])
 
 
 # open_file() - asking for a monolingual file's template #

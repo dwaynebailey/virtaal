@@ -38,6 +38,7 @@ import shutil
 import struct
 import sys
 import tempfile
+import time
 import uuid
 import zipfile
 
@@ -379,6 +380,16 @@ class Package:
     def files(self):
         """The bilingual files taken out, in the package's order."""
         return list(self.members)
+
+    def discard(self):
+        """Remove the work folder, unless it holds edits not yet in the
+        package. @returns: Whether it was removed."""
+        try:
+            if self._changes():
+                return False
+        except OSError:
+            return False
+        return remove_work_folder(self.work_dir)
 
     # Saving
 
@@ -728,13 +739,99 @@ def _clean(element):
     return copied
 
 
+# Work folders
+
+# How old a work folder of no open package must be to go at start-up.
+STALE_SECONDS = 24 * 60 * 60
+
+
+def packages_dir():
+    """The folder all packages' work folders are in."""
+    from virtaal.common import pan_app
+
+    return os.path.join(pan_app.get_state_dir(), "packages")
+
+
 def work_folder(path):
     """Where the package C{path}'s files are taken out to: Virtaal's own
     folder, by the package's path, named as the package."""
-    from virtaal.common import pan_app
-
     key = hashlib.sha256(os.path.abspath(path).encode("utf-8", "surrogateescape")).hexdigest()[:16]
-    return os.path.join(pan_app.get_state_dir(), "packages", key, os.path.basename(path))
+    return os.path.join(packages_dir(), key, os.path.basename(path))
+
+
+def _key_folder(work_dir):
+    """The folder under L{packages_dir()} holding C{work_dir}, resolved,
+    or None if C{work_dir} isn't in one."""
+    root = os.path.realpath(packages_dir())
+    folder = os.path.realpath(os.path.dirname(os.path.abspath(work_dir)))
+    if os.path.normcase(os.path.dirname(folder)) != os.path.normcase(root):
+        return None
+    return folder
+
+
+def _remove(folder):
+    """Remove the work folder C{folder}, if it is one: a real folder
+    right inside L{packages_dir()}, never anything else."""
+    root = os.path.realpath(packages_dir())
+    if os.path.islink(folder) or not os.path.isdir(folder):
+        return False
+    resolved = os.path.realpath(folder)
+    if os.path.normcase(os.path.dirname(resolved)) != os.path.normcase(root):
+        return False
+    try:
+        shutil.rmtree(resolved)
+    except OSError:
+        return False
+    return True
+
+
+def remove_work_folder(work_dir):
+    """Remove the work folder of C{work_dir} under L{packages_dir()}.
+    @returns: Whether it was removed."""
+    folder = _key_folder(work_dir)
+    return folder is not None and _remove(folder)
+
+
+def _newest(folder):
+    """When anything in C{folder} last changed."""
+    newest = os.lstat(folder).st_mtime
+    for dirpath, dirnames, filenames in os.walk(folder):
+        for name in dirnames + filenames:
+            try:
+                newest = max(newest, os.lstat(os.path.join(dirpath, name)).st_mtime)
+            except OSError:
+                pass
+    return newest
+
+
+def _holds(folder, paths):
+    """Whether any of C{paths} (resolved, normcased) is C{folder} or in it."""
+    folder = os.path.normcase(os.path.realpath(folder))
+    return any(path == folder or path.startswith(folder + os.sep) for path in paths)
+
+
+def remove_stale_work_folders(keep=(), now=None):
+    """Remove the work folders older than L{STALE_SECONDS} whose package
+    isn't open, left by a crash or a package saved elsewhere. C{keep}:
+    the paths open now; a work folder holding one stays.
+    @returns: The folders removed."""
+    root = packages_dir()
+    if not os.path.isdir(root):
+        return []
+    now = time.time() if now is None else now
+    kept = [os.path.normcase(os.path.realpath(path)) for path in keep if path]
+    removed = []
+    for name in sorted(os.listdir(root)):
+        folder = os.path.join(root, name)
+        if _holds(folder, kept):
+            continue
+        try:
+            stale = now - _newest(folder) > STALE_SECONDS
+        except OSError:
+            continue
+        if stale and _remove(folder):
+            removed.append(folder)
+    return removed
 
 
 def open_package(path, work_dir=None):

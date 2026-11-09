@@ -537,6 +537,11 @@ class _FakeDeferer:
         self.calls.append((func, args))
 
 
+def _sweep(v):
+    # Stale package work folders go after the start-up file opened.
+    return (v.main_controller.store_controller.remove_stale_package_folders, ())
+
+
 def _stub_virtaal_construction(monkeypatch, startupfile_exists=True, resume_file=None):
     import virtaal.main as main_module
 
@@ -548,7 +553,7 @@ def _stub_virtaal_construction(monkeypatch, startupfile_exists=True, resume_file
 
     loading_notices = []
     failure_notices = []
-    store_controller = SimpleNamespace()
+    store_controller = SimpleNamespace(remove_stale_package_folders=lambda: None)
     main_controller = SimpleNamespace(
         store_controller=store_controller,
         view=SimpleNamespace(
@@ -607,7 +612,7 @@ def test_init_without_a_startupfile_shows_the_welcome_screen_directly(monkeypatc
     assert len(welcome_instances) == 1
     assert welcome_instances[0].activated is True
     assert loading_notices == []
-    assert v.defer.calls == [(v._open_with_welcome, ())]
+    assert v.defer.calls == [(v._open_with_welcome, ()), _sweep(v)]
 
 
 def test_init_with_an_existing_startupfile_shows_a_loading_notice_instead_and_defers_the_open(
@@ -627,7 +632,7 @@ def test_init_with_an_existing_startupfile_shows_a_loading_notice_instead_and_de
     assert welcome_instances[0].activated is False
     assert loading_notices == ['some.po']
     assert failure_notices == []
-    assert v.defer.calls == [(v._open_startup_file, ('some.po',))]
+    assert v.defer.calls == [(v._open_startup_file, ('some.po',)), _sweep(v)]
 
 
 def test_init_with_a_missing_startupfile_skips_the_loading_notice_but_still_defers_the_real_open(
@@ -645,7 +650,7 @@ def test_init_with_a_missing_startupfile_skips_the_loading_notice_but_still_defe
     assert welcome_instances[0].activated is False
     assert loading_notices == []
     assert failure_notices == []
-    assert v.defer.calls == [(v._open_startup_file, ('missing.po',))]
+    assert v.defer.calls == [(v._open_startup_file, ('missing.po',)), _sweep(v)]
 
 
 def test_init_resumes_a_recovered_file_instead_of_the_welcome_screen(monkeypatch):
@@ -657,7 +662,7 @@ def test_init_resumes_a_recovered_file_instead_of_the_welcome_screen(monkeypatch
 
     assert welcome_instances[0].activated is False
     assert loading_notices == ['/files/left.po']
-    assert v.defer.calls == [(v._open_startup_file, ('/files/left.po',))]
+    assert v.defer.calls == [(v._open_startup_file, ('/files/left.po',)), _sweep(v)]
     assert main_controller.recovery_calls == [('choose', '', ''), 'notices']
 
 

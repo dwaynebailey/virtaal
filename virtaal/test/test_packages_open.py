@@ -10,6 +10,7 @@ back into the package and answered with a return package."""
 
 import os
 import shutil
+import time
 import zipfile
 
 import pytest
@@ -28,9 +29,8 @@ class TestPackagesOpen(TestScaffolding):
 
     @pytest.fixture(autouse=True)
     def _work(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(
-            packages, 'work_folder', lambda path: str(tmp_path / 'work' / os.path.basename(path))
-        )
+        self.state = tmp_path / 'state' / 'packages'
+        monkeypatch.setattr(packages, 'packages_dir', lambda: str(self.state))
         monkeypatch.setattr(
             self.main_controller,
             'get_translator_details',
@@ -115,3 +115,63 @@ class TestPackagesOpen(TestScaffolding):
 
         assert not self.main_controller.open_file(str(path))
         assert len(self.errors) == 1
+
+    def _folders(self):
+        return sorted(os.listdir(self.state)) if self.state.exists() else []
+
+    def test_closing_a_package_removes_its_work_folder(self):
+        path = self._copy('test-packages.sdlppx')
+        self.main_controller.open_file(path)
+        self._edit(0, 'Neu')
+        self.main_controller.save_file()
+        assert len(self._folders()) == 1
+
+        self.store_controller.close_file()
+
+        assert self._folders() == []
+        with zipfile.ZipFile(path) as archive:
+            assert b'Neu' in archive.read('zh-x-hmn-SDL/dir1/subdir/test-in-subdir.txt.sdlxliff')
+
+    def test_opening_another_file_removes_the_package_s_work_folder(self):
+        self.main_controller.open_file(self._copy('test-packages.sdlppx'))
+        other = self._copy('test1.wsxz')
+
+        self.main_controller.open_file(other)
+
+        assert self._folders() == [os.path.basename(os.path.dirname(packages.work_folder(other)))]
+
+    def test_reopening_or_switching_language_keeps_the_work_folder(self):
+        path = self._copy('ts2017-test01.sdlppx')
+        self.main_controller.open_file(path)
+        work = self.store_controller.package.work_dir
+
+        self.store_controller.open_stream_language('pl_PL')
+        assert os.path.isdir(work)
+        self.main_controller.open_file(path)
+        assert os.path.isdir(work) and len(self._folders()) == 1
+
+    def test_edits_not_written_into_the_package_keep_its_work_folder(self):
+        self.main_controller.open_file(self._copy('test1.wsxz'))
+        with open(self.store_controller.package.files()[0], 'ab') as f:
+            f.write(b'<!-- not in the package -->')
+
+        self.store_controller.close_file()
+
+        assert len(self._folders()) == 1
+
+    def test_quitting_removes_the_work_folder_and_stale_ones_go_at_start_up(self):
+        self.main_controller.open_file(self._copy('test1.wsxz'))
+        (self.state / 'left-by-a-crash' / 'old.sdlppx').mkdir(parents=True)
+        then = time.time() - 2 * packages.STALE_SECONDS
+        for folder in (
+            self.state / 'left-by-a-crash' / 'old.sdlppx',
+            self.state / 'left-by-a-crash',
+        ):
+            os.utime(folder, (then, then))
+        open_now = os.path.dirname(self.store_controller.package.work_dir)
+        os.utime(open_now, (then, then))
+
+        self.store_controller.remove_stale_package_folders()
+        assert self._folders() == [os.path.basename(open_now)]
+        self.store_controller.leave_package()
+        assert self._folders() == []

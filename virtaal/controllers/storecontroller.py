@@ -43,6 +43,8 @@ class StoreController(BaseController):
     # and the one being opened.
     package = None
     _opening_package = None
+    # The package whose files were last loaded, for its work folder.
+    _loaded_package = None
     _stream_handlers = None
 
     arrival = None
@@ -132,6 +134,31 @@ class StoreController(BaseController):
                 self.open_files([package.work_dir])
         finally:
             self._opening_package = None
+
+    def _leave_package(self, package):
+        """Note C{package} (or None) as the one whose files are open,
+        and remove the work folder of the one before."""
+        old, self._loaded_package = self._loaded_package, package
+        if old is None or old is package:
+            return
+        if package is not None and os.path.abspath(package.work_dir) == os.path.abspath(
+            old.work_dir
+        ):
+            return
+        old.discard()
+
+    def leave_package(self):
+        """Remove the open package's work folder, its edits all saved
+        into it: Virtaal is quitting."""
+        self._leave_package(None)
+
+    def remove_stale_package_folders(self):
+        """Remove the work folders left of packages no longer open."""
+        from virtaal.support import packages
+
+        open_now = [p.work_dir for p in (self.package, self._loaded_package) if p is not None]
+        open_now += list(self.opened_paths or ()) + [self.opened_filename]
+        packages.remove_stale_work_folders(open_now)
 
     def package_path(self):
         """The package whose files are open, or None."""
@@ -513,6 +540,7 @@ class StoreController(BaseController):
             self.main_controller.view.hide_info_notice(notice)
 
     def _emit_store_loaded(self):
+        self._leave_package(self.package)
         # Languages filled in on load (see LanguageController) aren't user edits.
         self._loading_store = True
         try:
@@ -562,6 +590,7 @@ class StoreController(BaseController):
 
     def close_file(self):
         self.package = None
+        self._leave_package(None)
         self._forget_stream()
         del self.project
         self.project = None

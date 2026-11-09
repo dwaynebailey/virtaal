@@ -150,6 +150,8 @@ class Virtaal:
             wc.activate()
             self.defer(self._open_with_welcome)
         recovery.show_startup_notices()
+        # After the start-up file opened, so its package's folder stays.
+        self.defer(main_controller.store_controller.remove_stale_package_folders)
 
     def _install_signal_handlers(self):
         """SIGTERM (logout, shutdown, systemd or a test harness stopping

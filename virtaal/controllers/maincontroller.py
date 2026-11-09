@@ -671,6 +671,9 @@ class MainController(BaseController):
                 self._restart_pending = False
                 return True
 
+        if not (force and self.store_controller.is_modified()):
+            # Unsaved edits stay for recovery to find.
+            self.store_controller.leave_package()
         # A forced quit (SIGTERM) never relaunches.
         self.relaunch_on_exit = self._restart_pending and not force
         self._restart_pending = False

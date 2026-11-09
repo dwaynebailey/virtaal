@@ -10,6 +10,7 @@ import io
 import os
 import re
 import shutil
+import time
 import zipfile
 
 import pytest
@@ -384,3 +385,88 @@ def test_a_package_with_nothing_to_translate_is_refused(tmp_path):
 
     with pytest.raises(packages.PackageError, match='no file to translate'):
         packages.open_package(str(path), str(tmp_path / 'work'))
+
+
+# Work folders
+
+
+@pytest.fixture
+def state(tmp_path, monkeypatch):
+    root = tmp_path / 'state' / 'packages'
+    monkeypatch.setattr(packages, 'packages_dir', lambda: str(root))
+    return root
+
+
+def _age(folder, seconds):
+    then = time.time() - seconds
+    for dirpath, dirnames, filenames in os.walk(folder):
+        for name in dirnames + filenames:
+            os.utime(os.path.join(dirpath, name), (then, then))
+    os.utime(folder, (then, then))
+
+
+def test_a_package_s_work_folder_goes_once_everything_is_saved_into_it(tmp_path, state):
+    path = tmp_path / 'test1.wsxz'
+    shutil.copy(os.path.join(OKAPI, 'test1.wsxz'), path)
+    package = packages.open_package(str(path))
+    key_folder = os.path.dirname(package.work_dir)
+    assert os.path.dirname(key_folder) == str(state)
+    _edit(package.files()[0])
+
+    assert not package.discard()
+    assert os.path.isdir(package.work_dir)
+    package.write_back()
+    assert package.discard()
+    assert not os.path.exists(key_folder)
+    assert os.listdir(state) == [] and path.exists()
+
+
+def test_only_a_folder_right_inside_the_packages_folder_is_removed(tmp_path, state):
+    outside = tmp_path / 'mine' / 'work'
+    outside.mkdir(parents=True)
+    (state / 'key' / 'work').mkdir(parents=True)
+
+    assert not packages.remove_work_folder(str(outside))
+    assert not packages.remove_work_folder(str(state / 'work'))
+    assert not packages.remove_work_folder(str(state / 'key' / '..' / '..' / 'x'))
+    assert not packages.remove_work_folder(str(state / 'missing' / 'work'))
+    assert outside.is_dir() and state.is_dir()
+    assert packages.remove_work_folder(str(state / 'key' / 'work'))
+    assert os.listdir(state) == []
+
+
+def test_a_link_out_of_the_packages_folder_is_never_followed(tmp_path, state):
+    outside = tmp_path / 'mine'
+    (outside / 'work').mkdir(parents=True)
+    (outside / 'work' / 'keep.txt').write_bytes(b'mine')
+    state.mkdir(parents=True)
+    try:
+        os.symlink(str(outside), str(state / 'key'), target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip('No symbolic links here.')
+    _age(outside, 3 * packages.STALE_SECONDS)
+
+    assert not packages.remove_work_folder(str(state / 'key' / 'work'))
+    assert packages.remove_stale_work_folders() == []
+    assert (outside / 'work' / 'keep.txt').read_bytes() == b'mine'
+
+
+def test_stale_work_folders_go_at_start_up_unless_open(state):
+    for key in ('old', 'open', 'new'):
+        (state / key / 'job.sdlppx' / 'fr-FR').mkdir(parents=True)
+        (state / key / 'job.sdlppx' / 'fr-FR' / 'a.sdlxliff').write_bytes(b'<a/>')
+    (state / 'note.txt').write_bytes(b'')
+    _age(state / 'old', 2 * packages.STALE_SECONDS)
+    _age(state / 'open', 2 * packages.STALE_SECONDS)
+    _age(state / 'new', packages.STALE_SECONDS / 2)
+
+    removed = packages.remove_stale_work_folders(
+        [str(state / 'open' / 'job.sdlppx' / 'fr-FR' / 'a.sdlxliff'), None]
+    )
+
+    assert removed == [str(state / 'old')]
+    assert sorted(os.listdir(state)) == ['new', 'note.txt', 'open']
+
+
+def test_no_packages_folder_is_nothing_to_remove(state):
+    assert packages.remove_stale_work_folders() == []
