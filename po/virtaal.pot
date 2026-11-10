@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-09 19:49+0000\n"
+"POT-Creation-Date: 2026-11-10 06:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1790,6 +1790,11 @@ msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
 msgid "Extendable"
+msgstr ""
+
+#. l10n: Shown over a terminology file that new terms can't be saved to
+#: virtaal/plugins/terminology/models/localfile/localfileview.py
+msgid "This glossary can't be changed"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py

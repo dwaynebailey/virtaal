@@ -722,16 +722,58 @@ def test_on_toggle_refuses_a_read_only_termbase():
     assert dialog.term_model.config['extendfile'] == 'b.po'
 
 
-def test_a_read_only_termbase_has_no_extendable_button():
+def test_a_read_only_termbase_shows_a_greyed_extendable_button():
     dialog = _dialog_with_files([MILI, 'b.po'])
     cell = Gtk.CellRendererToggle()
 
     states = []
     for row in dialog.lst_files:
         dialog._extendable_cell_data(None, cell, dialog.lst_files, row.iter)
-        states.append((cell.props.activatable, cell.props.visible))
+        states.append((cell.props.activatable, cell.props.sensitive, cell.props.visible))
 
-    assert states == [(False, False), (True, True)]
+    assert states == [(False, False, True), (True, True, True)]
+
+
+class _Tooltip:
+    text = None
+
+    def set_text(self, text):
+        self.text = text
+
+
+def _query_tooltip(dialog, row, hit=True):
+    treeview = SimpleNamespace(
+        get_tooltip_context=lambda x, y, keyboard: (
+            hit,
+            x,
+            y,
+            dialog.lst_files,
+            row.path,
+            row.iter,
+        ),
+        set_tooltip_row=lambda tooltip, path: rows.append(path.to_string()),
+    )
+    rows = []
+    tooltip = _Tooltip()
+    shown = dialog._on_query_tooltip(treeview, 5, 5, False, tooltip)
+    return shown, tooltip.text, rows
+
+
+def test_a_read_only_termbase_says_why_it_cant_be_extended():
+    dialog = _dialog_with_files([MILI, 'b.po'])
+
+    assert _query_tooltip(dialog, dialog.lst_files[0]) == (
+        True,
+        "This glossary can't be changed",
+        ['0'],
+    )
+
+
+def test_a_writable_termbase_or_no_row_has_no_tooltip():
+    dialog = _dialog_with_files([MILI, 'b.po'])
+
+    assert _query_tooltip(dialog, dialog.lst_files[1]) == (False, None, [])
+    assert _query_tooltip(dialog, dialog.lst_files[0], hit=False) == (False, None, [])
 
 
 def test_init_treeview_defaults_to_the_first_file_add_term_can_save_to(

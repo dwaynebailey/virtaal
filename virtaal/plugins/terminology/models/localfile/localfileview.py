@@ -193,6 +193,8 @@ class FileSelectDialog:
         col.set_expand(False)
         col.set_min_width(90)  # wide enough for the header label itself
         self.tvw_termfiles.append_column(col)
+        self.tvw_termfiles.set_has_tooltip(True)
+        self.tvw_termfiles.connect('query-tooltip', self._on_query_tooltip)
 
         extend_file = self.term_model.config.get('extendfile', '')
         files = self.term_model.config['files']
@@ -217,7 +219,16 @@ class FileSelectDialog:
         # A read-only termbase can't be the file Add Term saves to.
         extendable = is_extendable(model.get_value(itr, self.COL_FILE))
         cell.set_property('activatable', extendable)
-        cell.set_property('visible', extendable)
+        cell.set_property('sensitive', extendable)
+
+    def _on_query_tooltip(self, treeview, x, y, keyboard_mode, tooltip):
+        hit, _x, _y, model, path, itr = treeview.get_tooltip_context(x, y, keyboard_mode)
+        if not hit or is_extendable(model.get_value(itr, self.COL_FILE)):
+            return False
+        # l10n: Shown over a terminology file that new terms can't be saved to
+        tooltip.set_text(_("This glossary can't be changed"))
+        treeview.set_tooltip_row(tooltip, path)
+        return True
 
     def _init_add_chooser(self):
         from virtaal.views.mainview import add_translation_file_filters
