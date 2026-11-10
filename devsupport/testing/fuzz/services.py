@@ -28,7 +28,16 @@ from urllib.parse import unquote
 from corpus import CORPUS, short
 
 # Not autoterm: Virtaal always turns it off, its one URL having been dead for years.
-SERVICES = ('amagama', 'remotetm', 'apertium', 'moses', 'google', 'pontoon', 'localtm')
+SERVICES = (
+    'amagama',
+    'remotetm',
+    'apertium',
+    'moses',
+    'google',
+    'deepl',
+    'pontoon',
+    'localtm',
+)
 SLOW_SECONDS = 35  # longer than the clients' 30 s timeout
 
 BAD_REPLIES = [
@@ -55,7 +64,7 @@ class Mock:
     requests = 0
 
 
-def good_body(service, path, value):
+def good_body(service, path, value, body=b''):
     if service in ('amagama', 'remotetm'):
         query = unquote(path.rsplit('/unit/', 1)[-1].split('?')[0]) if '/unit/' in path else 'x'
         return json.dumps(
@@ -80,6 +89,8 @@ def good_body(service, path, value):
         return json.dumps(
             {'data': {'translations': [{'translatedText': value}]}}
         ).encode(), 'application/json'
+    if service == 'deepl':
+        return _deepl_body(path, value, body), 'application/json'
     if service == 'moses':
         return xmlrpc.client.dumps(({'text': value},), methodresponse=True).encode(
             'utf-8', 'surrogatepass'
@@ -103,13 +114,33 @@ def good_body(service, path, value):
     return b'', 'text/plain'
 
 
+def _deepl_body(path, value, body):
+    if path.startswith('/v3/languages'):
+        return json.dumps(
+            [
+                {'lang': 'en', 'usable_as_source': True, 'usable_as_target': False},
+                {'lang': 'af', 'usable_as_source': True, 'usable_as_target': True},
+            ]
+        ).encode()
+    if path.startswith('/v2/usage'):
+        return json.dumps({'character_count': 0, 'character_limit': 500000}).encode()
+    try:
+        count = len(json.loads(body)['text'])
+    except (ValueError, KeyError, TypeError):
+        count = 1
+    return json.dumps(
+        {'translations': [{'detected_source_language': 'EN', 'text': value}] * count}
+    ).encode()
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
     def _answer(self):
         Mock.requests += 1
-        body, ctype = good_body(Mock.service, self.path, Mock.value)
+        sent = self.rfile.read(int(self.headers.get('Content-Length') or 0))
+        body, ctype = good_body(Mock.service, self.path, Mock.value, sent)
         status = 200
         reply = dict((name, (code, data, kind)) for name, code, data, kind in BAD_REPLIES).get(
             Mock.reply
@@ -184,10 +215,13 @@ def configure(service, url, conf):
         'apertium': 'apertium',
         'moses': 'moses',
         'google': 'google_translate',
+        'deepl': 'deepl',
     }.get(service)
     if model:
         tm_off.discard(model)
     set_option('plugins.ini', 'tm', 'disabled_models', ','.join(sorted(tm_off)))
+    # Or a paid source not listed here is turned off again.
+    set_option('plugins.ini', 'tm', 'known_models', 'deepl,microsoft_translator')
     term_off = {'autoterm', 'pontoon'} - {service}
     set_option('plugins.ini', 'terminology', 'disabled_models', ','.join(sorted(term_off)))
     if service == 'amagama':
@@ -202,6 +236,8 @@ def configure(service, url, conf):
         set_option('tm.ini', 'apertium', 'url', url)
     elif service == 'google':
         set_option('tm.ini', 'google_translate', 'api_key', 'fuzz')
+    elif service == 'deepl':
+        set_option('tm.ini', 'deepl', 'api_key', 'fuzz:fx')
 
 
 def patch_fixed_urls(service, url):
@@ -214,6 +250,10 @@ def patch_fixed_urls(service, url):
             url + '/translate?key=%(key)s&q=%(message)s&source=%(from)s&target=%(to)s'
         )
         google_translate.TMModel.languages_url = url + '/languages?key=%(key)s'
+    elif service == 'deepl':
+        from virtaal.plugins.tm.models import deepl
+
+        deepl.TMModel.free_host = deepl.TMModel.pro_host = url
     elif service == 'pontoon':
         from virtaal.plugins.terminology.models import pontoon
 
@@ -226,14 +266,15 @@ def patch_fixed_urls(service, url):
 
 def query_file(workdir, count):
     """A PO file with distinct sources, one per case, so no reply comes
-    from a client's cache."""
+    from a client's cache. They differ in a word, not a number: DeepL's
+    cache takes strings that differ only in placeables as one."""
     from translate.storage import po
 
     store = po.pofile()
     store.updateheader(add=True, Language='af')
     store.updateheaderplural(2, '(n != 1)')
     for i in range(count):
-        store.addsourceunit('Open the fuzz file number %d' % i)
+        store.addsourceunit('Open the fuzz file %s' % ''.join('abcdefghij'[int(d)] for d in str(i)))
     path = os.path.join(workdir, 'service-queries.po')
     store.savefile(path)
     return path
