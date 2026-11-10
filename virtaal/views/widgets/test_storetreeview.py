@@ -58,6 +58,9 @@ class _FakeColumn:
     def set_fixed_width(self, width):
         self._width = width
 
+    def queue_resize(self):
+        self.resized = True
+
 
 def _make_view(column_width, cursor, is_resizing=False):
     column = _FakeColumn(column_width)
@@ -91,6 +94,17 @@ def test_on_size_allocate_restarts_editing_the_current_row_when_the_width_change
 
     assert column.get_fixed_width() == 798
     assert calls == [((path, editcol), {'start_editing': True})]
+
+
+def test_remeasure_rows_measures_every_row_again():
+    # The Files Panel narrows this tree view, not the window: rows
+    # measured at the old width kept the editor too wide (N3).
+    column = _FakeColumn(798)
+    view = SimpleNamespace(get_columns=lambda: [column])
+
+    StoreTreeView._remeasure_rows(view)
+
+    assert column.resized is True
 
 
 def test_on_size_allocate_tracks_width_but_skips_restarting_editing_mid_resize():
@@ -148,6 +162,31 @@ def test_size_allocate_lays_the_column_out_at_the_new_width():
             treeview.size_allocate(allocation)
             assert column.get_fixed_width() == width - 2
             assert column.get_width() == width
+    finally:
+        window.destroy()
+
+
+def test_size_allocate_at_a_new_width_measures_the_rows_again(monkeypatch):
+    # The Files Panel narrows this tree view, not the window: rows
+    # measured at the old width kept the editor too wide.
+    treeview = _real_storetreeview()
+    remeasured = []
+    monkeypatch.setattr(StoreTreeView, '_remeasure_rows', lambda self: remeasured.append(True))
+    window = Gtk.OffscreenWindow()
+    window.add(treeview)
+    window.show_all()
+    try:
+        remeasured.clear()
+        allocation = Gdk.Rectangle()
+        allocation.x, allocation.y, allocation.width, allocation.height = 0, 0, 640, 100
+        treeview.size_allocate(allocation)
+        assert remeasured == [True]
+        treeview.size_allocate(allocation)
+        assert remeasured == [True]
+        treeview.is_resizing = True
+        allocation.width = 600
+        treeview.size_allocate(allocation)
+        assert remeasured == [True]
     finally:
         window.destroy()
 

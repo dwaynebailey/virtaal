@@ -15,7 +15,6 @@ from virtaal.views import markup, rendering
 from virtaal.views.theme import current_theme, str_to_rgba, unit_style
 
 from .storetreemodel import COLUMN_UNIT, StoreTreeModel
-from .wayland import is_wayland
 
 # How the editor shows a placeable that has no text of its own.
 _EMPTY_PLACEABLE_LABELS = {
@@ -162,12 +161,14 @@ def gtk_label_compute_optimal_height(widget, width, limit=0):
         widget.set_size_request(width, h)
 
 
-def _content_width(window):
-    """The window's width without the shadow it draws around itself on
-    Wayland, which its allocation includes."""
-    if is_wayland() and isinstance(window, Gtk.Window):
-        return window.get_size()[0]
-    return window.get_allocation().width
+# Room for the scrollbar and the cell's padding.
+ROW_MARGIN = 22
+
+
+def _row_width(treeview):
+    """The width a row lays out in: the tree view's own, not the window's,
+    which the Files Panel and the navigation ribbon share."""
+    return max(treeview.get_allocated_width() - ROW_MARGIN, -1)
 
 
 class StoreCellRenderer(Gtk.CellRenderer):
@@ -264,7 +265,7 @@ class StoreCellRenderer(Gtk.CellRenderer):
         return getattr(self, pspec.name)
 
     def do_get_size(self, widget, _cell_area):
-        width = max(_content_width(widget.get_toplevel()) - 32, -1)
+        width = _row_width(widget)
         treeview = self.view._treeview
         if self.editable:
             # compute_optimal_height() below does real Pango text-layout
@@ -338,7 +339,7 @@ class StoreCellRenderer(Gtk.CellRenderer):
         if it is None or model.get_value(it, COLUMN_UNIT) is not editor.unit:
             # The cursor moved on: the next row's editor is measured anyway.
             return GLib.SOURCE_REMOVE
-        width = max(_content_width(treeview.get_toplevel()) - 32, -1)
+        width = _row_width(treeview)
         if self._measure_editor(editor, treeview, width) != self._editor_height:
             # Only this row is measured again, not every row as with
             # column.queue_resize(); it ends the edit, so edit it again.

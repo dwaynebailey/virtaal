@@ -130,6 +130,8 @@ class StoreTreeView(Gtk.TreeView):
         # allocation (see _make_column()). Set before chaining up, so
         # this allocation already lays it out at the new width.
         changed = self._set_column_width(allocation.width)
+        if changed and not self.is_resizing:
+            self._remeasure_rows()
         Gtk.TreeView.do_size_allocate(self, allocation)
         self._on_size_allocate(changed)
 
@@ -157,6 +159,13 @@ class StoreTreeView(Gtk.TreeView):
             if path is not None:
                 self._restart_editing(path, editcol or self.get_columns()[0])
         self.schedule_revalidate_visible_estimated_rows()
+
+    def _remeasure_rows(self):
+        """Rows wrap at this tree view's width, which the window or the
+        Files Panel just changed: measure them again, or a narrower
+        editor keeps its old, wider size and runs off the right edge."""
+        if self.get_columns():
+            self.get_columns()[0].queue_resize()
 
     def _on_vadjustment_notify(self, _widget, _pspec):
         # Only assigned once this treeview is inside a Gtk.ScrolledWindow

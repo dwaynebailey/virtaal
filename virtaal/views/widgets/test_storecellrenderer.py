@@ -1200,9 +1200,7 @@ def _regrow_renderer(monkeypatch, measured, editor_height=100, is_resizing=False
     )
     treeview.refresh_current_row = lambda: resizes.append('edit again')
     treeview.scroll_to_cell = lambda *args: resizes.append(('scroll',) + args)
-    treeview.get_toplevel = lambda: SimpleNamespace(
-        get_allocation=lambda: SimpleNamespace(width=400)
-    )
+    treeview.get_allocated_width = lambda: 400
     treeview.get_columns = lambda: [column]
     renderer._editor_height = editor_height
     monkeypatch.setattr(renderer, '_measure_editor', lambda *_args: measured)
@@ -1453,27 +1451,31 @@ def test_do_start_editing_watches_the_target_buffers_once():
     assert renderer._watched_buffers == {editor.targets[0].get_buffer()}
 
 
-# _content_width() #
+# _row_width() #
 
 
-class _Window(Gtk.Window):
-    def get_allocation(self):
-        return SimpleNamespace(width=848)
+def test_row_width_follows_the_tree_view_not_the_window():
+    # The Files Panel takes part of the window: a row as wide as the
+    # window ran off the tree view's right edge (#4223's ">" cut off).
+    win = Gtk.OffscreenWindow()
+    win.set_default_size(1000, 300)
+    box = Gtk.Box()
+    panel = Gtk.Label(label='Files')
+    panel.set_size_request(250, -1)
+    treeview = Gtk.TreeView()
+    box.pack_start(panel, False, False, 0)
+    box.pack_start(treeview, True, True, 0)
+    win.add(box)
+    win.show_all()
 
-    def get_size(self):
-        return (796, 544)
+    assert treeview.get_allocated_width() == 750
+    assert storecellrenderer._row_width(treeview) == 750 - storecellrenderer.ROW_MARGIN
 
 
-def test_content_width_leaves_out_the_wayland_shadow(monkeypatch):
-    monkeypatch.setattr(storecellrenderer, 'is_wayland', lambda: True)
+def test_row_width_before_allocation_is_unknown():
+    treeview = SimpleNamespace(get_allocated_width=lambda: 1)
 
-    assert storecellrenderer._content_width(_Window()) == 796
-
-
-def test_content_width_is_the_allocation_elsewhere(monkeypatch):
-    monkeypatch.setattr(storecellrenderer, 'is_wayland', lambda: False)
-
-    assert storecellrenderer._content_width(_Window()) == 848
+    assert storecellrenderer._row_width(treeview) == -1
 
 
 def test_compute_optimal_height_leaves_out_a_containers_margins():
