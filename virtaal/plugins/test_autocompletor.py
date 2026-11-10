@@ -270,6 +270,39 @@ def test_set_unit_leaves_out_brace_variables_the_format_doesnt_use():
     assert ac._fast_candidates == ['HOME']
 
 
+@pytest.mark.parametrize(
+    'fmt, flags, source, expected',
+    [
+        (
+            'fluent',
+            (),
+            'You have { $count ->\n    [one] one file\n   *[other] { $count } files\n } for { $user }',
+            ['{ $count ->', '[one]', '*[other]', '{ $count }', '{ $user }'],
+        ),
+        ('fluent', (), '{ $user } added { -brand-name }', ['{ $user }', '{ -brand-name }']),
+        (
+            'arb',
+            (),
+            '{count, plural, one {# file} other {# files}} in {folder}',
+            ['{count, plural, one {', '} other {', '{folder}'],
+        ),
+        ('json-icu', (), 'Hi {name}, {n, number} items', ['{name}', '{n, number}']),
+        ('json', (), 'Hello {{name}}, $t(common:save)', ['{{name}}', '$t(common:save)']),
+        ('json-vue', (), 'Hello {name} @:common.save', ['{name}', '@:common.save']),
+        ('strings', (), 'Saved %@ to %1$@', ['%@', '%1$@']),
+        (None, ('csharp-format',), 'Copied {0:N2} of {1}', ['{0:N2}', '{1}']),
+        (None, ('ruby-format',), 'Hi %{name}, %<n>d', ['%{name}', '%<n>d']),
+    ],
+)
+def test_set_unit_offers_each_formats_placeables(fmt, flags, source, expected):
+    # Q37: the format's own parsers, as the editor uses, not a regex.
+    ac = _parsing_ac(*formatplaceables.parsers_for(fmt, flags), *general.parsers)
+
+    ac.set_unit(_unit(source))
+
+    assert ac._fast_candidates == expected
+
+
 def _languages_ac(target, source='en'):
     main_controller = SimpleNamespace(
         placeables_controller=SimpleNamespace(parsers=list(general.parsers)),
