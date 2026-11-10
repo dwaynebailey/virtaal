@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-10 14:59+0000\n"
+"POT-Creation-Date: 2026-11-10 15:03+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1005,6 +1005,12 @@ msgstr ""
 
 #: virtaal/controllers/checkscontroller.py
 msgid "Drupal"
+msgstr ""
+
+#. l10n: In the files panel's language list, followed by the number of
+#. files, for the files that don't say what language they are in
+#: virtaal/controllers/filepanelcontroller.py
+msgid "Unknown language"
 msgstr ""
 
 #. l10n: Shown when a folder holds files in several languages

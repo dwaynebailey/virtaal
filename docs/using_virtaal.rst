@@ -70,7 +70,8 @@ where each file starts.
 When the files are in several languages, those in the current target language
 open, and the language list at the top of the panel opens another language's
 files. A file that doesn't say its language is shown with "(?)" and opens with
-every language.
+every language; :guilabel:`Unknown language` in the list opens only those
+files, in the current target language.
 
 With several languages, :menuselection:`Edit --> Check All Languages…` runs
 the quality checks that compare a translation with its source (printf and

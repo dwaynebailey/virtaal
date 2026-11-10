@@ -134,6 +134,18 @@ def test_for_language_keeps_unknown_languages(tmp_path):
     assert names == ['af.po', 'notes.po']
 
 
+def test_for_unknown_language_keeps_only_the_files_of_unknown_language(tmp_path):
+    from virtaal.models.fileset import UNKNOWN_LANGUAGE
+
+    _po(tmp_path / 'af.po')
+    _po(tmp_path / 'notes.po')
+    fileset = FileSet.from_paths([str(tmp_path)])
+
+    names = [e.display_name for e in fileset.for_language(UNKNOWN_LANGUAGE)]
+
+    assert names == ['notes.po']
+
+
 def _write(root, relpath, text='a=b\n'):
     path = root.joinpath(*relpath.split('/'))
     path.parent.mkdir(parents=True, exist_ok=True)

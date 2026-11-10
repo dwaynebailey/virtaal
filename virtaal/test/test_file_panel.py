@@ -175,6 +175,7 @@ class TestFilePanel(TestScaffolding):
         assert [row[1] for row in view.language_combo.get_model()] == [
             'Afrikaans (3 files)',
             'German (1 file)',
+            'Unknown language (1 file)',
         ]
         assert view.language_box.get_visible()
 
@@ -199,9 +200,35 @@ class TestFilePanel(TestScaffolding):
 
     def test_a_folder_in_one_language_has_no_language_list(self):
         (self.dir / 'app' / 'de.po').unlink()
+        (self.dir / 'notes' / 'extra.po').unlink()
         view = self._open_folder()
 
         assert not view.language_box.get_visible()
+
+    def test_files_of_unknown_language_have_their_own_entry(self):
+        from virtaal.models.fileset import UNKNOWN_LANGUAGE
+
+        (self.dir / 'app' / 'de.po').unlink()
+        _po(self.dir / 'notes' / 'more.po', [('Seven', '')], language=None)
+        view = self._open_folder()
+        assert [row[1] for row in view.language_combo.get_model()] == [
+            'Afrikaans (3 files)',
+            'Unknown language (2 files)',
+        ]
+        assert view.language_box.get_visible()
+
+        self.panel.language_chosen(UNKNOWN_LANGUAGE)
+
+        assert self.store_controller.stream_language == UNKNOWN_LANGUAGE
+        assert set(_rows(self.panel.view)) == {'more.po (?)', 'extra.po (?)'}
+        assert view._languages[view.language_combo.get_active()] == UNKNOWN_LANGUAGE
+        # They open in the current target language.
+        assert self.store_controller.store.get_target_language() is None
+        assert self.lang_controller.target_lang.code == 'af'
+
+        self.panel.language_chosen('af')
+
+        assert len(_rows(self.panel.view)) == 9
 
     def test_a_language_other_than_the_target_is_announced(self, monkeypatch):
         notices = []

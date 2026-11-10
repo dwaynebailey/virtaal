@@ -16,12 +16,20 @@ from .basecontroller import BaseController
 
 def stream_languages(all_files):
     """(code, name, count) for each language of C{all_files}, most files
-    first. Files of no known language are left out."""
+    first, then the files of no known language, if any, as
+    L{UNKNOWN_LANGUAGE}."""
+    from virtaal.models.fileset import UNKNOWN_LANGUAGE
     from virtaal.models.langmodel import LanguageModel
 
-    found = [(code, n) for code, n in all_files.languages().items() if code]
+    counts = all_files.languages()
+    found = [(code, n) for code, n in counts.items() if code]
     rows = [(code, LanguageModel(code).name, n) for code, n in found]
-    return sorted(rows, key=lambda row: (-row[2], row[1].lower()))
+    rows.sort(key=lambda row: (-row[2], row[1].lower()))
+    if counts.get(None):
+        # l10n: In the files panel's language list, followed by the number of
+        # files, for the files that don't say what language they are in
+        rows.append((UNKNOWN_LANGUAGE, _("Unknown language"), counts[None]))
+    return rows
 
 
 def panel_shown_at_open(store_controller):
@@ -125,11 +133,12 @@ class FilePanelController(BaseController):
     def _assigned_language(self, path):
         """The language a file just paired takes when its path names none
         and the folder has several: the one shown. None otherwise."""
-        from virtaal.models.fileset import path_language
+        from virtaal.models.fileset import UNKNOWN_LANGUAGE, path_language
 
         sc = self.store_controller
         root = sc.all_files.root if sc.all_files is not None else None
-        if path_language(path, root) or len(stream_languages(sc.all_files)) < 2:
+        known = [row for row in stream_languages(sc.all_files) if row[0] != UNKNOWN_LANGUAGE]
+        if path_language(path, root) or len(known) < 2 or sc.stream_language == UNKNOWN_LANGUAGE:
             return None
         return sc.stream_language
 

@@ -399,6 +399,7 @@ class StoreController(BaseController):
         return None
 
     def _open_stream(self, all_files, language, paths, replaced=None):
+        from virtaal.models.fileset import UNKNOWN_LANGUAGE
         from virtaal.models.streammodel import StreamModel
 
         self.package = self._opening_package
@@ -407,7 +408,8 @@ class StoreController(BaseController):
         if not len(fileset) and not fileset.unpaired:
             raise ValueError('The file contains nothing to translate.')
         store = StreamModel(fileset, self)
-        store.language = language
+        # Files of unknown language open in the current target language.
+        store.language = None if language == UNKNOWN_LANGUAGE else language
         self._forget_stream()
         self.project = None
         self.opened_filename = None

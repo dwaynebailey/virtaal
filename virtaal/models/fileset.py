@@ -17,6 +17,8 @@ from collections import Counter
 SCAN_EXTENSIONS = ('.po', '.xlf', '.xliff', '.sdlxliff', '.mqxliff', '.mxliff', '.txml', '.ts')
 TEMPLATE_EXTENSIONS = ('.pot', '.xlt')
 SKIP_DIRS = {'node_modules', '__pycache__', 'CVS'}
+# Chooses the files whose language isn't known; not a language code.
+UNKNOWN_LANGUAGE = '*unknown*'
 
 # How far into a file to look for its language.
 _SNIFF_BYTES = 16384
@@ -308,10 +310,13 @@ class FileSet:
         return Counter(entry.language for entry in self.entries)
 
     def for_language(self, code):
-        """The files in code's language, plus those of unknown language."""
+        """The files in code's language, plus those of unknown language;
+        for L{UNKNOWN_LANGUAGE}, those of unknown language only."""
         from virtaal.models.langmodel import same_language
 
         def wanted(entries):
+            if code == UNKNOWN_LANGUAGE:
+                return [e for e in entries if e.language is None]
             return [
                 e
                 for e in entries
