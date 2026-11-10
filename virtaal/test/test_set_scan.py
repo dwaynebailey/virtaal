@@ -205,6 +205,25 @@ class TestSetScan(TestScaffolding):
         ) == [('Afrikaans', 'Maak %s oop'), ('German', 'Öffnen %d')]
         assert view.lbl_summary.get_text() == '2 units found'
 
+    def test_the_count_goes_up_as_the_files_are_read(self, monkeypatch):
+        self._open_folder()
+        self.scans.show('search')
+        view = self.scans.views['search']
+        counts = []
+        set_summary = view.set_summary
+        monkeypatch.setattr(
+            view, 'set_summary', lambda text: (counts.append(text), set_summary(text))
+        )
+        monkeypatch.setattr(view, 'finished', lambda *args: None)
+
+        view.ent_search.set_text('open')
+        view.btn_start.clicked()
+        _wait(lambda: self.scans.scan is None)
+
+        assert len(counts) == 4  # one per file
+        assert counts[-1] == '2 units found'
+        assert view.lbl_summary.get_text() == '2 units found'
+
     def test_a_second_result_chosen_before_the_first_is_reached_wins(self):
         self._open_folder()
         view = self._check_all()

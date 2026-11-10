@@ -230,8 +230,11 @@ class SetScanView(BaseView):
                 + rest
             )
 
-    def finished(self, summary, finished):
+    def set_summary(self, summary):
         self.lbl_summary.set_text(summary)
+
+    def finished(self, summary, finished):
+        self.set_summary(summary)
         if finished:
             self.progress.hide()
         self.btn_stop.set_sensitive(False)

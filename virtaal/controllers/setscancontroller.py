@@ -196,15 +196,22 @@ class SetScanController(BaseController):
 
     # EVENT HANDLERS #
     def _on_file(self, number, results, error):
-        from virtaal.support import setscan
+        from virtaal.views.setscanview import summary_text
 
         view = self.views[self._scan_kind]
         view.update_progress(self.scan.done_files, self.scan.total)
         if error is not None:
             self._unreadable += 1
             logging.debug('Could not scan %s: %s', self._files[number][0], error)
-            return
-        self._count += len(results)
+        else:
+            self._count += len(results)
+            self._add_rows(view, number, results)
+        # The count so far, as the files are read.
+        view.set_summary(summary_text(self._scan_kind, self._count, self._listed, self._unreadable))
+
+    def _add_rows(self, view, number, results):
+        from virtaal.support import setscan
+
         room = setscan.MAX_RESULTS - self._listed
         if room <= 0 or not results:
             return
