@@ -575,9 +575,11 @@ class AutoCompletor:
             return []
         languages = self._languages()
         candidates = []
+        shown = self._shown_sources(unit)
         for text in sources:
             found = []  # (start, end, candidate, cased)
-            for node, start in self._with_offsets(parse_placeables(text, parsers)):
+            tree = shown.get(text) or parse_placeables(text, parsers)
+            for node, start in self._with_offsets(tree):
                 end = start + len(str(node))
                 if isinstance(node, TerminologyPlaceable):
                     found.extend((start, end, t, True) for t in node.translations)
@@ -585,7 +587,7 @@ class AutoCompletor:
                     numbers = self._numbers(text, start, str(node), languages)
                     found.extend((start, end, number, False) for number in numbers)
                 elif type(node) is not StringElem and not isinstance(
-                    node, general.PunctuationPlaceable
+                    node, (general.PunctuationPlaceable, InvisiblePlaceable)
                 ):
                     found.append((start, end, str(node), False))
             candidates.extend(f[2:] for f in sorted(found, key=lambda f: f[0]))
@@ -594,6 +596,18 @@ class AutoCompletor:
             for c, cased in candidates
             if len(c) > self.FAST_COMPLETION_LENGTH or (len(c) > 1 and self._is_sigil(c[0]))
         ]
+
+    def _shown_sources(self, unit):
+        """{text: placeables tree} of unit's sources as the unit editor
+        parsed them, if it shows unit: parsing a long text twice took
+        seconds. Its invisible characters (which make no candidate) may
+        not be parsed yet."""
+        unit_controller = getattr(self.main_controller, 'unit_controller', None)
+        view = getattr(unit_controller, 'view', None)
+        if unit is None or getattr(view, 'unit', None) is not unit:
+            return {}
+        trees = (textbox.elem for textbox in getattr(view, 'sources', ()))
+        return {str(tree): tree for tree in trees if tree is not None}
 
     @classmethod
     def _with_offsets(cls, elem, offset=0):

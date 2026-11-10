@@ -12,10 +12,12 @@ import pytest
 from gi.repository import GLib, Gtk
 from translate.misc.multistring import multistring
 from translate.storage.placeables import StringElem, general
+from translate.storage.placeables import parse as parse_placeables
 from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.plugins.autocompletor import AutoCompletor, NameForms, Plugin
 from virtaal.support import formatplaceables
+from virtaal.support.invisiblechars import InvisiblePlaceable
 from virtaal.views.widgets.textbox import TextBox
 
 
@@ -206,6 +208,34 @@ def test_set_unit_offers_the_sources_placeables_as_fast_candidates():
         'http://example.com/',
         '2026',
     ]
+
+
+def test_set_unit_takes_the_placeables_the_unit_editor_parsed():
+    # Parsing a 5,000-line source a second time took a second.
+    calls = []
+
+    def counting(text):
+        calls.append(text)
+
+    unit = _unit('Open %(name)s')
+    tree = parse_placeables(StringElem('Open %(name)s'), general.parsers)
+    root = StringElem('')
+    root.sub = [tree, InvisiblePlaceable(['\u00a0' * 3])]
+    unit.source = 'Open %(name)s' + '\u00a0' * 3
+    view = SimpleNamespace(unit=unit, sources=[SimpleNamespace(elem=root)])
+    main_controller = SimpleNamespace(
+        placeables_controller=SimpleNamespace(parsers=[counting]),
+        unit_controller=SimpleNamespace(view=view),
+    )
+    ac = AutoCompletor(main_controller=main_controller, comp_len=1)
+
+    ac.set_unit(unit)
+
+    assert calls == []
+    assert ac._fast_candidates == ['%(name)s']
+    # Another unit than the one shown is parsed.
+    ac.set_unit(_unit('Close'))
+    assert calls == ['Close']
 
 
 def test_set_unit_leaves_out_punctuation_and_too_short_placeables():
