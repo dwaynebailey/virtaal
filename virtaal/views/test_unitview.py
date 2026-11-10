@@ -855,6 +855,15 @@ def test_set_target_n_leaves_a_read_only_target_alone():
     assert tb.text is None
 
 
+def test_a_source_language_file_s_unit_is_read_only_without_a_locked_note():
+    # Its notice says it is the source-language file.
+    view = UnitView.__new__(UnitView)
+    view.unit = SimpleNamespace(read_only=True)
+
+    assert view.locked
+    assert view._trados_notes() == []
+
+
 def test_set_target_n_places_the_cursor_when_a_position_is_given():
     view = UnitView.__new__(UnitView)
     buf = Gtk.TextBuffer()

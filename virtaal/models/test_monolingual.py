@@ -387,6 +387,16 @@ def test_the_source_file_paired_with_itself_shows_its_text_untranslated(project)
     assert baseline.load(en) is None
 
 
+def test_the_source_file_s_units_are_read_only(project):
+    from virtaal.support import catxliff_compat
+
+    en = str(project / 'en.properties')
+    af = str(project / 'af.properties')
+
+    assert all(catxliff_compat.is_locked(u) for _key, u in MonolingualPair(en, en).units())
+    assert not any(catxliff_compat.is_locked(u) for _key, u in MonolingualPair(af, en).units())
+
+
 def test_the_source_file_is_never_saved_over(project):
     en = str(project / 'en.properties')
     pair = MonolingualPair(en, en)

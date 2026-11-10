@@ -229,6 +229,8 @@ class MonolingualPair:
             language = ''
             for _key, unit in self.units():
                 unit.target = _empty_target(unit)
+                # Nothing to translate here: see catxliff_compat.is_locked().
+                unit.read_only = True
         self.store.settargetlanguage(
             path_language(self.target) or '' if language is None else language
         )

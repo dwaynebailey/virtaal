@@ -900,7 +900,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         """Lines about the unit's Trados segment, shown with the
         translator's notes."""
         notes = []
-        if self.locked:
+        # The source-language file says so once, in its notice.
+        if self.locked and not getattr(self.unit, 'read_only', False):
             notes.append(
                 _(
                     # l10n: A Trados Studio, memoQ or Phrase file can lock a
