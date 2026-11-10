@@ -84,21 +84,31 @@ def test_relaunch_args_keeps_a_language_lists_fallbacks_after_the_new_language(
 
 @pytest.mark.parametrize(
     ('system', 'expected'),
-    [('de_DE.UTF-8', ['--lang', 'de:af']), ('af_ZA.UTF-8', []), ('C', [])],
+    [('de', ['--lang', 'de:af']), ('af', []), ('en', [])],
 )
 def test_relaunch_args_keeps_the_fallbacks_after_the_system_language(monkeypatch, system, expected):
     from virtaal.common import pan_app
 
-    monkeypatch.setattr(pan_app, 'osx_lang', lambda: None)
-    monkeypatch.setattr(
-        pan_app, '_ORIGINAL_LOCALE_ENV', {'LANGUAGE': None, 'LANG': system, 'LC_ALL': None}
-    )
-    # As --lang zu:af leaves it.
-    monkeypatch.setenv('LANGUAGE', 'zu:af')
+    monkeypatch.setattr(pan_app, 'system_ui_language', lambda: system)
 
     args = relaunch.relaunch_args(['virtaal', '--lang', 'zu:af'], ui_language='')
 
     assert args == expected
+
+
+def test_the_system_language_is_read_from_the_environment_virtaal_started_with(monkeypatch):
+    from virtaal.common import pan_app
+
+    monkeypatch.setattr(
+        pan_app, '_ORIGINAL_LOCALE_ENV', {'LANGUAGE': None, 'LANG': 'de_DE.UTF-8', 'LC_ALL': None}
+    )
+    # As --lang zu:af leaves it.
+    monkeypatch.setenv('LANGUAGE', 'zu:af')
+    monkeypatch.setattr(
+        pan_app, 'get_locale_lang', lambda: (os.environ.get('LANGUAGE'), os.environ.get('LANG'))
+    )
+
+    assert pan_app.system_ui_language() == (None, 'de_DE.UTF-8')
     assert os.environ['LANGUAGE'] == 'zu:af'
 
 
