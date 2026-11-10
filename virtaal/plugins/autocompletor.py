@@ -49,6 +49,8 @@ def _fold_table():
             table[code] = str(digit)
         elif len(char.lower()) == 1 and char.lower() != char:
             table[code] = char.lower()
+    # Turkish İ: lower() gives i and a combining dot above.
+    table[0x130] = 'i'
     return table
 
 
@@ -57,6 +59,30 @@ _WORD_CHARS = r'\w' + _combining_marks()
 # What ends a sentence: ., !, ?, … and the Armenian, Arabic, Urdu,
 # Devanagari, Ethiopic, CJK and full-width ones.
 _SENTENCE_ENDS = '.!?…։؟۔।॥።。！？'
+# What may open a sentence before its first word (Spanish ¿Dónde?, ¡Hola!).
+_OPENING_MARKS = '¿¡'
+# The Afrikaans indefinite article: "'n Lêer is oop." capitalises the
+# word after it.
+_AF_ARTICLES = ("'n", '\u2019n', '\u0149')
+# Languages whose i and ı are İ and I in capitals.
+_DOTTED_I = frozenset(('tr', 'az', 'crh', 'gag'))
+
+
+def _upper(text, language):
+    """text in capitals as language writes them."""
+    if language in _DOTTED_I:
+        text = text.replace('i', '\u0130')
+    return text.upper()
+
+
+def _capitalised(word, language):
+    """word with a capital first letter as language writes it: Dutch
+    capitalises an initial ij as IJ."""
+    if language == 'nl' and word[:2].lower() == 'ij':
+        return 'IJ' + word[2:]
+    if not word[:1].islower():
+        return word
+    return _upper(word[0], language) + word[1:]
 
 
 class NameForms:
@@ -281,11 +307,30 @@ class AutoCompletor:
     def at_start(self, before):
         """Whether a word after C{before} in the target starts a sentence:
         after a full stop or the like, or first in a target whose source
-        starts with a capital."""
-        before = before.rstrip()
-        if before:
-            return before[-1] in _SENTENCE_ENDS
+        starts with a capital; an opening ¿ or ¡, or Afrikaans 'n, may
+        come between."""
+        end = self._sentence_lead(before, len(before))
+        if end >= 0:
+            return before[end] in _SENTENCE_ENDS
         return self._capitalised
+
+    def _sentence_lead(self, text, end):
+        """The index of the last character before text[end] that tells
+        whether a word there starts a sentence, or -1: skipping spaces,
+        opening ¿ and ¡ (Q39) and the Afrikaans article 'n, whose next
+        word takes the capital."""
+        i = end - 1
+        while i >= 0 and (text[i].isspace() or text[i] in _OPENING_MARKS):
+            i -= 1
+        if i < 1 or self._language() != 'af':
+            return i
+        for article in _AF_ARTICLES:
+            start = i + 1 - len(article)
+            if text[max(start, 0) : i + 1] == article and (
+                start == 0 or not self._isword(text[start - 1])
+            ):
+                return self._sentence_lead(text, start)
+        return i
 
     @staticmethod
     def fold(text):
@@ -372,22 +417,30 @@ class AutoCompletor:
         self._textbox_insert_ids[textbox] = handler_id
         self.widgets.add(textbox)
 
-    @staticmethod
-    def _cased(candidate, typed, at_start):
+    def _cased(self, candidate, typed, at_start):
         """candidate as completed from typed: in capitals after two typed
         capitals, otherwise with the case of the typed letters, capitalised
-        at the start of a sentence."""
+        at the start of a sentence, as the target language does (Q39)."""
+        language = self._language()
         if len(typed) > 1 and typed.isupper():
-            return candidate.upper()
+            return _upper(candidate, language)
         cased = (
             ''.join(
-                t if t.lower() == c.lower() else c for t, c in zip(typed, candidate, strict=False)
+                t if t.lower() == c.lower() or (t.isalpha() and self.fold(t) == self.fold(c)) else c
+                for t, c in zip(typed, candidate, strict=False)
             )
             + candidate[len(typed) :]
         )
-        if at_start and cased[:1].islower():
-            cased = cased[0].upper() + cased[1:]
+        if at_start:
+            cased = _capitalised(cased, language)
         return cased
+
+    def _language(self):
+        """The target language's code without its country or script."""
+        languages = self._languages()
+        if languages is None:
+            return None
+        return re.split('[_@-]', languages[1])[0].lower()
 
     @staticmethod
     def _is_name(word):
@@ -405,9 +458,7 @@ class AutoCompletor:
             word = match.group()
             if not word[:1].isupper():
                 continue
-            before = match.start() - 1
-            while before >= 0 and text[before].isspace():
-                before -= 1
+            before = self._sentence_lead(text, match.start())
             if self._is_name(word) or (before >= 0 and text[before] not in _SENTENCE_ENDS):
                 proper.add(word)
         return proper

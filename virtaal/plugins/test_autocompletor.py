@@ -631,6 +631,99 @@ def test_at_start(before, source, expected):
     assert ac.at_start(before) is expected
 
 
+# Q39: sentence-start capitals in the target language's own way
+
+
+def _target_ac(target):
+    ac = _languages_ac(target)
+    ac.comp_len = 4
+    return ac
+
+
+@pytest.mark.parametrize(
+    'target, before, expected',
+    [
+        ('af', "'n ", True),
+        ('af', "Maak oop. 'n ", True),
+        ('af', "Maak oop. \u2019n ", True),
+        ('af', "Maak 'n ", False),
+        ('af', 'Maak oop. Kan ', False),
+        ('en', "'n ", False),  # not an article in English
+        ('en', "Done. 'n ", False),  # not an article in English
+        ('es', '¿', True),
+        ('es', 'Listo. ¡', True),
+        ('es', 'Listo, ¿', False),
+        ('en', 'Done. ¿', True),  # wherever the marks are used
+    ],
+)
+def test_at_start_looks_past_what_opens_a_sentence(target, before, expected):
+    ac = _target_ac(target)
+    ac.set_unit(_unit('Open it'))
+
+    assert ac.at_start(before) is expected
+
+
+@pytest.mark.parametrize(
+    'target, word, typed, at_start, expected',
+    [
+        # Afrikaans: the word after 'n takes the capital, 'n stays lower.
+        ('af', 'lêergids', 'lêer', True, 'Lêergids'),
+        # Turkish and Azerbaijani: i is İ in capitals, ı is I.
+        ('tr', 'istanbul', 'ista', True, 'İstanbul'),
+        ('tr', 'ılgaz', 'ılga', True, 'Ilgaz'),
+        ('tr', 'istanbul', 'ISTA', False, 'İSTANBUL'),
+        ('tr', 'istanbul', 'İsta', False, 'İstanbul'),
+        ('az', 'iclas', 'icla', True, 'İclas'),
+        ('crh', 'icra', 'icr', True, 'İcra'),
+        # Dutch: an initial ij is IJ.
+        ('nl', 'ijsland', 'ijsl', True, 'IJsland'),
+        ('nl', 'ijsland', 'Ijsl', True, 'IJsland'),
+        ('nl', 'ijsland', 'ijsl', False, 'ijsland'),
+        # English controls.
+        ('en', 'istanbul', 'ista', True, 'Istanbul'),
+        ('en', 'ijsland', 'ijsl', True, 'Ijsland'),
+        ('en', 'istanbul', 'ISTA', False, 'ISTANBUL'),
+    ],
+)
+def test_cased_capitalises_as_the_target_language_does(target, word, typed, at_start, expected):
+    ac = _target_ac(target)
+
+    assert ac._cased(word, typed, at_start) == expected
+
+
+@pytest.mark.parametrize(
+    'target, before, typed, expected',
+    [
+        ('af', "Maak oop. 'n ", 'lêer', "Lêergids"),
+        ('es', 'Listo. ¿', 'desc', 'Descargar'),
+        ('tr', 'Tamam. ', 'ista', 'İstanbul'),
+        ('nl', 'Klaar. ', 'ijsl', 'IJsland'),
+        ('en', 'Done. ', 'ista', 'Istanbul'),
+    ],
+)
+def test_typing_at_a_sentence_start_completes_the_capitalised_word(target, before, typed, expected):
+    ac = _target_ac(target)
+    ac.set_unit(_unit('Open it', ''))
+    ac.add_words(['lêergids', 'descargar', 'istanbul', 'ijsland'])
+
+    word, _rest = ac._completion(before + typed, '', typed[-1])
+
+    assert word == expected
+
+
+def test_a_capital_after_an_opening_mark_is_not_a_name():
+    # "¿Dónde" starts a sentence: its capital isn't its own.
+    ac = _target_ac('es')
+
+    assert ac._proper_words('Listo. ¿Dónde está? Vamos a Madrid.') == {'Madrid'}
+
+
+def test_a_capital_after_the_afrikaans_article_is_not_a_name():
+    ac = _target_ac('af')
+
+    assert ac._proper_words("Klaar. 'n Lêer is in Pretoria.") == {'Pretoria'}
+
+
 # clear_words() #
 
 
