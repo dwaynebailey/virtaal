@@ -27,6 +27,9 @@ EAGER_LENGTH = 5000
 """Invisible characters past this many of a text's first characters are
 parsed as placeables in idle steps, or when every placeable is needed."""
 
+TEXT_MARGIN = 2
+"""Pixels either side of the text, besides the room for a pilcrow."""
+
 _PENDING_STEP = 0.01
 """Seconds an idle step parses invisible characters for."""
 
@@ -265,7 +268,9 @@ class TextBox(Gtk.TextView):
         self._pending_id = None
         self.undo_controller = main_controller.undo_controller
 
+        self._rtl = False
         self.__connect_default_handlers()
+        self._reserve_pilcrow_room()
 
         if self.placeables_controller is None or self.undo_controller is None:
             # This should always happen, because the text boxes are created
@@ -285,6 +290,7 @@ class TextBox(Gtk.TextView):
         self.connect('unmap', self._on_event_remove_suggestion)
         self.set_has_tooltip(True)
         self.connect('query-tooltip', self._on_query_tooltip)
+        self.connect('style-updated', lambda _widget: self._reserve_pilcrow_room())
         self.buffer.connect('insert-text', self._on_insert_text)
         self.buffer.connect_after('insert-text', self._on_insert_text_after)
         self.buffer.connect('delete-range', self._on_delete_range)
@@ -423,6 +429,8 @@ class TextBox(Gtk.TextView):
         @param text: The text to render in this text box."""
         if not isinstance(text, StringElem):
             text = StringElem(text)
+        self._rtl = Pango.find_base_dir(str(text), -1) == Pango.Direction.RTL
+        self._reserve_pilcrow_room()
 
         if self.elem is None:
             self.elem = StringElem('')
@@ -518,6 +526,13 @@ class TextBox(Gtk.TextView):
             self.buffer.get_iter_at_offset(start),
             self.buffer.get_iter_at_offset(end),
         )
+
+    def _reserve_pilcrow_room(self):
+        """Room for a pilcrow past a full line's end, on the side the
+        lines end: else it is cut off."""
+        room = self.create_pango_layout('¶').get_pixel_size()[0]
+        self.set_left_margin(TEXT_MARGIN + (room if self._rtl else 0))
+        self.set_right_margin(TEXT_MARGIN + (0 if self._rtl else room))
 
     def _marker_layout(self, marker, fg=None):
         layout = self.create_pango_layout(marker.label)

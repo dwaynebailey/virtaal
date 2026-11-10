@@ -123,6 +123,8 @@ def gtk_textview_compute_optimal_height(widget, width, limit=0):
     buf = widget.get_buffer()
     # For border calculations, see gtktextview.c:gtk_text_view_size_request in the GTK source
     border = 2 * widget.get_border_width() - 2 * widget.get_parent().get_border_width()
+    # The text wraps inside its margins (a pilcrow's room, TextBox).
+    border += widget.get_left_margin() + widget.get_right_margin()
     if widget.style_get_property("interior-focus"):
         border += 2 * widget.style_get_property("focus-line-width")
 

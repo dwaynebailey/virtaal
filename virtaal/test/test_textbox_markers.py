@@ -17,7 +17,7 @@ from virtaal.common import pan_app
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.support.invisiblechars import MARKERS, InvisiblePlaceable
 from virtaal.views.placeablesguiinfo import InvisibleGUI
-from virtaal.views.widgets.textbox import TextBox
+from virtaal.views.widgets.textbox import TEXT_MARGIN, TextBox
 
 
 class TestTextBoxMarkers(TestScaffolding):
@@ -179,6 +179,22 @@ class TestTextBoxMarkers(TestScaffolding):
 
         assert shown == '1'
         assert pan_app.settings.general['showspaces'] == ''
+
+    def test_a_pilcrow_has_room_past_a_full_lines_end(self):
+        # It was cut off at the right edge.
+        textbox = self._shown('abc\ndef')
+        room = textbox.create_pango_layout('¶').get_pixel_size()[0]
+
+        assert room > 0
+        assert textbox.get_right_margin() == TEXT_MARGIN + room
+        assert textbox.get_left_margin() == TEXT_MARGIN
+
+    def test_right_to_left_text_has_the_pilcrows_room_on_the_left(self):
+        textbox = self._shown('\u05e9\u05dc\u05d5\u05dd\n\u05e2\u05d5\u05dc\u05dd')
+        room = textbox.create_pango_layout('¶').get_pixel_size()[0]
+
+        assert textbox.get_left_margin() == TEXT_MARGIN + room
+        assert textbox.get_right_margin() == TEXT_MARGIN
 
     def test_a_separator_ending_a_line_is_boxed_past_the_lines_end(self, monkeypatch):
         textbox = self._shown('ab\u2029cd')

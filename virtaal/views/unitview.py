@@ -826,8 +826,6 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         textbox.set_editable(editable)
         textbox.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
         textbox.set_border_window_size(Gtk.TextWindowType.TOP, 1)
-        textbox.set_left_margin(2)
-        textbox.set_right_margin(2)
         textbox.set_text(text or '')
         textbox.connect('focus-in-event', self._on_textbox_focused)
         textbox.connect('focus-out-event', self._on_textbox_unfocused)
