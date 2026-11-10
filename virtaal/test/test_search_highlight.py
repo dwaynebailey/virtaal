@@ -11,7 +11,7 @@ on the match's row and the match is highlighted and selected."""
 import time
 
 import pytest
-from gi.repository import GLib
+from gi.repository import Gdk, GLib
 from test_scaffolding import TestScaffolding
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
@@ -58,6 +58,27 @@ def _highlighted(textbox):
     )
 
 
+def _off_primary(textbox):
+    """Keep textbox's selection off PRIMARY, as an X client on the same
+    display (another xdist worker) selecting text takes PRIMARY, and GTK
+    then clears this one. Balanced with GtkTextView's own add on realize
+    and remove on unrealize."""
+    if getattr(textbox, '_off_primary', False):
+        return
+    textbox._off_primary = True
+
+    def realized(widget):
+        widget.get_buffer().remove_selection_clipboard(widget.get_clipboard(Gdk.SELECTION_PRIMARY))
+
+    def unrealizing(widget):
+        widget.get_buffer().add_selection_clipboard(widget.get_clipboard(Gdk.SELECTION_PRIMARY))
+
+    textbox.connect_after('realize', realized)
+    textbox.connect('unrealize', unrealizing)
+    if textbox.get_realized():
+        realized(textbox)
+
+
 def _selected(textbox):
     bounds = textbox.buffer.get_selection_bounds()
     return textbox.buffer.get_text(*bounds, True) if bounds else ''
@@ -99,6 +120,8 @@ class TestSearchHighlight(TestScaffolding):
 
         seen = []
         for _ in range(3):
+            for textbox in unit_view.sources + unit_view.targets:
+                _off_primary(textbox)
             search._move_match(1)
             _settle(self.treeview)
             target = unit_view.targets[0]
