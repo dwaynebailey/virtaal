@@ -19,6 +19,7 @@ SHORTCUT_GROUPS = [
         _("Global"),
         [
             ("<Primary>o", _("Open a file")),
+            ("<Primary><Shift>o", _("Open a folder")),
             ("<Primary>s", _("Save the current file")),
             ("<Primary><Shift>s", _("Save the current file under a new name")),
             ("<Primary>w", _("Close the current file")),

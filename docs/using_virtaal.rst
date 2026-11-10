@@ -41,10 +41,10 @@ units form one list: each file's name shows above its first unit, and moving
 past a file's last unit goes on into the next file. A file is read only once
 you come near it, so a large folder opens quickly.
 
-Open a folder with :menuselection:`File --> Open Folder…`, or from
-:menuselection:`File --> Recent Files` once you have. A folder opens the
-translation files in it and its subfolders (PO, XLIFF and Qt .ts), leaving out
-templates.
+Open a folder with :menuselection:`File --> Open Folder…` (:kbd:`Ctrl+Shift+O`,
+:kbd:`Cmd+Shift+O` on macOS), or from :menuselection:`File --> Recent Files`
+once you have. A folder opens the translation files in it and its subfolders
+(PO, XLIFF and Qt .ts), leaving out templates.
 
 The :menuselection:`View --> Files Panel` (:kbd:`F7`) beside the units lists
 the folders and files with how much of each is translated. It is open for a

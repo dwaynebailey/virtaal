@@ -689,6 +689,9 @@ class MainView(BaseView):
         Gtk.AccelMap.add_entry(
             "<Virtaal>/File/Save As", Gdk.KEY_s, primary | Gdk.ModifierType.SHIFT_MASK
         )
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/File/Open Folder", Gdk.KEY_o, primary | Gdk.ModifierType.SHIFT_MASK
+        )
         # macOS reserves Cmd+? for opening the Help menu.
         Gtk.AccelMap.add_entry(
             "<Virtaal>/Help/Shortcuts",
@@ -708,6 +711,7 @@ class MainView(BaseView):
         # GtkosxApplication is watching for.
         for menu_id, item_id in (
             ('menu_file', 'mnu_open'),
+            ('menu_file', 'mnu_open_folder'),
             ('menu_file', 'mnu_save'),
             ('menu_file', 'mnu_saveas'),
             ('menu_file', 'mnu_close'),

@@ -1390,7 +1390,7 @@ def test_setup_key_bindings_registers_close(monkeypatch, is_mac):
         (False, Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK),
     ],
 )
-def test_setup_key_bindings_registers_save_as(monkeypatch, is_mac, mods):
+def test_setup_key_bindings_registers_save_as_and_open_folder(monkeypatch, is_mac, mods):
     monkeypatch.setattr(platform, 'is_mac', is_mac)
     calls = []
     monkeypatch.setattr(
@@ -1401,6 +1401,9 @@ def test_setup_key_bindings_registers_save_as(monkeypatch, is_mac, mods):
     MainView._setup_key_bindings(view)
 
     assert ("<Virtaal>/File/Save As", Gdk.KEY_s, mods) in calls
+    assert ("<Virtaal>/File/Open Folder", Gdk.KEY_o, mods) in calls
+    folder = view.gui.get_object('mnu_open_folder')
+    assert folder.get_accel_path() == "<Virtaal>/File/Open Folder"
 
 
 @pytest.mark.parametrize(
