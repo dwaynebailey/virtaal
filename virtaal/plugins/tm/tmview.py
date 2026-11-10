@@ -822,8 +822,17 @@ class TMView(BaseView, GObjectWrapper):
 
     def _on_store_saved(self, storecontroller):
         # Saved under another name: a file of its own in the TM.
-        if storecontroller.get_store_filename() != self._add_on_save_file:
-            self._show_add_on_save()
+        if storecontroller.get_store_filename() == self._add_on_save_file:
+            return
+        item = self.mnu_add_on_save
+        if item is not None and self._add_on_save_file and not item.get_active():
+            # Kept out of the TM, it stays out under its new name: excluding
+            # also removes anything its save added there.
+            self._add_on_save_file = storecontroller.get_store_filename()
+            self._opened += 1
+            self._exclude_model.set_exclude(storecontroller, True, lambda: None, lambda: None)
+            return
+        self._show_add_on_save()
 
     def _on_store_view_scroll(self, *args):
         # The list also scrolls to keep a growing target in view.

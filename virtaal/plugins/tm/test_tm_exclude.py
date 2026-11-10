@@ -290,7 +290,7 @@ def test_a_tm_that_never_answers_leaves_the_item_usable():
 def test_saving_under_another_name_asks_about_the_new_file():
     store_controller = _StoreController()
     view, _mainview = _tmview(store_controller)
-    model = _Model({'/home/user/af.po': (True, 0)})
+    model = _Model({'/home/user/copy.po': (True, 0)})
     view.add_exclude_menu_item(model)
 
     view._on_store_saved(store_controller)
@@ -298,7 +298,36 @@ def test_saving_under_another_name_asks_about_the_new_file():
     view._on_store_saved(store_controller)
 
     assert model.asked == ['/home/user/af.po', '/home/user/copy.po']
-    assert view.mnu_add_on_save.get_active()
+    assert model.set == []
+    assert not view.mnu_add_on_save.get_active()
+
+
+def test_a_file_kept_out_stays_out_saved_under_another_name():
+    store_controller = _StoreController()
+    view, _mainview = _tmview(store_controller)
+    model = _Model({'/home/user/af.po': (True, 0)})
+    view.add_exclude_menu_item(model)
+
+    store_controller.filename = '/home/user/copy.po'
+    view._on_store_saved(store_controller)
+    view._on_store_saved(store_controller)
+
+    assert model.asked == ['/home/user/af.po']
+    assert model.set == [('/home/user/copy.po', True)]
+    assert not view.mnu_add_on_save.get_active()
+
+
+def test_saving_under_another_name_without_the_local_tm_does_nothing():
+    store_controller = _StoreController()
+    view, _mainview = _tmview(store_controller)
+    model = _Model({'/home/user/af.po': (True, 0)})
+    view.add_exclude_menu_item(model)
+    view.remove_exclude_menu_item()
+
+    store_controller.filename = '/home/user/copy.po'
+    view._on_store_saved(store_controller)
+
+    assert model.set == []
 
 
 # Unticking and ticking.
@@ -436,7 +465,7 @@ class _SavingStoreController(GObject.GObject):
         self.modified = False
         self._store = pypo.pofile.parsestring(po)
         self.store = SimpleNamespace(
-            get_units=lambda: self._store.units, get_filename=lambda: filename
+            get_units=lambda: self._store.units, get_filename=lambda: self.filename
         )
 
     def get_store(self):
@@ -516,6 +545,55 @@ def test_unticking_and_ticking_again_with_the_real_local_tm(tmp_path, monkeypatc
         assert units() == 2
         assert app.tmdb.translate_unit('Open', 'en', 'af')[0]['target'] == 'Maak oop'
         assert mainview.errors == []
+    finally:
+        while test_tmserver._servers:
+            test_tmserver._servers.pop().stop()
+
+
+def test_a_file_kept_out_saved_as_another_with_the_real_local_tm(tmp_path, monkeypatch):
+    from virtaal.common import SignalTracker
+    from virtaal.plugins.tm.models.localtm import TMModel
+    from virtaal.support import test_tmserver, tmclient
+
+    app, port = test_tmserver._start_server(tmp_path / 'tm.db')
+    try:
+        filename = str(tmp_path / 'af.po')
+        store_controller = _SavingStoreController(filename, b'msgid "Open"\nmsgstr "Maak oop"\n')
+        model = TMModel.__new__(TMModel)
+        GObject.GObject.__init__(model)
+        model.source_lang, model.target_lang = 'en', 'af'
+        model.cache, model._generation, model._excluded = {}, 0, {}
+        model.tmclient = tmclient.TMClient('http://127.0.0.1:%d' % port)
+        requests = []
+        monkeypatch.setattr(model.tmclient, 'add', lambda request: requests.append(request) or True)
+
+        def send_all():
+            while requests:
+                request = requests.pop(0)
+                request.curl.perform()
+                request.handle_result()
+
+        view, _mainview = _tmview(store_controller)
+        # As in Virtaal: the view hears of a save before the model.
+        model._signal_tracker = SignalTracker()
+        model._signal_tracker.connect(store_controller, 'store-saved', view._on_store_saved)
+        model._signal_tracker.connect(store_controller, 'store-saved', model.push_store)
+        view.add_exclude_menu_item(model)
+        send_all()
+        _untick(view)
+        send_all()
+
+        copy = str(tmp_path / 'copy.po')
+        store_controller.filename = copy
+        store_controller.emit('store-saved')
+        send_all()
+
+        assert app.tmdb.store_stats(os.path.realpath(copy), 'en', 'af')['exclude']
+        assert app.tmdb.translate_unit('Open', 'en', 'af') == []
+        assert not view.mnu_add_on_save.get_active()
+        store_controller.emit('store-saved')
+        send_all()
+        assert app.tmdb.translate_unit('Open', 'en', 'af') == []
     finally:
         while test_tmserver._servers:
             test_tmserver._servers.pop().stop()
