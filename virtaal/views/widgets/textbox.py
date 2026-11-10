@@ -1125,17 +1125,18 @@ class TextBox(Gtk.TextView):
         self._schedule_pending()
 
     def _lazy_parsers(self):
-        """The parsers a long text's invisible characters wait for: the
-        invisible characters' and those after it."""
+        """The parser a long text's invisible characters wait for. The
+        parsers after it (terminology) parse such a text at once: waiting
+        with it, they never parsed its leaves without one."""
         parsers = self.placeables_controller.get_parsers_for_textbox(self)
-        if invisiblechars.InvisiblePlaceable.parse not in parsers:
-            return []
-        return parsers[parsers.index(invisiblechars.InvisiblePlaceable.parse) :]
+        invisible = invisiblechars.InvisiblePlaceable.parse
+        return [invisible] if invisible in parsers else []
 
     def _parse_start(self, text):
         """text parsed for placeables, but for a long text, the invisible
         characters only in its first L{EAGER_LENGTH} characters: the rest
-        wait for L{_schedule_pending}."""
+        wait for L{_schedule_pending}. Its other placeables are parsed
+        first, so the invisible characters' parser comes last."""
         parsers = self.placeables_controller.get_parsers_for_textbox(self)
         lazy = self._lazy_parsers()
         if len(text) <= EAGER_LENGTH or not lazy:

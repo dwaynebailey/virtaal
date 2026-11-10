@@ -244,6 +244,29 @@ class TestTextBoxMarkers(TestScaffolding):
         assert self._leaves(textbox.elem) == self._leaves(full)
         assert textbox.get_text() == self.LONG
 
+    def test_a_long_text_gets_the_parsers_after_the_invisible_characters_at_once(self):
+        # Terminology comes after them: a long text without one got no
+        # terms marked.
+        class Marked(StringElem):
+            @classmethod
+            def parse(cls, text):
+                before, found, after = text.partition('zqz')
+                if not found:
+                    return None
+                return [
+                    StringElem(t) if t != found else cls([t]) for t in (before, found, after) if t
+                ]
+
+        controller = self.main_controller.placeables_controller
+        controller.add_parsers(Marked.parse)
+        try:
+            textbox = self._shown('word ' * 1100 + 'zqz')
+            marked = [str(e) for e in textbox.elem.depth_first() if isinstance(e, Marked)]
+        finally:
+            controller.remove_parsers(Marked.parse)
+
+        assert marked == ['zqz']
+
     def test_every_placeable_is_parsed_when_they_are_all_needed(self):
         textbox = self._shown(self.LONG)
 
