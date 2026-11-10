@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
-from virtaal.common import GObjectWrapper
+from virtaal.common import GObjectWrapper, pan_app
 from virtaal.plugins.tm.tmview import TMView, insert_shortcut_digit
 
 # Each test's own virtaal.ui windows are destroyed after it.
@@ -1299,7 +1299,9 @@ def _popup(textbox):
     return [item for item in menu.get_children() if not isinstance(item, Gtk.SeparatorMenuItem)]
 
 
-def test_the_target_menu_lists_the_suggestions_with_their_percentage():
+def test_the_target_menu_lists_the_suggestions_with_their_percentage(monkeypatch):
+    # Numbers as English writes them, whatever language another test left.
+    monkeypatch.setattr(pan_app, 'ui_language', 'en')
     _view, textbox = _target_menu_view()
 
     (item,) = _popup(textbox)
