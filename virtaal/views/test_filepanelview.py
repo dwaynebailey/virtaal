@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import pytest
 from gi.repository import Gtk
 
+from virtaal.common import pan_app
 from virtaal.views.filepanelview import (
     FilePanelView,
     build_tree,
@@ -181,7 +182,9 @@ def _tooltip_at(view, name, column):
     return shown[0] if shown else None
 
 
-def test_the_percentage_tooltip_counts_translated_needs_work_and_untranslated():
+def test_the_percentage_tooltip_counts_translated_needs_work_and_untranslated(monkeypatch):
+    # Numbers as English writes them, whatever language another test left.
+    monkeypatch.setattr(pan_app, 'ui_language', 'en')
     entries = [
         SimpleNamespace(display_name='de/a.po', language='de', template=None),
         SimpleNamespace(display_name='de/b.po', language='de', template=None),
