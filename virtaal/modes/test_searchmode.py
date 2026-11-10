@@ -245,6 +245,127 @@ def test_replace_all_replaces_in_each_trados_segment_alone():
     assert [m.tail for m in target] == [' ', ' ', None]
 
 
+# Q29: a replace keeps the unit's state, as typing does.
+
+_XLIFF = (
+    '<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2"'
+    ' xmlns:sdl="http://sdl.com/FileTypes/SdlXliff/1.0" xmlns:mq="MQXliff"'
+    ' xmlns:m="http://www.memsource.com/mxlf/2.0"{root}>'
+    '<file original="a" datatype="{datatype}" source-language="en"'
+    ' target-language="af"><body>{body}</body></file></xliff>'
+)
+_TRADOS = (
+    '<trans-unit id="1"><source>Open it</source>'
+    '<seg-source><mrk mtype="seg" mid="1">Open it</mrk></seg-source>'
+    '<target><mrk mtype="seg" mid="1">Maak oop</mrk></target>'
+    '<sdl:seg-defs><sdl:seg id="1" conf="{state}"/></sdl:seg-defs></trans-unit>'
+)
+_XLIFF_UNITS = {
+    'trados': ('x-sdlfilterframework2', '', _TRADOS),
+    'memoq': (
+        'plaintext',
+        '',
+        '<trans-unit id="1" mq:status="{state}"><source>Open it</source>'
+        '<target>Maak oop</target></trans-unit>',
+    ),
+    'phrase': (
+        'x-undefined',
+        ' m:version="2.15" m:level="1"',
+        '<group id="0"><trans-unit id="s1" m:confirmed="{state}" m:locked="false">'
+        '<source>Open it</source><target>Maak oop</target></trans-unit></group>',
+    ),
+    'xliff': (
+        'plaintext',
+        '',
+        '<trans-unit id="1"><source>Open it</source>'
+        '<target state="{state}">Maak oop</target></trans-unit>',
+    ),
+}
+
+
+def _state_unit(kind, state):
+    from virtaal.support import catxliff_compat, sdlxliff_compat  # noqa: F401 - patch ttk
+
+    datatype, root, body = _XLIFF_UNITS[kind]
+    data = _XLIFF.format(root=root, datatype=datatype, body=body.format(state=state))
+    store = xliff.xlifffile.parsestring(data.encode('utf-8'))
+    if kind == 'trados':
+        return sdlxliff_compat.segment_units(store.units[0])[0]
+    return store.units[0]
+
+
+def _txml_unit():
+    import io
+
+    from translate.storage import factory
+
+    from virtaal.support import txml_compat  # noqa: F401 - registers the format
+
+    data = io.BytesIO(
+        b'<?xml version="1.0" encoding="UTF-8"?><txml locale="EN" version="1.0"'
+        b' segtype="sentence" targetlocale="AF"><translatable blockId="1">'
+        b'<segment segmentId="1" gtmt="true"><source>Open it</source>'
+        b'<target>Maak oop</target></segment></translatable></txml>'
+    )
+    data.name = 'a.txml'
+    return factory.getobject(data).units[0]
+
+
+def _replace_oop(unit):
+    f = GrepFilter(searchstring='oop', searchparts=('target',), ignorecase=True, useregexp=False)
+    mode = SearchMode.__new__(SearchMode)
+    mode.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            unit_controller=None,
+            undo_controller=SimpleNamespace(record_start=lambda: None, record_stop=lambda: None),
+        )
+    )
+    mode.matches, _ = f.getmatches([unit])
+    mode.ent_replace = SimpleNamespace(get_text=lambda: 'toe')
+    mode._search_timeout = 0
+    mode.update_search = lambda: None
+    mode._replace_all()
+
+
+@pytest.mark.parametrize(
+    'kind, state',
+    [
+        ('trados', 'Draft'),
+        ('trados', 'RejectedTranslation'),
+        ('memoq', 'PartiallyEdited'),
+        ('phrase', '0'),
+        ('xliff', 'needs-review-translation'),
+        ('xliff', 'needs-translation'),
+    ],
+)
+def test_replace_keeps_the_state_of_the_unit(kind, state):
+    unit = _state_unit(kind, state)
+    before = unit.get_state_n()
+
+    _replace_oop(unit)
+
+    assert unit.target == 'Maak toe'
+    assert unit.get_state_n() == before
+
+
+def test_replace_keeps_a_trados_draft_segments_conf():
+    unit = _state_unit('trados', 'Draft')
+
+    _replace_oop(unit)
+
+    assert unit.segment_def().get('conf') == 'Draft'
+
+
+def test_replace_keeps_the_state_of_a_txml_machine_translation():
+    unit = _txml_unit()
+    before = unit.get_state_n()
+
+    _replace_oop(unit)
+
+    assert unit.target == 'Maak toe'
+    assert unit.get_state_n() == before
+
+
 def test_replace_all_with_no_replacement_text_deletes_every_match():
     units = [_xliff_unit("x", "Don't know and also Don't know")]
     f = GrepFilter(

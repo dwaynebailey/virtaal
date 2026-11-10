@@ -75,6 +75,19 @@ def replace_in_elem(elem, plain, start, end, replace_str):
     return elem
 
 
+def _set_target_keeping_state(unit, rich, plain):
+    """Set unit's target to the tree list rich, or else to plain, in the
+    state it had, as typing does: an XLIFF-based format's plain target
+    marks it translated (a Trados Draft segment, memoQ, Phrase, TXML)."""
+    state_n = unit.get_state_n() if unit.STATE else None
+    if rich is not None:
+        unit.rich_target = rich
+    else:
+        unit.target = plain
+    if state_n is not None and unit.get_state_n() != state_n:
+        unit.set_state_n(state_n)
+
+
 def _has_placeables(elem):
     return any(type(leaf) is not StringElem for leaf in elem.flatten())
 
@@ -323,10 +336,8 @@ class SearchMode(BaseMode):
                 unit_controller.view.targets[match.part_n]
             )
             unit_controller.set_unit_target(match.part_n, value)
-        elif rich is not None:
-            unit.rich_target = rich
         else:
-            unit.target = strings if unit.hasplural() else value
+            _set_target_keeping_state(unit, rich, strings if unit.hasplural() else value)
 
     def select_match_unit(self, match):
         index = self._match_indices.get(id(match))
