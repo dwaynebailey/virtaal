@@ -239,13 +239,14 @@ def _select(view, row):
     selection.select_path(Gtk.TreePath.new_from_indices([row]))
 
 
-def _run_main_loop(seconds):
+def _run_main_loop(seconds, until=None):
+    """Run the main loop for C{seconds}, or until C{until()} is true."""
     import time
 
     from gi.repository import GLib
 
     end = time.monotonic() + seconds
-    while time.monotonic() < end:
+    while time.monotonic() < end and not (until and until()):
         GLib.MainContext.default().iteration(False)
 
 
@@ -275,7 +276,8 @@ def test_the_panel_keeps_the_focus_when_the_units_follow_the_arrows(monkeypatch)
     monkeypatch.setattr(view.treeview, 'grab_focus', lambda: grabs.append(True))
 
     view._apply_rested()
-    _run_main_loop(0.05)
+    # On a busy runner the idle can come later than 50 ms.
+    _run_main_loop(5, until=lambda: grabs)
 
     assert grabs == [True]
     vbox.destroy()
