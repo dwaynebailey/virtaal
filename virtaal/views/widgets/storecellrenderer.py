@@ -14,7 +14,7 @@ from virtaal.common import pan_app
 from virtaal.views import markup, rendering
 from virtaal.views.theme import current_theme, str_to_rgba, unit_style
 
-from .storetreemodel import StoreTreeModel
+from .storetreemodel import COLUMN_UNIT, StoreTreeModel
 from .wayland import is_wayland
 
 # How the editor shows a placeable that has no text of its own.
@@ -328,19 +328,24 @@ class StoreCellRenderer(Gtk.CellRenderer):
         return editor.get_preferred_size()[1].height + self.ROW_PADDING
 
     def _regrow_editor_row(self, editor):
-        # row_changed() would end the edit.
         self._regrow_scheduled = False
         treeview = self.view._treeview
         if self._editor_height is None or treeview.is_resizing:
             return GLib.SOURCE_REMOVE
+        path, _column = treeview.get_cursor()
+        model = treeview.get_model()
+        it = model.get_iter(path) if path is not None and model is not None else None
+        if it is None or model.get_value(it, COLUMN_UNIT) is not editor.unit:
+            # The cursor moved on: the next row's editor is measured anyway.
+            return GLib.SOURCE_REMOVE
         width = max(_content_width(treeview.get_toplevel()) - 32, -1)
         if self._measure_editor(editor, treeview, width) != self._editor_height:
-            column = treeview.get_columns()[0]
-            column.queue_resize()
+            # Only this row is measured again, not every row as with
+            # column.queue_resize(); it ends the edit, so edit it again.
+            model.row_changed(path, it)
+            treeview.refresh_current_row()
             # Else GTK keeps a grown last row's editor over the row above.
-            path, _column = treeview.get_cursor()
-            if path is not None:
-                treeview.scroll_to_cell(path, column, False, 0, 0)
+            treeview.scroll_to_cell(path, treeview.get_columns()[0], False, 0, 0)
         return GLib.SOURCE_REMOVE
 
     def do_start_editing(self, _event, tree_view, path, _bg_area, cell_area, _flags):

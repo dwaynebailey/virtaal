@@ -7,7 +7,7 @@
 
 import logging
 
-from gi.repository import GLib, GObject, Gtk
+from gi.repository import Gdk, GLib, GObject, Gtk
 
 from .storecellrenderer import StoreCellRenderer
 from .storetreemodel import COLUMN_EDITABLE, COLUMN_UNIT, StoreTreeModel
@@ -274,7 +274,10 @@ class StoreTreeView(Gtk.TreeView):
             self.set_cursor(path, self.get_columns()[0], start_editing=True)
 
         self._waiting_for_row_change += 1
-        GLib.idle_add(change_cursor, priority=GLib.PRIORITY_DEFAULT_IDLE)
+        # Moves wait for it: after the redraw, but before GtkTreeView
+        # measures every row again (priority 125), which takes seconds
+        # for 100,000 units.
+        GLib.idle_add(change_cursor, priority=Gdk.PRIORITY_REDRAW + 4)
 
     def refresh_current_row(self):
         """Redo the current row's editing cycle in place, without

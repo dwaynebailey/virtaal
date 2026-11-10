@@ -1184,34 +1184,48 @@ def test_compute_optimal_height_textview_remeasures_the_opened_height_at_a_new_w
     assert textview.get_parent().get_size_request()[1] < narrow_height
 
 
+UNIT = object()
+
+
 def _regrow_renderer(monkeypatch, measured, editor_height=100, is_resizing=False):
     renderer = _renderer_with_view(is_resizing=is_resizing)
     resizes = []
-    column = SimpleNamespace(queue_resize=lambda: resizes.append(True))
-    renderer.view._treeview.get_cursor = lambda: ('path', column)
-    renderer.view._treeview.scroll_to_cell = lambda *args: resizes.append(('scroll',) + args)
-    renderer.view._treeview.get_toplevel = lambda: SimpleNamespace(
+    column = SimpleNamespace(queue_resize=lambda: resizes.append('every row'))
+    treeview = renderer.view._treeview
+    treeview.get_cursor = lambda: ('path', column)
+    treeview.get_model = lambda: SimpleNamespace(
+        get_iter=lambda path: ('iter', path),
+        get_value=lambda it, column: UNIT,
+        row_changed=lambda path, it: resizes.append(('row', path)),
+    )
+    treeview.refresh_current_row = lambda: resizes.append('edit again')
+    treeview.scroll_to_cell = lambda *args: resizes.append(('scroll',) + args)
+    treeview.get_toplevel = lambda: SimpleNamespace(
         get_allocation=lambda: SimpleNamespace(width=400)
     )
-    renderer.view._treeview.get_columns = lambda: [column]
+    treeview.get_columns = lambda: [column]
     renderer._editor_height = editor_height
     monkeypatch.setattr(renderer, '_measure_editor', lambda *_args: measured)
     return renderer, resizes
 
 
-def test_regrow_editor_row_resizes_and_keeps_the_row_in_view_when_its_height_changed(monkeypatch):
+def test_regrow_editor_row_measures_only_its_row_and_keeps_it_in_view(monkeypatch):
     renderer, resizes = _regrow_renderer(monkeypatch, measured=122)
     column = renderer.view._treeview.get_columns()[0]
 
-    renderer._regrow_editor_row(SimpleNamespace(targets=[]))
+    renderer._regrow_editor_row(SimpleNamespace(targets=[], unit=UNIT))
 
-    assert resizes == [True, ('scroll', 'path', column, False, 0, 0)]
+    assert resizes == [
+        ('row', 'path'),
+        'edit again',
+        ('scroll', 'path', column, False, 0, 0),
+    ]
 
 
 def test_regrow_editor_row_leaves_an_unchanged_height_alone(monkeypatch):
     renderer, resizes = _regrow_renderer(monkeypatch, measured=100)
 
-    renderer._regrow_editor_row(SimpleNamespace(targets=[]))
+    renderer._regrow_editor_row(SimpleNamespace(targets=[], unit=UNIT))
 
     assert resizes == []
 
@@ -1219,7 +1233,15 @@ def test_regrow_editor_row_leaves_an_unchanged_height_alone(monkeypatch):
 def test_regrow_editor_row_waits_for_a_window_resize_to_settle(monkeypatch):
     renderer, resizes = _regrow_renderer(monkeypatch, measured=122, is_resizing=True)
 
-    renderer._regrow_editor_row(SimpleNamespace(targets=[]))
+    renderer._regrow_editor_row(SimpleNamespace(targets=[], unit=UNIT))
+
+    assert resizes == []
+
+
+def test_regrow_editor_row_skips_an_editor_the_cursor_has_left(monkeypatch):
+    renderer, resizes = _regrow_renderer(monkeypatch, measured=122)
+
+    renderer._regrow_editor_row(SimpleNamespace(targets=[], unit=object()))
 
     assert resizes == []
 
