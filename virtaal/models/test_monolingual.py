@@ -235,6 +235,7 @@ def test_a_renamed_key_with_the_same_source_keeps_its_translation(project):
     pair = _open(project)
 
     assert _units(pair)['window.title'].target == 'Lêerbestuurder'
+    assert _state(_units(pair)['window.title']) == 'needs-review'
     assert pair.carried == 1
     # Until saved, the file still has the old key, so it carries over again.
     assert _units(_open(project))['window.title'].target == 'Lêerbestuurder'
@@ -242,6 +243,8 @@ def test_a_renamed_key_with_the_same_source_keeps_its_translation(project):
     text = (project / 'af.properties').read_text(encoding='utf-8')
     assert 'window.title=Lêerbestuurder' in text
     assert 'app.title' not in text
+    # Still to review after the save.
+    assert _state(_units(_open(project))['window.title']) == 'needs-review'
 
 
 def test_first_open_marks_every_translation_for_review(project):

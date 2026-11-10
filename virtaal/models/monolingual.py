@@ -302,7 +302,7 @@ class MonolingualPair:
             if not old_units:
                 units[key] = self._first_seen(key, unit, recalled.get(key))
             elif not _target_text(unit):
-                units[key] = self._untranslated(unit, renamed, values)
+                units[key] = self._untranslated(key, unit, renamed, values)
             elif previous is None and self._migrated(unit, old_units):
                 units[key] = self._known_key(key, unit, self._migrated(unit, old_units))
             elif previous is None:
@@ -345,7 +345,7 @@ class MonolingualPair:
         self._mark(key, unit, _Review(), NEEDS_REVIEW)
         return baseline.entry(current, target, NEEDS_REVIEW)
 
-    def _untranslated(self, unit, renamed, values):
+    def _untranslated(self, key, unit, renamed, values):
         old_key = renamed.get(text_hash(_source_text(unit)))
         carried = values.get(old_key) if old_key else None
         if carried and getattr(unit, 'plural_tags', None):
@@ -354,6 +354,8 @@ class MonolingualPair:
         if carried:
             unit.target = carried
             self.carried += 1
+            # The key may have been renamed for a change of meaning.
+            self._mark(key, unit, _Review(), NEEDS_REVIEW)
         # What the file holds: the carried translation isn't in it yet.
         return baseline.entry(_source_text(unit), None, UNTRANSLATED)
 
