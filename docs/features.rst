@@ -72,6 +72,7 @@ Virtaal will make you more productive
 - Machine translation
 
   - :doc:`Google Translate <google>`
+  - :doc:`DeepL <deepl>`
   - :doc:`Apertium <apertium>`
   - :doc:`Moses <moses>`
 
@@ -80,6 +81,7 @@ Virtaal will make you more productive
    :hidden:
 
    google
+   deepl
    apertium
    moses
 
