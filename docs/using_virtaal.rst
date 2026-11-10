@@ -47,8 +47,9 @@ once you have. A folder opens the translation files in it and its subfolders
 (PO, XLIFF and Qt .ts), leaving out templates.
 
 The :menuselection:`View --> Files Panel` (:kbd:`F7`) beside the units lists
-the folders and files with how much of each is translated. It is open for a
-folder, and hidden until you show it for several files. Select a file or
+the folders and files with how much of each is translated; hover over the
+percentage for how many units are translated, need work and are untranslated.
+It is open for a folder, and hidden until you show it for several files. Select a file or
 folder in it, or several with :kbd:`Ctrl`, to see only their units; press
 :kbd:`Esc` in the panel to see every file again. With nothing selected, the
 file you are in shows in bold.

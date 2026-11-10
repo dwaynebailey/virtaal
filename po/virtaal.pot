@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-10 14:55+0000\n"
+"POT-Creation-Date: 2026-11-10 14:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2919,6 +2919,15 @@ msgstr ""
 msgid ""
 "Mark this result as fine: it stays hidden until the source or translation "
 "changes"
+msgstr ""
+
+#. l10n: Tooltip of a file's or folder's percentage in the files panel
+#: virtaal/views/filepanelview.py
+#, python-format
+msgid ""
+"Translated: %(translated)s\n"
+"Needs work: %(fuzzy)s\n"
+"Untranslated: %(untranslated)s"
 msgstr ""
 
 #. l10n: A language in the files panel's list, and how many of the open files are in it

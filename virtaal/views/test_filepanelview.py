@@ -162,3 +162,52 @@ def _iters(model, it=None):
         yield it
         yield from _iters(model, it)
         it = model.iter_next(it)
+
+
+def _tooltip_at(view, name, column):
+    """The tooltip text with the pointer over C{name}'s row in C{column}."""
+    it = next(it for it in _iters(view.model) if view.model[it][0] == name)
+    path = view.model.get_path(it)
+    shown = []
+    treeview = SimpleNamespace(
+        get_tooltip_context=lambda x, y, keyboard: (True, x, y, view.model, path, it),
+        get_path_at_pos=lambda x, y: (path, column, 0, 0),
+        set_tooltip_cell=lambda *args: None,
+        set_tooltip_row=lambda *args: None,
+    )
+    tooltip = SimpleNamespace(set_text=shown.append)
+    view._on_query_tooltip(treeview, 1, 1, False, tooltip)
+    return shown[0] if shown else None
+
+
+def test_the_percentage_tooltip_counts_translated_needs_work_and_untranslated():
+    entries = [
+        SimpleNamespace(display_name='de/a.po', language='de', template=None),
+        SimpleNamespace(display_name='de/b.po', language='de', template=None),
+        SimpleNamespace(display_name='c.po', language='de', template=None),
+    ]
+    view, vbox = _loaded_view(entries, [])
+
+    view.update_progress([(3, 1, 10), (1200, 0, 1500), (2, 2, 4)])
+
+    progress = view.progress_column
+    assert _tooltip_at(view, 'a.po', progress) == 'Translated: 3\nNeeds work: 1\nUntranslated: 6'
+    assert _tooltip_at(view, 'de', progress) == (
+        'Translated: 1,203\nNeeds work: 1\nUntranslated: 306'
+    )
+    assert _tooltip_at(view, 'c.po', progress) == 'Translated: 2\nNeeds work: 2\nUntranslated: 0'
+    # The name column keeps the row's own tooltip, here none.
+    assert _tooltip_at(view, 'a.po', view.treeview.get_column(0)) is None
+    vbox.destroy()
+
+
+def test_a_greyed_row_keeps_its_own_tooltip_over_the_percentage():
+    entry = SimpleNamespace(display_name='po/af.po', language='af', template=None)
+    source = SimpleNamespace(display_name='i18n/en.properties', language='en', path='/p/en')
+    view, vbox = _loaded_view([entry], [source])
+    view.update_progress([(1, 0, 2)])
+
+    tooltip = _tooltip_at(view, 'en.properties', view.progress_column)
+
+    assert tooltip == 'This is the source-language file.'
+    vbox.destroy()

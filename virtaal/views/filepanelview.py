@@ -26,7 +26,9 @@ from .baseview import BaseView
     COL_TOOLTIP,
     COL_SENSITIVE,
     COL_PATH,
-) = range(9)
+    # (translated, needs work, untranslated), for the % column's tooltip.
+    COL_COUNTS,
+) = range(10)
 
 # Folders open fully up to this many files; past it, only towards the
 # file being edited.
@@ -54,6 +56,18 @@ def scope_ranges(numbers, segments, total):
     if not numbers or len(numbers) >= total:
         return None
     return [(segments[n].offset, segments[n].offset + segments[n].count) for n in sorted(numbers)]
+
+
+def progress_tooltip(translated, fuzzy, untranslated):
+    text = _(
+        # l10n: Tooltip of a file's or folder's percentage in the files panel
+        "Translated: %(translated)s\nNeeds work: %(fuzzy)s\nUntranslated: %(untranslated)s"
+    )
+    return text % {
+        'translated': format_number(translated),
+        'fuzzy': format_number(fuzzy),
+        'untranslated': format_number(untranslated),
+    }
 
 
 def language_label(name, count):
@@ -103,12 +117,13 @@ class FilePanelView(BaseView):
         self.language_box.pack_start(self._all_languages_button(), False, False, 0)
         self.widget.pack_start(self.language_box, False, False, 0)
 
-        self.model = Gtk.TreeStore(str, str, int, str, object, int, str, bool, str)
+        self.model = Gtk.TreeStore(str, str, int, str, object, int, str, bool, str, object)
         self.treeview = Gtk.TreeView(model=self.model)
         self.treeview.set_headers_visible(False)
         self.treeview.set_enable_search(True)
         self.treeview.set_search_column(COL_NAME)
-        self.treeview.set_tooltip_column(COL_TOOLTIP)
+        self.treeview.set_has_tooltip(True)
+        self.treeview.connect('query-tooltip', self._on_query_tooltip)
         # l10n: The accessible name of the list of open files
         self.treeview.get_accessible().set_name(_("Files"))
 
@@ -134,6 +149,7 @@ class FilePanelView(BaseView):
         column.add_attribute(progress, 'text', COL_PERCENT_TEXT)
         column.add_attribute(progress, 'visible', COL_SENSITIVE)
         self.treeview.append_column(column)
+        self.progress_column = column
 
         self._connect_treeview()
 
@@ -249,7 +265,7 @@ class FilePanelView(BaseView):
         numbers = []
         for name in sorted(node['folders'], key=str.lower):
             it = self.model.append(
-                parent, [name, 'folder', 0, '', [], Pango.Weight.NORMAL, None, True, None]
+                parent, [name, 'folder', 0, '', [], Pango.Weight.NORMAL, None, True, None, None]
             )
             below = self._add_node(it, node['folders'][name], unknown)
             self.model[it][COL_SEGMENTS] = below
@@ -266,7 +282,18 @@ class FilePanelView(BaseView):
                 tooltip = _("This file doesn't say what language it is in.")
             it = self.model.append(
                 parent,
-                [name, 'text-x-generic', 0, '', [number], Pango.Weight.NORMAL, tooltip, True, None],
+                [
+                    name,
+                    'text-x-generic',
+                    0,
+                    '',
+                    [number],
+                    Pango.Weight.NORMAL,
+                    tooltip,
+                    True,
+                    None,
+                    None,
+                ],
             )
             self._rows[number] = Gtk.TreeRowReference.new(self.model, self.model.get_path(it))
             numbers.append(number)
@@ -283,6 +310,7 @@ class FilePanelView(BaseView):
                         Pango.Weight.NORMAL,
                         _("This is the source-language file."),
                         False,
+                        None,
                         None,
                     ],
                 )
@@ -302,7 +330,7 @@ class FilePanelView(BaseView):
                 "Virtaal can't tell which file this one translates. "
                 "Double-click to choose its source-language file."
             )
-        return [name, 'text-x-generic', 0, '', [], Pango.Weight.NORMAL, tooltip, False, path]
+        return [name, 'text-x-generic', 0, '', [], Pango.Weight.NORMAL, tooltip, False, path, None]
 
     def _load_languages(self, languages, language):
         store = self.language_combo.get_model()
@@ -327,23 +355,25 @@ class FilePanelView(BaseView):
         """Show each file's and folder's (translated, fuzzy, total) units."""
 
         def update(it):
-            translated = total = 0
+            translated = fuzzy = total = 0
             while it is not None:
                 row = self.model[it]
                 if row[COL_ICON] == 'folder':
-                    t, n = update(self.model.iter_children(it))
+                    t, f, n = update(self.model.iter_children(it))
                 elif not row[COL_SEGMENTS]:
                     it = self.model.iter_next(it)
                     continue
                 else:
-                    t, _fuzzy, n = counts[row[COL_SEGMENTS][0]]
+                    t, f, n = counts[row[COL_SEGMENTS][0]]
                 fraction = t / n if n else 1
                 row[COL_PERCENT] = int(fraction * 100)
                 row[COL_PERCENT_TEXT] = format_percent(fraction, decimals=0)
+                row[COL_COUNTS] = (t, f, n - t - f)
                 translated += t
+                fuzzy += f
                 total += n
                 it = self.model.iter_next(it)
-            return translated, total
+            return translated, fuzzy, total
 
         update(self.model.get_iter_first())
 
@@ -383,6 +413,24 @@ class FilePanelView(BaseView):
         return numbers
 
     # EVENT HANDLERS #
+    def _on_query_tooltip(self, treeview, x, y, keyboard, tooltip):
+        """The row's tooltip, or over the % column, its unit counts."""
+        found, x, y, model, path, it = treeview.get_tooltip_context(x, y, keyboard)
+        if not found:
+            return False
+        row = model[it]
+        at = None if keyboard else treeview.get_path_at_pos(x, y)
+        on_progress = at is not None and at[1] is self.progress_column
+        if on_progress and row[COL_SENSITIVE] and row[COL_COUNTS]:
+            tooltip.set_text(progress_tooltip(*row[COL_COUNTS]))
+            treeview.set_tooltip_cell(tooltip, path, self.progress_column, None)
+            return True
+        if not row[COL_TOOLTIP]:
+            return False
+        tooltip.set_text(row[COL_TOOLTIP])
+        treeview.set_tooltip_row(tooltip, path)
+        return True
+
     def _on_selection_changed(self, _selection):
         if self._building:
             return
