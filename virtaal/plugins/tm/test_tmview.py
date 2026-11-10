@@ -8,7 +8,7 @@
 from types import SimpleNamespace
 
 import pytest
-from gi.repository import Gdk, GLib, GObject, Gtk
+from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
 from virtaal.common import GObjectWrapper
 from virtaal.plugins.tm.tmview import TMView, insert_shortcut_digit
@@ -1269,6 +1269,108 @@ def test_insert_at_cursor_inserts_the_match(monkeypatch):
     _menu_items(view)['_Insert at Cursor'].activate()
 
     assert [match['target'] for match in inserted] == ['second']
+
+
+# Q15: the target's context menu, Insert Suggestion
+
+
+def _target_menu_view(qualities=(85, None), inserted=None):
+    view, _main_window, _groups = _real_tmview(
+        insert_match=lambda match, textbox: (inserted if inserted is not None else []).append(
+            (match['target'], textbox)
+        ),
+        match_text=lambda match: 'text of\n%s' % match['target'],
+    )
+    for n, quality in enumerate(qualities):
+        view.tmwindow.liststore.append([{'target': 'm%d' % n, 'quality': quality}, ''])
+    textbox = Gtk.TextView()
+    textbox.get_buffer().set_text('Maak die lêer oop')
+    view._connect_targets(None, [textbox])
+    return view, textbox
+
+
+_menus = []
+
+
+def _popup(textbox):
+    menu = Gtk.Menu()
+    _menus[:] = [menu]  # Its items go with it.
+    textbox.emit('populate-popup', menu)
+    return [item for item in menu.get_children() if not isinstance(item, Gtk.SeparatorMenuItem)]
+
+
+def test_the_target_menu_lists_the_suggestions_with_their_percentage():
+    _view, textbox = _target_menu_view()
+
+    (item,) = _popup(textbox)
+
+    assert item.get_label() == 'Insert _Suggestion'
+    assert item.get_use_underline()
+    labels = [entry.get_label() for entry in item.get_submenu().get_children()]
+    assert labels == ['85%  text of m0', 'text of m1']
+    child = item.get_submenu().get_children()[0].get_child()
+    assert child.get_ellipsize() == Pango.EllipsizeMode.END
+    assert child.get_max_width_chars() == 40
+    assert not item.get_submenu().get_children()[0].get_use_underline()
+
+
+def test_the_target_menu_has_no_insert_suggestion_without_suggestions():
+    _view, textbox = _target_menu_view(qualities=())
+
+    assert _popup(textbox) == []
+
+
+def test_a_read_only_target_has_no_insert_suggestion():
+    # A locked Trados segment.
+    _view, textbox = _target_menu_view()
+    textbox.set_editable(False)
+
+    assert _popup(textbox) == []
+
+
+def _select(textbox, start, end):
+    buffer = textbox.get_buffer()
+    buffer.select_range(buffer.get_iter_at_offset(start), buffer.get_iter_at_offset(end))
+
+
+def _selection(textbox):
+    buffer = textbox.get_buffer()
+    bounds = buffer.get_selection_bounds() or (buffer.get_iter_at_mark(buffer.get_insert()),) * 2
+    return tuple(itr.get_offset() for itr in bounds)
+
+
+@pytest.mark.parametrize('kept', [(5, 8), (9, 9)])
+def test_picking_a_suggestion_inserts_it_where_the_cursor_was(kept):
+    # Look-up and Add Term select the word under a right-click while the
+    # menu is built: the insert goes where the cursor or selection was.
+    inserted = []
+    _view, textbox = _target_menu_view(inserted=inserted)
+    _select(textbox, *kept)
+    _view._keep_target_selection(textbox)  # as 'popup-menu' does
+    (item,) = _popup(textbox)
+    _select(textbox, 0, 4)
+
+    item.get_submenu().get_children()[1].activate()
+
+    assert inserted == [('m1', textbox)]
+    assert _selection(textbox) == kept
+
+
+def test_a_right_click_keeps_the_selection_for_the_menu():
+    _view, textbox = _target_menu_view()
+    _select(textbox, 5, 8)
+    window = Gtk.Window()
+    window.add(textbox)
+    window.realize()
+    textbox.realize()
+    event = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+    event.button.window = textbox.get_window(Gtk.TextWindowType.TEXT)
+    event.button.button = 3
+
+    _view._on_target_press(textbox, event)
+
+    assert _view._menu_selection == (textbox, (5, 8))
+    window.destroy()
 
 
 # File > Fetch Suggestions for This File… (#1679)

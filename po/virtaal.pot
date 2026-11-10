@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-10 07:26+0000\n"
+"POT-Creation-Date: 2026-11-10 07:30+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2311,6 +2311,12 @@ msgstr ""
 
 #: virtaal/plugins/tm/models/remotetm.py
 msgid "_Port:"
+msgstr ""
+
+#. l10n: A submenu of the target's context menu: the translation suggestions, to insert
+#. one at the cursor or over the selected text
+#: virtaal/plugins/tm/tmview.py
+msgid "Insert _Suggestion"
 msgstr ""
 
 #. l10n: Suggestions for every translated unit

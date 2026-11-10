@@ -264,7 +264,8 @@ same effect. These replace the whole target. To insert a suggestion at the
 cursor instead, or over the selected text, keeping the rest of the target,
 press :kbd:`Ctrl+Shift+1`, :kbd:`Ctrl+Shift+2`, etc. (:kbd:`Ctrl`, not
 :kbd:`Cmd`, on macOS), or right-click the suggestion and choose
-:guilabel:`Insert at Cursor`.
+:guilabel:`Insert at Cursor`. Right-clicking in the translation also lists the
+suggestions under :guilabel:`Insert Suggestion`, with their match percentage.
 
 A translated unit shows suggestions only when you ask for them with :kbd:`F9`
 (:menuselection:`View --> Suggestions for This Unit`).

@@ -867,6 +867,16 @@ def test_insert_match_inserts_into_the_focused_target_and_focuses_it():
     assert targets[1].calls == [('insert', 'hallo'), 'focus']
 
 
+def test_insert_match_inserts_into_the_given_target():
+    # Q15: the target whose context menu was used, focused or not.
+    controller, targets = _insert_controller(None)
+
+    controller.insert_match({'target': 'hallo'}, targets[0])
+
+    assert targets[0].calls == [('insert', 'hallo'), 'focus']
+    assert targets[1].calls == []
+
+
 def test_insert_match_does_nothing_without_a_focused_target():
     controller, targets = _insert_controller(None)
 

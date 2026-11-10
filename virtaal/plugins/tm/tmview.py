@@ -8,10 +8,11 @@
 import logging
 import os
 
-from gi.repository import Gdk, GLib, GObject, Gtk
+from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
 from virtaal.common import GObjectWrapper, SignalTracker, pan_app
 from virtaal.common.pan_app import ngettext
+from virtaal.support.libi18n.numbers import format_percent
 from virtaal.views.baseview import BaseView
 from virtaal.views.widgets.popupwidgetbutton import PopupWidgetButton
 from virtaal.views.widgets.wayland import set_popup_parent
@@ -135,6 +136,7 @@ class TMView(BaseView, GObjectWrapper):
 
         self._setup_key_bindings()
         self._setup_menu_items()
+        self._connect_target_menus()
 
     def _setup_key_bindings(self):
         """Setup Gtk+ key bindings (accelerators)."""
@@ -165,6 +167,74 @@ class TMView(BaseView, GObjectWrapper):
         if index is None:
             return False
         return self.insert_match_index(index)
+
+    # The target's context menu: Insert Suggestion (Q15) #
+    # Each target's selection when its menu was asked for: other items
+    # (Look-up, Add Term) select the word under the pointer meanwhile.
+    _menu_selection = None
+
+    def _connect_target_menus(self):
+        unit_controller = getattr(self.controller.main_controller, 'unit_controller', None)
+        unit_view = getattr(unit_controller, 'view', None)
+        if unit_view is None:
+            return
+        if unit_view.targets:
+            self._connect_targets(unit_view, unit_view.targets)
+        self._signal_tracker.connect(unit_view, 'targets-created', self._connect_targets)
+
+    def _connect_targets(self, _unit_view, targets):
+        for textbox in targets:
+            self._signal_tracker.connect(textbox, 'button-press-event', self._on_target_press)
+            self._signal_tracker.connect(textbox, 'popup-menu', self._keep_target_selection)
+            self._signal_tracker.connect(textbox, 'populate-popup', self._on_target_populate_popup)
+
+    def _on_target_press(self, textbox, event):
+        if event.type == Gdk.EventType.BUTTON_PRESS and event.triggers_context_menu():
+            self._keep_target_selection(textbox)
+        return False
+
+    def _keep_target_selection(self, textbox):
+        buffer = textbox.get_buffer()
+        bounds = (
+            buffer.get_selection_bounds() or (buffer.get_iter_at_mark(buffer.get_insert()),) * 2
+        )
+        self._menu_selection = (textbox, tuple(itr.get_offset() for itr in bounds))
+        return False
+
+    def match_label(self, match_data):
+        """A short label for the match: its percentage, if any, and the
+        text picking it gives, on one line."""
+        text = ' '.join(self.controller.match_text(match_data).split())
+        quality = match_data.get('quality')
+        if quality is None:
+            return text
+        return '%s  %s' % (format_percent(int(quality) / 100, decimals=0), text)
+
+    def _on_target_populate_popup(self, textbox, menu):
+        liststore = self.tmwindow.liststore
+        if not len(liststore) or not textbox.get_editable():
+            return
+        submenu = Gtk.Menu()
+        for row in liststore:
+            item = Gtk.MenuItem(label=self.match_label(row[0]))
+            item.get_child().set_ellipsize(Pango.EllipsizeMode.END)
+            item.get_child().set_max_width_chars(40)
+            item.connect('activate', self._on_insert_from_menu, textbox, row[0])
+            submenu.append(item)
+        # l10n: A submenu of the target's context menu: the translation suggestions, to insert
+        # one at the cursor or over the selected text
+        item = Gtk.MenuItem.new_with_mnemonic(_('Insert _Suggestion'))
+        item.set_submenu(submenu)
+        menu.append(Gtk.SeparatorMenuItem())
+        menu.append(item)
+        menu.show_all()
+
+    def _on_insert_from_menu(self, _item, textbox, match_data):
+        kept, self._menu_selection = self._menu_selection, None
+        if kept is not None and kept[0] is textbox:
+            buffer = textbox.get_buffer()
+            buffer.select_range(*(buffer.get_iter_at_offset(offset) for offset in kept[1]))
+        self.controller.insert_match(match_data, textbox)
 
     def _translated_menu(self):
         """View > Suggestions for Translated Units' choices (#1396)."""
