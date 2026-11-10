@@ -938,6 +938,97 @@ def test_a_file_let_in_again_is_added_by_its_next_save(tmp_path, importing_model
     assert app.tmdb.store_stats(os.path.realpath(filename), 'en', 'af')['units'] == 2
 
 
+PACKAGES = os.path.join(
+    os.path.dirname(__file__), '..', '..', '..', '..', 'devsupport', 'testfiles', 'packages'
+)
+
+
+def _package_controller(tmp_path, name, work='work'):
+    """A store controller with C{name} (in the test packages) open,
+    taken out to C{work} under tmp_path."""
+    from virtaal.support import packages
+
+    package = packages.Package(os.path.join(PACKAGES, 'okapi', name), str(tmp_path / work))
+    store_controller = _store_controller(PO, package.files()[0])
+    store_controller.package = package
+    return store_controller
+
+
+def test_push_store_keys_a_packages_file_by_the_package_and_its_member(tmp_path):
+    model = _pushing_model()
+
+    model.push_store(_package_controller(tmp_path, 'test1.wsxz'))
+
+    ((path, body, _source_lang, _target_lang),) = model.sent
+    assert path == os.path.realpath(os.path.join(PACKAGES, 'okapi', 'test1.wsxz'))
+    assert body['member'] == 'okapi_intro_test15977.sdlxliff'
+
+
+def test_push_store_keys_each_file_of_a_package_opened_as_a_list(tmp_path):
+    model = _pushing_model()
+    store_controller = _package_controller(tmp_path, 'ts2017-test01.sdlppx')
+    package = store_controller.package
+    store_controller.is_stream = lambda: True
+    store_controller.store.file_parts = lambda: [(f, []) for f in package.files()]
+    store_controller.store.get_filename = lambda: package.work_dir
+
+    model.push_store(store_controller)
+
+    package_path = os.path.realpath(package.path)
+    assert [(path, body['member']) for path, body, _s, _t in model.sent] == [
+        (package_path, 'fr-CA/Test.docx.sdlxliff'),
+        (package_path, 'pl-PL/Test.docx.sdlxliff'),
+    ]
+    assert localtm.store_key(store_controller) == (package_path, '')
+
+
+def test_a_file_in_a_packages_inner_zip_is_keyed_by_both_names(tmp_path):
+    extracted = str(tmp_path / 'work' / 'a.xlf')
+    package = SimpleNamespace(
+        path=str(tmp_path / 'job.tipp'),
+        work_dir=str(tmp_path / 'work'),
+        members={extracted: ('resources.zip', 'bilingual/a.xlf', 'sha')},
+    )
+    store_controller = SimpleNamespace(package=package)
+
+    assert localtm.file_key(store_controller, extracted) == (
+        os.path.realpath(package.path),
+        'resources.zip/bilingual/a.xlf',
+    )
+    assert localtm.file_key(store_controller, str(tmp_path / 'b.xlf')) == (
+        os.path.realpath(tmp_path / 'b.xlf'),
+        '',
+    )
+
+
+def test_a_package_opened_again_keeps_its_store(tmp_path):
+    first = _package_controller(tmp_path, 'test1.wsxz', 'first')
+    key = localtm.store_key(first)
+    first.package.discard()
+
+    again = _package_controller(tmp_path, 'test1.wsxz', 'again')
+
+    assert localtm.store_key(again) == key
+
+
+def test_a_packages_file_stays_excluded_when_the_package_opens_again(tmp_path, importing_model):
+    model, app, send = importing_model
+    first = _package_controller(tmp_path, 'test1.wsxz', 'first')
+    model.set_exclude(first, True, lambda: None, lambda: None)
+    send()
+    first.package.discard()
+    model._excluded = {}  # as after a restart
+
+    again = _package_controller(tmp_path, 'test1.wsxz', 'again')
+    results = _status(model, again)
+    send()
+
+    assert results == [('done', True, 0)]
+    model.tmclient.add_store = lambda *a: model.sent.append(a)
+    model.push_store(again)
+    assert model.sent == []
+
+
 def test_push_store_sends_when_the_files_state_is_unknown(tmp_path):
     model = _pushing_model()
     model._excluded = {(os.path.realpath(tmp_path / 'other.po'), ''): True}

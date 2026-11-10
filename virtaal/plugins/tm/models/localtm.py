@@ -222,7 +222,7 @@ class TMModel(remotetm.TMModel):
         server leaves a file excluded from the TM alone."""
         if store_controller.is_stream():
             for path, units in store_controller.store.file_parts():
-                self._push_units((os.path.realpath(path), ''), units)
+                self._push_units(file_key(store_controller, path), units)
             return
         self._push_units(store_key(store_controller), store_controller.store.get_units())
 
@@ -457,13 +457,30 @@ def _unit_dict(unit):
 
 def store_key(store_controller):
     """The open file's store in the local TM: its real path, and for a
-    bundle the bundle's with the file's name inside it."""
+    bundle or package the bundle's or package's with the file's name
+    inside it."""
     bundle = store_controller.get_bundle_filename()
     if bundle:
         # get_store_filename() gives "bundle.zip:inner.xlf".
         member = store_controller.get_store_filename()[len(bundle) + 1 :]
         return os.path.realpath(bundle), member
-    return os.path.realpath(store_controller.store.get_filename()), ''
+    return file_key(store_controller, store_controller.store.get_filename())
+
+
+def file_key(store_controller, path):
+    """The store in the local TM of the file at C{path}: a CAT tool
+    package's file is kept under the package and its member name, not
+    the working folder it was taken out to, which goes on closing."""
+    real = os.path.realpath(path)
+    package = getattr(store_controller, 'package', None)
+    if package is not None:
+        if real == os.path.realpath(package.work_dir):
+            return os.path.realpath(package.path), ''
+        for extracted, (inner, member, _digest) in package.members.items():
+            if os.path.realpath(extracted) == real:
+                # A TIPP 1.5 file is a member of the package's resources.zip.
+                return os.path.realpath(package.path), '/'.join(filter(None, (inner, member)))
+    return real, ''
 
 
 def test_port(host, port):
