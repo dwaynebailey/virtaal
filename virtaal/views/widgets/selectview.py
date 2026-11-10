@@ -140,8 +140,10 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
         hbox.pack_start(vbox, True, True, 0)
 
         # No mnemonic yet: the button only exists in edit mode (#3549); Enter runs config.
+        # A row may name it otherwise ('config_label'), such as Manage….
+        hbox.config_label = item.get('config_label')
         if 'config' in item and callable(item['config']):
-            btnconf = Gtk.Button(label=_('Configure…'))
+            btnconf = Gtk.Button(label=hbox.config_label or _('Configure…'))
 
             def clicked(button):
                 item['config'](self.get_toplevel())
@@ -215,6 +217,7 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
         config = None
         widget = self._model.get_value(iter, COL_WIDGET)
         extras = getattr(widget, 'extras', {})
+        config_label = getattr(widget, 'config_label', None)
         try:
             if widget:
                 widget = widget.get_children()[1]
@@ -232,12 +235,15 @@ class SelectView(Gtk.TreeView, GObjectWrapper):
         item.update(extras)
         if config:
             item['config'] = config
+        if config_label:
+            item['config_label'] = config_label
 
         return item
 
     def set_item_config(self, data, config):
-        """Give the row whose 'data' is C{data} a Configure… button that
-        runs C{config}, or no button if it's None."""
+        """Give the row whose 'data' is C{data} a Configure… button (or
+        its 'config_label') that runs C{config}, or no button if it's
+        None."""
         for row in self._model:
             if row[COL_DATA] == data:
                 item = self.get_item(row.iter)

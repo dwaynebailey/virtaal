@@ -29,6 +29,8 @@ class TerminologyModel(BaseTerminologyModel):
     __gtype_name__ = 'LocalFileTerminologyModel'
     display_name = _('Local Files')
     description = _('Local terminology files')
+    # l10n: The button that opens the window listing what a source holds
+    configure_label = _('Manage…')
 
     default_config = {
         'extendfile': os.path.join(pan_app.get_config_dir(), 'terminology.po'),

@@ -371,3 +371,32 @@ def test_a_rows_editing_widget_stays_in_its_column():
     assert editable.get_allocation().x >= cell.x
     assert editable.get_allocation().x + editable.get_allocation().width <= 560
     window.destroy()
+
+
+def _button(sview, index):
+    return sview.get_model()[index][4].get_children()[-1]
+
+
+def test_a_row_names_its_button_as_it_asks():
+    sview = SelectView(
+        items=[
+            {'name': 'A', 'data': 'a', 'config': print, 'config_label': 'Manage…'},
+            {'name': 'B', 'data': 'b', 'config': print},
+        ]
+    )
+
+    assert _button(sview, 0).get_label() == 'Manage…'
+    assert _button(sview, 0).get_accessible().get_name() == 'Manage…'
+    assert _button(sview, 1).get_label() == 'Configure…'
+
+
+def test_a_rows_button_keeps_its_name_when_it_comes_back():
+    sview = SelectView(items=[{'name': 'A', 'data': 'a', 'config_label': 'Manage…'}])
+
+    sview.set_item_config('a', print)
+    assert _button(sview, 0).get_label() == 'Manage…'
+    sview.set_item_config('a', None)
+    sview.set_item_config('a', print)
+
+    assert _button(sview, 0).get_label() == 'Manage…'
+    assert sview.get_item(sview.get_model().get_iter_first())['config_label'] == 'Manage…'

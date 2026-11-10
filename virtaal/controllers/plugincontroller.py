@@ -99,6 +99,7 @@ class PluginController(BaseController):
             'online_service',
             'downloads_from',
             'terms_url',
+            'configure_label',
         ),
     ):
         """Build a PluginController for one of the backend categories

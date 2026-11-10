@@ -331,3 +331,37 @@ def test_a_backend_without_plugin_info_is_left_out(monkeypatch):
     infos = _Unreadable(broken={}, good={'display_name': 'Good', 'description': 'd'})
 
     assert list(_items_for(monkeypatch, infos)) == ['good']
+
+
+def test_a_source_that_names_its_button_passes_the_name_on(monkeypatch):
+    pc = _FakePluginController(
+        ['localtm', 'deepl'],
+        {
+            'localtm': {'display_name': 'L', 'description': 'd', 'configure_label': 'Manage…'},
+            'deepl': {'display_name': 'D', 'description': 'd', 'configure_label': None},
+        },
+    )
+    captured = {}
+
+    def fake_select_dialog(**kwargs):
+        captured['dlg'] = _FakeSelectDialog(**kwargs)
+        return captured['dlg']
+
+    monkeypatch.setattr('virtaal.views.widgets.selectdialog.SelectDialog', fake_select_dialog)
+
+    select_backends(
+        _FakeMainController(), pc, {'disabled_models': []}, 'basemodel', 'T', 'M', (1, 2)
+    )
+
+    local, online = captured['dlg'].items
+    assert local['config_label'] == 'Manage…'
+    assert 'config_label' not in online
+
+
+def test_the_local_sources_open_a_window_to_manage_them():
+    from virtaal.plugins.terminology.models import localfile
+    from virtaal.plugins.tm.models import deepl, localtm
+
+    assert localtm.TMModel.configure_label == 'Manage…'
+    assert localfile.TerminologyModel.configure_label == 'Manage…'
+    assert deepl.TMModel.configure_label is None

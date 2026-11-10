@@ -30,6 +30,8 @@ class TMModel(remotetm.TMModel):
     description = _('Previous translations you have made')
     # l10n: Try to keep this as short as possible.
     shortname = _('Local TM')
+    # l10n: The button that opens the window listing what a source holds
+    configure_label = _('Manage…')
 
     PREFETCH_MAX = 2
     BULK_MAX = 0

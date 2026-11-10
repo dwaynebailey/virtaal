@@ -39,6 +39,8 @@ def select_backends(
             'enabled': enabled,
             'config': backend_config,
         }
+        if info.get('configure_label'):
+            item['config_label'] = info['configure_label']
         item.update(_privacy_notice(info))
         items.append(item)
 

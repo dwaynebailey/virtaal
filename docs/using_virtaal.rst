@@ -494,9 +494,8 @@ a source of suggestions.
 
 To see what is in the local TM, open :menuselection:`Edit --> Preferences`,
 select Translation Memory under Features and click its :guilabel:`Configure…`
-button, then do the same for Local Translation Memory in the list of sources.
-The
-Local Translation Memory window lists each file, per language pair, with how
+button, then click :guilabel:`Manage…` for Local Translation Memory in the
+list of sources. The Local Translation Memory window lists each file, per language pair, with how
 many translations it holds, when it last changed, and whether it was saved or
 imported; hover over a file for its full path. A file that is no longer where
 it was is marked "file not found", and translations added before Virtaal

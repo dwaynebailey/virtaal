@@ -63,6 +63,9 @@ class BaseTMModel(BaseModel, Configurable):
     translated to; None if it sends none (#1301)."""
     terms_url = None
     """That service's terms of service, if it has any."""
+    configure_label = None
+    """The label of its button in the list of sources, if not
+    Configure…: Manage… for one that opens a window to manage it."""
 
     settings = ()
     """The settingsdialog.Field()s Configure… edits, if any (#1519)."""

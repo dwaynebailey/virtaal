@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-10 06:55+0000\n"
+"POT-Creation-Date: 2026-11-10 07:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1768,6 +1768,12 @@ msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/__init__.py
 msgid "Local terminology files"
+msgstr ""
+
+#. l10n: The button that opens the window listing what a source holds
+#: virtaal/plugins/terminology/models/localfile/__init__.py
+#: virtaal/plugins/tm/models/localtm.py
+msgid "Manage…"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
