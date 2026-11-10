@@ -449,7 +449,9 @@ class StoreCellRenderer(Gtk.CellRenderer):
     def _file_header_height(self, widget):
         if self._file_header() is None:
             return 0
-        font = widget.get_style_context().get_property('font', Gtk.StateFlags.NORMAL)
+        # Not the style context's 'font' property: PyGObject 3.42 (Ubuntu
+        # 22.04) hands that back already freed, a segfault.
+        font = widget.get_pango_context().get_font_description()
         _char_width, line_height = self._font_metrics(widget, font)
         return line_height // Pango.SCALE + 2 * self.FILE_HEADER_PADDING
 
