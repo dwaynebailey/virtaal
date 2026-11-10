@@ -357,6 +357,23 @@ def test_revalidate_visible_estimated_rows_forces_a_row_changed_within_the_buffe
     assert changed == [5]
 
 
+def test_revalidate_visible_estimated_rows_leaves_the_edited_row_alone():
+    view = _real_storetreeview()
+    units = list(range(200))
+    view.set_model(units)
+    view.get_visible_range = lambda: (Gtk.TreePath((0,)), Gtk.TreePath((5,)))
+    model = view.get_model()
+    model.set_editable((3,))
+    view.mark_row_estimated(units[3])
+    view.mark_row_estimated(units[4])
+    changed = []
+    model.row_changed = lambda path, it: changed.append(path.get_indices()[0])
+
+    view._revalidate_visible_estimated_rows()
+
+    assert changed == [4]
+
+
 def test_vadjustment_notify_connects_scrolling_to_revalidation():
     view = _real_storetreeview()
     calls = []

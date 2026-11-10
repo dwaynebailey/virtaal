@@ -237,7 +237,12 @@ class StoreTreeView(Gtk.TreeView):
             unit = model.unit_at_row(row)
             if id(unit) in self._estimated_unit_ids:
                 path = Gtk.TreePath((row,))
-                model.row_changed(path, model.get_iter(path))
+                it = model.get_iter(path)
+                if model.get_value(it, COLUMN_EDITABLE):
+                    # Its editor sets its height, and row_changed() would
+                    # end the edit after the move's last set_cursor().
+                    continue
+                model.row_changed(path, it)
 
     # METHODS #
     def select_index(self, index, force=False):
