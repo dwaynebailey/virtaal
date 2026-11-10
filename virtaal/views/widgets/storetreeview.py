@@ -52,6 +52,8 @@ class StoreTreeView(Gtk.TreeView):
         # debounce-settled), used there to skip expensive per-allocate
         # editor-height remeasurement until the resize actually stops.
         self.is_resizing = False
+        # The width changed mid-resize: rows are measured again once it settles.
+        self._width_changed_while_resizing = False
 
         # Throttles rapid key-repeat navigation - see _keyboard_move() (#3805).
         self._pending_move_offset = 0
@@ -154,6 +156,7 @@ class StoreTreeView(Gtk.TreeView):
         # defer to _on_configure_settled()'s own restore (#3595).
         if width_changed:
             if self.is_resizing:
+                self._width_changed_while_resizing = True
                 return
             path, editcol = self.get_cursor()
             if path is not None:
@@ -164,6 +167,7 @@ class StoreTreeView(Gtk.TreeView):
         """Rows wrap at this tree view's width, which the window or the
         Files Panel just changed: measure them again, or a narrower
         editor keeps its old, wider size and runs off the right edge."""
+        self._width_changed_while_resizing = False
         if self.get_columns():
             self.get_columns()[0].queue_resize()
 
@@ -531,13 +535,23 @@ class StoreTreeView(Gtk.TreeView):
         # re-request sizes now that it's settled, so the row(s) it
         # skipped get one real, correct measurement at the final width.
         self.queue_resize()
+        if self._width_changed_while_resizing:
+            self._remeasure_rows()
+            # Edit again once the rows are measured: before, the editor
+            # took the row's old height.
+            GLib.idle_add(self._restart_editing_at_cursor, priority=Gdk.PRIORITY_REDRAW + 10)
+        else:
+            self._restart_editing_at_cursor()
+        return False  # one-shot: don't repeat this GLib.timeout_add
+
+    def _restart_editing_at_cursor(self):
         # The restore _on_size_allocate() skipped during the drag -
         # unconditional, since the column width may already match (#3595).
         column = self.get_columns()[0] if self.get_columns() else None
         path, editcol = self.get_cursor()
         if column and path is not None:
             self._restart_editing(path, editcol or column)
-        return False  # one-shot: don't repeat this GLib.timeout_add
+        return GLib.SOURCE_REMOVE
 
     def _restart_editing(self, path, column):
         """Re-place the editor after a resize, without taking focus from a

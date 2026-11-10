@@ -73,6 +73,7 @@ def _make_view(column_width, cursor, is_resizing=False):
             ((path, column), {'start_editing': True})
         ),
         is_resizing=is_resizing,
+        _width_changed_while_resizing=False,
         schedule_revalidate_visible_estimated_rows=lambda: None,
     )
     return view, column, calls
@@ -100,11 +101,12 @@ def test_remeasure_rows_measures_every_row_again():
     # The Files Panel narrows this tree view, not the window: rows
     # measured at the old width kept the editor too wide (N3).
     column = _FakeColumn(798)
-    view = SimpleNamespace(get_columns=lambda: [column])
+    view = SimpleNamespace(get_columns=lambda: [column], _width_changed_while_resizing=True)
 
     StoreTreeView._remeasure_rows(view)
 
     assert column.resized is True
+    assert view._width_changed_while_resizing is False
 
 
 def test_on_size_allocate_tracks_width_but_skips_restarting_editing_mid_resize():
@@ -119,6 +121,7 @@ def test_on_size_allocate_tracks_width_but_skips_restarting_editing_mid_resize()
 
     assert column.get_fixed_width() == 798
     assert calls == []
+    assert view._width_changed_while_resizing is True
 
 
 def test_on_size_allocate_is_a_noop_when_the_width_is_unchanged():
@@ -187,6 +190,7 @@ def test_size_allocate_at_a_new_width_measures_the_rows_again(monkeypatch):
         allocation.width = 600
         treeview.size_allocate(allocation)
         assert remeasured == [True]
+        assert treeview._width_changed_while_resizing is True
     finally:
         window.destroy()
 
@@ -889,16 +893,14 @@ def test_on_configure_event_cancels_a_previous_pending_timer(monkeypatch):
     assert view._configure_timeout_id == 'new-timer-id'
 
 
-def test_on_configure_settled_clears_state_and_restarts_editing():
-    # Also does its own, unconditional set_cursor(start_editing=True) -
-    # _on_size_allocate()'s own call was skipped throughout the drag
-    # and might never fire here either (#3595).
+def _settled_view(calls, width_changed=False):
     path, editcol = object(), object()
-    calls = []
     column = _FakeColumn(798)
     view = SimpleNamespace(
         _configure_timeout_id='timer-id',
         is_resizing=True,
+        _width_changed_while_resizing=width_changed,
+        _remeasure_rows=lambda: calls.append('remeasure'),
         queue_resize=lambda: calls.append('queue_resize'),
         get_columns=lambda: [column],
         get_cursor=lambda: (path, editcol),
@@ -908,13 +910,38 @@ def test_on_configure_settled_clears_state_and_restarts_editing():
         ),
         _window_size=lambda: None,
     )
+    view._restart_editing_at_cursor = lambda: StoreTreeView._restart_editing_at_cursor(view)
+    return view, (path, editcol)
+
+
+def test_on_configure_settled_clears_state_and_restarts_editing():
+    # Also does its own, unconditional set_cursor(start_editing=True) -
+    # _on_size_allocate()'s own call was skipped throughout the drag
+    # and might never fire here either (#3595).
+    calls = []
+    view, cursor = _settled_view(calls)
 
     result = StoreTreeView._on_configure_settled(view)
 
     assert result is False
     assert view._configure_timeout_id is None
     assert view.is_resizing is False
-    assert calls == ['queue_resize', ((path, editcol), {'start_editing': True})]
+    assert calls == ['queue_resize', (cursor, {'start_editing': True})]
+
+
+def test_on_configure_settled_measures_rows_again_after_a_narrower_drag(monkeypatch):
+    # The editor kept the wider width it was measured at and ran off
+    # the right edge; it is edited again only once the rows are measured.
+    idles = []
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, **kwargs: idles.append(func))
+    calls = []
+    view, cursor = _settled_view(calls, width_changed=True)
+
+    StoreTreeView._on_configure_settled(view)
+
+    assert calls == ['queue_resize', 'remeasure']
+    assert idles[0]() is GLib.SOURCE_REMOVE
+    assert calls[-1] == (cursor, {'start_editing': True})
 
 
 def test_on_destroy_cancels_a_pending_timer(monkeypatch):
