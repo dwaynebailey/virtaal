@@ -7,12 +7,14 @@
 
 """The Local Translation Memory dialog, against a real TM server."""
 
+import datetime
 import os
 import socket
 import time
 from types import SimpleNamespace
 
 import pytest
+from babel.dates import format_date
 from gi.repository import GObject, Gtk
 from translate.storage import tmx
 
@@ -148,6 +150,48 @@ def test_store_name_never_calls_another_store_the_legacy_one(kind):
     )
 
 
+@pytest.mark.parametrize(
+    'lang, expected', [('en', 'Nov 10, 2026'), ('de', '10.11.2026'), ('fa', '۱۰ نوامبر ۲۰۲۶')]
+)
+def test_dates_are_written_as_the_ui_language_writes_them(monkeypatch, lang, expected):
+    monkeypatch.setattr(pan_app, 'ui_language', lang)
+    noon = time.mktime((2026, 11, 10, 12, 0, 0, 0, 0, -1))
+
+    assert localtmdialog._date(noon) == expected
+    assert localtmdialog._date(0) == ''
+
+
+def test_a_language_pair_shows_by_the_languages_names(monkeypatch):
+    monkeypatch.setattr(pan_app, 'ui_language', 'en')
+
+    assert localtmdialog._pair_name({'source_lang': 'en', 'target_lang': 'af'}) == (
+        'English → Afrikaans'
+    )
+    assert localtmdialog._pair_name({'source_lang': 'en', 'target_lang': 'qaa'}) == (
+        'English → qaa'
+    )
+
+
+def test_the_list_sorts_by_codes_and_times_not_by_what_it_shows(tm, tmp_path, monkeypatch):
+    monkeypatch.setattr(pan_app, 'ui_language', 'en')
+    app, model, pump = tm
+    app.tmdb.sync_store(str(tmp_path / 'fr.po'), [{'source': 'a', 'target': 'b'}], 'en', 'fr')
+    app.tmdb.sync_store(str(tmp_path / 'de.po'), [{'source': 'a', 'target': 'b'}], 'en', 'de')
+    dialog = _open(model, pump)
+    try:
+        columns = {col.get_title(): col for col in dialog.treeview.get_columns()}
+        assert columns['Languages'].get_sort_column_id() == localtmdialog.COL_PAIR_CODES
+        assert columns['Last updated'].get_sort_column_id() == localtmdialog.COL_TIME
+        dialog.liststore.set_sort_column_id(localtmdialog.COL_PAIR_CODES, Gtk.SortType.ASCENDING)
+        # German (de) before French (fr), though French sorts first by name.
+        assert [row[COL_PAIR] for row in dialog.liststore] == [
+            'English → German',
+            'English → French',
+        ]
+    finally:
+        dialog.dialog.destroy()
+
+
 def test_the_window_links_to_microsofts_ui_strings_glossaries(tm):
     _app, model, pump = tm
     dialog = _open(model, pump)
@@ -161,7 +205,8 @@ def test_the_window_links_to_microsofts_ui_strings_glossaries(tm):
         dialog.dialog.destroy()
 
 
-def test_the_list_shows_each_file_per_language_pair(tm, tmp_path):
+def test_the_list_shows_each_file_per_language_pair(tm, tmp_path, monkeypatch):
+    monkeypatch.setattr(pan_app, 'ui_language', 'en')
     app, model, pump = tm
     saved = _seed(app, tmp_path)
 
@@ -169,10 +214,10 @@ def test_the_list_shows_each_file_per_language_pair(tm, tmp_path):
 
     assert dialog.dialog.get_title() == 'Local Translation Memory'
     assert _rows(dialog) == [
-        ('Earlier translations (file not recorded)', True, 'en → af', 1, ''),
-        ('af.po', True, 'en → af', 2, 'Saved'),
-        ('memory.tmx (file not found)', False, 'en → de', 2, 'Imported'),
-        ('project.zip:doc.po (file not found)', False, 'en → af', 1, 'Saved'),
+        ('Earlier translations (file not recorded)', True, 'English → Afrikaans', 1, ''),
+        ('af.po', True, 'English → Afrikaans', 2, 'Saved'),
+        ('memory.tmx (file not found)', False, 'English → German', 2, 'Imported'),
+        ('project.zip:doc.po (file not found)', False, 'English → Afrikaans', 1, 'Saved'),
     ]
     assert [row[COL_TOOLTIP] for row in dialog.liststore] == [
         '',
@@ -180,7 +225,7 @@ def test_the_list_shows_each_file_per_language_pair(tm, tmp_path):
         '/gone/memory.tmx',
         '/gone/project.zip',
     ]
-    today = time.strftime('%Y-%m-%d')
+    today = format_date(datetime.date.today(), 'medium', locale='en')
     assert {row[COL_UPDATED] for row in dialog.liststore} == {today}
     assert [col.get_title() for col in dialog.treeview.get_columns()] == [
         'File',

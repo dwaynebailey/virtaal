@@ -9,7 +9,6 @@
 language pair, to remove or export."""
 
 import os
-import time
 
 from gi.repository import GLib, GObject, Gtk, Pango
 
@@ -27,7 +26,8 @@ from virtaal.support import tmdb
     COL_UPDATED,
     COL_TIME,
     COL_KIND,
-) = range(9)
+    COL_PAIR_CODES,
+) = range(10)
 
 RESPONSE_REMOVE = 1
 RESPONSE_EXPORT = 2
@@ -53,9 +53,28 @@ def _kind_name(kind):
 
 
 def _date(timestamp):
+    """The day of timestamp as the UI language writes a date."""
     if not timestamp:
         return ''
-    return time.strftime('%Y-%m-%d', time.localtime(timestamp))
+    import datetime
+
+    from babel.dates import format_date
+
+    from virtaal.support.libi18n.numbers import localise_digits, ui_locale
+
+    locale = ui_locale()
+    when = datetime.date.fromtimestamp(timestamp)
+    return localise_digits(format_date(when, 'medium', locale=locale), locale)
+
+
+def _pair_name(pair):
+    """The language pair by the languages' names."""
+    from virtaal.models.langmodel import LanguageModel
+
+    return '%s → %s' % (
+        LanguageModel(pair['source_lang']).name,
+        LanguageModel(pair['target_lang']).name,
+    )
 
 
 def glossary_link():
@@ -93,7 +112,7 @@ class LocalTMDialog:
         self.dialog.connect('response', self._on_response)
 
         self.liststore = Gtk.ListStore(
-            object, str, str, bool, str, int, str, GObject.TYPE_INT64, str
+            object, str, str, bool, str, int, str, GObject.TYPE_INT64, str, str
         )
         self.treeview = Gtk.TreeView(model=self.liststore)
         self.treeview.set_tooltip_column(COL_TOOLTIP)
@@ -128,7 +147,7 @@ class LocalTMDialog:
             return tvcol
 
         column(_('File'), COL_NAME, expand=True, sensitive=COL_EXISTS).set_min_width(280)
-        column(_('Languages'), COL_PAIR)
+        column(_('Languages'), COL_PAIR, sort_col=COL_PAIR_CODES)
         column(_('Translations'), COL_UNITS, numeric=True)
         column(_('Last updated'), COL_UPDATED, sort_col=COL_TIME)
         column(
@@ -172,11 +191,12 @@ class LocalTMDialog:
                         name,
                         tooltip,
                         exists,
-                        '%s → %s' % (pair['source_lang'], pair['target_lang']),
+                        _pair_name(pair),
                         pair['units'],
                         _date(updated),
                         updated,
                         _kind_name(store['kind']),
+                        '%s\t%s' % (pair['source_lang'], pair['target_lang']),
                     ]
                 )
         self._update_buttons()
