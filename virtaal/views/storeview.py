@@ -79,6 +79,21 @@ def file_jump(indices, starts, current, forward):
     return indices[bisect_left(indices, starts[previous])]
 
 
+def file_edge(indices, starts, current, last):
+    """The first, or C{last}, of the sorted C{indices} in the file
+    holding C{current}; None if it has none. C{starts}: the sorted index
+    of each file's first unit."""
+    number = max(bisect_right(starts, current) - 1, 0)
+    low = bisect_left(indices, starts[number]) if starts else 0
+    if number + 1 < len(starts):
+        high = bisect_left(indices, starts[number + 1])
+    else:
+        high = len(indices)
+    if low >= high:
+        return None
+    return indices[high - 1] if last else indices[low]
+
+
 def save_context_setting(context):
     pan_app.settings.general[CONTEXT_SETTING] = 'all' if context is CONTEXT_ALL else str(context)
 
@@ -140,6 +155,14 @@ class StoreView(BaseView):
         Gtk.AccelMap.add_entry(
             "<Virtaal>/Navigation/Last", Gdk.KEY_End, Gdk.ModifierType.CONTROL_MASK
         )
+        # Option on macOS. Ctrl+Shift+Home/End stay the target's
+        # select to the start/end.
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Navigation/FirstOfAll", Gdk.KEY_Home, Gdk.ModifierType.MOD1_MASK
+        )
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/Navigation/LastOfAll", Gdk.KEY_End, Gdk.ModifierType.MOD1_MASK
+        )
         if platform.is_mac:
             # Cmd+Shift: GtkosxApplication doesn't map a Ctrl+Shift accelerator.
             file_mods = (
@@ -174,6 +197,12 @@ class StoreView(BaseView):
         self.accel_group.connect_by_path("<Virtaal>/Navigation/PgDown", self._treeview._move_pgdown)
         self.accel_group.connect_by_path("<Virtaal>/Navigation/First", self._treeview._move_first)
         self.accel_group.connect_by_path("<Virtaal>/Navigation/Last", self._treeview._move_last)
+        self.accel_group.connect_by_path(
+            "<Virtaal>/Navigation/FirstOfAll", self._treeview._move_first_of_all
+        )
+        self.accel_group.connect_by_path(
+            "<Virtaal>/Navigation/LastOfAll", self._treeview._move_last_of_all
+        )
 
         mainview = self.controller.main_controller.view
         # Reuses MainView's own handlers (state change + advance to the
@@ -200,6 +229,10 @@ class StoreView(BaseView):
         self.mnu_pagedown.set_accel_path('<Virtaal>/Navigation/PgDown')
         self.mnu_first.set_accel_path('<Virtaal>/Navigation/First')
         self.mnu_last.set_accel_path('<Virtaal>/Navigation/Last')
+        self.mnu_first_of_all = mainview.gui.get_object('mnu_first_of_all')
+        self.mnu_last_of_all = mainview.gui.get_object('mnu_last_of_all')
+        self.mnu_first_of_all.set_accel_path('<Virtaal>/Navigation/FirstOfAll')
+        self.mnu_last_of_all.set_accel_path('<Virtaal>/Navigation/LastOfAll')
         self.mnu_prev_file = mainview.gui.get_object('mnu_prev_file')
         self.mnu_next_file = mainview.gui.get_object('mnu_next_file')
         self.mnu_prev_file.set_accel_path('<Virtaal>/Navigation/PrevFile')
@@ -219,6 +252,8 @@ class StoreView(BaseView):
         for item_id in (
             'mnu_first',
             'mnu_last',
+            'mnu_first_of_all',
+            'mnu_last_of_all',
             'mnu_prev_file',
             'mnu_next_file',
             'mnu_state_advance',
@@ -345,8 +380,13 @@ class StoreView(BaseView):
         ):
             widget.set_sensitive(sensitive)
         stream = sensitive and self.controller.is_stream()
-        self.mnu_prev_file.set_sensitive(stream)
-        self.mnu_next_file.set_sensitive(stream)
+        for widget in (
+            self.mnu_first_of_all,
+            self.mnu_last_of_all,
+            self.mnu_prev_file,
+            self.mnu_next_file,
+        ):
+            widget.set_sensitive(stream)
 
     # EVENT HANDLERS #
     def _on_cursor_change(self, cursor):

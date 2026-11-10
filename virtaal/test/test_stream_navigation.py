@@ -98,17 +98,51 @@ class TestStreamNavigation(TestScaffolding):
 
         assert cursor.index == 4
 
-    def test_last_unit_is_the_end_of_the_stream(self):
+    def test_first_and_last_unit_stay_in_the_current_file(self):
         self._open()
+        cursor = self.store_controller.cursor
+        cursor.index = 3
+        _drain()
 
+        self._activate('mnu_first')
+        assert cursor.index == 2
         self._activate('mnu_last')
+        assert cursor.index == 3
 
-        assert self.store_controller.cursor.index == 5
+    def test_first_and_last_unit_of_all_files_are_the_ends_of_the_stream(self):
+        self._open()
+        cursor = self.store_controller.cursor
+        cursor.index = 3
+        _drain()
+
+        self._activate('mnu_last_of_all')
+        assert cursor.index == 5
+        self._activate('mnu_first_of_all')
+        assert cursor.index == 0
+
+    @pytest.mark.parametrize(
+        ('item', 'path', 'keyval'),
+        [('mnu_first_of_all', 'FirstOfAll', 'Home'), ('mnu_last_of_all', 'LastOfAll', 'End')],
+    )
+    def test_alt_home_and_end_are_the_items_of_all_files(self, item, path, keyval):
+        from gi.repository import Gdk, Gtk
+
+        path = '<Virtaal>/Navigation/' + path
+        _found, key = Gtk.AccelMap.lookup_entry(path)
+
+        assert (key.accel_key, key.accel_mods) == (
+            Gdk.keyval_from_name(keyval),
+            Gdk.ModifierType.MOD1_MASK,
+        )
+        assert self._item(item).get_accel_path() == path
 
     def test_the_file_items_are_only_for_several_files(self):
         self._open(self.dir / 'a.po')
         assert not self._item('mnu_next_file').get_sensitive()
         assert not self._item('mnu_prev_file').get_sensitive()
+        assert not self._item('mnu_first_of_all').get_sensitive()
+        assert not self._item('mnu_last_of_all').get_sensitive()
+        assert self._item('mnu_first').get_sensitive()
 
         self._open()
         assert self._item('mnu_next_file').get_sensitive()

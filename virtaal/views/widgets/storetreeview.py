@@ -97,6 +97,12 @@ class StoreTreeView(Gtk.TreeView):
         mainview.gui.get_object('mnu_last').connect(
             'activate', lambda *args: self._move_last(None, None, None, None)
         )
+        mainview.gui.get_object('mnu_first_of_all').connect(
+            'activate', lambda *args: self._move_first_of_all(None, None, None, None)
+        )
+        mainview.gui.get_object('mnu_last_of_all').connect(
+            'activate', lambda *args: self._move_last_of_all(None, None, None, None)
+        )
         mainview.gui.get_object('mnu_prev_file').connect(
             'activate', lambda *args: self._keyboard_file_jump(forward=False)
         )
@@ -401,20 +407,30 @@ class StoreTreeView(Gtk.TreeView):
     def _move_pgdown(self, _accel_group, _acceleratable, _keyval, _modifier):
         return self._keyboard_move(10)
 
-    def _keyboard_jump(self, last):
-        """Move to the first or last unit of the navigation list."""
-        if not self.view.controller.get_store():
+    def _keyboard_jump(self, last, of_all=False):
+        """Move to the first or last unit of the navigation list; with
+        several files open, in the current file unless C{of_all}."""
+        from virtaal.views.storeview import file_edge
+
+        controller = self.view.controller
+        if not controller.get_store():
             return
         if self._waiting_for_row_change > 0:
             return True
         cursor = self.view.cursor
         if not cursor.indices:
             return True
+        index = cursor.indices[-1] if last else cursor.indices[0]
+        if controller.is_stream() and not of_all and cursor.index >= 0:
+            starts = [offset for offset, _entry in controller.get_store().file_offsets()]
+            index = file_edge(cursor.indices, starts, cursor.index, last)
+            if index is None:
+                return True
         # Replaces any repeats still waiting for the next throttle tick.
         self._pending_move_offset = 0
         self._pending_move_advances = False
-        with self.view.controller.arriving('jump'):
-            cursor.index = cursor.indices[-1] if last else cursor.indices[0]
+        with controller.arriving('jump'):
+            cursor.index = index
         return True
 
     def _keyboard_file_jump(self, forward):
@@ -442,6 +458,12 @@ class StoreTreeView(Gtk.TreeView):
 
     def _move_first(self, _accel_group, _acceleratable, _keyval, _modifier):
         return self._keyboard_jump(last=False)
+
+    def _move_first_of_all(self, _accel_group, _acceleratable, _keyval, _modifier):
+        return self._keyboard_jump(last=False, of_all=True)
+
+    def _move_last_of_all(self, _accel_group, _acceleratable, _keyval, _modifier):
+        return self._keyboard_jump(last=True, of_all=True)
 
     def _move_last(self, _accel_group, _acceleratable, _keyval, _modifier):
         return self._keyboard_jump(last=True)

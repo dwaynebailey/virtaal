@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import pytest
 from gi.repository import Gdk, Gtk
 
 from virtaal.common.platform import platform
@@ -119,3 +120,26 @@ class TestStoreView(TestScaffolding):
 
         assert not view.mnu_next_file.get_sensitive()
         assert not view.mnu_prev_file.get_sensitive()
+
+
+@pytest.mark.parametrize(
+    ('current', 'last', 'expected'),
+    [
+        (3, False, 2),
+        (3, True, 4),
+        (0, True, 1),
+        (7, False, 6),
+        (7, True, 8),
+    ],
+)
+def test_file_edge_is_the_first_or_last_index_in_the_current_file(current, last, expected):
+    from virtaal.views.storeview import file_edge
+
+    # Files start at 0, 2 and 6; the navigation list skips 5.
+    assert file_edge([0, 1, 2, 3, 4, 6, 7, 8], [0, 2, 6], current, last) == expected
+
+
+def test_file_edge_of_a_file_with_nothing_in_the_list_is_none():
+    from virtaal.views.storeview import file_edge
+
+    assert file_edge([0, 1, 6], [0, 2, 6], 3, False) is None

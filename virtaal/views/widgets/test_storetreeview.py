@@ -572,6 +572,7 @@ def _make_jump_view(indices, index):
     finished = []
     controller = _Arrivals()
     controller.get_store = lambda: object()
+    controller.is_stream = lambda: False
     controller.main_controller = SimpleNamespace(
         unit_controller=SimpleNamespace(finish_current_unit=lambda: finished.append('finish'))
     )

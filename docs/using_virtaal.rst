@@ -61,9 +61,12 @@ file you are in shows in bold.
 
 :menuselection:`Navigation --> Next File` (:kbd:`Ctrl+Shift+PgDown`) and
 :menuselection:`Navigation --> Previous File` (:kbd:`Ctrl+Shift+PgUp`) go to
-the first unit of the next or previous file, and :kbd:`Ctrl+Home` and
-:kbd:`Ctrl+End` to the first unit of the first file and the last unit of the
-last one. In a navigation mode such as Incomplete, they skip files with
+the first unit of the next or previous file. :kbd:`Ctrl+Home` and
+:kbd:`Ctrl+End` go to the first and last unit of the file you are in, and
+:menuselection:`Navigation --> First Unit of All Files` (:kbd:`Alt+Home`,
+:kbd:`Option+Home` on macOS) and :menuselection:`Navigation --> Last Unit of
+All Files` (:kbd:`Alt+End`) to the first unit of the first file and the last
+unit of the last one. In a navigation mode such as Incomplete, they skip files with
 nothing in it. Moving from unit to unit stops at the first and last unit of
 all the files, while search matches and quality check failures go round from
 the last file to the first. The navigation ribbon beside the units has a line

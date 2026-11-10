@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-10 15:03+0000\n"
+"POT-Creation-Date: 2026-11-10 15:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -220,6 +220,14 @@ msgstr ""
 
 #: share/virtaal/virtaal.ui
 msgid "_Last Unit"
+msgstr ""
+
+#: share/virtaal/virtaal.ui
+msgid "Fi_rst Unit of All Files"
+msgstr ""
+
+#: share/virtaal/virtaal.ui
+msgid "Las_t Unit of All Files"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -3634,6 +3642,14 @@ msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py
 msgid "Move to last unit"
+msgstr ""
+
+#: virtaal/views/widgets/shortcutswindow.py
+msgid "Move to the first unit of all the files open"
+msgstr ""
+
+#: virtaal/views/widgets/shortcutswindow.py
+msgid "Move to the last unit of all the files open"
 msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py

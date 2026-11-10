@@ -1056,6 +1056,26 @@ If you are translating from English to French then French would be your translat
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="mnu_first_of_all">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="accel_path">&lt;Virtaal&gt;/Navigation/FirstOfAll</property>
+                        <property name="label" translatable="yes">Fi_rst Unit of All Files</property>
+                        <property name="use_underline">True</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="mnu_last_of_all">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="accel_path">&lt;Virtaal&gt;/Navigation/LastOfAll</property>
+                        <property name="label" translatable="yes">Las_t Unit of All Files</property>
+                        <property name="use_underline">True</property>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkMenuItem" id="mnu_prev_file">
                         <property name="visible">True</property>
                         <property name="sensitive">False</property>
