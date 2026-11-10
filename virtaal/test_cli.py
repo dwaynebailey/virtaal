@@ -123,22 +123,49 @@ def test_log_and_debug_together_use_debug_level_and_format(monkeypatch):
     assert '%(funcName)s' in calls[0]['format']
 
 
-def test_log_to_a_named_file(monkeypatch, tmp_path):
+def _log_to_file(monkeypatch, log_file):
+    """Runs the CLI with --log, writes one record through its handler and
+    closes it (pytest's own root handler makes basicConfig a no-op)."""
     calls = []
     monkeypatch.setattr(logging, 'basicConfig', lambda **kwargs: calls.append(kwargs))
-    log_file = tmp_path / 'out.log'
-
     _run_cli(monkeypatch, ['virtaal', '--log', str(log_file)])
+    (handler,) = calls[0]['handlers']
+    handler.setFormatter(logging.Formatter(calls[0]['format']))
+    handler.emit(logging.LogRecord('virtaal', logging.INFO, __file__, 1, 'started', None, None))
+    handler.close()
+    return handler
 
-    assert calls[0]['filename'] == str(log_file)
-    assert calls[0]['filemode'] == 'w'
+
+def test_log_to_a_named_file_appends(monkeypatch, tmp_path):
+    log_file = tmp_path / 'out.log'
+    log_file.write_bytes(b'previous run\n')
+
+    handler = _log_to_file(monkeypatch, log_file)
+    _log_to_file(monkeypatch, log_file)
+
+    assert handler.baseFilename == str(log_file)
+    lines = log_file.read_text(encoding='utf-8').splitlines()
+    assert lines[0] == 'previous run'
+    assert [line.endswith('INFO started') for line in lines[1:]] == [True, True]
+
+
+def test_each_start_logs_a_dated_started_line(monkeypatch):
+    messages = []
+    monkeypatch.setattr(logging, 'basicConfig', lambda **kwargs: None)
+    monkeypatch.setattr(logging, 'info', lambda msg, *args: messages.append(msg % args))
+
+    _run_cli(monkeypatch, ['virtaal', '--log', '-'])
+
+    assert re.fullmatch(
+        r'Virtaal .+ started \d{4}-\d\d-\d\d \d\d:\d\d:\d\d[+-]\d\d:\d\d', messages[0]
+    )
 
 
 def test_an_unwritable_log_file_is_a_fatal_argument_error(monkeypatch, tmp_path):
-    def raises(**kwargs):
+    def raises(*args, **kwargs):
         raise OSError('boom')
 
-    monkeypatch.setattr(logging, 'basicConfig', raises)
+    monkeypatch.setattr(logging, 'FileHandler', raises)
 
     with pytest.raises(SystemExit):
         cli.main(['virtaal', '--log', str(tmp_path / 'out.log')])

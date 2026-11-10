@@ -14,6 +14,7 @@ there, though - it needs to run before any of this module's own
 imports happen at all."""
 
 import sys
+from datetime import datetime
 from os import environ, path
 
 # A frozen build needs pycairo's C-API initialized before GTK's
@@ -216,14 +217,16 @@ def _set_logging(options, parser):
     elif options.log.upper() in ('-', 'STDOUT'):
         logging.basicConfig(level=level, format=format, stream=sys.stdout)
     else:
+        # Appended, so a relaunch keeps the previous run's log; text mode
+        # writes the platform's line endings.
         try:
-            logging.basicConfig(
-                level=level, format=format, filename=path.abspath(options.log), filemode='w'
-            )
+            handler = logging.FileHandler(path.abspath(options.log), mode='a', encoding='utf-8')
         except OSError:
             parser.error(_("Could not open log file '%(filename)s'") % {"filename": options.log})
+        logging.basicConfig(level=level, format=format, handlers=[handler])
 
-    logging.info("Virtaal %s", __version__.version_string())
+    started = datetime.now().astimezone().isoformat(sep=' ', timespec='seconds')
+    logging.info("Virtaal %s started %s", __version__.version_string(), started)
 
 
 def _set_config(options, parser):

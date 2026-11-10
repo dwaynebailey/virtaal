@@ -26,8 +26,9 @@ out templates (``.pot``).
 
 .. option:: -l <filename>, --log <filename>
 
-   Turn on logging, storing the result to the supplied filename. Use ``-``
-   or ``STDOUT`` to log to the console instead of a file.
+   Turn on logging, adding to the end of the supplied file. Each run
+   starts with a dated "Virtaal <version> started" line. Use ``-`` or
+   ``STDOUT`` to log to the console instead of a file.
 
 .. option:: -c <filename>, --config <filename>
 
