@@ -184,6 +184,7 @@ def _dialog_with_ok_button(code=''):
     dialog.ent_langcode.set_text(code)
     _add_plural_fields(dialog)
     dialog.btn_add_ok = Gtk.Button()
+    dialog.lbl_add_error = Gtk.Label()
     dialog._update_ok_sensitivity()
     return dialog
 
@@ -221,6 +222,27 @@ def test_insensitive_ok_button_says_why():
     assert dialog.btn_add_ok.get_tooltip_text() == dialog.check_input_sanity()
 
 
+def test_the_reason_is_shown_under_the_fields():
+    dialog = LanguageAddDialog()
+    dialog.langname, dialog.langcode = 'Mmoqish', 'q m'
+
+    reason = dialog.gui.get_object('lbl_add_error')
+    assert reason.get_visible()
+    assert reason.get_text() == 'Language code must not contain spaces.'
+
+    dialog.langcode = 'qmm'
+    assert reason.get_text() == ''
+
+
+def test_an_untouched_add_dialog_shows_no_reason():
+    dialog = LanguageAddDialog()
+    dialog.clear()
+    dialog._update_ok_sensitivity()
+
+    assert dialog.btn_add_ok.get_sensitive() is False
+    assert dialog.lbl_add_error.get_text() == ''
+
+
 def test_run_shows_before_presenting():
     # run() called dialog.run() with no show()/present() beforehand -
     # same #3515/#3525 pattern, show() has to come first since
@@ -229,6 +251,7 @@ def test_run_shows_before_presenting():
     dialog.dialog = _FakeDialog()
     dialog.clear = lambda: None
     dialog.btn_add_ok = Gtk.Button()
+    dialog.lbl_add_error = Gtk.Label()
     dialog.ent_langname = Gtk.Entry()
     dialog.ent_langcode = Gtk.Entry()
     _add_plural_fields(dialog)

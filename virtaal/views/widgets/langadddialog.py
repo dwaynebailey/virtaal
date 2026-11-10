@@ -44,7 +44,14 @@ class LanguageAddDialog:
 
     def _get_widgets(self):
         """Load the GtkBuilder file and get the widgets we would like to use."""
-        widget_names = ('btn_add_ok', 'ent_langname', 'ent_langcode', 'sbtn_nplurals', 'ent_plural')
+        widget_names = (
+            'btn_add_ok',
+            'ent_langname',
+            'ent_langcode',
+            'sbtn_nplurals',
+            'ent_plural',
+            'lbl_add_error',
+        )
 
         for name in widget_names:
             setattr(self, name, self.gui.get_object(name))
@@ -163,3 +170,6 @@ class LanguageAddDialog:
         err = self.check_input_sanity()
         self.btn_add_ok.set_sensitive(not err)
         self.btn_add_ok.set_tooltip_text(err or None)
+        # Not before anything is typed into an empty Add Language dialog.
+        untouched = not (self._editing or self.langname or self.langcode or self.plural)
+        self.lbl_add_error.set_text('' if untouched else err)
