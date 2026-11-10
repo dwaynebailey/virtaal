@@ -499,13 +499,13 @@ class AutoCompletor:
     @staticmethod
     def _suggestion(word, rest, prefix, offset):
         """The text box suggestion that completes prefix to word by adding
-        rest at offset; with the typed part replaced if word differs from
-        it (another case, other digits)."""
-        suggestion = {'text': rest, 'offset': offset, 'word': word}
+        rest at offset; or, if word doesn't start with the typed part
+        (another case, digits or script), shows word itself in place of
+        the typed part (Q35)."""
         typed_len = len(word) - len(rest)
         if word[:typed_len] != prefix[len(prefix) - typed_len :]:
-            suggestion['replace'] = word[:typed_len]
-        return suggestion
+            return {'text': word, 'offset': offset, 'word': word, 'typed': typed_len}
+        return {'text': rest, 'offset': offset, 'word': word}
 
     def _parsers(self, unit):
         """The placeables parsers for unit's format, but the invisible

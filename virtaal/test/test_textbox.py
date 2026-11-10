@@ -394,11 +394,57 @@ class TestTextBox(TestScaffolding):
     def test_tab_accepts_a_suggestion_that_replaces_the_typed_text(self):
         # Autocomplete's case or native-digit form of what was typed.
         textbox = self._fresh_target_for('%d files removed')
-        textbox.suggestion = {'text': 'X', 'offset': len('%d files'), 'replace': 'FILES'}
+        textbox.suggestion = {'text': 'FILESX', 'offset': len('%d files'), 'typed': 5}
 
         assert self._press_tab(textbox) is True
 
         assert textbox.get_text() == '%d FILESX removed'
+
+    @staticmethod
+    def _visible(textbox):
+        buffer = textbox.buffer
+        return buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), False)
+
+    def test_a_final_form_is_shown_in_place_of_the_typed_text(self):
+        # Q35: "git" typed, গিটহাব shown - not "git" + grey "হাব".
+        textbox = self._fresh_target_for('%d files removed')
+        textbox.set_text('বন্ধ git')
+        textbox.suggestion = {'text': 'গিটহাব', 'offset': 8, 'word': 'গিটহাব', 'typed': 3}
+
+        assert self._visible(textbox) == 'বন্ধ গিটহাব'
+        assert textbox.get_text() == 'বন্ধ gitগিটহাব'
+        assert textbox.suggestion_is_visible()
+
+        assert self._press_tab(textbox) is True
+
+        assert textbox.get_text() == self._visible(textbox) == 'বন্ধ গিটহাব'
+
+    def test_the_typed_text_shows_again_when_a_final_form_goes(self):
+        textbox = self._fresh_target_for('%d files removed')
+        textbox.set_text('bn git')
+        textbox.suggestion = {'text': 'গিটহাব', 'offset': 6, 'word': 'গিটহাব', 'typed': 3}
+
+        textbox.suggestion = None
+
+        assert textbox.get_text() == self._visible(textbox) == 'bn git'
+
+    def test_the_typed_text_shows_again_even_with_the_selection_gone(self):
+        # Whatever moved the selection, the typed text never stays hidden.
+        textbox = self._fresh_target_for('%d files removed')
+        textbox.set_text('bn git')
+        textbox.suggestion = {'text': 'গিটহাব', 'offset': 6, 'word': 'গিটহাব', 'typed': 3}
+        textbox.buffer.place_cursor(textbox.buffer.get_start_iter())
+
+        textbox._on_event_remove_suggestion()
+
+        assert self._visible(textbox).startswith('bn git')
+
+    def test_a_rest_suggestion_hides_nothing(self):
+        textbox = self._fresh_target_for('%d files removed')
+        textbox.set_text('die vert')
+        textbox.suggestion = {'text': 'aling', 'offset': 8, 'word': 'vertaling'}
+
+        assert self._visible(textbox) == textbox.get_text() == 'die vertaling'
 
     def test_suggestion_set_to_none_hides_an_existing_one(self):
         textbox = self._target_for('%1 files moved')

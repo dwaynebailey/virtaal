@@ -177,7 +177,9 @@ you last wrote it in this file, in Latin letters or in your own script, once
 you have written it in your own script in two units.
 
 The best suggestion shows in grey after the cursor; press :kbd:`Tab` to accept
-it. When there are several, they are also listed under the word: :kbd:`Up` and
+it. A suggestion that doesn't start with what you typed, such as a name in your
+own script, a number in your digits, or a word with a capital, shows in grey in
+place of what you typed. When there are several, they are also listed under the word: :kbd:`Up` and
 :kbd:`Down` pick another (it shows in grey instead), :kbd:`Tab` or
 :kbd:`Enter` accepts it, and :kbd:`Esc` closes the list. With no list showing,
 :kbd:`Enter` moves on as usual and leaves the grey suggestion out. If the suggestion is not what you want, you can simply continue typing

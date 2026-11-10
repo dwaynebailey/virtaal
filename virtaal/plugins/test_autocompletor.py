@@ -899,7 +899,7 @@ def test_on_insert_text_suggests_replacing_digits_typed_in_another_script(monkey
     ac._on_insert_text(textbox, text='1', offset=0, elem=None)
 
     scheduled[0]()
-    assert _shown(textbox.suggestion) == {'text': '২৩৪', 'offset': 1, 'replace': '১'}
+    assert _shown(textbox.suggestion) == {'text': '১২৩৪', 'offset': 1, 'typed': 1}
 
 
 def test_on_insert_text_suggests_a_word_typed_earlier_in_the_target(monkeypatch):
@@ -947,7 +947,7 @@ def test_on_insert_text_suggests_replacing_the_typed_case_of_a_name(monkeypatch)
     ac._on_insert_text(textbox, text='l', offset=9, elem=None)
 
     scheduled[0]()
-    assert _shown(textbox.suggestion) == {'text': 'sinki', 'offset': 10, 'replace': 'Hel'}
+    assert _shown(textbox.suggestion) == {'text': 'Helsinki', 'offset': 10, 'typed': 3}
 
 
 def test_on_insert_text_suggests_a_capital_at_the_start_of_a_sentence(monkeypatch):
@@ -966,7 +966,7 @@ def test_on_insert_text_suggests_a_capital_at_the_start_of_a_sentence(monkeypatc
     ac._on_insert_text(textbox, text='w', offset=12, elem=None)
 
     scheduled[0]()
-    assert _shown(textbox.suggestion) == {'text': 'nload', 'offset': 13, 'replace': 'Dow'}
+    assert _shown(textbox.suggestion) == {'text': 'Download', 'offset': 13, 'typed': 3}
 
 
 def test_on_insert_text_suggests_after_the_target_is_rendered_again(monkeypatch):
@@ -1398,3 +1398,78 @@ def test_on_insert_text_gives_the_suggestion_every_completion(monkeypatch):
 
     assert [c['word'] for c in textbox.suggestion['candidates']] == ['helsinki', 'help']
     assert textbox.suggestion['candidates'][1] == {'text': 'p', 'offset': 3, 'word': 'help'}
+
+
+# Q35: a completion that doesn't start with what was typed shows its
+# final form in place of the typed text; one that does shows the rest.
+
+
+def _typed(ac, before, typed, monkeypatch):
+    """What typing typed after before shows, as TextBox gets it."""
+    scheduled = []
+    monkeypatch.setattr(
+        'virtaal.plugins.autocompletor.GLib.idle_add',
+        lambda f, priority=None: scheduled.append(f),
+    )
+    prefix = before + typed[:-1]
+    textbox, _ = _insert_text_box(prefix=prefix, suffix='', buffer_text=before + typed)
+    ac._textbox_insert_ids = {textbox: 'sigid'}
+    ac._on_insert_text(textbox, text=typed[-1], offset=len(prefix), elem=None)
+    for callback in scheduled:
+        callback()
+    return _shown(textbox.suggestion) if hasattr(textbox, 'suggestion') else None
+
+
+def test_typing_a_names_latin_letters_shows_its_bengali_form(monkeypatch):
+    ac = _parsing_ac(*general.parsers)
+    units = [_unit('Open GitHub', 'গিটহাব খুলুন'), _unit('Start GitHub', 'গিটহাব চালু')]
+    for _ in ac.names.load(units):
+        pass
+    ac.set_unit(_unit('Close GitHub'))
+
+    shown = _typed(ac, 'বন্ধ ', 'git', monkeypatch)
+
+    # "git" is hidden behind গিটহাব, not "git" + "হাব".
+    assert shown == {'text': 'গিটহাব', 'offset': 8, 'typed': 3}
+
+
+def test_typing_a_latin_digit_shows_the_bengali_number(monkeypatch):
+    ac = _languages_ac('bn_IN')
+    ac.set_unit(_unit('Copy 1,234.5 files'))
+
+    assert _typed(ac, '', '1', monkeypatch) == {'text': '১,২৩৪.৫', 'offset': 1, 'typed': 1}
+
+
+def test_a_localised_number_that_starts_with_the_typed_digit_shows_the_rest(monkeypatch):
+    ac = _languages_ac('af')
+    ac.set_unit(_unit('Copy 1,234.5 files'))
+
+    assert _typed(ac, '', '1', monkeypatch) == {'text': '\xa0234,5', 'offset': 1}
+
+
+def test_an_ordinary_prefix_completion_shows_the_rest(monkeypatch):
+    ac = _ac(comp_len=4)
+    ac.set_unit(_unit('Hello', ''))
+    ac.add_words(['vertaling'])
+
+    assert _typed(ac, 'die ', 'vert', monkeypatch) == {'text': 'aling', 'offset': 8}
+
+
+def test_a_sentence_start_capital_shows_the_capitalised_word(monkeypatch):
+    ac = _ac(comp_len=4)
+    ac.set_unit(_unit('Open it. Translate it.', ''))
+    ac.add_words(['vertaling'])
+
+    assert _typed(ac, 'Maak oop. ', 'vert', monkeypatch) == {
+        'text': 'Vertaling',
+        'offset': 14,
+        'typed': 4,
+    }
+
+
+def test_a_capital_typed_at_the_sentence_start_shows_the_rest(monkeypatch):
+    ac = _ac(comp_len=4)
+    ac.set_unit(_unit('Open it. Translate it.', ''))
+    ac.add_words(['vertaling'])
+
+    assert _typed(ac, 'Maak oop. ', 'Vert', monkeypatch) == {'text': 'aling', 'offset': 14}

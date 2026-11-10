@@ -256,6 +256,8 @@ class TextBox(Gtk.TextView):
         # The tag table is shared (search highlight, gtkspell): remove only ours.
         self._placeable_tags = []
         self._pilcrow_tag = None
+        # Hides the typed text while a suggestion shows its final form.
+        self._typed_tag = None
         # Make room for a zero-width character's label, one per label.
         self._room_tags = {}
         # Leaves whose invisible characters are still to be parsed.
@@ -296,6 +298,7 @@ class TextBox(Gtk.TextView):
     def _set_suggestion(self, value):
         if value is None:
             self.hide_suggestion()
+            self._show_typed()
             self._suggestion = None
             self.get_style_context().remove_class('suggestion')
             self._close_list('suggestion', soon=True)
@@ -341,10 +344,9 @@ class TextBox(Gtk.TextView):
                 return False
             if not self.get_mapped():
                 return False
-            first = candidates[0]
             popup.show_at(
                 self,
-                first['offset'] - (len(first['word']) - len(first['text'])),
+                self._word_start(candidates[0]),
                 [c['word'] for c in candidates],
                 lambda _word: self._accept_visible_suggestion(),
                 self._select_suggestion,
@@ -354,6 +356,14 @@ class TextBox(Gtk.TextView):
 
         # Deferred so the text layout is valid when positioning the popup.
         GLib.idle_add(show)
+
+    @staticmethod
+    def _word_start(suggestion):
+        """The offset of the start of the word suggestion completes."""
+        typed = suggestion.get('typed')
+        if typed:
+            return suggestion['offset'] - typed
+        return suggestion['offset'] - (len(suggestion['word']) - len(suggestion['text']))
 
     def _select_suggestion(self, index):
         candidates = self._listed
@@ -703,6 +713,7 @@ class TextBox(Gtk.TextView):
         return self.buffer.props.cursor_position
 
     def hide_suggestion(self):
+        self._show_typed()
         if not self.suggestion_is_visible():
             return
         selection = self.buffer.get_selection_bounds()
@@ -825,23 +836,24 @@ class TextBox(Gtk.TextView):
         return False
 
     def _accept_suggestion(self, suggestion):
-        """Insert suggestion's text; with a 'replace' text, that replaces
-        as many characters typed before it (another case or digits)."""
+        """Insert suggestion's text; with a 'typed' count, its text is the
+        final form of the word, which replaces as many characters typed
+        before it (another case, digits or script)."""
         start = suggestion['offset']
         text = suggestion['text']
-        replace = suggestion.get('replace')
-        if not replace:
+        typed = suggestion.get('typed')
+        if not typed:
             self.buffer.insert(self.buffer.get_iter_at_offset(start), text)
             return
         recording = self.undo_controller and not self.undo_controller.model.recording
         if recording:
             self.undo_controller.record_start()
-        start -= len(replace)
+        start -= typed
         self.buffer.delete(
             self.buffer.get_iter_at_offset(start),
-            self.buffer.get_iter_at_offset(start + len(replace)),
+            self.buffer.get_iter_at_offset(start + typed),
         )
-        self.buffer.insert(self.buffer.get_iter_at_offset(start), replace + text)
+        self.buffer.insert(self.buffer.get_iter_at_offset(start), text)
         if recording:
             self.undo_controller.record_stop()
 
@@ -1051,8 +1063,29 @@ class TextBox(Gtk.TextView):
             ),
         )
         self.buffer.select_range(*iters)
+        self._hide_typed(self.suggestion)
         _ensure_suggestion_css(self.get_screen())
         self.get_style_context().add_class('suggestion')
+
+    def _hide_typed(self, suggestion):
+        """Show a final form instead of the typed text before it."""
+        typed = suggestion.get('typed')
+        if not typed:
+            return
+        if self._typed_tag is None:
+            self._typed_tag = self.buffer.create_tag(None, invisible=True)
+        offset = suggestion['offset']
+        self.buffer.apply_tag(
+            self._typed_tag,
+            self.buffer.get_iter_at_offset(offset - typed),
+            self.buffer.get_iter_at_offset(offset),
+        )
+
+    def _show_typed(self):
+        if self._typed_tag is not None:
+            self.buffer.remove_tag(
+                self._typed_tag, self.buffer.get_start_iter(), self.buffer.get_end_iter()
+            )
 
     def suggestion_is_visible(self):
         """Checks whether the current text suggestion is visible."""
