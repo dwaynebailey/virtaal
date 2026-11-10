@@ -1017,17 +1017,27 @@ def test_name_forms_default_to_the_name_itself():
     assert names.forms('NASA') == ['NASA']
 
 
-def test_name_forms_learn_another_script_from_one_unit():
+def test_name_forms_dont_learn_another_script_from_one_unit():
     names = _names(
         _unit('Open GitHub', 'গিটহাব খুলুন'),
         _unit('Open it', 'এটা খুলুন'),
+    )
+
+    assert names.forms('GitHub') == ['GitHub']
+
+
+def test_name_forms_learn_another_script_from_a_second_unit():
+    names = _names(
+        _unit('Open GitHub', 'গিটহাব খুলুন'),
+        _unit('Open it', 'এটা খুলুন'),
+        _unit('Close GitHub', 'গিটহাব বন্ধ'),
     )
 
     assert names.forms('GitHub') == ['গিটহাব', 'GitHub']
 
 
 def test_name_forms_need_one_word_found_only_with_the_name():
-    names = _names(_unit('Open GitHub', 'গিটহাব খুলুন'))
+    names = _names(_unit('Open GitHub', 'গিটহাব খুলুন'), _unit('Open GitHub now', 'গিটহাব খুলুন'))
 
     assert names.forms('GitHub') == ['GitHub']  # গিটহাব or খুলুন?
 
@@ -1036,6 +1046,7 @@ def test_name_forms_keep_latin_when_the_translator_last_did():
     names = _names(
         _unit('Open GitHub', 'গিটহাব খুলুন'),
         _unit('Open it', 'এটা খুলুন'),
+        _unit('Start GitHub', 'গিটহাব চালু'),
         _unit('Close GitHub', 'GitHub বন্ধ'),
     )
 
@@ -1043,18 +1054,34 @@ def test_name_forms_keep_latin_when_the_translator_last_did():
 
 
 def test_name_forms_ignore_untranslated_units():
-    names = _names(_unit('Open NASA', 'নাসা খুলুন'), _unit('Open it', 'খুলুন'), _unit('NASA', ''))
+    names = _names(
+        _unit('Open NASA', 'নাসা খুলুন'),
+        _unit('Open it', 'খুলুন'),
+        _unit('Close NASA', 'নাসা বন্ধ'),
+        _unit('NASA', ''),
+    )
 
     assert names.forms('NASA') == ['নাসা', 'NASA']
 
 
 def test_name_forms_learn_from_a_unit_edited_in_this_session():
-    open_github = _unit('Open GitHub', 'গিটহাব খুলুন')
-    names = _names(open_github, _unit('Open it', 'এটা খুলুন'))
+    close_github = _unit('Close GitHub', '')
+    names = _names(_unit('Open GitHub', 'গিটহাব খুলুন'), _unit('Open it', 'এটা খুলুন'), close_github)
 
-    names.enter(open_github)
-    open_github.target = 'GitHub খুলুন'
-    names.leave(open_github)
+    names.enter(close_github)
+    close_github.target = 'গিটহাব বন্ধ'
+    names.leave(close_github)
+
+    assert names.forms('GitHub') == ['গিটহাব', 'GitHub']
+
+
+def test_name_forms_forget_a_form_edited_back_to_latin():
+    close_github = _unit('Close GitHub', 'গিটহাব বন্ধ')
+    names = _names(_unit('Open GitHub', 'গিটহাব খুলুন'), _unit('Open it', 'এটা খুলুন'), close_github)
+
+    names.enter(close_github)
+    close_github.target = 'GitHub বন্ধ'
+    names.leave(close_github)
 
     assert names.forms('GitHub') == ['GitHub']
 
@@ -1062,7 +1089,7 @@ def test_name_forms_learn_from_a_unit_edited_in_this_session():
 def test_name_forms_count_an_unchanged_visit_as_no_decision():
     first = _unit('Open GitHub', 'গিটহাব খুলুন')
     latin = _unit('Close GitHub', 'GitHub বন্ধ')
-    names = _names(latin, first, _unit('Open it', 'এটা খুলুন'))
+    names = _names(latin, first, _unit('Start GitHub', 'গিটহাব চালু'), _unit('Open it', 'এটা খুলুন'))
 
     names.enter(latin)
     names.leave(latin)
@@ -1073,7 +1100,7 @@ def test_name_forms_count_an_unchanged_visit_as_no_decision():
 def test_name_forms_read_a_unit_entered_before_the_load_reached_it():
     first = _unit('Open GitHub', 'গিটহাব খুলুন')
     names = NameForms(AutoCompletor.word_re)
-    reader = names.load([_unit('Open it', 'এটা খুলুন'), first])
+    reader = names.load([_unit('Open it', 'এটা খুলুন'), _unit('Start GitHub', 'গিটহাব চালু'), first])
     names.enter(first)
     for _ in reader:
         pass
@@ -1085,7 +1112,12 @@ def test_name_forms_read_a_unit_entered_before_the_load_reached_it():
 
 def test_set_unit_offers_a_name_in_its_learnt_form_from_its_latin_letters():
     ac = _parsing_ac(*general.parsers)
-    for _ in ac.names.load([_unit('Open GitHub', 'গিটহাব খুলুন'), _unit('Open it', 'এটা খুলুন')]):
+    units = [
+        _unit('Open GitHub', 'গিটহাব খুলুন'),
+        _unit('Open it', 'এটা খুলুন'),
+        _unit('Start GitHub', 'গিটহাব চালু'),
+    ]
+    for _ in ac.names.load(units):
         pass
 
     ac.set_unit(_unit('Close GitHub'))
@@ -1095,10 +1127,23 @@ def test_set_unit_offers_a_name_in_its_learnt_form_from_its_latin_letters():
     assert ac.autocomplete_fast('গি') == ('গিটহাব', 'টহাব')
 
 
+def test_set_unit_offers_a_name_used_once_and_other_words_as_before():
+    ac = _parsing_ac(*general.parsers)
+    for _ in ac.names.load([_unit('Open GitHub', 'গিটহাব খুলুন'), _unit('Open it', 'এটা খুলুন')]):
+        pass
+
+    ac.set_unit(_unit('Close GitHub Desktop', 'বন্ধ'))
+
+    assert ac._fast_candidates == ['GitHub']
+    assert ac.autocomplete_fast('Gi') == ('GitHub', 'tHub')
+    assert ac.autocomplete('Desk') == ('Desktop', 'top')
+
+
 def test_set_unit_learns_from_the_unit_left():
     ac = _parsing_ac(*general.parsers)
     open_github = _unit('Open GitHub', '')
-    for _ in ac.names.load([open_github, _unit('Open it', 'এটা খুলুন')]):
+    units = [open_github, _unit('Open it', 'এটা খুলুন'), _unit('Start GitHub', 'গিটহাব চালু')]
+    for _ in ac.names.load(units):
         pass
     ac.set_unit(open_github)
     open_github.target = 'গিটহাব খুলুন'
@@ -1114,7 +1159,11 @@ def test_plugin_reads_the_files_names_in_the_background(monkeypatch):
     monkeypatch.setattr(NameForms, 'CHUNK', 1)
     plugin = Plugin.__new__(Plugin)
     plugin.autocomp = AutoCompletor(main_controller=None, comp_len=1)
-    units = [_unit('Open GitHub', 'গিটহাব খুলুন'), _unit('Open it', 'এটা খুলুন')]
+    units = [
+        _unit('Open GitHub', 'গিটহাব খুলুন'),
+        _unit('Open it', 'এটা খুলুন'),
+        _unit('Start GitHub', 'গিটহাব চালু'),
+    ]
     cursor = SimpleNamespace(connect=lambda *a: 'cursor-sig', deref=lambda: None)
     storecontroller = SimpleNamespace(
         cursor=cursor, get_store=lambda: SimpleNamespace(get_units=lambda: units)
@@ -1123,7 +1172,7 @@ def test_plugin_reads_the_files_names_in_the_background(monkeypatch):
     plugin._on_store_loaded(storecontroller)
     read = scheduled[1]
 
-    assert [read(), read(), read()] == [True, True, False]
+    assert [read(), read(), read(), read()] == [True, True, True, False]
     assert plugin._names_id is None
     assert plugin.autocomp.names.forms('GitHub') == ['গিটহাব', 'GitHub']
 

@@ -65,10 +65,12 @@ class NameForms:
 
     The other script's form of a name is the one word of another script
     in the target of every unit with the name in its source and not in
-    its target, and in the target of no other unit."""
+    its target, and in the target of no other unit. It is learnt from
+    its second such unit: one unit alone is often too little to tell."""
 
     name_res = (general.CapsPlaceable.regex, general.CamelCasePlaceable.regex)
     CHUNK = 2000  # Units read per call of the L{load()} generator.
+    USES = 2  # Units with the other form before it is offered.
 
     def __init__(self, word_re):
         self.word_re = word_re
@@ -97,7 +99,7 @@ class NameForms:
         units = [self._units[key] for key in self._by_name.get(name, ())]
         translated = [u for u in units if u[3] or u[2]]
         other = [u for u in translated if name not in u[2]]
-        if not other:
+        if len(other) < self.USES:
             return [name]
         common = set.intersection(*(u[3] for u in other))
         with_name = Counter(w for u in units for w in u[3])

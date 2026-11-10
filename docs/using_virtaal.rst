@@ -173,7 +173,8 @@ Case doesn't matter while you type: names keep their own case, and other words
 start with a capital at the start of a sentence. Numbers are suggested with
 your language's decimal and group separators and digits, and typing a digit in
 either script finds them. A name in capitals or CamelCase is suggested the way
-you last wrote it in this file, in Latin letters or in your own script.
+you last wrote it in this file, in Latin letters or in your own script, once
+you have written it in your own script in two units.
 
 The best suggestion shows in grey after the cursor; press :kbd:`Tab` to accept
 it. When there are several, they are also listed under the word: :kbd:`Up` and
