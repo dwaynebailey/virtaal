@@ -14,6 +14,9 @@ from virtaal.models.langmodel import LanguageModel, plural_forms
 from virtaal.views.baseview import BaseView
 from virtaal.views.widgets.util import run_dialog
 
+# RFC 5646 4.4.1: room for 35 characters covers any useful language tag.
+MAX_CODE_LENGTH = 35
+
 
 class LanguageAddDialog:
     """
@@ -143,7 +146,7 @@ class LanguageAddDialog:
         if any(c.isspace() for c in code):
             return _('Language code must not contain spaces.')
 
-        if not re.fullmatch(r'[A-Za-z0-9_@.-]+', code):
+        if len(code) > MAX_CODE_LENGTH or not re.fullmatch(r'[A-Za-z0-9_@.-]+', code):
             # l10n: Leave the four characters in quotes as they are.
             return _('Language code can only contain letters, digits, "_", "-", "@" and ".".')
 

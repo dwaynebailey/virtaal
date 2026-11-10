@@ -109,6 +109,15 @@ def test_check_input_sanity_accepts_bcp47_and_posix_locale_codes(code):
     assert dialog.check_input_sanity() == ''
 
 
+def test_check_input_sanity_caps_a_langcode_at_35_characters():
+    longest = 'x-' + 'a' * 33
+
+    assert _dialog_with_langcode(longest).check_input_sanity() == ''
+    assert _dialog_with_langcode(longest + 'a').check_input_sanity() == (
+        'Language code can only contain letters, digits, "_", "-", "@" and ".".'
+    )
+
+
 @pytest.mark.parametrize('code', ['af', 'AF', 'pt-BR'])
 def test_check_input_sanity_rejects_a_langcode_already_used(code):
     LanguageModel('en')  # LanguageModel.languages populates lazily on first real use
