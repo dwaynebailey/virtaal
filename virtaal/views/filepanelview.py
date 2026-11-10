@@ -34,6 +34,24 @@ from .baseview import BaseView
 # file being edited.
 EXPAND_ALL_FILES = 200
 
+# Keys that move the highlight; the units follow once it rests.
+MOVE_KEYS = frozenset(
+    (
+        Gdk.KEY_Up,
+        Gdk.KEY_Down,
+        Gdk.KEY_Page_Up,
+        Gdk.KEY_Page_Down,
+        Gdk.KEY_Home,
+        Gdk.KEY_End,
+        Gdk.KEY_KP_Up,
+        Gdk.KEY_KP_Down,
+        Gdk.KEY_KP_Page_Up,
+        Gdk.KEY_KP_Page_Down,
+        Gdk.KEY_KP_Home,
+        Gdk.KEY_KP_End,
+    )
+)
+
 
 def build_tree(names):
     """Nested folders for the relative paths C{names}, as
@@ -83,10 +101,14 @@ class FilePanelView(BaseView):
     limits the units to theirs."""
 
     WIDTH = 240
+    # How long the highlight rests after an arrow key before the units follow.
+    SCOPE_DELAY_MS = 400
 
     def __init__(self, controller):
         self.controller = controller
         self._building = False
+        self._keyed = False
+        self._scope_source = None
         self._rows = {}
         self._current = None
         self._languages = []
@@ -434,9 +456,43 @@ class FilePanelView(BaseView):
     def _on_selection_changed(self, _selection):
         if self._building:
             return
+        if not self._keyed:
+            self._apply_selection()
+            return
+        # Holding an arrow key reads no file until it stops.
+        self._cancel_scope()
+        self._scope_source = GLib.timeout_add(self.SCOPE_DELAY_MS, self._apply_rested)
+
+    def _cancel_scope(self):
+        if self._scope_source is not None:
+            GLib.source_remove(self._scope_source)
+            self._scope_source = None
+
+    def _apply_selection(self):
+        self._cancel_scope()
         self.controller.files_selected(self.selected_files())
+        return False
+
+    def _apply_rested(self):
+        """The units follow a highlight moved with the arrow keys, which
+        keep moving it: the panel keeps the focus the unit editor takes."""
+        focused = self.treeview.has_focus()
+        self._apply_selection()
+        if focused:
+            # After the editor's own focus grab (Gdk.PRIORITY_REDRAW + 4).
+            GLib.idle_add(self._refocus, priority=Gdk.PRIORITY_REDRAW + 5)
+        return False
+
+    def _refocus(self):
+        self.treeview.grab_focus()
+        return False
 
     def _on_key_press(self, _treeview, event):
+        if event.keyval in MOVE_KEYS:
+            # The selection changes in the default handler, right after.
+            self._keyed = True
+            GLib.idle_add(self._end_key)
+            return False
         if event.keyval != Gdk.KEY_Escape:
             return False
         selection = self.treeview.get_selection()
@@ -446,15 +502,29 @@ class FilePanelView(BaseView):
             self.controller.focus_units()
         return True
 
+    def _apply_pending(self):
+        if self._scope_source is not None:
+            self._apply_selection()
+        return False
+
+    def _end_key(self):
+        self._keyed = False
+        return False
+
     def _on_row_activated(self, _treeview, path, _column):
-        """Double-click or Enter on a file with no known template asks
-        for its template."""
+        """Enter applies a highlight the units haven't followed yet.
+        Double-click or Enter on a file with no known template asks for
+        its template."""
+        self._apply_pending()
         unpaired = self.model[path][COL_PATH]
         if unpaired:
             self.controller.pair_file(unpaired)
 
     def _on_button_press(self, treeview, event):
         if not event.triggers_context_menu():
+            if self._scope_source is not None:
+                # A click on the highlighted row changes no selection.
+                GLib.idle_add(self._apply_pending)
             return False
         found = treeview.get_path_at_pos(int(event.x), int(event.y))
         unpaired = found and self.model[found[0]][COL_PATH]

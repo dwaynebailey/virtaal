@@ -51,7 +51,9 @@ the folders and files with how much of each is translated; hover over the
 percentage for how many units are translated, need work and are untranslated.
 It is open for a folder, and hidden until you show it for several files. Select a file or
 folder in it, or several with :kbd:`Ctrl`, to see only their units; press
-:kbd:`Esc` in the panel to see every file again. With nothing selected, the
+:kbd:`Esc` in the panel to see every file again. Moving with the arrow keys
+changes the units shown once you stop for a moment, or at once with
+:kbd:`Enter`. With nothing selected, the
 file you are in shows in bold.
 
 :menuselection:`Navigation --> Next File` (:kbd:`Ctrl+Shift+PgDown`) and

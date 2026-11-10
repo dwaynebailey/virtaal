@@ -211,3 +211,87 @@ def test_a_greyed_row_keeps_its_own_tooltip_over_the_percentage():
 
     assert tooltip == 'This is the source-language file.'
     vbox.destroy()
+
+
+def _keyed_view():
+    entries = [
+        SimpleNamespace(display_name=name, language='de', template=None)
+        for name in ('a.po', 'b.po', 'c.po')
+    ]
+    selected = []
+    view, vbox = _loaded_view(entries, [], files_selected=selected.append)
+    view.SCOPE_DELAY_MS = 50
+    return view, vbox, selected
+
+
+def _press(view, keyval):
+    from gi.repository import Gdk
+
+    event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
+    event.key.keyval = keyval
+    view._on_key_press(view.treeview, event)
+
+
+def _select(view, row):
+    selection = view.treeview.get_selection()
+    selection.unselect_all()
+    selection.select_path(Gtk.TreePath.new_from_indices([row]))
+
+
+def _run_main_loop(seconds):
+    import time
+
+    from gi.repository import GLib
+
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        GLib.MainContext.default().iteration(False)
+
+
+def test_arrow_keys_move_the_highlight_and_the_units_follow_once_it_rests():
+    from gi.repository import Gdk
+
+    view, vbox, selected = _keyed_view()
+    view._building = True
+    _select(view, 0)
+    view._building = False
+
+    for row in (1, 2, 1):
+        _press(view, Gdk.KEY_Down)
+        _select(view, row)
+        assert selected == []
+        _run_main_loop(0.01)
+
+    _run_main_loop(0.2)
+    assert selected == [{1}]
+    vbox.destroy()
+
+
+def test_the_panel_keeps_the_focus_when_the_units_follow_the_arrows(monkeypatch):
+    view, vbox, selected = _keyed_view()
+    grabs = []
+    monkeypatch.setattr(view.treeview, 'has_focus', lambda: True)
+    monkeypatch.setattr(view.treeview, 'grab_focus', lambda: grabs.append(True))
+
+    view._apply_rested()
+    _run_main_loop(0.05)
+
+    assert grabs == [True]
+    vbox.destroy()
+
+
+def test_enter_or_a_click_applies_the_highlight_at_once():
+    from gi.repository import Gdk
+
+    view, vbox, selected = _keyed_view()
+    _press(view, Gdk.KEY_Down)
+    _select(view, 2)
+    view.treeview.row_activated(Gtk.TreePath.new_from_indices([2]), view.treeview.get_column(0))
+    assert selected == [{2}]
+    _run_main_loop(0.2)
+    assert selected == [{2}]
+
+    # A click changes the selection with no arrow key.
+    _select(view, 1)
+    assert selected[-1] == {1}
+    vbox.destroy()
