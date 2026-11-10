@@ -493,10 +493,13 @@ class StreamModel(BaseModel):
             model.adopt_target_language(langcode)
 
     def _set_language(self, method, langcode):
+        # Filled in as a file opens, the language is written with the
+        # file's next edit, not by saving another file.
+        edit = not getattr(self.controller, 'loading_store', False)
         changed = False
         for segment in self.segments:
             if segment.loaded and getattr(segment.model, method)(langcode):
-                segment.modified = True
+                segment.modified = segment.modified or edit
                 changed = True
         return changed
 

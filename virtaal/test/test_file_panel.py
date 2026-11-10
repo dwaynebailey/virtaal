@@ -476,3 +476,62 @@ class TestFilePanel(TestScaffolding):
         assert self.main_controller.open_files([str(folder)])
 
         assert self.panel._assigned_language(str(lone)) is None
+
+
+class TestHeaderlessFirstFile(TestScaffolding):
+    """A folder whose first file names no language."""
+
+    def setup_class(self):
+        TestScaffolding.setup_class(self)
+        PlaceablesController(self.main_controller)
+        self.panel = FilePanelController(self.main_controller)
+
+    @pytest.fixture(autouse=True)
+    def _files(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            self.main_controller,
+            'get_translator_details',
+            lambda *args: ('Tester', 'tester@example.org', 'Afrikaans'),
+        )
+        self.first = _po(tmp_path / 'a' / 'one.po', [('One', ''), ('Two', '')], language=None)
+        self.second = _po(tmp_path / 'b' / 'two.po', [('Three', '')])
+        self.dir = tmp_path
+        # Opening the folder changes the target language to af.
+        self.lang_controller._target_lang = LanguageModel('de')
+        self.store_controller.close_file()
+        yield
+        self.store_controller.set_modified(False)
+        self.store_controller.close_file()
+
+    def _read(self, path):
+        with open(path, encoding='utf-8') as f:
+            return f.read()
+
+    def test_the_language_is_set_in_memory_without_marking_the_file_modified(self):
+        self.main_controller.open_files([str(self.dir)])
+        sc = self.store_controller
+        store = sc.store
+
+        assert not sc.is_modified()
+        assert store.modified_entries() == []
+        assert store.segments[0].model._trans_store.gettargetlanguage() == 'af'
+        assert 'Language:' not in self._read(self.first)
+
+    def test_the_header_is_written_with_the_files_next_edit(self):
+        self.main_controller.open_files([str(self.dir)])
+        sc = self.store_controller
+        unit = sc.store[2]
+        unit.target = 'Drie'
+        sc.store.mark_modified(2)
+        sc.set_modified(True)
+
+        sc.save_file()
+
+        assert 'Language:' not in self._read(self.first)
+
+        unit = sc.store[0]
+        unit.target = 'Een'
+        sc.store.mark_modified(0)
+        sc.save_file()
+
+        assert '"Language: af\\n"' in self._read(self.first)

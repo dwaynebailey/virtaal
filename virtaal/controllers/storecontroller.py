@@ -227,6 +227,12 @@ class StoreController(BaseController):
     def is_modified(self):
         return self._modified
 
+    @property
+    def loading_store(self):
+        """Whether store-loaded is being handled: changes made then fill in
+        the file, rather than edit it."""
+        return self._loading_store
+
     def set_modified(self, value):
         """Set the modified flag, also updating set_saveable()."""
         self._modified = value
