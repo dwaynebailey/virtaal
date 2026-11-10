@@ -473,6 +473,7 @@ class Settings:
         "maximized": '',
         "windowwidth": 796,
         "windowheight": 544,
+        "filepanelwidth": 240,
         "windowx": '',
         "windowy": '',
         "assets_manifest_fetched": "",

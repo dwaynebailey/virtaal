@@ -7,6 +7,7 @@
 
 from types import SimpleNamespace
 
+import pytest
 from gi.repository import Gtk
 
 from virtaal.views.filepanelview import (
@@ -295,3 +296,35 @@ def test_enter_or_a_click_applies_the_highlight_at_once():
     _select(view, 1)
     assert selected[-1] == {1}
     vbox.destroy()
+
+
+@pytest.mark.parametrize(('saved', 'width'), [(310, 310), ('wide', 240), (20, 240)])
+def test_the_panel_opens_at_the_width_last_given(monkeypatch, saved, width):
+    from virtaal.common import pan_app
+
+    monkeypatch.setitem(pan_app.settings.general, 'filepanelwidth', saved)
+    view, vbox = _loaded_view([], [])
+
+    assert view.paned.get_position() == width
+    vbox.destroy()
+
+
+def test_dragging_the_divider_remembers_the_width(monkeypatch):
+    from virtaal.common import pan_app
+
+    monkeypatch.setitem(pan_app.settings.general, 'filepanelwidth', 240)
+    view, vbox = _loaded_view([], [])
+    window = Gtk.Window()
+    window.add(vbox)
+    window.resize(800, 400)
+    window.show_all()
+    view.show()
+    _run_main_loop(0.2)
+
+    view.paned.set_position(333)
+
+    assert pan_app.settings.general['filepanelwidth'] == 333
+    view.hide()
+    view.paned.set_position(100)
+    assert pan_app.settings.general['filepanelwidth'] == 333
+    window.destroy()

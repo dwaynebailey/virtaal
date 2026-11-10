@@ -11,6 +11,7 @@ import os
 
 from gi.repository import Gdk, GLib, Gtk, Pango
 
+from virtaal.common import pan_app
 from virtaal.common.pan_app import ngettext
 from virtaal.support.libi18n.numbers import format_number, format_percent
 
@@ -227,7 +228,11 @@ class FilePanelView(BaseView):
         vbox.remove(units)
         self.paned.pack1(self.widget, False, False)
         self.paned.pack2(units, True, False)
-        self.paned.set_position(self.WIDTH)
+        width = pan_app.settings.general['filepanelwidth']
+        self.paned.set_position(
+            pan_app.config_int(width, self.WIDTH, self.WIDTH // 2, 32767, 'filepanelwidth')
+        )
+        self.paned.connect('notify::position', self._on_position_changed)
         vbox.pack_start(self.paned, True, True, 0)
         vbox.reorder_child(self.paned, position)
         # The units are hidden for the welcome screen: so is the panel.
@@ -435,6 +440,11 @@ class FilePanelView(BaseView):
         return numbers
 
     # EVENT HANDLERS #
+    def _on_position_changed(self, paned, _pspec):
+        """Remember the width the user gave the panel."""
+        if self.widget.get_mapped():
+            pan_app.settings.general['filepanelwidth'] = paned.get_position()
+
     def _on_query_tooltip(self, treeview, x, y, keyboard, tooltip):
         """The row's tooltip, or over the % column, its unit counts."""
         found, x, y, model, path, it = treeview.get_tooltip_context(x, y, keyboard)

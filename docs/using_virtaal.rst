@@ -49,7 +49,8 @@ once you have. A folder opens the translation files in it and its subfolders
 The :menuselection:`View --> Files Panel` (:kbd:`F7`) beside the units lists
 the folders and files with how much of each is translated; hover over the
 percentage for how many units are translated, need work and are untranslated.
-It is open for a folder, and hidden until you show it for several files. Select a file or
+It is open for a folder, and hidden until you show it for several files.
+Drag its edge to make it wider; it keeps that width. Select a file or
 folder in it, or several with :kbd:`Ctrl`, to see only their units; press
 :kbd:`Esc` in the panel to see every file again. Moving with the arrow keys
 changes the units shown once you stop for a moment, or at once with
