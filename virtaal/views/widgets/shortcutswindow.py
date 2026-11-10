@@ -72,6 +72,8 @@ SHORTCUT_GROUPS = [
         _("Plug-ins"),
         [
             ("<Primary>1", _("Use the first translation suggestion")),
+            # Literal Ctrl on macOS too: Cmd+Shift+3, 4 and 5 take screenshots.
+            ("<Control><Shift>1", _("Insert the first translation suggestion at the cursor")),
             ("F8", _("Show/Hide checks")),
             ("F9", _("Show translation suggestions for this unit")),
             ("<Primary>F9", _("Turn translation suggestions on or off")),

@@ -260,7 +260,11 @@ If Virtaal has a suggestion obtained from translation memory or machine
 translation, it is displayed underneath the editing area. You can put the first
 suggestion into the target text with :kbd:`Ctrl+1`, or use :kbd:`Ctrl+2`, etc.
 to select the others. You can also double click the suggestion to obtain the
-same effect.
+same effect. These replace the whole target. To insert a suggestion at the
+cursor instead, or over the selected text, keeping the rest of the target,
+press :kbd:`Ctrl+Shift+1`, :kbd:`Ctrl+Shift+2`, etc. (:kbd:`Ctrl`, not
+:kbd:`Cmd`, on macOS), or right-click the suggestion and choose
+:guilabel:`Insert at Cursor`.
 
 A translated unit shows suggestions only when you ask for them with :kbd:`F9`
 (:menuselection:`View --> Suggestions for This Unit`).

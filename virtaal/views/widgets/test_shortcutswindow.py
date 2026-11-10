@@ -189,3 +189,11 @@ def test_other_platforms_keep_gtks_own_labels(monkeypatch):
     assert rows == [['Shift', '+', 'Tab']] * 2
     window.destroy()
     parent.destroy()
+
+
+def test_insert_suggestion_row_is_literal_ctrl_shift_on_every_platform():
+    # Q15: Cmd+Shift+3, 4 and 5 are macOS screenshots; the handler tests Ctrl.
+    rows = dict(row for _title, group in SHORTCUT_GROUPS for row in group)
+
+    assert rows["<Control><Shift>1"] == "Insert the first translation suggestion at the cursor"
+    assert "<Primary><Shift>1" not in rows

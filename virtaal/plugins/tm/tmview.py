@@ -25,6 +25,34 @@ def _gtk_text(msgid):
     return GLib.dgettext('gtk30', msgid)
 
 
+_DIGITS = {Gdk.KEY_0 + n: n for n in range(1, 10)}
+_DIGITS.update({Gdk.KEY_KP_0 + n: n for n in range(1, 10)})
+_INSERT_MODS = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK
+_OTHER_MODS = (
+    Gdk.ModifierType.MOD1_MASK
+    | Gdk.ModifierType.META_MASK
+    | Gdk.ModifierType.SUPER_MASK
+    | Gdk.ModifierType.HYPER_MASK
+)
+
+
+def insert_shortcut_digit(event):
+    """N for a press of Ctrl+Shift+N (1 <= N <= 9), else None. Shift
+    turns the digit into a symbol on most layouts (! on US, & with no
+    Shift on AZERTY), so the digit is the one on the pressed key."""
+    state = event.state
+    if state & _INSERT_MODS != _INSERT_MODS or state & _OTHER_MODS:
+        return None
+    if event.keyval in _DIGITS:
+        return _DIGITS[event.keyval]
+    keymap = Gdk.Keymap.get_for_display(Gdk.Display.get_default())
+    found, _keys, keyvals = keymap.get_entries_for_keycode(event.hardware_keycode)
+    for keyval in keyvals if found else ():
+        if keyval in _DIGITS:
+            return _DIGITS[keyval]
+    return None
+
+
 class TMView(BaseView, GObjectWrapper):
     """The fake drop-down menu in which the TM matches are displayed."""
 
@@ -94,6 +122,7 @@ class TMView(BaseView, GObjectWrapper):
             main_window, 'notify::is-active', self._on_active_notify_mainwindow
         )
         self._signal_tracker.connect(main_window, 'configure_event', self._on_configure_mainwindow)
+        self._signal_tracker.connect(main_window, 'key-press-event', self._on_mainwindow_key_press)
         self._signal_tracker.connect(
             controller.main_controller.store_controller, 'store-closed', self._on_store_closed
         )
@@ -128,6 +157,14 @@ class TMView(BaseView, GObjectWrapper):
 
         mainview = self.controller.main_controller.view
         mainview.add_accel_group(self.accel_group)
+
+    def _on_mainwindow_key_press(self, _window, event):
+        """Ctrl+Shift+N inserts match N at the cursor. Not an accelerator:
+        GTK only matches those on the shifted key's own symbol."""
+        index = insert_shortcut_digit(event)
+        if index is None:
+            return False
+        return self.insert_match_index(index)
 
     def _translated_menu(self):
         """View > Suggestions for Translated Units' choices (#1396)."""
@@ -602,29 +639,38 @@ class TMView(BaseView, GObjectWrapper):
         """Select the match data as accepted by the user."""
         self.controller.select_match(match_data)
 
+    def _match_iter(self, index):
+        """The shown TM window's row for match C{index} (from 1), or None."""
+        if index < 1 or not self.isvisible:
+            return None
+        liststore = self.tmwindow.liststore
+        if index > len(liststore):
+            return None
+        return liststore.iter_nth_child(None, index - 1)
+
     def select_match_index(self, index):
         """Select the TM match with the given index (first match is 1).
         This method causes a row in the TM window's C{Gtk.TreeView} to be
         selected and activated. This runs this class's C{_on_select_match()}
         method which runs C{select_match()}."""
-        if index < 0 or not self.isvisible:
+        itr = self._match_iter(index)
+        if itr is None:
             return
 
         logging.debug('Selecting index %d' % (index))
         liststore = self.tmwindow.liststore
-        itr = liststore.get_iter_first()
-
-        i = 1
-        while itr and i < index and liststore.iter_is_valid(itr):
-            itr = liststore.iter_next(itr)
-            i += 1
-
-        if not itr or not liststore.iter_is_valid(itr):
-            return
-
         path = liststore.get_path(itr)
         self.tmwindow.treeview.get_selection().select_iter(itr)
         self.tmwindow.treeview.row_activated(path, self.tmwindow.tvc_match)
+
+    def insert_match_index(self, index):
+        """Insert match C{index} (from 1) at the cursor, as Insert at
+        Cursor does. Whether there was one to insert."""
+        itr = self._match_iter(index)
+        if itr is None:
+            return False
+        self.controller.insert_match(self.tmwindow.liststore.get_value(itr, 0))
+        return True
 
     def show(self, force=False):
         """Show the TM window."""

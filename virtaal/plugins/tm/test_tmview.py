@@ -11,7 +11,7 @@ import pytest
 from gi.repository import Gdk, GLib, GObject, Gtk
 
 from virtaal.common import GObjectWrapper
-from virtaal.plugins.tm.tmview import TMView
+from virtaal.plugins.tm.tmview import TMView, insert_shortcut_digit
 
 # Each test's own virtaal.ui windows are destroyed after it.
 pytestmark = pytest.mark.usefixtures('destroy_ui_windows')
@@ -856,6 +856,102 @@ def test_on_select_match_selects_the_index_from_the_accelerator_keyval():
     assert calls == [3]
 
 
+# Ctrl+Shift+N: insert match N at the cursor (Q15)
+
+CTRL_SHIFT = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK
+
+
+def _key_event(keyval, state, keycode=None):
+    event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
+    event.key.keyval = keyval
+    event.key.state = state
+    event.key.hardware_keycode = _keycode_of(keyval) if keycode is None else keycode
+    return event
+
+
+def _keycode_of(keyval):
+    keymap = Gdk.Keymap.get_for_display(Gdk.Display.get_default())
+    return keymap.get_entries_for_keyval(keyval)[1][0].keycode
+
+
+@pytest.mark.parametrize('n', [1, 5, 9])
+def test_ctrl_shift_digit_gives_the_digit(n):
+    assert insert_shortcut_digit(_key_event(Gdk.KEY_0 + n, CTRL_SHIFT)) == n
+
+
+def test_ctrl_shift_digit_matches_the_key_when_shift_gives_a_symbol():
+    # US: Shift+1 is "!"; the digit is the pressed key's own.
+    event = _key_event(Gdk.KEY_exclam, CTRL_SHIFT, keycode=_keycode_of(Gdk.KEY_1))
+
+    assert insert_shortcut_digit(event) == 1
+
+
+def test_ctrl_shift_digit_takes_the_keypad_digits():
+    assert insert_shortcut_digit(_key_event(Gdk.KEY_KP_3, CTRL_SHIFT)) == 3
+
+
+@pytest.mark.parametrize(
+    'keyval, state',
+    [
+        (Gdk.KEY_1, Gdk.ModifierType.CONTROL_MASK),  # Ctrl+1 selects instead
+        (Gdk.KEY_exclam, Gdk.ModifierType.SHIFT_MASK),  # typing "!"
+        (Gdk.KEY_1, CTRL_SHIFT | Gdk.ModifierType.MOD1_MASK),
+        (Gdk.KEY_0, CTRL_SHIFT),
+        (Gdk.KEY_a, CTRL_SHIFT),
+    ],
+)
+def test_other_keys_are_not_the_insert_shortcut(keyval, state):
+    assert insert_shortcut_digit(_key_event(keyval, state)) is None
+
+
+def test_insert_match_index_inserts_the_nth_shown_match():
+    view = _tmview(isvisible=True)
+    inserted = []
+    view.controller.insert_match = inserted.append
+    for source in ('first', 'second', 'third'):
+        view.tmwindow.liststore.append([{'source': source}, ''])
+
+    assert view.insert_match_index(2) is True
+
+    assert inserted == [{'source': 'second'}]
+    # Inserting doesn't pick the row as Ctrl+N does.
+    assert view.tmwindow.treeview.activated == []
+
+
+@pytest.mark.parametrize('isvisible, index', [(False, 1), (True, 0), (True, 4)])
+def test_insert_match_index_needs_a_shown_match(isvisible, index):
+    view = _tmview(isvisible=isvisible)
+    view.controller.insert_match = lambda match: pytest.fail('nothing to insert')
+    for source in ('first', 'second', 'third'):
+        view.tmwindow.liststore.append([{'source': source}, ''])
+
+    assert view.insert_match_index(index) is False
+
+
+def test_ctrl_shift_digit_in_the_main_window_inserts_that_match():
+    inserted = []
+    view, main_window, _groups = _real_tmview(insert_match=inserted.append)
+    view.isvisible = True
+    for target in ('first', 'second'):
+        view.tmwindow.liststore.append([{'source': 's', 'target': target}, ''])
+    event = _key_event(Gdk.KEY_at, CTRL_SHIFT, keycode=_keycode_of(Gdk.KEY_2))
+
+    handled = main_window.emit('key-press-event', event)
+
+    assert handled is True
+    assert [match['target'] for match in inserted] == ['second']
+
+
+def test_ctrl_digit_in_the_main_window_is_left_to_the_accelerator():
+    view, main_window, _groups = _real_tmview(insert_match=lambda m: pytest.fail('inserted'))
+    view.isvisible = True
+    view.tmwindow.liststore.append([{'source': 's', 'target': 't'}, ''])
+
+    event = _key_event(Gdk.KEY_1, Gdk.ModifierType.CONTROL_MASK)
+
+    assert view._on_mainwindow_key_press(main_window, event) is False
+
+
 def test_on_store_closed_hides_and_disables_the_suggestions_toggle():
     view = TMView.__new__(TMView)
     calls = []
@@ -974,7 +1070,7 @@ def test_init_wires_key_bindings_menu_and_store_signals():
     assert view._may_show_tmwindow == main_window.props.is_active
     assert added_accel_groups == [view.accel_group]
     assert view.mnu_suggestions.get_active() is True
-    assert len(view._signal_tracker._ids) == 9
+    assert len(view._signal_tracker._ids) == 10
 
 
 # suspend() / resume(): kept hidden while the target's completion list is open
