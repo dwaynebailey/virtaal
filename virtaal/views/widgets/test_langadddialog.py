@@ -114,7 +114,7 @@ def test_check_input_sanity_caps_a_langcode_at_35_characters():
 
     assert _dialog_with_langcode(longest).check_input_sanity() == ''
     assert _dialog_with_langcode(longest + 'a').check_input_sanity() == (
-        'Language code can only contain letters, digits, "_", "-", "@" and ".".'
+        'Language codes can be at most 35 characters.'
     )
 
 

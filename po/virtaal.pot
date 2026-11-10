@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-10 15:34+0000\n"
+"POT-Creation-Date: 2026-11-10 17:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3535,6 +3535,10 @@ msgstr ""
 
 #: virtaal/views/widgets/langadddialog.py
 msgid "Language code must not contain spaces."
+msgstr ""
+
+#: virtaal/views/widgets/langadddialog.py
+msgid "Language codes can be at most 35 characters."
 msgstr ""
 
 #. l10n: Leave the four characters in quotes as they are.

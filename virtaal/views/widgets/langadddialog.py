@@ -146,7 +146,10 @@ class LanguageAddDialog:
         if any(c.isspace() for c in code):
             return _('Language code must not contain spaces.')
 
-        if len(code) > MAX_CODE_LENGTH or not re.fullmatch(r'[A-Za-z0-9_@.-]+', code):
+        if len(code) > MAX_CODE_LENGTH:
+            return _('Language codes can be at most 35 characters.')
+
+        if not re.fullmatch(r'[A-Za-z0-9_@.-]+', code):
             # l10n: Leave the four characters in quotes as they are.
             return _('Language code can only contain letters, digits, "_", "-", "@" and ".".')
 
