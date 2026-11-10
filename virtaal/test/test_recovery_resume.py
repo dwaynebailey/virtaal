@@ -386,7 +386,9 @@ class UnsavedScaffolding(RecoveryScaffolding):
         monkeypatch.setattr(
             view,
             'show_restored_notice',
-            lambda count, unplaced=0: self.notices.append(('restored', count, unplaced)),
+            lambda count, unplaced=0, files=(): self.notices.append(
+                ('restored', count, unplaced) + ((list(files),) if files else ())
+            ),
         )
 
     def _type(self, index, text):
@@ -762,6 +764,41 @@ class TestStream(UnsavedScaffolding):
         assert self.notices == [('restored', 1, 0)]
         assert str(self.store_controller.store[4].target) == 'Nuut'
         assert self.store_controller.cursor.index == 4
+
+    def _change_on_disk(self, path):
+        with open(path, 'ab') as f:
+            f.write(b'\nmsgid "Added"\nmsgstr ""\n')
+
+    def test_a_signal_end_names_a_file_that_changed_since(self):
+        a, b = self._open_stream()
+        self._type(0, 'Oop')
+        self._type(4, 'Nuut')
+        self._edit_at(5)
+        self.recovery.end_session('signal')
+        self.main_controller.emit('quit')
+        self.recovery._ending = False
+        self.store_controller.close_file()
+        self._change_on_disk(b)
+
+        self._resume_stream()
+
+        assert self.notices == [('restored', 1, 1, [('b.po', b)])]
+        assert str(self.store_controller.store[0].target) == 'Oop'
+
+    def test_recovering_after_a_crash_names_a_file_that_changed_since(self):
+        a, b = self._open_stream()
+        self._type(0, 'Oop')
+        self._type(4, 'Nuut')
+        self._edit_at(5)
+        self._crash()
+        self._change_on_disk(b)
+
+        self._resume_stream()
+        [(kind, count, on_recover, _discard)] = self.notices
+        assert (kind, count) == ('recover', 1)
+        on_recover()
+
+        assert self.notices[-1] == ('restored', 1, 1, [('b.po', b)])
 
 
 def test_missing_paths_lists_the_paths_gone_from_disk(tmp_path):

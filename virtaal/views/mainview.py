@@ -1648,9 +1648,10 @@ class MainView(BaseView):
             self._recovery_infobar = None
             infobar.destroy()
 
-    def show_restored_notice(self, count, unplaced=0):
+    def show_restored_notice(self, count, unplaced=0, changed_files=()):
         """Unsaved work from the last session was re-applied to count
-        units; unplaced more couldn't be, the file having changed."""
+        units; unplaced more couldn't be, the file having changed, or in
+        a list of files, changed_files: (name, full path) pairs."""
         from virtaal.support.libi18n.numbers import format_number
 
         lines = []
@@ -1674,8 +1675,22 @@ class MainView(BaseView):
                 )
                 % {'count': format_number(unplaced)}
             )
+        if unplaced and changed_files:
+            lines.append(
+                ngettext(
+                    # l10n: Follows "N unsaved units could not be restored because
+                    # the file changed." %(files)s: file names, separated by ", "
+                    "File changed: %(files)s",
+                    "Files changed: %(files)s",
+                    len(changed_files),
+                )
+                % {'files': ', '.join(name for name, _path in changed_files)}
+            )
         if lines:
-            self.show_info_notice('\n'.join(lines))
+            notice = self.show_info_notice('\n'.join(lines))
+            if unplaced and changed_files:
+                label = notice.get_content_area().get_children()[0]
+                label.set_tooltip_text('\n'.join(path for _name, path in changed_files))
 
     def show_language_change_notice(self):
         """Called once the UI language is changed in Preferences - a

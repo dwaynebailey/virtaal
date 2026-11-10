@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-10 14:29+0000\n"
+"POT-Creation-Date: 2026-11-10 14:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3150,6 +3150,15 @@ msgstr[1] ""
 msgid "%(count)s unsaved unit could not be restored because the file changed."
 msgid_plural ""
 "%(count)s unsaved units could not be restored because the file changed."
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: Follows "N unsaved units could not be restored because
+#. the file changed." %(files)s: file names, separated by ", "
+#: virtaal/views/mainview.py
+#, python-format
+msgid "File changed: %(files)s"
+msgid_plural "Files changed: %(files)s"
 msgstr[0] ""
 msgstr[1] ""
 

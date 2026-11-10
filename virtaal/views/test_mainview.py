@@ -3582,6 +3582,21 @@ def test_show_resume_blocked_notice_dismiss_does_not_reopen():
 # crash or a shutdown.
 
 
+def test_show_restored_notice_names_the_changed_files_with_their_paths_in_the_tooltip():
+    view, vbox = _view_for_same_lang_notice()
+    a, b = (os.path.abspath(os.path.join('work', name, 'messages.po')) for name in ('sc', 'sw'))
+
+    view.show_restored_notice(2, 3, [('sc/messages.po', a), ('sw/messages.po', b)])
+
+    label = view._info_infobar.get_content_area().get_children()[0]
+    assert label.get_text() == (
+        'Restored 2 unsaved units from your last session.\n'
+        '3 unsaved units could not be restored because the file changed.\n'
+        'Files changed: sc/messages.po, sw/messages.po'
+    )
+    assert label.get_tooltip_text() == a + '\n' + b
+
+
 def test_show_recovery_notice_counts_the_units_and_has_no_close_button():
     import time
 

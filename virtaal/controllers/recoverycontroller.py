@@ -144,6 +144,9 @@ class RecoveryController:
         # index in its file).
         self._pending_upto = None
         self._touched = set()
+        # Stream files changed on disk since: (their unit count,
+        # [(name, path)]).
+        self._unrestored = (0, [])
         # Recently selected units with their indices: unit-done comes
         # after the cursor has moved on.
         self._recent = []
@@ -250,35 +253,36 @@ class RecoveryController:
         when = slot.updated_at
         end_reason = slot.data.get('end_reason')
         position = slot.data.get('position')
-        by_doc, unplaced = self._replayable_records(slot)
+        by_doc, unplaced, changed_files = self._replayable_records(slot)
         slot.data['end_reason'] = None
         slot.write()
+        view = self.main_controller.view
         if by_doc:
             if end_reason or not ASK_BEFORE_REAPPLYING_AFTER_A_CRASH:
                 changed, not_placed = self._apply(by_doc)
-                self.main_controller.view.show_restored_notice(len(changed), unplaced + not_placed)
+                view.show_restored_notice(len(changed), unplaced + not_placed, changed_files)
             else:
                 self._pending_upto = {
                     doc_id: records[-1]['seq'] for doc_id, records in by_doc.items()
                 }
                 self._touched = set()
+                self._unrestored = (unplaced, changed_files)
                 count = sum(len(recovery.latest_per_unit(r)) for r in by_doc.values())
-                self.main_controller.view.show_recovery_notice(
-                    count, when, self.recover, self.discard
-                )
+                view.show_recovery_notice(count, when, self.recover, self.discard)
         elif unplaced:
-            self.main_controller.view.show_restored_notice(0, unplaced)
+            view.show_restored_notice(0, unplaced, changed_files)
         if position:
             self._restore_position(position)
         GLib.timeout_add_seconds(STABLE_SECONDS, self._on_stable, slot)
 
     def _replayable_records(self, slot):
         """Each replayable document's journal, with its draft appended
-        if newer, as (records by document, units left out). The drafts
-        are cleared."""
+        if newer, as (records by document, units left out, the stream
+        files they were in). The drafts are cleared."""
         stream = self.store_controller.is_stream()
         by_doc = {}
         unplaced = 0
+        changed_files = []
         for doc_id, doc in slot.data['documents'].items():
             if self._replayable or (stream and doc.get('baseline', {}).get('kind') == 'disk'):
                 journal = slot.journal(doc_id)
@@ -290,12 +294,22 @@ class RecoveryController:
                 if stream and not baseline_ok:
                     # Changed since: there is no Save As to keep both.
                     unplaced += len(recovery.latest_per_unit(records))
+                    changed_files.append(
+                        self._stream_file(doc.get('open_path') or doc['baseline'].get('path'))
+                    )
                 elif records:
                     by_doc[doc_id] = records
                 if not stream:
                     self._baseline_ok = baseline_ok
             doc['draft'] = None
-        return by_doc, unplaced
+        return by_doc, unplaced, changed_files
+
+    def _stream_file(self, path):
+        """(name in the Files Panel, full path) of the open stream's file."""
+        for segment in self.store_controller.store.segments:
+            if segment.path == path:
+                return segment.entry.display_name, path
+        return os.path.basename(path), path
 
     # UNSAVED WORK #
     @_guarded
@@ -318,8 +332,11 @@ class RecoveryController:
             for doc_id, upto in pending.items()
         }
         changed, unplaced = self._apply(by_doc, skip)
-        if unplaced:
-            self.main_controller.view.show_restored_notice(len(changed), unplaced)
+        (stale, changed_files), self._unrestored = self._unrestored, (0, [])
+        if unplaced + stale:
+            self.main_controller.view.show_restored_notice(
+                len(changed), unplaced + stale, changed_files
+            )
 
     @_guarded
     def discard(self):
@@ -329,6 +346,7 @@ class RecoveryController:
             return
         pending, self._pending_upto = self._pending_upto, None
         self._touched = set()
+        self._unrestored = (0, [])
         self.main_controller.view.hide_recovery_notice()
         for doc_id, upto in pending.items():
             journal = self.slot.journal(doc_id)
