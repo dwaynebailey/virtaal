@@ -486,7 +486,7 @@ Dev Essentials <https://my.visualstudio.com/downloads?pid=6822>`_ (the Local
 Translation Memory window below links there; you need a Microsoft account),
 then import the downloaded .zip file or the .csv files in it. Each file's
 translations go under the language in its name, such as af-ZA. The few rows with broken quoting in
-Microsoft's files are left out. Microsoft's notice at the top of each file
+Microsoft's files are left out, and the notice after the import says how many. Microsoft's notice at the top of each file
 says how you may use them.
 
 To keep a file's translations out of the local TM, for example ones you are

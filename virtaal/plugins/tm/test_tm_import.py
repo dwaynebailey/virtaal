@@ -292,6 +292,23 @@ def test_the_notice_says_how_many_translations_were_added(run_idle, counts, noti
     assert mainview.errors == []
 
 
+def test_the_notice_says_how_many_glossary_rows_were_skipped(run_idle):
+    view, mainview = _tmview()
+
+    class Glossaries:
+        def import_file(self, path, on_done, on_error):
+            on_done(path, 3, {'a.csv': 1, 'b.zip': 2}[os.path.basename(path)])
+
+    view._import_model = Glossaries()
+    _import(view, '/home/user/a.csv')
+    _import(view, '/home/user/a.csv', '/home/user/b.zip')
+
+    assert mainview.notices == [
+        "Added 3 translations to the translation memory. Skipped 1 row that couldn't be read.",
+        "Added 6 translations to the translation memory. Skipped 3 rows that couldn't be read.",
+    ]
+
+
 def test_a_file_that_cant_be_imported_is_named_in_an_error(run_idle):
     view, mainview = _tmview()
     view._import_model = _Model({'a.tmx': None})

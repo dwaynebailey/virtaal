@@ -254,9 +254,9 @@ class TMModel(remotetm.TMModel):
 
         The server reads the file, filing each unit under the file's own
         languages where the format has them, else under the current pair.
-        C{on_done(path, added)} runs with the number of translations the
-        TM didn't have yet, C{on_error(path)} if the file can't be read
-        or imported."""
+        C{on_done(path, added, skipped)} runs with the number of
+        translations the TM didn't have yet and of rows it couldn't read,
+        C{on_error(path)} if the file can't be read or imported."""
         path = os.path.realpath(path)
         try:
             with open(path, 'rb') as f:
@@ -283,7 +283,8 @@ class TMModel(remotetm.TMModel):
                 on_error(path)
                 return
             self._forget_cached()
-            on_done(path, counts.get('added', 0) + counts.get('replaced', 0))
+            added = counts.get('added', 0) + counts.get('replaced', 0)
+            on_done(path, added, counts.get('skipped', 0))
 
         _on_reply(request, on_success, lambda: on_error(path), "import %s" % path)
 

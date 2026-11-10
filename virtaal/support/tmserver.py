@@ -162,7 +162,10 @@ class TMServer:
             logger.warning("Can't read the uploaded %s: %s", sid, e)
             return _json_reply({"error": "unreadable file"}, 400)
         counts = self.tmdb.import_store(store, sid, slang, tlang, request.query.member)
-        return _json_reply(counts if counts is not None else {"excluded": True})
+        if counts is None:
+            return _json_reply({"excluded": True})
+        skipped = getattr(store, "skipped", 0)  # rows a glossary couldn't read
+        return _json_reply({**counts, "skipped": skipped} if skipped else counts)
 
     def add_store(self, slang, tlang, sid):
         """Sync the store at C{sid} with the POSTed units,

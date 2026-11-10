@@ -582,10 +582,12 @@ class TMView(BaseView, GObjectWrapper):
             return
         waiting = [len(filenames)]
         added = [0]
+        skipped = [0]
         failed = []
 
-        def done(path, count):
+        def done(path, count, unreadable=0):
             added[0] += count
+            skipped[0] += unreadable
             finish()
 
         def error(path):
@@ -597,24 +599,35 @@ class TMView(BaseView, GObjectWrapper):
             if not waiting[0]:
                 # Not from inside the HTTP client's callback: the error
                 # dialog runs a main loop of its own.
-                GLib.idle_add(self._show_import_result, len(filenames), added[0], failed)
+                GLib.idle_add(
+                    self._show_import_result, len(filenames), added[0], failed, skipped[0]
+                )
 
         for filename in filenames:
             model.import_file(filename, done, error)
 
-    def _show_import_result(self, total, added, failed):
+    def _show_import_result(self, total, added, failed, skipped=0):
         mainview = self.controller.main_controller.view
         if len(failed) < total:
-            mainview.show_info_notice(
+            notice = ngettext(
                 # l10n: After File > Import into Translation Memory: how many
                 # translations the translation memory did not have yet
-                ngettext(
-                    'Added %(count)d translation to the translation memory.',
-                    'Added %(count)d translations to the translation memory.',
-                    added,
+                'Added %(count)d translation to the translation memory.',
+                'Added %(count)d translations to the translation memory.',
+                added,
+            ) % {'count': added}
+            if skipped:
+                notice += ' ' + (
+                    ngettext(
+                        # l10n: Follows the number of translations added: rows
+                        # of a Microsoft glossary file that couldn't be read
+                        "Skipped %(count)d row that couldn't be read.",
+                        "Skipped %(count)d rows that couldn't be read.",
+                        skipped,
+                    )
+                    % {'count': skipped}
                 )
-                % {'count': added}
-            )
+            mainview.show_info_notice(notice)
         if failed:
             mainview.show_error_dialog(
                 message='\n'.join(

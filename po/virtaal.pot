@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-10 07:30+0000\n"
+"POT-Creation-Date: 2026-11-10 14:29+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2396,10 +2396,21 @@ msgstr[1] ""
 msgid "Import into Translation Memory"
 msgstr ""
 
+#. l10n: After File > Import into Translation Memory: how many
+#. translations the translation memory did not have yet
 #: virtaal/plugins/tm/tmview.py
 #, python-format
 msgid "Added %(count)d translation to the translation memory."
 msgid_plural "Added %(count)d translations to the translation memory."
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: Follows the number of translations added: rows
+#. of a Microsoft glossary file that couldn't be read
+#: virtaal/plugins/tm/tmview.py
+#, python-format
+msgid "Skipped %(count)d row that couldn't be read."
+msgid_plural "Skipped %(count)d rows that couldn't be read."
 msgstr[0] ""
 msgstr[1] ""
 

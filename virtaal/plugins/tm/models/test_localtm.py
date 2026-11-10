@@ -611,12 +611,13 @@ def importing_model(tmp_path, monkeypatch):
 
 
 def _import(model, path):
+    """[('done', path, added)], with the skipped rows as a 4th item if any."""
     results = []
-    model.import_file(
-        str(path),
-        lambda path, added: results.append(('done', path, added)),
-        lambda path: results.append(('error', path)),
-    )
+
+    def done(path, added, skipped):
+        results.append(('done', path, added) + ((skipped,) if skipped else ()))
+
+    model.import_file(str(path), done, lambda path: results.append(('error', path)))
     return results
 
 
@@ -648,6 +649,19 @@ def test_import_file_files_a_po_without_languages_under_the_current_pair(tmp_pat
 
     assert results == [('done', os.path.realpath(po), 2)]
     assert app.tmdb.translate_unit('Quit', 'en', 'af')[0]['target'] == 'Verlaat'
+
+
+def test_import_file_counts_a_glossarys_unreadable_rows(tmp_path, importing_model):
+    from virtaal.support.test_ms_glossary import glossary_csv
+
+    model, _app, send = importing_model
+    glossary = tmp_path / 'af-ZA-csv-Example.csv'
+    glossary.write_bytes(glossary_csv())
+
+    results = _import(model, glossary)
+    send()
+
+    assert results == [('done', os.path.realpath(glossary), 4, 2)]
 
 
 def test_importing_a_file_again_adds_nothing(tmp_path, importing_model):
