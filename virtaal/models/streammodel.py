@@ -101,6 +101,8 @@ class FileSegment:
         self.stats = stats
         self.model = None
         self.modified = False
+        # No units yet: its stats are still being cached.
+        self.pending = False
         self._ids = None
 
     @property
@@ -155,12 +157,18 @@ class StreamModel(BaseModel):
         'file-loaded': (GObject.SignalFlags.RUN_FIRST, None, (int, object)),
         # The files whose checks were left out are checked.
         'checks-filled': (GObject.SignalFlags.RUN_FIRST, None, ()),
+        # Files whose stats were being cached joined, with a function
+        # giving each earlier stream index its new one; and whether files
+        # with no units were left out, changing the file numbers.
+        'files-filled': (GObject.SignalFlags.RUN_FIRST, None, (object, bool)),
     }
 
     # Read the next or previous file once the cursor is this close to it.
     PREFETCH_UNITS = 10
     # How long the git histories of monolingual files may take at open.
     RECALL_SECONDS = 10
+    # How often files whose stats are being cached join, as they come.
+    FILL_POLL_MS = 1000
 
     # The target language the files were picked for, if any.
     language = None
@@ -186,6 +194,8 @@ class StreamModel(BaseModel):
         # Stream indices that may differ from the files on disk.
         self._edited_units = set()
         self._offsets = []
+        self._filler = None
+        self._fill_poll = None
         self._build_segments()
         if not self.segments and not fileset.unpaired:
             raise ValueError('The files contain nothing to translate.')
@@ -199,22 +209,26 @@ class StreamModel(BaseModel):
         statsworker.wait()
         cache = statsdb.StatsCache()
         # Reading a file for its stats is slow and, with the cyclic
-        # collector off, never gives the memory back: a child does it.
+        # collector off, never gives the memory back: a child does it,
+        # while the first file is read here to show at once.
         uncached = [
             entry.path
             for entry in self.fileset
             if entry.template is None and not cache.is_cached(entry.path)
         ]
-        if uncached:
-            statsworker.fill(uncached)
         recall = sourcehistory.budgeted(self.RECALL_SECONDS)
         offset = 0
         for entry in self.fileset:
             try:
                 if entry.template is not None:
                     segment = self._paired_segment(entry, offset, recall)
-                else:
+                elif entry.path not in uncached:
                     segment = self._cached_segment(entry, offset, cache)
+                elif offset == 0:
+                    segment = self._read_segment(entry, offset)
+                else:
+                    segment = FileSegment(entry, offset, [], _peek_stats([]), [])
+                    segment.pending = True
             except Exception as exc:
                 logging.warning('Leaving out %s: %s', entry.path, exc)
                 segment = None
@@ -225,6 +239,124 @@ class StreamModel(BaseModel):
             offset += segment.count
         self._offsets = [segment.offset for segment in self.segments]
         self._len = offset
+        if uncached:
+            self._start_filling(uncached)
+
+    def _start_filling(self, paths):
+        from gi.repository import GLib
+
+        from virtaal.support import statsworker
+
+        self._filler = statsworker.fill_files_in_background(paths, self._on_filled)
+        if self._filler is None:
+            self._fill_pending(final=True)
+        else:
+            self._fill_poll = GLib.timeout_add(self.FILL_POLL_MS, self._on_fill_poll)
+
+    @property
+    def stats_pending(self):
+        """How many files wait for their stats to be cached."""
+        return sum(1 for segment in self.segments if segment.pending)
+
+    def stop_filling(self):
+        """Stop caching the stats of the files waiting: the stream is
+        closed."""
+        from gi.repository import GLib
+
+        from virtaal.support import statsworker
+
+        if self._fill_poll is not None:
+            GLib.source_remove(self._fill_poll)
+            self._fill_poll = None
+        if self._filler is not None:
+            statsworker.stop_files(self._filler)
+            self._filler = None
+
+    def _on_fill_poll(self):
+        self._fill_pending(final=False)
+        return True
+
+    def _on_filled(self):
+        from gi.repository import GLib
+
+        self._filler = None
+        if self._fill_poll is not None:
+            GLib.source_remove(self._fill_poll)
+            self._fill_poll = None
+        self._fill_pending(final=True)
+
+    def _fill_pending(self, final):
+        """Give the waiting files whose stats are cached now their units;
+        with C{final}, every waiting file, reading here any the child
+        couldn't, and leaving out those with none."""
+        from virtaal.support import statsdb
+
+        cache = statsdb.StatsCache()
+        rows = {}
+        for number, segment in enumerate(self.segments):
+            if not segment.pending or not (final or cache.is_cached(segment.path)):
+                continue
+            try:
+                rows[number] = cache.file_units(segment.path)
+            except Exception as exc:
+                logging.warning('Leaving out %s: %s', segment.path, exc)
+                rows[number] = None
+        if rows:
+            self._join_filled(rows)
+
+    def _join_filled(self, rows):
+        """Give the waiting files C{rows[number]} their units."""
+        before = [(s.offset, s.count, s) for s in self.segments if s.count]
+        current = self.segments[self.current] if self.segments else None
+        empty = []
+        for number, file_rows in rows.items():
+            segment = self.segments[number]
+            segment.pending = False
+            if not file_rows:
+                empty.append(segment)
+                continue
+            segment.peek = [PeekUnit(r[1], r[2], r[3], r[5]) for r in file_rows]
+            segment.valid = [r[0] for r in file_rows]
+            segment.count = len(file_rows)
+            segment.stats = _peek_stats(file_rows)
+        for segment in empty:
+            self.segments.remove(segment)
+            self.skipped.append(segment.entry)
+        offset = 0
+        for segment in self.segments:
+            segment.offset = offset
+            offset += segment.count
+        self._offsets = [segment.offset for segment in self.segments]
+        self._len = offset
+        if current is not None and current in self.segments:
+            self.current = self.segments.index(current)
+        starts = [old for old, _count, _segment in before]
+
+        def moved(index):
+            number = bisect_right(starts, index) - 1
+            if number < 0:
+                return index
+            old, count, segment = before[number]
+            return segment.offset + index - old if index < old + count else index
+
+        self._edited_units = {moved(index) for index in self._edited_units}
+        if self.checks is not None:
+            self.checks = {
+                key: sorted(moved(i) for i in indices) for key, indices in self.checks.items()
+            }
+        self.generation += 1
+        self.update_stats()
+        self.emit('files-filled', moved, bool(empty))
+
+    def _read_segment(self, entry, offset):
+        """A file not in the stats cache, read now."""
+        model = StoreModel(entry.path, self.controller, fill_stats_cache=False)
+        if not len(model):
+            return None
+        segment = FileSegment(entry, offset, model.get_units(), model.stats, model._valid_units)
+        segment.model = model
+        segment.peek = None
+        return segment
 
     @staticmethod
     def _cached_segment(entry, offset, cache):
@@ -315,7 +447,7 @@ class StreamModel(BaseModel):
 
     def load_segment(self, number):
         segment = self.segments[number]
-        if segment.loaded:
+        if segment.loaded or segment.pending:
             return segment
         # Its stats were just read from the cache.
         model = StoreModel(segment.path, self.controller, fill_stats_cache=False)
@@ -376,15 +508,19 @@ class StreamModel(BaseModel):
         return self.current_segment.model
 
     def file_offsets(self):
-        """(stream index of its first unit, FileEntry) for each file."""
-        return [(segment.offset, segment.entry) for segment in self.segments]
+        """(stream index of its first unit, FileEntry) for each file with
+        units yet."""
+        return [(s.offset, s.entry) for s in self.segments if not s.pending]
 
     def segment_counts(self):
         """(translated, fuzzy, total) units of each file, from the
-        stream's sorted stats lists."""
+        stream's sorted stats lists; None for one still waiting."""
         stats = self.stats or {}
         counts = []
         for segment in self.segments:
+            if segment.pending:
+                counts.append(None)
+                continue
             start, end = segment.offset, segment.offset + segment.count
             counts.append(
                 tuple(
@@ -545,7 +681,7 @@ class StreamModel(BaseModel):
         pending = self._check_unread_in_background(cache, checker)
         checks = {}
         for segment in self.segments:
-            if not os.path.isfile(segment.path) or segment.path in pending:
+            if segment.pending or not os.path.isfile(segment.path) or segment.path in pending:
                 continue
             if segment.entry.template is not None:
                 # Checked in memory, edits included.
@@ -569,6 +705,7 @@ class StreamModel(BaseModel):
             segment.path
             for segment in self.segments
             if not segment.loaded
+            and not segment.pending
             and os.path.isfile(segment.path)
             and not cache.has_checks(segment.path, checker)
         ]

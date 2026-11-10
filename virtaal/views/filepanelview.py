@@ -379,7 +379,8 @@ class FilePanelView(BaseView):
             self._building = False
 
     def update_progress(self, counts):
-        """Show each file's and folder's (translated, fuzzy, total) units."""
+        """Show each file's and folder's (translated, fuzzy, total) units;
+        a file's are None while it waits for them."""
 
         def update(it):
             translated = fuzzy = total = 0
@@ -388,6 +389,12 @@ class FilePanelView(BaseView):
                 if row[COL_ICON] == 'folder':
                     t, f, n = update(self.model.iter_children(it))
                 elif not row[COL_SEGMENTS]:
+                    it = self.model.iter_next(it)
+                    continue
+                elif counts[row[COL_SEGMENTS][0]] is None:
+                    row[COL_PERCENT] = 0
+                    row[COL_PERCENT_TEXT] = ''
+                    row[COL_COUNTS] = None
                     it = self.model.iter_next(it)
                     continue
                 else:

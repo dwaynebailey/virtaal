@@ -22,6 +22,7 @@ from virtaal.support import statsdb, statsworker
 
 # conftest.py replaces them for every other test.
 fill_in_background = statsworker.fill_in_background
+fill_files_in_background = statsworker.fill_files_in_background
 check_in_background = statsworker.check_in_background
 
 PO = (
@@ -120,13 +121,35 @@ def test_the_main_loop_starts_the_next_fill(tmp_path):
     assert _is_cached(first) and _is_cached(second)
 
 
-def test_fill_caches_several_files_and_waits(tmp_path):
+def test_fill_files_in_background_caches_several_files_then_says_so(tmp_path):
     first, second = _po(tmp_path, 'one.po'), _po(tmp_path, 'twee ê.po')
+    done = []
 
-    statsworker.fill([first, str(tmp_path / 'missing.po'), second])
+    child = fill_files_in_background(
+        [first, str(tmp_path / 'missing.po'), second], lambda: done.append(True)
+    )
+    deadline = time.monotonic() + 30
+    while not done and time.monotonic() < deadline:
+        GLib.MainContext.default().iteration(False)
+        time.sleep(0.01)
 
-    assert statsworker._running is None
+    assert done == [True]
+    assert child.returncode == 1  # missing.po
     assert _is_cached(first) and _is_cached(second)
+    assert not os.path.exists(child.listfile)
+
+
+def test_a_stopped_fill_says_nothing(tmp_path):
+    done = []
+    child = fill_files_in_background([_po(tmp_path)], lambda: done.append(True))
+
+    statsworker.stop_files(child)
+    child.wait()
+    deadline = time.monotonic() + 1
+    while time.monotonic() < deadline:
+        GLib.MainContext.default().iteration(False)
+
+    assert done == []
 
 
 def test_a_failed_fill_is_logged_and_the_next_one_still_runs(tmp_path, caplog):

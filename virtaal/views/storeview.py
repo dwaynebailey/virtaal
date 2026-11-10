@@ -271,6 +271,11 @@ class StoreView(BaseView):
         self._treeview.set_model(self.store)
         self._update_visible_rows()
 
+    def edit_cursor_unit(self):
+        """Edit the cursor's unit again, as after reload_rows()."""
+        if self.cursor is not None and self.cursor.index >= 0:
+            self._treeview.select_index(self.cursor.index, force=True)
+
     def show(self):
         child = self.parent_widget.get_child()
         if child and child is not self._treeview:

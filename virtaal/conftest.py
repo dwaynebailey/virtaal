@@ -458,10 +458,12 @@ def _isolate_stats_cache(tmp_path_factory):
 def _no_stats_cache_fill(monkeypatch):
     """Opening a file would otherwise start a child process filling the
     stats cache, and Quality Checks one checking files not read yet.
-    test_statsworker.py tests the real ones."""
+    Opening a folder fills it at once instead. test_statsworker.py tests
+    the real ones."""
     from virtaal.support import statsworker
 
     monkeypatch.setattr(statsworker, 'fill_in_background', lambda filename: None)
+    monkeypatch.setattr(statsworker, 'fill_files_in_background', lambda filenames, done: None)
     monkeypatch.setattr(statsworker, 'check_in_background', lambda *args: False)
 
 

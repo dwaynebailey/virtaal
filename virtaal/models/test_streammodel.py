@@ -270,7 +270,9 @@ def test_a_paired_file_is_never_read_for_the_stats_cache(tmp_path, monkeypatch):
     (tmp_path / 'en.properties').write_text('quit=Quit\n', encoding='utf-8')
     (tmp_path / 'af.properties').write_text('quit=Verlaat\n', encoding='utf-8')
     filled = []
-    monkeypatch.setattr(statsworker, 'fill', filled.extend)
+    monkeypatch.setattr(
+        statsworker, 'fill_files_in_background', lambda paths, done: filled.extend(paths)
+    )
 
     StreamModel(FileSet.from_paths([str(tmp_path)]), _FakeController())
 
@@ -291,3 +293,94 @@ def test_a_tmx_in_the_stream_adopts_the_target_language(tmp_path):
 
     assert tmx_model._trans_store.gettargetlanguage() == 'af'
     statsworker.wait()
+
+
+@pytest.fixture
+def filling(tmp_path, monkeypatch):
+    """A stream whose files' stats a (fake) child is still caching:
+    (model, [(paths, done)] the child was started with)."""
+    started = []
+
+    def start(paths, done):
+        started.append((paths, done))
+        return SimpleNamespace()
+
+    monkeypatch.setattr(statsworker, 'fill_files_in_background', start)
+    monkeypatch.setattr(statsworker, 'stop_files', lambda child: None)
+    monkeypatch.setattr(StreamModel, 'FILL_POLL_MS', 60000)
+    _po(tmp_path / 'a.po', [('One', ''), ('Two', 'Twee')])
+    _po(tmp_path / 'b.po', [('Three', ''), ('Four', 'Vier'), ('Five', '')])
+    (tmp_path / 'empty.po').write_text('msgid ""\nmsgstr ""\n')
+    _po(tmp_path / 'c.po', [('Six', 'Ses')])
+    model = StreamModel(FileSet.from_paths([str(tmp_path)]), _FakeController())
+    yield model, started
+    model.stop_filling()
+
+
+def _filled(model):
+    calls = []
+    model.connect('files-filled', lambda _m, moved, renumbered: calls.append((moved, renumbered)))
+    return calls
+
+
+def test_a_folder_not_in_the_stats_cache_shows_its_first_file_at_once(filling):
+    model, started = filling
+
+    [(paths, _done)] = started
+    assert [os.path.basename(path) for path in paths] == ['a.po', 'b.po', 'c.po', 'empty.po']
+    assert [u.source for u in model] == ['One', 'Two']
+    assert model.segments[0].loaded
+    assert model.stats_pending == 3
+    assert model.segment_counts() == [(1, 0, 2), None, None, None]
+    assert [s.entry.display_name for s in model.segments] == ['a.po', 'b.po', 'c.po', 'empty.po']
+    assert [entry.display_name for _offset, entry in model.file_offsets()] == ['a.po']
+
+
+def test_files_join_as_their_stats_are_cached(filling, tmp_path):
+    model, started = filling
+    calls = _filled(model)
+    statsdb.StatsCache().filestatestats(str(tmp_path / 'b.po'))
+
+    model._on_fill_poll()
+
+    assert [u.source for u in model] == ['One', 'Two', 'Three', 'Four', 'Five']
+    assert model.stats_pending == 2
+    assert model.stats['translated'] == [1, 3]
+    [(moved, renumbered)] = calls
+    assert (moved(1), renumbered) == (1, False)
+
+    started[0][1]()
+
+    assert [u.source for u in model] == ['One', 'Two', 'Three', 'Four', 'Five', 'Six']
+    assert model.stats_pending == 0
+    assert [e.display_name for e in model.skipped] == ['empty.po']
+    assert [offset for offset, _entry in model.file_offsets()] == [0, 2, 5]
+    assert calls[-1][1] is True
+
+
+def test_units_after_a_file_that_joins_move_along(tmp_path, monkeypatch):
+    started = []
+    monkeypatch.setattr(
+        statsworker, 'fill_files_in_background', lambda paths, done: started.append(done) or 1
+    )
+    monkeypatch.setattr(statsworker, 'stop_files', lambda child: None)
+    monkeypatch.setattr(StreamModel, 'FILL_POLL_MS', 60000)
+    _po(tmp_path / 'a.po', [('One', '')])
+    _po(tmp_path / 'b.po', [('Two', ''), ('Three', '')])
+    _po(tmp_path / 'c.po', [('Four', ''), ('Five', '')])
+    statsdb.StatsCache().filestatestats(str(tmp_path / 'c.po'))
+    model = StreamModel(FileSet.from_paths([str(tmp_path)]), _FakeController())
+    calls = _filled(model)
+    assert [u.source for u in model] == ['One', 'Four', 'Five']
+    model.get_unit(2)
+    model.current = 2
+    model._edited_units = {2}
+
+    started[0]()
+
+    assert [u.source for u in model] == ['One', 'Two', 'Three', 'Four', 'Five']
+    [(moved, _renumbered)] = calls
+    assert [moved(i) for i in range(3)] == [0, 3, 4]
+    assert model._edited_units == {4}
+    assert model.current == 2
+    assert model.segments[2].offset == 3

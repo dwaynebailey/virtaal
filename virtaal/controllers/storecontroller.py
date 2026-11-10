@@ -29,6 +29,9 @@ class StoreController(BaseController):
         'checks-changed': (GObject.SignalFlags.RUN_FIRST, None, ()),
         # A file joined the open stream (a monolingual file just paired).
         'files-changed': (GObject.SignalFlags.RUN_FIRST, None, ()),
+        # Files of the open stream waiting for their stats got their
+        # units: (whether the file numbers changed).
+        'files-filled': (GObject.SignalFlags.RUN_FIRST, None, (bool,)),
     }
 
     # With several files open: the paths given, every file found in
@@ -429,6 +432,7 @@ class StoreController(BaseController):
             store,
             store.connect('file-loaded', self._on_file_loaded),
             store.connect('checks-filled', self._on_checks_filled),
+            store.connect('files-filled', self._on_files_filled),
         )
         self._modified = False
         self.main_controller.set_force_saveas(False)
@@ -458,6 +462,7 @@ class StoreController(BaseController):
             stream, *handlers = self._stream_handlers
             for handler in handlers:
                 stream.disconnect(handler)
+            stream.stop_filling()
             self._stream_handlers = None
         self.fileset = None
         self.all_files = None
@@ -467,6 +472,29 @@ class StoreController(BaseController):
 
     def _on_file_loaded(self, store, number, peek):
         self.view.file_loaded(store.segments[number], peek)
+
+    def _on_files_filled(self, store, moved, renumbered):
+        """Show the units of the files that waited for their stats, the
+        cursor staying on its unit."""
+        if store is not self.store:
+            return
+        self.unit_controller.prepare_for_save()
+        index = moved(self.cursor.index) if self.cursor.index >= 0 else -1
+        if self.cursor.scope is not None:
+            # The Files Panel sets it again for the files chosen there.
+            self.cursor.set_scope(None)
+        self.view.reload_rows()
+        self.main_controller.mode_controller.refresh_mode()
+        if index >= 0 and self.cursor.index != index:
+            self.cursor.force_index(index)
+        else:
+            # The rows are new: nothing is being edited.
+            self.view.edit_cursor_unit()
+        if store.checks is not None:
+            store.update_checks()
+            self.emit('checks-changed')
+        self.emit('files-filled', renumbered)
+        self.emit('stats-changed')
 
     def _on_checks_filled(self, store):
         if store is not self.store or store.checks is None:

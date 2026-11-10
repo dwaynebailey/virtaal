@@ -208,7 +208,29 @@ class RecoveryController:
             self._resume = None
         if self._adopted:
             self._adopted = False
+            self._resume_when_filled()
+
+    def _resume_when_filled(self):
+        """Resume once every open file has its units: some of a folder's
+        may wait for their stats."""
+        sc = self.store_controller
+        store = sc.store
+        if not sc.is_stream() or not store.stats_pending:
             self._resume_into_store()
+            return
+
+        def filled(_sc, _renumbered):
+            if sc.store is store and store.stats_pending:
+                return
+            sc.disconnect(handler)
+            if sc.store is store:
+                self._resume_filled()
+
+        handler = sc.connect('files-filled', filled)
+
+    @_guarded
+    def _resume_filled(self):
+        self._resume_into_store()
 
     @_guarded
     def reopen_blocked(self):

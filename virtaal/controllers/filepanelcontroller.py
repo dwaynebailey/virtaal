@@ -62,6 +62,7 @@ class FilePanelController(BaseController):
         store_controller.connect('stats-changed', self._on_stats_changed)
         store_controller.connect('store-saved', self._on_stats_changed)
         store_controller.connect('files-changed', self._on_files_changed)
+        store_controller.connect('files-filled', self._on_files_filled)
         self.menu_item = main_controller.view.gui.get_object('mnu_files_panel')
         self.menu_item.connect('toggled', self._on_menu_toggled)
         from .setscancontroller import SetScanController
@@ -208,6 +209,19 @@ class FilePanelController(BaseController):
         self._load_view(sc)
         self.set_shown(True)
         self._follow_cursor(sc.cursor)
+
+    def _on_files_filled(self, sc, renumbered):
+        """Files waiting for their stats got their units."""
+        if self.view is None or not sc.is_stream():
+            return
+        if renumbered:
+            # Files with no units left the list.
+            self._load_view(sc)
+        else:
+            self.view.update_progress(sc.store.segment_counts())
+        self.files_selected(self.view.selected_files())
+        self._follow_cursor(sc.cursor)
+        self._on_cursor_changed(sc.cursor)
 
     def _load_view(self, sc):
         self.view.load(

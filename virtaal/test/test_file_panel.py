@@ -535,3 +535,75 @@ class TestHeaderlessFirstFile(TestScaffolding):
         sc.save_file()
 
         assert '"Language: af\\n"' in self._read(self.first)
+
+
+class TestStatsArriving(TestScaffolding):
+    """A folder whose files' stats a child is still caching."""
+
+    def setup_class(self):
+        TestScaffolding.setup_class(self)
+        PlaceablesController(self.main_controller)
+        self.panel = FilePanelController(self.main_controller)
+
+    @pytest.fixture(autouse=True)
+    def _files(self, monkeypatch, tmp_path):
+        from virtaal.models.streammodel import StreamModel
+        from virtaal.support import statsworker
+
+        monkeypatch.setattr(
+            self.main_controller,
+            'get_translator_details',
+            lambda *args: ('Tester', 'tester@example.org', 'Afrikaans'),
+        )
+        self.started = []
+        monkeypatch.setattr(
+            statsworker,
+            'fill_files_in_background',
+            lambda paths, done: self.started.append(done) or object(),
+        )
+        monkeypatch.setattr(statsworker, 'stop_files', lambda child: None)
+        monkeypatch.setattr(StreamModel, 'FILL_POLL_MS', 60000)
+        monkeypatch.setattr(FilePanelController, 'PROGRESS_DELAY_MS', 0)
+        _po(tmp_path / 'a' / 'one.po', [('One', 'Een'), ('Two', '')])
+        _po(tmp_path / 'b' / 'two.po', [('Three', 'Drie'), ('Four', '')])
+        _po(tmp_path / 'c' / 'three.po', [('Five', '')])
+        self.dir = tmp_path
+        self.lang_controller._target_lang = LanguageModel('af')
+        self.store_controller.close_file()
+        yield
+        self.store_controller.set_modified(False)
+        self.store_controller.close_file()
+
+    def test_the_first_file_shows_and_the_rest_join_with_the_cursor_kept(self):
+        self.main_controller.open_files([str(self.dir)])
+        sc = self.store_controller
+        view = self.panel.view
+        assert [sc.store.peek_unit(i).source for i in sc.cursor.indices] == ['One', 'Two']
+        assert _rows(view)['b/two.po'][filepanelview.COL_PERCENT_TEXT] == ''
+        sc.cursor.index = 1
+
+        [done] = self.started
+        done()
+
+        assert len(sc.cursor.indices) == 5
+        assert sc.store[sc.cursor.index].source == 'Two'
+        assert sc.view._treeview.get_model().row_count() == 5
+        # Edited again in the new rows.
+        path, _column = sc.view._treeview.get_cursor()
+        assert path is not None and path.get_indices() == [1]
+        context = GLib.MainContext.default()
+        while self.panel._progress_source is not None:
+            context.iteration(True)
+        assert _rows(view)['b/two.po'][filepanelview.COL_PERCENT] == 50
+        assert [offset for offset, _entry in sc.store.file_offsets()] == [0, 2, 4]
+
+    def test_files_chosen_in_the_panel_stay_chosen(self):
+        self.main_controller.open_files([str(self.dir)])
+        sc = self.store_controller
+        view = self.panel.view
+        view.treeview.get_selection().select_path(_rows(view)['b'].path)
+
+        [done] = self.started
+        done()
+
+        assert [sc.store.peek_unit(i).source for i in sc.cursor.indices] == ['Three', 'Four']

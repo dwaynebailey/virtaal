@@ -39,7 +39,9 @@ Select several files in :menuselection:`File --> Open`, or give several files
 or a folder on the command line, to translate them one after the other. Their
 units form one list: each file's name shows above its first unit, and moving
 past a file's last unit goes on into the next file. A file is read only once
-you come near it, so a large folder opens quickly.
+you come near it, so a large folder opens quickly. The first time a folder
+opens, its first file shows at once and the other files join as Virtaal counts
+their units, which fills in their percentages in the Files Panel.
 
 Open a folder with :menuselection:`File --> Open Folder…` (:kbd:`Ctrl+Shift+O`,
 :kbd:`Cmd+Shift+O` on macOS), or from :menuselection:`File --> Recent Files`

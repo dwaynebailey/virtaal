@@ -49,20 +49,49 @@ def fill_in_background(filename):
         _start_next()
 
 
-def fill(filenames):
-    """Cache the stats of several files on disk, and wait for it."""
-    wait()
-    statsdb.StatsCache()  # Sets the default stats file.
-    if statsdb.StatsCache.defaultfile in statsdb.StatsCache.unusable_files:
-        return
+def fill_files_in_background(filenames, done):
+    """Cache the stats of several files on disk in a child process, then
+    call C{done()} from the main loop. Returns the child, or None (and
+    starts nothing) when the stats cache can't be shared with one.
+
+    Files whose stats are cached can be read from the cache meanwhile:
+    the child commits each file as it goes."""
+    from gi.repository import GLib
+
     from virtaal.support import helperprocess
 
-    subprocess.run(
-        helperprocess.command(__name__) + [statsdb.StatsCache.defaultfile, '-'],
-        input='\n'.join(filenames).encode('utf-8'),
+    statsdb.StatsCache()  # Sets the default stats file.
+    if statsdb.StatsCache.defaultfile in statsdb.StatsCache.unusable_files:
+        return None
+    with tempfile.NamedTemporaryFile('w', encoding='utf-8', suffix='.txt', delete=False) as f:
+        f.write('\n'.join(filenames))
+    proc = subprocess.Popen(
+        helperprocess.command(__name__) + [statsdb.StatsCache.defaultfile, '--list', f.name],
         env=helperprocess.env(),
-        check=False,
     )
+    proc.done = done
+    proc.listfile = f.name
+    GLib.timeout_add(200, _poll_files, proc)
+    return proc
+
+
+def _poll_files(proc):
+    if proc.poll() is None:
+        return True
+    _remove(proc.listfile)
+    if proc.returncode:
+        logging.debug('Could not cache the stats of every file (exit status %s)', proc.returncode)
+    if proc.done is not None:
+        proc.done()
+    return False
+
+
+def stop_files(proc):
+    """Stop a child L{fill_files_in_background()} started; its C{done()}
+    isn't called."""
+    proc.done = None
+    if proc.poll() is None:
+        proc.terminate()
 
 
 def wait():
@@ -223,11 +252,11 @@ if __name__ == '__main__':
         if _check_files(statsfile, json.loads(spec), names):
             sys.exit(1)
         sys.exit(0)
+    if sys.argv[2:3] == ['--list']:
+        statsfile, _flag, listfile = sys.argv[1:]
+        with open(listfile, encoding='utf-8') as f:
+            names = [line for line in f.read().split('\n') if line]
+        sys.exit(1 if _fill_files(statsfile, names) else 0)
     statsfile, filename = sys.argv[1:]
-    # "-": one file name per line on stdin.
-    if filename == '-':
-        filenames = [line for line in sys.stdin.buffer.read().decode('utf-8').split('\n') if line]
-    else:
-        filenames = [filename]
-    if _fill_files(statsfile, filenames):
+    if _fill_files(statsfile, [filename]):
         sys.exit(1)
