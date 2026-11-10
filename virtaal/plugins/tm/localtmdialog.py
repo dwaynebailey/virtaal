@@ -40,7 +40,7 @@ def _gtk_text(msgid):
 
 def store_name(store):
     """The store's name as the dialog shows it."""
-    if not store['path']:
+    if store['kind'] == tmdb.STORE_LEGACY:
         return _('Earlier translations (file not recorded)')
     name = os.path.basename(store['path'])
     if store['member']:

@@ -127,6 +127,27 @@ def _select(dialog, name):
     raise AssertionError(name)
 
 
+def _store(**fields):
+    return {'path': '', 'member': '', 'kind': tmdb.STORE_SAVED, **fields}
+
+
+def test_store_name_labels_the_legacy_store():
+    assert (
+        localtmdialog.store_name(_store(id=tmdb.LEGACY_STORE_ID, kind=tmdb.STORE_LEGACY))
+        == 'Earlier translations (file not recorded)'
+    )
+
+
+@pytest.mark.parametrize('kind', [tmdb.STORE_SAVED, tmdb.STORE_IMPORTED])
+def test_store_name_never_calls_another_store_the_legacy_one(kind):
+    assert localtmdialog.store_name(_store(id=7, kind=kind)) == ''
+    assert localtmdialog.store_name(_store(id=7, kind=kind, path='/x/af.po')) == 'af.po'
+    assert (
+        localtmdialog.store_name(_store(id=7, kind=kind, path='/x/p.zip', member='doc.po'))
+        == 'p.zip:doc.po'
+    )
+
+
 def test_the_window_links_to_microsofts_ui_strings_glossaries(tm):
     _app, model, pump = tm
     dialog = _open(model, pump)
@@ -255,7 +276,7 @@ def test_confirm_remove_asks_with_the_count_and_the_file(tm, monkeypatch, answer
         return answer
 
     monkeypatch.setattr(Gtk.MessageDialog, 'run', run)
-    store = {'path': '/a/af.po', 'member': ''}
+    store = {'path': '/a/af.po', 'member': '', 'kind': tmdb.STORE_SAVED}
 
     assert dialog.confirm_remove(store, {'units': 1}) is wanted
     dialog.confirm_remove(store, {'units': 3})
