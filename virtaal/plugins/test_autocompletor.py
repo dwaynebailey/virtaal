@@ -285,7 +285,9 @@ def _languages_ac(target, source='en'):
     [
         ('af', ['1\xa0234,5', '2026', '0,25']),
         ('de', ['1.234,5', '2026', '0,25']),
-        ('hi', ['1,234.5', '2026', '0.25']),
+        # Q36: CLDR's default first, then the native digits it doesn't default to.
+        ('hi', ['1,234.5', '१,२३४.५', '2026', '२०२६', '0.25', '०.२५']),
+        ('ar', ['1,234.5', '١٬٢٣٤٫٥', '2026', '٢٠٢٦', '0.25', '٠٫٢٥']),
         ('bn_IN', ['১,২৩৪.৫', '২০২৬', '০.২৫']),
         ('ar_EG', ['١٬٢٣٤٫٥', '٢٠٢٦', '٠٫٢٥']),
     ],
@@ -319,6 +321,22 @@ def test_set_unit_leaves_versions_codes_dates_and_ids_as_they_are(source):
     ac.set_unit(_unit(source))
 
     assert all(not re.search('[০-৯]', c) for c in ac._fast_candidates), ac._fast_candidates
+
+
+def test_typing_a_digit_offers_the_default_form_then_the_native_one():
+    ac = _languages_ac('hi')
+    ac.set_unit(_unit('Copy 1,234.5 files'))
+
+    found = ac._completions('1', '', '1')
+
+    assert [word for word, _rest in found] == ['1,234.5', '१,२३४.५']
+
+
+def test_a_language_with_native_digits_by_default_gets_one_form():
+    ac = _languages_ac('bn')
+    ac.set_unit(_unit('Copy 1,234.5 files'))
+
+    assert ac._fast_candidates == ['১,২৩৪.৫']
 
 
 def test_set_unit_offers_numbers_as_they_are_without_languages():

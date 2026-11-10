@@ -15,7 +15,12 @@ import re
 from decimal import Decimal
 
 from babel import Locale, UnknownLocaleError
-from babel.numbers import get_decimal_symbol, get_group_symbol, get_plus_sign_symbol
+from babel.numbers import (
+    UnsupportedNumberingSystemError,
+    get_decimal_symbol,
+    get_group_symbol,
+    get_plus_sign_symbol,
+)
 from babel.units import format_unit
 
 from virtaal.support.libi18n.cldr_numbering_systems import DIGITS
@@ -55,6 +60,16 @@ def target_numbering_system(lang):
         if key in TARGET_NUMBERING_SYSTEMS:
             return TARGET_NUMBERING_SYSTEMS[key]
     return ui_locale(lang).default_numbering_system
+
+
+def native_numbering_system(lang):
+    """CLDR's native-digit numbering system for lang when it isn't the
+    one translations into lang use (hi's deva, ar's arab, th's thai),
+    else None."""
+    native = ui_locale(lang).other_numbering_systems.get("native")
+    if native not in DIGITS or native == target_numbering_system(lang):
+        return None
+    return native
 
 
 def localise_digits(text, locale=None, numbering_system=None):
@@ -126,24 +141,42 @@ def localise_number(text, source_lang, target_lang):
     """text, a number as source_lang writes it, in target_lang's decimal
     and group separators and digits, grouped only if text is; None for
     anything else (versions, codes, numbers with leading zeros)."""
+    forms = localise_number_forms(text, source_lang, target_lang)
+    return forms[0] if forms else None
+
+
+def localise_number_forms(text, source_lang, target_lang):
+    """L{localise_number()}'s form of text, then the same in
+    target_lang's native digits if it has others (L{native_numbering_system}),
+    or [] for anything but a plain number."""
     match = _number_re(source_lang).match(text)
     if not match:
-        return None
+        return []
     sign, grouped, plain, decimals = match.group(1, "grouped", "plain", 4)
     integer = re.sub("[^0-9]", "", grouped or plain)
     if len(integer) > 1 and integer.startswith("0"):
-        return None
+        return []
     locale = ui_locale(target_lang)
-    numbering_system = target_numbering_system(target_lang)
     pattern = copy.copy(locale.decimal_formats[None])
     pattern.frac_prec = (len(decimals or ""), len(decimals or ""))
     value = Decimal(integer + "." + (decimals or "0"))
-    result = pattern.apply(
-        -value if sign == "-" else value,
-        locale,
-        group_separator=bool(grouped),
-        numbering_system="default",
-    )
+    systems = (target_numbering_system(target_lang), native_numbering_system(target_lang))
+    return [
+        _formatted(pattern, -value if sign == "-" else value, sign, bool(grouped), locale, system)
+        for system in systems
+        if system
+    ]
+
+
+def _formatted(pattern, value, sign, grouped, locale, system):
+    """value by pattern in locale, with system's digits and separators
+    (arab's ٫ and ٬) where CLDR has them for locale."""
+    symbols = "default" if system == locale.default_numbering_system else system
+    try:
+        result = pattern.apply(value, locale, group_separator=grouped, numbering_system=symbols)
+    except UnsupportedNumberingSystemError:
+        symbols = "default"
+        result = pattern.apply(value, locale, group_separator=grouped, numbering_system=symbols)
     if sign == "+":
-        result = get_plus_sign_symbol(locale, numbering_system="default") + result
-    return localise_digits(result, locale, numbering_system)
+        result = get_plus_sign_symbol(locale, numbering_system=symbols) + result
+    return localise_digits(result, locale, system)

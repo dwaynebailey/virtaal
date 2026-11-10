@@ -14,6 +14,8 @@ from virtaal.support.libi18n.numbers import (
     format_size,
     localise_digits,
     localise_number,
+    localise_number_forms,
+    native_numbering_system,
     target_numbering_system,
     ui_locale,
 )
@@ -143,3 +145,48 @@ def test_target_numbering_system_entries_override_cldr(monkeypatch):
 
     assert target_numbering_system('hi_IN') == 'deva'
     assert localise_number('1,234', 'en', 'hi') == '१,२३४'
+
+
+# Q36: a language's native digits where CLDR defaults to others
+
+
+@pytest.mark.parametrize(
+    'lang, expected',
+    [
+        ('hi', 'deva'),
+        ('ur', 'arabext'),
+        ('ta', 'tamldec'),
+        ('th', 'thai'),
+        ('ar', 'arab'),
+        ('bn', None),  # its default has Bengali digits already
+        ('ar_EG', None),
+        ('en', None),
+        ('zh', None),  # hanidec's digits aren't decimal digits
+    ],
+)
+def test_native_numbering_system(lang, expected):
+    assert native_numbering_system(lang) == expected
+
+
+@pytest.mark.parametrize(
+    'lang, expected',
+    [
+        ('hi', ['1,234.5', '१,२३४.५']),
+        ('ar', ['1,234.5', '١٬٢٣٤٫٥']),
+        ('th', ['1,234.5', '๑,๒๓๔.๕']),
+        ('bn', ['১,২৩৪.৫']),
+        ('de', ['1.234,5']),
+    ],
+)
+def test_localise_number_forms_default_first(lang, expected):
+    assert localise_number_forms('1,234.5', 'en', lang) == expected
+
+
+def test_localise_number_forms_has_none_for_a_version():
+    assert localise_number_forms('1.2.3', 'en', 'hi') == []
+
+
+def test_an_entry_making_the_native_digits_the_default_gives_one_form(monkeypatch):
+    monkeypatch.setattr('virtaal.support.libi18n.numbers.TARGET_NUMBERING_SYSTEMS', {'hi': 'deva'})
+
+    assert localise_number_forms('1,234', 'en', 'hi') == ['१,२३४']

@@ -19,7 +19,7 @@ from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.controllers.baseplugin import BasePlugin
 from virtaal.support.invisiblechars import InvisiblePlaceable
-from virtaal.support.libi18n.numbers import localise_number
+from virtaal.support.libi18n.numbers import localise_number_forms
 from virtaal.views.widgets.textbox import TextBox
 
 
@@ -531,8 +531,8 @@ class AutoCompletor:
                 if isinstance(node, TerminologyPlaceable):
                     found.extend((start, end, t, True) for t in node.translations)
                 elif isinstance(node, general.NumberPlaceable):
-                    number = self._number(text, start, str(node), languages)
-                    found.append((start, end, number, False))
+                    numbers = self._numbers(text, start, str(node), languages)
+                    found.extend((start, end, number, False) for number in numbers)
                 elif type(node) is not StringElem and not isinstance(
                     node, general.PunctuationPlaceable
                 ):
@@ -562,10 +562,11 @@ class AutoCompletor:
         return source.code, target.code
 
     @staticmethod
-    def _number(text, start, number, languages):
-        """number, found at start in text, in the target language's form,
-        unless it is part of a version, code, date or time or has no
-        target language."""
+    def _numbers(text, start, number, languages):
+        """number, found at start in text, in the target language's form
+        and then in its native digits if it has others (Q36), unless it
+        is part of a version, code, date or time or has no target
+        language."""
         end = start + len(number)
         before = text[start - 1] if start else ''
         after = text[end : end + 2]
@@ -577,8 +578,8 @@ class AutoCompletor:
             or after[:1] == '_'
             or (after[:1] in '.,-/:' and after[1:].isdecimal())
         ):
-            return number
-        return localise_number(number, *languages) or number
+            return [number]
+        return localise_number_forms(number, *languages) or [number]
 
     def _ordered_fast_candidates(self, target):
         if not target:
