@@ -2837,6 +2837,26 @@ def test_show_startup_open_failure_notice_includes_the_reason_when_given():
     assert label.get_text() == "Couldn't open 'missing.po': The file does not exist."
 
 
+def test_show_startup_open_failure_notice_names_the_file_with_its_path_in_the_tooltip():
+    vbox = _FakeVboxMain()
+    view = MainView.__new__(MainView)
+    view.gui = SimpleNamespace(get_object=lambda name: vbox)
+    folder = os.path.abspath(os.path.join('work', 'de')) + os.sep
+
+    view.show_startup_open_failure_notice(os.path.join('sub', 'missing.po'), None)
+    view.show_startup_open_failure_notice(folder, None)
+
+    labels = [infobar.get_content_area().get_children()[0] for infobar in vbox.packed]
+    assert [label.get_text() for label in labels] == [
+        "Couldn't open 'missing.po'.",
+        "Couldn't open 'de'.",
+    ]
+    assert [label.get_tooltip_text() for label in labels] == [
+        os.path.abspath(os.path.join('sub', 'missing.po')),
+        folder.rstrip(os.sep),
+    ]
+
+
 def test_show_startup_open_failure_notice_falls_back_without_a_reason():
     vbox = _FakeVboxMain()
     view = MainView.__new__(MainView)
@@ -3534,10 +3554,13 @@ def _label_text(infobar):
 def test_show_resume_blocked_notice_names_the_file_and_reopen_runs_the_callback():
     view, vbox = _view_for_same_lang_notice()
     calls = []
-    view.show_resume_blocked_notice('/files/open.po', lambda: calls.append('reopen'))
+    path = os.path.abspath(os.path.join('files', 'open.po'))
+    view.show_resume_blocked_notice(path, lambda: calls.append('reopen'))
     infobar = view._resume_blocked_infobar
 
-    assert '/files/open.po' in _label_text(infobar)
+    label = infobar.get_content_area().get_children()[0]
+    assert label.get_text() == "Virtaal closed unexpectedly while reopening 'open.po'."
+    assert label.get_tooltip_text() == path
     infobar.emit('response', Gtk.ResponseType.OK)
 
     assert calls == ['reopen']

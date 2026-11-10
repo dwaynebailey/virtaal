@@ -26,6 +26,12 @@ from virtaal.views.widgets.navribbon import NavRibbon
 from .baseview import BaseView
 
 
+def _file_name(path):
+    """A file's or folder's name, for a notice that has the full path in
+    its tooltip."""
+    return os.path.basename(os.path.normpath(path)) or path
+
+
 def _format_time(timestamp):
     """timestamp as the UI language writes a time, with the date unless
     it is today."""
@@ -1533,12 +1539,14 @@ class MainView(BaseView):
         infobar = Gtk.InfoBar()
         infobar.set_message_type(Gtk.MessageType.WARNING)
         infobar.set_show_close_button(True)
+        name = _file_name(filename)
         if reason:
-            text = _("Couldn't open '%(file)s': %(reason)s") % {'file': filename, 'reason': reason}
+            text = _("Couldn't open '%(file)s': %(reason)s") % {'file': name, 'reason': reason}
         else:
-            text = _("Couldn't open '%(file)s'.") % {'file': filename}
+            text = _("Couldn't open '%(file)s'.") % {'file': name}
         label = Gtk.Label(label=text)
         label.set_line_wrap(True)
+        label.set_tooltip_text(os.path.abspath(filename))
         infobar.get_content_area().pack_start(label, True, True, 0)
 
         def on_response(infobar, response_id):
@@ -1568,9 +1576,11 @@ class MainView(BaseView):
         label = Gtk.Label(
             # l10n: Shown on the welcome screen after Virtaal crashed twice in a
             # row while reopening a file it was editing when it last crashed.
-            label=_("Virtaal closed unexpectedly while reopening '%(file)s'.") % {'file': filename}
+            label=_("Virtaal closed unexpectedly while reopening '%(file)s'.")
+            % {'file': _file_name(filename)}
         )
         label.set_line_wrap(True)
+        label.set_tooltip_text(os.path.abspath(filename))
         infobar.get_content_area().pack_start(label, True, True, 0)
         infobar.add_button(_('_Reopen'), Gtk.ResponseType.OK)
 
