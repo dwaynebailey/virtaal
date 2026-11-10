@@ -1161,9 +1161,9 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             raise
 
     def store_stats(self, path, source_lang, target_lang, member=""):
-        """The store at C{path}: its unit count for this language pair,
-        when it was last synced, its kind and exclude flag; None if
-        unknown."""
+        """The store at C{path}: its unit count for this language pair and
+        for all of them (what excluding it removes), when it was last
+        synced, its kind and exclude flag; None if unknown."""
         self.cursor.execute(
             "SELECT store_id, kind, exclude, updated FROM stores WHERE path = ? AND member = ?",
             (path, member),
@@ -1179,7 +1179,15 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             (store_id, data.normalize_code(target_lang), data.normalize_code(source_lang)),
         )
         (units,) = self.cursor.fetchone()
-        return {"units": units, "updated": updated, "kind": kind, "exclude": bool(exclude)}
+        self.cursor.execute("SELECT COUNT(*) FROM origins WHERE store_id = ?", (store_id,))
+        (all_units,) = self.cursor.fetchone()
+        return {
+            "units": units,
+            "all_units": all_units,
+            "updated": updated,
+            "kind": kind,
+            "exclude": bool(exclude),
+        }
 
     def list_stores(self):
         """Every store, with its unit count and last change per language

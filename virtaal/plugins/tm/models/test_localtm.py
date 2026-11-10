@@ -869,16 +869,25 @@ def test_store_status_of_a_file_the_tm_doesnt_know(tmp_path, importing_model):
     assert results == [('done', False, 0)]
 
 
-def test_store_status_counts_what_a_saved_file_added(tmp_path, importing_model):
+def test_store_status_counts_what_a_saved_file_added_in_every_pair(tmp_path, importing_model):
+    # Excluding it removes them all, so the confirmation counts them all.
     model, app, send = importing_model
     filename = str(tmp_path / 'af.po')
     app.tmdb.sync_store(filename, [{'source': 'cat', 'target': 'kat'}], 'en', 'af')
     app.tmdb.sync_store(filename, [{'source': 'cat', 'target': 'Katze'}], 'en', 'de')
+    app.tmdb.sync_store(
+        str(tmp_path / 'other.po'), [{'source': 'dog', 'target': 'hond'}], 'en', 'af'
+    )
 
     results = _status(model, _store_controller(PO, filename))
     send()
+    model.set_exclude(_store_controller(PO, filename), True, lambda: None, lambda: None)
+    send()
 
-    assert results == [('done', False, 1)]
+    assert results == [('done', False, 2)]
+    assert app.tmdb.translate_unit('cat', 'en', 'af') == []
+    assert app.tmdb.translate_unit('cat', 'en', 'de') == []
+    assert app.tmdb.translate_unit('dog', 'en', 'af')[0]['target'] == 'hond'
 
 
 def test_excluding_a_file_removes_what_it_added_and_stops_its_saves(tmp_path, importing_model):

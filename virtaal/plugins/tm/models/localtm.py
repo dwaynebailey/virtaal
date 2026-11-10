@@ -331,8 +331,9 @@ class TMModel(remotetm.TMModel):
 
     def store_status(self, store_controller, on_done, on_error):
         """C{on_done(excluded, units)} for the open file: whether the local
-        TM leaves it out, and how many of this pair's translations it
-        added; C{on_error()} if the server doesn't say."""
+        TM leaves it out, and how many translations it added, in every
+        language pair, as excluding it removes them all; C{on_error()} if
+        the server doesn't say."""
         self._when_ready(lambda: self._store_status(store_controller, on_done, on_error))
 
     def _store_status(self, store_controller, on_done, on_error):
@@ -346,7 +347,7 @@ class TMModel(remotetm.TMModel):
         def on_success(reply):
             try:
                 stats = json.loads(reply)
-                excluded, units = bool(stats['exclude']), int(stats['units'])
+                excluded, units = bool(stats['exclude']), int(stats['all_units'])
             except (ValueError, KeyError, TypeError):
                 on_error()
                 return
