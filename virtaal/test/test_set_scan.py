@@ -205,6 +205,18 @@ class TestSetScan(TestScaffolding):
         ) == [('Afrikaans', 'Maak %s oop'), ('German', 'Öffnen %d')]
         assert view.lbl_summary.get_text() == '2 units found'
 
+    def test_the_windows_say_they_read_saved_files_only(self):
+        self._open_folder()
+        self.scans.show('search')
+        self.scans.show('check')
+
+        assert self.scans.views['check'].lbl_saved_only.get_text() == (
+            "Saved files only: unsaved changes aren't checked."
+        )
+        assert self.scans.views['search'].lbl_saved_only.get_text() == (
+            "Saved files only: unsaved changes aren't searched."
+        )
+
     def test_the_count_goes_up_as_the_files_are_read(self, monkeypatch):
         self._open_folder()
         self.scans.show('search')

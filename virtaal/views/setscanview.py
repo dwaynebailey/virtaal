@@ -90,6 +90,10 @@ class SetScanView(BaseView):
             content.pack_start(self._check_choices(check_names, chosen_checks), False, False, 0)
         else:
             content.pack_start(self._search_row(), False, False, 0)
+        self.lbl_saved_only = Gtk.Label(label=self.saved_only_text(kind), xalign=0)
+        self.lbl_saved_only.get_style_context().add_class('dim-label')
+        self.lbl_saved_only.set_line_wrap(True)
+        content.pack_start(self.lbl_saved_only, False, False, 0)
         content.pack_start(self._results(), True, True, 0)
 
         status = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -110,6 +114,15 @@ class SetScanView(BaseView):
             return _("Check All Languages")
         # l10n: Window title
         return _("Find in All Languages")
+
+    @staticmethod
+    def saved_only_text(kind):
+        # The scan reads the files from disk, the open ones included.
+        if kind == KIND_CHECK:
+            # l10n: In Check All Languages: the files are read from disk
+            return _("Saved files only: unsaved changes aren't checked.")
+        # l10n: In Find in All Languages: the files are read from disk
+        return _("Saved files only: unsaved changes aren't searched.")
 
     def _check_choices(self, check_names, chosen):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)

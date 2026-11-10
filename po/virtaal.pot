@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-10 17:55+0000\n"
+"POT-Creation-Date: 2026-11-10 18:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3363,6 +3363,16 @@ msgstr ""
 #. l10n: Window title
 #: virtaal/views/setscanview.py
 msgid "Find in All Languages"
+msgstr ""
+
+#. l10n: In Check All Languages: the files are read from disk
+#: virtaal/views/setscanview.py
+msgid "Saved files only: unsaved changes aren't checked."
+msgstr ""
+
+#. l10n: In Find in All Languages: the files are read from disk
+#: virtaal/views/setscanview.py
+msgid "Saved files only: unsaved changes aren't searched."
 msgstr ""
 
 #. l10n: Button: check every language's files
