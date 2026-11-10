@@ -9,13 +9,14 @@ import time
 
 import cairo
 import pytest
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, Gtk, Pango
 from test_scaffolding import TestScaffolding
 from translate.storage.placeables import StringElem, parse
 
 from virtaal.common import pan_app
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.support.invisiblechars import MARKERS, InvisiblePlaceable
+from virtaal.views import theme
 from virtaal.views.placeablesguiinfo import InvisibleGUI
 from virtaal.views.widgets.textbox import TEXT_MARGIN, TextBox
 
@@ -195,6 +196,46 @@ class TestTextBoxMarkers(TestScaffolding):
 
         assert textbox.get_left_margin() == TEXT_MARGIN + room
         assert textbox.get_right_margin() == TEXT_MARGIN
+
+    @pytest.mark.parametrize(
+        ('set_theme', 'fg', 'bg'),
+        [
+            (theme.set_default, (0, 0, 0), '#90ee90'),
+            (theme.set_inverse, (65535, 65535, 65535), '#007010'),
+        ],
+        ids=['light', 'dark'],
+    )
+    def test_a_selected_pilcrow_follows_the_theme(self, monkeypatch, set_theme, fg, bg):
+        # Black on green in a light theme, white on green in a dark one.
+        set_theme()
+        try:
+            textbox = self._shown('ab\ncd')
+            [newline] = [e for e in textbox.selectable_elems() if str(e) == '\n']
+            textbox.select_elem(newline)
+            fills, colours = [], []
+            monkeypatch.setattr(Gdk, 'cairo_set_source_rgba', lambda cr, rgba: fills.append(rgba))
+            real_foreground = Pango.attr_foreground_new
+            monkeypatch.setattr(
+                Pango,
+                'attr_foreground_new',
+                lambda *rgb: colours.append(rgb) or real_foreground(*rgb),
+            )
+            monkeypatch.setattr(Gtk, 'render_layout', lambda *args: None)
+            start = textbox.buffer.get_start_iter()
+            end = textbox.buffer.get_iter_at_offset(2)
+            textbox._draw_pilcrow(
+                cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, 200, 100)),
+                textbox.create_pango_layout('¶'),
+                start,
+                end,
+                10,
+                10,
+            )
+        finally:
+            theme.set_default()
+
+        assert colours == [fg]
+        assert [theme.rgba_to_str(rgba) for rgba in fills] == [bg]
 
     def test_a_separator_ending_a_line_is_boxed_past_the_lines_end(self, monkeypatch):
         textbox = self._shown('ab\u2029cd')
