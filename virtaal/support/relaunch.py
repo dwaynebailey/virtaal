@@ -29,9 +29,13 @@ _APPIMAGE_VARS = ('APPIMAGE', 'APPDIR', 'ARGV0', 'OWD')
 
 def _lang_chain_args(lang, ui_language):
     """--lang for the new instance: a list's fallbacks after the newly
-    chosen C{ui_language} ("zu:af", xh chosen: "xh:af")."""
-    if not lang or ':' not in lang or not ui_language:
+    chosen C{ui_language} ("zu:af", xh chosen: "xh:af"), or after the
+    system's language for ''."""
+    if not lang or ':' not in lang or ui_language is None:
         return []
+    ui_language = ui_language or pan_app.system_ui_language()
+    if pan_app.parse_ui_language_chain(ui_language) == ['en_US']:
+        return []  # English needs no fallbacks
     fallbacks = [code for code in pan_app.parse_ui_language_chain(lang)[1:] if code != ui_language]
     if not fallbacks:
         return []

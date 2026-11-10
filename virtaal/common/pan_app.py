@@ -295,6 +295,25 @@ def get_locale_lang():
     return 'en'
 
 
+def system_ui_language():
+    """get_locale_lang() for the locale environment Virtaal started
+    with, which --lang changes."""
+    current = {name: os.environ.get(name) for name in _ORIGINAL_LOCALE_ENV}
+
+    def set_env(values):
+        for name, value in values.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+    set_env(_ORIGINAL_LOCALE_ENV)
+    try:
+        return get_locale_lang()
+    finally:
+        set_env(current)
+
+
 def name():
     import getpass
 

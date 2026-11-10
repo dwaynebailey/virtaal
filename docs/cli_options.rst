@@ -55,7 +55,8 @@ out templates (``.pot``).
      (e.g. ``zu:af``) - Virtaal uses the first language it has a translation
      for, and takes strings missing from it from the ones after it. ``en``
      ends the list. Restarting for a UI language chosen in Preferences keeps
-     the rest of the list after it (``zu:af``, then Xhosa chosen: ``xh:af``).
+     the rest of the list after it (``zu:af``, then Xhosa chosen: ``xh:af``),
+     or after the OS's own language for System default.
 
 Developer options
 =================
