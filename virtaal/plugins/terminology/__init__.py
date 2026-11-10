@@ -48,13 +48,7 @@ class Plugin(BasePlugin):
         # enforce it regardless of what an old config says.
         if 'autoterm' not in self.config['disabled_models']:
             self.config['disabled_models'].append('autoterm')
-        known = [name for name in self.config['known_models'].split(',') if name]
-        for name in OFF_UNTIL_ENABLED:
-            if name not in known:
-                known.append(name)
-                if name not in self.config['disabled_models']:
-                    self.config['disabled_models'].append(name)
-        self.config['known_models'] = known
+        self._keep_off_until_enabled(OFF_UNTIL_ENABLED)
         self._config_int('max_matches', 0, 1000)
         # A quality of 0 divides by zero when matching.
         self._config_int('min_quality', 1, 100)

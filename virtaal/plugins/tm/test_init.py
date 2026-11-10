@@ -82,7 +82,7 @@ def test_init_plugin_config_overrides_the_ci_default(monkeypatch, isolated_confi
 
     _plugin, captured = _init(monkeypatch)
 
-    assert captured['config']['disabled_models'] == ['apertium']
+    assert captured['config']['disabled_models'] == ['apertium', 'deepl', 'microsoft_translator']
 
 
 def test_init_plugin_loads_and_coerces_an_overridden_config(monkeypatch, isolated_config_dir):
@@ -93,7 +93,7 @@ def test_init_plugin_loads_and_coerces_an_overridden_config(monkeypatch, isolate
     _plugin, captured = _init(monkeypatch)
 
     assert captured['config']['max_matches'] == 3
-    assert captured['config']['disabled_models'] == ['apertium']
+    assert captured['config']['disabled_models'] == ['apertium', 'deepl', 'microsoft_translator']
     assert captured['config']['min_quality'] == 70  # not overridden - falls back to the default
 
 
@@ -106,3 +106,39 @@ def test_destroy_saves_config_and_delegates_to_the_controller(monkeypatch):
     plugin.destroy()
 
     assert saved == [True, 'controller']
+
+
+def test_init_plugin_keeps_paid_mt_off_in_a_profile_saved_before_it(
+    monkeypatch, isolated_config_dir
+):
+    # A profile from before DeepL and Microsoft Translator existed.
+    (isolated_config_dir / Plugin.CONFIG_FILENAME).write_text(
+        '[tm]\ndisabled_models = _dummytm,remotetm,apertium,google_translate,moses\n'
+    )
+
+    _plugin, captured = _init(monkeypatch)
+
+    assert captured['config']['disabled_models'][-2:] == ['deepl', 'microsoft_translator']
+    assert 'amagama' not in captured['config']['disabled_models']
+    assert captured['config']['known_models'] == ['deepl', 'microsoft_translator']
+
+
+def test_init_plugin_keeps_paid_mt_on_once_the_user_turned_it_on(monkeypatch, isolated_config_dir):
+    (isolated_config_dir / Plugin.CONFIG_FILENAME).write_text(
+        '[tm]\ndisabled_models = moses\nknown_models = deepl,microsoft_translator\n'
+    )
+
+    _plugin, captured = _init(monkeypatch)
+
+    assert captured['config']['disabled_models'] == ['moses']
+
+
+def test_saved_config_remembers_paid_mt_was_offered(monkeypatch, isolated_config_dir):
+    plugin, captured = _init(monkeypatch)
+    captured['config']['disabled_models'].remove('deepl')
+    plugin.save_config()
+
+    _plugin, captured = _init(monkeypatch)
+
+    assert 'deepl' not in captured['config']['disabled_models']
+    assert 'microsoft_translator' in captured['config']['disabled_models']

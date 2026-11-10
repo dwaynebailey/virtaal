@@ -51,6 +51,19 @@ class BasePlugin(Configurable):
             self.config[name], int(self.default_config[name]), minimum, maximum, name
         )
 
+    def _keep_off_until_enabled(self, names):
+        """Disables each source in names that this profile's known_models
+        doesn't list yet, then lists it there: a profile saved before a
+        source existed has a disabled_models without it, which would
+        otherwise switch that source on."""
+        known = [name for name in self.config['known_models'].split(',') if name]
+        for name in names:
+            if name not in known:
+                known.append(name)
+                if name not in self.config['disabled_models']:
+                    self.config['disabled_models'].append(name)
+        self.config['known_models'] = known
+
     def configure(self, parent):
         """Shows C{self.controller}'s backend-selection dialog and persists
         the resulting config. Used by plug-ins that set

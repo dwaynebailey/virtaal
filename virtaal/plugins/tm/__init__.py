@@ -10,6 +10,10 @@ from virtaal.controllers.baseplugin import BasePlugin
 
 from .tmcontroller import TMController
 
+# Paid online sources that stay off until turned on, also in a profile
+# saved before they were added.
+OFF_UNTIL_ENABLED = ('deepl', 'microsoft_translator')
+
 
 class Plugin(BasePlugin):
     display_name = _('Translation Memory')
@@ -19,6 +23,7 @@ class Plugin(BasePlugin):
         'disabled_models': (
             '_dummytm,remotetm,apertium,google_translate,moses,deepl,microsoft_translator'
         ),
+        'known_models': '',
         'max_matches': '5',
         'min_quality': '70',
         'abstract_placeables': 'True',
@@ -40,6 +45,7 @@ class Plugin(BasePlugin):
             )
         self.load_config()
         self.config['disabled_models'] = self.config['disabled_models'].split(',')
+        self._keep_off_until_enabled(OFF_UNTIL_ENABLED)
         self._config_int('max_matches', 0, 1000)
         # A quality of 0 divides by zero when matching.
         self._config_int('min_quality', 1, 100)
