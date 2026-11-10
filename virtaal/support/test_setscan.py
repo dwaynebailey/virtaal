@@ -103,6 +103,19 @@ def test_search_follows_case_and_regex_choices(tmp_path):
     assert [r[1] for r in setscan.search_units(units, regex)] == [1]
 
 
+def test_search_units_searches_only_the_parts_chosen(tmp_path):
+    path = _po(tmp_path / 'af.po', [('Open', 'Maak oop'), ('Close', 'Open dit')])
+    units = _units(path)
+
+    def found(parts):
+        grep = setscan.make_grep({'text': 'open', 'parts': parts})
+        return [r[1] for r in setscan.search_units(units, grep)]
+
+    assert found(['source']) == [0]
+    assert found(['target']) == [1]
+    assert found(['source', 'target']) == [0, 1]
+
+
 def test_scan_writes_a_line_per_file_with_each_file_s_language(tmp_path):
     af = _po(tmp_path / 'af.po', [('Open %s', 'Maak %s oop')], 'af')
     de = _po(tmp_path / 'de.po', [('Open %s', 'Öffnen %d')], 'de')

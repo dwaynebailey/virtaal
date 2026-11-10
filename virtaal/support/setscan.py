@@ -108,7 +108,7 @@ def make_grep(search):
 
     return GrepFilter(
         searchstring=search['text'],
-        searchparts=('source', 'target'),
+        searchparts=tuple(search.get('parts', ('source', 'target'))),
         ignorecase=not search.get('case', False),
         useregexp=search.get('regex', False),
     )

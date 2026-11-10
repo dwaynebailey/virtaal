@@ -150,11 +150,19 @@ class SetScanView(BaseView):
         self.ent_search.connect('activate', self._on_start)
         self.ent_search.connect('changed', self._on_search_changed)
         self.ent_search.get_accessible().set_name(_("Search"))
+        # l10n: Check box in Find in All Languages: search the source text
+        self.chk_source = Gtk.CheckButton(label=_("Source"), active=True)
+        # l10n: Check box in Find in All Languages: search the translations
+        self.chk_target = Gtk.CheckButton(label=_("Translation"), active=True)
+        for button in (self.chk_source, self.chk_target):
+            button.connect('toggled', self._on_search_changed)
         self.chk_case = Gtk.CheckButton.new_with_mnemonic(_('_Case sensitive'))
         self.chk_regex = Gtk.CheckButton.new_with_mnemonic(_("_Regular expression"))
         self.btn_start = Gtk.Button(label=_('Search'))
         self.btn_start.connect('clicked', self._on_start)
         box.pack_start(self.ent_search, True, True, 0)
+        box.pack_start(self.chk_source, False, False, 0)
+        box.pack_start(self.chk_target, False, False, 0)
         box.pack_start(self.chk_case, False, False, 0)
         box.pack_start(self.chk_regex, False, False, 0)
         box.pack_start(self.btn_start, False, False, 0)
@@ -215,7 +223,12 @@ class SetScanView(BaseView):
             'text': self.ent_search.get_text(),
             'case': self.chk_case.get_active(),
             'regex': self.chk_regex.get_active(),
+            'parts': self._search_parts(),
         }
+
+    def _search_parts(self):
+        parts = (('source', self.chk_source), ('target', self.chk_target))
+        return [part for part, button in parts if button.get_active()]
 
     def set_search_text(self, text):
         self.ent_search.set_text(text)
@@ -265,7 +278,9 @@ class SetScanView(BaseView):
         if self.kind == KIND_CHECK:
             self.btn_start.set_sensitive(bool(self.chosen_checks()))
         else:
-            self.btn_start.set_sensitive(bool(self.ent_search.get_text()))
+            self.btn_start.set_sensitive(
+                bool(self.ent_search.get_text()) and bool(self._search_parts())
+            )
 
     # EVENT HANDLERS #
     def _on_start(self, _widget):
@@ -275,7 +290,7 @@ class SetScanView(BaseView):
     def _on_check_toggled(self, _button):
         self._update_start()
 
-    def _on_search_changed(self, _entry):
+    def _on_search_changed(self, _widget):
         self._update_start()
 
     def _on_row_activated(self, treeview, path, _column):

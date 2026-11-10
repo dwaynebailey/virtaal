@@ -236,6 +236,26 @@ class TestSetScan(TestScaffolding):
         assert counts[-1] == '2 units found'
         assert view.lbl_summary.get_text() == '2 units found'
 
+    def test_find_in_all_languages_searches_the_parts_chosen(self):
+        self._open_folder()
+        self.scans.show('search')
+        view = self.scans.views['search']
+        view.ent_search.set_text('hilfe')
+
+        view.chk_source.set_active(False)
+        view.chk_target.set_active(False)
+        assert not view.btn_start.get_sensitive()
+
+        def found(source, target):
+            view.chk_source.set_active(source)
+            view.chk_target.set_active(target)
+            view.btn_start.clicked()
+            _wait(lambda: self.scans.scan is None)
+            return [r[setscanview.COL_TARGET] for r in _rows(view)]
+
+        assert found(source=True, target=False) == []
+        assert found(source=False, target=True) == ['Hilfe']
+
     def test_a_second_result_chosen_before_the_first_is_reached_wins(self):
         self._open_folder()
         view = self._check_all()

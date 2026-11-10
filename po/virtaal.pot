@@ -3380,6 +3380,18 @@ msgstr ""
 msgid "_Check"
 msgstr ""
 
+#. l10n: Check box in Find in All Languages: search the source text
+#. l10n: Column heading: the source text of a unit
+#: virtaal/views/setscanview.py
+msgid "Source"
+msgstr ""
+
+#. l10n: Check box in Find in All Languages: search the translations
+#. l10n: Column heading: the translation of a unit
+#: virtaal/views/setscanview.py
+msgid "Translation"
+msgstr ""
+
 #. l10n: Column heading: the quality check a translation fails
 #: virtaal/views/setscanview.py
 msgid "Check"
@@ -3388,16 +3400,6 @@ msgstr ""
 #. l10n: Column heading: the unit's number in its file
 #: virtaal/views/setscanview.py
 msgid "Unit"
-msgstr ""
-
-#. l10n: Column heading: the source text of a unit
-#: virtaal/views/setscanview.py
-msgid "Source"
-msgstr ""
-
-#. l10n: Column heading: the translation of a unit
-#: virtaal/views/setscanview.py
-msgid "Translation"
 msgstr ""
 
 #. l10n: Where a translation in a Trados Studio, Phrase or Wordfast
