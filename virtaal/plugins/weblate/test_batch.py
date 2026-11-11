@@ -333,3 +333,61 @@ def test_the_components_with_a_language(fake):
         ('program', 'de'),
         ('installer', 'de'),
     ]
+
+
+# What the dialogs say #
+
+
+def test_a_submit_of_several_files_says_what_each_left(fake):
+    from virtaal.support.platforms.submitdialog import batch_message, files_message
+
+    program, installer = _files(fake)
+    fake.lock('hello', 'installer')
+    result, _asked, _progress = _submit([program, installer])
+    platforms = [program.platform, installer.platform]
+
+    assert files_message([program.copy, installer.copy]) == (
+        'In 2 files:\n  Hello/Program (Afrikaans)\n  Hello/Installer (Afrikaans)'
+    )
+    assert batch_message(result, [program.copy, installer.copy], platforms) == (
+        'Submitted 1 of 3 changed units.\n'
+        'Hello/Installer (Afrikaans)\n'
+        '  Submitted 0 of 2 changed units.\n'
+        '  The translation is locked on the server.\n'
+        'Submit again to send the rest.'
+    )
+    fake.lock('hello', 'installer', False)
+    result, _asked, _progress = _submit([program, installer])
+    assert batch_message(result, [program.copy, installer.copy], platforms) is None
+
+
+def test_the_download_question_names_each_file(fake, monkeypatch):
+    from types import SimpleNamespace
+
+    from virtaal.support.platforms import updatedialog
+
+    program, installer = _files(fake)
+    fake.remove_unit(_server_unit(fake, 'installer', 'Next')['id'])
+    fake.add_unit('hello', 'program', 'af', 'Undo')
+    _result, _asked, plans = _update([program, installer], download=False)
+    shown = []
+
+    def answer(dialog):
+        shown.append(dialog.props.secondary_text)
+        return 0
+
+    monkeypatch.setattr(updatedialog, 'run_dialog', answer)
+    dialogs = updatedialog.UpdateDialogs.__new__(updatedialog.UpdateDialogs)
+    dialogs.parent = None
+
+    assert not dialogs.ask_downloads(plans[0])
+    assert shown == [
+        'Hello/Program (Afrikaans)\n'
+        'Hello/Installer (Afrikaans)\n'
+        '  1 change not yet submitted is to a string removed or reworded on the server, '
+        'and will be lost:\n'
+        '    Next'
+    ]
+    assert updatedialog.status_message(SimpleNamespace(changed=True, taken=0)) == (
+        'Your copy is already up to date.'
+    )
