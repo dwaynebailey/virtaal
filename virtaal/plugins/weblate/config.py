@@ -81,41 +81,19 @@ class KeyFile:
             parser.set(_KEYS, url, token)
         pan_app._write_ini(parser, self.path, mode=FILE_MODE)
 
-    def urls(self):
-        return [url for url, _token in self.servers]
-
-    def token(self, url):
-        return dict(self.servers).get(url, '')
-
-    def put(self, url, token, replace=None):
-        """Adds url with token, or changes the server at replace, in its
-        place. Whether url and token are usable."""
+    def put(self, url, token):
+        """Adds url with token, or changes the token of url, in its place.
+        Whether url and token are usable."""
         url = api_url(url)
         token = token.strip()
         if not url or not token:
             return False
-        old = [replace, url] if replace else [url]
-        at = next((i for i, (u, _t) in enumerate(self.servers) if u in old), len(self.servers))
-        self.servers = [s for s in self.servers if s[0] not in old]
-        self.servers.insert(at, (url, token))
-        if replace and self.last_url == replace:
-            self.last_url = url
+        at = next((i for i, (u, _t) in enumerate(self.servers) if u == url), None)
+        if at is None:
+            self.servers.append((url, token))
+        else:
+            self.servers[at] = (url, token)
         return True
-
-    def remove(self, url):
-        self.servers = [s for s in self.servers if s[0] != url]
-        if self.last_url == url:
-            self.last_url = ''
-
-    def import_wlc(self, path=None):
-        """Adds wlc's servers and tokens, replacing the token of one
-        already listed. The number added or changed."""
-        found = read_wlc(path)
-        changed = 0
-        for url, token in found:
-            if self.token(url) != token and self.put(url, token):
-                changed += 1
-        return changed
 
 
 def wlc_config_path():

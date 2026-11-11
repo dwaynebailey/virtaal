@@ -73,18 +73,6 @@ def test_saving_makes_a_readable_file_owner_only(tmp_path):
     assert KeyFile(str(path)).servers == [(OURS, 'wlu_one')]
 
 
-def test_editing_a_server_keeps_its_place_and_follows_the_last_used(tmp_path):
-    servers = KeyFile(str(tmp_path / 'weblate.ini'))
-    servers.put(OURS, 'a')
-    servers.put(HOSTED, 'b')
-    servers.last_url = OURS
-
-    assert servers.put('https://other.example.org/', 'c', replace=OURS)
-
-    assert servers.urls() == ['https://other.example.org/api/', HOSTED]
-    assert servers.last_url == 'https://other.example.org/api/'
-
-
 def test_adding_a_listed_server_again_changes_its_token(tmp_path):
     servers = KeyFile(str(tmp_path / 'weblate.ini'))
     servers.put(OURS, 'old')
@@ -99,17 +87,6 @@ def test_a_server_needs_a_usable_address_and_a_token(tmp_path, url, token):
 
     assert not servers.put(url, token)
     assert servers.servers == []
-
-
-def test_removing_the_last_used_server_forgets_it(tmp_path):
-    servers = KeyFile(str(tmp_path / 'weblate.ini'))
-    servers.put(OURS, 'a')
-    servers.last_url = OURS
-
-    servers.remove(OURS)
-
-    assert servers.servers == []
-    assert servers.last_url == ''
 
 
 def test_a_missing_or_broken_file_lists_no_servers(tmp_path):
@@ -173,21 +150,12 @@ def test_wlcs_keys_are_read_without_empty_ones(tmp_path):
     assert read_wlc(str(path)) == [(HOSTED, 'wlu_hosted'), (OURS, 'wlu_ours')]
 
 
-def test_importing_from_wlc_adds_new_servers_and_updates_tokens(tmp_path):
-    wlc = _wlc(tmp_path, _WLC)
-    servers = KeyFile(str(tmp_path / 'weblate.ini'))
-    servers.put(OURS, 'wlu_stale')
-
-    assert servers.import_wlc(str(wlc)) == 2
-    assert servers.servers == [(OURS, 'wlu_ours'), (HOSTED, 'wlu_hosted')]
-    assert servers.import_wlc(str(wlc)) == 0
-
-
 def test_importing_never_writes_wlcs_file(tmp_path):
     wlc = _wlc(tmp_path, _WLC)
     servers = KeyFile(str(tmp_path / 'weblate.ini'))
 
-    servers.import_wlc(str(wlc))
+    for url, token in read_wlc(str(wlc)):
+        servers.put(url, token)
     servers.save()
 
     assert wlc.read_text(encoding='utf-8') == _WLC
