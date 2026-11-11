@@ -88,19 +88,20 @@ def config_int(value, default, minimum, maximum, name):
     return number
 
 
-def _write_ini(parser, filename):
+def _write_ini(parser, filename, mode=None):
     """Write parser to filename, or log why it can't be (a directory in
     its place, a read-only file, #4340) rather than fail to quit.
 
     It is written to a temporary file that then replaces filename, so a
-    write that fails part-way leaves the old file whole (#4202)."""
+    write that fails part-way leaves the old file whole (#4202). It gets
+    mode if given (0o600 for a file holding a secret), else keeps the
+    old file's."""
     import tempfile
 
     # Replace a symlink's target, not the link.
     target = os.path.realpath(filename)
     tmp = None
     try:
-        mode = None
         if os.path.lexists(target):
             if not os.path.isfile(target):
                 raise OSError(f"{target!r} is not a file")
@@ -109,7 +110,8 @@ def _write_ini(parser, filename):
                 raise PermissionError(f"{target!r} is read-only")
             import stat
 
-            mode = stat.S_IMODE(os.stat(target).st_mode)
+            if mode is None:
+                mode = stat.S_IMODE(os.stat(target).st_mode)
         fd, tmp = tempfile.mkstemp(
             dir=os.path.dirname(target), prefix=os.path.basename(target) + '.', suffix='.tmp'
         )

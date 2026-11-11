@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import configparser
 import logging
 import os
 from pathlib import Path
@@ -1016,6 +1017,19 @@ def test_write_ini_keeps_the_files_mode_and_a_symlink(tmp_path):
     assert link.is_symlink()
     assert pan_app.load_config(str(real), 'remotetm') == {'url': 'new'}
     assert real.stat().st_mode & 0o777 == 0o640
+
+
+@pytest.mark.skipif(os.name == 'nt', reason="POSIX file modes")
+def test_write_ini_gives_a_mode_asked_for(tmp_path):
+    path = tmp_path / 'secret.ini'
+    path.write_text('')
+    path.chmod(0o644)
+    parser = configparser.RawConfigParser()
+    parser.add_section('keys')
+
+    pan_app._write_ini(parser, str(path), mode=0o600)
+
+    assert path.stat().st_mode & 0o777 == 0o600
 
 
 def test_settings_write_creates_the_config_directory_if_missing(tmp_path):
