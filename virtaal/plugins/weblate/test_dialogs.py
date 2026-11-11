@@ -91,9 +91,7 @@ def test_a_plain_http_address_says_why_it_is_refused():
 
     assert not dialog.btn_ok.get_sensitive()
     assert dialog.problem_label.get_visible()
-    assert dialog.problem_label.get_text() == (
-        'Use https: the token would be sent unencrypted.'
-    )
+    assert dialog.problem_label.get_text() == 'Use https: the token would be sent unencrypted.'
 
     dialog.entries['url'].set_text('https://weblate.example.org')
     assert dialog.btn_ok.get_sensitive()
@@ -300,7 +298,9 @@ def test_projects_load_only_as_far_as_needed(servers, fake, monkeypatch):
 def test_scrolling_near_the_end_loads_the_next_page(servers, fake, monkeypatch):
     monkeypatch.setattr(BrowseDialog, 'ROWS_WANTED', 1)
     scrolled = []
-    monkeypatch.setattr(BrowseDialog, '_near_the_end', lambda self: bool(scrolled and scrolled.pop()))
+    monkeypatch.setattr(
+        BrowseDialog, '_near_the_end', lambda self: bool(scrolled and scrolled.pop())
+    )
     dialog = _browse(servers, monkeypatch, page_size=3)
     assert _pages_asked(fake) == [None]
 
