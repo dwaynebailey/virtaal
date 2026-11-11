@@ -21,7 +21,9 @@ Routes are a table (ROUTES) of method, path pattern and handler, so
 later phases add theirs: units, the file download, unit PATCH, the
 lock, changes.
 
-Never point Virtaal at a real Weblate server from a test.
+The server itself and run_until() are fakeplatform.py's, shared with
+any other platform's fake. Never point Virtaal at a real Weblate server
+from a test.
 
 Run by hand:  python -m devsupport.testing.fakeweblate --port 8765
 """
@@ -29,13 +31,15 @@ Run by hand:  python -m devsupport.testing.fakeweblate --port 8765
 import argparse
 import json
 import re
-import socketserver
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from urllib import parse
 
 from devsupport.testing import weblate_schema
+from devsupport.testing.fakeplatform import FakeServer, run_until
+
+__all__ = ['TOKEN', 'FakeWeblate', 'demo', 'run_until']
 
 TOKEN = 'wlu_fake0123456789abcdefghijklmnopqrstuv'
 """The personal token the server accepts by default."""
@@ -58,22 +62,11 @@ class _Fault:
         self.method = method
 
 
-class _Server(ThreadingHTTPServer):
-    """http.server without its reverse lookup of the address
-    (HTTPServer.server_bind calls socket.getfqdn), which on macOS CI
-    runners takes over 30 s for 127.0.0.1."""
-
-    daemon_threads = True
-
-    def server_bind(self):
-        socketserver.TCPServer.server_bind(self)
-        self.server_name, self.server_port = self.server_address[:2]
-
-
-class FakeWeblate:
+class FakeWeblate(FakeServer):
     """The server's data and behaviour; start() serves it."""
 
     def __init__(self, tokens=None, error_style='standard'):
+        super().__init__()
         self.tokens = {TOKEN: None} if tokens is None else dict(tokens)
         """Accepted token: the one project slug it may see, or None
         for all (a wlp_ project token sees one)."""
@@ -91,34 +84,6 @@ class FakeWeblate:
         self._used = {}
         self._ids = 0
         self._lock = threading.Lock()
-        self._server = None
-        self._thread = None
-
-    # Serving #
-
-    def start(self):
-        self._server = _Server(('127.0.0.1', 0), _Handler)
-        self._server.fake = self
-        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
-        self._thread.start()
-        return self
-
-    def stop(self):
-        if self._server is not None:
-            self._server.shutdown()
-            self._server.server_close()
-            self._server = None
-
-    def __enter__(self):
-        return self.start()
-
-    def __exit__(self, *exc):
-        self.stop()
-
-    @property
-    def url(self):
-        """The server's address, as a user types it."""
-        return 'http://127.0.0.1:%d/' % self._server.server_address[1]
 
     @property
     def api_url(self):
@@ -490,22 +455,7 @@ class _Handler(BaseHTTPRequestHandler):
     do_GET = do_POST = do_PATCH = do_PUT = do_DELETE = _serve
 
 
-def run_until(done, timeout=10):
-    """Runs the GLib main loop until done() is true, or fails after
-    timeout seconds. A 20 ms tick keeps the loop from blocking for
-    good once the last request is answered."""
-    from gi.repository import GLib
-
-    context = GLib.MainContext.default()
-    tick = GLib.timeout_add(20, lambda: True)
-    deadline = time.monotonic() + timeout
-    try:
-        while not done():
-            if time.monotonic() > deadline:
-                raise AssertionError('Still waiting after %s s' % timeout)
-            context.iteration(True)
-    finally:
-        GLib.source_remove(tick)
+FakeWeblate.handler = _Handler
 
 
 def demo():
@@ -529,11 +479,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', type=int, default=8765)
     args = parser.parse_args()
-    fake = demo()
-    server = _Server(('127.0.0.1', args.port), _Handler)
-    server.fake = fake
     print('Fake Weblate at http://127.0.0.1:%d/ with token %s' % (args.port, TOKEN), flush=True)
-    server.serve_forever()
+    demo().serve(args.port)
 
 
 if __name__ == '__main__':
