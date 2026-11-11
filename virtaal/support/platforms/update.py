@@ -92,7 +92,9 @@ class Result:
 
     def __init__(self):
         self.taken = 0
-        """Units whose server text replaced the file's."""
+        """Units changed in the file: the server's text and state taken,
+        or rewritten by a new download. Not conflicts skipped or kept,
+        nor units the file already had as the server."""
         self.adopted = 0
         """Units the server already had as in the file."""
         self.kept = 0
@@ -203,8 +205,7 @@ class Update:
             if r not in self.copy.matched:
                 continue
             if not entry.get('changed'):
-                self.result.file_changed |= self.copy.take(r, remote)
-                self.result.taken += 1
+                self._take(r, remote)
                 continue
             target, _state, code = self._mine(r)
             if (text_hash(remote.target), remote.code) == (text_hash(target), code):
@@ -235,12 +236,16 @@ class Update:
                 self.copy.units[r]['changed'] = True
                 self.result.kept += 1
             elif decision == TAKE_THEIRS:
-                self.result.file_changed |= self.copy.take(r, remote)
-                self.result.taken += 1
+                self._take(r, remote)
             else:
                 self.result.skipped += 1
         self.copy.write_record()
         self._finish()
+
+    def _take(self, r, remote):
+        changed = self.copy.take(r, remote)
+        self.result.file_changed |= changed
+        self.result.taken += changed
 
     # A new download #
 
@@ -316,9 +321,30 @@ class Update:
             self._finish(FAILED, PlatformError(NETWORK, detail=str(error)))
             return
         self.result.carried = carried
-        self.result.taken += _differing(self.copy.units, self._download.units)
+        self.result.taken += self._rewritten(carried)
         self.copy = self.result.downloaded
         self._finish()
+
+    def _rewritten(self, carried):
+        """How many units of the file the new download changes, with
+        carried written back into it: a new unit with a translation,
+        or one whose source, target or state is no longer the file's."""
+        old = {entry['id']: r for r, entry in enumerate(self.copy.units) if r in self.copy.matched}
+        back = {item.index: item for item in carried}
+        count = 0
+        for n, remote in enumerate(self._download.units):
+            target, state = _written(back.get(n), remote)
+            r = old.get(remote.id)
+            if r is None:
+                count += any(target)
+                continue
+            mine, my_state = self.copy.mine(r)
+            source = strings(self.copy.matched[r].source)
+            if (source, mine) != (list(remote.source) or [''], target):
+                count += 1
+            elif None not in (state, my_state) and state != my_state:
+                count += 1
+        return count
 
     def _failed(self, error):
         self._finish(FAILED, error)
@@ -335,19 +361,12 @@ class Update:
         self.on_done(self.result)
 
 
-def _differing(old, remote_units):
-    """How many of remote_units are new or differ from the old side
-    record's units in text or state."""
-    known = {entry['id']: entry for entry in old}
-    count = 0
-    for remote in remote_units:
-        entry = known.get(remote.id)
-        if entry is None or (text_hash(remote.target), remote.code) != (
-            entry['target_hash'],
-            entry['state'],
-        ):
-            count += 1
-    return count
+def _written(item, remote):
+    """(target forms, state) a new download's unit ends with in the
+    file: a carried change's (item), or the server's."""
+    if item is not None:
+        return list(item.target) or [''], item.state
+    return list(remote.target) or [''], remote.state
 
 
 def carry(copy, carried):

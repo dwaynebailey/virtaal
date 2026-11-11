@@ -107,24 +107,25 @@ def test_the_same_change_on_both_sides_is_no_conflict(fake):
 
     assert copy.conflicts == [] and result.adopted == 1
     assert copy.copy.pending() == []
+    assert result.taken == 0
 
 
 @pytest.mark.parametrize(
-    'decision, text, pending',
+    'decision, text, pending, taken',
     [
-        (submit.KEEP_MINE, 'Hulp', True),
-        (submit.TAKE_THEIRS, 'Help my', False),
-        (submit.SKIP, 'Hulp', True),
+        (submit.KEEP_MINE, 'Hulp', True, 0),
+        (submit.TAKE_THEIRS, 'Help my', False, 1),
+        (submit.SKIP, 'Hulp', True, 0),
     ],
 )
-def test_a_unit_changed_on_both_sides_is_a_conflict(fake, decision, text, pending):
+def test_a_unit_changed_on_both_sides_is_a_conflict(fake, decision, text, pending, taken):
     copy = Updating(fake)
     copy.edit('Help', 'Hulp')
     copy.save()
     fake.edit(copy.server_unit('Help')['id'], 'Help my')
     r = copy.index('Help')
 
-    copy.update({r: decision})
+    assert copy.update({r: decision}).taken == taken
 
     [conflict] = copy.conflicts
     assert (conflict.index, conflict.mine, conflict.theirs) == (r, ['Hulp'], ['Help my'])
@@ -157,6 +158,9 @@ def test_a_new_unit_on_the_server_downloads_again_keeping_the_changes(fake):
     assert str(copy.unit('Save').target) == 'Bewaar'
     assert str(copy.unit('Open').target) == 'Open maak'
     assert sorted(copy.copy.pending()) == sorted([copy.index('Help'), copy.index('Save')])
+    # Only Open changed here: the changes kept are as they were, Undo
+    # came untranslated.
+    assert result.taken == 1
     # And they go with the next Submit, with no conflict.
     assert copy.submit().sent == 2 and copy.conflicts == []
 
@@ -183,7 +187,7 @@ def test_a_change_to_a_reworded_unit_is_kept_as_needing_work(fake):
     copy.save()
     fake.change_source(copy.server_unit('Help')['id'], 'Help me')
 
-    copy.update()
+    assert copy.update().taken == 1
 
     unit = copy.unit('Help me')
     assert str(unit.target) == 'Hulp' and unit.isfuzzy()
@@ -197,13 +201,26 @@ def test_a_conflict_skipped_in_a_new_download_comes_up_at_submit(fake):
     fake.edit(copy.server_unit('Help')['id'], 'Help my')
     fake.add_unit('hello', 'program', 'af', 'Undo')
 
-    copy.update({})
+    assert copy.update({}).taken == 0
 
     [conflict] = copy.conflicts
     assert conflict.theirs == ['Help my']
     assert str(copy.unit('Help').target) == 'Hulp'
     copy.submit()
     assert [c.theirs for c in copy.conflicts] == [['Help my']]
+
+
+def test_a_new_download_counts_no_unit_the_file_already_has(fake):
+    copy = Updating(fake)
+    copy.edit('Help', 'Hulp')
+    copy.save()
+    fake.edit(copy.server_unit('Help')['id'], 'Hulp')
+    fake.add_unit('hello', 'program', 'af', 'Undo')
+
+    result = copy.update()
+
+    assert result.downloaded is not None and result.taken == 0
+    assert copy.plans[0].same == 1
 
 
 def test_saying_no_to_a_new_download_leaves_everything(fake):
