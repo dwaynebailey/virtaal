@@ -40,11 +40,19 @@ In the language's folder, .platform.json is the side record:
               "changed": <bool>, "local_state": <StateEnum>}]}
 
 Each unit's hashes, state and last_updated are as the server gave them
-at download: the baseline Submit (W3) checks for conflicts against.
-"changed" and "local_state" are written on each save: whether the
-unit's text or state differ from the baseline, and the state chosen in
-Virtaal (a PO file can't hold Approved, Needs review or Rejected; see
+at download: the baseline Submit (submit.py) checks for conflicts
+against. "changed" and "local_state" are written on each save: whether
+the unit's text or state differ from the baseline, and the state chosen
+in Virtaal (a PO file can't hold Approved, Needs review or Rejected; see
 states.py).
+
+Submit writes the record after each unit it sends, so a Submit cut
+short (cancelled, out of budget, a crash) sends only the rest next
+time: a unit sent has the sent text and state as its baseline,
+"changed" false and "last_updated" null until Submit reads it back
+from the server. A unit the server refused keeps "changed" and gets
+"error", the server's reason. "submitted_at" is when a Submit last
+left no change unsent.
 
 Matching the file's units to the platform's (match()): by context
 (PO's msgctxt; a monolingual file's key), then by source text, then by
@@ -280,6 +288,79 @@ class WorkCopy:
 
     def changed_units(self):
         return [u for u in self.units if u.get('changed')]
+
+    def pending(self):
+        """The indexes in units of those Submit would send: changed in
+        the file, there, and not read-only."""
+        return [
+            r
+            for r in sorted(self.matched)
+            if self.units[r].get('changed') and not self.units[r].get('read_only')
+        ]
+
+    def submitted(self):
+        """Whether the last Submit sent every change, and none came
+        since."""
+        return bool(self.record.get('submitted_at')) and not self.changed_units()
+
+    def mine(self, r):
+        """(target forms, state) of the file's unit for units[r]."""
+        unit = self.matched[r]
+        return strings(unit.target), unit.get_state_n() if unit.STATE else None
+
+    def mark_sent(self, r, target, code, state):
+        """Notes units[r] as sent with target and state (Virtaal's, and
+        code as the server stored it), at once."""
+        entry = self.units[r]
+        entry.update(
+            target_hash=text_hash(target),
+            state=code,
+            virtaal_state=state,
+            last_updated=None,
+            changed=False,
+        )
+        entry.pop('error', None)
+        self.write_record()
+
+    def mark_failed(self, r, message):
+        self.units[r]['error'] = message
+        self.write_record()
+
+    def take(self, r, remote):
+        """The server's text and state (a RemoteUnit) into the file's
+        unit for units[r], and as its baseline. Whether the unit
+        changed."""
+        unit = self.matched[r]
+        entry = self.units[r]
+        forms = list(remote.target) or ['']
+        changed = strings(unit.target) != forms
+        if changed:
+            from translate.misc.multistring import multistring
+
+            unit.target = multistring(forms) if len(forms) > 1 else forms[0]
+        if remote.state is not None and unit.STATE and unit.get_state_n() != remote.state:
+            unit.set_state_n(remote.state)
+            changed = True
+        if states.is_adopted(unit):
+            entry['local_state'] = remote.state
+        self.adopt(r, remote)
+        return changed
+
+    def adopt(self, r, remote):
+        """The server's unit (a RemoteUnit) as the baseline of units[r],
+        which the file already agrees with."""
+        self.units[r].update(
+            target_hash=text_hash(remote.target),
+            state=remote.code,
+            virtaal_state=remote.state,
+            last_updated=remote.last_updated,
+            changed=False,
+        )
+        self.units[r].pop('error', None)
+
+    def mark_submitted(self):
+        self.record['submitted_at'] = _now()
+        self.write_record()
 
     def has_local_changes(self):
         """Whether the file holds work the server doesn't have: units

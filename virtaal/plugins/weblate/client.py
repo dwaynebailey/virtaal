@@ -11,7 +11,9 @@ never blocking it (#3337). No GTK here.
 Every request sends the token in an Authorization header, which nothing
 logs, and only to URLs under the server's API URL. Lists are paged:
 each page's "next" link is followed. A 429 or a busy server is waited
-out (Retry-After), and so is a used-up X-RateLimit-Remaining.
+out (Retry-After), and so is a used-up X-RateLimit-Remaining; the last
+X-RateLimit headers seen are the budget() a Submit paces itself by.
+A unit is changed with PATCH, which is safe to send again.
 """
 
 import json
@@ -115,6 +117,7 @@ class Client:
         self.http = http
         self._resume_at = 0.0
         self._generation = 0
+        self._budget = None
 
     def __repr__(self):
         return '<Weblate %s>' % self.api
@@ -152,26 +155,41 @@ class Client:
         on_error(PlatformError)."""
         self._get(url, on_reply, on_error, True)
 
-    def _get(self, url, on_reply, on_error, raw):
+    def patch_json(self, url, data, on_reply, on_error):
+        """Sends data as JSON to url with PATCH, and calls on_reply(the
+        JSON reply), or on_error(PlatformError)."""
+        body = json.dumps(data, ensure_ascii=False).encode('utf-8')
+        self._get(url, on_reply, on_error, False, ('PATCH', body))
+
+    def _get(self, url, on_reply, on_error, raw, write=None):
         generation = self._generation
 
         def current(handler):
             return lambda *args: generation == self._generation and handler(*args)
 
-        self._send(url, current(on_reply), current(on_error), 1, raw=raw)
+        self._send(url, current(on_reply), current(on_error), 1, raw=raw, write=write)
 
-    def _send(self, url, on_reply, on_error, attempt, waited=False, raw=False):
+    def _send(self, url, on_reply, on_error, attempt, waited=False, raw=False, write=None):
         wait = 0 if waited else self._resume_at - time.monotonic()
         if wait > self.MAX_WAIT:
             on_error(PlatformError(HTTP, 429))
             return
         if wait > 0:
-            self.schedule(wait, lambda: self._send(url, on_reply, on_error, attempt, True, raw=raw))
+            self.schedule(
+                wait,
+                lambda: self._send(url, on_reply, on_error, attempt, True, raw=raw, write=write),
+            )
             return
         accept = 'Accept: */*' if raw else 'Accept: application/json'
+        headers = ['Authorization: Token ' + self.token, accept]
+        method, body = write or ('GET', None)
+        if body is not None:
+            headers.append('Content-Type: application/json')
         request = HTTPRequest(
             url,
-            headers=['Authorization: Token ' + self.token, accept],
+            method=method,
+            data=body,
+            headers=headers,
             user_agent=self.http.user_agent,
             # A file: stall detection instead of the short total timeout.
             download=raw,
@@ -181,7 +199,7 @@ class Client:
             return
 
         def done(request, _value):
-            self._replied(request, url, on_reply, on_error, attempt, raw)
+            self._replied(request, url, on_reply, on_error, attempt, raw, write)
 
         def failed(request, reason):
             on_error(PlatformError(NETWORK, detail=str(reason)))
@@ -191,21 +209,32 @@ class Client:
         request.connect('http-failed', failed)
 
     def _note_limit(self, request):
-        """Waits out a used-up rate limit before the next request."""
-        remaining = request.response_header('X-RateLimit-Remaining')
-        reset = request.response_header('X-RateLimit-Reset')
-        if remaining is not None and remaining.strip() == '0' and reset:
-            try:
-                self._resume_at = time.monotonic() + max(0.0, float(reset))
-            except ValueError:
-                pass
+        """Keeps the budget the server reports, and waits out a used-up
+        rate limit before the next request."""
+        try:
+            remaining = int(request.response_header('X-RateLimit-Remaining'))
+            reset = max(0.0, float(request.response_header('X-RateLimit-Reset')))
+        except (TypeError, ValueError):
+            return
+        now = time.monotonic()
+        self._budget = (remaining, now + reset)
+        if remaining <= 0:
+            self._resume_at = now + reset
 
-    def _replied(self, request, url, on_reply, on_error, attempt, raw=False):
+    def budget(self):
+        """(requests left, seconds until the count starts again) as the
+        server last reported them, or None if it doesn't."""
+        if self._budget is None:
+            return None
+        remaining, reset_at = self._budget
+        return remaining, max(0.0, reset_at - time.monotonic())
+
+    def _replied(self, request, url, on_reply, on_error, attempt, raw=False, write=None):
         status = request.status
         body = request.result.getvalue()
         self._note_limit(request)
         if status == 429 or status in _BUSY:
-            if self._retry(request, url, on_reply, on_error, attempt, raw):
+            if self._retry(request, url, on_reply, on_error, attempt, raw, write):
                 return
             on_error(PlatformError(HTTP, status, error_detail(body)))
         elif status == 401:
@@ -224,7 +253,7 @@ class Client:
         else:
             on_error(PlatformError(HTTP, status, error_detail(body)))
 
-    def _retry(self, request, url, on_reply, on_error, attempt, raw=False):
+    def _retry(self, request, url, on_reply, on_error, attempt, raw=False, write=None):
         """Sends the request again after the wait the server asks for
         (or one that doubles), if that is soon enough."""
         if attempt >= self.MAX_TRIES:
@@ -238,7 +267,7 @@ class Client:
             '%s: HTTP %s, asking again in %d s', loggable_url(url), request.status, seconds
         )
         self._resume_at = max(self._resume_at, time.monotonic() + seconds)
-        self._send(url, on_reply, on_error, attempt + 1, raw=raw)
+        self._send(url, on_reply, on_error, attempt + 1, raw=raw, write=write)
         return True
 
     # Lists #
@@ -326,12 +355,31 @@ class Client:
         path = 'components/%s/%s/monolingual_base/' % (path_part(project), path_part(component))
         self.get_bytes(self.url(path), on_done, on_error)
 
-    def units(self, project, component, language, on_page, on_done, on_error):
-        """Every unit of the translation, a page of up to
-        UNITS_PAGE_SIZE at a time."""
+    def units(self, project, component, language, on_page, on_done, on_error, query=None):
+        """Every unit of the translation, or those a search query
+        finds, a page of up to UNITS_PAGE_SIZE at a time."""
         path = self._translation_path(project, component, language) + 'units/'
         params = {'page_size': self.UNITS_PAGE_SIZE}
+        if query:
+            params['q'] = query
         self.get_list(path, on_page, on_done, on_error, params)
+
+    def locked(self, project, component, on_done, on_error):
+        """on_done(whether the component is locked)."""
+
+        def reply(data):
+            if isinstance(data, dict) and isinstance(data.get('locked'), bool):
+                on_done(data['locked'])
+            else:
+                on_error(PlatformError(NOT_PLATFORM, 200))
+
+        path = 'components/%s/%s/lock/' % (path_part(project), path_part(component))
+        self.get_json(self.url(path), reply, on_error)
+
+    def patch_unit(self, unit_id, fields, on_done, on_error):
+        """Changes one unit's fields ({"target": [...], "state": 20}):
+        on_done(the fields as written)."""
+        self.patch_json(self.url('units/%d/' % int(unit_id)), fields, on_done, on_error)
 
 
 def _is_page(data):

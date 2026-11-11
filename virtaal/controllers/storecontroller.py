@@ -184,13 +184,19 @@ class StoreController(BaseController):
         """The open file's name for the window title: a platform's work
         copy as its project and component, and the platform."""
         if self.work_copy is not None and self.store is not None:
-            # l10n: The window title for a file opened from a translation server.
-            # %(location)s is its project and component, such as "Hello/Program";
-            # %(platform)s is the kind of server, such as Weblate
-            return _('%(location)s (%(platform)s)') % {
+            names = {
                 'location': self.work_copy.location(),
                 'platform': self.work_copy.platform_name(),
             }
+            if self.work_copy.submitted() and not self.is_modified():
+                # l10n: The window title for a file opened from a translation server once
+                # all its changes were sent back. %(location)s is its project and component,
+                # such as "Hello/Program"; %(platform)s is the kind of server, such as Weblate
+                return _('%(location)s (%(platform)s, submitted)') % names
+            # l10n: The window title for a file opened from a translation server.
+            # %(location)s is its project and component, such as "Hello/Program";
+            # %(platform)s is the kind of server, such as Weblate
+            return _('%(location)s (%(platform)s)') % names
         return os.path.basename(self.get_store_filename())
 
     def get_store_filename(self):

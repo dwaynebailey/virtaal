@@ -19,6 +19,11 @@ Weblate's states and Virtaal's (translate-toolkit's StateEnum):
   Translated, Waiting for review 20  Translated (UNREVIEWED)
   Approved                       30  Reviewed (FINAL)
   Read-only                     100  the file's own state, locked
+
+Submit sends each unit's target and state with PATCH /api/units/<id>/,
+{"target": [every form], "state": code}: 0 with no text, never 0 with
+some (10 instead). A server older than 2026.x refuses 11 and 12 (400):
+those go again as 10, and Virtaal keeps its finer state.
 """
 
 from translate.storage.workflow import StateEnum
@@ -29,6 +34,7 @@ from . import client as weblate
 from .config import KeyFile, read_wlc, wlc_config_path
 
 READ_ONLY = 100
+_NEWER_STATES = (11, 12)
 
 _TO_VIRTAAL = {
     0: StateEnum.EMPTY,
@@ -52,6 +58,15 @@ def weblate_state(state):
     below it for a state between them."""
     below = [s for s in _TO_WEBLATE if s <= state]
     return _TO_WEBLATE[max(below)] if below else 0
+
+
+def submit_code(state, target):
+    """The state code to submit for a unit in Virtaal's state with
+    target (its forms): Weblate wants 0 for no text, and only for it."""
+    if not any(target):
+        return 0
+    code = 20 if state is None else weblate_state(state)
+    return code or 10
 
 
 def remote_unit(unit):
@@ -158,6 +173,38 @@ class WeblateSession(Session):
 
         client.translation(project, component, language, translation, on_error)
 
+    def locked(self, project, component, on_done, on_error):
+        self.client.locked(project, component, on_done, on_error)
+
+    def changed_since(self, project, component, language, since, on_done, on_error):
+        found = []
+        self.client.units(
+            project,
+            component,
+            language,
+            lambda results: found.extend(remote_unit(u) for u in results),
+            lambda _count: on_done(found),
+            on_error,
+            query='changed:>="%s"' % since,
+        )
+
+    def submit_unit(self, unit_id, target, code, on_done, on_error):
+        def written(data):
+            stored = data.get('state') if isinstance(data, dict) else None
+            on_done(stored if isinstance(stored, int) else code)
+
+        def failed(error):
+            if error.status == 400 and code in _NEWER_STATES:
+                # An older Weblate: needs editing is the nearest it has.
+                self.client.patch_unit(unit_id, {'target': target, 'state': 10}, written, on_error)
+            else:
+                on_error(error)
+
+        self.client.patch_unit(unit_id, {'target': list(target), 'state': code}, written, failed)
+
+    def budget(self):
+        return self.client.budget()
+
     def cancel(self):
         self.client.cancel()
 
@@ -167,6 +214,9 @@ class WeblatePlatform(Platform):
     name = _('Weblate')
     has_components = True
     supports_search = False
+    can_submit = True
+    rate_limit = (5000, 3600)
+    """API_RATELIMIT_USER's default; replies say what is left."""
     # l10n: Imports the servers and tokens of wlc, Weblate's command-line client
     import_label = _('_Import from wlc')
 
@@ -205,6 +255,9 @@ class WeblatePlatform(Platform):
 
     def session(self, url, credentials):
         return WeblateSession(self.client_factory(url, credentials.get('token', '')))
+
+    def state_code(self, state, target):
+        return submit_code(state, target)
 
     def can_import(self):
         return wlc_config_path() is not None

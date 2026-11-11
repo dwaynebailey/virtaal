@@ -492,7 +492,7 @@ def test_one_server_needs_no_choice(servers, monkeypatch):
 def _main_controller():
     menu = Gtk.Menu()
     items = {}
-    for name in ('mnu_open', 'mnu_open_folder', 'mnu_save'):
+    for name in ('mnu_open', 'mnu_open_folder', 'mnu_save', 'mnu_saveas'):
         items[name] = Gtk.MenuItem(label=name)
         menu.append(items[name])
     objects = {'menu_file': menu, **items}
@@ -502,7 +502,7 @@ def _main_controller():
     return SimpleNamespace(view=view), menu
 
 
-def test_the_menu_item_follows_open_folder_and_goes_with_the_plugin():
+def test_the_menu_items_follow_open_folder_and_save_as_and_go_with_the_plugin():
     main_controller, menu = _main_controller()
 
     weblate = plugin.Plugin('weblate', main_controller)
@@ -512,11 +512,13 @@ def test_the_menu_item_follows_open_folder_and_goes_with_the_plugin():
         'mnu_open_folder',
         'Open from Tra_nslation Server…',
         'mnu_save',
+        'mnu_saveas',
+        'Su_bmit to Server…',
     ]
     assert registry.platforms == [weblate.platform]
 
     weblate.destroy()
-    assert len(menu.get_children()) == 3
+    assert len(menu.get_children()) == 4
     assert registry.platforms == []
 
 

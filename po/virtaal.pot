@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 06:36+0000\n"
+"POT-Creation-Date: 2026-11-11 07:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1342,6 +1342,14 @@ msgstr ""
 msgid "Variables such as $HOME in shell strings"
 msgstr ""
 
+#. l10n: The window title for a file opened from a translation server once
+#. all its changes were sent back. %(location)s is its project and component,
+#. such as "Hello/Program"; %(platform)s is the kind of server, such as Weblate
+#: virtaal/controllers/storecontroller.py
+#, python-format
+msgid "%(location)s (%(platform)s, submitted)"
+msgstr ""
+
 #. l10n: The window title for a file opened from a translation server.
 #. %(location)s is its project and component, such as "Hello/Program";
 #. %(platform)s is the kind of server, such as Weblate
@@ -2563,6 +2571,11 @@ msgstr ""
 msgid "Open from Tra_nslation Server…"
 msgstr ""
 
+#. l10n: File menu: send the changes of a file opened from a translation server back to it
+#: virtaal/support/platforms/__init__.py
+msgid "Su_bmit to Server…"
+msgstr ""
+
 #. l10n: The servers of translation platforms, such as Weblate
 #: virtaal/support/platforms/browsedialog.py
 #: virtaal/support/platforms/serversdialog.py
@@ -2615,6 +2628,110 @@ msgstr ""
 
 #: virtaal/support/platforms/serversdialog.py
 msgid "_Test Connection"
+msgstr ""
+
+#. l10n: After a Submit to a translation server that sent only some of the changed units
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "Submitted %(sent)s of %(total)s changed unit."
+msgid_plural "Submitted %(sent)s of %(total)s changed units."
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/support/platforms/submitdialog.py
+msgid "The translation is locked on the server."
+msgstr ""
+
+#. l10n: A translation server allows so many requests an hour; %(time)s is when it allows more, such as 14:05
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "The server's request limit is used up until %(time)s."
+msgstr ""
+
+#. l10n: Followed by the units, one a line, each with the server's reason
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "%(count)s unit was refused by the server:"
+msgid_plural "%(count)s units were refused by the server:"
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "%(count)s unit changed on the server was left as it is."
+msgid_plural "%(count)s units changed on the server were left as they are."
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/support/platforms/submitdialog.py
+msgid "Submit again to send the rest."
+msgstr ""
+
+#. l10n: In the status bar after a Submit to a translation server
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "Submitted %(count)s unit."
+msgid_plural "Submitted %(count)s units."
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/support/platforms/submitdialog.py virtaal/views/mainview.py
+#: virtaal/views/widgets/settingsdialog.py
+msgid "_Cancel"
+msgstr ""
+
+#. l10n: While sending changed units to a translation server
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "Submitting %(number)s of %(total)s…"
+msgstr ""
+
+#. l10n: The title of the dialog listing units changed both in Virtaal and on the translation server
+#: virtaal/support/platforms/submitdialog.py
+msgid "Changed on the Server"
+msgstr ""
+
+#: virtaal/support/platforms/submitdialog.py
+msgid "_Submit"
+msgstr ""
+
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "Someone changed %(count)s unit on the server since you opened it."
+msgid_plural ""
+"Someone changed %(count)s units on the server since you opened them."
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/support/platforms/submitdialog.py
+msgid "Keep mine"
+msgstr ""
+
+#: virtaal/support/platforms/submitdialog.py
+msgid "Take theirs"
+msgstr ""
+
+#. l10n: Leave a unit changed on the server for a later Submit
+#: virtaal/support/platforms/submitdialog.py
+msgid "Skip"
+msgstr ""
+
+#. l10n: %(platform)s is the kind of translation server, such as Weblate
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "Submit %(count)s changed unit to %(platform)s?"
+msgid_plural "Submit %(count)s changed units to %(platform)s?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/support/platforms/submitdialog.py
+msgid "There are no changes to submit."
+msgstr ""
+
+#. l10n: Submit can't find the server a file was opened from; %(server)s is its address
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "%(server)s is not one of your translation servers."
 msgstr ""
 
 #: virtaal/support/tutorial.py
@@ -3105,10 +3222,6 @@ msgstr ""
 
 #: virtaal/views/mainview.py
 msgid "All Supported Files"
-msgstr ""
-
-#: virtaal/views/mainview.py virtaal/views/widgets/settingsdialog.py
-msgid "_Cancel"
 msgstr ""
 
 #: virtaal/views/mainview.py virtaal/views/widgets/settingsdialog.py

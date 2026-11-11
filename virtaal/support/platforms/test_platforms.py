@@ -7,7 +7,7 @@
 
 """The translation platform layer with a second kind of platform, a
 dummy one here, beside Weblate: it plugs in with no change to the
-server list, its dialog or the browser."""
+server list, its dialog, the browser or Submit."""
 
 import configparser
 from types import SimpleNamespace
@@ -83,12 +83,23 @@ class DummySession(Session):
     def download(self, project, component, language, on_done, on_error):
         assert component is None
         data = b'msgid "Alpha"\nmsgstr "Alfa"\n\nmsgid "Beta"\nmsgstr ""\n'
-        units = [
-            RemoteUnit('a', 1, '', ['Alpha'], ['Alfa'], 120, 'final', None, False),
-            RemoteUnit('b', 2, '', ['Beta'], [''], 0, 'new', None, False),
-        ]
+        units = list(self.platform.held.values())
         names = {'project': PROJECTS[project][0], 'component': None}
         self._later(on_done, Download('%s.po' % project, data, None, units, names))
+
+    def locked(self, project, component, on_done, on_error):
+        assert component is None
+        self._later(on_done, False)
+
+    def changed_since(self, project, component, language, since, on_done, on_error):
+        held = self.platform.held
+        self._later(on_done, [held[i] for i in sorted(self.platform.changed)])
+
+    def submit_unit(self, unit_id, target, code, on_done, on_error):
+        unit = self.platform.held[unit_id]
+        self.platform.held[unit_id] = unit._replace(target=list(target), code=code)
+        self.platform.changed.add(unit_id)
+        self._later(on_done, code)
 
     def cancel(self):
         self.cancelled = True
@@ -102,9 +113,22 @@ class DummyPlatform(Platform):
     has_components = False
     supports_search = True
 
+    can_submit = True
+
     def __init__(self):
         self.saved = ([], '')
         self.queries = []
+        self.held = {
+            'a': RemoteUnit('a', 1, '', ['Alpha'], ['Alfa'], 120, 'final', None, False),
+            'b': RemoteUnit('b', 2, '', ['Beta'], [''], 0, 'new', None, False),
+        }
+        """The server's units."""
+        self.changed = set()
+
+    def state_code(self, state, target):
+        if not any(target):
+            return 'new'
+        return 'final' if state >= 120 else 'draft'
 
     def credential_fields(self):
         return (Field('user', '_User:', required=True), Field('password', '_Password:', SECRET))
@@ -346,7 +370,7 @@ def test_the_server_choice_shows_types_when_there_are_several(servers, tmp_path,
 def _main_controller():
     menu = Gtk.Menu()
     items = {}
-    for name in ('mnu_open', 'mnu_open_folder', 'mnu_save'):
+    for name in ('mnu_open', 'mnu_open_folder', 'mnu_save', 'mnu_saveas'):
         items[name] = Gtk.MenuItem(label=name)
         menu.append(items[name])
     view = SimpleNamespace(
@@ -363,12 +387,20 @@ def test_one_menu_item_serves_every_platform(weblate, dummy):
 
     registry.add(weblate, main_controller)
     registry.add(dummy, main_controller)
-    assert len(menu.get_children()) == 4
+    labels = [item.get_label() for item in menu.get_children()]
+    assert labels == [
+        'mnu_open',
+        'mnu_open_folder',
+        'Open from Tra_nslation Server…',
+        'mnu_save',
+        'mnu_saveas',
+        'Su_bmit to Server…',
+    ]
 
     registry.remove(weblate)
-    assert len(menu.get_children()) == 4
+    assert len(menu.get_children()) == 6
     registry.remove(dummy)
-    assert len(menu.get_children()) == 3
+    assert len(menu.get_children()) == 4
 
 
 def test_browse_lists_the_servers_of_every_platform_on(weblate, dummy, tmp_path, monkeypatch):
@@ -384,3 +416,38 @@ def test_browse_lists_the_servers_of_every_platform_on(weblate, dummy, tmp_path,
     registry.browse()
 
     assert [s.url for s in seen[0]] == ['dummy://one']
+
+
+# Submit #
+
+
+def test_a_platform_without_components_submits_through_the_interface(
+    servers, dummy, tmp_path, monkeypatch
+):
+    from translate.storage import po
+
+    from virtaal.support.platforms import submit
+
+    monkeypatch.setattr(pan_app, 'get_state_dir', lambda: str(tmp_path / 'state'))
+    download = []
+    DummySession(dummy, {}).download('alpha', None, 'af', download.append, None)
+    run_until(lambda: download)
+    copy = workcopy.create(dummy, 'dummy://one', 'alpha', None, 'af', download[0])
+    store = po.pofile.parsefile(copy.path)
+    units = [u for u in store.units if not u.isheader()]
+    copy.attach(SimpleNamespace(get_units=lambda: units, pair=None))
+    units[1].target = 'Beta'
+    store.save()
+    copy.saved()
+    assert copy.pending() == [1]
+    done = []
+
+    submission = submit.Submission(
+        copy, dummy, DummySession(dummy, {}), lambda *a: None, None, done.append
+    )
+    submission.start()
+    run_until(lambda: done)
+
+    assert done[0].sent == 1 and done[0].stop is None
+    assert dummy.held['b'].target == ['Beta'] and dummy.held['b'].code == 'draft'
+    assert copy.pending() == [] and copy.submitted()

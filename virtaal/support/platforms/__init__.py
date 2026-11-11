@@ -15,7 +15,9 @@ interface, so the server list (servers.py), its dialog
 (browsedialog.py) serve every kind alike. A platform's server holds
 projects; a project holds components (when has_components) and each
 component, or the project itself, holds languages. Opening a language
-downloads it into a work copy (workcopy.py) and opens that file.
+downloads it into a work copy (workcopy.py) and opens that file;
+File > Submit to Server… sends its changed units back (submit.py, for
+a platform that can_submit).
 """
 
 from collections import namedtuple
@@ -98,6 +100,31 @@ class Session:
         when the platform has no components), and its units."""
         raise NotImplementedError
 
+    # Submit (a platform that can_submit) #
+
+    def locked(self, project, component, on_done, on_error):
+        """on_done(whether no one may change the translations of
+        component, or of project when the platform has no components)."""
+        raise NotImplementedError
+
+    def changed_since(self, project, component, language, since, on_done, on_error):
+        """on_done(RemoteUnits): at least the units of a language that
+        changed at or after since (UTC, ISO 8601), as they are now."""
+        raise NotImplementedError
+
+    def submit_unit(self, unit_id, target, code, on_done, on_error):
+        """Changes one unit on the server: its target (a list of forms,
+        all of a plural's) and its state as the platform's code.
+        on_done(the code the server stored), or on_error(PlatformError):
+        status 400 or 403 for this unit alone (the request or the
+        permission), 423 locked, 429 out of budget, else no reply."""
+        raise NotImplementedError
+
+    def budget(self):
+        """(requests left, seconds until that count starts again) as the
+        server last said, or None if it doesn't say."""
+        return None
+
     def cancel(self):
         """Drops the replies to every request made so far."""
 
@@ -118,6 +145,12 @@ class Platform:
     else the filter matches the projects loaded so far."""
     import_label = None
     """The label of a button importing servers from elsewhere, or None."""
+    can_submit = False
+    """Its sessions take a work copy's changes back (Session's Submit
+    methods)."""
+    rate_limit = None
+    """(requests, seconds) a server allows by default, for one that
+    doesn't say what is left: Submit stays under it."""
 
     def credential_fields(self):
         """The fields a server needs besides its URL: Field()s, keyed as
@@ -154,6 +187,11 @@ class Platform:
     def session(self, url, credentials):
         raise NotImplementedError
 
+    def state_code(self, state, target):
+        """The platform's state code for one of Virtaal's states (a
+        StateEnum) of a unit with target (its forms), to submit."""
+        return state
+
     def can_import(self):
         return False
 
@@ -171,6 +209,8 @@ class Registry:
         self.platforms = []
         self.main_controller = None
         self.menuitem = None
+        self.submit_item = None
+        self._handlers = []
 
     def add(self, platform, main_controller):
         self.main_controller = main_controller
@@ -183,11 +223,17 @@ class Registry:
         if platform in self.platforms:
             self.platforms.remove(platform)
         if not self.platforms and self.menuitem is not None:
-            menu = self.menuitem.get_parent()
-            if menu is not None:
-                menu.remove(self.menuitem)
-            self.menuitem = None
+            for item in (self.menuitem, self.submit_item):
+                menu = item.get_parent()
+                if menu is not None:
+                    menu.remove(item)
+            self.menuitem = self.submit_item = None
+            for source, handler in self._handlers:
+                source.disconnect(handler)
+            self._handlers = []
             self._sync_menubar()
+        else:
+            self.sync_submit()
 
     def _sync_menubar(self):
         getattr(self.main_controller.view, 'sync_menubar', lambda: None)()
@@ -204,7 +250,54 @@ class Registry:
         self.menuitem.connect('activate', lambda _item: self.browse())
         self.menuitem.show()
         menu.insert(self.menuitem, menu.get_children().index(after) + 1)
+        # l10n: File menu: send the changes of a file opened from a translation server back to it
+        self.submit_item = Gtk.MenuItem.new_with_mnemonic(_('Su_bmit to Server…'))
+        self.submit_item.connect('activate', lambda _item: self.submit())
+        self.submit_item.show()
+        save_as = view.gui.get_object('mnu_saveas')
+        menu.insert(self.submit_item, menu.get_children().index(save_as) + 1)
+        # Save follows the file's modified flag.
+        self._watch(view.gui.get_object('mnu_save'), 'notify::sensitive')
+        store_controller = getattr(self.main_controller, 'store_controller', None)
+        for signal in ('store-loaded', 'store-saved', 'store-closed'):
+            self._watch(store_controller, signal)
+        self.sync_submit()
         self._sync_menubar()
+
+    def _watch(self, source, signal):
+        if source is not None:
+            handler = source.connect(signal, lambda *_args: self.sync_submit())
+            self._handlers.append((source, handler))
+
+    def _open_work_copy(self):
+        """The work copy open, if its platform's plug-in is on and it
+        can submit."""
+        store_controller = getattr(self.main_controller, 'store_controller', None)
+        copy = getattr(store_controller, 'work_copy', None)
+        platform = copy and self.platform_of(copy)
+        return copy if platform is not None and platform.can_submit else None
+
+    def platform_of(self, copy):
+        return next((p for p in self.platforms if p.id == copy.record['platform']), None)
+
+    def sync_submit(self):
+        """Submit is there for a work copy with changes, saved or not."""
+        if self.submit_item is None:
+            return
+        copy = self._open_work_copy()
+        store_controller = getattr(self.main_controller, 'store_controller', None)
+        modified = store_controller is not None and store_controller.is_modified()
+        self.submit_item.set_sensitive(copy is not None and (modified or bool(copy.pending())))
+
+    def submit(self, parent=None):
+        """Saves the work copy open, then sends its changes to its
+        server (submitdialog.py)."""
+        from .submitdialog import SubmitDialogs
+
+        copy = self._open_work_copy()
+        if copy is None:
+            return None
+        return SubmitDialogs(self, copy, self._parent(parent)).run()
 
     def _parent(self, parent):
         return parent or self.main_controller.view.main_window
