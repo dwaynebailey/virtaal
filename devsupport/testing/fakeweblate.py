@@ -31,6 +31,13 @@ edit() changes a unit as another translator would; forbid() answers
 enforce() stores "needs editing" for "translated" as an enforced check
 does, and old_states refuses 11 and 12 as Weblate before 2026.x does.
 
+For Update: a translation's file is written from its units at each
+download, as Weblate writes it from its database, so others' edits
+show in it. add_unit(), remove_unit() and change_source() change the
+set of units, as a change to the source strings in the project would.
+offline drops every connection unanswered, as a machine with no
+network sees it, until it is set back.
+
 The server itself and run_until() are fakeplatform.py's, shared with
 any other platform's fake. Never point Virtaal at a real Weblate server
 from a test.
@@ -84,6 +91,8 @@ class FakeWeblate(FakeServer):
         """'standard' (Weblate 5.10+) or 'legacy' ({"detail": ...})."""
         self.not_weblate = False
         """Answers every request with a web page, like another site."""
+        self.offline = False
+        """Drops every connection unanswered and unrecorded."""
         self.rate_limit = None
         """Requests allowed per window and token, or None."""
         self.rate_window = 3600
@@ -301,26 +310,12 @@ class FakeWeblate(FakeServer):
         source, target, Weblate state or None), and their units; a
         plural's source and target are lists of its forms. As Weblate
         does, a needs-editing state is written fuzzy, the rest plain."""
-        from translate.misc.multistring import multistring
-        from translate.storage import po
-
-        store = po.pofile()
-        store.updateheader(add=True, Language=code)
-        if any(isinstance(entry[1], list) for entry in entries):
-            store.updateheader(Plural_Forms='nplurals=2; plural=(n != 1);')
-        units = []
-        for position, (context, source, target, state) in enumerate(entries, 1):
-            plural = isinstance(source, list)
-            unit = store.addsourceunit(multistring(source) if plural else source)
-            if context:
-                unit.setcontext(context)
-            unit.target = multistring(target) if plural else target
-            made = self.unit(
-                project, component, code, source, target, context, state, position=position
-            )
-            unit.markfuzzy(made['fuzzy'] and any(made['target']))
-            units.append(made)
-        self.set_file(project, component, code, bytes(store), units, 'text/x-po')
+        units = [
+            self.unit(project, component, code, source, target, context, state, position=position)
+            for position, (context, source, target, state) in enumerate(entries, 1)
+        ]
+        self.set_file(project, component, code, _po_bytes(code, units), units, 'text/x-po')
+        self._parent(project, component).setdefault('writers', {})[code] = _po_bytes
         return units
 
     def fill_json(self, project, component, code, template, translated, states=None):
@@ -343,6 +338,7 @@ class FakeWeblate(FakeServer):
             for position, (key, text) in enumerate(template.items(), 1)
         ]
         self.set_file(project, component, code, _json_bytes(translated), units, 'application/json')
+        self._keyed(project, component, code, _json_bytes)
         return units
 
     def fill_android(self, project, component, code, template, translated, states=None):
@@ -364,7 +360,61 @@ class FakeWeblate(FakeServer):
             for position, (key, text) in enumerate(template.items(), 1)
         ]
         self.set_file(project, component, code, _android_bytes(translated), units, 'text/xml')
+        self._keyed(project, component, code, _android_bytes)
         return units
+
+    def _keyed(self, project, component, code, writer):
+        """Writes a monolingual translation, and its template, from its
+        units: the template every key with its source, the translation
+        the keys translated."""
+
+        def translation(_code, units):
+            return writer({u['context']: u['target'][0] for u in units if any(u['target'])})
+
+        def template(units):
+            return writer({u['context']: u['source'][0] for u in units})
+
+        parent = self._parent(project, component)
+        parent.setdefault('writers', {})[code] = translation
+        parent['template_writer'] = (code, template)
+
+    # The set of units #
+
+    def _units_of(self, unit):
+        """(component, language code, its list of units) holding unit."""
+        for project in self.projects.values():
+            for parent in project['components'].values():
+                for code, units in parent.get('units', {}).items():
+                    if any(u is unit for u in units):
+                        return parent, code, units
+        raise KeyError(unit['id'])
+
+    def add_unit(self, project, component, code, source, target='', context='', state=None):
+        """A new unit at the end of a translation, as a new source string
+        brings."""
+        units = self._parent(project, component)['units'][code]
+        unit = self.unit(project, component, code, source, target, context, state)
+        unit['position'] = len(units) + 1
+        unit['last_updated'] = self._tick()
+        units.append(unit)
+        self.units[unit['id']] = unit
+        return unit
+
+    def remove_unit(self, unit_id):
+        """Drops a unit, as a source string removed does."""
+        unit = self.units.pop(unit_id)
+        _parent, _code, units = self._units_of(unit)
+        units[:] = [u for u in units if u is not unit]
+        for position, other in enumerate(units, 1):
+            other['position'] = position
+
+    def change_source(self, unit_id, source):
+        """Gives a unit new source text, keeping its id, as a monolingual
+        key's changed string does."""
+        unit = self.units[unit_id]
+        unit['source'] = source if isinstance(source, list) else [source]
+        unit['last_updated'] = self._tick()
+        return unit
 
     # Changes #
 
@@ -515,6 +565,8 @@ class FakeWeblate(FakeServer):
 
     def handle(self, request):
         """(status, headers, body) for one request."""
+        if self.offline:
+            return None, {}, None
         self.requests.append(request)
         fault = self._take_fault(request['method'], request['path'])
         if fault is not None:
@@ -598,6 +650,9 @@ class FakeWeblate(FakeServer):
         if translation is None or code not in parent.get('files', {}):
             return self._no_translation()
         data, content_type = parent['files'][code]
+        writer = parent.get('writers', {}).get(code)
+        if writer is not None:
+            data = writer(code, parent['units'][code])
         name = translation['filename'].rsplit('/', 1)[-1]
         headers = {
             'Content-Type': content_type,
@@ -726,7 +781,11 @@ class FakeWeblate(FakeServer):
         parent = self._component(scope, project, component)
         if parent is None or 'template_file' not in parent:
             return 404, self.error(404, 'not_found', 'No Component matches the given query.')
-        return 200, parent['template_file'], {'Content-Type': 'application/octet-stream'}
+        data = parent['template_file']
+        if 'template_writer' in parent:
+            code, writer = parent['template_writer']
+            data = writer(parent['units'][code])
+        return 200, data, {'Content-Type': 'application/octet-stream'}
 
 
 ROUTES = [
@@ -763,6 +822,27 @@ def _effective():
         'effective_pull_message': '',
         'effective_secondary_language': None,
     }
+
+
+def _po_bytes(code, units):
+    """A PO file of units (as the API gives them), as Weblate writes it:
+    needs editing (10, 11, 12) fuzzy, the rest plain."""
+    from translate.misc.multistring import multistring
+    from translate.storage import po
+
+    store = po.pofile()
+    store.updateheader(add=True, Language=code)
+    if any(len(unit['source']) > 1 for unit in units):
+        store.updateheader(Plural_Forms='nplurals=2; plural=(n != 1);')
+    for unit in units:
+        plural = len(unit['source']) > 1
+        source, target = unit['source'], unit['target']
+        entry = store.addsourceunit(multistring(source) if plural else source[0])
+        if unit['context']:
+            entry.setcontext(unit['context'])
+        entry.target = multistring(target) if plural else target[0]
+        entry.markfuzzy(unit['fuzzy'] and any(target))
+    return bytes(store)
 
 
 def _json_bytes(data):
