@@ -224,6 +224,9 @@ class WeblatePlatform(Platform):
 
     def __init__(self, path=None):
         self.keys = KeyFile(path)
+        self.budgets = {}
+        """What each server last said of its budget: one for every
+        session of a server and token."""
 
     def credential_fields(self):
         from virtaal.views.widgets.settingsdialog import SECRET, Field
@@ -254,7 +257,8 @@ class WeblatePlatform(Platform):
         self.keys.save()
 
     def session(self, url, credentials):
-        return WeblateSession(self.client_factory(url, credentials.get('token', '')))
+        token = credentials.get('token', '')
+        return WeblateSession(self.client_factory(url, token, budgets=self.budgets))
 
     def state_code(self, state, target):
         return submit_code(state, target)

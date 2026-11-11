@@ -2612,6 +2612,14 @@ msgid_plural "Connected: %(count)s projects"
 msgstr[0] ""
 msgstr[1] ""
 
+#. l10n: A translation server's limit of requests an hour; %(time)s is when it allows more, such as 14:05
+#: virtaal/support/platforms/serversdialog.py
+#, python-format
+msgid "%(left)s of %(limit)s request left until %(time)s."
+msgid_plural "%(left)s of %(limit)s requests left until %(time)s."
+msgstr[0] ""
+msgstr[1] ""
+
 #: virtaal/support/platforms/serversdialog.py
 msgid ""
 "Virtaal sends your token, and the translations you submit, to the servers "
@@ -2665,6 +2673,11 @@ msgstr[1] ""
 
 #: virtaal/support/platforms/submitdialog.py
 msgid "Submit again to send the rest."
+msgstr ""
+
+#. l10n: Follows "N of M requests left until 08:40." when they are fewer than Submit needs
+#: virtaal/support/platforms/submitdialog.py
+msgid "Submit will pause or stop when they run out."
 msgstr ""
 
 #. l10n: In the status bar after a Submit to a translation server

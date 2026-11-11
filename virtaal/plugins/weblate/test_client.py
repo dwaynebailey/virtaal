@@ -371,6 +371,23 @@ def test_a_used_up_rate_limit_stops_requests_before_sending(fake, waits):
     assert len(fake.requests) == 2
 
 
+def test_the_budget_has_the_limit_and_is_shared_by_clients_of_one_server(fake):
+    fake.rate_limit = 50
+    budgets = {}
+    first = Client(fake.url, TOKEN, budgets=budgets)
+    second = Client(fake.url, TOKEN, budgets=budgets)
+    other = Client(fake.url, 'wlu_other', budgets=budgets)
+    assert second.budget() is None
+    outcome = Outcome()
+
+    first.test_connection(outcome.done, outcome.failed)
+    outcome.wait()
+
+    left, reset_in, limit = second.budget()
+    assert (left, limit) == (49, 50) and 0 < reset_in <= 3600
+    assert other.budget() is None
+
+
 def test_the_fakes_rate_limit_answers_429_with_retry_after(fake):
     fake.rate_limit = 1
     _test(fake)

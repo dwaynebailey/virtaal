@@ -18,17 +18,13 @@ from virtaal.support.libi18n.numbers import format_number
 from virtaal.views.widgets.util import run_dialog
 
 from . import HTTP, PlatformError, submit
-from .serversdialog import error_message
+from .serversdialog import budget_message, clock_time, error_message
 
 CHOICES = (submit.KEEP_MINE, submit.TAKE_THEIRS, submit.SKIP)
 
 
 def _forms(forms):
     return '\n'.join(forms)
-
-
-def _resume_time(seconds):
-    return GLib.DateTime.new_now_local().add_seconds(seconds).format('%H:%M')
 
 
 def _counted(text, count):
@@ -58,7 +54,7 @@ def result_message(result, copy, platform):
         lines.append(
             # l10n: A translation server allows so many requests an hour; %(time)s is when it allows more, such as 14:05
             _("The server's request limit is used up until %(time)s.")
-            % {'time': _resume_time(result.reset_in)}
+            % {'time': clock_time(result.reset_in)}
         )
     elif result.stop == submit.BUDGET:
         lines.append(error_message(PlatformError(HTTP, 429), platform))
@@ -92,6 +88,19 @@ def result_message(result, copy, platform):
     if result.left:
         lines.append(_('Submit again to send the rest.'))
     return '\n'.join(lines)
+
+
+def budget_warning(budget, count):
+    """What to say when the server's budget looks too small for count
+    changed units, or None if it is big enough or unknown."""
+    if budget is None or budget.limit is None:
+        return None
+    # The lock and the two queries for changes, besides one per unit.
+    needed = count + 3
+    if budget.left - submit.Submission.RESERVE >= needed:
+        return None
+    # l10n: Follows "N of M requests left until 08:40." when they are fewer than Submit needs
+    return budget_message(budget) + ' ' + _('Submit will pause or stop when they run out.')
 
 
 def status_message(result):
@@ -234,6 +243,7 @@ class SubmitDialogs:
         self.main_controller = registry.main_controller
         self.platform = registry.platform_of(copy)
         self.submission = None
+        self.session = None
 
     def _tell(self, text, kind=Gtk.MessageType.INFO):
         dialog = Gtk.MessageDialog(
@@ -259,7 +269,11 @@ class SubmitDialogs:
             )
             % {'count': format_number(count), 'platform': self.copy.platform_name()},
         )
-        dialog.format_secondary_text(self.copy.location())
+        lines = [self.copy.location()]
+        warning = self.session and budget_warning(self.session.budget(), count)
+        if warning:
+            lines.append(warning)
+        dialog.format_secondary_text('\n\n'.join(lines))
         dialog.add_button(_('_Cancel'), Gtk.ResponseType.CANCEL)
         dialog.add_button(_('_Submit'), Gtk.ResponseType.OK)
         dialog.set_default_response(Gtk.ResponseType.OK)
@@ -292,9 +306,10 @@ class SubmitDialogs:
                 Gtk.MessageType.ERROR,
             )
             return None
+        self.session = server.session()
         if not self.confirm(len(self.copy.pending())):
             return None
-        result = self.send(server.session())
+        result = self.send(self.session)
         self.finish(result)
         return result
 

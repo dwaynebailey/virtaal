@@ -18,12 +18,20 @@ from devsupport.testing.fakeweblate import TOKEN, demo, run_until
 from virtaal.common import pan_app
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.plugins.weblate.backend import WeblatePlatform
-from virtaal.support.platforms import Registry, submit, submitdialog, workcopy
+from virtaal.support.platforms import (
+    Budget,
+    Registry,
+    serversdialog,
+    submit,
+    submitdialog,
+    workcopy,
+)
 from virtaal.support.platforms.servers import ServerList
 from virtaal.support.platforms.submitdialog import (
     ConflictDialog,
     ProgressDialog,
     SubmitDialogs,
+    budget_warning,
     result_message,
 )
 
@@ -292,7 +300,7 @@ def test_a_full_submit_needs_no_message():
 
 @pytest.mark.usefixtures('_english')
 def test_a_submit_cut_short_says_how_far_it_got_and_what_to_do(monkeypatch):
-    monkeypatch.setattr(submitdialog, '_resume_time', lambda seconds: '14:05')
+    monkeypatch.setattr(submitdialog, 'clock_time', lambda seconds: '14:05')
     platform = WeblatePlatform.__new__(WeblatePlatform)
 
     budget = result_message(_result(sent=2, stop=submit.BUDGET, reset_in=900), _Copy(), platform)
@@ -314,3 +322,46 @@ def test_a_submit_cut_short_says_how_far_it_got_and_what_to_do(monkeypatch):
         '1 unit changed on the server was left as it is.\n'
         'Submit again to send the rest.'
     )
+
+
+@pytest.mark.usefixtures('_english')
+def test_a_budget_too_small_for_the_changes_is_warned_of_only_when_known(monkeypatch):
+    monkeypatch.setattr(serversdialog, 'clock_time', lambda seconds: '08:40')
+
+    assert budget_warning(None, 200) is None
+    assert budget_warning(Budget(4980, 1200, 5000), 200) is None
+    # A server that says what is left but not its limit.
+    assert budget_warning(Budget(10, 1200), 200) is None
+    assert budget_warning(Budget(200, 1200, 5000), 200) == (
+        '200 of 5,000 requests left until 08:40. Submit will pause or stop when they run out.'
+    )
+
+
+@pytest.mark.usefixtures('_english')
+def test_the_confirm_shows_the_budget_warning(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(serversdialog, 'clock_time', lambda seconds: '08:40')
+    shown = []
+
+    def answer(dialog):
+        shown.append(dialog.props.secondary_text)
+        return Gtk.ResponseType.CANCEL
+
+    monkeypatch.setattr(submitdialog, 'run_dialog', answer)
+    dialogs = SubmitDialogs.__new__(SubmitDialogs)
+    dialogs.parent = None
+    dialogs.copy = SimpleNamespace(
+        location=lambda: 'Hello/Program', platform_name=lambda: 'Weblate'
+    )
+    dialogs.session = SimpleNamespace(budget=lambda: Budget(30, 600, 5000))
+
+    assert not dialogs.confirm(12)
+    dialogs.session = SimpleNamespace(budget=lambda: None)
+    dialogs.confirm(12)
+
+    assert shown == [
+        'Hello/Program\n\n30 of 5,000 requests left until 08:40. '
+        'Submit will pause or stop when they run out.',
+        'Hello/Program',
+    ]

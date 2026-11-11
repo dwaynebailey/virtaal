@@ -173,6 +173,24 @@ def test_one_project_is_singular(tmp_path, monkeypatch, no_wlc):
         assert _status(dialog) == 'Connected: 1 project'
 
 
+def test_the_test_says_how_many_requests_are_left_when_the_server_says(
+    servers, fake, monkeypatch, no_wlc
+):
+    from virtaal.support.platforms import serversdialog
+
+    monkeypatch.setattr(serversdialog, 'clock_time', lambda seconds: '08:40')
+    fake.rate_limit = 5000
+    servers.put(servers.platforms[0], fake.url, {'token': TOKEN})
+    dialog = ServersDialog(servers)
+    dialog.treeview.get_selection().select_path(
+        Gtk.TreePath.new_from_indices([len(dialog.store) - 1])
+    )
+
+    dialog.btn_test.clicked()
+
+    assert _status(dialog) == 'Connected: 14 projects\n4,999 of 5,000 requests left until 08:40.'
+
+
 def test_editing_a_server_replaces_it(servers, fake, monkeypatch, no_wlc):
     dialog = ServersDialog(servers)
     _answer(monkeypatch, {'url': fake.url, 'token': 'wlu_new'})

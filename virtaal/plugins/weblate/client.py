@@ -12,7 +12,9 @@ Every request sends the token in an Authorization header, which nothing
 logs, and only to URLs under the server's API URL. Lists are paged:
 each page's "next" link is followed. A 429 or a busy server is waited
 out (Retry-After), and so is a used-up X-RateLimit-Remaining; the last
-X-RateLimit headers seen are the budget() a Submit paces itself by.
+X-RateLimit headers seen are the budget() a Submit paces itself by,
+kept in budgets, which the platform shares between its clients of one
+server and token.
 A unit is changed with PATCH, which is safe to send again.
 """
 
@@ -25,7 +27,7 @@ from gi.repository import GLib
 
 from virtaal.plugins.tm.models.remotetm import retry_after
 from virtaal.support.httpclient import HTTPClient, HTTPRequest, loggable_url
-from virtaal.support.platforms import AUTH, HTTP, NETWORK, NOT_PLATFORM, PlatformError
+from virtaal.support.platforms import AUTH, HTTP, NETWORK, NOT_PLATFORM, Budget, PlatformError
 
 _LOOPBACK = ('localhost', '127.0.0.1', '::1')
 _BUSY = (502, 503, 504)
@@ -108,7 +110,7 @@ class Client:
     schedule = staticmethod(_later)
     """Calls callback() after seconds: GLib's timer, or a test's."""
 
-    def __init__(self, url, token, http=None):
+    def __init__(self, url, token, http=None, budgets=None):
         self.api = api_url(url)
         self.token = token
         if http is None:
@@ -117,7 +119,7 @@ class Client:
         self.http = http
         self._resume_at = 0.0
         self._generation = 0
-        self._budget = None
+        self._budgets = {} if budgets is None else budgets
 
     def __repr__(self):
         return '<Weblate %s>' % self.api
@@ -216,18 +218,26 @@ class Client:
             reset = max(0.0, float(request.response_header('X-RateLimit-Reset')))
         except (TypeError, ValueError):
             return
+        try:
+            limit = int(request.response_header('X-RateLimit-Limit'))
+        except (TypeError, ValueError):
+            limit = None
         now = time.monotonic()
-        self._budget = (remaining, now + reset)
+        self._budgets[self._budget_key()] = (remaining, now + reset, limit)
         if remaining <= 0:
             self._resume_at = now + reset
 
+    def _budget_key(self):
+        return self.api, self.token
+
     def budget(self):
-        """(requests left, seconds until the count starts again) as the
-        server last reported them, or None if it doesn't."""
-        if self._budget is None:
+        """The Budget as the server last reported it, or None if it
+        doesn't."""
+        known = self._budgets.get(self._budget_key())
+        if known is None:
             return None
-        remaining, reset_at = self._budget
-        return remaining, max(0.0, reset_at - time.monotonic())
+        remaining, reset_at, limit = known
+        return Budget(remaining, max(0.0, reset_at - time.monotonic()), limit)
 
     def _replied(self, request, url, on_reply, on_error, attempt, raw=False, write=None):
         status = request.status

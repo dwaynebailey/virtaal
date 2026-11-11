@@ -70,6 +70,12 @@ None, the RemoteUnits, and the names of the project and the component
 ({'project': ..., 'component': ...}) to show."""
 
 
+Budget = namedtuple('Budget', 'left reset_in limit', defaults=(None,))
+"""A server's request budget as it last said: requests left, seconds
+until that count starts again, and how many it allows in all (None if
+it doesn't say)."""
+
+
 class Session:
     """One server of a platform, as its address and credentials. Every
     method returns at once and later calls one of its callbacks on the
@@ -121,8 +127,8 @@ class Session:
         raise NotImplementedError
 
     def budget(self):
-        """(requests left, seconds until that count starts again) as the
-        server last said, or None if it doesn't say."""
+        """The Budget as the server last said, to this session or another
+        of the same server and credentials, or None if it doesn't say."""
         return None
 
     def cancel(self):

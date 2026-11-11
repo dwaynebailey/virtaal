@@ -9,7 +9,7 @@
 every platform, test a connection, and import servers a platform finds
 elsewhere (Weblate: wlc's)."""
 
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.common.pan_app import ngettext
 from virtaal.support.libi18n.numbers import format_number
@@ -42,6 +42,29 @@ def connected_message(count):
     # l10n: A translation server accepted the token; %(count)s is the number of projects it shows
     text = ngettext('Connected: %(count)s project', 'Connected: %(count)s projects', count)
     return text % {'count': format_number(count)}
+
+
+def clock_time(seconds):
+    """The time of day seconds from now, such as 14:05."""
+    return GLib.DateTime.new_now_local().add_seconds(seconds).format('%H:%M')
+
+
+def budget_message(budget):
+    """What the server allows: "4,980 of 5,000 requests left until
+    08:40.", or None when it doesn't say."""
+    if budget is None or budget.limit is None:
+        return None
+    text = ngettext(
+        # l10n: A translation server's limit of requests an hour; %(time)s is when it allows more, such as 14:05
+        '%(left)s of %(limit)s request left until %(time)s.',
+        '%(left)s of %(limit)s requests left until %(time)s.',
+        budget.limit,
+    )
+    return text % {
+        'left': format_number(budget.left),
+        'limit': format_number(budget.limit),
+        'time': clock_time(budget.reset_in),
+    }
 
 
 class ServerDialog(SettingsDialog):
@@ -227,11 +250,15 @@ class ServersDialog:
             return
         if self._session is not None:
             self._session.cancel()
-        self._session = server.session()
+        session = self._session = server.session()
         self._show_status(server.url, busy=True)
-        self._session.test_connection(
-            lambda count: self._show_status(connected_message(count)),
-            lambda error: self._show_status(error_message(error, server.platform)),
+
+        def connected(count):
+            lines = [connected_message(count), budget_message(session.budget())]
+            self._show_status('\n'.join(line for line in lines if line))
+
+        session.test_connection(
+            connected, lambda error: self._show_status(error_message(error, server.platform))
         )
 
     def run(self):
