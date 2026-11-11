@@ -21,7 +21,7 @@ from .config import ServerList
 
 class Plugin(BasePlugin):
     display_name = _('Weblate')
-    description = _('Translate projects hosted on Weblate servers.')
+    description = _('Translate projects hosted on Weblate servers')
     version = 0.1
 
     # INITIALIZERS #

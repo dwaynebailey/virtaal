@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 02:46+0000\n"
+"POT-Creation-Date: 2026-11-11 02:50+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2484,7 +2484,7 @@ msgid "Weblate"
 msgstr ""
 
 #: virtaal/plugins/weblate/__init__.py
-msgid "Translate projects hosted on Weblate servers."
+msgid "Translate projects hosted on Weblate servers"
 msgstr ""
 
 #: virtaal/plugins/weblate/__init__.py
