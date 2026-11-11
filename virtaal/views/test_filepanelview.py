@@ -294,7 +294,11 @@ def test_enter_or_a_click_applies_the_highlight_at_once():
     _select(view, 2)
     view.treeview.row_activated(Gtk.TreePath.new_from_indices([2]), view.treeview.get_column(0))
     assert selected == [{2}]
-    _run_main_loop(0.2)
+    # The arrow key's turn ends on an idle, which a busy runner can delay.
+    _run_main_loop(5, until=lambda: not view._keyed)
+    assert not view._keyed
+    # Applied at once, the highlight left no timer to apply it again.
+    assert view._scope_source is None
     assert selected == [{2}]
 
     # A click changes the selection with no arrow key.
