@@ -962,12 +962,51 @@ def demo():
     return fake
 
 
+DEMO_PO_DE = [
+    ('', 'Open', 'Öffnen', 20),
+    ('', 'Save', 'Speichern', 20),
+    ('', 'Close', '', 0),
+    ('', 'Help', 'Hilfe', 20),
+]
+DEMO_PO_ZU = [
+    ('', 'Open', 'Vula', 20),
+    ('', 'Save', '', 0),
+    ('', 'Close', 'Vala', 10),
+    ('', 'Help', '', 0),
+]
+DEMO_INSTALLER = {
+    'af': [('', 'Install', 'Installeer', 20), ('', 'Cancel', '', 0), ('', 'Next', 'Volgende', 20)],
+    'de': [
+        ('', 'Install', 'Installieren', 20),
+        ('', 'Cancel', 'Abbrechen', 20),
+        ('', 'Next', '', 0),
+    ],
+}
+
+
+def demo_many():
+    """demo(), with Program in German and Zulu too, and a second
+    component, Installer, in Afrikaans and German: for opening several
+    translations at once."""
+    fake = demo()
+    fake.fill_po('hello', 'program', 'de', DEMO_PO_DE)
+    fake.fill_po('hello', 'program', 'zu', DEMO_PO_ZU)
+    fake.add_component('hello', 'installer', 'Installer')
+    for code, name in (('af', 'Afrikaans'), ('de', 'German')):
+        entries = DEMO_INSTALLER[code]
+        done = sum(1 for entry in entries if entry[2])
+        fake.add_translation('hello', 'installer', code, name, translated=done, total=len(entries))
+        fake.fill_po('hello', 'installer', code, entries)
+    return fake
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', type=int, default=8765)
+    parser.add_argument('--many', action='store_true', help='more languages and components')
     args = parser.parse_args()
     print('Fake Weblate at http://127.0.0.1:%d/ with token %s' % (args.port, TOKEN), flush=True)
-    demo().serve(args.port)
+    (demo_many() if args.many else demo()).serve(args.port)
 
 
 if __name__ == '__main__':
