@@ -14,8 +14,8 @@ import socket
 import pytest
 
 from devsupport.testing.fakeweblate import TOKEN, FakeWeblate, run_until
-from virtaal.plugins.weblate import client as weblate
 from virtaal.plugins.weblate.client import Client, api_url, component_slug, path_part
+from virtaal.support import platforms
 
 
 @pytest.fixture
@@ -148,7 +148,7 @@ def test_a_bad_token_is_refused(fake, style):
 
     outcome = _test(fake, 'wlu_wrong')
 
-    assert outcome.error.kind == weblate.AUTH
+    assert outcome.error.kind == platforms.AUTH
     assert outcome.error.status == 401
     assert outcome.error.detail == 'Invalid token.'
 
@@ -171,14 +171,14 @@ def test_no_server_is_a_network_error():
 
     outcome = _test('http://127.0.0.1:%d/' % port)
 
-    assert outcome.error.kind == weblate.NETWORK
+    assert outcome.error.kind == platforms.NETWORK
     assert outcome.error.detail
 
 
 def test_a_dropped_connection_is_a_network_error(fake):
     fake.fail('/api/projects/', None)
 
-    assert _test(fake).error.kind == weblate.NETWORK
+    assert _test(fake).error.kind == platforms.NETWORK
 
 
 @pytest.mark.parametrize('status', [200, 404, 302])
@@ -189,13 +189,13 @@ def test_another_web_site_is_not_weblate(fake, status):
 
     outcome = _test(fake)
 
-    assert outcome.error.kind == weblate.NOT_WEBLATE
+    assert outcome.error.kind == platforms.NOT_PLATFORM
 
 
 def test_json_that_is_not_a_list_is_not_weblate(fake):
     fake.fail('/api/projects/', 200, body=b'{"hello": "world"}')
 
-    assert _test(fake).error.kind == weblate.NOT_WEBLATE
+    assert _test(fake).error.kind == platforms.NOT_PLATFORM
 
 
 def test_a_server_error_gives_its_status_and_words(fake):
@@ -204,7 +204,7 @@ def test_a_server_error_gives_its_status_and_words(fake):
 
     outcome = _test(fake)
 
-    assert (outcome.error.kind, outcome.error.status) == (weblate.HTTP, 500)
+    assert (outcome.error.kind, outcome.error.status) == (platforms.HTTP, 500)
     assert outcome.error.detail == 'Something broke.'
 
 
@@ -341,7 +341,7 @@ def test_retries_give_up_after_max_tries(fake, waits):
 
     outcome = _test(fake)
 
-    assert (outcome.error.kind, outcome.error.status) == (weblate.HTTP, 503)
+    assert (outcome.error.kind, outcome.error.status) == (platforms.HTTP, 503)
     assert len(fake.requests) == Client.MAX_TRIES
 
 
@@ -350,7 +350,7 @@ def test_a_wait_too_long_fails_at_once(fake, waits):
 
     outcome = _test(fake)
 
-    assert (outcome.error.kind, outcome.error.status) == (weblate.HTTP, 429)
+    assert (outcome.error.kind, outcome.error.status) == (platforms.HTTP, 429)
     assert waits == []
 
 

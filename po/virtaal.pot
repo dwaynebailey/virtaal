@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 03:24+0000\n"
+"POT-Creation-Date: 2026-11-11 03:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1367,7 +1367,7 @@ msgid "Needs review"
 msgstr ""
 
 #: virtaal/controllers/unitcontroller.py
-#: virtaal/plugins/weblate/browsedialog.py virtaal/views/mainview.py
+#: virtaal/support/platforms/browsedialog.py virtaal/views/mainview.py
 msgid "Translated"
 msgstr ""
 
@@ -1655,11 +1655,13 @@ msgid "Enabled"
 msgstr ""
 
 #: virtaal/plugins/lookup/models/weblookup.py
-#: virtaal/plugins/weblate/browsedialog.py virtaal/views/widgets/selectview.py
+#: virtaal/support/platforms/browsedialog.py
+#: virtaal/views/widgets/selectview.py
 msgid "Name"
 msgstr ""
 
 #: virtaal/plugins/lookup/models/weblookup.py
+#: virtaal/support/platforms/serversdialog.py
 msgid "URL"
 msgstr ""
 
@@ -1928,8 +1930,9 @@ msgid "Amagama Sources"
 msgstr ""
 
 #: virtaal/plugins/tm/amagamadialog.py virtaal/plugins/tm/fetchdialog.py
-#: virtaal/plugins/tm/localtmdialog.py virtaal/plugins/weblate/browsedialog.py
-#: virtaal/plugins/weblate/serversdialog.py virtaal/views/mainview.py
+#: virtaal/plugins/tm/localtmdialog.py
+#: virtaal/support/platforms/browsedialog.py
+#: virtaal/support/platforms/serversdialog.py virtaal/views/mainview.py
 #: virtaal/views/setscanview.py virtaal/views/widgets/selectdialog.py
 msgid "_Close"
 msgstr ""
@@ -2147,7 +2150,7 @@ msgid "Get Microsoft's UI strings glossaries"
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py virtaal/plugins/tm/tmview.py
-#: virtaal/plugins/weblate/serversdialog.py
+#: virtaal/support/platforms/serversdialog.py
 msgid "_Remove"
 msgstr ""
 
@@ -2170,6 +2173,7 @@ msgstr ""
 #. l10n: Column heading: how a file came into the translation
 #. memory, "Saved" (by saving it) or "Imported"
 #: virtaal/plugins/tm/localtmdialog.py
+#: virtaal/support/platforms/serversdialog.py
 msgid "Type"
 msgstr ""
 
@@ -2478,8 +2482,7 @@ msgstr ""
 msgid "?"
 msgstr ""
 
-#: virtaal/plugins/weblate/__init__.py virtaal/plugins/weblate/browsedialog.py
-#: virtaal/plugins/weblate/serversdialog.py
+#: virtaal/plugins/weblate/__init__.py virtaal/plugins/weblate/backend.py
 msgid "Weblate"
 msgstr ""
 
@@ -2487,84 +2490,23 @@ msgstr ""
 msgid "Translate projects hosted on Weblate servers"
 msgstr ""
 
-#: virtaal/plugins/weblate/__init__.py
-msgid "Open from _Weblate…"
-msgstr ""
-
-#: virtaal/plugins/weblate/browsedialog.py
-#: virtaal/plugins/weblate/serversdialog.py
-msgid "Weblate Servers"
-msgstr ""
-
-#. l10n: Marks a Weblate component that is a glossary, not strings to translate
-#: virtaal/plugins/weblate/browsedialog.py
-msgid "Glossary"
-msgstr ""
-
-#. l10n: A Weblate server answered that the API token is wrong or expired
-#: virtaal/plugins/weblate/serversdialog.py
-msgid "The server refused the token."
-msgstr ""
-
-#. l10n: %(reason)s is the network library's own message, in English
-#: virtaal/plugins/weblate/serversdialog.py
-#, python-format
-msgid "Couldn't connect to the server: %(reason)s"
-msgstr ""
-
-#: virtaal/plugins/weblate/serversdialog.py
-msgid "No Weblate server answered at this address."
-msgstr ""
-
-#. l10n: %(status)s is an HTTP status code, such as 403 or 500
-#: virtaal/plugins/weblate/serversdialog.py
-#, python-format
-msgid "The server replied with error %(status)s."
-msgstr ""
-
-#. l10n: A Weblate server accepted the token; %(count)s is the number of projects it shows
-#: virtaal/plugins/weblate/serversdialog.py
-#, python-format
-msgid "Connected: %(count)s project"
-msgid_plural "Connected: %(count)s projects"
-msgstr[0] ""
-msgstr[1] ""
-
-#. l10n: The address of a Weblate server, such as https://hosted.weblate.org/
-#: virtaal/plugins/weblate/serversdialog.py
-msgid "_URL:"
+#. l10n: Imports the servers and tokens of wlc, Weblate's command-line client
+#: virtaal/plugins/weblate/backend.py
+msgid "_Import from wlc"
 msgstr ""
 
 #. l10n: The API token a Weblate server gives each user, on its profile page
-#: virtaal/plugins/weblate/serversdialog.py
+#: virtaal/plugins/weblate/backend.py
 msgid "_Token:"
 msgstr ""
 
 #. l10n: Shown for an address starting http:// instead of https://
-#: virtaal/plugins/weblate/serversdialog.py
+#: virtaal/plugins/weblate/backend.py
 msgid "Use https: the token would be sent unencrypted."
 msgstr ""
 
-#: virtaal/plugins/weblate/serversdialog.py
-msgid ""
-"Virtaal sends your token, and the translations you submit, to the servers "
-"you add here."
-msgstr ""
-
-#: virtaal/plugins/weblate/serversdialog.py
-msgid "_Add…"
-msgstr ""
-
-#: virtaal/plugins/weblate/serversdialog.py
-msgid "_Edit…"
-msgstr ""
-
-#: virtaal/plugins/weblate/serversdialog.py
-msgid "_Test Connection"
-msgstr ""
-
-#: virtaal/plugins/weblate/serversdialog.py
-msgid "_Import from wlc"
+#: virtaal/plugins/weblate/backend.py
+msgid "No Weblate server answered at this address."
 msgstr ""
 
 #: virtaal/support/crash_dialog.py
@@ -2601,6 +2543,70 @@ msgstr ""
 #: virtaal/support/phrase_compat.py
 #, python-format
 msgid "Phrase tags not in the source: %s"
+msgstr ""
+
+#. l10n: The address of a translation server, such as https://hosted.weblate.org/
+#: virtaal/support/platforms/__init__.py
+msgid "_URL:"
+msgstr ""
+
+#. l10n: File menu: browse a translation server (Weblate, ...) and open a translation from it
+#: virtaal/support/platforms/__init__.py
+msgid "Open from Tra_nslation Server…"
+msgstr ""
+
+#. l10n: The servers of translation platforms, such as Weblate
+#: virtaal/support/platforms/browsedialog.py
+#: virtaal/support/platforms/serversdialog.py
+msgid "Translation Servers"
+msgstr ""
+
+#. l10n: Marks a component (a part of a project) that is a glossary, not strings to translate
+#: virtaal/support/platforms/browsedialog.py
+msgid "Glossary"
+msgstr ""
+
+#. l10n: A translation server answered that the API token is wrong or expired
+#: virtaal/support/platforms/serversdialog.py
+msgid "The server refused the token."
+msgstr ""
+
+#. l10n: %(reason)s is the network library's own message, in English
+#: virtaal/support/platforms/serversdialog.py
+#, python-format
+msgid "Couldn't connect to the server: %(reason)s"
+msgstr ""
+
+#. l10n: %(status)s is an HTTP status code, such as 403 or 500
+#: virtaal/support/platforms/serversdialog.py
+#, python-format
+msgid "The server replied with error %(status)s."
+msgstr ""
+
+#. l10n: A translation server accepted the token; %(count)s is the number of projects it shows
+#: virtaal/support/platforms/serversdialog.py
+#, python-format
+msgid "Connected: %(count)s project"
+msgid_plural "Connected: %(count)s projects"
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/support/platforms/serversdialog.py
+msgid ""
+"Virtaal sends your token, and the translations you submit, to the servers "
+"you add here."
+msgstr ""
+
+#: virtaal/support/platforms/serversdialog.py
+msgid "_Add…"
+msgstr ""
+
+#: virtaal/support/platforms/serversdialog.py
+msgid "_Edit…"
+msgstr ""
+
+#: virtaal/support/platforms/serversdialog.py
+msgid "_Test Connection"
 msgstr ""
 
 #: virtaal/support/tutorial.py

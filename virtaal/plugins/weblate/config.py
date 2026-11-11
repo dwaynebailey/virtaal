@@ -6,11 +6,13 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """The Weblate servers and their tokens, in weblate.ini in Virtaal's
-config folder (#3337).
+config folder (#3337). The server list (virtaal.support.platforms)
+reads and writes it through WeblatePlatform.
 
 The file has wlc's shape: [keys] maps each server's API URL to its
-token, and [weblate]'s url is the server last used. A token can write
-shared translations, so the file is always written owner-only (0600).
+token, and [weblate]'s url is the Weblate server last used. A token
+can write shared translations, so the file is always written
+owner-only (0600).
 """
 
 import configparser
@@ -47,7 +49,7 @@ def _read(parser, path):
     return True
 
 
-class ServerList:
+class KeyFile:
     """The servers in file order, each an (API URL, token) pair, and the
     one last used."""
 

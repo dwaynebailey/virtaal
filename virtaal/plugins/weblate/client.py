@@ -23,16 +23,7 @@ from gi.repository import GLib
 
 from virtaal.plugins.tm.models.remotetm import retry_after
 from virtaal.support.httpclient import HTTPClient, HTTPRequest, loggable_url
-
-# Error kinds.
-AUTH = 'auth'
-"""The token was refused (401)."""
-NETWORK = 'network'
-"""No reply: no route, a refused connection, TLS, a timeout."""
-NOT_WEBLATE = 'not-weblate'
-"""A reply, but not from Weblate's API."""
-HTTP = 'http'
-"""Any other error status, including a rate limit too long to wait."""
+from virtaal.support.platforms import AUTH, HTTP, NETWORK, NOT_PLATFORM, PlatformError
 
 _LOOPBACK = ('localhost', '127.0.0.1', '::1')
 _BUSY = (502, 503, 504)
@@ -78,19 +69,6 @@ def path_part(slug):
     """A slug in a URL path; a category's '/' is escaped twice, as
     Weblate wants it ("category%252Fcomponent")."""
     return parse.quote(parse.quote(slug, safe=''), safe='')
-
-
-class WeblateError:
-    """Why a request failed: kind, the HTTP status if any, and the
-    server's or curl's own words."""
-
-    def __init__(self, kind, status=None, detail=''):
-        self.kind = kind
-        self.status = status
-        self.detail = detail
-
-    def __repr__(self):
-        return '<WeblateError %s %s %r>' % (self.kind, self.status, self.detail)
 
 
 def error_detail(body):
@@ -165,7 +143,7 @@ class Client:
 
     def get_json(self, url, on_reply, on_error):
         """Asks for url and calls on_reply(data) with its JSON, or
-        on_error(WeblateError)."""
+        on_error(PlatformError)."""
         generation = self._generation
 
         def current(handler):
@@ -176,7 +154,7 @@ class Client:
     def _send(self, url, on_reply, on_error, attempt, waited=False):
         wait = 0 if waited else self._resume_at - time.monotonic()
         if wait > self.MAX_WAIT:
-            on_error(WeblateError(HTTP, 429))
+            on_error(PlatformError(HTTP, 429))
             return
         if wait > 0:
             self.schedule(wait, lambda: self._send(url, on_reply, on_error, attempt, True))
@@ -187,14 +165,14 @@ class Client:
             user_agent=self.http.user_agent,
         )
         if self.http.add(request) is False:
-            on_error(WeblateError(NETWORK))
+            on_error(PlatformError(NETWORK))
             return
 
         def done(request, _value):
             self._replied(request, url, on_reply, on_error, attempt)
 
         def failed(request, reason):
-            on_error(WeblateError(NETWORK, detail=str(reason)))
+            on_error(PlatformError(NETWORK, detail=str(reason)))
 
         for signal in ('http-success', 'http-redirect', 'http-client-error', 'http-server-error'):
             request.connect(signal, done)
@@ -217,20 +195,20 @@ class Client:
         if status == 429 or status in _BUSY:
             if self._retry(request, url, on_reply, on_error, attempt):
                 return
-            on_error(WeblateError(HTTP, status, error_detail(body)))
+            on_error(PlatformError(HTTP, status, error_detail(body)))
         elif status == 401:
-            on_error(WeblateError(AUTH, status, error_detail(body)))
+            on_error(PlatformError(AUTH, status, error_detail(body)))
         elif status in (200, 201):
             try:
                 data = json.loads(body.decode('utf-8'))
             except (UnicodeDecodeError, ValueError):
-                on_error(WeblateError(NOT_WEBLATE, status))
+                on_error(PlatformError(NOT_PLATFORM, status))
                 return
             on_reply(data)
         elif status == 404 or status < 400:
-            on_error(WeblateError(NOT_WEBLATE, status))
+            on_error(PlatformError(NOT_PLATFORM, status))
         else:
-            on_error(WeblateError(HTTP, status, error_detail(body)))
+            on_error(PlatformError(HTTP, status, error_detail(body)))
 
     def _retry(self, request, url, on_reply, on_error, attempt):
         """Sends the request again after the wait the server asks for
@@ -253,12 +231,12 @@ class Client:
 
     def get_list(self, path, on_page, on_done, on_error, params=None):
         """Follows a paged list from path: on_page(results) for each
-        page, then on_done(count), or on_error(WeblateError)."""
+        page, then on_done(count), or on_error(PlatformError)."""
         params = {'page_size': self.PAGE_SIZE, **(params or {})}
 
         def page(data):
             if not _is_page(data):
-                on_error(WeblateError(NOT_WEBLATE, 200))
+                on_error(PlatformError(NOT_PLATFORM, 200))
                 return
             on_page(data['results'])
             following = data.get('next') and self._own(data['next'])
@@ -276,7 +254,7 @@ class Client:
             if _is_page(data):
                 on_done(data['count'])
             else:
-                on_error(WeblateError(NOT_WEBLATE, 200))
+                on_error(PlatformError(NOT_PLATFORM, 200))
 
         self.get_json(self.url('projects/', {'page_size': 1}), reply, on_error)
 
@@ -286,7 +264,7 @@ class Client:
 
         def page(data):
             if not _is_page(data):
-                on_error(WeblateError(NOT_WEBLATE, 200))
+                on_error(PlatformError(NOT_PLATFORM, 200))
                 return
             on_page(data['results'], data.get('next') and self._own(data['next']))
 

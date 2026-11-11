@@ -12,7 +12,7 @@ import sys
 
 import pytest
 
-from virtaal.plugins.weblate.config import ServerList, read_wlc, wlc_config_path
+from virtaal.plugins.weblate.config import KeyFile, read_wlc, wlc_config_path
 
 posix_only = pytest.mark.skipif(sys.platform == 'win32', reason="Windows has no POSIX modes")
 
@@ -26,13 +26,13 @@ def _mode(path):
 
 def test_servers_and_the_last_one_used_survive_a_round_trip(tmp_path):
     path = str(tmp_path / 'weblate.ini')
-    servers = ServerList(path)
+    servers = KeyFile(path)
     servers.put('weblate.example.org', 'wlu_one')
     servers.put(HOSTED, 'wlp_two')
     servers.last_url = HOSTED
     servers.save()
 
-    again = ServerList(path)
+    again = KeyFile(path)
 
     assert again.servers == [(OURS, 'wlu_one'), (HOSTED, 'wlp_two')]
     assert again.last_url == HOSTED
@@ -40,7 +40,7 @@ def test_servers_and_the_last_one_used_survive_a_round_trip(tmp_path):
 
 def test_the_file_has_wlcs_shape(tmp_path):
     path = tmp_path / 'weblate.ini'
-    servers = ServerList(str(path))
+    servers = KeyFile(str(path))
     servers.put(OURS, 'wlu_one')
     servers.last_url = OURS
     servers.save()
@@ -54,7 +54,7 @@ def test_the_file_has_wlcs_shape(tmp_path):
 @posix_only
 def test_a_new_file_is_owner_only(tmp_path):
     path = str(tmp_path / 'weblate.ini')
-    servers = ServerList(path)
+    servers = KeyFile(path)
     servers.put(OURS, 'wlu_one')
     servers.save()
 
@@ -67,14 +67,14 @@ def test_saving_makes_a_readable_file_owner_only(tmp_path):
     path.write_text('[keys]\n%s = wlu_one\n' % OURS, encoding='utf-8')
     os.chmod(path, 0o644)
 
-    ServerList(str(path)).save()
+    KeyFile(str(path)).save()
 
     assert _mode(path) == 0o600
-    assert ServerList(str(path)).servers == [(OURS, 'wlu_one')]
+    assert KeyFile(str(path)).servers == [(OURS, 'wlu_one')]
 
 
 def test_editing_a_server_keeps_its_place_and_follows_the_last_used(tmp_path):
-    servers = ServerList(str(tmp_path / 'weblate.ini'))
+    servers = KeyFile(str(tmp_path / 'weblate.ini'))
     servers.put(OURS, 'a')
     servers.put(HOSTED, 'b')
     servers.last_url = OURS
@@ -86,7 +86,7 @@ def test_editing_a_server_keeps_its_place_and_follows_the_last_used(tmp_path):
 
 
 def test_adding_a_listed_server_again_changes_its_token(tmp_path):
-    servers = ServerList(str(tmp_path / 'weblate.ini'))
+    servers = KeyFile(str(tmp_path / 'weblate.ini'))
     servers.put(OURS, 'old')
     servers.put('https://weblate.example.org', 'new')
 
@@ -95,14 +95,14 @@ def test_adding_a_listed_server_again_changes_its_token(tmp_path):
 
 @pytest.mark.parametrize('url, token', [('', 'tok'), (OURS, '  '), ('http://example.org', 't')])
 def test_a_server_needs_a_usable_address_and_a_token(tmp_path, url, token):
-    servers = ServerList(str(tmp_path / 'weblate.ini'))
+    servers = KeyFile(str(tmp_path / 'weblate.ini'))
 
     assert not servers.put(url, token)
     assert servers.servers == []
 
 
 def test_removing_the_last_used_server_forgets_it(tmp_path):
-    servers = ServerList(str(tmp_path / 'weblate.ini'))
+    servers = KeyFile(str(tmp_path / 'weblate.ini'))
     servers.put(OURS, 'a')
     servers.last_url = OURS
 
@@ -113,10 +113,10 @@ def test_removing_the_last_used_server_forgets_it(tmp_path):
 
 
 def test_a_missing_or_broken_file_lists_no_servers(tmp_path):
-    assert ServerList(str(tmp_path / 'none.ini')).servers == []
+    assert KeyFile(str(tmp_path / 'none.ini')).servers == []
     broken = tmp_path / 'broken.ini'
     broken.write_text('no section here\n', encoding='utf-8')
-    assert ServerList(str(broken)).servers == []
+    assert KeyFile(str(broken)).servers == []
 
 
 # wlc #
@@ -175,7 +175,7 @@ def test_wlcs_keys_are_read_without_empty_ones(tmp_path):
 
 def test_importing_from_wlc_adds_new_servers_and_updates_tokens(tmp_path):
     wlc = _wlc(tmp_path, _WLC)
-    servers = ServerList(str(tmp_path / 'weblate.ini'))
+    servers = KeyFile(str(tmp_path / 'weblate.ini'))
     servers.put(OURS, 'wlu_stale')
 
     assert servers.import_wlc(str(wlc)) == 2
@@ -185,7 +185,7 @@ def test_importing_from_wlc_adds_new_servers_and_updates_tokens(tmp_path):
 
 def test_importing_never_writes_wlcs_file(tmp_path):
     wlc = _wlc(tmp_path, _WLC)
-    servers = ServerList(str(tmp_path / 'weblate.ini'))
+    servers = KeyFile(str(tmp_path / 'weblate.ini'))
 
     servers.import_wlc(str(wlc))
     servers.save()

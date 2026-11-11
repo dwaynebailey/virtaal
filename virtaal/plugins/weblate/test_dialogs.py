@@ -5,7 +5,8 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""The Weblate plugin's dialogs and menu item, against the fake server."""
+"""The translation server dialogs and menu item with Weblate, against
+the fake server."""
 
 import socket
 from types import SimpleNamespace
@@ -16,8 +17,12 @@ from gi.repository import Gtk
 from devsupport.testing.fakeweblate import TOKEN, FakeWeblate, demo, run_until
 from virtaal.common import pan_app
 from virtaal.plugins import weblate as plugin
-from virtaal.plugins.weblate import serversdialog
-from virtaal.plugins.weblate.browsedialog import (
+from virtaal.plugins.weblate import backend
+from virtaal.plugins.weblate.backend import WeblatePlatform
+from virtaal.plugins.weblate.client import Client
+from virtaal.plugins.weblate.config import KeyFile
+from virtaal.support.platforms import registry
+from virtaal.support.platforms.browsedialog import (
     COL_INFO,
     COL_KIND,
     COL_NAME,
@@ -25,9 +30,8 @@ from virtaal.plugins.weblate.browsedialog import (
     PENDING,
     BrowseDialog,
 )
-from virtaal.plugins.weblate.client import Client
-from virtaal.plugins.weblate.config import ServerList
-from virtaal.plugins.weblate.serversdialog import ServerDialog, ServersDialog
+from virtaal.support.platforms.servers import ServerList
+from virtaal.support.platforms.serversdialog import ServerDialog, ServersDialog
 
 
 @pytest.fixture(autouse=True)
@@ -43,16 +47,31 @@ def fake():
     assert server.schema_problems == []
 
 
+def _server_list(tmp_path):
+    platform = WeblatePlatform(str(tmp_path / 'weblate.ini'))
+    return ServerList([platform], str(tmp_path / 'platforms.ini'))
+
+
+def _saved(servers):
+    """The (URL, token) pairs weblate.ini holds."""
+    return KeyFile(servers.platforms[0].keys.path).servers
+
+
+@pytest.fixture
+def weblate(tmp_path):
+    return WeblatePlatform(str(tmp_path / 'weblate.ini'))
+
+
 @pytest.fixture
 def servers(tmp_path, fake):
-    servers = ServerList(str(tmp_path / 'weblate.ini'))
-    servers.put(fake.url, TOKEN)
+    servers = _server_list(tmp_path)
+    servers.put(servers.platforms[0], fake.url, {'token': TOKEN})
     return servers
 
 
 @pytest.fixture
 def no_wlc(tmp_path, monkeypatch):
-    monkeypatch.setattr(serversdialog, 'wlc_config_path', lambda: None)
+    monkeypatch.setattr(backend, 'wlc_config_path', lambda: None)
 
 
 def _rows(model, parent=None):
@@ -80,14 +99,14 @@ def _names(model, parent=None):
         ('', 'wlu_x', False),
     ],
 )
-def test_ok_needs_a_usable_address_and_a_token(url, token, ok):
-    dialog = ServerDialog(None, url, token)
+def test_ok_needs_a_usable_address_and_a_token(weblate, url, token, ok):
+    dialog = ServerDialog(None, weblate, url, {'token': token})
 
     assert dialog.btn_ok.get_sensitive() is ok
 
 
-def test_a_plain_http_address_says_why_it_is_refused():
-    dialog = ServerDialog(None, 'http://weblate.example.org', 'wlu_x')
+def test_a_plain_http_address_says_why_it_is_refused(weblate):
+    dialog = ServerDialog(None, weblate, 'http://weblate.example.org', {'token': 'wlu_x'})
 
     assert not dialog.btn_ok.get_sensitive()
     assert dialog.problem_label.get_visible()
@@ -99,12 +118,12 @@ def test_a_plain_http_address_says_why_it_is_refused():
 
 
 @pytest.mark.parametrize('url', ['http://localhost:8080', 'http://127.0.0.1:8765', ''])
-def test_plain_http_to_this_machine_needs_no_message(url):
-    assert not ServerDialog(None, url, 'wlu_x').problem_label.get_visible()
+def test_plain_http_to_this_machine_needs_no_message(weblate, url):
+    assert not ServerDialog(None, weblate, url, {'token': 'x'}).problem_label.get_visible()
 
 
-def test_the_token_is_hidden(no_wlc):
-    dialog = ServerDialog(None, 'https://w.example.org', 'wlu_x')
+def test_the_token_is_hidden(weblate, no_wlc):
+    dialog = ServerDialog(None, weblate, 'https://w.example.org', {'token': 'wlu_x'})
 
     assert not dialog.entries['token'].get_visibility()
     assert dialog.entries['url'].get_visibility()
@@ -125,27 +144,29 @@ def _status(dialog):
 def test_the_list_shows_each_server(servers, no_wlc):
     dialog = ServersDialog(servers)
 
-    assert [row[0] for row in dialog.store] == servers.urls()
+    assert [(row[0], row[1]) for row in dialog.store] == [
+        ('Weblate', s.url) for s in servers.servers
+    ]
     assert dialog.btn_test.get_sensitive()
 
 
 def test_adding_a_server_saves_it_and_tests_it(tmp_path, fake, monkeypatch, no_wlc):
-    servers = ServerList(str(tmp_path / 'weblate.ini'))
+    servers = _server_list(tmp_path)
     dialog = ServersDialog(servers)
     assert not dialog.btn_test.get_sensitive()
     _answer(monkeypatch, {'url': fake.url, 'token': TOKEN})
 
     dialog.btn_add.clicked()
 
-    assert ServerList(servers.path).servers == [(fake.api_url, TOKEN)]
+    assert _saved(servers) == [(fake.api_url, TOKEN)]
     assert _status(dialog) == 'Connected: 14 projects'
 
 
 def test_one_project_is_singular(tmp_path, monkeypatch, no_wlc):
     with FakeWeblate() as one:
         one.add_project('only')
-        servers = ServerList(str(tmp_path / 'weblate.ini'))
-        servers.put(one.url, TOKEN)
+        servers = _server_list(tmp_path)
+        servers.put(servers.platforms[0], one.url, {'token': TOKEN})
         dialog = ServersDialog(servers)
         dialog.btn_test.clicked()
 
@@ -158,7 +179,7 @@ def test_editing_a_server_replaces_it(servers, fake, monkeypatch, no_wlc):
 
     dialog.btn_edit.clicked()
 
-    assert ServerList(servers.path).servers == [(fake.api_url, 'wlu_new')]
+    assert _saved(servers) == [(fake.api_url, 'wlu_new')]
 
 
 def test_cancelling_the_edit_changes_nothing(servers, monkeypatch, no_wlc):
@@ -167,7 +188,7 @@ def test_cancelling_the_edit_changes_nothing(servers, monkeypatch, no_wlc):
 
     dialog.btn_edit.clicked()
 
-    assert servers.token(servers.urls()[0]) == TOKEN
+    assert servers.servers[0].credentials == {'token': TOKEN}
 
 
 def test_removing_a_server(servers, no_wlc):
@@ -176,12 +197,12 @@ def test_removing_a_server(servers, no_wlc):
     dialog.btn_remove.clicked()
 
     assert len(dialog.store) == 0
-    assert ServerList(servers.path).servers == []
+    assert _saved(servers) == []
     assert not dialog.btn_remove.get_sensitive()
 
 
 def test_a_refused_token_says_so(servers, fake, no_wlc):
-    servers.put(fake.url, 'wlu_wrong')
+    servers.put(servers.platforms[0], fake.url, {'token': 'wlu_wrong'})
     dialog = ServersDialog(servers)
 
     dialog.btn_test.clicked()
@@ -193,8 +214,8 @@ def test_no_reply_says_why(tmp_path, no_wlc):
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
-    servers = ServerList(str(tmp_path / 'weblate.ini'))
-    servers.put('http://127.0.0.1:%d/' % port, TOKEN)
+    servers = _server_list(tmp_path)
+    servers.put(servers.platforms[0], 'http://127.0.0.1:%d/' % port, {'token': TOKEN})
     dialog = ServersDialog(servers)
 
     dialog.btn_test.clicked()
@@ -221,20 +242,23 @@ def test_other_errors_give_the_status_and_the_servers_words(servers, fake, no_wl
 
 
 def test_import_from_wlc_is_offered_only_when_wlc_has_a_file(servers, tmp_path, monkeypatch):
-    monkeypatch.setattr(serversdialog, 'wlc_config_path', lambda: None)
-    assert not ServersDialog(servers).btn_import.get_sensitive()
+    monkeypatch.setattr(backend, 'wlc_config_path', lambda: None)
+    weblate = servers.platforms[0]
+    assert not ServersDialog(servers).import_buttons[weblate].get_sensitive()
 
     wlc = tmp_path / 'weblate'
     wlc.write_text('[keys]\nhttps://weblate.example.org/api/ = wlu_wlc\n', encoding='utf-8')
-    monkeypatch.setattr(serversdialog, 'wlc_config_path', lambda: str(wlc))
+    monkeypatch.setattr(backend, 'wlc_config_path', lambda: str(wlc))
     monkeypatch.setattr('virtaal.plugins.weblate.config.wlc_config_path', lambda: str(wlc))
     dialog = ServersDialog(servers)
-    assert dialog.btn_import.get_sensitive()
+    button = dialog.import_buttons[weblate]
+    assert button.get_sensitive()
+    assert button.get_label() == '_Import from wlc'
 
-    dialog.btn_import.clicked()
+    button.clicked()
 
-    assert 'https://weblate.example.org/api/' in [row[0] for row in dialog.store]
-    assert ServerList(servers.path).token('https://weblate.example.org/api/') == 'wlu_wlc'
+    assert 'https://weblate.example.org/api/' in [row[1] for row in dialog.store]
+    assert ('https://weblate.example.org/api/', 'wlu_wlc') in _saved(servers)
 
 
 def test_the_privacy_notice_names_what_is_sent(servers, no_wlc):
@@ -441,18 +465,21 @@ def test_an_error_is_shown(servers, fake, monkeypatch):
 def test_the_last_server_used_is_remembered(servers, monkeypatch, tmp_path):
     with FakeWeblate() as other:
         other.add_project('elsewhere', 'Elsewhere')
-        servers.put(other.url, TOKEN)
+        servers.put(servers.platforms[0], other.url, {'token': TOKEN})
         dialog = _browse(servers, monkeypatch)
         assert dialog.server_combo.get_visible()
+        assert dialog.dialog.get_title() == 'Weblate'
         assert _names(dialog.filtered)[0] == 'Hello'
 
-        dialog.server_combo.set_active_id(other.api_url)
+        dialog.server_combo.set_active(1)
         run_until(lambda: not dialog.spinner.get_visible())
 
         assert _names(dialog.filtered) == ['Elsewhere']
-        again = _browse(ServerList(servers.path), monkeypatch)
-        assert again.server_combo.get_active_id() == other.api_url
+        again = _browse(_server_list(tmp_path), monkeypatch)
+        assert again.server_combo.get_active() == 1
         assert _names(again.filtered) == ['Elsewhere']
+        # weblate.ini, wlc's shape, has it as the default server too.
+        assert KeyFile(servers.platforms[0].keys.path).last_url == other.api_url
 
 
 def test_one_server_needs_no_choice(servers, monkeypatch):
@@ -475,25 +502,36 @@ def _main_controller():
     return SimpleNamespace(view=view), menu
 
 
-def test_open_from_weblate_follows_open_folder_and_goes_with_the_plugin():
+def test_the_menu_item_follows_open_folder_and_goes_with_the_plugin():
     main_controller, menu = _main_controller()
 
     weblate = plugin.Plugin('weblate', main_controller)
     labels = [item.get_label() for item in menu.get_children()]
-    assert labels == ['mnu_open', 'mnu_open_folder', 'Open from _Weblate…', 'mnu_save']
+    assert labels == [
+        'mnu_open',
+        'mnu_open_folder',
+        'Open from Tra_nslation Server…',
+        'mnu_save',
+    ]
+    assert registry.platforms == [weblate.platform]
 
     weblate.destroy()
     assert len(menu.get_children()) == 3
+    assert registry.platforms == []
 
 
-def test_browsing_with_no_server_asks_for_one_first(monkeypatch):
+def test_browsing_with_no_server_asks_for_one_first(monkeypatch, tmp_path):
     main_controller, _menu = _main_controller()
     weblate = plugin.Plugin('weblate', main_controller)
+    weblate.platform.keys = KeyFile(str(tmp_path / 'weblate.ini'))
+    monkeypatch.setattr(pan_app, 'get_config_dir', lambda: str(tmp_path))
     shown = []
-    monkeypatch.setattr(weblate, 'configure', lambda parent=None: shown.append('servers'))
+    monkeypatch.setattr(
+        registry, 'configure', lambda parent=None, servers=None: shown.append('servers')
+    )
     monkeypatch.setattr(BrowseDialog, 'run', lambda self: shown.append('browse'))
 
-    weblate.browse()
+    registry.browse()
 
     assert shown == ['servers']
     weblate.destroy()
