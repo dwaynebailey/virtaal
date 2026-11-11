@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 03:34+0000\n"
+"POT-Creation-Date: 2026-11-11 06:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1340,6 +1340,14 @@ msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
 msgid "Variables such as $HOME in shell strings"
+msgstr ""
+
+#. l10n: The window title for a file opened from a translation server.
+#. %(location)s is its project and component, such as "Hello/Program";
+#. %(platform)s is the kind of server, such as Weblate
+#: virtaal/controllers/storecontroller.py
+#, python-format
+msgid "%(location)s (%(platform)s)"
 msgstr ""
 
 #. l10n: Shown on opening a file whose plural forms header gettext would

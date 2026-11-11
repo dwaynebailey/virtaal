@@ -15,19 +15,30 @@ server, such as hosted.weblate.org, has thousands). A platform that
 supports_search filters on the server; for one that doesn't, such as
 Weblate, the filter matches the loaded projects and more are loaded
 to find others. A project's components and a component's languages
-load when its row is first expanded. Nothing is downloaded or opened
-yet (phase W1)."""
+load when its row is first expanded.
+
+Open (or a double click on a language) downloads the language into its
+work copy (workcopy.py) and closes the dialog; run() gives the work
+file to open. A work copy holding work not yet submitted is opened as
+it is, without downloading over it."""
 
 from gi.repository import GLib, Gtk
 
 from virtaal.support.libi18n.numbers import format_percent
 from virtaal.views.widgets.util import run_dialog
 
+from . import workcopy
 from .serversdialog import error_message
 
 COL_NAME, COL_INFO, COL_KIND, COL_PROJECT, COL_SLUG, COL_LOADED = range(6)
 PROJECT, COMPONENT, LANGUAGE, PENDING = 'project', 'component', 'language', 'pending'
 COMBO_ID, COMBO_TYPE, COMBO_URL = range(3)
+RESPONSE_OPEN = 1
+
+
+def _gtk_text(msgid):
+    """GTK's own translation of msgid, kept out of virtaal.pot."""
+    return GLib.dgettext('gtk30', msgid)
 
 
 def language_name(code, name):
@@ -57,10 +68,16 @@ class BrowseDialog:
         self._fetching = False
         self._loading = 0
         self._query = None
+        self._downloading = False
+        self.opened = None
+        """The work file of the language opened, once it is."""
 
         self.dialog = Gtk.Dialog(transient_for=parent, modal=True)
         self.dialog.set_default_size(560, 480)
         self.dialog.add_button(_('_Close'), Gtk.ResponseType.CLOSE)
+        self.open_button = self.dialog.add_button(_gtk_text('_Open'), RESPONSE_OPEN)
+        self.open_button.set_sensitive(False)
+        self.dialog.connect('response', self._on_response)
 
         self.server_combo = self._server_combo(servers)
         self.filter_entry = Gtk.SearchEntry(hexpand=True)
@@ -78,6 +95,8 @@ class BrowseDialog:
         info = Gtk.CellRendererText(xalign=1.0)
         self.treeview.append_column(Gtk.TreeViewColumn(_('Translated'), info, text=COL_INFO))
         self.treeview.connect('row-expanded', self._on_row_expanded)
+        self.treeview.connect('row-activated', lambda *_args: self.open_selected())
+        self.treeview.get_selection().connect('changed', lambda _sel: self._sync_open())
 
         scrolled = Gtk.ScrolledWindow(shadow_type=Gtk.ShadowType.IN, vexpand=True)
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -165,6 +184,8 @@ class BrowseDialog:
         self._next = None
         self._more = True
         self._fetching = False
+        self._downloading = False
+        self._sync_open()
         self._fetch_projects()
 
     def _fetch_projects(self):
@@ -299,7 +320,59 @@ class BrowseDialog:
         component = model[parent][COL_SLUG] if model[parent][COL_KIND] == COMPONENT else None
         return model[it][COL_PROJECT], component, model[it][COL_SLUG]
 
+    def _sync_open(self):
+        self.open_button.set_sensitive(not self._downloading and self.selected() is not None)
+
+    def _on_response(self, dialog, response):
+        if response == RESPONSE_OPEN:
+            # Opening takes a download: the dialog stays until it's done.
+            dialog.stop_emission_by_name('response')
+            self.open_selected()
+
+    def open_selected(self):
+        """Downloads the chosen language into its work copy, then closes
+        the dialog with it as opened."""
+        chosen = self.selected()
+        if chosen is None or self._downloading:
+            return
+        server = self.server
+        project, component, language = chosen
+        copy = workcopy.existing(server.platform.id, server.url, project, component, language)
+        if copy is not None and copy.has_local_changes():
+            self._opened(copy.path)
+            return
+
+        def done(download):
+            self._downloading = False
+            self._busy(-1)
+            try:
+                copy = workcopy.create(
+                    server.platform, server.url, project, component, language, download
+                )
+            except OSError as e:
+                self.status.set_text(str(e))
+                self._sync_open()
+                return
+            self._opened(copy.path)
+
+        def failed(error):
+            self._downloading = False
+            self._failed(error)
+            self._sync_open()
+
+        self._downloading = True
+        self._busy(1)
+        self._sync_open()
+        self.status.set_text('')
+        self.session.download(project, component, language, done, failed)
+
+    def _opened(self, path):
+        self.opened = path
+        self.dialog.response(Gtk.ResponseType.CLOSE)
+
     def run(self):
+        """Shows the dialog until it's closed. The work file opened, or
+        None."""
         run_dialog(self.dialog)
         if self._filter_timer is not None:
             GLib.source_remove(self._filter_timer)
@@ -307,3 +380,4 @@ class BrowseDialog:
         if self.session is not None:
             self.session.cancel()
         self.dialog.destroy()
+        return self.opened

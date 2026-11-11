@@ -927,7 +927,10 @@ class MainView(BaseView):
             self.main_window.set_title(
                 (
                     title_format
-                    % {"current_file": os.path.basename(filename), "modified_marker": modified}
+                    % {
+                        "current_file": self.controller.get_store_title(),
+                        "modified_marker": modified,
+                    }
                 ).rstrip()
             )
 

@@ -85,6 +85,10 @@ class MainController(BaseController):
         """C{self.store_controller.get_store_filename()}"""
         return self.store_controller.get_store_filename()
 
+    def get_store_title(self):
+        """C{self.store_controller.get_store_title()}"""
+        return self.store_controller.get_store_title()
+
     def get_translator_details(self):
         """The translator's name, e-mail address and team, asking for all
         three in one dialog if the name or e-mail is missing; the team

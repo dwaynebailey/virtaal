@@ -48,6 +48,9 @@ class StoreController(BaseController):
     _opening_package = None
     # The package whose files were last loaded, for its work folder.
     _loaded_package = None
+    # The translation platform's work copy open, with its side record
+    # (virtaal.support.platforms.workcopy). Its folder is kept on closing.
+    work_copy = None
     _stream_handlers = None
 
     arrival = None
@@ -176,6 +179,19 @@ class StoreController(BaseController):
         if not self.is_stream():
             return []
         return [entry.display_name for entry in self.store.modified_entries()]
+
+    def get_store_title(self):
+        """The open file's name for the window title: a platform's work
+        copy as its project and component, and the platform."""
+        if self.work_copy is not None and self.store is not None:
+            # l10n: The window title for a file opened from a translation server.
+            # %(location)s is its project and component, such as "Hello/Program";
+            # %(platform)s is the kind of server, such as Weblate
+            return _('%(location)s (%(platform)s)') % {
+                'location': self.work_copy.location(),
+                'platform': self.work_copy.platform_name(),
+            }
+        return os.path.basename(self.get_store_filename())
 
     def get_store_filename(self):
         """Returns a display-friendly string representing the current open
@@ -412,6 +428,7 @@ class StoreController(BaseController):
         from virtaal.models.streammodel import StreamModel
 
         self.package = self._opening_package
+        self.work_copy = None
         fileset = all_files.for_language(language) if language else all_files
         # Files waiting to be paired open with no units, to be paired.
         if not len(fileset) and not fileset.unpaired:
@@ -505,7 +522,11 @@ class StoreController(BaseController):
     def open_file(self, filename, uri='', forget_dir=False, template=None):
         """@param template: A L{TemplateMatch} for a monolingual file;
         found with L{find_template()} if not given."""
+        from virtaal.support.platforms import workcopy
+
         self.package = self._opening_package
+        self.work_copy = None
+        work_copy = workcopy.for_file(filename)
         extension = filename.split(os.extsep)[-1]
         force_saveas = False
         readonly = self._is_readonly(filename)
@@ -521,6 +542,9 @@ class StoreController(BaseController):
             # clean up, otherwise self.store still contains the store
             self.close_file()
             raise ValueError('The file contains nothing to translate.')
+        if work_copy is not None:
+            work_copy.attach(self.store)
+            self.work_copy = work_copy
 
         # A translation carried over from a renamed key isn't in the file yet.
         pair = getattr(self.store, 'pair', None)
@@ -589,6 +613,8 @@ class StoreController(BaseController):
         if filename:
             # Saved elsewhere, the file is no longer the package's.
             self.package = None
+            if self.work_copy is not None and os.path.abspath(filename) != self.work_copy.path:
+                self.work_copy = None
         if self.project is None:
             self.store.save_file(
                 filename
@@ -608,6 +634,9 @@ class StoreController(BaseController):
             self.project.save()
         if self.package is not None:
             self.package.write_back()
+        if self.work_copy is not None:
+            # Only the local copy: Submit sends.
+            self.work_copy.saved()
         self.set_modified(False)
         # reaching here means the write succeeded, so any stale notice goes
         self.main_controller.view.hide_read_only_notice()
@@ -626,6 +655,7 @@ class StoreController(BaseController):
 
     def close_file(self):
         self.package = None
+        self.work_copy = None
         self._leave_package(None)
         self._forget_stream()
         del self.project

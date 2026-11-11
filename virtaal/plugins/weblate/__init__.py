@@ -8,8 +8,8 @@
 """Weblate: translate a Weblate server's translations in Virtaal (#3337).
 
 The plug-in adds Weblate to the translation platforms
-(virtaal.support.platforms), which own the server list and File > Open
-from Translation Server…. Phase W1 connects and browses. Off until
+(virtaal.support.platforms), which own the server list, File > Open
+from Translation Server… and the work copies opened from it. Off until
 enabled (pan_app.Settings' plugin_state).
 """
 

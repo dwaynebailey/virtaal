@@ -219,15 +219,19 @@ class Registry:
         ServersDialog(servers or self.servers(), self._parent(parent)).run()
 
     def browse(self, parent=None):
-        """Browses a server, asking for one first if there is none."""
+        """Browses a server, asking for one first if there is none, and
+        opens the language chosen. Whether one was."""
         from .browsedialog import BrowseDialog
 
         servers = self.servers()
         if not servers.servers:
             self.configure(parent, servers)
             if not servers.servers:
-                return
-        BrowseDialog(servers, self._parent(parent)).run()
+                return False
+        path = BrowseDialog(servers, self._parent(parent)).run()
+        if path is None:
+            return False
+        return bool(self.main_controller.open_file(path))
 
 
 registry = Registry()

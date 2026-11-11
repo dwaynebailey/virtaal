@@ -1003,7 +1003,9 @@ def test_set_saveable_marks_the_title_modified(monkeypatch):
     view = MainView.__new__(MainView)
     view.modified = False
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
-    view.controller = SimpleNamespace(get_store_filename=lambda: '/tmp/document.po')
+    view.controller = SimpleNamespace(
+        get_store_filename=lambda: '/tmp/document.po', get_store_title=lambda: 'document.po'
+    )
     view.main_window = SimpleNamespace(
         set_title=lambda title: setattr(view, '_title', title), get_window=lambda: None
     )
@@ -1022,7 +1024,9 @@ def test_set_saveable_clears_the_modified_marker(monkeypatch):
     view = MainView.__new__(MainView)
     view.modified = True
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
-    view.controller = SimpleNamespace(get_store_filename=lambda: '/tmp/document.po')
+    view.controller = SimpleNamespace(
+        get_store_filename=lambda: '/tmp/document.po', get_store_title=lambda: 'document.po'
+    )
     view.main_window = SimpleNamespace(
         set_title=lambda title: setattr(view, '_title', title), get_window=lambda: None
     )
@@ -1040,7 +1044,9 @@ def test_set_saveable_omits_the_app_name_when_the_platform_says_so(monkeypatch):
     view = MainView.__new__(MainView)
     view.modified = False
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
-    view.controller = SimpleNamespace(get_store_filename=lambda: '/tmp/document.po')
+    view.controller = SimpleNamespace(
+        get_store_filename=lambda: '/tmp/document.po', get_store_title=lambda: 'document.po'
+    )
     view.main_window = SimpleNamespace(
         set_title=lambda title: setattr(view, '_title', title), get_window=lambda: None
     )
@@ -1070,7 +1076,9 @@ def test_set_saveable_skips_the_title_star_when_the_native_marker_works(monkeypa
     view = MainView.__new__(MainView)
     view.modified = False
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
-    view.controller = SimpleNamespace(get_store_filename=lambda: '/tmp/document.po')
+    view.controller = SimpleNamespace(
+        get_store_filename=lambda: '/tmp/document.po', get_store_title=lambda: 'document.po'
+    )
     view.main_window = SimpleNamespace(
         set_title=lambda title: setattr(view, '_title', title), get_window=lambda: object()
     )
@@ -1091,7 +1099,9 @@ def test_set_saveable_falls_back_to_the_title_star_when_the_native_marker_fails(
     view = MainView.__new__(MainView)
     view.modified = False
     view.gui = SimpleNamespace(get_object=lambda name: widgets[name])
-    view.controller = SimpleNamespace(get_store_filename=lambda: '/tmp/document.po')
+    view.controller = SimpleNamespace(
+        get_store_filename=lambda: '/tmp/document.po', get_store_title=lambda: 'document.po'
+    )
     view.main_window = SimpleNamespace(
         set_title=lambda title: setattr(view, '_title', title), get_window=lambda: object()
     )

@@ -19,7 +19,17 @@ from devsupport.testing.fakeplatform import run_until
 from virtaal.common import pan_app
 from virtaal.plugins.weblate.backend import WeblatePlatform
 from virtaal.plugins.weblate.config import KeyFile
-from virtaal.support.platforms import AUTH, Item, Platform, PlatformError, Registry, Session
+from virtaal.support.platforms import (
+    AUTH,
+    Download,
+    Item,
+    Platform,
+    PlatformError,
+    Registry,
+    RemoteUnit,
+    Session,
+    workcopy,
+)
 from virtaal.support.platforms.browsedialog import COL_INFO, COL_KIND, COL_NAME, BrowseDialog
 from virtaal.support.platforms.servers import ServerList
 from virtaal.support.platforms.serversdialog import ServerDialog, ServersDialog, error_message
@@ -69,6 +79,16 @@ class DummySession(Session):
         assert component is None
         languages = PROJECTS[project][1]
         self._later(on_done, [Item(n, code, done) for code, (n, done) in languages.items()])
+
+    def download(self, project, component, language, on_done, on_error):
+        assert component is None
+        data = b'msgid "Alpha"\nmsgstr "Alfa"\n\nmsgid "Beta"\nmsgstr ""\n'
+        units = [
+            RemoteUnit('a', 1, '', ['Alpha'], ['Alfa'], 120, 'final', None, False),
+            RemoteUnit('b', 2, '', ['Beta'], [''], 0, 'new', None, False),
+        ]
+        names = {'project': PROJECTS[project][0], 'component': None}
+        self._later(on_done, Download('%s.po' % project, data, None, units, names))
 
     def cancel(self):
         self.cancelled = True
@@ -273,6 +293,31 @@ def test_the_browser_follows_the_platform(servers, dummy):
     assert {model[it][COL_KIND] for it in languages} == {'language'}
     dialog.treeview.get_selection().select_iter(languages[1])
     assert dialog.selected() == ('alpha', None, 'zu')
+
+
+def test_a_platform_without_components_opens_a_language(servers, dummy, tmp_path, monkeypatch):
+    from translate.storage import po
+
+    monkeypatch.setattr(pan_app, 'get_state_dir', lambda: str(tmp_path / 'state'))
+    servers.last = servers.servers[1]
+    dialog = _browse(servers)
+    model = dialog.filtered
+    path = model.get_path(next(_rows(model)))
+    dialog.treeview.expand_row(path, False)
+    run_until(lambda: not dialog.spinner.get_visible())
+    dialog.treeview.get_selection().select_iter(next(_rows(model, model.get_iter(path))))
+
+    dialog.open_selected()
+    run_until(lambda: dialog.opened is not None)
+
+    folder = tmp_path / 'state' / 'platforms' / 'dummy' / 'one' / 'alpha' / 'af'
+    assert dialog.opened == str(folder / 'alpha.po')
+    copy = workcopy.for_file(dialog.opened)
+    assert copy.location() == 'Alpha'
+    assert copy.platform_name() == 'Dummy'
+    units = [u for u in po.pofile.parsefile(dialog.opened).units if not u.isheader()]
+    copy.attach(SimpleNamespace(get_units=lambda: units, pair=None))
+    assert [u.get_state_n() for u in units] == [120, 0]
 
 
 def test_the_filter_searches_on_a_server_that_can(servers, dummy):
