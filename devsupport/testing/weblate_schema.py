@@ -152,6 +152,44 @@ SCHEMAS = {
         },
         'optional': {'language_code': _S, 'revision': _S},
     },
+    # GET /api/translations/<p>/<c>/<l>/units/ (PaginatedUnitList) and
+    # /api/units/<id>/. state: 0 empty, 10 needs editing, 11 needs
+    # rewriting, 12 needs checking, 20 translated, 30 approved, 100
+    # read-only; last_updated since 5.6.
+    'Unit': {
+        'required': {
+            'approved': _B,
+            'content_hash': _I,
+            'context': _S,
+            'explanation': _S,
+            'extra_flags': _S,
+            'flags': _S,
+            'fuzzy': _B,
+            'has_comment': _B,
+            'has_failing_check': _B,
+            'has_suggestion': _B,
+            'id': _I,
+            'id_hash': _I,
+            'labels': _A,
+            'location': _S,
+            'note': _S,
+            'num_words': _I,
+            'pending': _B,
+            'position': _I,
+            'previous_source': _S,
+            'priority': _I,
+            'source': _A,
+            'source_unit': _S,
+            'state': _I,
+            'target': _A,
+            'timestamp': _S,
+            'translated': _B,
+            'translation': _S,
+            'url': _S,
+            'web_url': _S,
+        },
+        'optional': {'last_updated': _S_OR_NULL},
+    },
 }
 
 

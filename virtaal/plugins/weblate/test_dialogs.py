@@ -385,7 +385,7 @@ def test_a_project_shows_its_components_with_glossaries_marked(servers, monkeypa
 
     hello = _expand(dialog, hello)
 
-    assert _names(model, hello) == ['Program', 'Glossary']
+    assert _names(model, hello) == ['Program', 'Glossary', 'Website']
     glossary = _find(model, 'Glossary', hello)
     assert model[glossary][COL_INFO] == 'Glossary'
     assert model[_find(model, 'Program', hello)][COL_INFO] == ''
@@ -440,7 +440,7 @@ def test_a_failed_load_is_asked_again_on_the_next_expand(servers, fake, monkeypa
 
     hello = _expand(dialog, hello)
 
-    assert _names(dialog.filtered, hello) == ['Program', 'Glossary']
+    assert _names(dialog.filtered, hello) == ['Program', 'Glossary', 'Website']
 
 
 def test_the_filter_matches_project_names_and_slugs(servers, monkeypatch):

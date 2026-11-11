@@ -18,8 +18,9 @@ requests with a status (429 with Retry-After, a 5xx, ...) or drops the
 connection, and not_weblate makes it answer like some other web site.
 
 Routes are a table (ROUTES) of method, path pattern and handler, so
-later phases add theirs: units, the file download, unit PATCH, the
-lock, changes.
+later phases add theirs (unit PATCH, the lock, changes). A translation
+can hold a file to download and its units (fill_po(), fill_json()),
+paged as Weblate pages units, with ids, states and last_updated.
 
 The server itself and run_until() are fakeplatform.py's, shared with
 any other platform's fake. Never point Virtaal at a real Weblate server
@@ -218,6 +219,108 @@ class FakeWeblate(FakeServer):
         parent['translations'][code] = translation
         return translation
 
+    def _parent(self, project, component):
+        return self.projects[project]['components'][component]
+
+    def set_file(self, project, component, code, data, units, content_type='text/plain'):
+        """The bytes translation code's file download gives, and its
+        units (from unit()), in file order."""
+        parent = self._parent(project, component)
+        parent.setdefault('files', {})[code] = (data, content_type)
+        parent.setdefault('units', {})[code] = units
+
+    def set_template(self, project, component, data):
+        """A monolingual component's template, its monolingual_base."""
+        self._parent(project, component)['template_file'] = data
+
+    def unit(self, project, component, code, source, target='', context='', state=None, **fields):
+        """A unit as the API gives it. state is Weblate's code: 0 when
+        there's no target, else 20 unless given."""
+        source = source if isinstance(source, list) else [source]
+        target = target if isinstance(target, list) else [target]
+        if state is None:
+            state = 20 if any(target) else 0
+        number = self._next_id()
+        translation = '{api}translations/%s/%s/%s/' % (project, _quote_slug(component), code)
+        return {
+            'translation': translation,
+            'source': source,
+            'previous_source': '',
+            'target': target,
+            'id_hash': number * 7919,
+            'content_hash': number * 104729,
+            'location': '',
+            'context': context,
+            'note': '',
+            'flags': 'read-only' if state == 100 else '',
+            'labels': [],
+            'state': state,
+            'fuzzy': state in (10, 11, 12),
+            'translated': state >= 20,
+            'approved': state == 30,
+            'position': 1,
+            'has_suggestion': False,
+            'has_comment': False,
+            'has_failing_check': False,
+            'num_words': len(' '.join(source).split()),
+            'source_unit': '{api}units/%d/' % number,
+            'priority': 100,
+            'id': number,
+            'explanation': '',
+            'extra_flags': '',
+            'pending': False,
+            'timestamp': '2026-11-01T12:00:00Z',
+            'last_updated': '2026-11-02T08:%02d:00Z' % (number % 60),
+            'url': '{api}units/%d/' % number,
+            'web_url': '{web}translate/%s/%s/%s/?checksum=%x' % (project, component, code, number),
+            **fields,
+        }
+
+    def fill_po(self, project, component, code, entries):
+        """Gives translation code a PO file of entries, each (context,
+        source, target, Weblate state or None), and their units. As
+        Weblate does, a needs-editing state is written fuzzy, the rest
+        plain."""
+        from translate.storage import po
+
+        store = po.pofile()
+        store.updateheader(add=True, Language=code)
+        units = []
+        for position, (context, source, target, state) in enumerate(entries, 1):
+            unit = store.addsourceunit(source)
+            if context:
+                unit.setcontext(context)
+            unit.target = target
+            made = self.unit(
+                project, component, code, source, target, context, state, position=position
+            )
+            unit.markfuzzy(made['fuzzy'] and bool(target))
+            units.append(made)
+        self.set_file(project, component, code, bytes(store), units, 'text/x-po')
+        return units
+
+    def fill_json(self, project, component, code, template, translated, states=None):
+        """A monolingual JSON component: template and translated are
+        {key: text}; the translation's file holds translated, its units
+        every key of template, with the key as context, as Weblate's."""
+        states = states or {}
+        self.set_template(project, component, _json_bytes(template))
+        units = [
+            self.unit(
+                project,
+                component,
+                code,
+                text,
+                translated.get(key, ''),
+                key,
+                states.get(key),
+                position=position,
+            )
+            for position, (key, text) in enumerate(template.items(), 1)
+        ]
+        self.set_file(project, component, code, _json_bytes(translated), units, 'application/json')
+        return units
+
     # Faults #
 
     def fail(self, path, status, times=1, headers=None, body=None, method='GET'):
@@ -340,8 +443,8 @@ class FakeWeblate(FakeServer):
         for method, pattern, name in ROUTES:
             match = re.fullmatch(pattern, request['path'])
             if match and method == request['method']:
-                status, body = getattr(self, name)(request, scope, *match.groups())
-                return status, headers, body
+                status, body, *more = getattr(self, name)(request, scope, *match.groups())
+                return status, {**headers, **(more[0] if more else {})}, body
         return 404, headers, self.error(404, 'not_found', 'Not found.')
 
     def _check(self, name, status, body):
@@ -376,12 +479,65 @@ class FakeWeblate(FakeServer):
         items = list(components[component]['translations'].values())
         return self._check('Translation', *self.page(request, items))
 
+    def _component(self, scope, project, component):
+        """The fake's component (its slug unquoted twice), or None."""
+        component = parse.unquote(parse.unquote(component))
+        if scope not in (None, project):
+            return None
+        return self.projects.get(project, {}).get('components', {}).get(component)
+
+    def _translation(self, scope, project, component, code):
+        parent = self._component(scope, project, component)
+        if parent is None or code not in parent['translations']:
+            return None, None
+        return parent, parent['translations'][code]
+
+    def _no_translation(self):
+        return 404, self.error(404, 'not_found', 'No Translation matches the given query.')
+
+    def get_translation(self, request, scope, project, component, code):
+        _parent, translation = self._translation(scope, project, component, code)
+        if translation is None:
+            return self._no_translation()
+        self.schema_problems += weblate_schema.check('Translation', translation)
+        return 200, translation
+
+    def translation_file(self, request, scope, project, component, code):
+        parent, translation = self._translation(scope, project, component, code)
+        if translation is None or code not in parent.get('files', {}):
+            return self._no_translation()
+        data, content_type = parent['files'][code]
+        name = translation['filename'].rsplit('/', 1)[-1]
+        headers = {
+            'Content-Type': content_type,
+            'Content-Disposition': 'attachment; filename="%s"' % name,
+            'Last-Modified': 'Sun, 01 Nov 2026 12:00:00 GMT',
+        }
+        return 200, data, headers
+
+    def list_units(self, request, scope, project, component, code):
+        parent, translation = self._translation(scope, project, component, code)
+        if translation is None:
+            return self._no_translation()
+        items = parent.get('units', {}).get(code, [])
+        return self._check('Unit', *self.page(request, items))
+
+    def monolingual_base(self, request, scope, project, component):
+        parent = self._component(scope, project, component)
+        if parent is None or 'template_file' not in parent:
+            return 404, self.error(404, 'not_found', 'No Component matches the given query.')
+        return 200, parent['template_file'], {'Content-Type': 'application/octet-stream'}
+
 
 ROUTES = [
     ('GET', r'/api/', 'root'),
     ('GET', r'/api/projects/', 'list_projects'),
     ('GET', r'/api/projects/([^/]+)/components/', 'list_components'),
     ('GET', r'/api/components/([^/]+)/([^/]+)/translations/', 'list_translations'),
+    ('GET', r'/api/components/([^/]+)/([^/]+)/monolingual_base/', 'monolingual_base'),
+    ('GET', r'/api/translations/([^/]+)/([^/]+)/([^/]+)/', 'get_translation'),
+    ('GET', r'/api/translations/([^/]+)/([^/]+)/([^/]+)/file/', 'translation_file'),
+    ('GET', r'/api/translations/([^/]+)/([^/]+)/([^/]+)/units/', 'list_units'),
 ]
 """(method, path pattern, FakeWeblate method name). Each handler gets
 the request, the token's project scope and the pattern's groups, and
@@ -404,6 +560,10 @@ def _effective():
         'effective_pull_message': '',
         'effective_secondary_language': None,
     }
+
+
+def _json_bytes(data):
+    return (json.dumps(data, ensure_ascii=False, indent=4) + '\n').encode('utf-8')
 
 
 def _expand(value, base):
@@ -458,6 +618,23 @@ class _Handler(BaseHTTPRequestHandler):
 FakeWeblate.handler = _Handler
 
 
+DEMO_PO = [
+    ('', 'Open', 'Maak oop', 30),
+    ('', 'Save', 'Stoor', 20),
+    ('', 'Close', 'Maak toe', 12),
+    ('', 'Quit', 'Verlaat', 11),
+    ('', 'Print', 'Druk', 10),
+    ('menu', 'File', 'Lêer', 20),
+    ('', 'Weblate', 'Weblate', 100),
+    ('', 'Help', '', 0),
+]
+"""(context, source, target, Weblate state) of the demo's PO file:
+Approved, Translated, Needs checking, Needs rewriting, Needs editing,
+one with a context, Read-only and Empty."""
+
+DEMO_JSON = {'welcome': 'Welcome', 'open': 'Open', 'save': 'Save'}
+
+
 def demo():
     """A server with a few projects, for hand checks and screenshots."""
     fake = FakeWeblate()
@@ -465,8 +642,26 @@ def demo():
     fake.add_component('hello', 'program', 'Program')
     for code, name, done in (('af', 'Afrikaans', 98), ('de', 'German', 100), ('zu', 'Zulu', 41)):
         fake.add_translation('hello', 'program', code, name, translated=done, total=100)
+    fake.fill_po('hello', 'program', 'af', DEMO_PO)
     fake.add_component('hello', 'glossary', 'Glossary', is_glossary=True, file_format='tbx')
     fake.add_translation('hello', 'glossary', 'af', 'Afrikaans', translated=12, total=20)
+    fake.add_component(
+        'hello',
+        'website',
+        'Website',
+        file_format='json',
+        filemask='locales/*.json',
+        template='locales/en.json',
+    )
+    fake.add_translation('hello', 'website', 'af', 'Afrikaans', filename='locales/af.json')
+    fake.fill_json(
+        'hello',
+        'website',
+        'af',
+        DEMO_JSON,
+        {'welcome': 'Welkom', 'open': 'Maak oop'},
+        {'open': 30},
+    )
     fake.add_project('docs', 'Documentation')
     fake.add_component('docs', 'manual', 'User manual', category='guides')
     fake.add_translation('docs', 'guides/manual', 'pt_BR', 'Portuguese (Brazil)', 250, 400)

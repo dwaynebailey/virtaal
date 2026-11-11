@@ -101,6 +101,7 @@ class Client:
     MAX_WAIT = 120
     """The longest wait before a request: beyond it, the request fails."""
     PAGE_SIZE = 100
+    UNITS_PAGE_SIZE = 1000
 
     schedule = staticmethod(_later)
     """Calls callback() after seconds: GLib's timer, or a test's."""
@@ -144,32 +145,43 @@ class Client:
     def get_json(self, url, on_reply, on_error):
         """Asks for url and calls on_reply(data) with its JSON, or
         on_error(PlatformError)."""
+        self._get(url, on_reply, on_error, False)
+
+    def get_bytes(self, url, on_reply, on_error):
+        """Downloads url (a file) and calls on_reply(its bytes), or
+        on_error(PlatformError)."""
+        self._get(url, on_reply, on_error, True)
+
+    def _get(self, url, on_reply, on_error, raw):
         generation = self._generation
 
         def current(handler):
             return lambda *args: generation == self._generation and handler(*args)
 
-        self._send(url, current(on_reply), current(on_error), 1)
+        self._send(url, current(on_reply), current(on_error), 1, raw=raw)
 
-    def _send(self, url, on_reply, on_error, attempt, waited=False):
+    def _send(self, url, on_reply, on_error, attempt, waited=False, raw=False):
         wait = 0 if waited else self._resume_at - time.monotonic()
         if wait > self.MAX_WAIT:
             on_error(PlatformError(HTTP, 429))
             return
         if wait > 0:
-            self.schedule(wait, lambda: self._send(url, on_reply, on_error, attempt, True))
+            self.schedule(wait, lambda: self._send(url, on_reply, on_error, attempt, True, raw=raw))
             return
+        accept = 'Accept: */*' if raw else 'Accept: application/json'
         request = HTTPRequest(
             url,
-            headers=['Authorization: Token ' + self.token, 'Accept: application/json'],
+            headers=['Authorization: Token ' + self.token, accept],
             user_agent=self.http.user_agent,
+            # A file: stall detection instead of the short total timeout.
+            download=raw,
         )
         if self.http.add(request) is False:
             on_error(PlatformError(NETWORK))
             return
 
         def done(request, _value):
-            self._replied(request, url, on_reply, on_error, attempt)
+            self._replied(request, url, on_reply, on_error, attempt, raw)
 
         def failed(request, reason):
             on_error(PlatformError(NETWORK, detail=str(reason)))
@@ -188,16 +200,18 @@ class Client:
             except ValueError:
                 pass
 
-    def _replied(self, request, url, on_reply, on_error, attempt):
+    def _replied(self, request, url, on_reply, on_error, attempt, raw=False):
         status = request.status
         body = request.result.getvalue()
         self._note_limit(request)
         if status == 429 or status in _BUSY:
-            if self._retry(request, url, on_reply, on_error, attempt):
+            if self._retry(request, url, on_reply, on_error, attempt, raw):
                 return
             on_error(PlatformError(HTTP, status, error_detail(body)))
         elif status == 401:
             on_error(PlatformError(AUTH, status, error_detail(body)))
+        elif status == 200 and raw:
+            on_reply(body)
         elif status in (200, 201):
             try:
                 data = json.loads(body.decode('utf-8'))
@@ -210,7 +224,7 @@ class Client:
         else:
             on_error(PlatformError(HTTP, status, error_detail(body)))
 
-    def _retry(self, request, url, on_reply, on_error, attempt):
+    def _retry(self, request, url, on_reply, on_error, attempt, raw=False):
         """Sends the request again after the wait the server asks for
         (or one that doubles), if that is soon enough."""
         if attempt >= self.MAX_TRIES:
@@ -224,7 +238,7 @@ class Client:
             '%s: HTTP %s, asking again in %d s', loggable_url(url), request.status, seconds
         )
         self._resume_at = max(self._resume_at, time.monotonic() + seconds)
-        self._send(url, on_reply, on_error, attempt + 1)
+        self._send(url, on_reply, on_error, attempt + 1, raw=raw)
         return True
 
     # Lists #
@@ -279,6 +293,45 @@ class Client:
     def translations(self, project, component, on_page, on_done, on_error):
         path = 'components/%s/%s/translations/' % (path_part(project), path_part(component))
         self.get_list(path, on_page, on_done, on_error)
+
+    # One translation #
+
+    @staticmethod
+    def _translation_path(project, component, language):
+        return 'translations/%s/%s/%s/' % (
+            path_part(project),
+            path_part(component),
+            path_part(language),
+        )
+
+    def translation(self, project, component, language, on_done, on_error):
+        """on_done(the translation): its file name, its component..."""
+
+        def reply(data):
+            if isinstance(data, dict) and isinstance(data.get('component'), dict):
+                on_done(data)
+            else:
+                on_error(PlatformError(NOT_PLATFORM, 200))
+
+        url = self.url(self._translation_path(project, component, language))
+        self.get_json(url, reply, on_error)
+
+    def file(self, project, component, language, on_done, on_error):
+        """on_done(bytes): the translation's file as Weblate stores it."""
+        path = self._translation_path(project, component, language) + 'file/'
+        self.get_bytes(self.url(path), on_done, on_error)
+
+    def monolingual_base(self, project, component, on_done, on_error):
+        """on_done(bytes): a monolingual component's template."""
+        path = 'components/%s/%s/monolingual_base/' % (path_part(project), path_part(component))
+        self.get_bytes(self.url(path), on_done, on_error)
+
+    def units(self, project, component, language, on_page, on_done, on_error):
+        """Every unit of the translation, a page of up to
+        UNITS_PAGE_SIZE at a time."""
+        path = self._translation_path(project, component, language) + 'units/'
+        params = {'page_size': self.UNITS_PAGE_SIZE}
+        self.get_list(path, on_page, on_done, on_error, params)
 
 
 def _is_page(data):
