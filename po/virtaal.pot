@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 10:06+0000\n"
+"POT-Creation-Date: 2026-11-11 10:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2576,6 +2576,11 @@ msgstr ""
 msgid "Su_bmit to Server…"
 msgstr ""
 
+#. l10n: File menu: bring others' changes from a translation server into a file opened from it
+#: virtaal/support/platforms/__init__.py
+msgid "Up_date from Server…"
+msgstr ""
+
 #. l10n: The servers of translation platforms, such as Weblate
 #: virtaal/support/platforms/browsedialog.py
 #: virtaal/support/platforms/serversdialog.py
@@ -2688,7 +2693,8 @@ msgid_plural "Submitted %(count)s units."
 msgstr[0] ""
 msgstr[1] ""
 
-#: virtaal/support/platforms/submitdialog.py virtaal/views/mainview.py
+#: virtaal/support/platforms/submitdialog.py
+#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
 #: virtaal/views/widgets/settingsdialog.py
 msgid "_Cancel"
 msgstr ""
@@ -2729,6 +2735,12 @@ msgstr ""
 msgid "Skip"
 msgstr ""
 
+#. l10n: Submit or Update can't find the server a file was opened from; %(server)s is its address
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "%(server)s is not one of your translation servers."
+msgstr ""
+
 #. l10n: %(platform)s is the kind of translation server, such as Weblate
 #: virtaal/support/platforms/submitdialog.py
 #, python-format
@@ -2741,10 +2753,49 @@ msgstr[1] ""
 msgid "There are no changes to submit."
 msgstr ""
 
-#. l10n: Submit can't find the server a file was opened from; %(server)s is its address
-#: virtaal/support/platforms/submitdialog.py
+#. l10n: Followed by the source text of each change, one a line
+#: virtaal/support/platforms/updatedialog.py
 #, python-format
-msgid "%(server)s is not one of your translation servers."
+msgid ""
+"%(count)s change not yet submitted is to a string removed on the server, and "
+"will be lost:"
+msgid_plural ""
+"%(count)s changes not yet submitted are to strings removed on the server, "
+"and will be lost:"
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: In the status bar after Update from Server found nothing new
+#: virtaal/support/platforms/updatedialog.py
+msgid "There are no changes on the server."
+msgstr ""
+
+#. l10n: In the status bar after Update from Server
+#: virtaal/support/platforms/updatedialog.py
+#, python-format
+msgid "Updated %(count)s unit from the server."
+msgid_plural "Updated %(count)s units from the server."
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
+#: virtaal/views/widgets/settingsdialog.py
+msgid "_OK"
+msgstr ""
+
+#: virtaal/support/platforms/updatedialog.py
+msgid ""
+"The strings to translate changed on the server since you downloaded them. "
+"Download them again?"
+msgstr ""
+
+#: virtaal/support/platforms/updatedialog.py
+msgid "Your changes not yet submitted are kept."
+msgstr ""
+
+#. l10n: Downloads a translation from its server again, over the local copy
+#: virtaal/support/platforms/updatedialog.py
+msgid "_Download Again"
 msgstr ""
 
 #: virtaal/support/tutorial.py
@@ -3235,10 +3286,6 @@ msgstr ""
 
 #: virtaal/views/mainview.py
 msgid "All Supported Files"
-msgstr ""
-
-#: virtaal/views/mainview.py virtaal/views/widgets/settingsdialog.py
-msgid "_OK"
 msgstr ""
 
 #. l10n: macOS app menu item that opens the Preferences dialog

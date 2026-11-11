@@ -144,11 +144,19 @@ class ProgressDialog:
         )
         self.bar.set_fraction((number - 1) / total if total else 0)
 
+    def waiting(self, text):
+        """text, and a bar that pulses, while the count is unknown."""
+        self.label.set_text(text)
+        self._pulse = GLib.timeout_add(100, lambda: self.bar.pulse() or True)
+
     def show(self):
         self.dialog.show()
         self.dialog.present()
 
     def destroy(self):
+        if getattr(self, '_pulse', None):
+            GLib.source_remove(self._pulse)
+            self._pulse = None
         self.dialog.destroy()
 
 
@@ -156,14 +164,14 @@ class ConflictDialog:
     """The units changed on the server since the download, with their
     text there and here; for each, Keep mine, Take theirs or Skip."""
 
-    def __init__(self, conflicts, parent=None):
+    def __init__(self, conflicts, parent=None, ok_label=None):
         self.conflicts = conflicts
         self.dialog = Gtk.Dialog(transient_for=parent, modal=True)
         # l10n: The title of the dialog listing units changed both in Virtaal and on the translation server
         self.dialog.set_title(_('Changed on the Server'))
         self.dialog.set_default_size(560, 420)
         self.dialog.add_button(_('_Cancel'), Gtk.ResponseType.CANCEL)
-        self.dialog.add_button(_('_Submit'), Gtk.ResponseType.OK)
+        self.dialog.add_button(ok_label or _('_Submit'), Gtk.ResponseType.OK)
         self.dialog.set_default_response(Gtk.ResponseType.OK)
         intro = Gtk.Label(wrap=True, xalign=0, max_width_chars=60)
         intro.set_text(
@@ -233,8 +241,10 @@ class ConflictDialog:
         return decisions
 
 
-class SubmitDialogs:
-    """One Submit of the work copy open, from the registry's menu item."""
+class CopyDialogs:
+    """The dialogs of one action on the work copy open, from the
+    registry's menu item: its server, its messages, the file's units
+    changed from the server."""
 
     def __init__(self, registry, copy, parent=None):
         self.registry = registry
@@ -242,7 +252,6 @@ class SubmitDialogs:
         self.parent = parent
         self.main_controller = registry.main_controller
         self.platform = registry.platform_of(copy)
-        self.submission = None
         self.session = None
 
     def _tell(self, text, kind=Gtk.MessageType.INFO):
@@ -255,6 +264,48 @@ class SubmitDialogs:
         )
         run_dialog(dialog)
         dialog.destroy()
+
+    def _server(self):
+        """The server the copy came from, or None, said."""
+        servers = self.registry.servers()
+        server = servers.find(self.platform, self.copy.record['server'])
+        if server is None:
+            self._tell(
+                # l10n: Submit or Update can't find the server a file was opened from; %(server)s is its address
+                _('%(server)s is not one of your translation servers.')
+                % {'server': self.copy.record['server']},
+                Gtk.MessageType.ERROR,
+            )
+        return server
+
+    def _show_changed_units(self):
+        """The units' new text in the list, and in the editor without
+        finishing its unit (as recoverycontroller does)."""
+        self.main_controller.store_controller.view._treeview.queue_draw()
+        unit_controller = self.main_controller.unit_controller
+        unit = unit_controller.current_unit
+        if unit is not None:
+            unit_controller.current_unit = None
+            unit_controller.view.unit = None
+            unit_controller.load_unit(unit)
+
+    def _save_changed_units(self):
+        """Shows and saves what the server changed in the file."""
+        self._show_changed_units()
+        self.main_controller.store_controller.set_modified(True)
+        self.main_controller.save_file()
+
+    def _told(self, status):
+        view = self.main_controller.view
+        view.set_statusbar_message(status)
+        view.refresh_title()
+        self.registry.sync_submit()
+
+
+class SubmitDialogs(CopyDialogs):
+    """One Submit of the work copy open, from the registry's menu item."""
+
+    submission = None
 
     def confirm(self, count):
         dialog = Gtk.MessageDialog(
@@ -284,10 +335,6 @@ class SubmitDialogs:
     def choose(self, conflicts):
         return ConflictDialog(conflicts, self.parent).run()
 
-    def _server(self):
-        servers = self.registry.servers()
-        return servers.find(self.platform, self.copy.record['server'])
-
     def run(self):
         """Saves, asks, sends. The submit.Result, or None if nothing
         was sent."""
@@ -299,12 +346,6 @@ class SubmitDialogs:
             return None
         server = self._server()
         if server is None:
-            self._tell(
-                # l10n: Submit can't find the server a file was opened from; %(server)s is its address
-                _('%(server)s is not one of your translation servers.')
-                % {'server': self.copy.record['server']},
-                Gtk.MessageType.ERROR,
-            )
             return None
         self.session = server.session()
         if not self.confirm(len(self.copy.pending())):
@@ -348,28 +389,11 @@ class SubmitDialogs:
         progress.destroy()
         return outcome[0]
 
-    def _show_changed_units(self):
-        """The units' new text in the list, and in the editor without
-        finishing its unit (as recoverycontroller does)."""
-        self.main_controller.store_controller.view._treeview.queue_draw()
-        unit_controller = self.main_controller.unit_controller
-        unit = unit_controller.current_unit
-        if unit is not None:
-            unit_controller.current_unit = None
-            unit_controller.view.unit = None
-            unit_controller.load_unit(unit)
-
     def finish(self, result):
         """Saves what the server changed in the file, then tells."""
-        store_controller = self.main_controller.store_controller
         if result.file_changed:
-            self._show_changed_units()
-            store_controller.set_modified(True)
-            self.main_controller.save_file()
-        view = self.main_controller.view
-        view.set_statusbar_message(status_message(result))
-        view.refresh_title()
-        self.registry.sync_submit()
+            self._save_changed_units()
+        self._told(status_message(result))
         message = result_message(result, self.copy, self.platform)
         if message:
             kind = Gtk.MessageType.INFO if result.stop is None else Gtk.MessageType.WARNING

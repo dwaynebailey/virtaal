@@ -54,6 +54,9 @@ from the server. A unit the server refused keeps "changed" and gets
 "error", the server's reason. "submitted_at" is when a Submit last
 left no change unsent.
 
+"updated_at" is when Update last asked the server for changes
+(update.py).
+
 Matching the file's units to the platform's (match()): by context
 (PO's msgctxt; a monolingual file's key), then by source text, then by
 position. Units with the same context and source pair in file order.

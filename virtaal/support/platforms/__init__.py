@@ -17,7 +17,8 @@ projects; a project holds components (when has_components) and each
 component, or the project itself, holds languages. Opening a language
 downloads it into a work copy (workcopy.py) and opens that file;
 File > Submit to Server… sends its changed units back (submit.py, for
-a platform that can_submit).
+a platform that can_submit), and File > Update from Server… brings in
+others' changes (update.py).
 """
 
 from collections import namedtuple
@@ -111,6 +112,11 @@ class Session:
     def locked(self, project, component, on_done, on_error):
         """on_done(whether no one may change the translations of
         component, or of project when the platform has no components)."""
+        raise NotImplementedError
+
+    def unit_count(self, project, component, language, on_done, on_error):
+        """on_done(how many units a language has now, as download() would
+        give them), for Update to see that the set of units changed."""
         raise NotImplementedError
 
     def changed_since(self, project, component, language, since, on_done, on_error):
@@ -208,14 +214,16 @@ class Platform:
 
 
 class Registry:
-    """The platforms whose plug-ins are on, and the menu item that opens
-    from them, there while any is."""
+    """The platforms whose plug-ins are on, and the menu items that open
+    from them and send back and bring in a work copy's changes, there
+    while any is."""
 
     def __init__(self):
         self.platforms = []
         self.main_controller = None
         self.menuitem = None
         self.submit_item = None
+        self.update_item = None
         self._handlers = []
 
     def add(self, platform, main_controller):
@@ -229,11 +237,11 @@ class Registry:
         if platform in self.platforms:
             self.platforms.remove(platform)
         if not self.platforms and self.menuitem is not None:
-            for item in (self.menuitem, self.submit_item):
+            for item in (self.menuitem, self.submit_item, self.update_item):
                 menu = item.get_parent()
                 if menu is not None:
                     menu.remove(item)
-            self.menuitem = self.submit_item = None
+            self.menuitem = self.submit_item = self.update_item = None
             for source, handler in self._handlers:
                 source.disconnect(handler)
             self._handlers = []
@@ -262,6 +270,11 @@ class Registry:
         self.submit_item.show()
         save_as = view.gui.get_object('mnu_saveas')
         menu.insert(self.submit_item, menu.get_children().index(save_as) + 1)
+        # l10n: File menu: bring others' changes from a translation server into a file opened from it
+        self.update_item = Gtk.MenuItem.new_with_mnemonic(_('Up_date from Server…'))
+        self.update_item.connect('activate', lambda _item: self.update())
+        self.update_item.show()
+        menu.insert(self.update_item, menu.get_children().index(self.submit_item) + 1)
         # Save follows the file's modified flag.
         self._watch(view.gui.get_object('mnu_save'), 'notify::sensitive')
         store_controller = getattr(self.main_controller, 'store_controller', None)
@@ -287,13 +300,15 @@ class Registry:
         return next((p for p in self.platforms if p.id == copy.record['platform']), None)
 
     def sync_submit(self):
-        """Submit is there for a work copy with changes, saved or not."""
+        """Submit is there for a work copy with changes, saved or not;
+        Update for any work copy."""
         if self.submit_item is None:
             return
         copy = self._open_work_copy()
         store_controller = getattr(self.main_controller, 'store_controller', None)
         modified = store_controller is not None and store_controller.is_modified()
         self.submit_item.set_sensitive(copy is not None and (modified or bool(copy.pending())))
+        self.update_item.set_sensitive(copy is not None)
 
     def submit(self, parent=None):
         """Saves the work copy open, then sends its changes to its
@@ -304,6 +319,16 @@ class Registry:
         if copy is None:
             return None
         return SubmitDialogs(self, copy, self._parent(parent)).run()
+
+    def update(self, parent=None):
+        """Saves the work copy open, then brings in what others changed
+        on its server (updatedialog.py)."""
+        from .updatedialog import UpdateDialogs
+
+        copy = self._open_work_copy()
+        if copy is None:
+            return None
+        return UpdateDialogs(self, copy, self._parent(parent)).run()
 
     def _parent(self, parent):
         return parent or self.main_controller.view.main_window

@@ -374,6 +374,18 @@ class Client:
             params['q'] = query
         self.get_list(path, on_page, on_done, on_error, params)
 
+    def unit_count(self, project, component, language, on_done, on_error):
+        """on_done(how many units the translation has): one page of one."""
+
+        def reply(data):
+            if _is_page(data):
+                on_done(data['count'])
+            else:
+                on_error(PlatformError(NOT_PLATFORM, 200))
+
+        path = self._translation_path(project, component, language) + 'units/'
+        self.get_json(self.url(path, {'page_size': 1}), reply, on_error)
+
     def locked(self, project, component, on_done, on_error):
         """on_done(whether the component is locked)."""
 

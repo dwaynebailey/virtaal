@@ -176,6 +176,9 @@ class WeblateSession(Session):
     def locked(self, project, component, on_done, on_error):
         self.client.locked(project, component, on_done, on_error)
 
+    def unit_count(self, project, component, language, on_done, on_error):
+        self.client.unit_count(project, component, language, on_done, on_error)
+
     def changed_since(self, project, component, language, since, on_done, on_error):
         found = []
         self.client.units(

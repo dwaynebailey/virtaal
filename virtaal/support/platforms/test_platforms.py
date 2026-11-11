@@ -91,6 +91,9 @@ class DummySession(Session):
         assert component is None
         self._later(on_done, False)
 
+    def unit_count(self, project, component, language, on_done, on_error):
+        self._later(on_done, len(self.platform.held))
+
     def changed_since(self, project, component, language, since, on_done, on_error):
         held = self.platform.held
         self._later(on_done, [held[i] for i in sorted(self.platform.changed)])
@@ -395,10 +398,11 @@ def test_one_menu_item_serves_every_platform(weblate, dummy):
         'mnu_save',
         'mnu_saveas',
         'Su_bmit to Server…',
+        'Up_date from Server…',
     ]
 
     registry.remove(weblate)
-    assert len(menu.get_children()) == 6
+    assert len(menu.get_children()) == 7
     registry.remove(dummy)
     assert len(menu.get_children()) == 4
 
@@ -451,3 +455,32 @@ def test_a_platform_without_components_submits_through_the_interface(
     assert done[0].sent == 1 and done[0].stop is None
     assert dummy.held['b'].target == ['Beta'] and dummy.held['b'].code == 'draft'
     assert copy.pending() == [] and copy.submitted()
+
+
+def test_a_platform_without_components_updates_through_the_interface(
+    servers, dummy, tmp_path, monkeypatch
+):
+    from translate.storage import po
+
+    from virtaal.support.platforms import update
+
+    monkeypatch.setattr(pan_app, 'get_state_dir', lambda: str(tmp_path / 'state'))
+    download = []
+    DummySession(dummy, {}).download('alpha', None, 'af', download.append, None)
+    run_until(lambda: download)
+    copy = workcopy.create(dummy, 'dummy://one', 'alpha', None, 'af', download[0])
+    store = po.pofile.parsefile(copy.path)
+    units = [u for u in store.units if not u.isheader()]
+    copy.attach(SimpleNamespace(get_units=lambda: units, pair=None))
+    dummy.held['b'] = dummy.held['b']._replace(
+        target=['Beta!'], state=100, code='draft', last_updated='2'
+    )
+    dummy.changed.add('b')
+    done = []
+
+    update.Update(copy, dummy, DummySession(dummy, {}), None, None, done.append).start()
+    run_until(lambda: done)
+
+    assert done[0].taken == 1 and done[0].stop is None
+    assert str(units[1].target) == 'Beta!'
+    assert copy.units[1]['target_hash'] == workcopy.text_hash(['Beta!'])

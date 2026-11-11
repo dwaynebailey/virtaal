@@ -532,6 +532,7 @@ def test_the_menu_items_follow_open_folder_and_save_as_and_go_with_the_plugin():
         'mnu_save',
         'mnu_saveas',
         'Su_bmit to Server…',
+        'Up_date from Server…',
     ]
     assert registry.platforms == [weblate.platform]
 
