@@ -62,6 +62,18 @@ def api_url(text):
     return parse.urlunsplit((parts.scheme, parts.netloc.lower(), path + '/', '', ''))
 
 
+def unencrypted(text):
+    """Whether text is a plain http address of another machine, the one
+    kind of address api_url() refuses for the token's sake."""
+    text = (text or '').strip()
+    try:
+        parts = parse.urlsplit(text)
+        host = parts.hostname
+    except ValueError:
+        return False
+    return parts.scheme == 'http' and bool(host) and host not in _LOOPBACK
+
+
 def path_part(slug):
     """A slug in a URL path; a category's '/' is escaped twice, as
     Weblate wants it ("category%252Fcomponent")."""

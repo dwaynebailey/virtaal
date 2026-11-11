@@ -56,6 +56,12 @@ class ServerDialog(SettingsDialog):
         )
         super().__init__(parent, _('Weblate'), fields, {'url': url, 'token': token})
 
+    def problem(self):
+        if weblate.unencrypted(self.get_values()['url']):
+            # l10n: Shown for an address starting http:// instead of https://
+            return _('Use https: the token would be sent unencrypted.')
+        return None
+
     def is_valid(self):
         return super().is_valid() and weblate.api_url(self.get_values()['url']) is not None
 

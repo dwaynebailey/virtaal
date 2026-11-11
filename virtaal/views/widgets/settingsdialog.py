@@ -34,7 +34,8 @@ def valid(field, text):
 
 
 class SettingsDialog:
-    """OK is only sensitive while every field is valid."""
+    """OK is only sensitive while every field is valid. While problem()
+    has something to say, it is shown below the fields."""
 
     def __init__(self, parent, title, fields, values):
         self.fields = tuple(fields)
@@ -73,6 +74,8 @@ class SettingsDialog:
                 show.connect('toggled', lambda btn, e=entry: e.set_visibility(btn.get_active()))
                 grid.attach(show, 1, row, 1, 1)
                 row += 1
+        self.problem_label = Gtk.Label(wrap=True, xalign=0, max_width_chars=40)
+        grid.attach(self.problem_label, 0, row, 2, 1)
         self.dialog.get_content_area().add(grid)
         grid.show_all()
         self._update_ok()
@@ -81,12 +84,19 @@ class SettingsDialog:
         """The fields' stripped text, by config key."""
         return {key: entry.get_text().strip() for key, entry in self.entries.items()}
 
+    def problem(self):
+        """Why the values can't be used, to tell the user, or None."""
+        return None
+
     def is_valid(self):
         values = self.get_values()
-        return all(valid(field, values[field.key]) for field in self.fields)
+        return all(valid(field, values[field.key]) for field in self.fields) and not self.problem()
 
     def _update_ok(self):
         self.btn_ok.set_sensitive(self.is_valid())
+        text = self.problem() or ''
+        self.problem_label.set_text(text)
+        self.problem_label.set_visible(bool(text))
 
     def run(self):
         """@returns: The new values by config key, or C{None} if cancelled."""

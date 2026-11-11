@@ -46,6 +46,20 @@ def test_ok_is_only_sensitive_while_every_field_is_valid():
     assert not dialog.btn_ok.get_sensitive()
 
 
+def test_a_problem_is_shown_and_keeps_ok_insensitive():
+    class Picky(SettingsDialog):
+        def problem(self):
+            return 'Not that one.' if self.get_values()['host'] == 'bad' else None
+
+    dialog = Picky(None, 'Server', _SERVER, {'host': 'localhost', 'port': '55555'})
+    assert not dialog.problem_label.get_visible()
+
+    dialog.entries['host'].set_text('bad')
+    assert not dialog.btn_ok.get_sensitive()
+    assert dialog.problem_label.get_visible()
+    assert dialog.problem_label.get_text() == 'Not that one.'
+
+
 def test_values_are_stripped():
     dialog = SettingsDialog(None, 'Server', _SERVER, {'host': ' tm.example.org ', 'port': 8080})
 

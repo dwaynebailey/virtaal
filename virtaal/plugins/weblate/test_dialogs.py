@@ -86,6 +86,25 @@ def test_ok_needs_a_usable_address_and_a_token(url, token, ok):
     assert dialog.btn_ok.get_sensitive() is ok
 
 
+def test_a_plain_http_address_says_why_it_is_refused():
+    dialog = ServerDialog(None, 'http://weblate.example.org', 'wlu_x')
+
+    assert not dialog.btn_ok.get_sensitive()
+    assert dialog.problem_label.get_visible()
+    assert dialog.problem_label.get_text() == (
+        'Use https: the token would be sent unencrypted.'
+    )
+
+    dialog.entries['url'].set_text('https://weblate.example.org')
+    assert dialog.btn_ok.get_sensitive()
+    assert not dialog.problem_label.get_visible()
+
+
+@pytest.mark.parametrize('url', ['http://localhost:8080', 'http://127.0.0.1:8765', ''])
+def test_plain_http_to_this_machine_needs_no_message(url):
+    assert not ServerDialog(None, url, 'wlu_x').problem_label.get_visible()
+
+
 def test_the_token_is_hidden(no_wlc):
     dialog = ServerDialog(None, 'https://w.example.org', 'wlu_x')
 
