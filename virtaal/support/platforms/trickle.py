@@ -46,7 +46,8 @@ def finished(target, state):
 
 
 class Trickler:
-    """Sends the finished units of the work copy open, as it is saved.
+    """Sends the finished units of the work copies open, as each is
+    saved: one at a time, the others waiting their turn.
 
     server_of(copy) is the copy's Server (servers.py) or None;
     on_sent(Result) follows each run that sent anything, on_conflicts(
@@ -67,8 +68,11 @@ class Trickler:
         self._retry = RETRY_FIRST
         self._timer = 0
         """Which retry is due: a newer one, or a stop, drops older ones."""
-        self._waiting = None
-        """The work copy whose queue waits to try again."""
+        self._next = []
+        """The work copies waiting for the one sending."""
+        self._waiting = []
+        """The work copies whose queues wait to try again."""
+        self._retry_due = False
         self._woken = None
         """When the network last brought a try."""
 
@@ -103,14 +107,19 @@ class Trickler:
         self.start(copy)
 
     def start(self, copy):
-        """Sends what copy's queue holds, unless a run already is."""
+        """Sends what copy's queue holds, after the run on its way."""
         server = self._server(copy)
-        if server is None or self.running:
+        if server is None:
             return
         only = set(self.queue(copy))
         if not only:
             return
-        self._waiting = None
+        if self.running:
+            if copy is not self.copy and copy not in self._next:
+                self._next.append(copy)
+            return
+        if copy in self._waiting:
+            self._waiting.remove(copy)
         self.copy = copy
         self.platform = server.platform
         self.session = server.session()
@@ -123,7 +132,9 @@ class Trickler:
         """Stops at once, the queue kept: Submit or Update takes over,
         or the file is closed. A reply on its way is dropped."""
         self._timer += 1
-        self._waiting = None
+        self._waiting = []
+        self._next = []
+        self._retry_due = False
         if self.submission is not None:
             self.submission.cancel()
             self.submission.finished = True
@@ -156,35 +167,47 @@ class Trickler:
             self._try_again(copy, result)
         else:
             self._retry = RETRY_FIRST
+        if self._next and not self.running:
+            self.start(self._next.pop(0))
 
     def _try_again(self, copy, result):
+        if copy not in self._waiting:
+            self._waiting.append(copy)
+        if self._retry_due:
+            # It goes with the retry already due.
+            return
         wait = self._retry
         if result.stop == BUDGET and result.reset_in is not None:
             wait = max(wait, result.reset_in)
         self._retry = min(self._retry * 2, RETRY_MAX)
         self._timer += 1
         timer = self._timer
-        self._waiting = copy
+        self._retry_due = True
 
         def again():
             if timer == self._timer:
-                self.start(copy)
+                self._wake()
 
         self.schedule(wait, again)
+
+    def _wake(self):
+        """Every queue waiting to try again, one after the other."""
+        self._retry_due = False
+        for copy in list(self._waiting):
+            self.start(copy)
 
     def network_changed(self, available):
         """Gio.NetworkMonitor's network-changed: a queue waiting to try
         again goes now when the network is available, at most once each
         RETRY_FIRST, for a monitor that says so on every change."""
-        copy = self._waiting
-        if not available or copy is None or self.running:
+        if not available or not self._waiting or self.running:
             return
         now = self.clock()
         if self._woken is not None and now - self._woken < RETRY_FIRST:
             return
         self._woken = now
         self._timer += 1
-        self.start(copy)
+        self._wake()
 
 
 def network_monitor():

@@ -261,3 +261,34 @@ def test_the_network_coming_back_sends_nothing_without_a_wait(fake):
 
     assert len(fake.requests) == asked and fake.patched == []
     assert copy.copy.pending() == [copy.index('Save')]
+
+
+def test_several_files_go_one_after_the_other_and_wait_together():
+    from devsupport.testing.fakeweblate import demo_many
+
+    with demo_many() as fake:
+        program, installer = Copy(fake), Copy(fake, 'installer')
+        trickling = Trickling(program)
+        ids = [program.server_unit('Help')['id'], installer.server_unit('Cancel')['id']]
+        program.edit('Help', 'Hulp')
+        installer.edit('Cancel', 'Kanselleer')
+        program.save()
+        installer.save()
+
+        # Saved together, as a stream saves: the second waits its turn.
+        fake.offline = True
+        trickling.trickler.saved(program.copy)
+        trickling.trickler.saved(installer.copy)
+        assert trickling.trickler._next == [installer.copy]
+        run_until(lambda: not trickling.trickler.running and not trickling.trickler._next)
+
+        # One wait for both.
+        [(_wait, again)] = trickling.waits
+        assert fake.patched == []
+        fake.offline = False
+        again()
+        run_until(lambda: not trickling.trickler.running and not trickling.trickler._next)
+
+        assert sorted(_patched(fake)) == sorted(ids)
+        assert [r.sent for r in trickling.sent] == [1, 1]
+        assert not program.copy.record['queue'] and not installer.copy.record['queue']
