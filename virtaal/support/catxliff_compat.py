@@ -82,9 +82,10 @@ def _tool(unit):
 
 
 def is_locked(unit):
-    """Whether C{unit} is a locked memoQ, Phrase or Trados segment, or a
-    unit of a monolingual project's source-language file."""
-    if getattr(unit, "read_only", False):
+    """Whether C{unit} is a locked memoQ, Phrase or Trados segment, a
+    unit of a monolingual project's source-language file, or one its
+    translation platform locks (platforms.states)."""
+    if getattr(unit, "read_only", False) or getattr(unit, "platform_locked", False):
         return True
     tool = _tool(unit)
     if tool is not None:

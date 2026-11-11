@@ -14,7 +14,8 @@ interface, so the server list (servers.py), its dialog
 (serversdialog.py) and File > Open from Translation Server…
 (browsedialog.py) serve every kind alike. A platform's server holds
 projects; a project holds components (when has_components) and each
-component, or the project itself, holds languages.
+component, or the project itself, holds languages. Opening a language
+downloads it into a work copy (workcopy.py) and opens that file.
 """
 
 from collections import namedtuple
@@ -49,6 +50,22 @@ the slug (a language's code) that identifies it on the server, how
 much of it is translated (0 to 1, or None) and whether it is a
 glossary."""
 
+RemoteUnit = namedtuple(
+    'RemoteUnit', 'id position context source target state code last_updated read_only'
+)
+"""A unit as the platform holds it: its id there, its position in the
+file, its context (PO's msgctxt, a monolingual file's key), its source
+and target (lists of forms), its state as Virtaal's StateEnum (None if
+it has none Virtaal shows), the platform's own state code, when it
+last changed (the platform's text, or None) and whether no one may
+change it there."""
+
+Download = namedtuple('Download', 'filename data template units names')
+"""A language of a component (or project) as downloaded: the file's
+name and bytes in the platform's own format, the template as (name,
+bytes) or None, the RemoteUnits, and the names of the project and the
+component ({'project': ..., 'component': ...}) to show."""
+
 
 class Session:
     """One server of a platform, as its address and credentials. Every
@@ -73,6 +90,11 @@ class Session:
     def languages(self, project, component, on_done, on_error):
         """on_done(items): the languages of component (None when the
         platform has no components), each with how much is translated."""
+        raise NotImplementedError
+
+    def download(self, project, component, language, on_done, on_error):
+        """on_done(Download): the file of a language of component (None
+        when the platform has no components), and its units."""
         raise NotImplementedError
 
     def cancel(self):
