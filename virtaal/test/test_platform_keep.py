@@ -5,18 +5,21 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""File > Update from Server… (#3337) in Virtaal, against the fake
-Weblate."""
+"""Keeping a work copy's unsubmitted work (#3337) in Virtaal, against
+the fake Weblate: File > Update from Server…, the notices that keep
+the work in view, and crash recovery re-attaching the platform."""
 
 import pytest
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
+from test_recovery_resume import UnsavedScaffolding
 from test_scaffolding import TestScaffolding
 
 from devsupport.testing.fakeweblate import TOKEN, demo, run_until
 from virtaal.common import pan_app
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.plugins.weblate.backend import WeblatePlatform
-from virtaal.support.platforms import Registry, submit, workcopy
+from virtaal.support.platforms import Registry, states, submit, workcopy
+from virtaal.support.platforms.browsedialog import BrowseDialog
 from virtaal.support.platforms.servers import ServerList
 from virtaal.support.platforms.submitdialog import ConflictDialog, SubmitDialogs
 from virtaal.support.platforms.updatedialog import UpdateDialogs
@@ -46,6 +49,8 @@ class Weblating:
         self.servers = ServerList([self.platform], str(tmp_path / 'platforms.ini'))
         self.servers.put(self.platform, self.fake.url, {'token': TOKEN})
         self.registry = Registry()
+        # No start-up reminder unless a test asks for one.
+        self.registry._reminded = True
         monkeypatch.setattr(self.registry, 'servers', lambda: self.servers)
         self.registry.add(self.platform, self.main_controller)
         self.main_controller.store_controller.close_file()
@@ -89,9 +94,129 @@ class Weblating:
     def _server_unit(self, source):
         return next(u for u in self.fake.units.values() if u['source'] == [source])
 
+    def _notice(self):
+        """(its text, its buttons' labels), or None."""
+        notice = self.registry._notice
+        if notice is None:
+            return None
+        buttons = sorted(b.get_label() for b in notice.get_action_area().get_children())
+        return self.registry.notice_text(), buttons
+
     def _status(self):
         bar = self.main_controller.view.status_bar
         return bar.get_message_area().get_children()[0].get_text()
+
+
+OPEN_NOTICE = ['Su_bmit to Server…', 'Up_date from Server…']
+
+
+class TestUnsubmittedWork(Weblating, TestScaffolding):
+    def setup_class(self):
+        TestScaffolding.setup_class(self)
+        PlaceablesController(self.main_controller)
+
+    def test_a_fresh_download_says_nothing(self):
+        self._open()
+
+        assert self._notice() is None
+
+    def test_reopening_after_a_restart_says_what_waits_with_submit_and_update(self):
+        path = self._open()
+        self._edit('Help', 'Hulp')
+        self._edit('Print', 'Druk uit')
+        assert self.main_controller.save_file()
+        self.main_controller.store_controller.close_file()
+
+        # As after a restart: the work copy from Recent Files.
+        self._open(path)
+
+        assert self._notice() == (
+            '2 changes to Hello/Program are not yet submitted.',
+            OPEN_NOTICE,
+        )
+        assert self.registry.submit_item.get_sensitive()
+
+    def test_the_notice_follows_saves_and_goes_once_all_are_sent(self):
+        path = self._open()
+        self._edit('Help', 'Hulp')
+        assert self.main_controller.save_file()
+        self.main_controller.store_controller.close_file()
+        self._open(path)
+        self._edit('Print', 'Druk uit')
+        assert self.main_controller.save_file()
+        assert self._notice()[0] == '2 changes to Hello/Program are not yet submitted.'
+
+        self.registry.submit()
+
+        assert self._notice() is None
+
+    def test_submit_on_the_notice_submits(self):
+        path = self._open()
+        self._edit('Help', 'Hulp')
+        assert self.main_controller.save_file()
+        self.main_controller.store_controller.close_file()
+        self._open(path)
+
+        self.registry._notice.response(0)
+
+        assert self._server_unit('Help')['target'] == ['Hulp']
+
+    def test_closing_with_work_not_submitted_says_so_once_with_open(self, monkeypatch):
+        path = self._open()
+        self._edit('Help', 'Hulp')
+        assert self.main_controller.save_file()
+
+        self.main_controller.close_file()
+
+        text, buttons = self._notice()
+        assert text == '1 change to Hello/Program is not yet submitted.'
+        assert buttons == [GLib.dgettext('gtk30', '_Open')]
+        opened = []
+        monkeypatch.setattr(self.main_controller, 'open_file', opened.append)
+        self.registry._notice.response(0)
+        assert opened == [path] and self._notice() is None
+
+    def test_quitting_asks_nothing_and_start_up_reminds_once(self):
+        path = self._open()
+        self._edit('Help', 'Hulp')
+        assert self.main_controller.save_file()
+        self.main_controller.store_controller.close_file()
+        self.registry._hide_notice()
+
+        # A new Virtaal with no file open.
+        self.registry._remind_at_start()
+
+        assert self._notice() == (
+            '1 change to Hello/Program is not yet submitted.',
+            [GLib.dgettext('gtk30', '_Open')],
+        )
+        assert workcopy.unsubmitted_copies({'weblate'})[0].path == path
+
+    def test_reopening_from_the_browser_offers_update(self, monkeypatch):
+        path = self._open()
+        self._edit('Help', 'Hulp')
+        assert self.main_controller.save_file()
+        self.main_controller.store_controller.close_file()
+        chosen = []
+
+        def run(dialog):
+            dialog.server = self.servers.servers[0]
+            dialog.session = dialog.server.session()
+            dialog.treeview.get_selection().unselect_all()
+            monkeypatch.setattr(dialog, 'selected', lambda: ('hello', 'program', 'af'))
+            dialog.open_selected()
+            chosen.append(dialog.opened)
+            return dialog.opened
+
+        monkeypatch.setattr(BrowseDialog, 'run', run)
+        downloads = len(self.fake.requests_to('/api/translations/hello/program/af/file/'))
+
+        assert self.registry.browse()
+
+        # The local copy, not a new download over it.
+        assert chosen == [path]
+        assert len(self.fake.requests_to('/api/translations/hello/program/af/file/')) == downloads
+        assert self._notice() == ('1 change to Hello/Program is not yet submitted.', OPEN_NOTICE)
 
 
 class TestUpdate(Weblating, TestScaffolding):
@@ -171,7 +296,7 @@ class TestUpdate(Weblating, TestScaffolding):
         assert [str(u.source) for u in sc.store.get_units()][-1] == 'Undo'
         assert str(self._unit('Help').target) == 'Hulp'
         assert not sc.is_modified()
-        assert len(workcopy.for_file(path).changed_units()) == 1
+        assert workcopy.for_file(path).unsubmitted() == 1
 
     def test_the_download_question_names_what_would_be_lost(self, monkeypatch):
         self._open()
@@ -199,3 +324,26 @@ class TestUpdate(Weblating, TestScaffolding):
             )
         ]
         assert str(self._unit('Help').target) == 'Hulp'
+
+
+class TestRecoveringAWorkCopy(Weblating, UnsavedScaffolding):
+    def test_a_crash_resumes_with_the_platform_attached(self):
+        path = self._download().path
+        sc = self.store_controller
+        sc.open_file(path)
+        self._type(sc.store.index_of(self._unit('Help')), 'Hulp')
+        self._edit_at(0)
+        self._crash()
+
+        self._resume()
+
+        assert sc.work_copy is not None and sc.work_copy.path == path
+        approved = self._unit('Open')
+        assert states.is_adopted(approved) and approved.get_state_n() == 120
+        [(kind, count, recover, _discard)] = [n for n in self.notices if n[0] == 'recover']
+        assert count == 1
+        recover()
+        assert str(self._unit('Help').target) == 'Hulp'
+
+        assert self.main_controller.save_file()
+        assert workcopy.for_file(path).unsubmitted() == 1

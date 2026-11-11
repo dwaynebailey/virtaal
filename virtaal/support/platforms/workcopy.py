@@ -301,6 +301,11 @@ class WorkCopy:
             if self.units[r].get('changed') and not self.units[r].get('read_only')
         ]
 
+    def unsubmitted(self):
+        """How many saved changes Submit would send, from the side record
+        alone (pending() needs the file's units)."""
+        return sum(1 for u in self.units if u.get('changed') and not u.get('read_only'))
+
     def submitted(self):
         """Whether the last Submit sent every change, and none came
         since."""
@@ -459,6 +464,22 @@ def for_file(path):
             return WorkCopy(path, record, folder)
         folder = os.path.dirname(folder)
     return None
+
+
+def unsubmitted_copies(platform_ids):
+    """The work copies of platforms (their ids) holding saved changes
+    not submitted, the one saved last first."""
+    found = []
+    for folder, _dirs, files in os.walk(platforms_dir()):
+        if RECORD not in files:
+            continue
+        record = _load_record(folder)
+        if record is None or record.get('platform') not in platform_ids:
+            continue
+        copy = WorkCopy(_record_file(folder, record), record, folder)
+        if copy.unsubmitted() and os.path.isfile(copy.path):
+            found.append((os.path.getmtime(copy.record_path), copy))
+    return [copy for _when, copy in sorted(found, key=lambda pair: -pair[0])]
 
 
 def existing(platform_id, server, project, component, language):

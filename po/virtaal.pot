@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 10:32+0000\n"
+"POT-Creation-Date: 2026-11-11 10:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2565,6 +2565,14 @@ msgstr ""
 #: virtaal/support/platforms/__init__.py
 msgid "_URL:"
 msgstr ""
+
+#. l10n: %(location)s is a translation server's project and component, such as "Hello/Program"
+#: virtaal/support/platforms/__init__.py
+#, python-format
+msgid "%(count)s change to %(location)s is not yet submitted."
+msgid_plural "%(count)s changes to %(location)s are not yet submitted."
+msgstr[0] ""
+msgstr[1] ""
 
 #. l10n: File menu: browse a translation server (Weblate, ...) and open a translation from it
 #: virtaal/support/platforms/__init__.py

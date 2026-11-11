@@ -213,10 +213,31 @@ class Platform:
         return []
 
 
+def pending_message(count, location):
+    """ "3 changes to Hello/Program are not yet submitted." """
+    from virtaal.common.pan_app import ngettext
+    from virtaal.support.libi18n.numbers import format_number
+
+    text = ngettext(
+        # l10n: %(location)s is a translation server's project and component, such as "Hello/Program"
+        '%(count)s change to %(location)s is not yet submitted.',
+        '%(count)s changes to %(location)s are not yet submitted.',
+        count,
+    )
+    return text % {'count': format_number(count), 'location': location}
+
+
 class Registry:
     """The platforms whose plug-ins are on, and the menu items that open
     from them and send back and bring in a work copy's changes, there
-    while any is."""
+    while any is.
+
+    It also keeps unsubmitted work in view, without ever standing in the
+    way: a notice when a work copy with saved changes not yet submitted
+    is opened (with Submit and Update), when it is left for another file
+    or closed (with Open), and once at start-up for the one saved last
+    when Virtaal starts with no file. Quitting asks nothing: the changes
+    are saved and wait in the work copy."""
 
     def __init__(self):
         self.platforms = []
@@ -225,6 +246,10 @@ class Registry:
         self.submit_item = None
         self.update_item = None
         self._handlers = []
+        self._notice = None
+        self._shown = None
+        """The work copy open, as last seen."""
+        self._reminded = False
 
     def add(self, platform, main_controller):
         self.main_controller = main_controller
@@ -232,6 +257,11 @@ class Registry:
             self.platforms.append(platform)
         if self.menuitem is None:
             self._add_menu_item()
+        if not self._reminded:
+            self._reminded = True
+            from gi.repository import GLib
+
+            GLib.idle_add(self._remind_at_start, priority=GLib.PRIORITY_LOW)
 
     def remove(self, platform):
         if platform in self.platforms:
@@ -245,6 +275,7 @@ class Registry:
             for source, handler in self._handlers:
                 source.disconnect(handler)
             self._handlers = []
+            self._hide_notice()
             self._sync_menubar()
         else:
             self.sync_submit()
@@ -285,8 +316,13 @@ class Registry:
 
     def _watch(self, source, signal):
         if source is not None:
-            handler = source.connect(signal, lambda *_args: self.sync_submit())
+            handler = source.connect(signal, lambda *_args: self._changed(signal))
             self._handlers.append((source, handler))
+
+    def _changed(self, signal):
+        self.sync_submit()
+        if signal in ('store-loaded', 'store-saved', 'store-closed'):
+            self._sync_notice(signal)
 
     def _open_work_copy(self):
         """The work copy open, if its platform's plug-in is on and it
@@ -318,7 +354,9 @@ class Registry:
         copy = self._open_work_copy()
         if copy is None:
             return None
-        return SubmitDialogs(self, copy, self._parent(parent)).run()
+        result = SubmitDialogs(self, copy, self._parent(parent)).run()
+        self._sync_notice()
+        return result
 
     def update(self, parent=None):
         """Saves the work copy open, then brings in what others changed
@@ -328,7 +366,108 @@ class Registry:
         copy = self._open_work_copy()
         if copy is None:
             return None
-        return UpdateDialogs(self, copy, self._parent(parent)).run()
+        result = UpdateDialogs(self, copy, self._parent(parent)).run()
+        self._sync_notice()
+        return result
+
+    # Unsubmitted work #
+
+    def _show_notice(self, text, actions):
+        """A dismissable notice below the menu bar, in place of the last
+        one this showed; actions are (label, function) buttons."""
+        from gi.repository import Gtk
+
+        self._hide_notice()
+        vbox = self.main_controller.view.gui.get_object('vbox_main')
+        if vbox is None:
+            return
+        infobar = Gtk.InfoBar(show_close_button=True)
+        infobar.set_message_type(Gtk.MessageType.INFO)
+        label = Gtk.Label(label=text, wrap=True, xalign=0)
+        infobar.get_content_area().pack_start(label, True, True, 0)
+        for number, (button, _action) in enumerate(actions):
+            infobar.add_button(button, number)
+
+        def on_response(_infobar, response):
+            self._hide_notice()
+            if 0 <= response < len(actions):
+                actions[response][1]()
+
+        infobar.connect('response', on_response)
+        self._notice = infobar
+        infobar.show_all()
+        vbox.pack_start(infobar, False, False, 0)
+        vbox.reorder_child(infobar, 1)
+
+    def _hide_notice(self):
+        if self._notice is not None:
+            self._notice.destroy()
+            self._notice = None
+
+    def notice_text(self):
+        """The text of the notice showing, or None."""
+        if self._notice is None:
+            return None
+        return self._notice.get_content_area().get_children()[0].get_text()
+
+    def _sync_notice(self, signal=None):
+        """Opened: says how many changes wait, with Submit and Update.
+        Saved or sent: keeps that count right. Left: says so once, with
+        Open."""
+        copy = self._open_work_copy()
+        left = self._shown
+        self._shown = copy
+        if copy is not None:
+            count = len(copy.pending())
+            if signal == 'store-loaded' or (count and self._notice is not None):
+                self._notice_open(copy, count)
+            elif not count:
+                self._hide_notice()
+            return
+        if signal in ('store-loaded', 'store-closed') and left is not None:
+            from . import workcopy
+
+            again = workcopy.for_file(left.path)
+            if again is not None and again.unsubmitted():
+                self._notice_left(again)
+                return
+        if signal == 'store-loaded':
+            self._hide_notice()
+
+    def _notice_open(self, copy, count):
+        if not count:
+            self._hide_notice()
+            return
+        self._show_notice(
+            pending_message(count, copy.location()),
+            [
+                (_('Su_bmit to Server…'), lambda: self.submit()),
+                (_('Up_date from Server…'), lambda: self.update()),
+            ],
+        )
+
+    def _notice_left(self, copy):
+        from .browsedialog import _gtk_text
+
+        path = copy.path
+        self._show_notice(
+            pending_message(copy.unsubmitted(), copy.location()),
+            # GTK's own "_Open", as the browser's button.
+            [(_gtk_text('_Open'), lambda: self.main_controller.open_file(path))],
+        )
+
+    def _remind_at_start(self):
+        """With no file open, the work copy saved last that holds changes
+        not submitted, once."""
+        from . import workcopy
+
+        store_controller = getattr(self.main_controller, 'store_controller', None)
+        if not self.platforms or getattr(store_controller, 'store', None) is not None:
+            return False
+        copies = workcopy.unsubmitted_copies({p.id for p in self.platforms})
+        if copies:
+            self._notice_left(copies[0])
+        return False
 
     def _parent(self, parent):
         return parent or self.main_controller.view.main_window

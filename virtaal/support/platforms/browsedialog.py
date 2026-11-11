@@ -20,20 +20,23 @@ load when its row is first expanded.
 Open (or a double click on a language) downloads the language into its
 work copy (workcopy.py) and closes the dialog; run() gives the work
 file to open. A work copy holding work not yet submitted is opened as
-it is, without downloading over it."""
+it is, without downloading over it: its language is in bold, and says
+how many changes wait when chosen, and once opened its notice offers
+Update from Server (Registry)."""
 
-from gi.repository import GLib, Gtk
+from gi.repository import GLib, Gtk, Pango
 
 from virtaal.support.libi18n.numbers import format_percent
 from virtaal.views.widgets.util import run_dialog
 
-from . import workcopy
+from . import pending_message, workcopy
 from .serversdialog import error_message
 
-COL_NAME, COL_INFO, COL_KIND, COL_PROJECT, COL_SLUG, COL_LOADED = range(6)
+COL_NAME, COL_INFO, COL_KIND, COL_PROJECT, COL_SLUG, COL_LOADED, COL_WEIGHT = range(7)
 PROJECT, COMPONENT, LANGUAGE, PENDING = 'project', 'component', 'language', 'pending'
 COMBO_ID, COMBO_TYPE, COMBO_URL = range(3)
 RESPONSE_OPEN = 1
+NORMAL, BOLD = int(Pango.Weight.NORMAL), int(Pango.Weight.BOLD)
 
 
 def _gtk_text(msgid):
@@ -84,19 +87,19 @@ class BrowseDialog:
         # 'changed', not 'search-changed': the delay is FILTER_DELAY.
         self.filter_entry.connect('changed', lambda _entry: self._on_filter_changed())
 
-        self.store = Gtk.TreeStore(str, str, str, str, str, bool)
+        self.store = Gtk.TreeStore(str, str, str, str, str, bool, int)
         self.filtered = self.store.filter_new()
         self.filtered.set_visible_func(self._visible)
         self.treeview = Gtk.TreeView(model=self.filtered)
         self.treeview.append_column(
-            Gtk.TreeViewColumn(_('Name'), Gtk.CellRendererText(), text=COL_NAME)
+            Gtk.TreeViewColumn(_('Name'), Gtk.CellRendererText(), text=COL_NAME, weight=COL_WEIGHT)
         )
         self.treeview.get_column(0).set_expand(True)
         info = Gtk.CellRendererText(xalign=1.0)
         self.treeview.append_column(Gtk.TreeViewColumn(_('Translated'), info, text=COL_INFO))
         self.treeview.connect('row-expanded', self._on_row_expanded)
         self.treeview.connect('row-activated', lambda *_args: self.open_selected())
-        self.treeview.get_selection().connect('changed', lambda _sel: self._sync_open())
+        self.treeview.get_selection().connect('changed', lambda _sel: self._on_selected())
 
         scrolled = Gtk.ScrolledWindow(shadow_type=Gtk.ShadowType.IN, vexpand=True)
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -199,7 +202,9 @@ class BrowseDialog:
         self._fetching = False
         self._busy(-1)
         for project in projects:
-            it = self.store.append(None, [project.name, '', PROJECT, project.slug, '', False])
+            it = self.store.append(
+                None, [project.name, '', PROJECT, project.slug, '', False, NORMAL]
+            )
             self._with_pending(it)
         self._next = following
         self._more = following is not None
@@ -224,7 +229,7 @@ class BrowseDialog:
 
     def _with_pending(self, it):
         """A child row, so the row can be expanded before it is loaded."""
-        self.store.append(it, ['…', '', PENDING, '', '', False])
+        self.store.append(it, ['…', '', PENDING, '', '', False, NORMAL])
 
     def _on_row_expanded(self, _treeview, filter_it, _path):
         it = self.filtered.convert_iter_to_child_iter(filter_it)
@@ -252,8 +257,11 @@ class BrowseDialog:
             it = parent()
             if it is None:
                 return
+            component = self.store[it][COL_SLUG] if self.store[it][COL_KIND] == COMPONENT else None
             for item in items:
-                child = self.store.append(it, self._row(item, kind, self.store[it][COL_PROJECT]))
+                child = self.store.append(
+                    it, self._row(item, kind, self.store[it][COL_PROJECT], component)
+                )
                 if kind == COMPONENT:
                     self._with_pending(child)
             child = self.store.iter_children(it)
@@ -270,14 +278,21 @@ class BrowseDialog:
         self._busy(1)
         ask(done, failed)
 
-    def _row(self, item, kind, project):
+    def _row(self, item, kind, project, component=None):
         if kind == COMPONENT:
             # l10n: Marks a component (a part of a project) that is a glossary, not strings to translate
             info = _('Glossary') if item.glossary else ''
-            return [item.name, info, COMPONENT, project, item.slug, False]
+            return [item.name, info, COMPONENT, project, item.slug, False, NORMAL]
         percent = format_percent(item.translated) if item.translated is not None else ''
         name = language_name(item.slug, item.name)
-        return [name, percent, LANGUAGE, project, item.slug, True]
+        waiting = self._local(project, component, item.slug)
+        weight = BOLD if waiting is not None and waiting.unsubmitted() else NORMAL
+        return [name, percent, LANGUAGE, project, item.slug, True, weight]
+
+    def _local(self, project, component, language):
+        """The work copy already downloaded of a language, or None."""
+        server = self.server
+        return workcopy.existing(server.platform.id, server.url, project, component, language)
 
     # Filtering #
 
@@ -320,6 +335,16 @@ class BrowseDialog:
         component = model[parent][COL_SLUG] if model[parent][COL_KIND] == COMPONENT else None
         return model[it][COL_PROJECT], component, model[it][COL_SLUG]
 
+    def _on_selected(self):
+        """A language with changes not yet submitted says so."""
+        self._sync_open()
+        chosen = self.selected()
+        if chosen is None or self._downloading:
+            return
+        copy = self._local(*chosen)
+        count = copy.unsubmitted() if copy is not None else 0
+        self.status.set_text(pending_message(count, copy.location()) if count else '')
+
     def _sync_open(self):
         self.open_button.set_sensitive(not self._downloading and self.selected() is not None)
 
@@ -337,7 +362,7 @@ class BrowseDialog:
             return
         server = self.server
         project, component, language = chosen
-        copy = workcopy.existing(server.platform.id, server.url, project, component, language)
+        copy = self._local(project, component, language)
         if copy is not None and copy.has_local_changes():
             self._opened(copy.path)
             return
