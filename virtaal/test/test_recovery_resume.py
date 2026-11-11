@@ -483,7 +483,8 @@ class TestUnsavedWork(UnsavedScaffolding):
         assert self.store_controller.is_modified()
         assert done == []
         stats = self.store_controller.store.stats
-        assert (stats['fuzzy'], stats['translated']) == ([0, 3], [1, 2])
+        # Typed from empty, both are translated, as the state timer marks them.
+        assert (stats['fuzzy'], stats['translated']) == ([], [0, 1, 2, 3])
 
     def test_discard_drops_the_work_but_keeps_the_slot(self):
         self.store_controller.open_file(self._po())
