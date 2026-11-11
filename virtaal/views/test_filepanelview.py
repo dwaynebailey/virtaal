@@ -267,7 +267,8 @@ def test_arrow_keys_move_the_highlight_and_the_units_follow_once_it_rests():
         assert selected == []
         _run_main_loop(0.01)
 
-    _run_main_loop(0.2)
+    # The rest's timer can fire late on a busy runner.
+    _run_main_loop(5, until=lambda: selected)
     assert selected == [{1}]
     vbox.destroy()
 
