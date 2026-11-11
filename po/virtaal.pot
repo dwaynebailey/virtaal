@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 18:48+0000\n"
+"POT-Creation-Date: 2026-11-11 19:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2566,6 +2566,13 @@ msgstr ""
 msgid "_URL:"
 msgstr ""
 
+#. l10n: One of several files opened from a translation server. %(location)s is
+#. its project and component, such as "Hello/Program"; %(language)s its language
+#: virtaal/support/platforms/__init__.py
+#, python-format
+msgid "%(location)s (%(language)s)"
+msgstr ""
+
 #. l10n: %(location)s is a translation server's project and component, such as "Hello/Program"
 #: virtaal/support/platforms/__init__.py
 #, python-format
@@ -2600,6 +2607,20 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
+#. l10n: While downloading several translations from a translation server
+#: virtaal/support/platforms/browsedialog.py
+#, python-format
+msgid "Downloading %(number)s of %(total)s…"
+msgstr ""
+
+#. l10n: Followed by the translations, one a line, each with why it failed
+#: virtaal/support/platforms/browsedialog.py
+#, python-format
+msgid "%(count)s translation could not be downloaded:"
+msgid_plural "%(count)s translations could not be downloaded:"
+msgstr[0] ""
+msgstr[1] ""
+
 #. l10n: The servers of translation platforms, such as Weblate
 #: virtaal/support/platforms/browsedialog.py
 #: virtaal/support/platforms/serversdialog.py
@@ -2609,6 +2630,12 @@ msgstr ""
 #. l10n: Marks a component (a part of a project) that is a glossary, not strings to translate
 #: virtaal/support/platforms/browsedialog.py
 msgid "Glossary"
+msgstr ""
+
+#. l10n: In a language's menu in the translation server's browser: open that
+#. language of every component of its project together
+#: virtaal/support/platforms/browsedialog.py
+msgid "Open in All _Components"
 msgstr ""
 
 #. l10n: A translation server's option: units at Translated or above go to the server each time the file is saved, instead of waiting for Submit
@@ -2675,14 +2702,14 @@ msgid_plural "Submitted %(sent)s of %(total)s changed units."
 msgstr[0] ""
 msgstr[1] ""
 
-#: virtaal/support/platforms/submitdialog.py
-msgid "The translation is locked on the server."
-msgstr ""
-
 #. l10n: A translation server allows so many requests an hour; %(time)s is when it allows more, such as 14:05
 #: virtaal/support/platforms/submitdialog.py
 #, python-format
 msgid "The server's request limit is used up until %(time)s."
+msgstr ""
+
+#: virtaal/support/platforms/submitdialog.py
+msgid "The translation is locked on the server."
 msgstr ""
 
 #. l10n: Followed by the units, one a line, each with the server's reason
@@ -2704,6 +2731,14 @@ msgstr[1] ""
 msgid "Submit again to send the rest."
 msgstr ""
 
+#. l10n: Followed by the files opened from a translation server, one a line
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "In %(count)s file:"
+msgid_plural "In %(count)s files:"
+msgstr[0] ""
+msgstr[1] ""
+
 #. l10n: Follows "N of M requests left until 08:40." when they are fewer than Submit needs
 #: virtaal/support/platforms/submitdialog.py
 msgid "Submit will pause or stop when they run out."
@@ -2717,16 +2752,16 @@ msgid_plural "Submitted %(count)s units."
 msgstr[0] ""
 msgstr[1] ""
 
-#: virtaal/support/platforms/submitdialog.py
-#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
-#: virtaal/views/widgets/settingsdialog.py
-msgid "_Cancel"
-msgstr ""
-
 #. l10n: While sending changed units to a translation server
 #: virtaal/support/platforms/submitdialog.py
 #, python-format
 msgid "Submitting %(number)s of %(total)s…"
+msgstr ""
+
+#: virtaal/support/platforms/submitdialog.py
+#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
+#: virtaal/views/widgets/settingsdialog.py
+msgid "_Cancel"
 msgstr ""
 
 #. l10n: The title of the dialog listing units changed both in Virtaal and on the translation server
@@ -2814,13 +2849,13 @@ msgid "_OK"
 msgstr ""
 
 #: virtaal/support/platforms/updatedialog.py
-msgid ""
-"The strings to translate changed on the server since you downloaded them. "
-"Download them again?"
+msgid "Your changes not yet submitted are kept."
 msgstr ""
 
 #: virtaal/support/platforms/updatedialog.py
-msgid "Your changes not yet submitted are kept."
+msgid ""
+"The strings to translate changed on the server since you downloaded them. "
+"Download them again?"
 msgstr ""
 
 #. l10n: Downloads a translation from its server again, over the local copy

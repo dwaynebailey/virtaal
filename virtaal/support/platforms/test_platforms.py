@@ -553,3 +553,81 @@ def test_a_platform_without_components_updates_through_the_interface(
     assert done[0].taken == 1 and done[0].stop is None
     assert str(units[1].target) == 'Beta!'
     assert copy.units[1]['target_hash'] == workcopy.text_hash(['Beta!'])
+
+
+# Open many #
+
+
+def test_a_platform_without_components_opens_several_languages_at_once(
+    servers, dummy, tmp_path, monkeypatch
+):
+    from virtaal.models.fileset import FileSet
+
+    monkeypatch.setattr(pan_app, 'get_state_dir', lambda: str(tmp_path / 'state'))
+    servers.last = servers.servers[1]
+    dialog = _browse(servers)
+    model = dialog.filtered
+    path = model.get_path(next(_rows(model)))
+    dialog.treeview.expand_row(path, False)
+    run_until(lambda: not dialog.spinner.get_visible())
+    selection = dialog.treeview.get_selection()
+    for it in _rows(model, model.get_iter(path)):
+        selection.select_iter(it)
+    assert dialog.selected() is None
+    assert [w[:3] for w in dialog.chosen()] == [('alpha', None, 'af'), ('alpha', None, 'zu')]
+
+    dialog.open_selected()
+    run_until(lambda: dialog.opened is not None)
+
+    folder = tmp_path / 'state' / 'platforms' / 'dummy' / 'one' / 'alpha'
+    assert dialog.opened_all == [str(folder / 'af' / 'alpha.po'), str(folder / 'zu' / 'alpha.po')]
+    copies = [workcopy.for_file(p) for p in dialog.opened_all]
+    assert [c.label() for c in copies] == ['Alpha (Afrikaans)', 'Alpha (Zulu)']
+    assert sorted(FileSet.from_paths(dialog.opened_all).languages()) == ['af', 'zu']
+    # No components: no menu to open a language in all of them.
+    assert not dialog._popup(None)
+    dialog.dialog.destroy()
+
+
+def test_downloads_stop_when_the_budget_is_used_up(dummy, tmp_path, monkeypatch):
+    from virtaal.support.platforms import Budget
+    from virtaal.support.platforms.openmany import Downloads, Wanted
+
+    monkeypatch.setattr(pan_app, 'get_state_dir', lambda: str(tmp_path / 'state'))
+    session = DummySession(dummy, {})
+    session.budget = lambda: Budget(5, 3600, 5000)
+    server = SimpleNamespace(platform=dummy, url='dummy://one')
+    wanted = [Wanted('alpha', None, 'af'), Wanted('alpha', None, 'zu')]
+    done = []
+
+    Downloads(
+        server, session, wanted, lambda *a: pytest.fail('Nothing to download'), done.append
+    ).start()
+    run_until(lambda: done)
+
+    assert done[0].stop == 'budget' and done[0].paths == []
+    assert [(w.language, e.status) for w, e in done[0].failures] == [('af', 429), ('zu', 429)]
+    assert done[0].reset_in == 3600
+
+
+def test_downloads_wait_for_a_budget_starting_again_soon(dummy, tmp_path, monkeypatch):
+    from virtaal.support.platforms import Budget
+    from virtaal.support.platforms.openmany import Downloads, Wanted
+
+    monkeypatch.setattr(pan_app, 'get_state_dir', lambda: str(tmp_path / 'state'))
+    session = DummySession(dummy, {})
+    budgets = [Budget(5, 30, 5000)]
+    session.budget = lambda: budgets[0]
+    server = SimpleNamespace(platform=dummy, url='dummy://one')
+    done = []
+    runner = Downloads(server, session, [Wanted('alpha', None, 'af')], lambda *a: None, done.append)
+    waits = []
+    runner.schedule = lambda seconds, callback: waits.append((seconds, callback))
+
+    runner.start()
+    assert waits and waits[0][0] == 30 and not done
+    budgets[0] = Budget(5000, 3600, 5000)
+    waits[0][1]()
+    run_until(lambda: done)
+
+    assert done[0].stop is None and len(done[0].paths) == 1

@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import logging
 import os
 from contextlib import contextmanager
 
@@ -48,9 +49,15 @@ class StoreController(BaseController):
     _opening_package = None
     # The package whose files were last loaded, for its work folder.
     _loaded_package = None
-    # The translation platform's work copy open, with its side record
-    # (virtaal.support.platforms.workcopy). Its folder is kept on closing.
-    work_copy = None
+    # The translation platforms' work copies open, with their side
+    # records (virtaal.support.platforms.workcopy): {path: WorkCopy}, the
+    # file's, or with several files open, those of every file found.
+    # Their folders are kept on closing.
+    work_copies = {}
+    # {path: StoreModel} read for work copies the stream hasn't read.
+    _copy_models = {}
+    # The work copies the last save wrote.
+    saved_copies = ()
     _stream_handlers = None
 
     arrival = None
@@ -73,6 +80,7 @@ class StoreController(BaseController):
         self._loading_store = False
         self.project = None
         self.store = None
+        self._set_work_copies({})
         # The path the open store was read from, or None if it can't be
         # read again (a temporary file).
         self.opened_filename = None
@@ -179,6 +187,74 @@ class StoreController(BaseController):
         if not self.is_stream():
             return []
         return [entry.display_name for entry in self.store.modified_entries()]
+
+    @property
+    def work_copy(self):
+        """The work copy of the file open, or with several open, of the
+        one the cursor is in; None if it isn't one."""
+        if not self.work_copies:
+            return None
+        if self.is_stream():
+            return self.work_copies.get(self.store.filename) if self.store else None
+        return next(iter(self.work_copies.values()))
+
+    def _set_work_copies(self, copies):
+        self.work_copies = copies
+        self._copy_models = {}
+
+    def attach_work_copy(self, copy):
+        """Gives copy, one of work_copies, its file's units: the stream's,
+        read now if they weren't; for a file the stream can't read now
+        (waiting for its stats, or in another language), a model of its
+        own. Whether it has them."""
+        if copy.store is not None:
+            return True
+        if not self.is_stream():
+            return False
+        number = self.store.segment_number(copy.path)
+        if number is not None and not self.store.segments[number].pending:
+            try:
+                self.store.load_segment(number)
+            except Exception:
+                logging.exception('Could not read %s', copy.path)
+            return copy.store is not None
+        entry = next((e for e in self.all_files if e.path == copy.path), None)
+        if entry is None:
+            return False
+        try:
+            model = self.store.read_entry(entry)
+        except Exception:
+            logging.exception('Could not read %s', copy.path)
+            return False
+        self._copy_models[copy.path] = model
+        copy.attach(model)
+        return True
+
+    def work_copies_changed(self, copies):
+        """The units of copies were rewritten from their server: a file
+        the stream shows is marked to save with the others, one it
+        doesn't is saved now. Whether any needs saving yet."""
+        unsaved = False
+        for copy in copies:
+            model = self._copy_models.get(copy.path)
+            if model is not None and copy.store is model:
+                model.save_file()
+                copy.saved()
+                continue
+            if self.is_stream():
+                number = self.store.segment_number(copy.path)
+                if number is not None:
+                    self.store.mark_file_modified(number)
+            unsaved = True
+        if unsaved:
+            self.set_modified(True)
+        return unsaved
+
+    def _attach_loaded(self, store):
+        for segment in store.segments:
+            copy = self.work_copies.get(segment.path)
+            if copy is not None and segment.loaded and copy.store is not segment.model:
+                copy.attach(segment.model)
 
     def get_store_title(self):
         """The open file's name for the window title: a platform's work
@@ -409,6 +485,16 @@ class StoreController(BaseController):
         """Open the files in C{language} of those already open."""
         self._reopen(lambda: self._open_stream(self.all_files, language, self.opened_paths))
 
+    def reopen_stream(self, replaced=None):
+        """Open the files again, in the language shown, as they are on
+        disk now; replaced maps a path opened to the one it became."""
+        from virtaal.models.fileset import FileSet
+
+        replaced = replaced or {}
+        paths = [replaced.get(path, path) for path in self.opened_paths]
+        language = self.stream_language
+        self._reopen(lambda: self._open_stream(FileSet.from_paths(paths), language, paths))
+
     def _reopen(self, open_again):
         """Open the files again, still the package's if they were."""
         self._opening_package = self.package
@@ -432,9 +518,10 @@ class StoreController(BaseController):
     def _open_stream(self, all_files, language, paths, replaced=None):
         from virtaal.models.fileset import UNKNOWN_LANGUAGE
         from virtaal.models.streammodel import StreamModel
+        from virtaal.support.platforms import workcopy
 
         self.package = self._opening_package
-        self.work_copy = None
+        self._set_work_copies({})
         fileset = all_files.for_language(language) if language else all_files
         # Files waiting to be paired open with no units, to be paired.
         if not len(fileset) and not fileset.unpaired:
@@ -457,6 +544,9 @@ class StoreController(BaseController):
             store.connect('checks-filled', self._on_checks_filled),
             store.connect('files-filled', self._on_files_filled),
         )
+        copies = (workcopy.for_file(entry.path) for entry in all_files)
+        self._set_work_copies({copy.path: copy for copy in copies if copy is not None})
+        self._attach_loaded(store)
         self._modified = False
         self.main_controller.set_force_saveas(False)
         self.main_controller.set_saveable(False)
@@ -494,6 +584,7 @@ class StoreController(BaseController):
         self.opened_paths = None
 
     def _on_file_loaded(self, store, number, peek):
+        self._attach_loaded(store)
         self.view.file_loaded(store.segments[number], peek)
 
     def _on_files_filled(self, store, moved, renumbered):
@@ -531,7 +622,7 @@ class StoreController(BaseController):
         from virtaal.support.platforms import workcopy
 
         self.package = self._opening_package
-        self.work_copy = None
+        self._set_work_copies({})
         work_copy = workcopy.for_file(filename)
         extension = filename.split(os.extsep)[-1]
         force_saveas = False
@@ -550,7 +641,7 @@ class StoreController(BaseController):
             raise ValueError('The file contains nothing to translate.')
         if work_copy is not None:
             work_copy.attach(self.store)
-            self.work_copy = work_copy
+            self.work_copies = {work_copy.path: work_copy}
 
         # A translation carried over from a renamed key isn't in the file yet.
         pair = getattr(self.store, 'pair', None)
@@ -620,7 +711,8 @@ class StoreController(BaseController):
             # Saved elsewhere, the file is no longer the package's.
             self.package = None
             if self.work_copy is not None and os.path.abspath(filename) != self.work_copy.path:
-                self.work_copy = None
+                self._set_work_copies({})
+        saving = [entry.path for entry in self.store.modified_entries()] if self.is_stream() else []
         if self.project is None:
             self.store.save_file(
                 filename
@@ -640,9 +732,14 @@ class StoreController(BaseController):
             self.project.save()
         if self.package is not None:
             self.package.write_back()
-        if self.work_copy is not None:
-            # Only the local copy: Submit sends.
-            self.work_copy.saved()
+        # Only the local copies: Submit sends.
+        if self.is_stream():
+            saved = [self.work_copies[path] for path in saving if path in self.work_copies]
+        else:
+            saved = list(self.work_copies.values())
+        for copy in saved:
+            copy.saved()
+        self.saved_copies = saved
         self.set_modified(False)
         # reaching here means the write succeeded, so any stale notice goes
         self.main_controller.view.hide_read_only_notice()
@@ -661,7 +758,7 @@ class StoreController(BaseController):
 
     def close_file(self):
         self.package = None
-        self.work_copy = None
+        self._set_work_copies({})
         self._leave_package(None)
         self._forget_stream()
         del self.project

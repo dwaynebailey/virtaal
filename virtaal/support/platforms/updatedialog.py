@@ -70,7 +70,8 @@ def status_message(result):
 
 
 class UpdateDialogs(CopyDialogs):
-    """One Update of the work copy open."""
+    """One Update of the work copies open: with several files open, of
+    every work copy among them, as one (update.Batch)."""
 
     update = None
 
@@ -79,6 +80,27 @@ class UpdateDialogs(CopyDialogs):
 
     def ask_download(self, copy, plan):
         """Whether to download again, keeping what plan keeps."""
+        if plan.lost:
+            sources = [str(copy.matched[r].source) for r in plan.lost]
+            details = lost_message(sources)
+        else:
+            details = _('Your changes not yet submitted are kept.')
+        return self._ask_download(details)
+
+    def ask_downloads(self, plans):
+        """ask_download() for several files at once: plans are (copy,
+        Plan)."""
+        parts = []
+        for copy, plan in plans:
+            sources = [str(copy.matched[r].source) for r in plan.lost]
+            parts.append(copy.label())
+            if sources:
+                parts += ['  ' + line for line in lost_message(sources).split('\n')]
+        if not any(plan.lost for _copy, plan in plans):
+            parts.append(_('Your changes not yet submitted are kept.'))
+        return self._ask_download('\n'.join(parts))
+
+    def _ask_download(self, details):
         dialog = Gtk.MessageDialog(
             transient_for=self.parent,
             modal=True,
@@ -88,11 +110,7 @@ class UpdateDialogs(CopyDialogs):
                 'Download them again?'
             ),
         )
-        if plan.lost:
-            sources = [str(copy.matched[r].source) for r in plan.lost]
-            dialog.format_secondary_text(lost_message(sources))
-        else:
-            dialog.format_secondary_text(_('Your changes not yet submitted are kept.'))
+        dialog.format_secondary_text(details)
         dialog.add_button(_('_Cancel'), Gtk.ResponseType.CANCEL)
         # l10n: Downloads a translation from its server again, over the local copy
         dialog.add_button(_('_Download Again'), Gtk.ResponseType.OK)
@@ -102,21 +120,26 @@ class UpdateDialogs(CopyDialogs):
         return response == Gtk.ResponseType.OK
 
     def run(self):
-        """Saves, then brings in the server's changes. The update.Result,
-        or None if nothing was asked."""
+        """Saves, then brings in the server's changes. The update.Result
+        (a BatchResult for several files), or None if nothing was asked."""
         if self.main_controller.store_controller.is_modified():
             if not self.main_controller.save_file():
                 return None
-        server = self._server()
-        if server is None:
+        self.copies = self._attach(self.copies)
+        if not self.copies:
             return None
-        self.session = server.session()
-        result = self.fetch(self.session)
+        self.copy = self.copies[0]
+        items = self._items(self.copies)
+        if items is None:
+            return None
+        if len(items) == 1:
+            result = self.fetch(self.session)
+        else:
+            result = self.fetch_many(items)
         self.finish(result)
         return result
 
-    def fetch(self, session):
-        """Runs the Update with its dialog until it ends."""
+    def _until_done(self, title, start):
         loop = GLib.MainLoop()
         outcome = []
 
@@ -124,19 +147,34 @@ class UpdateDialogs(CopyDialogs):
             outcome.append(result)
             loop.quit()
 
-        self.progress = ProgressDialog(
-            self.parent, lambda: self.update.cancel(), self.copy.location()
-        )
-        self.progress.waiting(self.copy.location())
-        self.update = update.Update(
-            self.copy, self.platform, session, self._on_conflicts, self._on_download, done
-        )
+        self.progress = ProgressDialog(self.parent, lambda: self.update.cancel(), title)
+        self.progress.waiting(title)
         self.progress.show()
-        self.update.start()
+        start(done)
         if not outcome:
             loop.run()
         self.progress.destroy()
         return outcome[0]
+
+    def fetch(self, session):
+        """Runs the Update with its dialog until it ends."""
+
+        def start(done):
+            self.update = update.Update(
+                self.copy, self.platform, session, self._on_conflicts, self._on_download, done
+            )
+            self.update.start()
+
+        return self._until_done(self.copy.location(), start)
+
+    def fetch_many(self, items):
+        """Runs the Update of several files with one dialog."""
+
+        def start(done):
+            self.update = update.Batch(items, self._on_conflicts, self._on_downloads, done)
+            self.update.start()
+
+        return self._until_done(self._location(), start)
 
     def _asking(self, question):
         """question() with the progress hidden, once the reply that led
@@ -163,25 +201,43 @@ class UpdateDialogs(CopyDialogs):
 
         self._asking(ask)
 
-    def _reopen(self, result):
-        """The new download, opened in place of the old, with the
-        changes kept written back into it."""
+    def _on_downloads(self, plans, proceed):
+        self._asking(lambda: proceed(self.ask_downloads(plans)))
+
+    def _reopen(self, downloaded):
+        """The new downloads, opened in place of the old, with the changes
+        kept written back into them: downloaded are (old copy, Result)."""
         main_controller = self.main_controller
         store_controller = main_controller.store_controller
-        store_controller.open_file(result.downloaded.path)
+        if store_controller.is_stream():
+            store_controller.reopen_stream(
+                {old.path: result.downloaded.path for old, result in downloaded}
+            )
+        else:
+            store_controller.open_file(downloaded[0][1].downloaded.path)
         main_controller.mode_controller.refresh_mode()
+        carried = []
+        for _old, result in downloaded:
+            copy = store_controller.work_copies.get(result.downloaded.path)
+            if copy is None or not self._attach([copy]):
+                continue
+            if update.carry(copy, result.carried):
+                carried.append(copy)
+        if carried:
+            self._save_changed_units(carried)
         copy = store_controller.work_copy
-        if copy is not None and update.carry(copy, result.carried):
-            store_controller.set_modified(True)
-            main_controller.save_file()
-        self.copy = copy or result.downloaded
+        self.copy = copy or downloaded[0][1].downloaded
 
     def finish(self, result):
         """Saves what came in, then tells."""
-        if result.downloaded is not None:
-            self._reopen(result)
-        elif result.file_changed:
-            self._save_changed_units()
+        results = getattr(result, 'results', [result])
+        files = list(zip(self.copies, results, strict=True))
+        changed = [c for c, r in files if r.downloaded is None and r.file_changed]
+        if changed:
+            self._save_changed_units(changed)
+        downloaded = [(c, r) for c, r in files if r.downloaded is not None]
+        if downloaded:
+            self._reopen(downloaded)
         if result.stop == update.FAILED:
             self._tell(error_message(result.error, self.platform), Gtk.MessageType.WARNING)
             return

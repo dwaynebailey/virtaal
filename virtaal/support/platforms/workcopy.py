@@ -252,6 +252,8 @@ class WorkCopy:
         self._folder = os.path.abspath(folder) if folder else os.path.dirname(self.path)
         self.matched = {}
         """{index in record['units']: the store's unit}, once attached."""
+        self.store = None
+        """The StoreModel attached, if any."""
 
     def __repr__(self):
         return '<WorkCopy %s>' % self.path
@@ -287,6 +289,20 @@ class WorkCopy:
         project = names.get('project') or self.record['project']
         component = names.get('component') or self.record.get('component')
         return '%s/%s' % (project, component) if component else project
+
+    def language_name(self):
+        from virtaal.models.langmodel import LanguageModel
+
+        code = self.record['language']
+        known = LanguageModel(code).name
+        return known if known and known != code else code
+
+    def label(self):
+        """The project and component and the language, to tell one work
+        copy of several from another."""
+        from . import file_label
+
+        return file_label(self.location(), self.language_name())
 
     def write_record(self):
         data = json.dumps(self.record, ensure_ascii=False, indent=1, sort_keys=True)
@@ -389,6 +405,7 @@ class WorkCopy:
     def attach(self, store):
         """Matches store's units (a StoreModel opened from this file) to
         the record's, showing the platform's states and locks."""
+        self.store = store
         units = store.get_units()
         keyed = getattr(store, 'pair', None) is not None
         found = match(units, self.units, keyed)

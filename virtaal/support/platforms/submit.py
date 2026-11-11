@@ -67,9 +67,10 @@ FAILED = 'failed'
 
 _PER_UNIT = (400, 403)
 
-Conflict = namedtuple('Conflict', 'index source mine theirs')
+Conflict = namedtuple('Conflict', 'index source mine theirs where', defaults=(None,))
 """A unit changed both here and on the server: its index in the side
-record, its source, and the target forms of each side."""
+record, its source, the target forms of each side, and with several
+files, the label of the file it is in."""
 
 
 def classify(entry, mine, remote):
@@ -200,7 +201,9 @@ class Submission:
 
     schedule = staticmethod(_later)
 
-    def __init__(self, copy, platform, session, on_progress, on_conflicts, on_done, only=None):
+    def __init__(
+        self, copy, platform, session, on_progress, on_conflicts, on_done, only=None, pacer=None
+    ):
         self.only = only
         """The indexes in the side record to send, if not every change."""
         self.copy = copy
@@ -209,7 +212,13 @@ class Submission:
         self.on_progress = on_progress
         self.on_conflicts = on_conflicts
         self.on_done = on_done
-        self.pacer = None
+        self.pacer = pacer
+        """The Pacer, shared by the Submissions of one server's files."""
+        self.on_checked = None
+        """If set, on_checked(conflicts, go) follows the check for
+        changes on the server in place of on_conflicts(), and go(decisions)
+        (or go(None) when there are none) sends: for a Batch to ask about
+        every file's conflicts at once and send file by file."""
         self.result = Result()
         self.cancelled = False
         self.finished = False
@@ -224,7 +233,8 @@ class Submission:
         return record['project'], record.get('component'), record['language']
 
     def start(self):
-        self.pacer = Pacer(self.platform.rate_limit, self.RESERVE, self.MAX_WAIT)
+        if self.pacer is None:
+            self.pacer = Pacer(self.platform.rate_limit, self.RESERVE, self.MAX_WAIT)
         pending = [r for r in self.copy.pending() if self.only is None or r in self.only]
         self.result.total = len(pending)
         self._pending = pending
@@ -285,14 +295,26 @@ class Submission:
                     self.copy.units[r]['last_updated'] = remote.last_updated
                 self._queue.append(r)
         self.copy.write_record()
-        if conflicts:
+        if self.on_checked is not None:
+            self.on_checked(conflicts, self._go)
+        elif conflicts:
             self.on_conflicts(conflicts, self.resolve)
         else:
             self._begin_sending()
 
+    def _go(self, decisions):
+        if decisions is not None:
+            self.decide(decisions)
+        self._begin_sending()
+
     def resolve(self, decisions):
         """The answers to on_conflicts(): {index: KEEP_MINE, TAKE_THEIRS
         or SKIP}."""
+        self.decide(decisions)
+        self._begin_sending()
+
+    def decide(self, decisions):
+        """Notes the answers to the conflicts, without sending."""
         for r, remote in sorted(self._remote.items()):
             decision = decisions.get(r, SKIP)
             if decision == KEEP_MINE:
@@ -303,8 +325,13 @@ class Submission:
                 self.result.taken += 1
             else:
                 self.result.skipped += 1
+        self._remote = {}
         self.copy.write_record()
-        self._begin_sending()
+
+    @property
+    def to_send(self):
+        """How many units wait to be sent."""
+        return len(self._queue)
 
     def _begin_sending(self):
         self._queue.sort()
@@ -399,6 +426,156 @@ class Submission:
         else:
             self.copy.write_record()
         self.on_done(self.result)
+
+
+_BREAKS = (BUDGET, FAILED, CANCELLED)
+"""Why a file's Submit stopped that stops the files after it too: a
+lock is the file's own."""
+
+
+class BatchResult(Result):
+    """What a Submit of several files did: their Results added up, each
+    file's in results, and the stop that broke it off, if any."""
+
+    def __init__(self, results):
+        super().__init__()
+        self.results = results
+        for n, result in enumerate(results):
+            self.total += result.total
+            self.sent += result.sent
+            self.taken += result.taken
+            self.skipped += result.skipped
+            self.file_changed |= result.file_changed
+            self.failures.update(((n, r), reason) for r, reason in result.failures.items())
+        stops = [r for r in results if r.stop is not None]
+        first = next((r for r in stops if r.stop in _BREAKS), stops[0] if stops else None)
+        if first is not None:
+            self.stop, self.error, self.reset_in = first.stop, first.error, first.reset_in
+
+
+class Batch:
+    """One Submit of several work copies, each attached to its file, as
+    one: every file is checked for changes on the server first, then
+    on_conflicts(conflicts, resolve) asks about the conflicts of them
+    all at once (a Conflict's index is (file number, index in its side
+    record), its where the file's label), and resolve(decisions), or
+    resolve(None) to cancel, leads to the units being sent file by
+    file. The files of one session share its Pacer.
+
+    items are (copy, platform, session); on_progress(number, total)
+    counts across the files; on_done(BatchResult) ends it. A file that
+    is locked is left out; out of budget, an error or Cancel stops the
+    files after it too."""
+
+    def __init__(self, items, on_progress, on_conflicts, on_done):
+        self.on_progress = on_progress
+        self.on_conflicts = on_conflicts
+        self.on_done = on_done
+        self.cancelled = False
+        self.finished = False
+        self.submissions = []
+        pacers = {}
+        for copy, platform, session in items:
+            pacer = pacers.setdefault(
+                id(session),
+                Pacer(platform.rate_limit, Submission.RESERVE, Submission.MAX_WAIT),
+            )
+            submission = Submission(copy, platform, session, None, None, None, pacer=pacer)
+            self.submissions.append(submission)
+        self._checked = {}
+        """{file number: (its conflicts, go)}, checked and waiting to send."""
+        self._done = {}
+        """{file number: its Result}."""
+        self._sending = False
+        self._offset = 0
+        self._next_offset = 0
+        self._total = 0
+
+    def start(self):
+        self._check(0)
+
+    def cancel(self):
+        self.cancelled = True
+        for submission in self.submissions:
+            submission.cancel()
+
+    def _held(self):
+        """Whether the files still to start are cancelled or broken off."""
+        return self.cancelled or any(r.stop in _BREAKS for r in self._done.values())
+
+    def _on_done(self, n, result):
+        self._done[n] = result
+        if self._sending:
+            self._send(n + 1)
+        else:
+            self._check(n + 1)
+
+    # Each file checked in turn #
+
+    def _check(self, n):
+        if n == len(self.submissions):
+            self._ask()
+            return
+        submission = self.submissions[n]
+        if self._held():
+            submission.result.total = len(submission.copy.pending())
+            submission.result.stop = CANCELLED
+            self._on_done(n, submission.result)
+            return
+        submission.on_progress = self._progress
+        submission.on_checked = lambda conflicts, go: self._on_checked(n, conflicts, go)
+        submission.on_done = lambda result: self._on_done(n, result)
+        submission.start()
+
+    def _on_checked(self, n, conflicts, go):
+        label = self.submissions[n].copy.label()
+        found = [c._replace(index=(n, c.index), where=label) for c in conflicts]
+        self._checked[n] = (found, go)
+        self._check(n + 1)
+
+    def _ask(self):
+        conflicts = [c for found, _go in self._checked.values() for c in found]
+        if conflicts and not self.cancelled:
+            self.on_conflicts(conflicts, self.resolve)
+        else:
+            self.resolve({})
+
+    def resolve(self, decisions):
+        """The answers to on_conflicts(): {(file number, index): KEEP_MINE,
+        TAKE_THEIRS or SKIP}, or None to cancel."""
+        if decisions is None:
+            self.cancel()
+        for n in self._checked:
+            mine = {r: d for (m, r), d in (decisions or {}).items() if m == n}
+            self.submissions[n].decide(mine)
+        self._total = sum(self.submissions[n].to_send for n in self._checked)
+        self._sending = True
+        self._send(0)
+
+    # Then sent file by file #
+
+    def _send(self, start):
+        n = next((m for m in sorted(self._checked) if m >= start), None)
+        if n is None:
+            self._finish()
+            return
+        submission = self.submissions[n]
+        if self._held():
+            submission.cancel()
+        _conflicts, go = self._checked.pop(n)
+        self._offset = self._next_offset
+        self._next_offset += submission.to_send
+        go(None)
+
+    def _progress(self, number, _total):
+        self.on_progress(self._offset + number, self._total)
+
+    def _finish(self):
+        if self.finished:
+            return
+        self.finished = True
+        results = [self._done.get(n, s.result) for n, s in enumerate(self.submissions)]
+        self.on_done(BatchResult(results))
 
 
 def _now():

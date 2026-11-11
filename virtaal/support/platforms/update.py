@@ -395,3 +395,144 @@ def carry(copy, carried):
         entry['changed'] = True
     copy.write_record()
     return changed
+
+
+class BatchResult(Result):
+    """What an Update of several files did: their Results added up, each
+    file's in results."""
+
+    def __init__(self, results):
+        super().__init__()
+        self.results = results
+        for result in results:
+            self.taken += result.taken
+            self.adopted += result.adopted
+            self.kept += result.kept
+            self.skipped += result.skipped
+            self.file_changed |= result.file_changed
+        # An error stops it; Cancel, only when it stopped every file.
+        failed = next((r for r in results if r.stop == FAILED), None)
+        if failed is None and results and all(r.stop is not None for r in results):
+            failed = results[0]
+        if failed is not None:
+            self.stop, self.error = failed.stop, failed.error
+
+    @property
+    def changed(self):
+        return any(result.changed for result in self.results)
+
+
+class Batch:
+    """One Update of several work copies, each attached to its file, as
+    one: each file's Update runs in turn until it is done or has a
+    question; then on_download(plans, proceed) asks once about every file
+    whose strings changed on the server, plans being (copy, Plan), and
+    proceed(whether to download them again); then on_conflicts(
+    conflicts, resolve) asks about the conflicts of them all at once (a
+    Conflict's index is (file number, its index), its where the file's
+    label), as Submit's Batch. on_done(BatchResult) ends it.
+
+    items are (copy, platform, session)."""
+
+    def __init__(self, items, on_conflicts, on_download, on_done):
+        self.on_conflicts = on_conflicts
+        self.on_download = on_download
+        self.on_done = on_done
+        self.finished = False
+        self.updates = []
+        for n, (copy, platform, session) in enumerate(items):
+            self.updates.append(
+                Update(
+                    copy,
+                    platform,
+                    session,
+                    lambda found, resolve, n=n: self._held(n, found, resolve, None),
+                    lambda plan, proceed, n=n: self._held(n, plan.conflicts, proceed, plan),
+                    lambda result, n=n: self._on_done(n, result),
+                )
+            )
+        self._waiting = {}
+        """{file number: (conflicts, answer, Plan or None)}."""
+        self._done = {}
+        self._asking = False
+        self.cancelled = False
+
+    def start(self):
+        self._next(0)
+
+    def cancel(self):
+        """Stops the file on its way at once, and the rest."""
+        self.cancelled = True
+        running = len(self._done) + len(self._waiting)
+        if not self._asking and running < len(self.updates):
+            self.updates[running].cancel()
+
+    def _next(self, n):
+        if n == len(self.updates):
+            self._ask()
+        elif self.cancelled:
+            self.updates[n]._finish(CANCELLED)
+        else:
+            self.updates[n].start()
+
+    def _held(self, n, conflicts, answer, plan):
+        self._waiting[n] = (conflicts, answer, plan)
+        self._next(n + 1)
+
+    def _on_done(self, n, result):
+        self._done[n] = result
+        if self._asking:
+            if len(self._done) == len(self.updates):
+                self._finish()
+        else:
+            self._next(n + 1)
+
+    def _ask(self):
+        self._asking = True
+        if not self._waiting:
+            self._finish()
+            return
+        if self.cancelled:
+            self.resolve(None)
+            return
+        plans = [
+            (self.updates[n].copy, plan)
+            for n, (_c, _a, plan) in sorted(self._waiting.items())
+            if plan is not None and (plan.kept or plan.lost or plan.reworded)
+        ]
+        if plans:
+            self.on_download(plans, self._downloading)
+        else:
+            self._downloading(True)
+
+    def _downloading(self, again):
+        if not again:
+            for n, (_conflicts, proceed, plan) in list(self._waiting.items()):
+                if plan is not None:
+                    del self._waiting[n]
+                    proceed(None)
+        conflicts = []
+        for n, (found, _answer, _plan) in sorted(self._waiting.items()):
+            label = self.updates[n].copy.label()
+            conflicts += [c._replace(index=(n, c.index), where=label) for c in found]
+        if conflicts:
+            self.on_conflicts(conflicts, self.resolve)
+        else:
+            self.resolve({})
+
+    def resolve(self, decisions):
+        """The answers to on_conflicts(), or None to stop with the rest
+        left as they are."""
+        waiting, self._waiting = self._waiting, {}
+        for n, (_found, answer, _plan) in sorted(waiting.items()):
+            if decisions is None:
+                answer(None)
+            else:
+                answer({r: d for (m, r), d in decisions.items() if m == n})
+
+    def _finish(self):
+        if self.finished:
+            return
+        self.finished = True
+        results = [self._done[n] for n in range(len(self.updates))]
+        self.on_done(BatchResult(results))

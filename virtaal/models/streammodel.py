@@ -566,6 +566,36 @@ class StreamModel(BaseModel):
     def mark_modified(self, index):
         self.locate(index)[0].modified = True
 
+    def segment_number(self, path):
+        """The number of the segment of the file C{path}, or None."""
+        path = os.path.normcase(os.path.abspath(path))
+        for number, segment in enumerate(self.segments):
+            if os.path.normcase(segment.path) == path:
+                return number
+        return None
+
+    def mark_file_modified(self, number):
+        """The file of segment C{number} changed as a whole (its units
+        rewritten from elsewhere): it is saved with the others."""
+        segment = self.segments[number]
+        segment.modified = True
+        self._edited_units.update(range(segment.offset, segment.offset + segment.count))
+
+    def read_entry(self, entry):
+        """A model of its own for the file C{entry} (a FileEntry of the
+        files opened), read now, for work on a file the stream hasn't
+        read: one waiting for its stats, or in another language."""
+        if entry.template is None:
+            return StoreModel(entry.path, self.controller, fill_stats_cache=False)
+        from .monolingual import pairing
+
+        return StoreModel(
+            entry.path,
+            self.controller,
+            fill_stats_cache=False,
+            **pairing(entry.template, sourcehistory.budgeted(self.RECALL_SECONDS)),
+        )
+
     def modified_entries(self):
         return [segment.entry for segment in self.segments if segment.modified]
 

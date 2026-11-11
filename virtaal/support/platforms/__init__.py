@@ -19,6 +19,12 @@ downloads it into a work copy (workcopy.py) and opens that file;
 File > Submit to Server… sends its changed units back (submit.py, for
 a platform that can_submit), and File > Update from Server… brings in
 others' changes (update.py).
+
+Several languages open together as one list of units with the Files
+Panel (openmany.py): each file opened keeps its own work copy
+(StoreController.work_copies), and Submit, Update, sending as you go
+and the notices take in every one of them, with one question and one
+list of conflicts for all.
 """
 
 from collections import namedtuple
@@ -213,6 +219,31 @@ class Platform:
         return []
 
 
+def file_label(location, language):
+    """ "Hello/Program (Afrikaans)": one of several files of a server."""
+    # l10n: One of several files opened from a translation server. %(location)s is
+    # its project and component, such as "Hello/Program"; %(language)s its language
+    return _('%(location)s (%(language)s)') % {'location': location, 'language': language}
+
+
+def location_of(copies):
+    """The project and component of work copies, or their projects when
+    the components differ."""
+    locations = {copy.location() for copy in copies}
+    if len(locations) == 1:
+        return locations.pop()
+    projects = {
+        (copy.record.get('names') or {}).get('project') or copy.record['project'] for copy in copies
+    }
+    return ', '.join(sorted(projects))
+
+
+def waiting_count(copies):
+    """How many changes Submit would send from copies: from their files'
+    units once attached, else from their side records."""
+    return sum(len(c.pending()) if c.store is not None else c.unsubmitted() for c in copies)
+
+
 def pending_message(count, location):
     """ "3 changes to Hello/Program are not yet submitted." """
     from virtaal.common.pan_app import ngettext
@@ -251,8 +282,8 @@ class Registry:
         self.update_item = None
         self._handlers = []
         self._notice = None
-        self._shown = None
-        """The work copy open, as last seen."""
+        self._shown = []
+        """The work copies open, as last seen."""
         self._reminded = False
         from .trickle import Trickler
 
@@ -343,17 +374,35 @@ class Registry:
         if signal not in ('store-loaded', 'store-saved', 'store-closed'):
             return
         self._sync_notice(signal)
-        copy = self._open_work_copy()
+        copies = self._open_copies()
+        store_controller = getattr(self.main_controller, 'store_controller', None)
         if signal == 'store-saved':
-            self.trickler.saved(copy)
-        else:
-            self.trickler.stop()
-            if copy is not None:
+            for copy in getattr(store_controller, 'saved_copies', ()):
+                if copy in copies:
+                    self.trickler.saved(copy)
+            return
+        self.trickler.stop()
+        for copy in copies:
+            # A queue left from before: the file's units to send it.
+            if copy.record.get('queue') and store_controller.attach_work_copy(copy):
                 self.trickler.start(copy)
 
+    def _open_copies(self):
+        """The work copies open (with several files open, every one among
+        them) whose platform's plug-in is on and can submit."""
+        store_controller = getattr(self.main_controller, 'store_controller', None)
+        copies = getattr(store_controller, 'work_copies', None) or {}
+        found = []
+        for copy in copies.values():
+            platform = self.platform_of(copy)
+            if platform is not None and platform.can_submit:
+                found.append(copy)
+        return found
+
     def _open_work_copy(self):
-        """The work copy open, if its platform's plug-in is on and it
-        can submit."""
+        """The work copy open (with several files open, the one the
+        cursor is in), if its platform's plug-in is on and it can
+        submit."""
         store_controller = getattr(self.main_controller, 'store_controller', None)
         copy = getattr(store_controller, 'work_copy', None)
         platform = copy and self.platform_of(copy)
@@ -367,39 +416,39 @@ class Registry:
         Update for any work copy."""
         if self.submit_item is None:
             return
-        copy = self._open_work_copy()
+        copies = self._open_copies()
         store_controller = getattr(self.main_controller, 'store_controller', None)
         modified = store_controller is not None and store_controller.is_modified()
-        self.submit_item.set_sensitive(copy is not None and (modified or bool(copy.pending())))
-        self.update_item.set_sensitive(copy is not None)
+        self.submit_item.set_sensitive(bool(copies) and (modified or bool(waiting_count(copies))))
+        self.update_item.set_sensitive(bool(copies))
 
     def submit(self, parent=None):
-        """Saves the work copy open, then sends its changes to its
+        """Saves the work copies open, then sends their changes to their
         server (submitdialog.py)."""
         from .submitdialog import SubmitDialogs
 
-        copy = self._open_work_copy()
-        if copy is None:
+        copies = self._open_copies()
+        if not copies:
             return None
         self.trickler.stop()
-        result = SubmitDialogs(self, copy, self._parent(parent)).run()
+        result = SubmitDialogs(self, copies, self._parent(parent)).run()
         self._sync_notice()
         return result
 
     def update(self, parent=None):
-        """Saves the work copy open, then brings in what others changed
-        on its server (updatedialog.py)."""
+        """Saves the work copies open, then brings in what others changed
+        on their server (updatedialog.py)."""
         from .updatedialog import UpdateDialogs
 
-        copy = self._open_work_copy()
-        if copy is None:
+        copies = self._open_copies()
+        if not copies:
             return None
         self.trickler.stop()
-        result = UpdateDialogs(self, copy, self._parent(parent)).run()
+        result = UpdateDialogs(self, copies, self._parent(parent)).run()
         self._sync_notice()
-        copy = self._open_work_copy()
-        if copy is not None:
-            self.trickler.start(copy)
+        for copy in self._open_copies():
+            if copy.store is not None:
+                self.trickler.start(copy)
         return result
 
     # Send finished units as you go #
@@ -412,12 +461,13 @@ class Registry:
         """After finished units went in the background."""
         from .submitdialog import sent_message
 
-        if result.file_changed:
+        if result.file_changed and self.trickler.copy is not None:
             # A state the server stored, such as needs editing for a
-            # failing check, shows; saving it is the user's.
+            # failing check, shows; saving it is the user's (a file not
+            # shown is saved at once).
             store_controller = self.main_controller.store_controller
-            store_controller.view._treeview.queue_draw()
-            store_controller.set_modified(True)
+            if store_controller.work_copies_changed([self.trickler.copy]):
+                store_controller.view._treeview.queue_draw()
         view = self.main_controller.view
         view.set_statusbar_message(sent_message(result.sent))
         view.refresh_title()
@@ -482,48 +532,55 @@ class Registry:
     def _sync_notice(self, signal=None):
         """Opened: says how many changes wait, with Submit and Update.
         Saved or sent: keeps that count right. Left: says so once, with
-        Open."""
-        copy = self._open_work_copy()
+        Open. With several files open, for all of their work copies."""
+        copies = self._open_copies()
         left = self._shown
-        self._shown = copy
-        if copy is not None:
-            count = len(copy.pending())
+        self._shown = copies
+        if copies:
+            count = waiting_count(copies)
             if signal == 'store-loaded' or (count and self._notice is not None):
-                self._notice_open(copy, count)
+                self._notice_open(copies, count)
             elif not count:
                 self._hide_notice()
             return
-        if signal in ('store-loaded', 'store-closed') and left is not None:
+        if signal in ('store-loaded', 'store-closed') and left:
             from . import workcopy
 
-            again = workcopy.for_file(left.path)
-            if again is not None and again.unsubmitted():
-                self._notice_left(again)
+            again = [workcopy.for_file(copy.path) for copy in left]
+            if any(copy is not None and copy.unsubmitted() for copy in again):
+                self._notice_left([copy for copy in again if copy is not None])
                 return
         if signal == 'store-loaded':
             self._hide_notice()
 
-    def _notice_open(self, copy, count):
+    def _notice_open(self, copies, count):
         if not count:
             self._hide_notice()
             return
         self._show_notice(
-            pending_message(count, copy.location()),
+            pending_message(count, location_of(copies)),
             [
                 (_('Su_bmit to Server…'), lambda: self.submit()),
                 (_('Up_date from Server…'), lambda: self.update()),
             ],
         )
 
-    def _notice_left(self, copy):
+    def _notice_left(self, copies):
+        """copies, those of the file or files just left."""
         from .browsedialog import _gtk_text
 
-        path = copy.path
+        paths = [copy.path for copy in copies]
+        count = sum(copy.unsubmitted() for copy in copies)
         self._show_notice(
-            pending_message(copy.unsubmitted(), copy.location()),
+            pending_message(count, location_of(copies)),
             # GTK's own "_Open", as the browser's button.
-            [(_gtk_text('_Open'), lambda: self.main_controller.open_file(path))],
+            [(_gtk_text('_Open'), lambda: self._open_paths(paths))],
         )
+
+    def _open_paths(self, paths):
+        if len(paths) == 1:
+            return self.main_controller.open_file(paths[0])
+        return self.main_controller.open_files(paths)
 
     def _remind_at_start(self):
         """With no file open, the work copy saved last that holds changes
@@ -535,7 +592,7 @@ class Registry:
             return False
         copies = workcopy.unsubmitted_copies({p.id for p in self.platforms})
         if copies:
-            self._notice_left(copies[0])
+            self._notice_left(copies[:1])
         return False
 
     def _parent(self, parent):
@@ -553,7 +610,8 @@ class Registry:
 
     def browse(self, parent=None):
         """Browses a server, asking for one first if there is none, and
-        opens the language chosen. Whether one was."""
+        opens the languages chosen: one as a file, several together as
+        one list of units. Whether they were."""
         from .browsedialog import BrowseDialog
 
         servers = self.servers()
@@ -561,10 +619,11 @@ class Registry:
             self.configure(parent, servers)
             if not servers.servers:
                 return False
-        path = BrowseDialog(servers, self._parent(parent)).run()
+        dialog = BrowseDialog(servers, self._parent(parent))
+        path = dialog.run()
         if path is None:
             return False
-        return bool(self.main_controller.open_file(path))
+        return bool(self._open_paths(dialog.opened_all or [path]))
 
 
 registry = Registry()

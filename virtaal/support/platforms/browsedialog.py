@@ -22,15 +22,24 @@ work copy (workcopy.py) and closes the dialog; run() gives the work
 file to open. A work copy holding work not yet submitted is opened as
 it is, without downloading over it: its language is in bold, and says
 how many changes wait when chosen, and once opened its notice offers
-Update from Server (Registry)."""
+Update from Server (Registry).
 
-from gi.repository import GLib, Gtk, Pango
+Several languages open together, as one list of units with the Files
+Panel: those chosen at once (Ctrl or Shift and a click, such as some
+languages of a component), or a language in every component of its
+project ("Open in All Components" in a language's menu, by a right
+click or the Menu key). They download one after the other with their
+progress and Cancel (openmany.py); those that fail are listed and the
+rest open (opened_all)."""
 
-from virtaal.support.libi18n.numbers import format_percent
+from gi.repository import Gdk, GLib, Gtk, Pango
+
+from virtaal.support.libi18n.numbers import format_number, format_percent
 from virtaal.views.widgets.util import run_dialog
 
-from . import pending_message, workcopy
+from . import location_of, pending_message, workcopy
 from .serversdialog import error_message
+from .submit import BUDGET, CANCELLED
 
 COL_NAME, COL_INFO, COL_KIND, COL_PROJECT, COL_SLUG, COL_LOADED, COL_WEIGHT = range(7)
 PROJECT, COMPONENT, LANGUAGE, PENDING = 'project', 'component', 'language', 'pending'
@@ -53,6 +62,35 @@ def language_name(code, name):
     return known if known != code else (name or code)
 
 
+def _downloading(number, total):
+    # l10n: While downloading several translations from a translation server
+    return _('Downloading %(number)s of %(total)s…') % {
+        'number': format_number(number),
+        'total': format_number(total),
+    }
+
+
+def _counted_failures(count):
+    from virtaal.common.pan_app import ngettext
+
+    text = ngettext(
+        # l10n: Followed by the translations, one a line, each with why it failed
+        '%(count)s translation could not be downloaded:',
+        '%(count)s translations could not be downloaded:',
+        count,
+    )
+    return text % {'count': format_number(count)}
+
+
+def _failure_reason(error, platform, result):
+    """Why a translation wasn't downloaded."""
+    from .submitdialog import used_up_message
+
+    if result.stop == BUDGET and error.status == 429 and result.reset_in is not None:
+        return used_up_message(result.reset_in)
+    return error_message(error, platform)
+
+
 class BrowseDialog:
     """Browses one of a ServerList's servers, the last one used first."""
 
@@ -73,7 +111,15 @@ class BrowseDialog:
         self._query = None
         self._downloading = False
         self.opened = None
-        """The work file of the language opened, once it is."""
+        """The work file of the language opened, once it is (the first,
+        with several)."""
+        self.opened_all = []
+        """The work files of every language opened."""
+        self.failed = None
+        """The message listing the languages that failed to download, if
+        any did."""
+        self.progress = None
+        self._runner = None
 
         self.dialog = Gtk.Dialog(transient_for=parent, modal=True)
         self.dialog.set_default_size(560, 480)
@@ -90,16 +136,7 @@ class BrowseDialog:
         self.store = Gtk.TreeStore(str, str, str, str, str, bool, int)
         self.filtered = self.store.filter_new()
         self.filtered.set_visible_func(self._visible)
-        self.treeview = Gtk.TreeView(model=self.filtered)
-        self.treeview.append_column(
-            Gtk.TreeViewColumn(_('Name'), Gtk.CellRendererText(), text=COL_NAME, weight=COL_WEIGHT)
-        )
-        self.treeview.get_column(0).set_expand(True)
-        info = Gtk.CellRendererText(xalign=1.0)
-        self.treeview.append_column(Gtk.TreeViewColumn(_('Translated'), info, text=COL_INFO))
-        self.treeview.connect('row-expanded', self._on_row_expanded)
-        self.treeview.connect('row-activated', lambda *_args: self.open_selected())
-        self.treeview.get_selection().connect('changed', lambda _sel: self._on_selected())
+        self.treeview = self._treeview(self.filtered)
 
         scrolled = Gtk.ScrolledWindow(shadow_type=Gtk.ShadowType.IN, vexpand=True)
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -130,6 +167,24 @@ class BrowseDialog:
         first = first or (servers.servers[0] if servers.servers else None)
         if first is not None:
             self.server_combo.set_active(servers.servers.index(first))
+
+    def _treeview(self, model):
+        """The projects, components and languages: several languages can
+        be chosen at once, and a language has a menu."""
+        treeview = Gtk.TreeView(model=model)
+        treeview.append_column(
+            Gtk.TreeViewColumn(_('Name'), Gtk.CellRendererText(), text=COL_NAME, weight=COL_WEIGHT)
+        )
+        treeview.get_column(0).set_expand(True)
+        info = Gtk.CellRendererText(xalign=1.0)
+        treeview.append_column(Gtk.TreeViewColumn(_('Translated'), info, text=COL_INFO))
+        treeview.connect('row-expanded', self._on_row_expanded)
+        treeview.connect('row-activated', lambda *_args: self.open_selected())
+        treeview.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        treeview.get_selection().connect('changed', lambda _sel: self._on_selected())
+        treeview.connect('button-press-event', self._on_button_press)
+        treeview.connect('popup-menu', lambda _view: self._popup(None))
+        return treeview
 
     def _server_combo(self, servers):
         """The servers by URL, with their platform's name when there is
@@ -325,28 +380,92 @@ class BrowseDialog:
 
     # Choice #
 
-    def selected(self):
-        """(project, component or None, language code) of the chosen
-        language, or None."""
-        model, it = self.treeview.get_selection().get_selected()
-        if it is None or model[it][COL_KIND] != LANGUAGE:
-            return None
+    def _language_of(self, model, it):
+        """(project, component or None, language code) of a language row."""
         parent = model.iter_parent(it)
         component = model[parent][COL_SLUG] if model[parent][COL_KIND] == COMPONENT else None
         return model[it][COL_PROJECT], component, model[it][COL_SLUG]
 
+    def _names_of(self, model, it):
+        """(project, component or None, language) of a language row, as
+        shown."""
+        parent = model.iter_parent(it)
+        if model[parent][COL_KIND] != COMPONENT:
+            return model[parent][COL_NAME], None, model[it][COL_NAME]
+        project = model.iter_parent(parent)
+        return model[project][COL_NAME], model[parent][COL_NAME], model[it][COL_NAME]
+
+    def chosen(self):
+        """Wanted for each language chosen, in the list's order."""
+        from .openmany import Wanted
+
+        model, paths = self.treeview.get_selection().get_selected_rows()
+        found = []
+        for path in paths:
+            it = model.get_iter(path)
+            if model[it][COL_KIND] == LANGUAGE:
+                found.append(Wanted(*self._language_of(model, it), self._names_of(model, it)))
+        return found
+
+    def selected(self):
+        """(project, component or None, language code) of the language
+        chosen, or None unless one is."""
+        chosen = self.chosen()
+        return tuple(chosen[0][:3]) if len(chosen) == 1 else None
+
     def _on_selected(self):
-        """A language with changes not yet submitted says so."""
+        """Languages with changes not yet submitted say so."""
         self._sync_open()
-        chosen = self.selected()
-        if chosen is None or self._downloading:
+        if self._downloading:
             return
-        copy = self._local(*chosen)
-        count = copy.unsubmitted() if copy is not None else 0
-        self.status.set_text(pending_message(count, copy.location()) if count else '')
+        copies = [self._local(*wanted[:3]) for wanted in self.chosen()]
+        copies = [copy for copy in copies if copy is not None and copy.unsubmitted()]
+        count = sum(copy.unsubmitted() for copy in copies)
+        self.status.set_text(pending_message(count, location_of(copies)) if count else '')
 
     def _sync_open(self):
-        self.open_button.set_sensitive(not self._downloading and self.selected() is not None)
+        some = bool(self.chosen()) or self.selected() is not None
+        self.open_button.set_sensitive(not self._downloading and some)
+
+    # A language's menu #
+
+    def _on_button_press(self, treeview, event):
+        if not event.triggers_context_menu() or event.type != Gdk.EventType.BUTTON_PRESS:
+            return False
+        found = treeview.get_path_at_pos(int(event.x), int(event.y))
+        if found is None:
+            return False
+        selection = treeview.get_selection()
+        if not selection.path_is_selected(found[0]):
+            selection.unselect_all()
+            selection.select_path(found[0])
+        return self._popup(event)
+
+    def _popup(self, event):
+        """The menu of the one language chosen, on a platform with
+        components. Whether it is shown."""
+        chosen = self.chosen()
+        if len(chosen) != 1 or self.server is None or not self.server.platform.has_components:
+            return False
+        menu = Gtk.Menu()
+        # l10n: In a language's menu in the translation server's browser: open that
+        # language of every component of its project together
+        item = Gtk.MenuItem.new_with_mnemonic(_('Open in All _Components'))
+        item.connect('activate', lambda _item: self.open_in_all_components(chosen[0]))
+        menu.append(item)
+        menu.show_all()
+        menu.attach_to_widget(self.treeview, None)
+        self._menu = menu
+        if event is not None:
+            menu.popup_at_pointer(event)
+        else:
+            menu.popup_at_widget(
+                self.treeview,
+                Gdk.Gravity.CENTER,
+                Gdk.Gravity.NORTH_WEST,
+                Gtk.get_current_event(),
+            )
+        return True
 
     def _on_response(self, dialog, response):
         if response == RESPONSE_OPEN:
@@ -356,7 +475,10 @@ class BrowseDialog:
 
     def open_selected(self):
         """Downloads the chosen language into its work copy, then closes
-        the dialog with it as opened."""
+        the dialog with it as opened; several chosen, as open_many()."""
+        if len(self.chosen()) > 1:
+            self.open_many(self.chosen())
+            return
         chosen = self.selected()
         if chosen is None or self._downloading:
             return
@@ -392,8 +514,120 @@ class BrowseDialog:
         self.session.download(project, component, language, done, failed)
 
     def _opened(self, path):
-        self.opened = path
+        self._opened_all([path])
+
+    def _opened_all(self, paths):
+        self.opened = paths[0]
+        self.opened_all = list(paths)
         self.dialog.response(Gtk.ResponseType.CLOSE)
+
+    # Several at once #
+
+    def open_in_all_components(self, wanted):
+        """The language of wanted in every component of its project."""
+        from .openmany import Wanted, components_with
+
+        if self._downloading:
+            return
+        project = wanted.project
+        project_name = wanted.names[0] if wanted.names else project
+        progress = self._start_progress(project_name)
+        progress.waiting(project_name)
+
+        def found(pairs):
+            if progress is self.progress:
+                names = [(project_name, c.name, language_name(i.slug, i.name)) for c, i in pairs]
+                self.open_many(
+                    [
+                        Wanted(project, c.slug, wanted.language, n)
+                        for (c, _i), n in zip(pairs, names, strict=True)
+                    ]
+                )
+
+        def failed(error):
+            if progress is self.progress:
+                self._end_progress()
+                self.status.set_text(error_message(error, self.server.platform))
+
+        components_with(self.session, project, wanted.language, found, failed)
+
+    def _start_progress(self, title):
+        from .submitdialog import ProgressDialog
+
+        self._downloading = True
+        self._busy(1)
+        self._sync_open()
+        self.status.set_text('')
+        self.progress = ProgressDialog(self.dialog, self._cancel_many, title, _downloading)
+        self.progress.show()
+        return self.progress
+
+    def _end_progress(self):
+        if self.progress is not None:
+            self.progress.destroy()
+            self.progress = None
+        self._downloading = False
+        self._busy(-1)
+        self._sync_open()
+
+    def _cancel_many(self):
+        runner, self._runner = self._runner, None
+        if runner is not None:
+            runner.cancel()
+        else:
+            self.session.cancel()
+            self._end_progress()
+
+    def open_many(self, wanted):
+        """Downloads each of wanted (Wanted) into its work copy, with the
+        progress and Cancel, then closes the dialog with them opened; the
+        ones that failed are listed (failed), unless all did."""
+        from .openmany import Downloads, title_of
+
+        if not wanted:
+            if self.progress is not None:
+                self._end_progress()
+            return
+        if self.progress is None:
+            self._start_progress(title_of(wanted))
+        self.failed = None
+
+        def done(result):
+            self._runner = None
+            self._end_progress()
+            self._many_done(result)
+
+        self._runner = Downloads(self.server, self.session, wanted, self.progress.update, done)
+        self._runner.start()
+
+    def _many_done(self, result):
+        if result.stop == CANCELLED:
+            return
+        platform = self.server.platform
+        if result.failures:
+            lines = [_counted_failures(len(result.failures))]
+            for wanted, error in result.failures:
+                lines.append('  ' + wanted.label)
+                lines.append('    ' + _failure_reason(error, platform, result))
+            self.failed = '\n'.join(lines)
+        if not result.paths:
+            if result.failures:
+                self.status.set_text(_failure_reason(result.failures[0][1], platform, result))
+            return
+        if self.failed:
+            self._tell_failed(self.failed)
+        self._opened_all(result.paths)
+
+    def _tell_failed(self, text):
+        dialog = Gtk.MessageDialog(
+            transient_for=self.dialog,
+            modal=True,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.CLOSE,
+            text=text,
+        )
+        run_dialog(dialog)
+        dialog.destroy()
 
     def run(self):
         """Shows the dialog until it's closed. The work file opened, or
