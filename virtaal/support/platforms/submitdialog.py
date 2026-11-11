@@ -160,8 +160,8 @@ class ConflictDialog:
         intro.set_text(
             _counted(
                 ngettext(
-                    'Someone changed %(count)s unit on the server since you opened it.',
-                    'Someone changed %(count)s units on the server since you opened them.',
+                    'Someone changed %(count)s unit on the server since you downloaded it.',
+                    'Someone changed %(count)s units on the server since you downloaded them.',
                     len(conflicts),
                 ),
                 len(conflicts),

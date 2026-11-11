@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 07:55+0000\n"
+"POT-Creation-Date: 2026-11-11 10:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2697,9 +2697,9 @@ msgstr ""
 
 #: virtaal/support/platforms/submitdialog.py
 #, python-format
-msgid "Someone changed %(count)s unit on the server since you opened it."
+msgid "Someone changed %(count)s unit on the server since you downloaded it."
 msgid_plural ""
-"Someone changed %(count)s units on the server since you opened them."
+"Someone changed %(count)s units on the server since you downloaded them."
 msgstr[0] ""
 msgstr[1] ""
 
