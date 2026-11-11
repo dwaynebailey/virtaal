@@ -88,8 +88,7 @@ class Weblating:
         uc.load_unit(unit)
         uc.set_unit_target(0, [text])
         if state is not None:
-            # As chosen in the editor: else leaving a unit at once, before
-            # the state timer, marks it needing review.
+            # As chosen in the editor.
             uc.set_current_state(state, from_user=True)
         uc.finish_current_unit()
 
@@ -363,6 +362,17 @@ class TestSendAsYouGo(Weblating, TestScaffolding):
         # The draft waits for Submit.
         record = workcopy.for_file(path)
         assert record.unsubmitted() == 1 and record.record['queue'] == []
+
+    def test_a_unit_typed_and_left_before_the_state_timer_goes(self):
+        self.servers.servers[0].send_finished = True
+        self._open()
+        self._edit('Help', 'Hulp')
+
+        assert self.main_controller.save_file()
+        run_until(lambda: not self.registry.trickler.running, timeout=30)
+
+        assert self._patches() == [self._server_unit('Help')['id']]
+        assert self._server_unit('Help')['state'] == 20
 
     def test_a_conflict_while_sending_is_left_for_submit_and_noted(self):
         self.servers.servers[0].send_finished = True

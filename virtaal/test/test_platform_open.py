@@ -271,8 +271,7 @@ class TestPlatformOpen(TestScaffolding):
 
         keyed = {u.getid(): u for u in self.store_controller.store.get_units()}
         assert keyed['open'].get_state_n() == StateEnum.FINAL
-        # Typed in before the state timer, it's marked for review.
-        assert keyed['save'].get_state_n() == StateEnum.NEEDS_REVIEW
+        assert keyed['save'].get_state_n() == StateEnum.UNREVIEWED
         assert keyed['welcome'].get_state_n() == StateEnum.UNREVIEWED
         changed = workcopy.for_file(path).changed_units()
         assert [u['context'] for u in changed] == ['save']

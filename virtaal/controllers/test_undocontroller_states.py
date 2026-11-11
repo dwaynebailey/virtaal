@@ -346,6 +346,42 @@ class _StateUndo(TestScaffolding):
         assert not saved.target
         assert saved.get_state_id() == S.EMPTY
 
+    # Leaving or saving before the 200 ms state timer fires.
+
+    def _type_before_the_timer(self, source):
+        unit = self._select(source)
+        self.unit_controller._state_timer_active = True  # the timer never fires
+        self._type('Nuut')
+        return unit
+
+    def test_a_typed_unit_left_before_the_state_timer_is_translated(self, empty_source):
+        self._type_before_the_timer(empty_source)
+        self._leave(empty_source)
+
+        saved = self._saved(empty_source)
+        assert saved.target == 'Nuut' and saved.get_state_id() == S.UNREVIEWED
+
+    def test_a_typed_unit_saved_before_the_state_timer_is_translated(self, empty_source):
+        unit = self._type_before_the_timer(empty_source)
+
+        saved = self._saved(empty_source)
+
+        assert saved.target == 'Nuut' and saved.get_state_id() == S.UNREVIEWED
+        self._assert_state(unit, S.UNREVIEWED)
+
+    def test_undo_after_leaving_before_the_state_timer_restores_the_state(self, empty_source):
+        unit = self._type_before_the_timer(empty_source)
+        state_n = self.STATES[empty_source]
+        self._leave(empty_source)
+
+        # The first undo goes back to the unit, the second undoes.
+        self._undo()
+        assert self.unit_controller.current_unit is unit
+        self._undo()
+
+        assert self._target().get_text() == ''
+        self._assert_state(unit, state_n)
+
 
 def pytest_generate_tests(metafunc):
     cls = metafunc.cls
@@ -355,6 +391,10 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('source', list(cls.STATES))
     if 'translated_source' in metafunc.fixturenames:
         metafunc.parametrize('translated_source', list(cls.TRANSLATED))
+    if 'empty_source' in metafunc.fixturenames:
+        metafunc.parametrize(
+            'empty_source', [s for s in cls.STATES if cls.STATES[s] < S.NEEDS_WORK]
+        )
 
 
 class TestXliffStateUndo(_StateUndo):
@@ -372,14 +412,23 @@ class TestXliffStateUndo(_StateUndo):
         self._leave('New')
         assert self._saved('New').get_state_n() == S.UNREVIEWED
 
-    def test_a_new_unit_left_before_the_state_timer_needs_review(self):
+    def test_a_new_unit_left_before_the_state_timer_is_translated(self):
         self._select('New')
         self.unit_controller._state_timer_active = True  # the timer never fires
 
         self._type('Nuut')
         self._leave('New')
 
-        assert self._saved('New').get_state_n() == S.NEEDS_REVIEW
+        assert self._saved('New').get_state_n() == S.UNREVIEWED
+
+    def test_a_chosen_state_stands_when_left_before_the_state_timer(self, empty_source):
+        # Qt Linguist has no needs-work pick for a message typed from empty.
+        unit = self._type_before_the_timer(empty_source)
+        self._pick(S.NEEDS_WORK)
+        self._leave(empty_source)
+
+        assert self._saved(empty_source).get_state_id() == S.NEEDS_WORK
+        assert unit.get_state_id() == S.NEEDS_WORK
 
 
 class TestTsStateUndo(_StateUndo):

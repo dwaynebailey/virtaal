@@ -201,21 +201,7 @@ class UnitController(BaseController):
 
     def _unit_done(self, widget, unit):
         if unit._modified and unit.STATE:
-            if (
-                _filled_forms(unit)[0]
-                and unit.get_state_id(unit._current_state) == workflow.StateEnum.EMPTY
-                and not unit._state_sticky
-            ):
-                # Oops! The user entered a translation, but the timer didn't
-                # expire yet, so let's mark it fuzzy to be safe. We don't know
-                # exactly what kind of fuzzy the format supports, so let's use
-                # .set_state_n() directly. Also, if the workflow does more, we
-                # probably don't want it, since we really only want to set the
-                # state.
-                unit.set_state_n(workflow.StateEnum.NEEDS_REVIEW)
-            else:
-                # Now really advance the workflow that we ended at
-                self._commit_state(unit)
+            self._settle_state(unit)
 
         self.emit('unit-done', unit, unit._modified)
         # let's just clean up a bit:
@@ -255,7 +241,11 @@ class UnitController(BaseController):
         if newstate is None or newstate == state:
             return
 
-        self.set_current_state(newstate)
+        if unit is self.current_unit:
+            self.set_current_state(newstate)
+        else:
+            # Left already: the view shows another unit.
+            unit._current_state = newstate
         unit._auto_partial = newstate == partial_state
         undo_controller = getattr(self.main_controller, 'undo_controller', None)
         if undo_controller:
@@ -283,7 +273,15 @@ class UnitController(BaseController):
         unit = self.current_unit
         # None while no unit is shown: a folder of files to pair.
         if unit is not None and unit._modified and unit.STATE:
-            self._commit_state(unit)
+            self._settle_state(unit)
+
+    def _settle_state(self, unit):
+        """Write the unit's state, with the state timer's correction
+        made now if it hasn't fired yet: the same state however soon
+        the unit is left or saved. A state the user chose stands."""
+        if not unit._state_sticky:
+            self._correct_empty_state(unit)
+        self._commit_state(unit)
 
     def _state_name(self, unit, state_n):
         """The state list's name for state number state_n. A format may
