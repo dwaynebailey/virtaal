@@ -18,9 +18,18 @@ requests with a status (429 with Retry-After, a 5xx, ...) or drops the
 connection, and not_weblate makes it answer like some other web site.
 
 Routes are a table (ROUTES) of method, path pattern and handler, so
-later phases add theirs (unit PATCH, the lock, changes). A translation
-can hold a file to download and its units (fill_po(), fill_json()),
-paged as Weblate pages units, with ids, states and last_updated.
+later phases add theirs. A translation can hold a file to download and
+its units (fill_po(), fill_json(), fill_android()), paged as Weblate
+pages units, with ids, states and last_updated, and searched with
+q=changed:>=<time>.
+
+For Submit: PATCH /api/units/<id>/ changes a unit's target and state
+(checked as Weblate checks them: the states it accepts, all of a
+plural's forms), and the component's lock/ says whether it is locked.
+edit() changes a unit as another translator would; forbid() answers
+403 for a unit, fail_after() fails the PATCHes after the first k,
+enforce() stores "needs editing" for "translated" as an enforced check
+does, and old_states refuses 11 and 12 as Weblate before 2026.x does.
 
 The server itself and run_until() are fakeplatform.py's, shared with
 any other platform's fake. Never point Virtaal at a real Weblate server
@@ -79,6 +88,16 @@ class FakeWeblate(FakeServer):
         """Requests allowed per window and token, or None."""
         self.rate_window = 3600
         self.projects = {}
+        self.units = {}
+        """{id: unit} of every translation's units."""
+        self.old_states = False
+        """Refuses states 11 and 12, as Weblate before 2026.x."""
+        self.forbidden = set()
+        self.enforced = set()
+        self.patched = []
+        """(unit id, the PATCH's JSON) of each change made."""
+        self._fail_after = None
+        self._clock = 0
         self.requests = []
         self.schema_problems = []
         self._faults = []
@@ -228,6 +247,7 @@ class FakeWeblate(FakeServer):
         parent = self._parent(project, component)
         parent.setdefault('files', {})[code] = (data, content_type)
         parent.setdefault('units', {})[code] = units
+        self.units.update((unit['id'], unit) for unit in units)
 
     def set_template(self, project, component, data):
         """A monolingual component's template, its monolingual_base."""
@@ -278,23 +298,27 @@ class FakeWeblate(FakeServer):
 
     def fill_po(self, project, component, code, entries):
         """Gives translation code a PO file of entries, each (context,
-        source, target, Weblate state or None), and their units. As
-        Weblate does, a needs-editing state is written fuzzy, the rest
-        plain."""
+        source, target, Weblate state or None), and their units; a
+        plural's source and target are lists of its forms. As Weblate
+        does, a needs-editing state is written fuzzy, the rest plain."""
+        from translate.misc.multistring import multistring
         from translate.storage import po
 
         store = po.pofile()
         store.updateheader(add=True, Language=code)
+        if any(isinstance(entry[1], list) for entry in entries):
+            store.updateheader(Plural_Forms='nplurals=2; plural=(n != 1);')
         units = []
         for position, (context, source, target, state) in enumerate(entries, 1):
-            unit = store.addsourceunit(source)
+            plural = isinstance(source, list)
+            unit = store.addsourceunit(multistring(source) if plural else source)
             if context:
                 unit.setcontext(context)
-            unit.target = target
+            unit.target = multistring(target) if plural else target
             made = self.unit(
                 project, component, code, source, target, context, state, position=position
             )
-            unit.markfuzzy(made['fuzzy'] and bool(target))
+            unit.markfuzzy(made['fuzzy'] and any(made['target']))
             units.append(made)
         self.set_file(project, component, code, bytes(store), units, 'text/x-po')
         return units
@@ -341,6 +365,52 @@ class FakeWeblate(FakeServer):
         ]
         self.set_file(project, component, code, _android_bytes(translated), units, 'text/xml')
         return units
+
+    # Changes #
+
+    def _tick(self):
+        """A last_updated after every other: now, a microsecond on from
+        the one before."""
+        import datetime
+
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        with self._lock:
+            self._clock = max(self._clock + 1, int(now.timestamp() * 1e6))
+            stamp = datetime.datetime(1970, 1, 1) + datetime.timedelta(microseconds=self._clock)
+        return stamp.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+    def _store(self, unit, target, state):
+        unit['target'] = list(target)
+        unit['state'] = state
+        unit['fuzzy'] = state in (10, 11, 12)
+        unit['translated'] = state >= 20
+        unit['approved'] = state == 30
+        unit['last_updated'] = self._tick()
+
+    def edit(self, unit_id, target, state=None):
+        """Changes a unit as someone else would on the server."""
+        unit = self.units[unit_id]
+        target = target if isinstance(target, list) else [target]
+        self._store(unit, target, state if state is not None else (20 if any(target) else 0))
+        return unit
+
+    def lock(self, project, component, locked=True):
+        self._parent(project, component)['component']['locked'] = locked
+
+    def forbid(self, unit_id):
+        """Answers 403 to a change of the unit, as to a user who may not
+        (approve) it."""
+        self.forbidden.add(unit_id)
+
+    def enforce(self, unit_id):
+        """Stores needs editing (10) when the unit is sent as translated,
+        as a failing enforced check does."""
+        self.enforced.add(unit_id)
+
+    def fail_after(self, count, status):
+        """Answers the PATCHes after the next count with status (None:
+        drops the connection)."""
+        self._fail_after = [count, status]
 
     # Faults #
 
@@ -541,7 +611,116 @@ class FakeWeblate(FakeServer):
         if translation is None:
             return self._no_translation()
         items = parent.get('units', {}).get(code, [])
+        if request['query'].get('q'):
+            items = self._search(request['query']['q'], items)
+            if items is None:
+                return 400, self.validation('q', 'Unknown search.')
         return self._check('Unit', *self.page(request, items))
+
+    def get_lock(self, request, scope, project, component):
+        parent = self._component(scope, project, component)
+        if parent is None:
+            return 404, self.error(404, 'not_found', 'No Component matches the given query.')
+        reply = {'locked': parent['component']['locked']}
+        self.schema_problems += weblate_schema.check('Lock', reply)
+        return 200, reply
+
+    def _search(self, query, units):
+        """The units a search finds; only changed:>=<time> is known."""
+        import datetime
+
+        found = re.fullmatch(r'changed:>=("?)([^"]+)\1', query.strip())
+        if not found:
+            return None
+        try:
+            since = datetime.datetime.fromisoformat(found.group(2).replace('Z', '+00:00'))
+        except ValueError:
+            return None
+
+        def changed(unit):
+            when = unit.get('last_updated')
+            return when and datetime.datetime.fromisoformat(when.replace('Z', '+00:00')) >= since
+
+        return [unit for unit in units if changed(unit)]
+
+    def _unit_scope(self, scope, unit):
+        """Whether a token with scope sees unit."""
+        return scope is None or '/translations/%s/' % scope in unit['translation']
+
+    def _written(self, unit_id, data):
+        """(status, body) for a PATCH's JSON data, as Weblate checks it."""
+        unit = self.units[unit_id]
+        if unit_id in self.forbidden or unit['state'] == 100:
+            return 403, self.error(
+                403, 'permission_denied', 'You do not have permission to perform this action.'
+            )
+        component = self._component_of(unit)
+        if component is not None and component['locked']:
+            return 423, self.error(423, 'component-locked', 'Component is locked.')
+        states = (0, 10, 20, 30) if self.old_states else (0, 10, 11, 12, 20, 30)
+        target, state = data.get('target'), data.get('state')
+        if state not in states:
+            return 400, self.validation('state', '"%s" is not a valid choice.' % state)
+        if not isinstance(target, list) or not all(isinstance(t, str) for t in target):
+            return 400, self.validation('target', 'Not a valid list of strings.')
+        if len(target) != len(unit['target']):
+            return 400, self.validation(
+                'target', 'Number of plurals does not match the number provided.'
+            )
+        if (state == 0) == any(target):
+            return 400, self.validation('state', 'Untranslated state requires empty target.')
+        if unit_id in self.enforced and state == 20:
+            state = 10
+        self._store(unit, target, state)
+        self.patched.append((unit_id, data))
+        reply = {
+            'target': unit['target'],
+            'state': state,
+            'explanation': unit['explanation'],
+            'extra_flags': unit['extra_flags'],
+            'labels': unit['labels'],
+        }
+        self.schema_problems += weblate_schema.check('UnitWrite', reply)
+        return 200, reply
+
+    def validation(self, attr, detail):
+        reply = {
+            'type': 'validation_error',
+            'errors': [{'code': 'invalid', 'detail': detail, 'attr': attr}],
+        }
+        self.schema_problems += weblate_schema.check_error(reply)
+        return reply
+
+    def _component_of(self, unit):
+        for project in self.projects.values():
+            for component in project['components'].values():
+                for units in component.get('units', {}).values():
+                    if any(u is unit for u in units):
+                        return component['component']
+        return None
+
+    def get_unit(self, request, scope, unit_id):
+        unit = self.units.get(int(unit_id))
+        if unit is None or not self._unit_scope(scope, unit):
+            return 404, self.error(404, 'not_found', 'No Unit matches the given query.')
+        self.schema_problems += weblate_schema.check('Unit', unit)
+        return 200, unit
+
+    def patch_unit(self, request, scope, unit_id):
+        unit_id = int(unit_id)
+        if unit_id not in self.units or not self._unit_scope(scope, self.units[unit_id]):
+            return 404, self.error(404, 'not_found', 'No Unit matches the given query.')
+        if self._fail_after is not None:
+            if self._fail_after[0] <= 0:
+                return self._fail_after[1], None, {}
+            self._fail_after[0] -= 1
+        try:
+            data = json.loads(request['body'].decode('utf-8'))
+        except (UnicodeDecodeError, ValueError):
+            return 400, self.error(400, 'parse_error', 'JSON parse error.')
+        if not isinstance(data, dict):
+            return 400, self.error(400, 'parse_error', 'JSON parse error.')
+        return self._written(unit_id, data)
 
     def monolingual_base(self, request, scope, project, component):
         parent = self._component(scope, project, component)
@@ -559,6 +738,9 @@ ROUTES = [
     ('GET', r'/api/translations/([^/]+)/([^/]+)/([^/]+)/', 'get_translation'),
     ('GET', r'/api/translations/([^/]+)/([^/]+)/([^/]+)/file/', 'translation_file'),
     ('GET', r'/api/translations/([^/]+)/([^/]+)/([^/]+)/units/', 'list_units'),
+    ('GET', r'/api/components/([^/]+)/([^/]+)/lock/', 'get_lock'),
+    ('GET', r'/api/units/(\d+)/', 'get_unit'),
+    ('PATCH', r'/api/units/(\d+)/', 'patch_unit'),
 ]
 """(method, path pattern, FakeWeblate method name). Each handler gets
 the request, the token's project scope and the pattern's groups, and

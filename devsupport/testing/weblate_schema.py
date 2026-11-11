@@ -190,6 +190,21 @@ SCHEMAS = {
         },
         'optional': {'last_updated': _S_OR_NULL},
     },
+    # The 200 reply to PATCH /api/units/<id>/: the fields written. A
+    # PATCH takes target (every form) and state, one of 0, 10, 11, 12,
+    # 20, 30 (StringStateEnum; 11 and 12 since 2026.x).
+    'UnitWrite': {
+        'required': {
+            'explanation': _S,
+            'extra_flags': _S,
+            'labels': _A,
+            'state': _I,
+            'target': _A,
+        },
+        'optional': {},
+    },
+    # GET /api/components/<p>/<c>/lock/
+    'Lock': {'required': {'locked': _B}, 'optional': {}},
 }
 
 
