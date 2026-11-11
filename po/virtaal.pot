@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 13:03+0000\n"
+"POT-Creation-Date: 2026-11-11 18:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2792,6 +2792,12 @@ msgstr[1] ""
 #. l10n: In the status bar after Update from Server found nothing new
 #: virtaal/support/platforms/updatedialog.py
 msgid "There are no changes on the server."
+msgstr ""
+
+#. l10n: In the status bar after Update from Server found changes on the
+#. server that the file already had
+#: virtaal/support/platforms/updatedialog.py
+msgid "Your copy is already up to date."
 msgstr ""
 
 #. l10n: In the status bar after Update from Server

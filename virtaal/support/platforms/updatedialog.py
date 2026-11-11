@@ -54,6 +54,10 @@ def status_message(result):
     if not result.changed:
         # l10n: In the status bar after Update from Server found nothing new
         return _('There are no changes on the server.')
+    if not result.taken:
+        # l10n: In the status bar after Update from Server found changes on the
+        # server that the file already had
+        return _('Your copy is already up to date.')
     return _counted(
         ngettext(
             # l10n: In the status bar after Update from Server

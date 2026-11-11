@@ -14,7 +14,7 @@ import pytest
 from devsupport.testing.fakeweblate import demo, run_until
 from virtaal.common import pan_app
 from virtaal.plugins.weblate.test_submit import Copy
-from virtaal.support.platforms import submit, update, workcopy
+from virtaal.support.platforms import submit, update, updatedialog, workcopy
 
 
 @pytest.fixture(autouse=True)
@@ -221,6 +221,7 @@ def test_a_new_download_counts_no_unit_the_file_already_has(fake):
 
     assert result.downloaded is not None and result.taken == 0
     assert copy.plans[0].same == 1
+    assert updatedialog.status_message(result) == 'Your copy is already up to date.'
 
 
 def test_saying_no_to_a_new_download_leaves_everything(fake):
