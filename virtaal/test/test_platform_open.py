@@ -21,7 +21,7 @@ from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.plugins.weblate.backend import WeblatePlatform
 from virtaal.support import catxliff_compat
 from virtaal.support.platforms import workcopy
-from virtaal.support.platforms.browsedialog import COL_NAME, BrowseDialog
+from virtaal.support.platforms.browsedialog import COL_NAME, RESPONSE_OPEN, BrowseDialog
 from virtaal.support.platforms.servers import ServerList
 
 
@@ -90,7 +90,8 @@ class TestPlatformOpen(TestScaffolding):
     def _download(self, component='Program'):
         dialog = self._dialog(component)
         assert dialog.open_button.get_sensitive()
-        dialog.open_selected()
+        # As the button does: the dialog stays open for the download.
+        dialog.dialog.response(RESPONSE_OPEN)
         run_until(lambda: dialog.opened is not None or dialog.status.get_text())
         dialog.dialog.destroy()
         return dialog
