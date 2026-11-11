@@ -92,10 +92,38 @@ def test_a_platform_without_components_leaves_that_level_out(tmp_path):
 
 @pytest.mark.parametrize(
     'slug, part',
-    [('..', '_'), ('', '_'), ('a:b', 'a_b'), (' trailing. ', 'trailing'), ('x\\y', 'x_y')],
+    [
+        ('..', '_'),
+        ('', '_'),
+        ('a:b', 'a_b'),
+        (' trailing. ', 'trailing'),
+        ('x\\y', 'x_y'),
+        ('con', '_con'),
+        ('NUL.po', '_NUL.po'),
+        ('com1.txt', '_com1.txt'),
+        ('console', 'console'),
+    ],
 )
 def test_a_slug_is_made_a_safe_file_name(slug, part):
     assert workcopy.safe_part(slug) == part
+
+
+@pytest.mark.parametrize(
+    'path, parts',
+    [
+        ('po/af.po', ['po', 'af.po']),
+        ('res/values-af/strings.xml', ['res', 'values-af', 'strings.xml']),
+        ('../../etc/passwd', ['etc', 'passwd']),
+        ('po/./../af.po', ['po', 'af.po']),
+        ('/etc/af.po', ['etc', 'af.po']),
+        ('C:\\Windows\\af.po', ['C_', 'Windows', 'af.po']),
+        ('//server/share/af.po', ['server', 'share', 'af.po']),
+        ('po/aux.po', ['po', '_aux.po']),
+        ('', ['_']),
+    ],
+)
+def test_a_platforms_path_stays_inside_the_work_folder(path, parts):
+    assert workcopy.safe_path(path) == parts
 
 
 # Matching #
@@ -239,15 +267,68 @@ def test_a_download_is_written_with_its_side_record(tmp_path):
     assert record['units'][1]['read_only'] is True
 
 
-def test_a_template_goes_beside_the_languages_and_is_remembered(tmp_path):
+def test_the_file_and_template_keep_their_paths_as_the_platform_has_them(tmp_path):
     from virtaal.support import baseline
 
-    copy = _create(template=('en.json', b'{"a": "A"}'))
+    download = _download(template=('res/values/strings.xml', b'<resources/>'))
+    copy = workcopy.create(
+        PLATFORM,
+        SERVER,
+        'hello',
+        'android',
+        'af',
+        download._replace(filename='res/values-af/strings.xml'),
+    )
 
-    component = os.path.dirname(copy.folder)
-    template = os.path.join(component, '_template', 'en.json')
+    folder = workcopy.work_folder('weblate', SERVER, 'hello', 'android', 'af')
+    assert copy.folder == folder
+    assert copy.path == os.path.join(folder, 'res', 'values-af', 'strings.xml')
+    template = os.path.join(folder, 'res', 'values', 'strings.xml')
     assert copy.template_path() == template
     assert baseline.remembered_template(copy.path) == template
+    assert copy.record['file'] == 'res/values-af/strings.xml'
+    assert copy.record['template'] == 'res/values/strings.xml'
+    assert os.path.isfile(os.path.join(folder, '.platform.json'))
+
+
+def test_a_nested_work_file_finds_its_record_and_its_template_none():
+    download = _download(template=('locales/en.json', b'{}'))
+    copy = workcopy.create(
+        PLATFORM,
+        SERVER,
+        'hello',
+        'website',
+        'af',
+        download._replace(filename='locales/af.json'),
+    )
+
+    again = workcopy.for_file(copy.path)
+
+    assert again.path == copy.path and again.folder == copy.folder
+    assert workcopy.for_file(copy.template_path()) is None
+    found = workcopy.existing('weblate', SERVER, 'hello', 'website', 'af')
+    assert found.path == copy.path
+
+
+def test_a_template_at_the_files_own_path_goes_aside():
+    copy = workcopy.create(
+        PLATFORM, SERVER, 'hello', 'odd', 'af', _download(template=('AF.po', b'x'))
+    )
+
+    assert copy.template_path() == os.path.join(copy.folder, '_template', 'AF.po')
+
+
+def test_a_path_out_of_the_work_folder_is_kept_in_it():
+    copy = workcopy.create(
+        PLATFORM,
+        SERVER,
+        'hello',
+        'program',
+        'af',
+        _download()._replace(filename='../../../outside.po'),
+    )
+
+    assert copy.path == os.path.join(copy.folder, 'outside.po')
 
 
 def test_the_work_file_finds_its_record_again():

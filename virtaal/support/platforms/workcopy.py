@@ -11,20 +11,25 @@ Opening a translation from a platform's server downloads its file, in
 the platform's own format, into a work folder in this user's state
 directory, and opens that file like any other:
 
-  <state dir>/platforms/<platform>/<host>/<project>/<component>/<language>/<file>
+  <state dir>/platforms/<platform>/<host>/<project>/<component>/<language>/<path>
 
-A component's template (a monolingual format's source-language file)
-goes beside its languages, in <component>/_template/. A platform with
-no components leaves that level out. Each part is the server's slug
-made safe as a file name; a category's "/" makes a folder.
+<path> is the file's path as the platform has it, such as po/af.po or
+values-af/strings.xml, so a format that takes its language from its
+folder (Android's values-af) opens as it would from the project's own
+files. A component's template (a monolingual format's source-language
+file) goes into the same folder at its own path, such as
+values/strings.xml (under _template/ if the two paths are one). A platform with no components leaves that level
+out. Each part is the server's slug, or a part of the path, made safe
+as a file name (safe_part()); a category's "/" makes a folder.
 
-Beside the file, .platform.json is its side record:
+In the language's folder, .platform.json is the side record:
 
   {"format": 1, "platform": <id>, "platform_name": <name>,
    "server": <the server's URL>, "project": <slug>,
    "component": <slug or null>, "language": <code>,
    "names": {"project": <name>, "component": <name or null>},
-   "file": <file name>, "template": <path from the work folder or null>,
+   "file": <path from the work folder, "/" between parts>,
+   "template": <path from the work folder or null>,
    "downloaded_at": <UTC, ISO 8601>, "sha256": <the file at download>,
    "saved_sha256": <the file as Virtaal last saved it, or null>,
    "units": [{"id": <the platform's unit id>, "position": <int>,
@@ -74,6 +79,10 @@ RECORD = '.platform.json'
 TEMPLATE_FOLDER = '_template'
 
 _UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+_RESERVED = {'CON', 'PRN', 'AUX', 'NUL'} | {
+    '%s%s' % (name, n) for name in ('COM', 'LPT') for n in '123456789\u00b9\u00b2\u00b3'
+}
+"""Names Windows keeps for devices, with any extension (nul.po)."""
 
 
 def platforms_dir():
@@ -85,9 +94,20 @@ def platforms_dir():
 def safe_part(text):
     """text as one file name on every system: no separators or
     characters Windows refuses, no leading or trailing dots or spaces
-    (so never '..'), never empty."""
-    text = _UNSAFE.sub('_', str(text or '')).strip(' .')
-    return text or '_'
+    (so never '..'), never a name Windows keeps for a device, never
+    empty."""
+    text = _UNSAFE.sub('_', str(text or '')).strip(' .') or '_'
+    if text.split('.', 1)[0].rstrip(' ').upper() in _RESERVED:
+        text = '_' + text
+    return text
+
+
+def safe_path(path):
+    """A platform's relative file path ("po/af.po") as safe parts, for
+    os.path.join(): split at "/" and "\\", with empty, "." and ".."
+    parts dropped, so it is never absolute and never leaves its folder."""
+    parts = re.split(r'[/\\]', str(path or ''))
+    return [safe_part(part) for part in parts if part not in ('', '.', '..')] or ['_']
 
 
 def _slug_parts(slug):
@@ -212,9 +232,10 @@ class WorkCopy:
     """A downloaded file and its side record: the platform context that
     travels with the store opened from it (StoreController.work_copy)."""
 
-    def __init__(self, path, record):
+    def __init__(self, path, record, folder=None):
         self.path = os.path.abspath(path)
         self.record = record
+        self._folder = os.path.abspath(folder) if folder else os.path.dirname(self.path)
         self.matched = {}
         """{index in record['units']: the store's unit}, once attached."""
 
@@ -223,7 +244,8 @@ class WorkCopy:
 
     @property
     def folder(self):
-        return os.path.dirname(self.path)
+        """The language's work folder, which holds the side record."""
+        return self._folder
 
     @property
     def record_path(self):
@@ -235,7 +257,7 @@ class WorkCopy:
 
     def template_path(self):
         template = self.record.get('template')
-        return os.path.normpath(os.path.join(self.folder, template)) if template else None
+        return os.path.join(self.folder, *safe_path(template)) if template else None
 
     def platform_name(self):
         from . import registry
@@ -332,14 +354,27 @@ def _inside(path, folder):
     return path.startswith(folder + os.sep)
 
 
+def _record_file(folder, record):
+    """The work file a side record in folder names, kept inside it."""
+    return os.path.join(folder, *safe_path(record['file']))
+
+
 def for_file(path):
-    """The WorkCopy of path, if it is a platform's work copy."""
-    if not path or not _inside(path, platforms_dir()):
+    """The WorkCopy of path, if it is a platform's work copy: the side
+    record is in its folder or one above, inside the platforms' folder."""
+    root = platforms_dir()
+    if not path or not _inside(path, root):
         return None
-    record = _load_record(os.path.dirname(os.path.abspath(path)))
-    if record is None or record['file'] != os.path.basename(path):
-        return None
-    return WorkCopy(path, record)
+    path = os.path.abspath(path)
+    folder = os.path.dirname(path)
+    while _inside(folder, root):
+        record = _load_record(folder)
+        if record is not None:
+            if os.path.normcase(_record_file(folder, record)) != os.path.normcase(path):
+                return None
+            return WorkCopy(path, record, folder)
+        folder = os.path.dirname(folder)
+    return None
 
 
 def existing(platform_id, server, project, component, language):
@@ -348,8 +383,8 @@ def existing(platform_id, server, project, component, language):
     record = _load_record(folder)
     if record is None:
         return None
-    path = os.path.join(folder, record['file'])
-    return WorkCopy(path, record) if os.path.isfile(path) else None
+    path = _record_file(folder, record)
+    return WorkCopy(path, record, folder) if os.path.isfile(path) else None
 
 
 def _baseline_state(unit):
@@ -379,21 +414,28 @@ def _seed_baseline(path, template_path, language, remote_units):
     baseline.save(path, data)
 
 
+def _write_into(folder, parts, data):
+    path = os.path.join(folder, *parts)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    _write(path, data)
+    return path
+
+
 def create(platform, server, project, component, language, download):
     """Writes a Download into its work folder, with its side record and
-    template, replacing an earlier download. The WorkCopy."""
+    template, at their paths as the platform has them, replacing an
+    earlier download. The WorkCopy."""
     folder = work_folder(platform.id, server, project, component, language)
-    os.makedirs(folder, exist_ok=True)
-    path = os.path.join(folder, safe_part(download.filename))
-    _write(path, download.data)
+    parts = safe_path(download.filename)
+    path = _write_into(folder, parts, download.data)
     template = None
     if download.template is not None:
         name, data = download.template
-        template_folder = os.path.join(os.path.dirname(folder), TEMPLATE_FOLDER)
-        os.makedirs(template_folder, exist_ok=True)
-        template_path = os.path.join(template_folder, safe_part(name))
-        _write(template_path, data)
-        template = os.path.relpath(template_path, folder)
+        template_parts = safe_path(name)
+        if [p.lower() for p in template_parts] == [p.lower() for p in parts]:
+            template_parts = [TEMPLATE_FOLDER, *template_parts]
+        template_path = _write_into(folder, template_parts, data)
+        template = '/'.join(template_parts)
         _seed_baseline(path, template_path, language, download.units)
     record = {
         'format': FORMAT,
@@ -404,13 +446,13 @@ def create(platform, server, project, component, language, download):
         'component': component,
         'language': language,
         'names': dict(download.names),
-        'file': os.path.basename(path),
+        'file': '/'.join(parts),
         'template': template,
         'downloaded_at': _now(),
         'sha256': hashlib.sha256(download.data).hexdigest(),
         'saved_sha256': None,
         'units': record_units(download.units),
     }
-    copy = WorkCopy(path, record)
+    copy = WorkCopy(path, record, folder)
     copy.write_record()
     return copy

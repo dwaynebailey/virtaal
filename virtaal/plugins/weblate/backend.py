@@ -21,8 +21,6 @@ Weblate's states and Virtaal's (translate-toolkit's StateEnum):
   Read-only                     100  the file's own state, locked
 """
 
-import posixpath
-
 from translate.storage.workflow import StateEnum
 
 from virtaal.support.platforms import Download, Item, Platform, RemoteUnit, Session
@@ -72,6 +70,17 @@ def remote_unit(unit):
     )
 
 
+def file_path(filename, filemask, language):
+    """A translation's file path in its component's repository, as
+    Weblate has it ("values-af/strings.xml"): its filename, else its
+    component's filemask with the language code for the "*"."""
+    if filename:
+        return filename
+    if filemask and '*' in filemask:
+        return filemask.replace('*', language, 1)
+    return language
+
+
 class WeblateSession(Session):
     """A Client's replies as the browse dialog wants them."""
 
@@ -119,12 +128,12 @@ class WeblateSession(Session):
 
         def translation(data):
             info = data['component']
-            filename = posixpath.basename(data.get('filename') or '') or language
+            filename = file_path(data.get('filename'), info.get('filemask'), language)
             names = {
                 'project': (info.get('project') or {}).get('name') or project,
                 'component': info.get('name') or component,
             }
-            template = posixpath.basename(info.get('template') or '')
+            template = info.get('template') or ''
 
             def units(body, base):
                 found = []

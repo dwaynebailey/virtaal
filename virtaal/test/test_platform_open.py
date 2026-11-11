@@ -217,13 +217,49 @@ class TestPlatformOpen(TestScaffolding):
         path = self._open('Website')
 
         store = self.store_controller.store
-        assert path.endswith(os.path.join('website', 'af', 'af.json'))
+        assert path.endswith(os.path.join('website', 'af', 'locales', 'af.json'))
         assert store.pair is not None
         keyed = {u.getid(): u for u in store.get_units()}
         assert sorted(keyed) == ['open', 'save', 'welcome']
         assert keyed['open'].get_state_n() == StateEnum.FINAL
         assert str(keyed['welcome'].target) == 'Welkom'
         assert self.main_controller.get_store_title() == 'Hello/Website (Weblate)'
+
+    def test_an_android_file_keeps_its_values_folder(self):
+        from virtaal.models.fileset import path_language
+
+        res = 'app/src/main/res/'
+        self.fake.add_component(
+            'hello',
+            'android',
+            'Android',
+            file_format='aresource',
+            filemask=res + 'values-*/strings.xml',
+            template=res + 'values/strings.xml',
+        )
+        self.fake.add_translation(
+            'hello', 'android', 'af', 'Afrikaans', filename=res + 'values-af/strings.xml'
+        )
+        self.fake.fill_android(
+            'hello', 'android', 'af', {'open': 'Open', 'save': 'Save'}, {'open': 'Maak oop'}
+        )
+
+        path = self._open('Android')
+
+        folder = self.store_controller.work_copy.folder
+        parts = ('app', 'src', 'main', 'res')
+        assert path == os.path.join(folder, *parts, 'values-af', 'strings.xml')
+        assert self.store_controller.work_copy.template_path() == os.path.join(
+            folder, *parts, 'values', 'strings.xml'
+        )
+        assert path_language(path, folder) == 'af'
+        store = self.store_controller.store
+        assert store.pair is not None
+        keyed = {u.getid(): u for u in store.get_units()}
+        assert sorted(keyed) == ['open', 'save']
+        assert str(keyed['open'].target) == 'Maak oop'
+        assert keyed['open'].get_state_n() == StateEnum.UNREVIEWED
+        assert keyed['save'].get_state_n() == StateEnum.EMPTY
 
     def test_a_monolingual_files_states_survive_saving_and_reopening(self):
         path = self._open('Website')

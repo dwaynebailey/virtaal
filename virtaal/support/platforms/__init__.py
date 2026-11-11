@@ -62,9 +62,10 @@ change it there."""
 
 Download = namedtuple('Download', 'filename data template units names')
 """A language of a component (or project) as downloaded: the file's
-name and bytes in the platform's own format, the template as (name,
-bytes) or None, the RemoteUnits, and the names of the project and the
-component ({'project': ..., 'component': ...}) to show."""
+path as the platform has it ("po/af.po", "/" between parts) and its
+bytes in the platform's own format, the template as (path, bytes) or
+None, the RemoteUnits, and the names of the project and the component
+({'project': ..., 'component': ...}) to show."""
 
 
 class Session:

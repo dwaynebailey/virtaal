@@ -73,11 +73,23 @@ def test_a_state_between_maps_to_the_one_below():
 # The download #
 
 
+@pytest.mark.parametrize(
+    'filename, filemask, path',
+    [
+        ('res/values-af/strings.xml', 'res/values-*/strings.xml', 'res/values-af/strings.xml'),
+        ('', 'res/values-*/strings.xml', 'res/values-af/strings.xml'),
+        (None, '', 'af'),
+    ],
+)
+def test_the_files_path_is_weblates(filename, filemask, path):
+    assert backend.file_path(filename, filemask, 'af') == path
+
+
 def test_a_po_translation_downloads_with_its_units(fake):
     download, error = _download(fake)
 
     assert error is None
-    assert download.filename == 'af.po'
+    assert download.filename == 'po/af.po'
     assert download.data.startswith(b'msgid ""')
     assert download.template is None
     assert download.names == {'project': 'Hello', 'component': 'Program'}
@@ -112,8 +124,8 @@ def test_a_monolingual_component_brings_its_template(fake):
     download, error = _download(fake, 'website')
 
     assert error is None
-    assert download.filename == 'af.json'
-    assert download.template[0] == 'en.json'
+    assert download.filename == 'locales/af.json'
+    assert download.template[0] == 'locales/en.json'
     assert json.loads(download.template[1].decode('utf-8')) == DEMO_JSON
     assert [(u.context, u.code) for u in download.units] == [
         ('welcome', 20),

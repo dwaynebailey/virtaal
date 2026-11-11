@@ -321,6 +321,27 @@ class FakeWeblate(FakeServer):
         self.set_file(project, component, code, _json_bytes(translated), units, 'application/json')
         return units
 
+    def fill_android(self, project, component, code, template, translated, states=None):
+        """An Android component, monolingual as fill_json()'s: template
+        and translated are {name: text}, written as strings.xml."""
+        states = states or {}
+        self.set_template(project, component, _android_bytes(template))
+        units = [
+            self.unit(
+                project,
+                component,
+                code,
+                text,
+                translated.get(key, ''),
+                key,
+                states.get(key),
+                position=position,
+            )
+            for position, (key, text) in enumerate(template.items(), 1)
+        ]
+        self.set_file(project, component, code, _android_bytes(translated), units, 'text/xml')
+        return units
+
     # Faults #
 
     def fail(self, path, status, times=1, headers=None, body=None, method='GET'):
@@ -564,6 +585,15 @@ def _effective():
 
 def _json_bytes(data):
     return (json.dumps(data, ensure_ascii=False, indent=4) + '\n').encode('utf-8')
+
+
+def _android_bytes(strings):
+    from xml.sax.saxutils import escape, quoteattr
+
+    lines = ['<?xml version="1.0" encoding="utf-8"?>', '<resources>']
+    for name, text in strings.items():
+        lines.append('    <string name=%s>%s</string>' % (quoteattr(name), escape(text)))
+    return ('\n'.join([*lines, '</resources>']) + '\n').encode('utf-8')
 
 
 def _expand(value, base):
