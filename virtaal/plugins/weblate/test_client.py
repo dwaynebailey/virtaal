@@ -153,6 +153,16 @@ def test_a_bad_token_is_refused(fake, style):
     assert outcome.error.detail == 'Invalid token.'
 
 
+def test_the_fake_starts_without_a_reverse_lookup(monkeypatch):
+    # socket.getfqdn("127.0.0.1") takes over 30 s on macOS CI runners.
+    def lookup(*_args):
+        raise AssertionError('reverse lookup')
+
+    monkeypatch.setattr(socket, 'getfqdn', lookup)
+    with FakeWeblate() as server:
+        assert server.url.startswith('http://127.0.0.1:')
+
+
 def test_no_server_is_a_network_error():
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))

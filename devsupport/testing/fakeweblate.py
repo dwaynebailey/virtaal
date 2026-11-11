@@ -29,6 +29,7 @@ Run by hand:  python -m devsupport.testing.fakeweblate --port 8765
 import argparse
 import json
 import re
+import socketserver
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -55,6 +56,18 @@ class _Fault:
         self.headers = headers or {}
         self.body = body
         self.method = method
+
+
+class _Server(ThreadingHTTPServer):
+    """http.server without its reverse lookup of the address
+    (HTTPServer.server_bind calls socket.getfqdn), which on macOS CI
+    runners takes over 30 s for 127.0.0.1."""
+
+    daemon_threads = True
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
 
 class FakeWeblate:
@@ -84,8 +97,7 @@ class FakeWeblate:
     # Serving #
 
     def start(self):
-        self._server = ThreadingHTTPServer(('127.0.0.1', 0), _Handler)
-        self._server.daemon_threads = True
+        self._server = _Server(('127.0.0.1', 0), _Handler)
         self._server.fake = self
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         self._thread.start()
@@ -518,7 +530,7 @@ def main():
     parser.add_argument('--port', type=int, default=8765)
     args = parser.parse_args()
     fake = demo()
-    server = ThreadingHTTPServer(('127.0.0.1', args.port), _Handler)
+    server = _Server(('127.0.0.1', args.port), _Handler)
     server.fake = fake
     print('Fake Weblate at http://127.0.0.1:%d/ with token %s' % (args.port, TOKEN), flush=True)
     server.serve_forever()
