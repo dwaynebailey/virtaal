@@ -6,13 +6,15 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """Keeping a work copy's unsubmitted work (#3337) in Virtaal, against
-the fake Weblate: File > Update from Server…, the notices that keep
-the work in view, and crash recovery re-attaching the platform."""
+the fake Weblate: the notices that keep it in view, crash recovery
+re-attaching the platform, File > Update from Server…, and sending
+finished units as you go."""
 
 import pytest
 from gi.repository import GLib, Gtk
 from test_recovery_resume import UnsavedScaffolding
 from test_scaffolding import TestScaffolding
+from translate.storage.workflow import StateEnum
 
 from devsupport.testing.fakeweblate import TOKEN, demo, run_until
 from virtaal.common import pan_app
@@ -324,6 +326,75 @@ class TestUpdate(Weblating, TestScaffolding):
             )
         ]
         assert str(self._unit('Help').target) == 'Hulp'
+
+
+class TestSendAsYouGo(Weblating, TestScaffolding):
+    def setup_class(self):
+        TestScaffolding.setup_class(self)
+        PlaceablesController(self.main_controller)
+
+    def _finish(self, source, text):
+        self._edit(source, text, StateEnum.UNREVIEWED)
+
+    def _patches(self):
+        return [unit_id for unit_id, _data in self.fake.patched]
+
+    def test_save_never_sends_with_the_option_off(self):
+        self._open()
+        self._edit('Help', 'Hulp')
+
+        assert self.main_controller.save_file()
+
+        assert self.registry.trickler.running is False
+        assert self.fake.requests_to('/api/units/') == []
+        assert self.fake.requests_to('/api/components/') == []
+
+    def test_finished_units_go_as_they_are_saved(self):
+        self.servers.servers[0].send_finished = True
+        path = self._open()
+        self._finish('Help', 'Hulp')
+        self._edit('Print', 'Druk uit', StateEnum.NEEDS_WORK)
+
+        assert self.main_controller.save_file()
+        run_until(lambda: not self.registry.trickler.running, timeout=30)
+
+        assert self._patches() == [self._server_unit('Help')['id']]
+        assert self._status() == 'Submitted 1 unit.'
+        # The draft waits for Submit.
+        record = workcopy.for_file(path)
+        assert record.unsubmitted() == 1 and record.record['queue'] == []
+
+    def test_a_conflict_while_sending_is_left_for_submit_and_noted(self):
+        self.servers.servers[0].send_finished = True
+        self._open()
+        self.fake.edit(self._server_unit('Help')['id'], 'Help my')
+        self._finish('Help', 'Hulp')
+
+        assert self.main_controller.save_file()
+        run_until(lambda: not self.registry.trickler.running, timeout=30)
+
+        assert self._patches() == []
+        assert self._notice() == (
+            '1 finished unit was also changed on the server, and waits for Submit.',
+            ['Su_bmit to Server…'],
+        )
+
+    def test_reopening_sends_what_was_queued(self):
+        self.servers.servers[0].send_finished = True
+        path = self._open()
+        self.fake.offline = True
+        self._finish('Help', 'Hulp')
+        assert self.main_controller.save_file()
+        run_until(lambda: not self.registry.trickler.running, timeout=30)
+        self.main_controller.store_controller.close_file()
+        assert workcopy.for_file(path).record['queue'] == [self._server_unit('Help')['id']]
+        self.fake.offline = False
+
+        self._open(path)
+        run_until(lambda: not self.registry.trickler.running, timeout=30)
+
+        assert self._patches() == [self._server_unit('Help')['id']]
+        assert workcopy.for_file(path).record['queue'] == []
 
 
 class TestRecoveringAWorkCopy(Weblating, UnsavedScaffolding):

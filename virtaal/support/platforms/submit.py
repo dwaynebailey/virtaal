@@ -200,7 +200,9 @@ class Submission:
 
     schedule = staticmethod(_later)
 
-    def __init__(self, copy, platform, session, on_progress, on_conflicts, on_done):
+    def __init__(self, copy, platform, session, on_progress, on_conflicts, on_done, only=None):
+        self.only = only
+        """The indexes in the side record to send, if not every change."""
         self.copy = copy
         self.platform = platform
         self.session = session
@@ -223,7 +225,7 @@ class Submission:
 
     def start(self):
         self.pacer = Pacer(self.platform.rate_limit, self.RESERVE, self.MAX_WAIT)
-        pending = self.copy.pending()
+        pending = [r for r in self.copy.pending() if self.only is None or r in self.only]
         self.result.total = len(pending)
         self._pending = pending
         self._started_at = _now()

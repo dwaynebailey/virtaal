@@ -9,8 +9,16 @@
 
 Each platform keeps its own servers and their credentials, in its own
 owner-only file (Weblate: weblate.ini, shaped as wlc's). platforms.ini
-in Virtaal's config folder only remembers which server was used last;
-it holds no secret.
+in Virtaal's config folder remembers which server was used last, and
+which servers are sent finished units as they are saved (trickle.py);
+it holds no secret:
+
+  [last]
+  platform = weblate
+  url = https://hosted.weblate.org/api/
+
+  [send_finished]
+  weblate https://hosted.weblate.org/api/ = true
 """
 
 import configparser
@@ -21,15 +29,29 @@ from virtaal.common import pan_app
 
 CONFIG_NAME = 'platforms.ini'
 _LAST = 'last'
+_SEND_FINISHED = 'send_finished'
+
+
+def _parser():
+    # Keys hold URLs, so ':' is no delimiter.
+    parser = configparser.RawConfigParser(delimiters=('=',), interpolation=None)
+    parser.optionxform = str
+    return parser
+
+
+def _key(server):
+    return '%s %s' % (server.platform.id, server.url)
 
 
 class Server:
     """One server: its platform, its address and its credentials."""
 
-    def __init__(self, platform, url, credentials):
+    def __init__(self, platform, url, credentials, send_finished=False):
         self.platform = platform
         self.url = url
         self.credentials = dict(credentials)
+        self.send_finished = bool(send_finished)
+        """Units at Translated or above are sent as they are saved."""
 
     def __repr__(self):
         return '<Server %s %s>' % (self.platform.id, self.url)
@@ -58,11 +80,13 @@ class ServerList:
             for url, credentials in found:
                 self.servers.append(Server(platform, url, credentials))
             self._own_last[platform] = last_url
-        parser = configparser.RawConfigParser(interpolation=None)
+        parser = _parser()
         try:
             parser.read(self.path, encoding='utf-8')
         except (OSError, configparser.Error, UnicodeDecodeError) as e:
             logging.warning("%r can't be read: %s", self.path, e)
+        for server in self.servers:
+            server.send_finished = parser.getboolean(_SEND_FINISHED, _key(server), fallback=False)
         kind = parser.get(_LAST, 'platform', fallback='')
         platform = next((p for p in self.platforms if p.id == kind), None)
         self.last = self.find(platform, parser.get(_LAST, 'url', fallback=''))
@@ -82,24 +106,32 @@ class ServerList:
         for platform in self.platforms:
             mine = [(s.url, s.credentials) for s in self.servers if s.platform is platform]
             platform.save_servers(mine, self._last_url(platform))
-        parser = configparser.RawConfigParser(interpolation=None)
+        parser = _parser()
         if self.last is not None:
             parser.add_section(_LAST)
             parser.set(_LAST, 'platform', self.last.platform.id)
             parser.set(_LAST, 'url', self.last.url)
+        sending = [s for s in self.servers if s.send_finished]
+        if sending:
+            parser.add_section(_SEND_FINISHED)
+            for server in sending:
+                parser.set(_SEND_FINISHED, _key(server), 'true')
         pan_app._write_ini(parser, self.path)
 
     def find(self, platform, url):
         return next((s for s in self.servers if s.platform is platform and s.url == url), None)
 
-    def put(self, platform, url, credentials, replace=None):
+    def put(self, platform, url, credentials, replace=None, send_finished=None):
         """Adds a server, or changes replace (a Server) in its place. The
-        Server, or None if url can't be used."""
+        Server, or None if url can't be used. send_finished None keeps
+        replace's, else False."""
         url = platform.normalise_url(url)
         if not url:
             return None
-        server = Server(platform, url, credentials)
         old = [s for s in (replace, self.find(platform, url)) if s is not None]
+        if send_finished is None:
+            send_finished = any(s.send_finished for s in old)
+        server = Server(platform, url, credentials, send_finished)
         at = min((self.servers.index(s) for s in old), default=None)
         if at is None:
             at = max(

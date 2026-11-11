@@ -213,6 +213,42 @@ def test_the_last_server_used_survives_a_round_trip(servers, tmp_path, weblate, 
     assert dummy.saved[1] == 'dummy://one'
 
 
+def test_sending_finished_units_is_kept_per_server_in_platforms_ini(
+    servers, tmp_path, weblate, dummy
+):
+    servers.servers[0].send_finished = True
+    servers.save()
+
+    again = ServerList([weblate, dummy], servers.path)
+
+    assert [s.send_finished for s in again.servers] == [True, False]
+    with open(servers.path, encoding='utf-8') as f:
+        assert '[send_finished]\nweblate https://weblate.example.org/api/ = true\n' in f.read()
+    # Changing the server keeps it unless told; it holds no secret.
+    changed = again.put(
+        weblate, 'https://weblate.example.org', {'token': 'wlu_y'}, again.servers[0]
+    )
+    assert changed.send_finished
+    assert not again.put(weblate, 'https://other.example.org', {'token': 'wlu_z'}).send_finished
+
+
+def test_editing_a_server_sets_its_option(servers, weblate, monkeypatch):
+    dialog = ServersDialog(servers)
+    seen = []
+
+    def answer(self):
+        seen.append(self.switches['send_finished'].get_active())
+        return {'url': self.get_values()['url'], 'token': 'wlu_x', 'send_finished': True}
+
+    monkeypatch.setattr(ServerDialog, 'run', answer)
+
+    dialog.btn_edit.clicked()
+
+    assert seen == [False]
+    assert servers.find(weblate, 'https://weblate.example.org/api/').send_finished
+    assert ServerList(servers.platforms, servers.path).servers[0].send_finished
+
+
 def test_without_platforms_ini_a_platforms_own_last_server_is_used(tmp_path, weblate, dummy):
     dummy.saved = ([('dummy://one', {}), ('dummy://two', {})], 'dummy://two')
 
@@ -273,7 +309,8 @@ def test_add_asks_which_platform_then_for_its_fields(servers, dummy, monkeypatch
 
     items[1].activate()
 
-    assert asked == [(dummy, ['url', 'user', 'password'])]
+    # A platform that submits has the option to send finished units as you go.
+    assert asked == [(dummy, ['url', 'user', 'password', 'send_finished'])]
     assert [url for url, _creds in dummy.saved[0]] == ['dummy://one', 'dummy://two']
     run_until(lambda: not dialog.spinner.get_visible())
     assert dialog.status.get_text() == 'Connected: 3 projects'

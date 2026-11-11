@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 10:34+0000\n"
+"POT-Creation-Date: 2026-11-11 10:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2589,6 +2589,17 @@ msgstr ""
 msgid "Up_date from Server…"
 msgstr ""
 
+#. l10n: After units were sent to a translation server in the background, as they were saved
+#: virtaal/support/platforms/__init__.py
+#, python-format
+msgid ""
+"%(count)s finished unit was also changed on the server, and waits for Submit."
+msgid_plural ""
+"%(count)s finished units were also changed on the server, and wait for "
+"Submit."
+msgstr[0] ""
+msgstr[1] ""
+
 #. l10n: The servers of translation platforms, such as Weblate
 #: virtaal/support/platforms/browsedialog.py
 #: virtaal/support/platforms/serversdialog.py
@@ -2598,6 +2609,11 @@ msgstr ""
 #. l10n: Marks a component (a part of a project) that is a glossary, not strings to translate
 #: virtaal/support/platforms/browsedialog.py
 msgid "Glossary"
+msgstr ""
+
+#. l10n: A translation server's option: units at Translated or above go to the server each time the file is saved, instead of waiting for Submit
+#: virtaal/support/platforms/serversdialog.py
+msgid "Send _finished units as you go"
 msgstr ""
 
 #. l10n: A translation server answered that the API token is wrong or expired

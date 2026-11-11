@@ -5,18 +5,19 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""A dialog editing a backend's few text settings, such as an API key
-or a server's host and port (#1519, #1647)."""
+"""A dialog editing a backend's few settings, such as an API key, a
+server's host and port (#1519, #1647) or a switch (BOOL)."""
 
 from collections import namedtuple
 
 from gi.repository import Gtk
 
-TEXT, SECRET, PORT = 'text', 'secret', 'port'
+TEXT, SECRET, PORT, BOOL = 'text', 'secret', 'port', 'bool'
 
 Field = namedtuple('Field', 'key label kind required', defaults=(TEXT, False))
 """One setting: its config key, its label (with a mnemonic), its kind
-and whether it may be empty. A PORT is always required."""
+and whether it may be empty. A PORT is always required; a BOOL is a
+check box, its value True or False."""
 
 
 def api_key_field():
@@ -28,6 +29,8 @@ def api_key_field():
 
 def valid(field, text):
     """Whether text (stripped) is a usable value for field."""
+    if field.kind == BOOL:
+        return True
     if field.kind == PORT:
         return text.isascii() and text.isdigit() and 1 <= int(text) <= 65535
     return bool(text) or not field.required
@@ -49,7 +52,15 @@ class SettingsDialog:
         grid = Gtk.Grid(row_spacing=6, column_spacing=12, border_width=12)
         self.entries = {}
         row = 0
+        self.switches = {}
         for field in self.fields:
+            if field.kind == BOOL:
+                check = Gtk.CheckButton.new_with_mnemonic(field.label)
+                check.set_active(bool(values.get(field.key)))
+                grid.attach(check, 1, row, 1, 1)
+                self.switches[field.key] = check
+                row += 1
+                continue
             label = Gtk.Label(label=field.label, use_underline=True, xalign=0)
             entry = Gtk.Entry(
                 text=str(values.get(field.key, '')),
@@ -81,8 +92,11 @@ class SettingsDialog:
         self._update_ok()
 
     def get_values(self):
-        """The fields' stripped text, by config key."""
-        return {key: entry.get_text().strip() for key, entry in self.entries.items()}
+        """The fields' stripped text, and each BOOL's True or False, by
+        config key."""
+        values = {key: entry.get_text().strip() for key, entry in self.entries.items()}
+        values.update((key, check.get_active()) for key, check in self.switches.items())
+        return values
 
     def problem(self):
         """Why the values can't be used, to tell the user, or None."""

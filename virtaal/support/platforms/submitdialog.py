@@ -103,13 +103,17 @@ def budget_warning(budget, count):
     return budget_message(budget) + ' ' + _('Submit will pause or stop when they run out.')
 
 
+def sent_message(count):
+    return _counted(
+        # l10n: In the status bar after a Submit to a translation server
+        ngettext('Submitted %(count)s unit.', 'Submitted %(count)s units.', count),
+        count,
+    )
+
+
 def status_message(result):
     if not result.left:
-        return _counted(
-            # l10n: In the status bar after a Submit to a translation server
-            ngettext('Submitted %(count)s unit.', 'Submitted %(count)s units.', result.sent),
-            result.sent,
-        )
+        return sent_message(result.sent)
     return _part_sent(result)
 
 

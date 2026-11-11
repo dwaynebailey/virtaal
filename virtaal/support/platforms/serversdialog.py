@@ -13,12 +13,18 @@ from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.common.pan_app import ngettext
 from virtaal.support.libi18n.numbers import format_number
-from virtaal.views.widgets.settingsdialog import SettingsDialog
+from virtaal.views.widgets.settingsdialog import BOOL, Field, SettingsDialog
 from virtaal.views.widgets.util import run_dialog
 
 from . import AUTH, NETWORK, NOT_PLATFORM
 
 COL_TYPE, COL_URL = 0, 1
+SEND_FINISHED = 'send_finished'
+
+
+def send_finished_field():
+    # l10n: A translation server's option: units at Translated or above go to the server each time the file is saved, instead of waiting for Submit
+    return Field(SEND_FINISHED, _('Send _finished units as you go'), BOOL)
 
 
 def error_message(error, platform):
@@ -71,10 +77,13 @@ class ServerDialog(SettingsDialog):
     """A server's address and credentials, as its platform asks for
     them; OK only for a usable address."""
 
-    def __init__(self, parent, platform, url='', credentials=None):
+    def __init__(self, parent, platform, url='', credentials=None, send_finished=False):
         self.platform = platform
-        values = {'url': url, **(credentials or {})}
-        super().__init__(parent, platform.name, platform.fields(), values)
+        values = {'url': url, **(credentials or {}), SEND_FINISHED: send_finished}
+        fields = platform.fields()
+        if platform.can_submit:
+            fields = (*fields, send_finished_field())
+        super().__init__(parent, platform.name, fields, values)
 
     def problem(self):
         return self.platform.url_problem(self.get_values()['url'])
@@ -194,13 +203,15 @@ class ServersDialog:
 
     # Actions #
 
-    def _ask(self, platform, url='', credentials=None):
-        """The new (URL, credentials), or None if cancelled."""
-        values = ServerDialog(self.dialog, platform, url, credentials).run()
+    def _ask(self, platform, url='', credentials=None, send_finished=False):
+        """The new (URL, credentials, send finished units), or None if
+        cancelled."""
+        values = ServerDialog(self.dialog, platform, url, credentials, send_finished).run()
         if values is None:
             return None
         url = values.pop('url')
-        return url, values
+        send_finished = values.pop(SEND_FINISHED, False)
+        return url, values, send_finished
 
     def _on_add(self):
         platforms = self.servers.platforms
@@ -219,7 +230,7 @@ class ServersDialog:
 
     def _add(self, platform):
         found = self._ask(platform)
-        server = found and self.servers.put(platform, *found)
+        server = found and self.servers.put(platform, *found[:2], send_finished=found[2])
         if server:
             self._save(server)
             self._on_test()
@@ -228,8 +239,10 @@ class ServersDialog:
         old = self.selected()
         if old is None:
             return
-        found = self._ask(old.platform, old.url, old.credentials)
-        server = found and self.servers.put(old.platform, *found, replace=old)
+        found = self._ask(old.platform, old.url, old.credentials, old.send_finished)
+        server = found and self.servers.put(
+            old.platform, *found[:2], replace=old, send_finished=found[2]
+        )
         if server:
             self._save(server)
 

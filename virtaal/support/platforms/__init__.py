@@ -237,7 +237,10 @@ class Registry:
     is opened (with Submit and Update), when it is left for another file
     or closed (with Open), and once at start-up for the one saved last
     when Virtaal starts with no file. Quitting asks nothing: the changes
-    are saved and wait in the work copy."""
+    are saved and wait in the work copy.
+
+    Its Trickler (trickle.py) sends the finished units of a work copy
+    as it is saved, for a server with that option on."""
 
     def __init__(self):
         self.platforms = []
@@ -250,6 +253,9 @@ class Registry:
         self._shown = None
         """The work copy open, as last seen."""
         self._reminded = False
+        from .trickle import Trickler
+
+        self.trickler = Trickler(self._server_of, self._trickled, self._trickle_conflicts)
 
     def add(self, platform, main_controller):
         self.main_controller = main_controller
@@ -275,6 +281,7 @@ class Registry:
             for source, handler in self._handlers:
                 source.disconnect(handler)
             self._handlers = []
+            self.trickler.stop()
             self._hide_notice()
             self._sync_menubar()
         else:
@@ -321,8 +328,16 @@ class Registry:
 
     def _changed(self, signal):
         self.sync_submit()
-        if signal in ('store-loaded', 'store-saved', 'store-closed'):
-            self._sync_notice(signal)
+        if signal not in ('store-loaded', 'store-saved', 'store-closed'):
+            return
+        self._sync_notice(signal)
+        copy = self._open_work_copy()
+        if signal == 'store-saved':
+            self.trickler.saved(copy)
+        else:
+            self.trickler.stop()
+            if copy is not None:
+                self.trickler.start(copy)
 
     def _open_work_copy(self):
         """The work copy open, if its platform's plug-in is on and it
@@ -354,6 +369,7 @@ class Registry:
         copy = self._open_work_copy()
         if copy is None:
             return None
+        self.trickler.stop()
         result = SubmitDialogs(self, copy, self._parent(parent)).run()
         self._sync_notice()
         return result
@@ -366,9 +382,50 @@ class Registry:
         copy = self._open_work_copy()
         if copy is None:
             return None
+        self.trickler.stop()
         result = UpdateDialogs(self, copy, self._parent(parent)).run()
         self._sync_notice()
+        copy = self._open_work_copy()
+        if copy is not None:
+            self.trickler.start(copy)
         return result
+
+    # Send finished units as you go #
+
+    def _server_of(self, copy):
+        platform = self.platform_of(copy)
+        return platform and self.servers().find(platform, copy.record['server'])
+
+    def _trickled(self, result):
+        """After finished units went in the background."""
+        from .submitdialog import sent_message
+
+        if result.file_changed:
+            # A state the server stored, such as needs editing for a
+            # failing check, shows; saving it is the user's.
+            store_controller = self.main_controller.store_controller
+            store_controller.view._treeview.queue_draw()
+            store_controller.set_modified(True)
+        view = self.main_controller.view
+        view.set_statusbar_message(sent_message(result.sent))
+        view.refresh_title()
+        self.sync_submit()
+        self._sync_notice()
+
+    def _trickle_conflicts(self, count):
+        from virtaal.common.pan_app import ngettext
+        from virtaal.support.libi18n.numbers import format_number
+
+        text = ngettext(
+            # l10n: After units were sent to a translation server in the background, as they were saved
+            '%(count)s finished unit was also changed on the server, and waits for Submit.',
+            '%(count)s finished units were also changed on the server, and wait for Submit.',
+            count,
+        )
+        self._show_notice(
+            text % {'count': format_number(count)},
+            [(_('Su_bmit to Server…'), lambda: self.submit())],
+        )
 
     # Unsubmitted work #
 

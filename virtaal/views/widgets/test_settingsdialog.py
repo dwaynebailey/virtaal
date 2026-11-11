@@ -9,6 +9,7 @@ import pytest
 from gi.repository import Gtk
 
 from virtaal.views.widgets.settingsdialog import (
+    BOOL,
     PORT,
     SECRET,
     Field,
@@ -89,3 +90,15 @@ def test_run_returns_the_values_only_on_ok(monkeypatch, response, expected):
     monkeypatch.setattr(dialog.dialog, 'run', lambda: response)
 
     assert dialog.run() == expected
+
+
+def test_a_bool_is_a_check_box_and_always_valid():
+    fields = (Field('url', '_URL:', required=True), Field('send', '_Send as you go', BOOL))
+    dialog = SettingsDialog(None, 'Server', fields, {'url': 'x', 'send': True})
+
+    assert dialog.get_values() == {'url': 'x', 'send': True}
+    dialog.switches['send'].set_active(False)
+    assert dialog.get_values() == {'url': 'x', 'send': False}
+    assert dialog.btn_ok.get_sensitive()
+    assert dialog.switches['send'].get_label() == '_Send as you go'
+    dialog.dialog.destroy()

@@ -54,8 +54,11 @@ from the server. A unit the server refused keeps "changed" and gets
 "error", the server's reason. "submitted_at" is when a Submit last
 left no change unsent.
 
-"updated_at" is when Update last asked the server for changes
-(update.py).
+With "Send finished units as you go" on for the server (trickle.py),
+"queue" lists the ids of the units saved at Translated or above and not
+sent yet; a unit that changed on the server too gets "conflict" and
+waits for Submit or Update, which clear it. "updated_at" is when Update
+last asked the server for changes (update.py).
 
 Matching the file's units to the platform's (match()): by context
 (PO's msgctxt; a monolingual file's key), then by source text, then by
@@ -328,6 +331,7 @@ class WorkCopy:
             changed=False,
         )
         entry.pop('error', None)
+        entry.pop('conflict', None)
         self.write_record()
 
     def mark_failed(self, r, message):
@@ -365,6 +369,7 @@ class WorkCopy:
             changed=False,
         )
         self.units[r].pop('error', None)
+        self.units[r].pop('conflict', None)
 
     def mark_submitted(self):
         self.record['submitted_at'] = _now()
