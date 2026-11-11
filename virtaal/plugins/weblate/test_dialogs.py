@@ -284,6 +284,75 @@ def test_projects_load_across_pages(servers, fake, monkeypatch):
     assert [r['query'].get('page') for r in fake.requests_to('/api/projects/')] == [None, '2', '3']
 
 
+def _pages_asked(fake):
+    return [r['query'].get('page') for r in fake.requests_to('/api/projects/')]
+
+
+def test_projects_load_only_as_far_as_needed(servers, fake, monkeypatch):
+    monkeypatch.setattr(BrowseDialog, 'ROWS_WANTED', 4)
+
+    dialog = _browse(servers, monkeypatch, page_size=3)
+
+    assert len(_names(dialog.filtered)) == 6
+    assert _pages_asked(fake) == [None, '2']
+
+
+def test_scrolling_near_the_end_loads_the_next_page(servers, fake, monkeypatch):
+    monkeypatch.setattr(BrowseDialog, 'ROWS_WANTED', 1)
+    scrolled = []
+    monkeypatch.setattr(BrowseDialog, '_near_the_end', lambda self: bool(scrolled and scrolled.pop()))
+    dialog = _browse(servers, monkeypatch, page_size=3)
+    assert _pages_asked(fake) == [None]
+
+    scrolled.append(True)
+    dialog.vadjustment.emit('value-changed')
+    run_until(lambda: not dialog.spinner.get_visible())
+
+    assert _pages_asked(fake) == [None, '2']
+    assert len(_names(dialog.filtered)) == 6
+
+
+@pytest.mark.parametrize(
+    'value, near', [(0, False), (60, False), (79, False), (80, True), (90, True)]
+)
+def test_near_the_end_is_within_a_screen_of_it(servers, monkeypatch, value, near):
+    dialog = _browse(servers, monkeypatch)
+    dialog.vadjustment = Gtk.Adjustment(
+        value=value, lower=0, upper=100, step_increment=1, page_increment=10, page_size=10
+    )
+
+    assert dialog._near_the_end() is near
+
+
+def _filter(dialog, text):
+    dialog.filter_entry.set_text(text)
+    run_until(lambda: dialog._filter_timer is None and not dialog.spinner.get_visible())
+
+
+def test_the_filter_loads_more_projects_to_find_matches(servers, fake, monkeypatch):
+    monkeypatch.setattr(BrowseDialog, 'ROWS_WANTED', 3)
+    dialog = _browse(servers, monkeypatch, page_size=3)
+    assert _pages_asked(fake) == [None]
+
+    _filter(dialog, 'app 12')
+
+    assert _names(dialog.filtered) == ['App 12']
+    assert _pages_asked(fake) == [None, '2', '3', '4', '5']
+
+
+def test_the_filter_waits_for_typing_to_stop(servers, monkeypatch):
+    dialog = _browse(servers, monkeypatch)
+    applied = []
+    monkeypatch.setattr(dialog.filtered, 'refilter', lambda: applied.append(True))
+
+    dialog.filter_entry.set_text('d')
+    dialog.filter_entry.set_text('do')
+    assert applied == []
+    run_until(lambda: dialog._filter_timer is None)
+
+    assert applied == [True]
+
+
 def test_a_project_shows_its_components_with_glossaries_marked(servers, monkeypatch):
     dialog = _browse(servers, monkeypatch)
     model = dialog.filtered
@@ -353,12 +422,10 @@ def test_a_failed_load_is_asked_again_on_the_next_expand(servers, fake, monkeypa
 def test_the_filter_matches_project_names_and_slugs(servers, monkeypatch):
     dialog = _browse(servers, monkeypatch)
 
-    dialog.filter_entry.set_text('docum')
-    dialog.filtered.refilter()
+    _filter(dialog, 'docum')
     assert _names(dialog.filtered) == ['Documentation']
 
-    dialog.filter_entry.set_text('APP-1')
-    dialog.filtered.refilter()
+    _filter(dialog, 'APP-1')
     assert _names(dialog.filtered) == ['App 10', 'App 11', 'App 12']
 
 

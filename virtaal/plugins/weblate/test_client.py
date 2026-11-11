@@ -226,7 +226,7 @@ def test_a_list_is_followed_across_its_pages(fake, monkeypatch):
     monkeypatch.setattr(Client, 'PAGE_SIZE', 3)
     outcome = Outcome()
 
-    Client(fake.url, TOKEN).projects(outcome.page, outcome.done, outcome.failed)
+    Client(fake.url, TOKEN).get_list('projects/', outcome.page, outcome.done, outcome.failed)
     outcome.wait()
 
     assert [[p['slug'] for p in page] for page in outcome.pages] == [
@@ -236,6 +236,35 @@ def test_a_list_is_followed_across_its_pages(fake, monkeypatch):
     ]
     assert outcome.result == 7
     assert [r['query'].get('page') for r in fake.requests] == [None, '2', '3']
+
+
+def test_projects_come_a_page_at_a_time(fake, monkeypatch):
+    _projects(fake, 5)
+    monkeypatch.setattr(Client, 'PAGE_SIZE', 2)
+    client = Client(fake.url, TOKEN)
+    pages = []
+
+    def page(results, following):
+        pages.append(([p['slug'] for p in results], following))
+
+    client.projects_page(None, page, None)
+    run_until(lambda: pages)
+    client.projects_page(pages[0][1], page, None)
+    run_until(lambda: len(pages) == 2)
+
+    assert pages[0] == (['p00', 'p01'], fake.api_url + 'projects/?page_size=2&page=2')
+    assert pages[1][0] == ['p02', 'p03']
+    assert len(fake.requests) == 2
+
+
+def test_the_last_page_of_projects_has_no_next(fake):
+    _projects(fake, 1)
+    pages = []
+
+    Client(fake.url, TOKEN).projects_page(None, lambda *page: pages.append(page), None)
+    run_until(lambda: pages)
+
+    assert pages[0][1] is None
 
 
 def test_a_next_link_elsewhere_is_followed_on_this_server_only(fake, monkeypatch):

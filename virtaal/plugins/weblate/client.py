@@ -280,8 +280,19 @@ class Client:
 
         self.get_json(self.url('projects/', {'page_size': 1}), reply, on_error)
 
-    def projects(self, on_page, on_done, on_error):
-        self.get_list('projects/', on_page, on_done, on_error)
+    def projects_page(self, url, on_page, on_error):
+        """One page of the projects: the first if url is None, else the
+        page at url (a "next" link). on_page(results, next URL or None)."""
+
+        def page(data):
+            if not _is_page(data):
+                on_error(WeblateError(NOT_WEBLATE, 200))
+                return
+            on_page(data['results'], data.get('next') and self._own(data['next']))
+
+        if url is None:
+            url = self.url('projects/', {'page_size': self.PAGE_SIZE})
+        self.get_json(url, page, on_error)
 
     def components(self, project, on_page, on_done, on_error):
         path = 'projects/%s/components/' % path_part(project)

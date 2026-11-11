@@ -8,11 +8,15 @@
 """The Weblate browser: a server's projects, each project's components
 and each component's languages with how much is translated (#3337).
 
-Projects load page by page as the dialog opens; a project's components
+Projects load a page at a time: the next page when the list is
+scrolled near its end, or while the filter shows too few rows (a
+large server, such as hosted.weblate.org, has thousands). Weblate's
+project list has no search parameter, so the filter matches the loaded
+projects and more are loaded to find others. A project's components
 and a component's languages load when its row is first expanded.
 Nothing is downloaded or opened yet (phase W1)."""
 
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
 from virtaal.support.libi18n.numbers import format_percent
 from virtaal.views.widgets.util import run_dialog
@@ -40,6 +44,11 @@ def language_name(translation):
 class BrowseDialog:
     """Browses one of a ServerList's servers, the last one used first."""
 
+    ROWS_WANTED = 50
+    """Projects are loaded until the filter shows at least this many."""
+    FILTER_DELAY = 300
+    """Milliseconds of no typing before the filter applies."""
+
     def __init__(self, servers, parent=None, client_factory=weblate.Client):
         self.servers = servers
         self.client_factory = client_factory
@@ -54,7 +63,12 @@ class BrowseDialog:
         for url in servers.urls():
             self.server_combo.append(url, url)
         self.filter_entry = Gtk.SearchEntry(hexpand=True)
-        self.filter_entry.connect('search-changed', lambda _entry: self.filtered.refilter())
+        # 'changed', not 'search-changed': the delay is FILTER_DELAY.
+        self.filter_entry.connect('changed', lambda _entry: self._on_filter_changed())
+        self._filter_timer = None
+        self._next = None
+        self._more = False
+        self._fetching = False
 
         self.store = Gtk.TreeStore(str, str, str, str, str, bool)
         self.filtered = self.store.filter_new()
@@ -72,6 +86,8 @@ class BrowseDialog:
         scrolled = Gtk.ScrolledWindow(shadow_type=Gtk.ShadowType.IN, vexpand=True)
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled.add(self.treeview)
+        self.vadjustment = scrolled.get_vadjustment()
+        self.vadjustment.connect('value-changed', lambda _adj: self._want_more())
 
         self.spinner = Gtk.Spinner()
         self.status = Gtk.Label(wrap=True, xalign=0, selectable=True, hexpand=True)
@@ -123,13 +139,44 @@ class BrowseDialog:
             self.servers.last_url = url
             self.servers.save()
         self.client = self.client_factory(url, self.servers.token(url))
-        self._busy(1)
-        self.client.projects(self._add_projects, lambda _count: self._busy(-1), self._failed)
+        self._next = None
+        self._more = True
+        self._fetching = False
+        self._fetch_projects()
 
-    def _add_projects(self, projects):
+    def _fetch_projects(self):
+        if self._fetching or not self._more:
+            return
+        self._fetching = True
+        self._busy(1)
+        self.client.projects_page(self._next, self._add_projects, self._projects_failed)
+
+    def _add_projects(self, projects, following):
+        self._fetching = False
+        self._busy(-1)
         for project in projects:
             row = [project.get('name', ''), '', PROJECT, project.get('slug', ''), '', False]
             self._with_pending(self.store.append(None, row))
+        self._next = following
+        self._more = following is not None
+        self._want_more()
+
+    def _projects_failed(self, error):
+        self._fetching = False
+        self._more = False
+        self._failed(error)
+
+    def _near_the_end(self):
+        adj = self.vadjustment
+        page = adj.get_page_size()
+        return page > 0 and adj.get_value() + 2 * page >= adj.get_upper()
+
+    def _want_more(self):
+        """Loads the next page of projects if the list needs it."""
+        if not self._more or self._fetching:
+            return
+        if self.filtered.iter_n_children(None) < self.ROWS_WANTED or self._near_the_end():
+            self._fetch_projects()
 
     def _with_pending(self, it):
         """A child row, so the row can be expanded before it is loaded."""
@@ -197,6 +244,17 @@ class BrowseDialog:
 
     # Filtering #
 
+    def _on_filter_changed(self):
+        if self._filter_timer is not None:
+            GLib.source_remove(self._filter_timer)
+        self._filter_timer = GLib.timeout_add(self.FILTER_DELAY, self._apply_filter)
+
+    def _apply_filter(self):
+        self._filter_timer = None
+        self.filtered.refilter()
+        self._want_more()
+        return False
+
     def _visible(self, model, it, _data):
         text = self.filter_entry.get_text().strip().casefold()
         if not text or model.iter_parent(it) is not None:
@@ -216,6 +274,9 @@ class BrowseDialog:
 
     def run(self):
         run_dialog(self.dialog)
+        if self._filter_timer is not None:
+            GLib.source_remove(self._filter_timer)
+            self._filter_timer = None
         if self.client is not None:
             self.client.cancel()
         self.dialog.destroy()
