@@ -7,12 +7,13 @@
 
 """Send finished units as you go, on a Weblate work copy against the
 fake server: only finished units go, the queue outlasts a restart and
-an offline spell, conflicts wait for Submit, and with the option off
-Save never sends."""
+an offline spell and goes when the network is back, conflicts wait for
+Submit, and with the option off Save never sends."""
 
 from types import SimpleNamespace
 
 import pytest
+from gi.repository import GObject
 from translate.storage.workflow import StateEnum
 
 from devsupport.testing.fakeweblate import demo, run_until
@@ -34,6 +35,12 @@ def fake():
     assert server.schema_problems == []
 
 
+class FakeMonitor(GObject.Object):
+    """Gio.NetworkMonitor's network-changed alone."""
+
+    __gsignals__ = {'network-changed': (GObject.SignalFlags.RUN_LAST, None, (bool,))}
+
+
 class Trickling:
     """A Trickler for one Copy's server, its waits kept to run by hand."""
 
@@ -49,6 +56,16 @@ class Trickling:
             lambda _copy: self.server, self.sent.append, self.conflicts.append
         )
         self.trickler.schedule = lambda seconds, callback: self.waits.append((seconds, callback))
+        self.now = 1000.0
+        self.trickler.clock = lambda: self.now
+        self.monitor = FakeMonitor()
+        self.monitor.connect(
+            'network-changed', lambda _monitor, up: self.trickler.network_changed(up)
+        )
+
+    def network(self, available):
+        self.monitor.emit('network-changed', available)
+        self.settle()
 
     def save(self):
         self.copy.save()
@@ -184,3 +201,63 @@ def test_stopping_drops_the_run_and_keeps_the_queue(fake):
 
     assert not trickling.trickler.running
     assert copy.copy.record['queue'] == [copy.server_unit('Help')['id']]
+
+
+def test_the_queue_goes_as_soon_as_the_network_is_back(fake):
+    copy = Copy(fake)
+    trickling = Trickling(copy)
+    help_id = copy.server_unit('Help')['id']
+    fake.offline = True
+    copy.edit('Help', 'Hulp')
+    trickling.save()
+    [(_wait, again)] = trickling.waits
+
+    trickling.network(False)
+    assert fake.patched == []
+
+    fake.offline = False
+    trickling.network(True)
+
+    assert _patched(fake) == [help_id]
+    assert copy.copy.record['queue'] == [] and copy.copy.pending() == []
+    # The wait it replaced does nothing.
+    asked = len(fake.requests)
+    again()
+    trickling.settle()
+    assert len(fake.requests) == asked
+
+
+def test_a_monitor_saying_available_often_tries_at_most_each_first_wait(fake):
+    copy = Copy(fake)
+    trickling = Trickling(copy)
+    fake.offline = True
+    copy.edit('Help', 'Hulp')
+    trickling.save()
+    tries = []
+    start = trickling.trickler.start
+    trickling.trickler.start = lambda c: tries.append(c) or start(c)
+
+    trickling.network(True)
+    trickling.network(True)
+    trickling.now += trickle.RETRY_FIRST - 1
+    trickling.network(True)
+    assert len(tries) == 1
+
+    trickling.now += 1
+    fake.offline = False
+    trickling.network(True)
+    assert len(tries) == 2
+    assert _patched(fake) == [copy.server_unit('Help')['id']]
+
+
+def test_the_network_coming_back_sends_nothing_without_a_wait(fake):
+    copy = Copy(fake)
+    trickling = Trickling(copy)
+    copy.edit('Save', 'Bewaar', StateEnum.NEEDS_WORK)
+    trickling.save()
+    asked = len(fake.requests)
+
+    trickling.network(True)
+
+    assert len(fake.requests) == asked and fake.patched == []
+    assert copy.copy.pending() == [copy.index('Save')]

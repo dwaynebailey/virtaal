@@ -444,6 +444,38 @@ def test_one_menu_item_serves_every_platform(weblate, dummy):
     assert len(menu.get_children()) == 4
 
 
+def test_the_registry_follows_the_network_while_a_platform_is_on(weblate, monkeypatch):
+    from virtaal.plugins.weblate.test_trickle import FakeMonitor
+    from virtaal.support.platforms import trickle
+
+    monitor = FakeMonitor()
+    monkeypatch.setattr(trickle, 'network_monitor', lambda: monitor)
+    registry = Registry()
+    seen = []
+    monkeypatch.setattr(registry.trickler, 'network_changed', seen.append)
+    main_controller, _menu = _main_controller()
+
+    registry.add(weblate, main_controller)
+    monitor.emit('network-changed', True)
+    registry.remove(weblate)
+    monitor.emit('network-changed', True)
+
+    assert seen == [True]
+
+
+def test_the_registry_works_without_a_network_monitor(weblate, monkeypatch):
+    from virtaal.support.platforms import trickle
+
+    monkeypatch.setattr(trickle, 'network_monitor', lambda: None)
+    registry = Registry()
+    main_controller, menu = _main_controller()
+
+    registry.add(weblate, main_controller)
+    registry.remove(weblate)
+
+    assert len(menu.get_children()) == 4
+
+
 def test_browse_lists_the_servers_of_every_platform_on(weblate, dummy, tmp_path, monkeypatch):
     registry = Registry()
     main_controller, _menu = _main_controller()

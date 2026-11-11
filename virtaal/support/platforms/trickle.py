@@ -17,14 +17,17 @@ and Submit still sends whatever is left. Without it, Save never sends.
 The queue is the side record's "queue" (the units' ids), written at
 each save, so it outlasts a restart: opening the work copy again sends
 what is left. A run that can't reach the server (or runs out of budget)
-keeps its queue and tries again later, sooner after each save; the
-wait doubles from RETRY_FIRST to RETRY_MAX.
+keeps its queue and tries again later, sooner after each save or
+when the network comes back (network_changed()); the wait doubles from
+RETRY_FIRST to RETRY_MAX.
 
 A unit someone changed on the server too is never decided here: it
 leaves the queue, marked "conflict", for the next Submit or Update to
 ask about, and on_conflicts(count) says so. A unit the server refuses
 leaves it with its reason, as Submit's.
 """
+
+import time
 
 from translate.storage.workflow import StateEnum
 
@@ -51,6 +54,7 @@ class Trickler:
 
     schedule = staticmethod(_later)
     """Calls callback() after seconds: GLib's timer, or a test's."""
+    clock = staticmethod(time.monotonic)
 
     def __init__(self, server_of, on_sent, on_conflicts):
         self.server_of = server_of
@@ -63,6 +67,10 @@ class Trickler:
         self._retry = RETRY_FIRST
         self._timer = 0
         """Which retry is due: a newer one, or a stop, drops older ones."""
+        self._waiting = None
+        """The work copy whose queue waits to try again."""
+        self._woken = None
+        """When the network last brought a try."""
 
     @property
     def running(self):
@@ -102,6 +110,7 @@ class Trickler:
         only = set(self.queue(copy))
         if not only:
             return
+        self._waiting = None
         self.copy = copy
         self.platform = server.platform
         self.session = server.session()
@@ -114,6 +123,7 @@ class Trickler:
         """Stops at once, the queue kept: Submit or Update takes over,
         or the file is closed. A reply on its way is dropped."""
         self._timer += 1
+        self._waiting = None
         if self.submission is not None:
             self.submission.cancel()
             self.submission.finished = True
@@ -154,12 +164,37 @@ class Trickler:
         self._retry = min(self._retry * 2, RETRY_MAX)
         self._timer += 1
         timer = self._timer
+        self._waiting = copy
 
         def again():
             if timer == self._timer:
                 self.start(copy)
 
         self.schedule(wait, again)
+
+    def network_changed(self, available):
+        """Gio.NetworkMonitor's network-changed: a queue waiting to try
+        again goes now when the network is available, at most once each
+        RETRY_FIRST, for a monitor that says so on every change."""
+        copy = self._waiting
+        if not available or copy is None or self.running:
+            return
+        now = self.clock()
+        if self._woken is not None and now - self._woken < RETRY_FIRST:
+            return
+        self._woken = now
+        self._timer += 1
+        self.start(copy)
+
+
+def network_monitor():
+    """Gio's network monitor, or None where there is none."""
+    try:
+        from gi.repository import Gio
+
+        return Gio.NetworkMonitor.get_default()
+    except Exception:
+        return None
 
 
 def _quiet(_number, _total):

@@ -240,7 +240,8 @@ class Registry:
     are saved and wait in the work copy.
 
     Its Trickler (trickle.py) sends the finished units of a work copy
-    as it is saved, for a server with that option on."""
+    as it is saved, for a server with that option on, and tries again
+    when the network comes back."""
 
     def __init__(self):
         self.platforms = []
@@ -318,8 +319,19 @@ class Registry:
         store_controller = getattr(self.main_controller, 'store_controller', None)
         for signal in ('store-loaded', 'store-saved', 'store-closed'):
             self._watch(store_controller, signal)
+        self._watch_network()
         self.sync_submit()
         self._sync_menubar()
+
+    def _watch_network(self):
+        from . import trickle
+
+        monitor = trickle.network_monitor()
+        if monitor is not None:
+            handler = monitor.connect(
+                'network-changed', lambda _monitor, up: self.trickler.network_changed(up)
+            )
+            self._handlers.append((monitor, handler))
 
     def _watch(self, source, signal):
         if source is not None:
