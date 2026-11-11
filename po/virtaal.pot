@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-10 18:10+0000\n"
+"POT-Creation-Date: 2026-11-11 02:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1366,7 +1366,8 @@ msgstr ""
 msgid "Needs review"
 msgstr ""
 
-#: virtaal/controllers/unitcontroller.py virtaal/views/mainview.py
+#: virtaal/controllers/unitcontroller.py
+#: virtaal/plugins/weblate/browsedialog.py virtaal/views/mainview.py
 msgid "Translated"
 msgstr ""
 
@@ -1654,7 +1655,7 @@ msgid "Enabled"
 msgstr ""
 
 #: virtaal/plugins/lookup/models/weblookup.py
-#: virtaal/views/widgets/selectview.py
+#: virtaal/plugins/weblate/browsedialog.py virtaal/views/widgets/selectview.py
 msgid "Name"
 msgstr ""
 
@@ -1927,7 +1928,8 @@ msgid "Amagama Sources"
 msgstr ""
 
 #: virtaal/plugins/tm/amagamadialog.py virtaal/plugins/tm/fetchdialog.py
-#: virtaal/plugins/tm/localtmdialog.py virtaal/views/mainview.py
+#: virtaal/plugins/tm/localtmdialog.py virtaal/plugins/weblate/browsedialog.py
+#: virtaal/plugins/weblate/serversdialog.py virtaal/views/mainview.py
 #: virtaal/views/setscanview.py virtaal/views/widgets/selectdialog.py
 msgid "_Close"
 msgstr ""
@@ -2145,6 +2147,7 @@ msgid "Get Microsoft's UI strings glossaries"
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py virtaal/plugins/tm/tmview.py
+#: virtaal/plugins/weblate/serversdialog.py
 msgid "_Remove"
 msgstr ""
 
@@ -2473,6 +2476,90 @@ msgstr ""
 #. l10n: This indicates a suggestion from machine translation. It is displayed instead of the match percentage.
 #: virtaal/plugins/tm/tmwidgets.py
 msgid "?"
+msgstr ""
+
+#: virtaal/plugins/weblate/__init__.py virtaal/plugins/weblate/browsedialog.py
+#: virtaal/plugins/weblate/serversdialog.py
+msgid "Weblate"
+msgstr ""
+
+#: virtaal/plugins/weblate/__init__.py
+msgid "Translate projects hosted on Weblate servers."
+msgstr ""
+
+#: virtaal/plugins/weblate/__init__.py
+msgid "Open from _Weblate…"
+msgstr ""
+
+#: virtaal/plugins/weblate/browsedialog.py
+#: virtaal/plugins/weblate/serversdialog.py
+msgid "Weblate Servers"
+msgstr ""
+
+#. l10n: Marks a Weblate component that is a glossary, not strings to translate
+#: virtaal/plugins/weblate/browsedialog.py
+msgid "Glossary"
+msgstr ""
+
+#. l10n: A Weblate server answered that the API token is wrong or expired
+#: virtaal/plugins/weblate/serversdialog.py
+msgid "The server refused the token."
+msgstr ""
+
+#. l10n: %(reason)s is the network library's own message, in English
+#: virtaal/plugins/weblate/serversdialog.py
+#, python-format
+msgid "Couldn't connect to the server: %(reason)s"
+msgstr ""
+
+#: virtaal/plugins/weblate/serversdialog.py
+msgid "No Weblate server answered at this address."
+msgstr ""
+
+#. l10n: %(status)s is an HTTP status code, such as 403 or 500
+#: virtaal/plugins/weblate/serversdialog.py
+#, python-format
+msgid "The server replied with error %(status)s."
+msgstr ""
+
+#. l10n: A Weblate server accepted the token; %(count)s is the number of projects it shows
+#: virtaal/plugins/weblate/serversdialog.py
+#, python-format
+msgid "Connected: %(count)s project"
+msgid_plural "Connected: %(count)s projects"
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: The address of a Weblate server, such as https://hosted.weblate.org/
+#: virtaal/plugins/weblate/serversdialog.py
+msgid "_URL:"
+msgstr ""
+
+#. l10n: The API token a Weblate server gives each user, on its profile page
+#: virtaal/plugins/weblate/serversdialog.py
+msgid "_Token:"
+msgstr ""
+
+#: virtaal/plugins/weblate/serversdialog.py
+msgid ""
+"Virtaal sends your token, and the translations you submit, to the servers "
+"you add here."
+msgstr ""
+
+#: virtaal/plugins/weblate/serversdialog.py
+msgid "_Add…"
+msgstr ""
+
+#: virtaal/plugins/weblate/serversdialog.py
+msgid "_Edit…"
+msgstr ""
+
+#: virtaal/plugins/weblate/serversdialog.py
+msgid "_Test Connection"
+msgstr ""
+
+#: virtaal/plugins/weblate/serversdialog.py
+msgid "_Import from wlc"
 msgstr ""
 
 #: virtaal/support/crash_dialog.py

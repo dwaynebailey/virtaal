@@ -498,6 +498,8 @@ class Settings:
     }
     plugin_state = {
         "_helloworld": "disabled",
+        # Off until enabled while it is being built (#3337).
+        "weblate": "disabled",
     }
     undo = {
         "depth": 10000,

@@ -51,6 +51,9 @@ virtaal/plugins/tm/models/moses.py
 virtaal/plugins/tm/models/remotetm.py
 virtaal/plugins/tm/tmview.py
 virtaal/plugins/tm/tmwidgets.py
+virtaal/plugins/weblate/__init__.py
+virtaal/plugins/weblate/browsedialog.py
+virtaal/plugins/weblate/serversdialog.py
 virtaal/support/crash_dialog.py
 virtaal/support/phrase_compat.py
 virtaal/support/tutorial.py
