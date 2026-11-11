@@ -265,8 +265,8 @@ class TestUpdate(Weblating, TestScaffolding):
 
         def run(dialog):
             (conflict,) = dialog.conflicts
-            buttons = dialog.dialog.get_action_area().get_children()
-            seen.append(([b.get_label() for b in buttons], conflict.mine, conflict.theirs))
+            ok = dialog.dialog.get_widget_for_response(Gtk.ResponseType.OK)
+            seen.append((ok.get_label(), conflict.mine, conflict.theirs))
             dialog.choose(conflict.index, submit.TAKE_THEIRS)
             return dialog.decisions()
 
@@ -274,7 +274,7 @@ class TestUpdate(Weblating, TestScaffolding):
 
         result = self.registry.update()
 
-        assert seen == [(['_Cancel', '_OK'], ['Bewaar'], ['Stoor dit'])]
+        assert seen == [('_OK', ['Bewaar'], ['Stoor dit'])]
         assert result.taken == 1
         assert str(self._unit('Save').target) == 'Stoor dit'
 
