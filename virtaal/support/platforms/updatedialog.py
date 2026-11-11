@@ -35,10 +35,10 @@ def lost_message(sources):
         _counted(
             ngettext(
                 # l10n: Followed by the source text of each change, one a line
-                '%(count)s change not yet submitted is to a string removed on the server, '
-                'and will be lost:',
-                '%(count)s changes not yet submitted are to strings removed on the server, '
-                'and will be lost:',
+                '%(count)s change not yet submitted is to a string removed or reworded '
+                'on the server, and will be lost:',
+                '%(count)s changes not yet submitted are to strings removed or reworded '
+                'on the server, and will be lost:',
                 len(sources),
             ),
             len(sources),

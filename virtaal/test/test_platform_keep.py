@@ -321,8 +321,8 @@ class TestUpdate(Weblating, TestScaffolding):
             (
                 'The strings to translate changed on the server since you downloaded them. '
                 'Download them again?',
-                '1 change not yet submitted is to a string removed on the server, '
-                'and will be lost:\n  Help',
+                '1 change not yet submitted is to a string removed or reworded '
+                'on the server, and will be lost:\n  Help',
             )
         ]
         assert str(self._unit('Help').target) == 'Hulp'
