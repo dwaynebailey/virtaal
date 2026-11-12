@@ -155,8 +155,6 @@ def test_nothing_changed_sends_nothing(fake):
     [
         ('Save', 'Stoor', StateEnum.FINAL, 30),
         ('Open', 'Maak oop', StateEnum.UNREVIEWED, 20),
-        ('Save', 'Stoor', StateEnum.NEEDS_REVIEW, 12),
-        ('Save', 'Stoor', StateEnum.REJECTED, 11),
         ('Save', 'Stoor', StateEnum.NEEDS_WORK, 10),
     ],
 )
@@ -173,17 +171,31 @@ def test_the_state_goes_back_as_weblates(fake, source, target, state, code):
     assert copy.unit(source).get_state_n() == state
 
 
-def test_an_older_weblate_gets_needs_editing_and_the_finer_state_stays(fake):
-    fake.old_states = True
+@pytest.mark.parametrize('state, code', [(StateEnum.NEEDS_REVIEW, 12), (StateEnum.REJECTED, 11)])
+def test_a_server_that_sets_needs_checking_or_rewriting_gets_them(fake, state, code):
+    fake.settable_states = (0, 10, 11, 12, 20, 30)
     copy = Copy(fake)
-    copy.edit('Save', state=StateEnum.REJECTED)
+    copy.edit('Save', state=state)
+    copy.save()
+
+    copy.submit()
+
+    assert [data['state'] for _id, data in fake.patched] == [code]
+    assert copy.server_unit('Save')['state'] == code
+
+
+@pytest.mark.parametrize('state', [StateEnum.NEEDS_REVIEW, StateEnum.REJECTED])
+def test_weblate_gets_needs_editing_and_the_finer_state_stays(fake, state):
+    copy = Copy(fake)
+    copy.edit('Save', state=state)
     copy.save()
 
     result = copy.submit()
 
-    assert result.sent == 1 and result.stop is None
+    assert result.sent == 1 and result.stop is None and result.failures == {}
     assert [data['state'] for _id, data in fake.patched] == [10]
-    assert copy.unit('Save').get_state_n() == StateEnum.REJECTED
+    assert copy.server_unit('Save')['state'] == 10
+    assert copy.unit('Save').get_state_n() == state
     copy.save()
     assert copy.copy.pending() == []
 

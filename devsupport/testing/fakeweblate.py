@@ -29,7 +29,9 @@ plural's forms), and the component's lock/ says whether it is locked.
 edit() changes a unit as another translator would; forbid() answers
 403 for a unit, fail_after() fails the PATCHes after the first k,
 enforce() stores "needs editing" for "translated" as an enforced check
-does, and old_states refuses 11 and 12 as Weblate before 2026.x does.
+does. States 11 and 12 are refused on PATCH, as Weblate main refuses
+them ("This state cannot be set manually"), unless settable_states
+says otherwise.
 
 For Update: a translation's file is written from its units at each
 download, as Weblate writes it from its database, so others' edits
@@ -127,8 +129,9 @@ class FakeWeblate(FakeServer):
         self.projects = {}
         self.units = {}
         """{id: unit} of every translation's units."""
-        self.old_states = False
-        """Refuses states 11 and 12, as Weblate before 2026.x."""
+        self.settable_states = (0, 10, 20, 30)
+        """The states a PATCH may set: Weblate shows 11 and 12 but
+        refuses them on PATCH."""
         self.forbidden = set()
         self.enforced = set()
         self.patched = []
@@ -819,9 +822,10 @@ class FakeWeblate(FakeServer):
         component = self._component_of(unit)
         if component is not None and component['locked']:
             return 423, self.error(423, 'component-locked', 'Component is locked.')
-        states = (0, 10, 20, 30) if self.old_states else (0, 10, 11, 12, 20, 30)
         target, state = data.get('target'), data.get('state')
-        if state not in states:
+        if state in (11, 12) and state not in self.settable_states:
+            return 400, self.validation('state', 'This state cannot be set manually.')
+        if state not in self.settable_states:
             return 400, self.validation('state', '"%s" is not a valid choice.' % state)
         if not isinstance(target, list) or not all(isinstance(t, str) for t in target):
             return 400, self.validation('target', 'Not a valid list of strings.')
