@@ -14,7 +14,8 @@ docs: the "required" fields of each object, plus the optional ones
 Virtaal reads. They are facts about the API, not a copy of the schema
 (Weblate is GPL-3.0-or-later). W2-W4 add Unit, Change and the rest
 here as they use them; W6 Suggestion and Comment, from docs/api.rst and
-weblate/api/serializers.py (SuggestionSerializer, CommentSerializer).
+weblate/api/serializers.py (SuggestionSerializer, CommentSerializer);
+W7 a component's enforced_checks, from docs/api.rst.
 """
 
 _TYPES = {
@@ -104,6 +105,7 @@ SCHEMAS = {
             'category': _S_OR_NULL,
             'enable_suggestions': _B,
             'check_flags': _S,
+            'enforced_checks': _A,
         },
     },
     'Language': {

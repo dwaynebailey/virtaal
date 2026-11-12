@@ -51,6 +51,13 @@ what its API has: suggestions from 2026.8, adding a comment from 5.12
 and reading them from 5.15 (405 before, 404 before 5.12). A unit's
 global and report comments are on its source unit, as in Weblate.
 
+For checks: a component's check_flags and enforced checks
+(enforce_checks()), a unit's flags and extra_flags (flag()), and the
+checks a unit fails on the server (fail_check()), found with has:check
+and check:<id> searches. An edit can fix a failing check (its rule);
+a unit sent as translated or approved that still fails an enforced
+check is stored as needs editing, as Weblate does.
+
 The server itself and run_until() are fakeplatform.py's, shared with
 any other platform's fake. Never point Virtaal at a real Weblate server
 from a test.
@@ -69,7 +76,7 @@ from urllib import parse
 from devsupport.testing import weblate_schema
 from devsupport.testing.fakeplatform import FakeServer, run_until
 
-__all__ = ['TOKEN', 'FakeWeblate', 'demo', 'demo_review', 'run_until']
+__all__ = ['TOKEN', 'FakeWeblate', 'demo', 'demo_checks', 'demo_review', 'run_until']
 
 TOKEN = 'wlu_fake0123456789abcdefghijklmnopqrstuv'
 """The personal token the server accepts by default."""
@@ -151,6 +158,9 @@ class FakeWeblate(FakeServer):
         global and report comments) as 'unit_id', and 'scope'."""
         self.source_units = {}
         """{source unit id: the unit}, for the comments on its source."""
+        self.failing = {}
+        """{unit id: {check id: rule}} of the checks units fail on the
+        server; rule(target) says whether an edit fixed it (None: never)."""
         self._source_ids = 100000
         self._fail_after = None
         self._clock = 0
@@ -569,6 +579,40 @@ class FakeWeblate(FakeServer):
         unit['has_suggestion'] = any(s['unit_id'] == unit_id for s in self.suggestions.values())
         unit['has_comment'] = any(c['unit_id'] in ids for c in self.comments.values())
 
+    # Checks #
+
+    def flag(self, unit_id, flags='', extra_flags=None):
+        """Gives a unit flags (as its file has them) and extra_flags (as
+        added in Weblate), each a comma-separated text."""
+        unit = self.units[unit_id]
+        unit['flags'] = flags
+        if extra_flags is not None:
+            unit['extra_flags'] = extra_flags
+        return unit
+
+    def enforce_checks(self, project, component, checks):
+        """The checks Weblate enforces on a component, by their ids."""
+        info = self._parent(project, component)['component']
+        info['enforced_checks'] = list(checks)
+        info['effective_enforced_checks'] = list(checks)
+
+    def fail_check(self, unit_id, check, rule=None):
+        """The unit fails check (its id) on the server; rule(target) is
+        True once an edit fixed it (None: no edit does)."""
+        self.failing.setdefault(unit_id, {})[check] = rule
+        self.units[unit_id]['has_failing_check'] = True
+
+    def _recheck(self, unit):
+        """The failing checks an edit fixed are gone; whether the unit
+        still fails one its component enforces."""
+        failing = self.failing.get(unit['id'], {})
+        for check, rule in list(failing.items()):
+            if rule is not None and rule(unit['target']):
+                del failing[check]
+        unit['has_failing_check'] = bool(failing)
+        component = self._component_of(unit) or {}
+        return bool(set(failing) & set(component.get('effective_enforced_checks') or ()))
+
     # Faults #
 
     def fail(self, path, status, times=1, headers=None, body=None, method='GET'):
@@ -788,14 +832,21 @@ class FakeWeblate(FakeServer):
         return 200, reply
 
     def _search(self, query, units):
-        """The units a search finds: changed:>=<time>, or has:suggestion,
-        has:comment or both with OR."""
+        """The units a search finds: changed:>=<time>; has:suggestion,
+        has:comment or has:check, or several with OR; check:<id>."""
+        flags = [part.strip() for part in query.split(' OR ')]
+        if all(f in ('has:suggestion', 'has:comment', 'has:check') for f in flags):
+            fields = [_HAS[f] for f in flags]
+            return [unit for unit in units if any(unit[field] for field in fields)]
+        found = re.fullmatch(r'check:(\S+)', query.strip())
+        if found:
+            return [u for u in units if found.group(1) in self.failing.get(u['id'], {})]
+        return self._changed_since(query, units)
+
+    @staticmethod
+    def _changed_since(query, units):
         import datetime
 
-        flags = [part.strip() for part in query.split(' OR ')]
-        if all(f in ('has:suggestion', 'has:comment') for f in flags):
-            fields = [f.replace('has:', 'has_') for f in flags]
-            return [unit for unit in units if any(unit[field] for field in fields)]
         found = re.fullmatch(r'changed:>=("?)([^"]+)\1', query.strip())
         if not found:
             return None
@@ -840,6 +891,10 @@ class FakeWeblate(FakeServer):
         if unit_id in self.enforced and state == 20:
             state = 10
         self._store(unit, target, state)
+        if self._recheck(unit) and state >= 20:
+            # A failing enforced check: needs editing, whatever was sent.
+            self._store(unit, target, 10)
+            state = 10
         self.patched.append((unit_id, data))
         reply = {
             'target': unit['target'],
@@ -1044,6 +1099,13 @@ class FakeWeblate(FakeServer):
             data = writer(parent['units'][code])
         return 200, data, {'Content-Type': 'application/octet-stream'}
 
+
+_HAS = {
+    'has:suggestion': 'has_suggestion',
+    'has:comment': 'has_comment',
+    'has:check': 'has_failing_check',
+}
+"""The unit field each has: search tests."""
 
 ROUTES = [
     ('GET', r'/api/', 'root'),
@@ -1279,14 +1341,34 @@ def demo_review():
     return fake
 
 
+def demo_checks():
+    """demo(), with flags and checks on Program's Afrikaans units: Save
+    may be at most 6 characters long, File's end stop isn't checked;
+    the project enforces "same" and "max-length", and Print fails
+    "same" on the server, Close "end-stop"."""
+    fake = demo()
+    units = {
+        u['source'][0]: u['id']
+        for u in fake.projects['hello']['components']['program']['units']['af']
+    }
+    fake.enforce_checks('hello', 'program', ['same', 'max-length'])
+    fake.flag(units['Save'], 'max-length:6')
+    fake.flag(units['File'], '', 'ignore-end-stop')
+    fake.fail_check(units['Print'], 'same', rule=lambda target: target != ['Print'])
+    fake.fail_check(units['Close'], 'end_stop')
+    return fake
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--many', action='store_true', help='more languages and components')
     parser.add_argument('--review', action='store_true', help='suggestions and comments')
+    parser.add_argument('--checks', action='store_true', help='flags and checks')
     args = parser.parse_args()
     print('Fake Weblate at http://127.0.0.1:%d/ with token %s' % (args.port, TOKEN), flush=True)
-    fake = demo_many() if args.many else demo_review() if args.review else demo()
+    demos = [(args.many, demo_many), (args.review, demo_review), (args.checks, demo_checks)]
+    fake = next((make for wanted, make in demos if wanted), demo)()
     fake.serve(args.port)
 
 
