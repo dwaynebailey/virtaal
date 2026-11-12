@@ -85,6 +85,22 @@ def test_the_fake_stores_needs_editing_for_a_failing_enforced_check(fake):
     assert print_unit['state'] == 20 and not print_unit['has_failing_check']
 
 
+def test_the_fake_checks_a_max_length_flag_as_weblate_does(fake):
+    copy = Copy(fake)
+    copy.edit('Save', 'Bewaar dit', StateEnum.UNREVIEWED)
+    copy.save()
+
+    copy.submit()
+
+    assert copy.server_unit('Save')['state'] == 10
+    assert _search(fake, 'check:max-length') == ['Save']
+    copy.edit('Save', 'Berg', StateEnum.UNREVIEWED)
+    copy.save()
+    copy.submit()
+    assert copy.server_unit('Save')['state'] == 20
+    assert _search(fake, 'check:max-length') == []
+
+
 # Read at download #
 
 

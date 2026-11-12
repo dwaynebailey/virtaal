@@ -54,7 +54,8 @@ global and report comments are on its source unit, as in Weblate.
 For checks: a component's check_flags and enforced checks
 (enforce_checks()), a unit's flags and extra_flags (flag()), and the
 checks a unit fails on the server (fail_check()), found with has:check
-and check:<id> searches. An edit can fix a failing check (its rule);
+and check:<id> searches. An edit can fix a failing check (its rule), and
+is checked against a max-length flag;
 a unit sent as translated or approved that still fails an enforced
 check is stored as needs editing, as Weblate does.
 
@@ -150,6 +151,8 @@ class FakeWeblate(FakeServer):
         """The user name of the token's user."""
         self.permissions = set(PERMISSIONS)
         """What the token's user may do."""
+        self.denied_in = {}
+        """{project slug: the permissions the token's user lacks there}."""
         self.suggestions = {}
         """{id: suggestion}, each with its unit's id as 'unit_id' and its
         user's name as 'username'."""
@@ -525,9 +528,19 @@ class FakeWeblate(FakeServer):
 
     # Review #
 
-    def revoke(self, *permissions):
-        """Takes permissions from the token's user."""
-        self.permissions -= set(permissions)
+    def revoke(self, *permissions, project=None):
+        """Takes permissions from the token's user: in one project, or
+        in every one."""
+        if project is None:
+            self.permissions -= set(permissions)
+        else:
+            self.denied_in.setdefault(project, set()).update(permissions)
+
+    def _can(self, permission, unit):
+        """Whether the token's user has permission for unit."""
+        component = self._component_of(unit)
+        project = component['project']['slug'] if component else None
+        return permission in self.permissions and permission not in self.denied_in.get(project, ())
 
     def has(self, version):
         """Whether the fake is as new as version."""
@@ -603,8 +616,15 @@ class FakeWeblate(FakeServer):
         self.units[unit_id]['has_failing_check'] = True
 
     def _recheck(self, unit):
-        """The failing checks an edit fixed are gone; whether the unit
-        still fails one its component enforces."""
+        """The failing checks an edit fixed are gone, and a max-length
+        flag is checked as Weblate checks it; whether the unit still
+        fails one its component enforces."""
+        limit = re.search(r'(?:^|,)\s*max-length:(\d+)', unit['flags'] + ',' + unit['extra_flags'])
+        if limit:
+            if any(len(form) > int(limit.group(1)) for form in unit['target']):
+                self.failing.setdefault(unit['id'], {})['max-length'] = None
+            else:
+                self.failing.get(unit['id'], {}).pop('max-length', None)
         failing = self.failing.get(unit['id'], {})
         for check, rule in list(failing.items()):
             if rule is not None and rule(unit['target']):
@@ -868,7 +888,7 @@ class FakeWeblate(FakeServer):
     def _written(self, unit_id, data):
         """(status, body) for a PATCH's JSON data, as Weblate checks it."""
         unit = self.units[unit_id]
-        if unit_id in self.forbidden or unit['state'] == 100 or 'unit.edit' not in self.permissions:
+        if unit_id in self.forbidden or unit['state'] == 100 or not self._can('unit.edit', unit):
             return self._denied()
         component = self._component_of(unit)
         if component is not None and component['locked']:
@@ -954,7 +974,7 @@ class FakeWeblate(FakeServer):
 
     def _may_review(self, unit):
         component = self._component_of(unit)
-        return 'unit.review' in self.permissions and bool(
+        return self._can('unit.review', unit) and bool(
             component and component['project'].get('translation_review')
         )
 
@@ -996,7 +1016,7 @@ class FakeWeblate(FakeServer):
         if unit is None or not self._unit_scope(scope, unit):
             return self._no_unit()
         component = self._component_of(unit)
-        if 'suggestion.add' not in self.permissions or unit['state'] == 100:
+        if not self._can('suggestion.add', unit) or unit['state'] == 100:
             return self._denied()
         if component is not None and not component.get('enable_suggestions', True):
             return self._denied()
@@ -1029,7 +1049,8 @@ class FakeWeblate(FakeServer):
         if suggestion is None:
             return 404, self.error(404, 'not_found', 'No Suggestion matches the given query.')
         own = suggestion['username'] == self.user
-        if not own and 'suggestion.delete' not in self.permissions:
+        unit = self.units[suggestion['unit_id']]
+        if not own and not self._can('suggestion.delete', unit):
             return self._denied()
         del self.suggestions[suggestion['id']]
         self._flag(suggestion['unit_id'])
@@ -1042,7 +1063,7 @@ class FakeWeblate(FakeServer):
         unit = self.units[suggestion['unit_id']]
         data = self._json_body(request)
         approve = bool(data.get('approve')) if isinstance(data, dict) else False
-        if 'suggestion.accept' not in self.permissions:
+        if not self._can('suggestion.accept', unit):
             return self._denied()
         if approve and not self._may_review(unit):
             return self._denied()
@@ -1067,7 +1088,7 @@ class FakeWeblate(FakeServer):
         unit = self.units.get(int(unit_id))
         if unit is None or not self._unit_scope(scope, unit):
             return self._no_unit()
-        if 'comment.add' not in self.permissions:
+        if not self._can('comment.add', unit):
             return self._denied()
         data = self._json_body(request)
         if not isinstance(data, dict) or not isinstance(data.get('comment'), str):

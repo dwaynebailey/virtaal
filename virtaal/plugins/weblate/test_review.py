@@ -126,6 +126,19 @@ def test_an_approval_refused_stops_reviewed_being_offered(fake):
     assert not copy.copy.may_review() and not states.reviewable(copy.unit('Help'))
 
 
+def test_an_approval_refused_in_another_project_is_not_refused_here(fake):
+    fake.add_project('docs', translation_review=True)
+    fake.revoke('unit.review', project='docs')
+    copy = Copy(fake)
+    copy.edit('Save', state=StateEnum.FINAL)
+    copy.save()
+
+    result = copy.submit()
+
+    assert result.sent == 1 and result.failures == {}
+    assert fake.units[_unit_id(fake, 'Save')]['state'] == 30
+
+
 def test_no_right_to_translate_is_not_a_review_refusal(fake):
     fake.revoke('unit.edit')
     copy = Copy(fake)
