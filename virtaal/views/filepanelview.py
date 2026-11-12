@@ -276,7 +276,7 @@ class FilePanelView(BaseView):
             self._unpaired = list(unpaired)
             self._unpaired_from = len(entries) + len(templates)
             shown = list(entries) + templates + self._unpaired
-            tree = build_tree([entry.display_name for entry in shown])
+            tree = build_tree([entry.panel_name for entry in shown])
             # A folder holding everything adds nothing: start inside it.
             while not tree['files'] and len(tree['folders']) == 1:
                 tree = next(iter(tree['folders'].values()))

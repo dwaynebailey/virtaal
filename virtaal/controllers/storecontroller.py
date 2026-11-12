@@ -559,15 +559,17 @@ class StoreController(BaseController):
 
     def _name_work_copies(self, all_files):
         """Shows each work copy of the files by its project and component
-        ("Hello/Program"), and its language too when the files are in
-        more than one, instead of its path in the work folder."""
+        ("Hello/Program"), and in the unit list its language too when the
+        files are in more than one, instead of its path in the work
+        folder. The Files Panel shows one language's files, and says
+        which."""
         several = len([code for code in all_files.languages() if code]) > 1
         for entry in all_files:
             copy = self.work_copies.get(entry.path)
-            if copy is None:
-                entry.label = None
-            else:
-                entry.label = copy.label() if several else copy.location()
+            entry.label = entry.panel_label = None
+            if copy is not None:
+                entry.panel_label = copy.location()
+                entry.label = copy.label() if several else entry.panel_label
 
     def _start_cursor(self):
         from .cursor import Cursor

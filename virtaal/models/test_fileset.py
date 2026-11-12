@@ -102,8 +102,12 @@ def test_a_label_is_shown_instead_of_the_path(tmp_path):
 
     entry.label = 'Hello/Program'
 
-    assert entry.display_name == 'Hello/Program'
-    entry.label = None
+    assert entry.display_name == entry.panel_name == 'Hello/Program'
+    entry.label = 'Hello/Program (Afrikaans)'
+    entry.panel_label = 'Hello/Program'
+    assert entry.display_name == 'Hello/Program (Afrikaans)'
+    assert entry.panel_name == 'Hello/Program'
+    entry.label = entry.panel_label = None
     assert entry.display_name == 'af.po'
 
 

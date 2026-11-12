@@ -355,8 +355,8 @@ class TestOpenMany(Streaming, TestScaffolding):
 
 class TestStreamNames(Streaming, TestScaffolding):
     """A work copy's header in the unit list and its name in the Files
-    Panel: its project and component, with its language when the files
-    opened are in several."""
+    Panel: its project and component, with its language in the unit
+    list when the files opened are in several."""
 
     def setup_class(self):
         TestScaffolding.setup_class(self)
@@ -395,10 +395,11 @@ class TestStreamNames(Streaming, TestScaffolding):
         self._opened(self._open_languages(('Afrikaans', 'German')))
 
         assert self._headers() == ['Hello/Program (Afrikaans)']
-        assert self._panel_names() == ['Program (Afrikaans)']
+        # The panel's language list says which.
+        assert self._panel_names() == ['Program']
         assert self.main_controller.open_stream_language('de')
         assert self._headers() == ['Hello/Program (German)']
-        assert self._panel_names() == ['Program (German)']
+        assert self._panel_names() == ['Program']
 
 
 class TestStreamSubmitUpdate(Streaming, TestScaffolding):

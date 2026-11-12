@@ -198,6 +198,9 @@ class FileEntry:
         self.label = None
         """The name to show instead of the path, such as a work copy's
         project and component."""
+        self.panel_label = None
+        """The label in the Files Panel, if it differs: one without the
+        language, which the panel's language list shows."""
 
     @property
     def language(self):
@@ -215,6 +218,11 @@ class FileEntry:
         if self.root:
             return os.path.relpath(self.path, self.root)
         return os.path.basename(self.path)
+
+    @property
+    def panel_name(self):
+        """The name in the Files Panel."""
+        return self.panel_label or self.display_name
 
     @property
     def template_name(self):
