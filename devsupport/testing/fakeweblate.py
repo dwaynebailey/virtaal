@@ -64,6 +64,8 @@ any other platform's fake. Never point Virtaal at a real Weblate server
 from a test.
 
 Run by hand:  python -m devsupport.testing.fakeweblate --port 8765
+(--hand: every demo at once, and POST /_fake/edit/ for a hand check to
+change a unit as someone else would.)
 """
 
 import argparse
@@ -77,7 +79,15 @@ from urllib import parse
 from devsupport.testing import weblate_schema
 from devsupport.testing.fakeplatform import FakeServer, run_until
 
-__all__ = ['TOKEN', 'FakeWeblate', 'demo', 'demo_checks', 'demo_review', 'run_until']
+__all__ = [
+    'TOKEN',
+    'FakeWeblate',
+    'demo',
+    'demo_checks',
+    'demo_hand',
+    'demo_review',
+    'run_until',
+]
 
 TOKEN = 'wlu_fake0123456789abcdefghijklmnopqrstuv'
 """The personal token the server accepts by default."""
@@ -153,6 +163,9 @@ class FakeWeblate(FakeServer):
         """What the token's user may do."""
         self.denied_in = {}
         """{project slug: the permissions the token's user lacks there}."""
+        self.controls = False
+        """Serves POST /_fake/edit/, for a hand check to change a unit as
+        someone else would (main() turns it on)."""
         self.suggestions = {}
         """{id: suggestion}, each with its unit's id as 'unit_id' and its
         user's name as 'username'."""
@@ -744,6 +757,8 @@ class FakeWeblate(FakeServer):
             return fault.status, fault.headers, fault.body
         if self.not_weblate:
             return 200, {'Content-Type': 'text/html'}, b'<!doctype html><title>Welcome</title>'
+        if self.controls and request['path'] == '/_fake/edit/' and request['method'] == 'POST':
+            return self._control_edit(request)
         scope, refused = self.authorise(request['headers'])
         if refused:
             return refused[0], {}, refused[1]
@@ -760,6 +775,25 @@ class FakeWeblate(FakeServer):
                 status, body, *more = getattr(self, name)(request, scope, *match.groups())
                 return status, {**headers, **(more[0] if more else {})}, body
         return 404, headers, self.error(404, 'not_found', 'Not found.')
+
+    def _control_edit(self, request):
+        """POST /_fake/edit/ {"source", "target", "project", "component",
+        "language"}: changes the first unit with that source text, as
+        someone else would on the server. Not Weblate's: for hand checks."""
+        data = self._json_body(request)
+        if not isinstance(data, dict) or not isinstance(data.get('source'), str):
+            return 400, {}, {'detail': 'Needs "source".'}
+        where = data.get('project', 'hello'), data.get('component', 'program')
+        code = data.get('language', 'af')
+        try:
+            units = self._parent(*where).get('units', {}).get(code, [])
+        except KeyError:
+            units = []
+        unit = next((u for u in units if u['source'][0] == data['source']), None)
+        if unit is None:
+            return 404, {}, {'detail': 'No unit %r in %s/%s/%s.' % (data['source'], *where, code)}
+        self.edit(unit['id'], data.get('target', ''), data.get('state'))
+        return 200, {}, {'id': unit['id'], 'target': unit['target'], 'state': unit['state']}
 
     def _check(self, name, status, body):
         if status == 200:
@@ -1380,17 +1414,100 @@ def demo_checks():
     return fake
 
 
+DEMO_MANUAL = [
+    ('', 'Getting started', 'Aan die gang', 20),
+    ('', 'Installing Virtaal', 'Installeer Virtaal', 20),
+    ('', 'Your first file', '', 0),
+    ('', 'Keyboard shortcuts', 'Sleutelbordkortpaaie', 10),
+]
+DEMO_TOOLBAR = [
+    ('', 'Save', 'Stoor', 20),
+    ('', 'Open file.', 'Maak lêer oop', 20),
+    ('', 'Print', 'Print', 20),
+    ('', 'Close', 'Maak toe.', 20),
+    ('', 'Quit', '', 0),
+]
+
+
+def demo_hand():
+    """Everything at once, for a hand check of the Weblate plug-in:
+    demo_many()'s Hello (reviews on: the user may approve) with
+    demo_review()'s suggestions and comments on Program's Afrikaans;
+    Documentation with reviews on but no approving for the user (User
+    manual in Afrikaans); and Tools, with no reviews, whose Toolbar in
+    Afrikaans has flags and checks: Save may be 6 characters, Open
+    file.'s end stop isn't checked, Print and Close fail checks on the
+    server, and same and max-length are enforced."""
+    fake = demo_many()
+    units = {
+        u['source'][0]: u['id']
+        for u in fake.projects['hello']['components']['program']['units']['af']
+    }
+    fake.suggest(units['Save'], 'Berg', user='anna')
+    fake.suggest(units['Save'], 'Bewaar', user='ben')
+    fake.comment(units['Save'], 'Most apps say "Stoor" here.', user='anna')
+    fake.comment(units['Print'], 'Is this the verb or the noun?', user='ben', scope='global')
+
+    fake.projects['docs']['project']['translation_review'] = True
+    fake.add_translation('docs', 'guides/manual', 'af', 'Afrikaans', 3, len(DEMO_MANUAL))
+    fake.fill_po('docs', 'guides/manual', 'af', DEMO_MANUAL)
+    fake.revoke('unit.review', project='docs')
+
+    fake.add_project('tools', 'Tools')
+    fake.add_component('tools', 'toolbar', 'Toolbar')
+    fake.add_translation('tools', 'toolbar', 'af', 'Afrikaans', 4, len(DEMO_TOOLBAR))
+    toolbar = {
+        u['source'][0]: u['id'] for u in fake.fill_po('tools', 'toolbar', 'af', DEMO_TOOLBAR)
+    }
+    fake.enforce_checks('tools', 'toolbar', ['same', 'max-length'])
+    fake.flag(toolbar['Save'], 'max-length:6')
+    fake.flag(toolbar['Open file.'], '', 'ignore-end-stop')
+    fake.fail_check(toolbar['Print'], 'same', rule=lambda target: target != ['Print'])
+    fake.fail_check(toolbar['Close'], 'end_stop', rule=lambda target: not target[0].endswith('.'))
+    first = ('hello', 'docs', 'tools')
+    fake.projects = {
+        slug: fake.projects[slug] for slug in sorted(fake.projects, key=lambda s: s not in first)
+    }
+    return fake
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--port', type=int, default=8765)
+    parser.add_argument('--port', type=int, default=8765, help='0 for a free one')
+    parser.add_argument('--port-file', help='where to write the port, once it listens')
     parser.add_argument('--many', action='store_true', help='more languages and components')
     parser.add_argument('--review', action='store_true', help='suggestions and comments')
     parser.add_argument('--checks', action='store_true', help='flags and checks')
+    parser.add_argument(
+        '--hand', action='store_true', help='all of these, and POST /_fake/edit/ to change a unit'
+    )
     args = parser.parse_args()
-    print('Fake Weblate at http://127.0.0.1:%d/ with token %s' % (args.port, TOKEN), flush=True)
-    demos = [(args.many, demo_many), (args.review, demo_review), (args.checks, demo_checks)]
+    demos = [
+        (args.hand, demo_hand),
+        (args.many, demo_many),
+        (args.review, demo_review),
+        (args.checks, demo_checks),
+    ]
     fake = next((make for wanted, make in demos if wanted), demo)()
-    fake.serve(args.port)
+    fake.controls = args.hand
+    if args.hand:
+        handle = fake.handle
+
+        def logged(request):
+            status, headers, body = handle(request)
+            query = '?' + parse.urlencode(request['query']) if request['query'] else ''
+            print(request['method'], request['path'] + query, status, flush=True)
+            return status, headers, body
+
+        fake.handle = logged
+
+    def ready(url):
+        print('Fake Weblate at %s with token %s' % (url, TOKEN), flush=True)
+        if args.port_file:
+            with open(args.port_file, 'w', encoding='utf-8') as f:
+                f.write('%d\n' % fake._server.server_address[1])
+
+    fake.serve(args.port, ready)
 
 
 if __name__ == '__main__':

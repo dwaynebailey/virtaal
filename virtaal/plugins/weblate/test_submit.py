@@ -43,15 +43,15 @@ class Copy:
     """A downloaded work copy, its file opened and attached as Virtaal
     opens it."""
 
-    def __init__(self, fake, component='program'):
+    def __init__(self, fake, component='program', project='hello'):
         self.fake = fake
         self.platform = PLATFORM.__new__(PLATFORM)
         download = []
         self.session().download(
-            'hello', component, 'af', download.append, lambda e: download.append(e)
+            project, component, 'af', download.append, lambda e: download.append(e)
         )
         run_until(lambda: download)
-        self.copy = workcopy.create(self.platform, fake.url, 'hello', component, 'af', download[0])
+        self.copy = workcopy.create(self.platform, fake.url, project, component, 'af', download[0])
         self.open()
 
     def session(self):

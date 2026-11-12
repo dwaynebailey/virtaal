@@ -64,10 +64,14 @@ class FakeServer:
         """The server's address, as a user types it."""
         return 'http://127.0.0.1:%d/' % self._server.server_address[1]
 
-    def serve(self, port):
-        """Serves on port in this thread, for hand checks."""
+    def serve(self, port, ready=None):
+        """Serves on port (0: a free one) in this thread, for hand
+        checks; ready(url), if given, once it listens."""
         server = LoopbackServer(('127.0.0.1', port), self.handler)
         server.fake = self
+        self._server = server
+        if ready is not None:
+            ready(self.url)
         server.serve_forever()
 
 
