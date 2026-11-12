@@ -149,3 +149,43 @@ class TestPlatformChecks(TestScaffolding):
         self._show('Open')
         self._show('Help')
         assert ('Weblate', 'Weblate reports a failing check') in self._shown_checks()
+
+    def _confirm(self, monkeypatch):
+        """Submit's question as (its text, its buttons), answered Cancel."""
+        from gi.repository import Gtk
+
+        from virtaal.support.platforms import submitdialog
+
+        asked = []
+
+        def answer(dialog):
+            text = dialog.get_property('secondary-text')
+            buttons = [b.get_label() for b in dialog.get_action_area().get_children()]
+            asked.append((text, buttons))
+            return Gtk.ResponseType.CANCEL
+
+        monkeypatch.setattr(submitdialog, 'run_dialog', answer)
+        assert self.registry.submit() is None
+        return asked[0]
+
+    def test_submit_warns_of_changes_failing_enforced_checks(self, monkeypatch):
+        self._open()
+        self._show('Save')
+        self._type('Bewaar dit')
+        self.unit_controller.finish_current_unit()
+
+        text, buttons = self._confirm(monkeypatch)
+
+        assert '1 change fails checks this project enforces.' in text
+        assert buttons == ['_Cancel', 'Submit _Anyway']
+        assert self.fake.patched == []
+
+    def test_submit_asks_as_before_when_nothing_fails_them(self, monkeypatch):
+        self._open()
+        self._show('Save')
+        self._type('Berg')
+        self.unit_controller.finish_current_unit()
+
+        text, buttons = self._confirm(monkeypatch)
+
+        assert 'enforces' not in text and buttons == ['_Cancel', '_Submit']

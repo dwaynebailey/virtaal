@@ -58,6 +58,11 @@ the Session of the work copy's server:
    coarser one for (Rejected as "needs editing" on an older Weblate)
    stays as chosen.
 
+Before Submit asks to send, it counts the changes that fail, as Virtaal
+checks them, a check the server enforces (failing_enforced(),
+Platform.enforced()): the server may store them as needing work, and
+the question says so.
+
 Someone can still change a unit between step 2 and its turn in step 4:
 the platform has no way to refuse a change made on an old baseline.
 """
@@ -102,6 +107,28 @@ def classify(entry, mine, remote):
     if theirs == mine:
         return SAME
     return CONFLICT
+
+
+def failing_enforced(copies, platform_of, checker):
+    """How many changes Submit would send from copies (attached) fail,
+    as checker (Virtaal's) finds, a check their server enforces
+    (Platform.enforced()): the server may store them as needing work."""
+    if checker is None:
+        return 0
+    from virtaal.support.extrachecks import ExtraChecksFilter
+
+    # The server doesn't know what was dismissed here.
+    options = {'with_dismissed': True} if isinstance(checker, ExtraChecksFilter) else {}
+    count = 0
+    for copy in copies:
+        platform = platform_of(copy)
+        enforced = platform.enforced(copy.record) if platform is not None else set()
+        if not enforced:
+            continue
+        for r in copy.pending():
+            failures = checker.run_filters(copy.matched[r], **options)
+            count += bool(enforced & set(failures))
+    return count
 
 
 def _later(seconds, callback):

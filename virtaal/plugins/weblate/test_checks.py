@@ -18,7 +18,7 @@ from virtaal.common import pan_app
 from virtaal.plugins.weblate import backend, checks
 from virtaal.plugins.weblate.test_submit import Copy
 from virtaal.support import checkerspec, extrachecks
-from virtaal.support.platforms import workcopy
+from virtaal.support.platforms import submit, workcopy
 
 
 @pytest.fixture(autouse=True)
@@ -353,3 +353,32 @@ def test_submit_reads_whether_the_units_sent_fail_checks(fake):
 
     # The fake's rule: any other text fixes it.
     assert copy.entry('Print')['failing'] is False and copy.entry('Print')['checks'] == []
+
+
+# Enforced checks before Submit #
+
+
+def test_changes_failing_enforced_checks_are_counted(opened, registered):
+    platform_of = {opened.copy.path: opened.platform}.get
+
+    def count():
+        opened.save()
+        return submit.failing_enforced([opened.copy], lambda c: platform_of(c.path), _checker())
+
+    opened.edit('Open', 'Maak oop.')
+    # end-stop isn't enforced.
+    assert count() == 0
+    opened.edit('Save', 'Bewaar dit')
+    opened.edit('Print', 'Print')
+    # max-length and same are.
+    assert count() == 2
+    assert submit.failing_enforced([opened.copy], lambda c: platform_of(c.path), None) == 0
+
+
+def test_a_platform_enforcing_nothing_counts_nothing(opened):
+    from virtaal.support.platforms import Platform
+
+    opened.edit('Print', 'Print')
+    opened.save()
+
+    assert submit.failing_enforced([opened.copy], lambda _c: Platform(), _checker()) == 0

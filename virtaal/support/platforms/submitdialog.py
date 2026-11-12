@@ -139,6 +139,19 @@ def budget_warning(budget, count):
     return budget_message(budget) + ' ' + _('Submit will pause or stop when they run out.')
 
 
+def enforced_message(count):
+    """count changes fail checks their server enforces."""
+    return _counted(
+        ngettext(
+            # l10n: Asking to Submit to a translation server, which may mark these changes as needing work
+            '%(count)s change fails checks this project enforces.',
+            '%(count)s changes fail checks this project enforces.',
+            count,
+        ),
+        count,
+    )
+
+
 def sent_message(count):
     return _counted(
         # l10n: In the status bar after a Submit to a translation server
@@ -406,6 +419,8 @@ class SubmitDialogs(CopyDialogs):
     submission = None
     sending = ()
     """The work copies with changes to send."""
+    failing = 0
+    """How many of the changes fail a check the server enforces."""
 
     def confirm(self, count):
         dialog = Gtk.MessageDialog(
@@ -428,13 +443,27 @@ class SubmitDialogs(CopyDialogs):
         warning = self.session and budget_warning(self.session.budget(), count)
         if warning:
             lines.append(warning)
+        if self.failing:
+            lines.append(enforced_message(self.failing))
         dialog.format_secondary_text('\n\n'.join(lines))
         dialog.add_button(_('_Cancel'), Gtk.ResponseType.CANCEL)
-        dialog.add_button(_('_Submit'), Gtk.ResponseType.OK)
+        # l10n: Submit to a translation server although some changes fail checks it enforces
+        dialog.add_button(
+            _('Submit _Anyway') if self.failing else _('_Submit'), Gtk.ResponseType.OK
+        )
         dialog.set_default_response(Gtk.ResponseType.OK)
         response = run_dialog(dialog)
         dialog.destroy()
         return response == Gtk.ResponseType.OK
+
+    def _failing_enforced(self):
+        """How many changes fail, as Virtaal checks them, a check their
+        server enforces (none when they go as suggestions)."""
+        if self._as_suggestions():
+            return 0
+        checks_controller = getattr(self.main_controller, 'checks_controller', None)
+        checker = checks_controller.get_checker() if checks_controller is not None else None
+        return submit.failing_enforced(self.sending, self.registry.platform_of, checker)
 
     def _as_suggestions(self):
         """Whether a server of the Submit takes the changes as suggestions."""
@@ -460,6 +489,7 @@ class SubmitDialogs(CopyDialogs):
         items = self._items(self.sending)
         if items is None:
             return None
+        self.failing = self._failing_enforced()
         if not self.confirm(sum(len(c.pending()) for c in self.sending)):
             return None
         if len(items) == 1:

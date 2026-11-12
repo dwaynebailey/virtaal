@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 14:31+0000\n"
+"POT-Creation-Date: 2026-11-12 14:39+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2844,6 +2844,14 @@ msgstr[1] ""
 msgid "Submit will pause or stop when they run out."
 msgstr ""
 
+#. l10n: Asking to Submit to a translation server, which may mark these changes as needing work
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "%(count)s change fails checks this project enforces."
+msgid_plural "%(count)s changes fail checks this project enforces."
+msgstr[0] ""
+msgstr[1] ""
+
 #. l10n: In the status bar after a Submit to a translation server
 #: virtaal/support/platforms/submitdialog.py
 #, python-format
@@ -2901,6 +2909,10 @@ msgstr[1] ""
 #. l10n: Asking to Submit to a translation server whose option "Submit as suggestions" is on
 #: virtaal/support/platforms/submitdialog.py
 msgid "Each change goes to the server as a suggestion."
+msgstr ""
+
+#: virtaal/support/platforms/submitdialog.py
+msgid "Submit _Anyway"
 msgstr ""
 
 #: virtaal/support/platforms/submitdialog.py
