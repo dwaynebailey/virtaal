@@ -18,7 +18,8 @@ a moment after the unit settles, and then shows:
   unit's text, and for a reviewer (WorkCopy.may_review()) Accept and
   Approve, which makes it Reviewed too: the next Submit accepts it on
   the server (submit.py), so its suggester keeps the credit; and
-  Reject, which dismisses it on the server.
+  Reject, which dismisses it on the server, until the server refuses
+  this user that on the project.
 
 The source and target boxes' context menus add "Add Comment…" and
 "Report a Source Problem…": a comment about this translation, or one
@@ -287,9 +288,13 @@ class ReviewPanel:
         if self._shown is None:
             return
         copy, r, unit = self._shown
-        self.reviews.dismiss(
-            copy, r, suggestion, lambda: self._arrived(unit), lambda e: self._failed(e, copy)
-        )
+
+        def failed(error):
+            self._failed(error, copy)
+            # No Reject once refused.
+            self._arrived(unit)
+
+        self.reviews.dismiss(copy, r, suggestion, lambda: self._arrived(unit), failed)
 
     def _failed(self, error, copy):
         from .serversdialog import error_message

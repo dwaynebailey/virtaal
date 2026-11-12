@@ -69,7 +69,8 @@ server's text as its baseline, and "suggested" is the hash of the text
 suggested: it isn't sent again until it changes.
 
 "refused" lists what the server refused this user on the project
-(platforms.REVIEW: Reviewed is no longer offered); "has_suggestion"
+(platforms.REVIEW: Reviewed is no longer offered; DISMISS: nor is
+rejecting others' suggestions); "has_suggestion"
 and "has_comment" are as the server last said (review.py asks again
 when a unit is shown).
 
@@ -422,7 +423,8 @@ class WorkCopy:
         return self.record.get('refused') or []
 
     def refuse(self, what):
-        """Notes that the server refused what (REVIEW) to this user."""
+        """Notes that the server refused what (REVIEW, DISMISS) to this
+        user."""
         if what not in self.refused():
             self.record['refused'] = [*self.refused(), what]
             self.write_record()

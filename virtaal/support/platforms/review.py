@@ -19,12 +19,13 @@ quietly, as a unit without any.
 
 Accepting a suggestion is the editor's (it becomes the unit's text, to
 go with the next Submit); dismissing one and adding a comment go to the
-server at once.
+server at once. Dismissing is offered until the server refuses it,
+which the side record keeps, for every work copy of that project.
 """
 
 import time
 
-from . import ON_SOURCE, ON_TRANSLATION, SOURCE_REPORT, UNSUPPORTED
+from . import DISMISS, ON_SOURCE, ON_TRANSLATION, SOURCE_REPORT, UNSUPPORTED
 
 TTL = 600
 """Seconds what the server said is kept."""
@@ -53,6 +54,9 @@ class Reviews:
         """{(work file, unit id): callbacks waiting for its reply}."""
         self.cannot_comment = set()
         """The servers (platform id, URL) found too old to add comments."""
+        self.cannot_dismiss = set()
+        """The projects (platform id, URL, project) whose server refused
+        this user a rejection."""
 
     def clear(self):
         """Forgets what servers said, as after an Update or a Submit."""
@@ -74,9 +78,15 @@ class Reviews:
         key = (copy.record['platform'], copy.record['server']) if copy is not None else None
         return bool(platform and platform.can_comment) and key not in self.cannot_comment
 
+    def _project(self, copy):
+        record = copy.record
+        return record['platform'], record['server'], record['project']
+
     def can_dismiss(self, copy):
-        """Dismissing is a reviewer's (WorkCopy.may_review())."""
-        return self.can_suggest(copy) and copy.may_review()
+        """Rejecting is offered until the server refuses it, on that
+        project (kept in the side record too)."""
+        refused = DISMISS in copy.refused() or self._project(copy) in self.cannot_dismiss
+        return self.can_suggest(copy) and not refused
 
     def wanted(self, copy):
         platform = self._platform(copy)
@@ -197,7 +207,13 @@ class Reviews:
             self._replace(copy, r, suggestions=left)
             on_done()
 
-        session.dismiss_suggestion(suggestion.id, done, on_error)
+        def failed(error):
+            if error.refused == DISMISS:
+                self.cannot_dismiss.add(self._project(copy))
+                copy.refuse(DISMISS)
+            on_error(error)
+
+        session.dismiss_suggestion(suggestion.id, done, failed)
 
     def scope(self, copy, about_source):
         """The scope of a comment on copy's unit: about this translation,

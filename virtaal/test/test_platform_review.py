@@ -179,14 +179,6 @@ class TestPlatformReview(TestScaffolding):
         assert (server['target'], server['state']) == (['Berg'], 30)
         assert [s['target'] for s in self.fake.suggestions.values()] == [['Bewaar']]
 
-    def test_who_may_not_approve_gets_no_accept_and_approve(self):
-        self._open()
-        self.store_controller.work_copy.refuse('review')
-
-        self._asked('Save')
-
-        assert all('Accept and Approve' not in buttons for _text, buttons in self._rows())
-
     def test_dismiss_rejects_a_suggestion_on_the_server(self):
         self._open()
         self._asked('Save')
@@ -199,7 +191,7 @@ class TestPlatformReview(TestScaffolding):
         ]
         assert [s['target'] for s in self.fake.suggestions.values()] == [['Bewaar']]
 
-    def test_a_refused_dismissal_is_said(self):
+    def test_a_refused_dismissal_is_said_and_reject_offered_no_more(self):
         self.fake.revoke('suggestion.delete')
         self._open()
         self._asked('Save')
@@ -209,13 +201,15 @@ class TestPlatformReview(TestScaffolding):
 
         assert self.errors[0].startswith('The server replied with error 403.')
         assert len(self.fake.suggestions) == 2
+        assert [buttons[-1] for _text, buttons in self._rows()] == ['Accept and Approve'] * 2
+        assert self.store_controller.work_copy.refused() == ['dismiss']
 
-    def test_without_the_right_to_review_there_is_no_dismiss(self):
+    def test_who_may_not_approve_is_offered_reject_still(self):
         self._open()
         self.store_controller.work_copy.refuse('review')
         self._asked('Save')
 
-        assert [buttons for _text, buttons in self._rows()] == [['Accept'], ['Accept']]
+        assert [buttons for _text, buttons in self._rows()] == [['Accept', 'Reject']] * 2
 
     def test_reviewed_is_offered_only_to_who_may_approve(self):
         self._open()

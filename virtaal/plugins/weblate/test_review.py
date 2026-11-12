@@ -20,6 +20,7 @@ from virtaal.common import pan_app
 from virtaal.plugins.weblate import backend
 from virtaal.plugins.weblate.test_submit import Copy
 from virtaal.support.platforms import (
+    DISMISS,
     ON_SOURCE,
     ON_TRANSLATION,
     REVIEW,
@@ -257,7 +258,7 @@ def test_dismissing_others_suggestions_needs_the_right(fake):
 
     ok, error = _call(session.dismiss_suggestion, found[0].id)
 
-    assert not ok and error.status == 403
+    assert not ok and error.status == 403 and error.refused == DISMISS
     assert len(fake.suggestions) == 2
 
 
@@ -457,6 +458,24 @@ def test_dismissing_and_commenting_update_what_is_known(fake):
     assert [s.target for s in suggestions] == [['Bewaar']]
     assert [c.text for c in comments][-1] == 'Bewaar is better.'
     assert fake.comments[comments[-1].id]['scope'] == 'translation'
+
+
+def test_a_refused_dismissal_is_offered_no_more_on_the_project(fake):
+    fake.revoke('suggestion.delete')
+    shown = Shown(Copy(fake))
+    copy, r = shown.copy.copy, shown.copy.index('Save')
+    suggestions, _comments = shown.fetch('Save')
+    failed = []
+
+    assert shown.reviews.can_dismiss(copy)
+    shown.reviews.dismiss(copy, r, suggestions[0], failed.append, failed.append)
+    run_until(lambda: failed)
+
+    assert failed[0].status == 403 and not shown.reviews.can_dismiss(copy)
+    # Kept with the work copy, and for the project's other work copies.
+    assert workcopy.for_file(copy.path).refused() == [DISMISS]
+    other = workcopy.WorkCopy(copy.path, dict(copy.record, language='de', refused=[]))
+    assert not shown.reviews.can_dismiss(other)
 
 
 def test_a_server_too_old_to_add_comments_offers_it_no_more(fake):

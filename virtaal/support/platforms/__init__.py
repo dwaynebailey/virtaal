@@ -33,7 +33,8 @@ accepted goes back with Submit as the server's own accept, so the
 suggester keeps the credit; its context menu adds a
 comment or reports a problem with the source text. A server's option
 submits changes as suggestions. Reviewed is offered only on a project
-with reviews, until the server refuses an approval.
+with reviews, until the server refuses an approval; Reject until it
+refuses a rejection.
 """
 
 from collections import namedtuple
@@ -55,6 +56,9 @@ someone else dealt with (404)."""
 
 REVIEW = 'review'
 """A PlatformError's refused: approving (Reviewed) is not this user's."""
+DISMISS = 'dismiss'
+"""A PlatformError's refused: rejecting others' suggestions is not this
+user's."""
 
 # A comment's scope (Session.add_comment).
 ON_TRANSLATION = 'translation'
@@ -220,8 +224,8 @@ class Session:
         raise NotImplementedError
 
     def dismiss_suggestion(self, suggestion_id, on_done, on_error):
-        """Rejects a suggestion. on_done(None), or on_error (403: not this
-        user's to dismiss)."""
+        """Rejects a suggestion. on_done(None), or on_error (403, refused
+        DISMISS: not this user's to dismiss)."""
         raise NotImplementedError
 
     def comments(self, unit_id, source_id, on_done, on_error):

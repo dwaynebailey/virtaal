@@ -46,6 +46,7 @@ the source unit, whose comments a unit's are read with.
 from translate.storage.workflow import StateEnum
 
 from virtaal.support.platforms import (
+    DISMISS,
     GONE,
     HTTP,
     NOT_PLATFORM,
@@ -380,10 +381,15 @@ class WeblateSession(Session):
         self.client.send_json('POST', url, data, lambda _reply: on_done(None), failed)
 
     def dismiss_suggestion(self, suggestion_id, on_done, on_error):
+        def refused(error):
+            if error.status == 403:
+                error.refused = DISMISS
+            on_error(error)
+
         def request(failed):
             self.client.delete_suggestion(suggestion_id, lambda _r: on_done(None), failed)
 
-        self._ask(SUGGESTIONS, request, on_error)
+        self._ask(SUGGESTIONS, request, refused)
 
     def comments(self, unit_id, source_id, on_done, on_error):
         found = []
