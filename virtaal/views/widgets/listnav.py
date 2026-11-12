@@ -32,6 +32,8 @@ class ListNavigator(Gtk.HBox):
     def __init__(self):
         super().__init__()
         self.unselectable = []
+        self.reasons = {}
+        """{display name: why it can't be picked}, its row's tooltip."""
         self._should_emit_changed = True
         self._init_widgets()
 
@@ -47,6 +49,7 @@ class ListNavigator(Gtk.HBox):
         tvw.get_selection().set_select_function(self._may_select)
         tvw.get_selection().connect('changed', self._on_selection_changed)
         tvw.connect('button-release-event', self._on_item_clicked)
+        tvw.connect('query-tooltip', self._on_query_tooltip)
 
         return tvw, lst
 
@@ -157,6 +160,17 @@ class ListNavigator(Gtk.HBox):
         if model and itr:
             self._update_arrows(model, itr)
 
+    def set_reasons(self, reasons):
+        """Tooltips for rows that can't be picked: {display name: why}."""
+        self.reasons = dict(reasons or {})
+        self.tvw_items.set_has_tooltip(bool(self.reasons))
+
+    def reason_at(self, path):
+        """The tooltip of the row at path, if it can't be picked."""
+        model = self.tvw_items.get_model()
+        name = model[path][self.COL_DISPLAY]
+        return self.reasons.get(name) if name in self.unselectable else None
+
     def set_parent_window(self, wnd_parent):
         self.btn_popup.popup.set_transient_for(wnd_parent)
 
@@ -217,6 +231,15 @@ class ListNavigator(Gtk.HBox):
         if hit is None or self._is_selectable(model, model.get_iter(hit[0])):
             self.btn_popup.hide_popup()
         return False
+
+    def _on_query_tooltip(self, treeview, x, y, keyboard, tooltip):
+        found, _x, _y, _model, path, _itr = treeview.get_tooltip_context(x, y, keyboard)
+        text = self.reason_at(path) if found else None
+        if not text:
+            return False
+        tooltip.set_text(text)
+        treeview.set_tooltip_row(tooltip, path)
+        return True
 
     def _update_arrows(self, model, itr):
         # Back/forward only where there's a selectable neighbour.

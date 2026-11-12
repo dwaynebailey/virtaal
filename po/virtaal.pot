@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 14:11+0000\n"
+"POT-Creation-Date: 2026-11-12 14:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3897,6 +3897,11 @@ msgstr ""
 
 #: virtaal/views/unitview.py
 msgid "Next state"
+msgstr ""
+
+#. l10n: Tooltip of the greyed-out Reviewed state of a unit from a translation server
+#: virtaal/views/unitview.py
+msgid "You can't approve translations in this project."
 msgstr ""
 
 #: virtaal/views/widgets/aboutdialog.py

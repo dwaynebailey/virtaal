@@ -1190,6 +1190,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             unselectable=self._unselectable_states(),
             select_name=state_name,
         )
+        self._widgets['state'].set_reasons(self._unselectable_reasons())
         self._widgets['state'].set_sensitive(not self.locked)
         self._widgets['state'].show_all()
 
@@ -1208,6 +1209,14 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             # that refused this user an approval.
             unselectable.append(state_names[StateEnum.FINAL])
         return unselectable
+
+    def _unselectable_reasons(self):
+        """{state name: why it can't be picked}, for its tooltip."""
+        if self._target_is_empty() or platform_states.reviewable(self.unit):
+            return {}
+        names = self.controller.get_unit_state_names()
+        # l10n: Tooltip of the greyed-out Reviewed state of a unit from a translation server
+        return {names[StateEnum.FINAL]: _("You can't approve translations in this project.")}
 
     def _target_is_empty(self):
         target = self.unit.target
@@ -1286,6 +1295,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
 
         if self.unit.STATE and self._widgets['state']:
             self._widgets['state'].set_unselectable(self._unselectable_states())
+            self._widgets['state'].set_reasons(self._unselectable_reasons())
         self.modified()
         self._numbering.target_changed()
 

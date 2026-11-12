@@ -391,3 +391,37 @@ def test_set_unselectable_greys_new_rows_and_updates_the_arrows():
 
     assert not navigator.btn_forward.get_sensitive()
     assert not navigator.btn_back.get_sensitive()
+
+
+class _Tooltip:
+    def __init__(self):
+        self.text = None
+
+    def set_text(self, text):
+        self.text = text
+
+
+def test_a_row_that_cant_be_picked_says_why_in_its_tooltip(monkeypatch):
+    navigator = _make_navigator(['Translated', 'Reviewed'], unselectable=['Reviewed'])
+    navigator.set_reasons({'Reviewed': 'Not yours to approve.', 'Translated': 'Unused.'})
+    tvw = navigator.tvw_items
+    assert tvw.get_has_tooltip()
+    model = tvw.get_model()
+    rows = []
+    monkeypatch.setattr(
+        tvw,
+        'get_tooltip_context',
+        lambda _x, _y, _kb: (True, 0, 0, model, rows[-1], model.get_iter(rows[-1])),
+    )
+    monkeypatch.setattr(tvw, 'set_tooltip_row', lambda _tooltip, _path: None)
+
+    shown = []
+    for path in (Gtk.TreePath(1), Gtk.TreePath(0)):
+        rows.append(path)
+        tooltip = _Tooltip()
+        shown.append((navigator._on_query_tooltip(tvw, 1, 1, False, tooltip), tooltip.text))
+
+    # Only a row that can't be picked has one.
+    assert shown == [(True, 'Not yours to approve.'), (False, None)]
+    navigator.set_reasons({})
+    assert not tvw.get_has_tooltip()

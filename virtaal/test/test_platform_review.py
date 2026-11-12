@@ -139,6 +139,13 @@ class TestPlatformReview(TestScaffolding):
         assert self._rows() == [] and not self.panel.box.get_visible()
         assert 'Comment from' not in self._notes()
 
+    @staticmethod
+    def _reason(state, name):
+        """The tooltip of the state's row named name."""
+        model = state.tvw_items.get_model()
+        path = next(row.path for row in model if row[0] == name)
+        return state.reason_at(path)
+
     def _button(self, row, label):
         row = self.panel.box.get_children()[row]
         return next(b for b in row.get_children()[1:] if b.get_label() == label)
@@ -217,11 +224,14 @@ class TestPlatformReview(TestScaffolding):
         state = self.unit_controller.view._widgets['state']
         assert 'Reviewed' not in state.unselectable
 
+        assert self._reason(state, 'Reviewed') is None
         self.store_controller.work_copy.refuse('review')
         self._show('Help')
         self._show('Save')
 
         assert 'Reviewed' in state.unselectable
+        assert self._reason(state, 'Reviewed') == "You can't approve translations in this project."
+        assert self._reason(state, 'Translated') is None
 
     def test_a_project_without_reviews_offers_no_reviewed(self):
         self.fake.projects['hello']['project']['translation_review'] = False
