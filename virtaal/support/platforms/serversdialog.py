@@ -245,7 +245,7 @@ class ServersDialog:
         menu.popup_at_widget(self.btn_add, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, None)
 
     def _add(self, platform):
-        found = self._ask(platform)
+        found = self._ask(platform, platform.default_url)
         server = found and self.servers.put(platform, *found[:2], **found[2])
         if server:
             self._save(server)

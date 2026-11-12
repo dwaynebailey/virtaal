@@ -317,6 +317,9 @@ class Platform:
     """Saved with each server to name its kind, such as 'weblate'."""
     name = ''
     """The platform's name, as the user knows it."""
+    default_url = ''
+    """The address a new server starts with: the API of a platform that
+    has one for every user, such as Transifex's."""
     has_components = True
     """Projects hold components, which hold languages; else projects
     hold languages."""

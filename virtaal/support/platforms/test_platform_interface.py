@@ -6,8 +6,9 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """What the platform interface offers a platform beside Weblate's
-defaults: storing fewer states than Virtaal shows (Platform.states)
-and sending many units at once (Session.submit_units())."""
+defaults: storing fewer states than Virtaal shows (Platform.states),
+sending many units at once (Session.submit_units()) and an address for
+a new server (Platform.default_url)."""
 
 from types import SimpleNamespace
 
@@ -312,3 +313,22 @@ def test_by_default_submit_units_sends_each_with_submit_unit():
     assert sent == ['a', 'b', 'c']
     assert outcomes[0] == (0, 'draft') and outcomes[1][1].status == 403
     assert errors[0].kind == NETWORK and done == []
+
+
+# Platform.default_url #
+
+
+def test_a_new_server_starts_at_the_platforms_own_address(tmp_path, monkeypatch):
+    from virtaal.support.platforms.servers import ServerList
+    from virtaal.support.platforms.serversdialog import ServerDialog, ServersDialog
+
+    class OneAddress(DummyPlatform):
+        default_url = 'dummy://api'
+
+    asked = []
+    monkeypatch.setattr(ServerDialog, 'run', lambda self: asked.append(self.get_values()['url']))
+    for platform in (DummyPlatform(), OneAddress()):
+        servers = ServerList([platform], str(tmp_path / 'platforms.ini'))
+        ServersDialog(servers).btn_add.clicked()
+
+    assert asked == ['', 'dummy://api']
