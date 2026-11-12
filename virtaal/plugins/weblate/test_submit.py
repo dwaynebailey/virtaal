@@ -9,6 +9,7 @@
 the real curl client: what is sent, states and plurals, the lock,
 conflicts, refusals, the rate limit, and resuming a Submit cut short."""
 
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -198,6 +199,22 @@ def test_weblate_gets_needs_editing_and_the_finer_state_stays(fake, state):
     assert copy.unit('Save').get_state_n() == state
     copy.save()
     assert copy.copy.pending() == []
+
+
+def test_once_refused_needs_checking_goes_as_needs_editing_at_once(fake):
+    copy = Copy(fake)
+    copy.edit('Save', state=StateEnum.REJECTED)
+    copy.edit('Open', state=StateEnum.NEEDS_REVIEW)
+    copy.save()
+    session = copy.session()
+
+    result = copy.submit(session=session)
+
+    assert result.sent == 2 and result.failures == {}
+    sent = [json.loads(r['body'])['state'] for r in fake.requests if r['method'] == 'PATCH']
+    # The first is refused and sent again; the server is known after it.
+    assert sent == [12, 10, 10]
+    assert backend.NEEDS_STATES in session.missing
 
 
 def test_a_plural_sends_all_its_forms(fake):

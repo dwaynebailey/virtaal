@@ -22,8 +22,11 @@ Weblate's states and Virtaal's (translate-toolkit's StateEnum):
 
 Submit sends each unit's target and state with PATCH /api/units/<id>/,
 {"target": [every form], "state": code}: 0 with no text, never 0 with
-some (10 instead). A server older than 2026.x refuses 11 and 12 (400):
-those go again as 10, and Virtaal keeps its finer state. Approving (30)
+some (10 instead). Weblate shows 11 and 12 but refuses them on PATCH
+(400 naming the state: "This state cannot be set manually"; an older
+server's "not a valid choice"): such a unit goes again as 10, and
+Virtaal keeps its finer state. Refused once, they go as 10 straight
+away to that server (Platform.features, NEEDS_STATES). Approving (30)
 takes the project's reviews and the user's right to review: else 400,
 naming the state, which says the user may not review (REVIEW); a 403
 is no right to change the unit at all.
@@ -73,6 +76,8 @@ _SCOPES = {ON_TRANSLATION: 'translation', ON_SOURCE: 'global', SOURCE_REPORT: 'r
 SUGGESTIONS = 'suggestions'
 COMMENTS_LISTED = 'comments-listed'
 COMMENTS_ADDED = 'comments-added'
+NEEDS_STATES = 'states-11-12'
+"""Setting states 11 and 12 with PATCH."""
 
 _TO_VIRTAAL = {
     0: StateEnum.EMPTY,
@@ -277,14 +282,17 @@ class WeblateSession(Session):
             on_done(stored if isinstance(stored, int) else code)
 
         def failed(error):
-            if error.status == 400 and code in _NEWER_STATES:
-                # An older Weblate: needs editing is the nearest it has.
+            if code in _NEWER_STATES and _refused_state(error):
+                # Needs editing is the nearest state Weblate takes.
+                self.missing.add(NEEDS_STATES)
                 self.client.patch_unit(unit_id, {'target': target, 'state': 10}, written, on_error)
                 return
             if code == APPROVED and _refused_state(error):
                 error.refused = REVIEW
             on_error(error)
 
+        if code in _NEWER_STATES and NEEDS_STATES in self.missing:
+            code = 10
         self.client.patch_unit(unit_id, {'target': list(target), 'state': code}, written, failed)
 
     def budget(self):
