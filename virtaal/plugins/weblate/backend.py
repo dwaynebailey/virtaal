@@ -129,10 +129,19 @@ def user_name(url):
     return parse.unquote(tail) or None
 
 
+def unit_flags(unit):
+    """A unit's check flags as the API gives them: its file's (flags)
+    and those added in Weblate (extra_flags), comma-separated."""
+    parts = (unit.get('flags'), unit.get('extra_flags'))
+    return ', '.join(str(part).strip() for part in parts if part and str(part).strip())
+
+
 def remote_unit(unit):
     """A RemoteUnit for a unit as the API gives it."""
     code = unit.get('state')
     source_id = link_id(unit.get('source_unit'))
+    flags = unit_flags(unit)
+    failing = unit.get('has_failing_check')
     return RemoteUnit(
         id=unit.get('id'),
         position=unit.get('position') or 0,
@@ -142,11 +151,31 @@ def remote_unit(unit):
         state=virtaal_state(code),
         code=code,
         last_updated=unit.get('last_updated'),
-        read_only=code == READ_ONLY or bool(unit.get('read_only')),
+        read_only=code == READ_ONLY
+        or bool(unit.get('read_only'))
+        or 'read-only' in flag_names(flags),
         has_suggestion=bool(unit.get('has_suggestion')),
         has_comment=bool(unit.get('has_comment')),
         source_id=None if source_id == unit.get('id') else source_id,
+        flags=flags,
+        failing=failing if isinstance(failing, bool) else None,
     )
+
+
+def flag_names(text):
+    """The names of the flags in a check flags text: "max-length" for
+    "max-length:40"."""
+    from .checks import parse_flags
+
+    return {name for name, _params in parse_flags(text)}
+
+
+def component_checks(info):
+    """(check flags, enforced check ids) of a component as the API gives
+    it: what applies (effective_*), else its own."""
+    flags = info.get('effective_check_flags', info.get('check_flags')) or ''
+    enforced = info.get('effective_enforced_checks', info.get('enforced_checks')) or []
+    return str(flags), [str(check) for check in enforced if check]
 
 
 def _suggestion(data):
@@ -227,25 +256,35 @@ class WeblateSession(Session):
         def translation(data):
             info = data['component']
             filename = file_path(data.get('filename'), info.get('filemask'), language)
-            names = {
+            names_of = {
                 'project': (info.get('project') or {}).get('name') or project,
                 'component': info.get('name') or component,
             }
             template = info.get('template') or ''
             about = info.get('project') or {}
+            check_flags, enforced = component_checks(info)
             options = {
                 'review': about.get('translation_review'),
                 'source_review': about.get('source_review'),
+                'check_flags': check_flags,
+                'enforced_checks': enforced,
             }
 
             def units(body, base):
                 found = []
+
+                def named(names):
+                    done = [u._replace(checks=tuple(names.get(u.id, ()))) for u in found]
+                    on_done(Download(filename, body, base, done, names_of, options))
+
                 client.units(
                     project,
                     component,
                     language,
                     lambda results: found.extend(remote_unit(u) for u in results),
-                    lambda _count: on_done(Download(filename, body, base, found, names, options)),
+                    lambda _count: self._enforced_failing(
+                        project, component, language, enforced, named, lambda _e: named({})
+                    ),
                     on_error,
                 )
 
@@ -422,6 +461,51 @@ class WeblateSession(Session):
 
         self._ask(COMMENTS_ADDED, request, on_error)
 
+    # Checks #
+
+    def _search_ids(self, project, component, language, query, on_done, on_error):
+        found = set()
+        self.client.units(
+            project,
+            component,
+            language,
+            lambda results: found.update(u.get('id') for u in results),
+            lambda _count: on_done(found),
+            on_error,
+            query=query,
+        )
+
+    def _enforced_failing(self, project, component, language, enforced, on_done, on_error):
+        """on_done({unit id: [the ids of the enforced checks it fails]}):
+        one search a check (check:<id>), as no unit lists its checks."""
+        names = {}
+        left = list(enforced)
+
+        def next_check(found=()):
+            for unit_id in found:
+                names.setdefault(unit_id, []).append(asked[0])
+            if not left:
+                on_done(names)
+                return
+            asked[:] = [left.pop(0)]
+            query = 'check:%s' % asked[0]
+            self._search_ids(project, component, language, query, next_check, on_error)
+
+        asked = [None]
+        next_check()
+
+    def checks(self, project, component, language, enforced, on_done, on_error):
+        def failing(ids):
+            def named(names):
+                on_done({unit_id: tuple(names.get(unit_id, ())) for unit_id in ids})
+
+            # Without the names, the units still fail.
+            self._enforced_failing(
+                project, component, language, enforced, named, lambda _e: named({})
+            )
+
+        self._search_ids(project, component, language, 'has:check', failing, on_error)
+
     def cancel(self):
         self.client.cancel()
 
@@ -441,6 +525,7 @@ class WeblatePlatform(Platform):
     can_submit = True
     can_suggest = True
     can_comment = True
+    can_check = True
     rate_limit = (5000, 3600)
     """API_RATELIMIT_USER's default; replies say what is left."""
     # l10n: Imports the servers and tokens of wlc, Weblate's command-line client

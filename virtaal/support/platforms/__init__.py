@@ -94,17 +94,20 @@ glossary."""
 RemoteUnit = namedtuple(
     'RemoteUnit',
     'id position context source target state code last_updated read_only'
-    ' has_suggestion has_comment source_id',
-    defaults=(False, False, None),
+    ' has_suggestion has_comment source_id flags failing checks',
+    defaults=(False, False, None, '', None, ()),
 )
 """A unit as the platform holds it: its id there, its position in the
 file, its context (PO's msgctxt, a monolingual file's key), its source
 and target (lists of forms), its state as Virtaal's StateEnum (None if
 it has none Virtaal shows), the platform's own state code, when it
 last changed (the platform's text, or None), whether no one may
-change it there, whether it has suggestions and comments, and the id
+change it there, whether it has suggestions and comments, the id
 of the unit of its source text that comments on the source are on
-(None if it has none of its own)."""
+(None if it has none of its own), and for a platform that can_check:
+its check flags (the platform's own text), whether it fails a check
+there (None if unknown) and the ids of the checks it fails, of those
+asked (empty if unknown)."""
 
 Download = namedtuple('Download', 'filename data template units names options', defaults=(None,))
 """A language of a component (or project) as downloaded: the file's
@@ -114,7 +117,9 @@ None, the RemoteUnits, the names of the project and the component
 ({'project': ..., 'component': ...}) to show, and the project's
 options, or None: {'review': whether translations are reviewed
 (approved), 'source_review': whether source problems can be reported},
-each None if unknown."""
+each None if unknown; for a platform that can_check also
+'check_flags', the component's check flags (the platform's text), and
+'enforced_checks', the ids of the checks it enforces."""
 
 Suggestion = namedtuple('Suggestion', 'id target user')
 """Someone's suggestion for a unit: its id on the platform, its target
@@ -238,6 +243,15 @@ class Session:
         SOURCE_REPORT. on_done(the Comment)."""
         raise NotImplementedError
 
+    # Checks (a platform that can_check) #
+
+    def checks(self, project, component, language, enforced, on_done, on_error):
+        """on_done({unit id: (check ids)}): the units of a language that
+        fail a check on the server now, each with the ids of those it
+        fails among enforced (empty when it fails none of them, or the
+        server can't say)."""
+        raise NotImplementedError
+
     def cancel(self):
         """Drops the replies to every request made so far."""
 
@@ -268,6 +282,12 @@ class Platform:
     """Its sessions list, dismiss and submit suggestions."""
     can_comment = False
     """Its sessions list and add comments."""
+    can_check = False
+    """Its downloads carry check flags and the checks units fail, and
+    its sessions say which fail now (Session.checks())."""
+    check = None
+    """An extra check class (support/extrachecks.py) for its work
+    copies, added while the platform is, or None."""
 
     def credential_fields(self):
         """The fields a server needs besides its URL: Field()s, keyed as
@@ -308,6 +328,12 @@ class Platform:
         """The platform's state code for one of Virtaal's states (a
         StateEnum) of a unit with target (its forms), to submit."""
         return state
+
+    def enforced(self, record):
+        """The names of Virtaal's checks (as failures name them) that the
+        server enforces for a work copy's side record: a change failing
+        one may be stored as needing work."""
+        return set()
 
     def can_import(self):
         return False

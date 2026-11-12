@@ -41,7 +41,11 @@ In the language's folder, .platform.json is the side record:
               "last_updated": <text or null>, "read_only": <bool>,
               "has_suggestion": <bool>, "has_comment": <bool>,
               "source_id": <its source text's unit id, or null>,
-              "changed": <bool>, "local_state": <StateEnum>}]}
+              "flags": <its check flags>, "failing": <bool or null>,
+              "checks": [<ids of the checks it fails, if known>],
+              "changed": <bool>, "local_state": <StateEnum>}],
+   "check_flags": <the component's check flags>,
+   "enforced_checks": [<ids of the checks the server enforces>]}
 
 Each unit's hashes, state and last_updated are as the server gave them
 at download: the baseline Submit (submit.py) checks for conflicts
@@ -67,6 +71,13 @@ edit as any other.
 Submitted as suggestions (a server's option), a unit keeps the
 server's text as its baseline, and "suggested" is the hash of the text
 suggested: it isn't sent again until it changes.
+
+For a platform that can_check, "flags" and "check_flags" are the
+platform's own check flags of the unit and its component, "failing"
+whether the server says the unit fails a check (null when it doesn't
+say), "checks" the ids of the enforced checks it fails, and
+"enforced_checks" the checks the server enforces: Update and Submit
+read them again (set_checks(), adopt()).
 
 "refused" lists what the server refused this user on the project
 (platforms.REVIEW: Reviewed is no longer offered; DISMISS: nor is
@@ -256,6 +267,9 @@ def record_units(remote_units):
             'has_suggestion': bool(unit.has_suggestion),
             'has_comment': bool(unit.has_comment),
             'source_id': unit.source_id,
+            'flags': unit.flags or '',
+            'failing': unit.failing,
+            'checks': list(unit.checks),
             'changed': False,
         }
         for unit in remote_units
@@ -441,6 +455,13 @@ class WorkCopy:
             entry['has_suggestion'] = entry['id'] in suggested
             entry['has_comment'] = entry['id'] in commented
 
+    def set_checks(self, failing):
+        """Which units fail a check on the server now: {unit id: (ids of
+        the enforced checks it fails)}."""
+        for entry in self.units:
+            entry['failing'] = entry['id'] in failing
+            entry['checks'] = list(failing.get(entry['id'], ()))
+
     def take(self, r, remote):
         """The server's text and state (a RemoteUnit) into the file's
         unit for units[r], and as its baseline. Whether the unit
@@ -473,6 +494,8 @@ class WorkCopy:
             has_comment=bool(remote.has_comment),
             changed=False,
         )
+        if remote.failing is not None:
+            self.units[r].update(failing=remote.failing, checks=list(remote.checks))
         self.units[r].pop('error', None)
         self.units[r].pop('conflict', None)
         self.units[r].pop('suggested', None)
@@ -661,6 +684,7 @@ def create(platform, server, project, component, language, download):
         template_path = _write_into(folder, template_parts, data)
         template = '/'.join(template_parts)
         _seed_baseline(path, template_path, language, download.units)
+    options = download.options or {}
     record = {
         'format': FORMAT,
         'platform': platform.id,
@@ -672,8 +696,10 @@ def create(platform, server, project, component, language, download):
         'names': dict(download.names),
         'file': '/'.join(parts),
         'template': template,
-        'review': (download.options or {}).get('review'),
-        'source_review': (download.options or {}).get('source_review'),
+        'review': options.get('review'),
+        'source_review': options.get('source_review'),
+        'check_flags': options.get('check_flags') or '',
+        'enforced_checks': list(options.get('enforced_checks') or ()),
         'downloaded_at': _now(),
         'sha256': hashlib.sha256(download.data).hexdigest(),
         'saved_sha256': None,
