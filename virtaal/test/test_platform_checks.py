@@ -160,7 +160,8 @@ class TestPlatformChecks(TestScaffolding):
 
         def answer(dialog):
             text = dialog.get_property('secondary-text')
-            buttons = [b.get_label() for b in dialog.get_action_area().get_children()]
+            responses = (Gtk.ResponseType.CANCEL, Gtk.ResponseType.OK)
+            buttons = [dialog.get_widget_for_response(r).get_label() for r in responses]
             asked.append((text, buttons))
             return Gtk.ResponseType.CANCEL
 
