@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 14:10+0000\n"
+"POT-Creation-Date: 2026-11-12 14:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2675,6 +2675,11 @@ msgstr ""
 #. l10n: Makes someone's suggested translation, from a translation server, the unit's translation (sent with the next Submit)
 #: virtaal/support/platforms/reviewview.py
 msgid "Accept"
+msgstr ""
+
+#. l10n: Makes someone's suggested translation the unit's translation, and marks it Reviewed (sent with the next Submit)
+#: virtaal/support/platforms/reviewview.py
+msgid "Accept and Approve"
 msgstr ""
 
 #. l10n: Rejects someone's suggested translation on the translation server

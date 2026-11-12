@@ -15,9 +15,10 @@ a moment after the unit settles, and then shows:
   notes, as a Trados or memoQ file's comments are ("Comment from
   anna: ...");
 - others' suggestions below them, each with Accept, which makes it the
-  unit's text: the next Submit accepts it on the server (submit.py),
-  so its suggester keeps the credit; and for a reviewer
-  (WorkCopy.may_review()) Reject, which dismisses it on the server.
+  unit's text, and for a reviewer (WorkCopy.may_review()) Accept and
+  Approve, which makes it Reviewed too: the next Submit accepts it on
+  the server (submit.py), so its suggester keeps the credit; and
+  Reject, which dismisses it on the server.
 
 The source and target boxes' context menus add "Add Comment…" and
 "Report a Source Problem…": a comment about this translation, or one
@@ -252,16 +253,19 @@ class ReviewPanel:
         if not self.unit_view.locked:
             # l10n: Makes someone's suggested translation, from a translation server, the unit's translation (sent with the next Submit)
             row.add_button(_('Accept'), lambda: self.accept(suggestion))
+            if copy is not None and copy.may_review():
+                # l10n: Makes someone's suggested translation the unit's translation, and marks it Reviewed (sent with the next Submit)
+                row.add_button(_('Accept and Approve'), lambda: self.accept(suggestion, True))
         if copy is not None and self.reviews.can_dismiss(copy):
             # l10n: Rejects someone's suggested translation on the translation server
             row.add_button(_('Reject'), lambda: self.dismiss(suggestion))
         row.show_all()
         return row
 
-    def accept(self, suggestion):
-        """Makes suggestion the shown unit's text, as if typed; Submit
-        accepts it on the server while the text is still the
-        suggestion's."""
+    def accept(self, suggestion, approve=False):
+        """Makes suggestion the shown unit's text, as if typed, and
+        Reviewed with approve; Submit accepts it on the server while
+        the text is still the suggestion's."""
         if self._shown is None:
             return
         copy, r, _unit = self._shown
@@ -269,6 +273,13 @@ class ReviewPanel:
         for n, form in enumerate(suggestion.target):
             if n < len(self.unit_view.targets):
                 unit_controller.set_unit_target(n, form)
+        if approve:
+            from translate.storage.workflow import StateEnum
+
+            unit_controller.set_current_state(StateEnum.FINAL, from_user=True)
+            names = unit_controller.get_unit_state_names()
+            self.unit_view.update_state(names[StateEnum.FINAL])
+            self.unit_view.modified()
         copy.mark_accepted(r, suggestion.id, suggestion.target)
         self.unit_view.targets[0].grab_focus()
 

@@ -115,8 +115,8 @@ class TestPlatformReview(TestScaffolding):
         self._asked('Save')
 
         assert self._rows() == [
-            ('Suggestion from anna: Berg', ['Accept', 'Reject']),
-            ('Suggestion from ben: Bewaar', ['Accept', 'Reject']),
+            ('Suggestion from anna: Berg', ['Accept', 'Accept and Approve', 'Reject']),
+            ('Suggestion from ben: Bewaar', ['Accept', 'Accept and Approve', 'Reject']),
         ]
         assert self.panel.box.get_visible()
         assert 'Comment from anna: Most apps say "Stoor" here.' in self._notes()
@@ -159,6 +159,34 @@ class TestPlatformReview(TestScaffolding):
         assert self.store_controller.work_copy.accepted(r, ['Bewaar']) == bewaar['id']
         assert copy.path == self.store_controller.work_copy.path
 
+    def test_accept_and_approve_is_accepted_and_approved_on_submit(self, monkeypatch):
+        from virtaal.support.platforms.submitdialog import SubmitDialogs
+
+        monkeypatch.setattr(SubmitDialogs, 'confirm', lambda _self, _count: True)
+        self._open()
+        unit = self._asked('Save')
+
+        self._button(0, 'Accept and Approve').clicked()
+        state = self.unit_controller.view._widgets['state']
+        assert state.btn_popup.get_label() == 'Reviewed'
+        self.unit_controller.finish_current_unit()
+        assert unit.get_state_n() == StateEnum.FINAL
+
+        result = self.registry.submit()
+
+        assert result.sent == 1 and self.fake.patched == []
+        server = self._server_unit('Save')
+        assert (server['target'], server['state']) == (['Berg'], 30)
+        assert [s['target'] for s in self.fake.suggestions.values()] == [['Bewaar']]
+
+    def test_who_may_not_approve_gets_no_accept_and_approve(self):
+        self._open()
+        self.store_controller.work_copy.refuse('review')
+
+        self._asked('Save')
+
+        assert all('Accept and Approve' not in buttons for _text, buttons in self._rows())
+
     def test_dismiss_rejects_a_suggestion_on_the_server(self):
         self._open()
         self._asked('Save')
@@ -166,7 +194,9 @@ class TestPlatformReview(TestScaffolding):
         self._button(0, 'Reject').clicked()
         run_until(lambda: len(self._rows()) == 1)
 
-        assert self._rows() == [('Suggestion from ben: Bewaar', ['Accept', 'Reject'])]
+        assert self._rows() == [
+            ('Suggestion from ben: Bewaar', ['Accept', 'Accept and Approve', 'Reject'])
+        ]
         assert [s['target'] for s in self.fake.suggestions.values()] == [['Bewaar']]
 
     def test_a_refused_dismissal_is_said(self):
@@ -271,7 +301,9 @@ class TestPlatformReview(TestScaffolding):
         run_until(lambda: self._rows())
 
         assert result.sent == 1 and self.fake.patched == []
-        assert self._rows() == [('Suggestion from tester: Hulp', ['Accept', 'Reject'])]
+        assert self._rows() == [
+            ('Suggestion from tester: Hulp', ['Accept', 'Accept and Approve', 'Reject'])
+        ]
         assert self._server_unit('Help')['target'] == ['']
 
     def test_an_older_server_shows_none_of_it_quietly(self):
