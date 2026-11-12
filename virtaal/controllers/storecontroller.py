@@ -199,8 +199,12 @@ class StoreController(BaseController):
         return next(iter(self.work_copies.values()))
 
     def _set_work_copies(self, copies):
+        from virtaal.support.platforms import workcopy
+
         self.work_copies = copies
         self._copy_models = {}
+        # For a translation server's checks (WeblateCheck).
+        workcopy.set_open(copies)
 
     def attach_work_copy(self, copy):
         """Gives copy, one of work_copies, its file's units: the stream's,
@@ -656,7 +660,7 @@ class StoreController(BaseController):
             raise ValueError('The file contains nothing to translate.')
         if work_copy is not None:
             work_copy.attach(self.store)
-            self.work_copies = {work_copy.path: work_copy}
+            self._set_work_copies({work_copy.path: work_copy})
 
         # A translation carried over from a renamed key isn't in the file yet.
         pair = getattr(self.store, 'pair', None)

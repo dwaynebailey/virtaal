@@ -15,8 +15,23 @@ An extra check is a class with:
 - ``available()``: whether it can run here, e.g. its library loads.
 - ``check(unit)``: the failure message for unit, or None.
 
-and may have ``toolkit_unit(unit)``: what the toolkit's checks see of
-unit, for text they would misread, such as Phrase's tags.
+and may have:
+
+- ``toolkit_unit(unit)``: what the toolkit's checks see of unit, for
+  text they would misread, such as Phrase's tags.
+- ``for_store(store)``: a classmethod making the instance for store,
+  for a check that keeps something of it.
+- ``steer(unit)``: in place of ``check()``, (names, {name: message}):
+  the failures to leave out on unit, such as checks a translation
+  server says to ignore there, and those it adds (a message of None
+  adds none).
+- ``config_name``: the name that stands for it in the checker's config,
+  which the stats cache keys checks by: what it checks with, such as a
+  digest of a server's flags.
+- ``in_child = False``: it can't be built again in a child process
+  (checkerspec.describe() gives None, so the files are checked here).
+
+A plug-in may add its check to EXTRA_CHECKS while it is on.
 """
 
 from virtaal.support import dismissedchecks
@@ -28,7 +43,15 @@ EXTRA_CHECKS = [MsgfmtCheck, PhraseTagCheck]
 
 def checks_for(store):
     """Instances of the extra checks that apply to store and can run."""
-    return [cls() for cls in EXTRA_CHECKS if cls.applies_to(store) and cls.available()]
+    found = []
+    for cls in EXTRA_CHECKS:
+        if not (cls.applies_to(store) and cls.available()):
+            continue
+        make = getattr(cls, 'for_store', None)
+        check = make(store) if make is not None else cls()
+        if check is not None:
+            found.append(check)
+    return found
 
 
 class ExtraChecksFilter:
@@ -40,7 +63,9 @@ class ExtraChecksFilter:
         self.checker = checker
         self.checks = checks
         # statsdb caches failures per checker config.
-        checker.config.extra_checks = sorted(check.name for check in checks)
+        checker.config.extra_checks = sorted(
+            getattr(check, 'config_name', check.name) for check in checks
+        )
 
     def __getattr__(self, name):
         return getattr(self.checker, name)
@@ -52,13 +77,20 @@ class ExtraChecksFilter:
             checked = getattr(check, 'toolkit_unit', lambda u: u)(checked)
         failures = self.checker.run_filters(checked, categorised)
         for check in self.checks:
-            message = check.check(unit)
-            if not message:
-                continue
-            if categorised:
-                failures[check.name] = {'message': message, 'category': check.category}
+            steer = getattr(check, 'steer', None)
+            if steer is not None:
+                ignored, found = steer(unit)
             else:
-                failures[check.name] = message
+                ignored, found = (), {check.name: check.check(unit)}
+            for name in ignored:
+                failures.pop(name, None)
+            for name, message in found.items():
+                if not message:
+                    continue
+                if categorised:
+                    failures[name] = {'message': message, 'category': check.category}
+                else:
+                    failures[name] = message
         if with_dismissed:
             return failures
         return dismissedchecks.filter_failures(unit, failures)

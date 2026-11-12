@@ -17,6 +17,8 @@ from devsupport.testing.fakeweblate import TOKEN, demo_checks, run_until
 from virtaal.common import pan_app
 from virtaal.plugins.weblate import backend, checks
 from virtaal.plugins.weblate.test_submit import Copy
+from virtaal.support import checkerspec, extrachecks
+from virtaal.support.platforms import workcopy
 
 
 @pytest.fixture(autouse=True)
@@ -185,3 +187,124 @@ def test_a_regular_expression_parameter_keeps_its_backslashes():
 
     assert name == 'placeholders' and isinstance(param, checks.Regex)
     assert param == r'\{\w+\}'
+
+
+# Flags steer Virtaal's checks #
+
+
+@pytest.fixture
+def opened(fake):
+    """A work copy of demo_checks()'s Program in Afrikaans, open."""
+    fake.add_unit('hello', 'program', 'af', 'Hello %(name)s, see {page}', 'Hallo %(name)s')
+    copy = Copy(fake)
+    workcopy.set_open({copy.copy.path: copy.copy})
+    yield copy
+    workcopy.set_open({})
+
+
+def _checker():
+    from translate.filters import checks as ttk_checks
+
+    return extrachecks.with_extra_checks(ttk_checks.StandardChecker(), object())
+
+
+def _failures(copy, source, target=None):
+    if target is not None:
+        copy.edit(source, target)
+    return _checker().run_filters(copy.unit(source))
+
+
+def test_weblates_check_runs_only_with_its_work_copies_open(opened):
+    assert [c.name for c in extrachecks.checks_for(object())] == []
+    extrachecks.EXTRA_CHECKS.append(checks.WeblateCheck)
+    try:
+        assert [c.name for c in extrachecks.checks_for(object())] == ['weblate']
+        workcopy.set_open({})
+        assert extrachecks.checks_for(object()) == []
+    finally:
+        extrachecks.EXTRA_CHECKS.remove(checks.WeblateCheck)
+
+
+@pytest.fixture
+def registered():
+    extrachecks.EXTRA_CHECKS.append(checks.WeblateCheck)
+    yield
+    extrachecks.EXTRA_CHECKS.remove(checks.WeblateCheck)
+
+
+def test_max_length_is_checked(opened, registered):
+    assert 'maxlength' not in _failures(opened, 'Save')
+
+    failures = _failures(opened, 'Save', 'Bewaar dit')
+
+    assert failures['maxlength'] == 'Longer than 6 characters'
+
+
+def test_an_ignore_flag_leaves_out_its_check(opened, registered):
+    # File's flags ignore end-stop; Open's don't.
+    assert 'endpunc' in _failures(opened, 'Open', 'Maak oop.')
+    assert 'endpunc' not in _failures(opened, 'File', 'Lêer.')
+
+
+def test_a_components_flags_apply_to_every_unit(opened, registered):
+    opened.copy.record['check_flags'] = 'ignore-end-stop, max-length:3'
+
+    failures = _failures(opened, 'Open', 'Maak oop.')
+
+    assert 'endpunc' not in failures
+    assert failures['maxlength'] == 'Longer than 3 characters'
+
+
+@pytest.mark.parametrize(
+    'flags, missing',
+    [
+        ('placeholders:"%(name)s":"{page}"', '{page}'),
+        (r'placeholders:r"\{\w+\}"', '{page}'),
+        ('placeholders:"%(name)s"', None),
+        ('placeholders:"%(name)s":"{page}", ignore-placeholders', None),
+    ],
+)
+def test_placeholders_are_checked(opened, registered, flags, missing):
+    source = 'Hello %(name)s, see {page}'
+    opened.copy.units[opened.index(source)]['flags'] = flags
+
+    failures = _failures(opened, source)
+
+    expected = 'Missing placeholders: %s' % missing if missing else None
+    assert failures.get('placeholders') == expected
+
+
+def test_a_check_failing_on_the_server_shows_while_the_text_is_its(opened, registered):
+    assert _failures(opened, 'Print')['weblate'] == 'Weblate reports failing checks: Unchanged'
+    assert _failures(opened, 'Close')['weblate'] == 'Weblate reports a failing check'
+    assert 'weblate' not in _failures(opened, 'Help')
+
+    # Edited here: what the server said is of the old text.
+    assert 'weblate' not in _failures(opened, 'Print', 'Druk dit')
+
+
+def test_a_file_read_for_the_stats_cache_is_checked_too(opened, registered):
+    from translate.storage import po
+
+    store = po.pofile.parsefile(opened.copy.path)
+    unit = next(u for u in store.units if str(u.source) == 'Print')
+
+    assert _checker().run_filters(unit)['weblate'] == 'Weblate reports failing checks: Unchanged'
+
+
+def test_what_it_checks_with_is_in_the_checkers_config(opened, registered):
+    before = _checker().config.extra_checks
+
+    opened.copy.units[opened.index('Help')]['failing'] = True
+
+    after = _checker().config.extra_checks
+    assert before != after and after[0].startswith('weblate@')
+    # So the stats cache checks again, here: no child builds it.
+    assert checkerspec.describe(_checker()) is None
+
+
+def test_the_enforced_checks_are_virtaals(opened):
+    platform = backend.WeblatePlatform.__new__(backend.WeblatePlatform)
+
+    assert platform.enforced(opened.copy.record) == {'unchanged', 'maxlength'}
+    assert checks.virtaal_names('end_stop') == ('endpunc',)

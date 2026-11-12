@@ -66,6 +66,7 @@ from virtaal.support.platforms import (
 )
 
 from . import client as weblate
+from .checks import WeblateCheck, enforced_names, parse_flags
 from .config import KeyFile, read_wlc, wlc_config_path
 
 READ_ONLY = 100
@@ -165,8 +166,6 @@ def remote_unit(unit):
 def flag_names(text):
     """The names of the flags in a check flags text: "max-length" for
     "max-length:40"."""
-    from .checks import parse_flags
-
     return {name for name, _params in parse_flags(text)}
 
 
@@ -526,6 +525,7 @@ class WeblatePlatform(Platform):
     can_suggest = True
     can_comment = True
     can_check = True
+    check = WeblateCheck
     rate_limit = (5000, 3600)
     """API_RATELIMIT_USER's default; replies say what is left."""
     # l10n: Imports the servers and tokens of wlc, Weblate's command-line client
@@ -577,6 +577,9 @@ class WeblatePlatform(Platform):
 
     def state_code(self, state, target):
         return submit_code(state, target)
+
+    def enforced(self, record):
+        return enforced_names(record)
 
     def can_import(self):
         return wlc_config_path() is not None

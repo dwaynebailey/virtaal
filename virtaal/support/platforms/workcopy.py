@@ -278,6 +278,20 @@ def record_units(remote_units):
 
 # Work copies #
 
+_open = {}
+"""{path: WorkCopy} of the files open (StoreController.work_copies)."""
+
+
+def set_open(copies):
+    """The work copies of the files open now: {path: WorkCopy}."""
+    global _open
+    _open = dict(copies)
+
+
+def open_copies():
+    """The work copies of the files open, attached or not."""
+    return list(_open.values())
+
 
 class WorkCopy:
     """A downloaded file and its side record: the platform context that

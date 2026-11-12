@@ -53,6 +53,7 @@ virtaal/plugins/tm/tmview.py
 virtaal/plugins/tm/tmwidgets.py
 virtaal/plugins/weblate/__init__.py
 virtaal/plugins/weblate/backend.py
+virtaal/plugins/weblate/checks.py
 virtaal/support/crash_dialog.py
 virtaal/support/phrase_compat.py
 virtaal/support/platforms/__init__.py

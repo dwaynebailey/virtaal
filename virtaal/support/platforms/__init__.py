@@ -420,6 +420,7 @@ class Registry:
         self.main_controller = main_controller
         if platform not in self.platforms:
             self.platforms.append(platform)
+        _add_check(platform.check)
         if self.menuitem is None:
             self._add_menu_item()
         if not self._reminded:
@@ -431,6 +432,10 @@ class Registry:
     def remove(self, platform):
         if platform in self.platforms:
             self.platforms.remove(platform)
+        if platform.check is not None and all(
+            p.check is not platform.check for p in self.platforms
+        ):
+            _remove_check(platform.check)
         if not self.platforms and self.menuitem is not None:
             for item in (self.menuitem, self.submit_item, self.update_item):
                 menu = item.get_parent()
@@ -576,10 +581,18 @@ class Registry:
 
     def _review_changed(self):
         """After Submit or Update: the server is asked again, for the
-        unit shown too."""
+        unit shown too, and the checks run with what it said."""
         if self.review is not None:
             self.review.reviews.clear()
             self.review.refresh()
+        self._checks_changed()
+
+    def _checks_changed(self):
+        """A new checker, for what a platform that can_check said."""
+        checks_controller = getattr(self.main_controller, 'checks_controller', None)
+        copies = [c for c in self._open_copies() if self.platform_of(c).can_check]
+        if checks_controller is not None and copies:
+            checks_controller.set_checker_by_code(checks_controller.code)
 
     def update(self, parent=None):
         """Saves the work copies open, then brings in what others changed
@@ -771,6 +784,20 @@ class Registry:
         if path is None:
             return False
         return bool(self._open_paths(dialog.opened_all or [path]))
+
+
+def _add_check(check):
+    from virtaal.support import extrachecks
+
+    if check is not None and check not in extrachecks.EXTRA_CHECKS:
+        extrachecks.EXTRA_CHECKS.append(check)
+
+
+def _remove_check(check):
+    from virtaal.support import extrachecks
+
+    if check in extrachecks.EXTRA_CHECKS:
+        extrachecks.EXTRA_CHECKS.remove(check)
 
 
 registry = Registry()

@@ -36,6 +36,8 @@ check_names = {
     'gconf': _("GConf values"),
     'kdecomments': _("Old KDE comment"),
     'long': _("Long"),
+    # A translation server's max-length flag (plugins/weblate/checks.py).
+    'maxlength': _("Long"),
     'musttranslatewords': _("Must translate words"),
     'newlines': _("Newlines"),
     'nplurals': _("Number of plurals"),
@@ -48,6 +50,8 @@ check_names = {
     'puncspacing': _("Punctuation spacing"),
     # l10n: Name of a quality check: Python format placeholders such as {name}
     'pythonbraceformat': _("Python braces"),
+    # The placeholders a translation server's flag names.
+    'placeholders': _("Placeholders"),
     'purepunc': _("Pure punctuation"),
     'sentencecount': _("Number of sentences"),
     'short': _("Short"),
@@ -63,6 +67,8 @@ check_names = {
     'urls': _("URLs"),
     'validchars': _("Valid characters"),
     'variables': _("Placeholders"),
+    # A check failing on the Weblate server.
+    'weblate': _("Weblate"),
     'xmltags': _("XML tags"),
     # Consider:
     #  -  hassuggestion

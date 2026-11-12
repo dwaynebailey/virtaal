@@ -38,6 +38,8 @@ def describe(checker):
     extra = None
     base = checker
     if isinstance(checker, ExtraChecksFilter):
+        if not all(getattr(check, 'in_child', True) for check in checker.checks):
+            return None
         base = checker.checker
         extra = [check.name for check in checker.checks]
     codes = [code for code, cls in checker_classes().items() if type(base) is cls]

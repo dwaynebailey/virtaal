@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 14:15+0000\n"
+"POT-Creation-Date: 2026-11-12 14:31+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -923,6 +923,10 @@ msgid "Python braces"
 msgstr ""
 
 #: virtaal/controllers/checkscontroller.py
+msgid "Placeholders"
+msgstr ""
+
+#: virtaal/controllers/checkscontroller.py
 msgid "Pure punctuation"
 msgstr ""
 
@@ -979,8 +983,9 @@ msgstr ""
 msgid "Valid characters"
 msgstr ""
 
-#: virtaal/controllers/checkscontroller.py
-msgid "Placeholders"
+#: virtaal/controllers/checkscontroller.py virtaal/plugins/weblate/__init__.py
+#: virtaal/plugins/weblate/backend.py
+msgid "Weblate"
 msgstr ""
 
 #: virtaal/controllers/checkscontroller.py
@@ -2498,10 +2503,6 @@ msgstr ""
 msgid "?"
 msgstr ""
 
-#: virtaal/plugins/weblate/__init__.py virtaal/plugins/weblate/backend.py
-msgid "Weblate"
-msgstr ""
-
 #: virtaal/plugins/weblate/__init__.py
 msgid "Translate projects hosted on Weblate servers"
 msgstr ""
@@ -2523,6 +2524,31 @@ msgstr ""
 
 #: virtaal/plugins/weblate/backend.py
 msgid "No Weblate server answered at this address."
+msgstr ""
+
+#. l10n: A quality check: a translation server allows at most this many characters for the string
+#: virtaal/plugins/weblate/checks.py
+#, python-format
+msgid "Longer than %(count)s character"
+msgid_plural "Longer than %(count)s characters"
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: A quality check: placeholders a translation server says the translation must keep; %s is the list of them
+#: virtaal/plugins/weblate/checks.py
+#, python-format
+msgid "Missing placeholders: %s"
+msgstr ""
+
+#. l10n: A quality check: the translation server reports failing checks; %s lists them, such as "Unchanged, Long"
+#: virtaal/plugins/weblate/checks.py
+#, python-format
+msgid "Weblate reports failing checks: %s"
+msgstr ""
+
+#. l10n: A quality check: the translation server reports a failing check, not saying which
+#: virtaal/plugins/weblate/checks.py
+msgid "Weblate reports a failing check"
 msgstr ""
 
 #: virtaal/support/crash_dialog.py
