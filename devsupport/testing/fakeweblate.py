@@ -38,6 +38,17 @@ set of units, as a change to the source strings in the project would.
 offline drops every connection unanswered, as a machine with no
 network sees it, until it is set back.
 
+For review: a unit's suggestions (list, add, accept, delete) and
+comments (list, add, with their scope: translation, global or report),
+suggest() and comment() adding them as others would. permissions are
+what the token may do, as Weblate's permission names (revoke() takes
+some away): without unit.edit a change is refused (403), without
+unit.review, or with the project's reviews off, approving is (400, as
+Weblate refuses it). version is the Weblate the fake behaves as, by
+what its API has: suggestions from 2026.8, adding a comment from 5.12
+and reading them from 5.15 (405 before, 404 before 5.12). A unit's
+global and report comments are on its source unit, as in Weblate.
+
 The server itself and run_until() are fakeplatform.py's, shared with
 any other platform's fake. Never point Virtaal at a real Weblate server
 from a test.
@@ -56,13 +67,30 @@ from urllib import parse
 from devsupport.testing import weblate_schema
 from devsupport.testing.fakeplatform import FakeServer, run_until
 
-__all__ = ['TOKEN', 'FakeWeblate', 'demo', 'run_until']
+__all__ = ['TOKEN', 'FakeWeblate', 'demo', 'demo_review', 'run_until']
 
 TOKEN = 'wlu_fake0123456789abcdefghijklmnopqrstuv'
 """The personal token the server accepts by default."""
 
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 1000
+
+PERMISSIONS = frozenset(
+    {
+        'unit.edit',
+        'unit.review',
+        'suggestion.add',
+        'suggestion.accept',
+        'suggestion.delete',
+        'comment.add',
+    }
+)
+"""The permissions the fake knows, as Weblate names them."""
+
+NEWEST = (2026, 11)
+SUGGESTIONS_SINCE = (2026, 8)
+COMMENTS_ADDED_SINCE = (5, 12)
+COMMENTS_LISTED_SINCE = (5, 15)
 
 
 def _quote_slug(slug):
@@ -105,6 +133,22 @@ class FakeWeblate(FakeServer):
         self.enforced = set()
         self.patched = []
         """(unit id, the PATCH's JSON) of each change made."""
+        self.version = NEWEST
+        """The Weblate version whose API the fake has, as (year, month)
+        or (major, minor)."""
+        self.user = 'tester'
+        """The user name of the token's user."""
+        self.permissions = set(PERMISSIONS)
+        """What the token's user may do."""
+        self.suggestions = {}
+        """{id: suggestion}, each with its unit's id as 'unit_id' and its
+        user's name as 'username'."""
+        self.comments = {}
+        """{id: comment}, each with its unit's id (a source unit's for
+        global and report comments) as 'unit_id', and 'scope'."""
+        self.source_units = {}
+        """{source unit id: the unit}, for the comments on its source."""
+        self._source_ids = 100000
         self._fail_after = None
         self._clock = 0
         self.requests = []
@@ -270,8 +314,10 @@ class FakeWeblate(FakeServer):
         if state is None:
             state = 20 if any(target) else 0
         number = self._next_id()
+        self._source_ids += 1
+        source_id = self._source_ids
         translation = '{api}translations/%s/%s/%s/' % (project, _quote_slug(component), code)
-        return {
+        unit = {
             'translation': translation,
             'source': source,
             'previous_source': '',
@@ -292,7 +338,7 @@ class FakeWeblate(FakeServer):
             'has_comment': False,
             'has_failing_check': False,
             'num_words': len(' '.join(source).split()),
-            'source_unit': '{api}units/%d/' % number,
+            'source_unit': '{api}units/%d/' % source_id,
             'priority': 100,
             'id': number,
             'explanation': '',
@@ -304,6 +350,8 @@ class FakeWeblate(FakeServer):
             'web_url': '{web}translate/%s/%s/%s/?checksum=%x' % (project, component, code, number),
             **fields,
         }
+        self.source_units[source_id] = unit
+        return unit
 
     def fill_po(self, project, component, code, entries):
         """Gives translation code a PO file of entries, each (context,
@@ -461,6 +509,62 @@ class FakeWeblate(FakeServer):
         """Answers the PATCHes after the next count with status (None:
         drops the connection)."""
         self._fail_after = [count, status]
+
+    # Review #
+
+    def revoke(self, *permissions):
+        """Takes permissions from the token's user."""
+        self.permissions -= set(permissions)
+
+    def has(self, version):
+        """Whether the fake is as new as version."""
+        return tuple(self.version) >= tuple(version)
+
+    def suggest(self, unit_id, target, user='anna'):
+        """A suggestion for a unit, as another user makes it."""
+        target = target if isinstance(target, list) else [target]
+        number = self._next_id()
+        self.suggestions[number] = {
+            'id': number,
+            'unit': '{api}units/%d/' % unit_id,
+            'target': target,
+            'user': '{api}users/%s/' % user if user else None,
+            'timestamp': self._tick(),
+            'votes': 0,
+            'unit_id': unit_id,
+            'username': user,
+        }
+        self._flag(unit_id)
+        return self.suggestions[number]
+
+    def comment(self, unit_id, text, user='anna', scope='translation'):
+        """A comment on a unit, as another user writes it: global and
+        report comments are on its source unit."""
+        unit = self.units[unit_id]
+        on = self._source_id(unit) if scope in ('global', 'report') else unit_id
+        number = self._next_id()
+        self.comments[number] = {
+            'id': number,
+            'comment': text,
+            'user': '{api}users/%s/' % user if user else None,
+            'timestamp': self._tick(),
+            'unit_id': on,
+            'scope': scope,
+        }
+        self._flag(unit_id)
+        return self.comments[number]
+
+    def _source_id(self, unit):
+        return int(unit['source_unit'].rstrip('/').rsplit('/', 1)[1])
+
+    def _flag(self, unit_id):
+        """Keeps has_suggestion and has_comment of a unit true to what it has."""
+        unit = self.units.get(unit_id)
+        if unit is None:
+            return
+        ids = (unit_id, self._source_id(unit))
+        unit['has_suggestion'] = any(s['unit_id'] == unit_id for s in self.suggestions.values())
+        unit['has_comment'] = any(c['unit_id'] in ids for c in self.comments.values())
 
     # Faults #
 
@@ -681,9 +785,14 @@ class FakeWeblate(FakeServer):
         return 200, reply
 
     def _search(self, query, units):
-        """The units a search finds; only changed:>=<time> is known."""
+        """The units a search finds: changed:>=<time>, or has:suggestion,
+        has:comment or both with OR."""
         import datetime
 
+        flags = [part.strip() for part in query.split(' OR ')]
+        if all(f in ('has:suggestion', 'has:comment') for f in flags):
+            fields = [f.replace('has:', 'has_') for f in flags]
+            return [unit for unit in units if any(unit[field] for field in fields)]
         found = re.fullmatch(r'changed:>=("?)([^"]+)\1', query.strip())
         if not found:
             return None
@@ -705,10 +814,8 @@ class FakeWeblate(FakeServer):
     def _written(self, unit_id, data):
         """(status, body) for a PATCH's JSON data, as Weblate checks it."""
         unit = self.units[unit_id]
-        if unit_id in self.forbidden or unit['state'] == 100:
-            return 403, self.error(
-                403, 'permission_denied', 'You do not have permission to perform this action.'
-            )
+        if unit_id in self.forbidden or unit['state'] == 100 or 'unit.edit' not in self.permissions:
+            return self._denied()
         component = self._component_of(unit)
         if component is not None and component['locked']:
             return 423, self.error(423, 'component-locked', 'Component is locked.')
@@ -724,6 +831,8 @@ class FakeWeblate(FakeServer):
             )
         if (state == 0) == any(target):
             return 400, self.validation('state', 'Untranslated state requires empty target.')
+        if state == 30 and not self._may_review(unit):
+            return 400, self.validation('state', 'You do not have permission to approve strings.')
         if unit_id in self.enforced and state == 20:
             state = 10
         self._store(unit, target, state)
@@ -777,6 +886,150 @@ class FakeWeblate(FakeServer):
             return 400, self.error(400, 'parse_error', 'JSON parse error.')
         return self._written(unit_id, data)
 
+    # Review routes #
+
+    def _denied(self):
+        return 403, self.error(
+            403, 'permission_denied', 'You do not have permission to perform this action.'
+        )
+
+    def _may_review(self, unit):
+        component = self._component_of(unit)
+        return 'unit.review' in self.permissions and bool(
+            component and component['project'].get('translation_review')
+        )
+
+    def _seen_unit(self, scope, unit_id):
+        """The unit, or a source unit, with an id a token with scope
+        sees, or None."""
+        unit_id = int(unit_id)
+        unit = self.units.get(unit_id) or self.source_units.get(unit_id)
+        if unit is None or not self._unit_scope(scope, unit):
+            return None
+        return unit
+
+    def _no_unit(self):
+        return 404, self.error(404, 'not_found', 'No Unit matches the given query.')
+
+    def _json_body(self, request):
+        try:
+            data = json.loads(request['body'].decode('utf-8') or 'null')
+        except (UnicodeDecodeError, ValueError):
+            return None
+        return data
+
+    @staticmethod
+    def _public(item):
+        return {k: v for k, v in item.items() if k not in ('unit_id', 'username', 'scope')}
+
+    def list_suggestions(self, request, scope, unit_id):
+        if not self.has(SUGGESTIONS_SINCE):
+            return 404, self.error(404, 'not_found', 'Not found.')
+        if self._seen_unit(scope, unit_id) is None or int(unit_id) not in self.units:
+            return self._no_unit()
+        items = [self._public(s) for s in self.suggestions.values() if s['unit_id'] == int(unit_id)]
+        return self._check('Suggestion', *self.page(request, items))
+
+    def add_suggestion(self, request, scope, unit_id):
+        if not self.has(SUGGESTIONS_SINCE):
+            return 404, self.error(404, 'not_found', 'Not found.')
+        unit = self.units.get(int(unit_id))
+        if unit is None or not self._unit_scope(scope, unit):
+            return self._no_unit()
+        component = self._component_of(unit)
+        if 'suggestion.add' not in self.permissions or unit['state'] == 100:
+            return self._denied()
+        if component is not None and not component.get('enable_suggestions', True):
+            return self._denied()
+        data = self._json_body(request)
+        target = data.get('target') if isinstance(data, dict) else None
+        if (
+            not isinstance(target, list)
+            or not target
+            or not all(isinstance(t, str) for t in target)
+        ):
+            return 400, self.validation('target', 'This field is required.')
+        if not any(target):
+            return 400, self.validation('target', 'Please provide a suggestion')
+        if len(target) != len(unit['target']):
+            return 400, self.validation('target', 'Number of plurals does not match')
+        suggestion = self.suggest(int(unit_id), target, self.user)
+        reply = self._public(suggestion)
+        self.schema_problems += weblate_schema.check('Suggestion', reply)
+        return 201, reply
+
+    def _suggestion(self, scope, suggestion_id):
+        suggestion = self.suggestions.get(int(suggestion_id))
+        if suggestion is None or not self.has(SUGGESTIONS_SINCE):
+            return None
+        unit = self.units.get(suggestion['unit_id'])
+        return suggestion if unit is not None and self._unit_scope(scope, unit) else None
+
+    def delete_suggestion(self, request, scope, suggestion_id):
+        suggestion = self._suggestion(scope, suggestion_id)
+        if suggestion is None:
+            return 404, self.error(404, 'not_found', 'No Suggestion matches the given query.')
+        own = suggestion['username'] == self.user
+        if not own and 'suggestion.delete' not in self.permissions:
+            return self._denied()
+        del self.suggestions[suggestion['id']]
+        self._flag(suggestion['unit_id'])
+        return 204, None
+
+    def accept_suggestion(self, request, scope, suggestion_id):
+        suggestion = self._suggestion(scope, suggestion_id)
+        if suggestion is None:
+            return 404, self.error(404, 'not_found', 'No Suggestion matches the given query.')
+        unit = self.units[suggestion['unit_id']]
+        data = self._json_body(request)
+        approve = bool(data.get('approve')) if isinstance(data, dict) else False
+        if 'suggestion.accept' not in self.permissions:
+            return self._denied()
+        if approve and not self._may_review(unit):
+            return self._denied()
+        self._store(unit, suggestion['target'], 30 if approve else 20)
+        del self.suggestions[suggestion['id']]
+        self._flag(unit['id'])
+        return 200, {'result': 'accepted'}
+
+    def list_comments(self, request, scope, unit_id):
+        if not self.has(COMMENTS_ADDED_SINCE):
+            return 404, self.error(404, 'not_found', 'Not found.')
+        if not self.has(COMMENTS_LISTED_SINCE):
+            return 405, self.error(405, 'method_not_allowed', 'Method "GET" not allowed.')
+        if self._seen_unit(scope, unit_id) is None:
+            return self._no_unit()
+        items = [self._public(c) for c in self.comments.values() if c['unit_id'] == int(unit_id)]
+        return self._check('Comment', *self.page(request, items))
+
+    def add_comment(self, request, scope, unit_id):
+        if not self.has(COMMENTS_ADDED_SINCE):
+            return 404, self.error(404, 'not_found', 'Not found.')
+        unit = self.units.get(int(unit_id))
+        if unit is None or not self._unit_scope(scope, unit):
+            return self._no_unit()
+        if 'comment.add' not in self.permissions:
+            return self._denied()
+        data = self._json_body(request)
+        if not isinstance(data, dict) or not isinstance(data.get('comment'), str):
+            return 400, self.validation('comment', 'This field is required.')
+        kind = data.get('scope')
+        if kind not in ('report', 'global', 'translation'):
+            return 400, self.validation('scope', '"%s" is not a valid choice.' % kind)
+        component = self._component_of(unit)
+        if kind == 'report' and not (component and component['project'].get('source_review')):
+            return 400, self.validation(
+                'scope', '"report" is not a valid choice as source review is disabled.'
+            )
+        if not data['comment'].strip() or len(data['comment']) > 1000:
+            return 400, self.validation(
+                'comment', 'Ensure this field has no more than 1000 characters.'
+            )
+        comment = self.comment(unit['id'], data['comment'], self.user, kind)
+        reply = self._public(comment)
+        self.schema_problems += weblate_schema.check('Comment', reply)
+        return 201, reply
+
     def monolingual_base(self, request, scope, project, component):
         parent = self._component(scope, project, component)
         if parent is None or 'template_file' not in parent:
@@ -800,6 +1053,12 @@ ROUTES = [
     ('GET', r'/api/components/([^/]+)/([^/]+)/lock/', 'get_lock'),
     ('GET', r'/api/units/(\d+)/', 'get_unit'),
     ('PATCH', r'/api/units/(\d+)/', 'patch_unit'),
+    ('GET', r'/api/units/(\d+)/suggestions/', 'list_suggestions'),
+    ('POST', r'/api/units/(\d+)/suggestions/', 'add_suggestion'),
+    ('DELETE', r'/api/suggestions/(\d+)/', 'delete_suggestion'),
+    ('POST', r'/api/suggestions/(\d+)/accept/', 'accept_suggestion'),
+    ('GET', r'/api/units/(\d+)/comments/', 'list_comments'),
+    ('POST', r'/api/units/(\d+)/comments/', 'add_comment'),
 ]
 """(method, path pattern, FakeWeblate method name). Each handler gets
 the request, the token's project scope and the pattern's groups, and
@@ -930,7 +1189,8 @@ DEMO_JSON = {'welcome': 'Welcome', 'open': 'Open', 'save': 'Save'}
 def demo():
     """A server with a few projects, for hand checks and screenshots."""
     fake = FakeWeblate()
-    fake.add_project('hello', 'Hello')
+    # Reviews on, as an approved string needs them.
+    fake.add_project('hello', 'Hello', translation_review=True, source_review=True)
     fake.add_component('hello', 'program', 'Program')
     for code, name, done in (('af', 'Afrikaans', 98), ('de', 'German', 100), ('zu', 'Zulu', 41)):
         fake.add_translation('hello', 'program', code, name, translated=done, total=100)
@@ -1000,13 +1260,30 @@ def demo_many():
     return fake
 
 
+def demo_review():
+    """demo(), with others' suggestions and comments on Program's
+    Afrikaans units: for review."""
+    fake = demo()
+    units = {
+        u['source'][0]: u['id']
+        for u in fake.projects['hello']['components']['program']['units']['af']
+    }
+    fake.suggest(units['Save'], 'Berg', user='anna')
+    fake.suggest(units['Save'], 'Bewaar', user='ben')
+    fake.comment(units['Save'], 'Most apps say "Stoor" here.', user='anna')
+    fake.comment(units['Print'], 'Is this the verb or the noun?', user='ben', scope='global')
+    return fake
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--many', action='store_true', help='more languages and components')
+    parser.add_argument('--review', action='store_true', help='suggestions and comments')
     args = parser.parse_args()
     print('Fake Weblate at http://127.0.0.1:%d/ with token %s' % (args.port, TOKEN), flush=True)
-    (demo_many() if args.many else demo()).serve(args.port)
+    fake = demo_many() if args.many else demo_review() if args.review else demo()
+    fake.serve(args.port)
 
 
 if __name__ == '__main__':

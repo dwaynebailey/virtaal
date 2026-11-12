@@ -13,7 +13,8 @@ schema (/api/schema/, read 2026-11-10, Weblate 2026.11) and its API
 docs: the "required" fields of each object, plus the optional ones
 Virtaal reads. They are facts about the API, not a copy of the schema
 (Weblate is GPL-3.0-or-later). W2-W4 add Unit, Change and the rest
-here as they use them.
+here as they use them; W6 Suggestion and Comment, from docs/api.rst and
+weblate/api/serializers.py (SuggestionSerializer, CommentSerializer).
 """
 
 _TYPES = {
@@ -205,6 +206,27 @@ SCHEMAS = {
     },
     # GET /api/components/<p>/<c>/lock/
     'Lock': {'required': {'locked': _B}, 'optional': {}},
+    # GET (paged) and POST /api/units/<id>/suggestions/ (2026.8), and
+    # /api/suggestions/<id>/: user is the suggester's URL, or null when
+    # anonymous or hidden.
+    'Suggestion': {
+        'required': {
+            'id': _I,
+            'unit': _S,
+            'target': _A,
+            'user': _S_OR_NULL,
+            'timestamp': _S,
+            'votes': _I,
+        },
+        'optional': {},
+    },
+    # GET (paged, 5.15) and POST (5.12) /api/units/<id>/comments/; a
+    # POST also takes scope (global, translation or report), which no
+    # reply gives back.
+    'Comment': {
+        'required': {'id': _I, 'comment': _S, 'user': _S_OR_NULL, 'timestamp': _S},
+        'optional': {},
+    },
 }
 
 
