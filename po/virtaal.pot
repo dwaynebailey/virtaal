@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 08:50+0000\n"
+"POT-Creation-Date: 2026-11-12 14:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2756,6 +2756,11 @@ msgstr ""
 
 #: virtaal/support/platforms/serversdialog.py
 msgid "_Test Connection"
+msgstr ""
+
+#. l10n: Why a unit wasn't submitted: the suggestion accepted in Virtaal was accepted, rejected or withdrawn on the translation server meanwhile
+#: virtaal/support/platforms/submit.py
+msgid "The suggestion is no longer on the server."
 msgstr ""
 
 #. l10n: After a Submit to a translation server that sent only some of the changed units

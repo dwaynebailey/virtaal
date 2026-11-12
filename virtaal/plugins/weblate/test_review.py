@@ -10,6 +10,8 @@ approving with and without the right to, suggestions (read, dismissed,
 submitted), comments (read, added, in their scopes), servers too old
 for them, refusals, and keeping to the request budget."""
 
+import json
+
 import pytest
 from translate.storage.workflow import StateEnum
 
@@ -484,3 +486,114 @@ def test_the_fake_accepts_a_suggestion_as_weblate_does(fake):
     assert found == [{'result': 'accepted'}]
     assert fake.units[unit_id]['target'] == ['Berg'] and fake.units[unit_id]['state'] == 30
     assert berg['id'] not in fake.suggestions
+
+
+# Accepting a suggestion on Submit #
+
+
+def _accepted(fake, copy, source, text):
+    """copy's unit source takes the suggestion text, as Accept does."""
+    suggestion = next(s for s in fake.suggestions.values() if s['target'] == [text])
+    copy.edit(source, text)
+    copy.copy.mark_accepted(copy.index(source), suggestion['id'], [text])
+    return suggestion
+
+
+def _accepts(fake):
+    return [r for r in fake.requests if r['path'].endswith('/accept/')]
+
+
+def test_an_accepted_suggestion_is_accepted_on_the_server(fake):
+    copy = Copy(fake)
+    berg = _accepted(fake, copy, 'Save', 'Berg')
+    copy.save()
+
+    result = copy.submit()
+
+    assert result.sent == 1 and result.failures == {}
+    # Weblate's accept, so the suggester keeps the credit, not an edit.
+    assert fake.patched == []
+    (request,) = _accepts(fake)
+    assert request['path'] == '/api/suggestions/%d/accept/' % berg['id']
+    assert json.loads(request['body']) == {'approve': False}
+    unit = copy.server_unit('Save')
+    assert (unit['target'], unit['state']) == (['Berg'], 20)
+    assert berg['id'] not in fake.suggestions
+    assert 'accepted' not in copy.entry('Save') and copy.copy.pending() == []
+
+
+def test_accepted_and_approved_is_accepted_with_approve(fake):
+    copy = Copy(fake)
+    _accepted(fake, copy, 'Save', 'Bewaar')
+    copy.edit('Save', state=StateEnum.FINAL)
+    copy.save()
+
+    result = copy.submit()
+
+    assert result.sent == 1 and fake.patched == []
+    assert json.loads(_accepts(fake)[0]['body']) == {'approve': True}
+    assert copy.server_unit('Save')['state'] == 30
+
+
+def test_an_accepted_suggestion_with_another_state_sends_the_state_too(fake):
+    copy = Copy(fake)
+    _accepted(fake, copy, 'Save', 'Berg')
+    copy.edit('Save', state=StateEnum.NEEDS_WORK)
+    copy.save()
+
+    result = copy.submit()
+
+    assert result.sent == 1 and len(_accepts(fake)) == 1
+    unit = copy.server_unit('Save')
+    assert fake.patched == [(unit['id'], {'target': ['Berg'], 'state': 10})]
+    assert unit['state'] == 10
+
+
+def test_a_suggestion_edited_after_accepting_goes_as_an_edit(fake):
+    copy = Copy(fake)
+    _accepted(fake, copy, 'Save', 'Berg')
+    copy.edit('Save', 'Berg dit')
+    copy.save()
+
+    result = copy.submit()
+
+    assert result.sent == 1 and _accepts(fake) == []
+    unit = copy.server_unit('Save')
+    assert fake.patched == [(unit['id'], {'target': ['Berg dit'], 'state': 20})]
+    assert len([s for s in fake.suggestions.values() if s['unit_id'] == unit['id']]) == 2
+
+
+def test_a_suggestion_gone_from_the_server_is_said_and_goes_as_an_edit_next(fake):
+    copy = Copy(fake)
+    berg = _accepted(fake, copy, 'Save', 'Berg')
+    copy.save()
+    del fake.suggestions[berg['id']]
+
+    result = copy.submit()
+
+    r = copy.index('Save')
+    assert result.sent == 0 and result.stop is None
+    assert result.failures == {r: 'The suggestion is no longer on the server.'}
+    assert copy.copy.pending() == [r] and 'accepted' not in copy.entry('Save')
+
+    again = copy.submit()
+
+    assert again.sent == 1 and again.failures == {}
+    unit = copy.server_unit('Save')
+    assert fake.patched == [(unit['id'], {'target': ['Berg'], 'state': 20})]
+
+
+def test_accepting_without_the_right_is_refused_per_unit(fake):
+    fake.revoke('suggestion.accept')
+    copy = Copy(fake)
+    _accepted(fake, copy, 'Save', 'Berg')
+    copy.edit('Help', 'Hulp')
+    copy.save()
+
+    result = copy.submit()
+
+    assert result.sent == 1
+    assert result.failures == {
+        copy.index('Save'): 'You do not have permission to perform this action.'
+    }
+    assert copy.server_unit('Save')['target'] == ['Stoor']

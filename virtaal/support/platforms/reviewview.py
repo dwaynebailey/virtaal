@@ -15,7 +15,8 @@ a moment after the unit settles, and then shows:
   notes, as a Trados or memoQ file's comments are ("Comment from
   anna: ...");
 - others' suggestions below them, each with Accept, which makes it the
-  unit's text (to go with the next Submit), and for a reviewer
+  unit's text: the next Submit accepts it on the server (submit.py),
+  so its suggester keeps the credit; and for a reviewer
   (WorkCopy.may_review()) Reject, which dismisses it on the server.
 
 The source and target boxes' context menus add "Add Comment…" and
@@ -258,13 +259,17 @@ class ReviewPanel:
         return row
 
     def accept(self, suggestion):
-        """Makes suggestion the shown unit's text, as if typed."""
+        """Makes suggestion the shown unit's text, as if typed; Submit
+        accepts it on the server while the text is still the
+        suggestion's."""
         if self._shown is None:
             return
+        copy, r, _unit = self._shown
         unit_controller = self.main_controller.unit_controller
         for n, form in enumerate(suggestion.target):
             if n < len(self.unit_view.targets):
                 unit_controller.set_unit_target(n, form)
+        copy.mark_accepted(r, suggestion.id, suggestion.target)
         self.unit_view.targets[0].grab_focus()
 
     def dismiss(self, suggestion):

@@ -27,8 +27,10 @@ and the notices take in every one of them, with one question and one
 list of conflicts for all.
 
 Review (review.py, reviewview.py), for a platform that can_suggest or
-can_comment: the unit shown shows others' suggestions, to accept or
-dismiss, and its comments with its notes; its context menu adds a
+can_comment: the unit shown shows others' suggestions, to accept (and
+approve) or dismiss, and its comments with its notes; a suggestion
+accepted goes back with Submit as the server's own accept, so the
+suggester keeps the credit; its context menu adds a
 comment or reports a problem with the source text. A server's option
 submits changes as suggestions. Reviewed is offered only on a project
 with reviews, until the server refuses an approval.
@@ -47,6 +49,9 @@ HTTP = 'http'
 """Any other error status, including a rate limit too long to wait."""
 UNSUPPORTED = 'unsupported'
 """The server is too old to have what was asked for."""
+GONE = 'gone'
+"""What was asked for is no longer on the server, such as a suggestion
+someone else dealt with (404)."""
 
 REVIEW = 'review'
 """A PlatformError's refused: approving (Reviewed) is not this user's."""
@@ -205,6 +210,13 @@ class Session:
         """Suggests target (a list of forms) for a unit, as Submit does
         for a server with as_suggestions. on_done(None), or on_error:
         status 400 or 403 for this unit alone, as submit_unit()'s."""
+        raise NotImplementedError
+
+    def accept_suggestion(self, suggestion_id, approve, on_done, on_error):
+        """Accepts a suggestion, which becomes its unit's translation on
+        the server in its suggester's name, approved too with approve.
+        on_done(None), or on_error: GONE when it is no longer there,
+        else status 400 or 403 for this unit alone, as submit_unit()'s."""
         raise NotImplementedError
 
     def dismiss_suggestion(self, suggestion_id, on_done, on_error):

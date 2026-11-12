@@ -41,6 +41,12 @@ the Session of the work copy's server:
    A refusal that says what the user may not do (PlatformError's
    refused: REVIEW, approving) is noted in the side record too, and
    Reviewed is offered no more on that project.
+   A unit whose text is still that of a suggestion accepted in Virtaal
+   (WorkCopy.accepted()) is accepted on the server instead
+   (Session.accept_suggestion(), approved too when it is Reviewed), so
+   the suggester keeps the credit; its state follows when it is another.
+   A suggestion no longer there (GONE) is a refusal of the unit's own,
+   which goes as an edit next time.
    For a server whose session sends as_suggestions, each unit goes as a
    suggestion instead (Session.submit_suggestion()), its state aside,
    and the server's text stays its baseline (WorkCopy.mark_suggested()).
@@ -59,7 +65,9 @@ import datetime
 import time
 from collections import namedtuple
 
-from . import HTTP, states
+from translate.storage.workflow import StateEnum
+
+from . import GONE, HTTP, states
 from .workcopy import text_hash
 
 SEND, SAME, CONFLICT = 'send', 'same', 'conflict'
@@ -380,23 +388,58 @@ class Submission:
             self.result.sent += 1
             self._send_next()
 
-        def failed(error):
-            if error.status in _PER_UNIT:
-                self._queue.pop(0)
-                message = error.detail or str(error.status)
-                self.copy.mark_failed(r, message)
-                if error.refused:
-                    self.copy.refuse(error.refused)
-                self.result.failures[r] = message
-                self._send_next()
-            else:
-                self._failed(error)
-
         unit_id = self.copy.units[r]['id']
+        accepted = self.copy.accepted(r, target)
         if self.session.as_suggestions:
-            self.session.submit_suggestion(unit_id, target, suggested, failed)
+            self.session.submit_suggestion(unit_id, target, suggested, self._unit_failed(r))
+        elif accepted is not None:
+            self._accept(r, accepted, (target, state, code), sent)
         else:
-            self.session.submit_unit(unit_id, target, code, sent, failed)
+            self.session.submit_unit(unit_id, target, code, sent, self._unit_failed(r))
+
+    def _unit_failed(self, r):
+        """on_error for a request about units[r]: a refusal of this unit
+        alone is noted and Submit goes on; else it stops."""
+
+        def failed(error):
+            if error.status not in _PER_UNIT and error.kind != GONE:
+                self._failed(error)
+                return
+            self._queue.pop(0)
+            if error.kind == GONE:
+                # Sent as an edit of its own next time.
+                self.copy.forget_accepted(r)
+                # l10n: Why a unit wasn't submitted: the suggestion accepted in Virtaal was accepted, rejected or withdrawn on the translation server meanwhile
+                message = _('The suggestion is no longer on the server.')
+            else:
+                message = error.detail or str(error.status)
+            self.copy.mark_failed(r, message)
+            if error.refused:
+                self.copy.refuse(error.refused)
+            self.result.failures[r] = message
+            self._send_next()
+
+        return failed
+
+    def _accept(self, r, suggestion_id, mine, sent):
+        """Accepts the suggestion units[r] took on the server (approved
+        too when it is Reviewed here), so its suggester keeps the
+        credit; then sends its state too if it is another."""
+        target, state, code = mine
+        approve = state == StateEnum.FINAL
+        stored = self.platform.state_code(
+            StateEnum.FINAL if approve else StateEnum.UNREVIEWED, target
+        )
+        unit_id = self.copy.units[r]['id']
+
+        def accepted(_reply):
+            if code == stored:
+                sent(stored)
+            else:
+                self.pacer.note()
+                self.session.submit_unit(unit_id, target, code, sent, self._unit_failed(r))
+
+        self.session.accept_suggestion(suggestion_id, approve, accepted, self._unit_failed(r))
 
     def _failed(self, error):
         if error.status == 423:

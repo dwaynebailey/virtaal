@@ -139,23 +139,31 @@ class TestPlatformReview(TestScaffolding):
         assert self._rows() == [] and not self.panel.box.get_visible()
         assert 'Comment from' not in self._notes()
 
+    def _button(self, row, label):
+        row = self.panel.box.get_children()[row]
+        return next(b for b in row.get_children()[1:] if b.get_label() == label)
+
     def test_accept_makes_a_suggestion_the_units_text(self):
-        self._open()
+        copy = self._open()
         unit = self._asked('Save')
 
-        self.panel.box.get_children()[1].get_children()[1].clicked()
+        self._button(1, 'Accept').clicked()
 
         assert self.unit_controller.view.get_target_n(0) == 'Bewaar'
         self.unit_controller.finish_current_unit()
         assert str(unit.target) == 'Bewaar'
-        # Locally: sent with the next Submit.
+        # Locally: accepted on the server with the next Submit.
         assert self.fake.patched == []
+        bewaar = next(s for s in self.fake.suggestions.values() if s['target'] == ['Bewaar'])
+        r = self.store_controller.work_copy.index_of(unit)
+        assert self.store_controller.work_copy.accepted(r, ['Bewaar']) == bewaar['id']
+        assert copy.path == self.store_controller.work_copy.path
 
     def test_dismiss_rejects_a_suggestion_on_the_server(self):
         self._open()
         self._asked('Save')
 
-        self.panel.box.get_children()[0].get_children()[2].clicked()
+        self._button(0, 'Reject').clicked()
         run_until(lambda: len(self._rows()) == 1)
 
         assert self._rows() == [('Suggestion from ben: Bewaar', ['Accept', 'Reject'])]
@@ -166,7 +174,7 @@ class TestPlatformReview(TestScaffolding):
         self._open()
         self._asked('Save')
 
-        self.panel.box.get_children()[0].get_children()[2].clicked()
+        self._button(0, 'Reject').clicked()
         run_until(lambda: self.errors)
 
         assert self.errors[0].startswith('The server replied with error 403.')

@@ -59,6 +59,7 @@ virtaal/support/platforms/__init__.py
 virtaal/support/platforms/browsedialog.py
 virtaal/support/platforms/reviewview.py
 virtaal/support/platforms/serversdialog.py
+virtaal/support/platforms/submit.py
 virtaal/support/platforms/submitdialog.py
 virtaal/support/platforms/updatedialog.py
 virtaal/support/tutorial.py

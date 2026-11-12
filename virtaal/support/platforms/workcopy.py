@@ -58,6 +58,12 @@ from the server. A unit the server refused keeps "changed" and gets
 "error", the server's reason. "submitted_at" is when a Submit last
 left no change unsent.
 
+A suggestion accepted in Virtaal is "accepted": {"id": its id,
+"target_hash": its text's hash}. Submit accepts it on the server
+(Session.accept_suggestion()) while the unit's text is still the
+suggestion's, so the suggester keeps the credit; else it sends the
+edit as any other.
+
 Submitted as suggestions (a server's option), a unit keeps the
 server's text as its baseline, and "suggested" is the hash of the text
 suggested: it isn't sent again until it changes.
@@ -366,10 +372,29 @@ class WorkCopy:
         )
         entry.pop('error', None)
         entry.pop('conflict', None)
+        entry.pop('accepted', None)
         self.write_record()
 
     def mark_failed(self, r, message):
         self.units[r]['error'] = message
+        self.write_record()
+
+    def mark_accepted(self, r, suggestion_id, target):
+        """Notes that units[r] took the suggestion suggestion_id, whose
+        text is target, for Submit to accept it on the server."""
+        self.units[r]['accepted'] = {'id': suggestion_id, 'target_hash': text_hash(target)}
+        self.write_record()
+
+    def accepted(self, r, target):
+        """The id of the suggestion units[r] took, while target (the
+        file's text) is still its, else None."""
+        accepted = self.units[r].get('accepted')
+        if accepted and accepted.get('target_hash') == text_hash(target):
+            return accepted.get('id')
+        return None
+
+    def forget_accepted(self, r):
+        self.units[r].pop('accepted', None)
         self.write_record()
 
     def mark_suggested(self, r, target):
@@ -449,6 +474,7 @@ class WorkCopy:
         self.units[r].pop('error', None)
         self.units[r].pop('conflict', None)
         self.units[r].pop('suggested', None)
+        self.units[r].pop('accepted', None)
 
     def mark_submitted(self):
         self.record['submitted_at'] = _now()

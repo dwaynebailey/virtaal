@@ -32,7 +32,8 @@ naming the state, which says the user may not review (REVIEW); a 403
 is no right to change the unit at all.
 
 Review: a unit's suggestions (GET, POST /api/units/<id>/suggestions/;
-DELETE /api/suggestions/<id>/) are Weblate 2026.8's, adding a comment
+POST /api/suggestions/<id>/accept/ with {"approve": ...}; DELETE
+/api/suggestions/<id>/) are Weblate 2026.8's, adding a comment
 (POST /api/units/<id>/comments/) 5.12's and reading them 5.15's. There
 is no version to ask, so the first reply tells: 404 where there's no
 such request (405 for reading comments on 5.12 to 5.14), after which
@@ -45,6 +46,7 @@ the source unit, whose comments a unit's are read with.
 from translate.storage.workflow import StateEnum
 
 from virtaal.support.platforms import (
+    GONE,
     HTTP,
     NOT_PLATFORM,
     ON_SOURCE,
@@ -359,6 +361,23 @@ class WeblateSession(Session):
             self.client.add_to_unit(unit_id, 'suggestions', data, lambda _r: on_done(None), failed)
 
         self._ask(SUGGESTIONS, request, on_error)
+
+    def accept_suggestion(self, suggestion_id, approve, on_done, on_error):
+        if SUGGESTIONS in self.missing:
+            from gi.repository import GLib
+
+            GLib.idle_add(lambda: on_error(PlatformError(UNSUPPORTED)) and False)
+            return
+
+        def failed(error):
+            if error.kind == NOT_PLATFORM and error.status == 404:
+                # Accepted, rejected or withdrawn since it was read.
+                error = PlatformError(GONE, 404, error.detail)
+            on_error(error)
+
+        url = self.client.url('suggestions/%d/accept/' % int(suggestion_id))
+        data = {'approve': bool(approve)}
+        self.client.send_json('POST', url, data, lambda _reply: on_done(None), failed)
 
     def dismiss_suggestion(self, suggestion_id, on_done, on_error):
         def request(failed):
