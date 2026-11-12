@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 17:11+0000\n"
+"POT-Creation-Date: 2026-11-12 18:19+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1903,6 +1903,15 @@ msgstr ""
 
 #: virtaal/plugins/terminology/models/microsoft.py
 msgid "The terms used in Microsoft's software, in your language"
+msgstr ""
+
+#. l10n: A terminology source: the glossaries of projects on translation servers such as Weblate
+#: virtaal/plugins/terminology/models/platformglossary.py
+msgid "Translation Server Glossaries"
+msgstr ""
+
+#: virtaal/plugins/terminology/models/platformglossary.py
+msgid "The glossaries of the projects you open from translation servers"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/pontoon.py
