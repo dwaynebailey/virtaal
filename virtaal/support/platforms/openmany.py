@@ -18,7 +18,8 @@ Submit keeps it (submit.Pacer): below its reserve, Downloads waits for
 the count to start again when that is near, else stops, the rest not
 downloaded. The work files then open together, as one list of units
 with the Files Panel (MainController.open_files()); those that failed
-are listed.
+are listed, except those the server doesn't have (a component without
+the language), left out quietly.
 """
 
 from collections import namedtuple
@@ -70,6 +71,9 @@ class Opened:
         """The work files to open, in the order wanted."""
         self.failures = []
         """(Wanted, PlatformError) of those not downloaded."""
+        self.missing = []
+        """(Wanted, PlatformError) of those the server doesn't have
+        (404): a component without the language, left out quietly."""
         self.stop = None
         """None, CANCELLED, or BUDGET when the server's budget ran out."""
         self.reset_in = None
@@ -165,7 +169,9 @@ class Downloads:
             self.result.reset_in = self.pacer.reset_in(self.session.budget())
             self._finish(BUDGET)
             return
-        self.result.failures.append((self.wanted[self._next], error))
+        # A 404 comes as NOT_PLATFORM from Weblate's client.
+        failed = self.result.missing if error.status == 404 else self.result.failures
+        failed.append((self.wanted[self._next], error))
         self._next += 1
         self._go()
 

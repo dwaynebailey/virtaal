@@ -299,6 +299,21 @@ def test_a_failed_download_is_listed_and_the_rest_go(fake):
     assert wanted.label == 'Hello/Installer (Afrikaans)' and error.status == 500
 
 
+def test_a_component_without_the_language_is_left_out_quietly(fake):
+    fake.fail('/api/translations/hello/program/de/file/', 500)
+    wanted = WANTED + [openmany.Wanted('hello', 'installer', 'zu', ('Hello', 'Installer', 'Zulu'))]
+
+    result, _progress = _download(fake, wanted)
+
+    assert [workcopy.for_file(p).label() for p in result.paths] == [
+        'Hello/Program (Afrikaans)',
+        'Hello/Installer (Afrikaans)',
+    ]
+    # Other errors are still listed.
+    assert [(w.label, e.status) for w, e in result.failures] == [('Hello/Program (German)', 500)]
+    assert [(w.label, e.status) for w, e in result.missing] == [('Hello/Installer (Zulu)', 404)]
+
+
 def test_work_not_yet_submitted_opens_as_it_is(fake):
     program = Copy(fake)
     program.edit('Help', 'Hulp')

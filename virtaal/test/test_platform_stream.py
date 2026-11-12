@@ -291,6 +291,32 @@ class TestOpenMany(Streaming, TestScaffolding):
         ]
         assert len(self.sc.fileset) == 2
 
+    def test_a_language_the_server_doesnt_have_is_left_out_quietly(self):
+        self.fake.fail('/api/translations/hello/program/de/file/', 404)
+        self.fake.fail('/api/translations/hello/program/zu/file/', 500)
+
+        paths = self._opened(self._open_languages())
+
+        assert [workcopy.for_file(p).label() for p in paths] == ['Hello/Program (Afrikaans)']
+        assert self.failed == [
+            '1 translation could not be downloaded:\n'
+            '  Hello/Program (Zulu)\n'
+            '    The server replied with error 500.'
+        ]
+
+    def test_when_the_server_has_none_of_them_the_browser_says_so(self):
+        for code in ('af', 'de'):
+            self.fake.fail('/api/translations/hello/installer/%s/file/' % code, 404)
+        dialog = self._browser()
+        self._choose(dialog, 'Installer', ['Afrikaans', 'German'])
+
+        dialog.open_selected()
+        self._wait(dialog)
+
+        assert dialog.opened is None and dialog.opened_all == [] and self.failed == []
+        assert dialog.status.get_text() == 'The server replied with error 404.'
+        dialog.dialog.destroy()
+
     def test_when_every_download_fails_the_browser_says_why(self):
         for code in ('af', 'de'):
             self.fake.fail('/api/translations/hello/installer/%s/file/' % code, 500)

@@ -29,15 +29,15 @@ Panel: those chosen at once (Ctrl or Shift and a click, such as some
 languages of a component), or a language in every component of its
 project ("Open in All Components" in a language's menu, by a right
 click or the Menu key). They download one after the other with their
-progress and Cancel (openmany.py); those that fail are listed and the
-rest open (opened_all)."""
+progress and Cancel (openmany.py); those that fail are listed, but not
+those the server doesn't have, and the rest open (opened_all)."""
 
 from gi.repository import Gdk, GLib, Gtk, Pango
 
 from virtaal.support.libi18n.numbers import format_number, format_percent
 from virtaal.views.widgets.util import run_dialog
 
-from . import location_of, pending_message, workcopy
+from . import HTTP, PlatformError, location_of, pending_message, workcopy
 from .serversdialog import error_message
 from .submit import BUDGET, CANCELLED
 
@@ -88,6 +88,9 @@ def _failure_reason(error, platform, result):
 
     if result.stop == BUDGET and error.status == 429 and result.reset_in is not None:
         return used_up_message(result.reset_in)
+    if error.status == 404:
+        # The server answered the browser: it has no such translation.
+        error = PlatformError(HTTP, 404, error.detail)
     return error_message(error, platform)
 
 
@@ -611,8 +614,9 @@ class BrowseDialog:
                 lines.append('    ' + _failure_reason(error, platform, result))
             self.failed = '\n'.join(lines)
         if not result.paths:
-            if result.failures:
-                self.status.set_text(_failure_reason(result.failures[0][1], platform, result))
+            failed = result.failures or result.missing
+            if failed:
+                self.status.set_text(_failure_reason(failed[0][1], platform, result))
             return
         if self.failed:
             self._tell_failed(self.failed)
