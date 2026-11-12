@@ -11,11 +11,12 @@ servers (#3337), for any platform that can_glossary, such as Weblate's.
 While a work copy is open (support/platforms/workcopy.py), the
 glossaries of its project in its language show in the terminology
 pane: those kept from before at once, and those the server has now once
-it answers (support/platforms/glossary.py). With no translation
-platform's plug-in on, or no work copy open, it holds no terms and asks
-nothing. Nothing being translated is sent; only the glossaries are
-downloaded, from servers the user added. Read only: Add Term keeps
-adding to the Local Files source.
+it answers (support/platforms/glossary.py). Update from Server asks the
+server again for those due, and a changed glossary shows at once. With
+no translation platform's plug-in on, or no work copy open, it holds no
+terms and asks nothing. Nothing being translated is sent; only the
+glossaries are downloaded, from servers the user added. Read only: Add
+Term keeps adding to the Local Files source.
 """
 
 import logging
@@ -51,8 +52,10 @@ class TerminologyModel(BaseTerminologyModel):
                 self._signal_tracker.connect(store_controller, signal, self._on_store_changed)
         self._load([])
         self._on_store_changed()
+        glossary.watch(self.refresh_due)
 
     def destroy(self):
+        glossary.unwatch(self.refresh_due)
         if self.matcher in TerminologyPlaceable.matchers:
             TerminologyPlaceable.matchers.remove(self.matcher)
         super().destroy()
@@ -80,7 +83,12 @@ class TerminologyModel(BaseTerminologyModel):
     def _on_store_changed(self, *_args):
         wanted = self.wanted()
         self._load(wanted)
-        for kept in wanted:
+        self.refresh_due(wanted)
+
+    def refresh_due(self, wanted=None):
+        """Asks again for those of wanted (the work copies open's) that
+        are due: on opening, and after Update from Server."""
+        for kept in self.wanted() if wanted is None else wanted:
             if kept.due():
                 self.refresh(kept)
 

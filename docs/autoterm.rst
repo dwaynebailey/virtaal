@@ -58,8 +58,10 @@ project's glossaries in your language, with no setup.
 
 Virtaal downloads each glossary that has your language, as a TBX file, and
 keeps it with your work, so the terms are there offline too. Each time you
-open a translation of that project it asks Weblate whether the glossary
-changed, at most once a minute, and downloads it again only if it did.
+open a translation of that project, and each time you choose
+:menuselection:`File --> Update from Server…`, it asks Weblate whether the
+glossary changed, at most once a minute, and downloads it again only if it
+did. A changed term shows at once.
 Nothing you translate is sent; Virtaal only downloads the glossaries, with
 the token you gave for that server.
 

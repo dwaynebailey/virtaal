@@ -147,3 +147,34 @@ def test_a_broken_record_is_as_none_kept(clock):
         f.write('{not json')
 
     assert _kept().files() == [] and _kept().due()
+
+
+def test_a_glossary_that_cant_be_written_is_an_error(clock, monkeypatch):
+    def full(*_args):
+        raise OSError('No space left on device')
+
+    monkeypatch.setattr(glossary, '_write', full)
+
+    result = _refresh(_kept(), Session([Glossary('glossary', 'Glossary', b'x', 'tbx', 'v1')]))
+
+    assert result[0] == 'error' and isinstance(result[1], OSError)
+
+
+def test_update_asks_every_watcher_though_one_fails(caplog):
+    asked = []
+
+    def broken():
+        asked.append('broken')
+        raise RuntimeError('broken')
+
+    callbacks = (broken, lambda: asked.append('pane'))
+    for callback in callbacks:
+        glossary.watch(callback)
+    try:
+        glossary.updated()
+    finally:
+        for callback in callbacks:
+            glossary.unwatch(callback)
+
+    assert asked == ['broken', 'pane']
+    assert 'not asked for after Update from Server' in caplog.text

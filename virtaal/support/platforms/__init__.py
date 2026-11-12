@@ -39,7 +39,8 @@ refuses a rejection.
 Glossaries (glossary.py), for a platform that can_glossary: a work
 copy's project's glossaries in its language are kept beside the work
 copies, and the terminology pane shows their terms (the terminology
-plug-in's Translation Server Glossaries).
+plug-in's Translation Server Glossaries). Opening a work copy and Update
+from Server ask the server for them again, at most once a minute.
 """
 
 from collections import namedtuple
@@ -627,9 +628,13 @@ class Registry:
         if not copies:
             return None
         self.trickler.stop()
+        from . import glossary
+
         result = UpdateDialogs(self, copies, self._parent(parent)).run()
         self._sync_notice()
         self._review_changed()
+        if result is not None:
+            glossary.updated()
         for copy in self._open_copies():
             if copy.store is not None:
                 self.trickler.start(copy)

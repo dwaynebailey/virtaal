@@ -28,6 +28,12 @@ in the last REFRESH_AGE, refresh() asks the server again, sending each
 glossary's validator (its Last-Modified, where the server gives one), so
 an unchanged one costs no download. A glossary the server no longer has in L is dropped. With no
 reply, the files kept stay as they are.
+
+Update from Server asks again too (updated()), for the glossaries of the
+work copies open that are due: once each project and language, however
+many of its files are open. Its watchers (watch()) do the asking: the
+terminology pane's Translation Server Glossaries, which shows a changed
+glossary at once. Nothing they do, or fail to do, changes the Update.
 """
 
 import json
@@ -161,17 +167,45 @@ class Glossaries:
 
     def refresh(self, session, on_done, on_error):
         """Asks session's server for the glossaries and keeps them:
-        on_done(whether the files changed), or on_error(PlatformError)."""
-        session.glossaries(
-            self.project,
-            self.language,
-            self.known(),
-            lambda found: on_done(self.keep(found)),
-            on_error,
-        )
+        on_done(whether the files changed), or on_error(PlatformError, or
+        the OSError that kept them from being written)."""
+
+        def found(glossaries):
+            try:
+                changed = self.keep(glossaries)
+            except OSError as e:
+                on_error(e)
+                return
+            on_done(changed)
+
+        session.glossaries(self.project, self.language, self.known(), found, on_error)
 
 
 def for_copy(copy):
     """The Glossaries of a work copy's project and language."""
     record = copy.record
     return Glossaries(record['platform'], record['server'], record['project'], record['language'])
+
+
+_watchers = []
+
+
+def watch(callback):
+    """callback() after each Update from Server, to ask again for the
+    glossaries of the work copies open that are due."""
+    _watchers.append(callback)
+
+
+def unwatch(callback):
+    if callback in _watchers:
+        _watchers.remove(callback)
+
+
+def updated():
+    """After Update from Server: each watcher asks again. A watcher that
+    fails is logged, and the rest still ask."""
+    for callback in list(_watchers):
+        try:
+            callback()
+        except Exception:
+            logging.exception('The glossaries were not asked for after Update from Server')
