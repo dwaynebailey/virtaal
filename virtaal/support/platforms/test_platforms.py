@@ -249,6 +249,49 @@ def test_editing_a_server_sets_its_option(servers, weblate, monkeypatch):
     assert ServerList(servers.platforms, servers.path).servers[0].send_finished
 
 
+def test_submitting_as_suggestions_is_kept_per_server_that_can_suggest(
+    servers, tmp_path, weblate, dummy
+):
+    servers.servers[0].as_suggestions = True
+    servers.servers[1].as_suggestions = True
+    servers.save()
+
+    again = ServerList([weblate, dummy], servers.path)
+
+    # The dummy platform has no suggestions: the option is never its.
+    assert [s.as_suggestions for s in again.servers] == [True, False]
+    assert again.servers[0].session().as_suggestions
+    assert not again.servers[1].session().as_suggestions
+    with open(servers.path, encoding='utf-8') as f:
+        assert '[as_suggestions]\nweblate https://weblate.example.org/api/ = true\n' in f.read()
+    kept = again.put(weblate, 'https://weblate.example.org', {'token': 'wlu_y'}, again.servers[0])
+    assert kept.as_suggestions and not kept.send_finished
+
+
+def test_submit_as_suggestions_is_offered_only_with_suggestions(weblate, dummy):
+    from virtaal.support.platforms.serversdialog import option_fields
+
+    assert [f.key for f in option_fields(weblate)] == ['send_finished', 'as_suggestions']
+    assert [f.key for f in option_fields(dummy)] == ['send_finished']
+
+
+def test_editing_a_server_sets_submitting_as_suggestions(servers, weblate, monkeypatch):
+    dialog = ServersDialog(servers)
+    seen = []
+
+    def answer(self):
+        seen.append(self.switches['as_suggestions'].get_active())
+        return {'url': self.get_values()['url'], 'token': 'wlu_x', 'as_suggestions': True}
+
+    monkeypatch.setattr(ServerDialog, 'run', answer)
+
+    dialog.btn_edit.clicked()
+
+    assert seen == [False]
+    server = ServerList(servers.platforms, servers.path).servers[0]
+    assert server.as_suggestions and not server.send_finished
+
+
 def test_a_platform_without_review_has_none_of_it(dummy):
     from virtaal.support.platforms.review import Reviews
 

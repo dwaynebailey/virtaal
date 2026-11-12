@@ -6,8 +6,8 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """Review against the fake Weblate through the real curl client:
-approving with and without the right to, suggestions (read and
-dismissed), comments (read, added, in their scopes), servers too old
+approving with and without the right to, suggestions (read, dismissed,
+submitted), comments (read, added, in their scopes), servers too old
 for them, refusals, and keeping to the request budget."""
 
 import pytest
@@ -25,6 +25,8 @@ from virtaal.support.platforms import (
     UNSUPPORTED,
     Budget,
     states,
+    submit,
+    workcopy,
 )
 from virtaal.support.platforms.review import RESERVE, Reviews
 
@@ -294,6 +296,73 @@ def test_commenting_needs_the_right(fake):
     ok, error = _call(_session(fake).add_comment, _unit_id(fake, 'Help'), 'x', ON_TRANSLATION)
 
     assert not ok and error.status == 403
+
+
+# Submit as suggestions #
+
+
+def _suggesting(copy):
+    session = copy.session()
+    session.as_suggestions = True
+    return session
+
+
+def test_submit_as_suggestions_leaves_the_units_as_they_are(fake):
+    copy = Copy(fake)
+    copy.edit('Help', 'Hulp')
+    copy.save()
+    help_unit = fake.units[_unit_id(fake, 'Help')]
+
+    result = copy.submit(session=_suggesting(copy))
+
+    assert (result.sent, result.left, result.stop) == (1, 0, None)
+    assert fake.patched == []
+    assert help_unit['target'] == [''] and help_unit['has_suggestion']
+    (suggestion,) = [s for s in fake.suggestions.values() if s['unit_id'] == help_unit['id']]
+    assert (suggestion['target'], suggestion['username']) == (['Hulp'], 'tester')
+    # The server's text stays the baseline, and the suggestion isn't sent again.
+    entry = copy.entry('Help')
+    assert entry['target_hash'] == workcopy.text_hash([''])
+    assert entry['suggested'] == workcopy.text_hash(['Hulp'])
+    copy.save()
+    assert copy.copy.pending() == [] and copy.copy.submitted()
+
+
+def test_a_suggestion_changed_goes_again(fake):
+    copy = Copy(fake)
+    copy.edit('Help', 'Hulp')
+    copy.save()
+    copy.submit(session=_suggesting(copy))
+
+    copy.edit('Help', 'Hulp!')
+    copy.save()
+
+    assert copy.copy.pending() == [copy.index('Help')]
+
+
+def test_suggesting_without_the_right_is_refused_per_unit(fake):
+    fake.revoke('suggestion.add')
+    copy = Copy(fake)
+    copy.edit('Help', 'Hulp')
+    copy.save()
+
+    result = copy.submit(session=_suggesting(copy))
+
+    assert result.sent == 0 and result.stop is None
+    assert list(result.failures.values()) == ['You do not have permission to perform this action.']
+    assert copy.copy.pending() == [copy.index('Help')]
+
+
+def test_suggesting_to_a_server_without_suggestions_stops(fake):
+    fake.version = (5, 15)
+    copy = Copy(fake)
+    copy.edit('Help', 'Hulp')
+    copy.save()
+
+    result = copy.submit(session=_suggesting(copy))
+
+    assert result.stop == submit.FAILED and result.error.kind == UNSUPPORTED
+    assert copy.copy.pending() == [copy.index('Help')]
 
 
 # Read as each unit is shown #

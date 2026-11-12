@@ -41,6 +41,9 @@ the Session of the work copy's server:
    A refusal that says what the user may not do (PlatformError's
    refused: REVIEW, approving) is noted in the side record too, and
    Reviewed is offered no more on that project.
+   For a server whose session sends as_suggestions, each unit goes as a
+   suggestion instead (Session.submit_suggestion()), its state aside,
+   and the server's text stays its baseline (WorkCopy.mark_suggested()).
 6. Refresh. One more query, for the units changed since Submit started,
    gives the units sent their last_updated, and the state the server
    really stored when it is another kind (a check it enforces can store
@@ -371,6 +374,12 @@ class Submission:
             self.result.sent += 1
             self._send_next()
 
+        def suggested(_reply):
+            self._queue.pop(0)
+            self.copy.mark_suggested(r, target)
+            self.result.sent += 1
+            self._send_next()
+
         def failed(error):
             if error.status in _PER_UNIT:
                 self._queue.pop(0)
@@ -383,7 +392,11 @@ class Submission:
             else:
                 self._failed(error)
 
-        self.session.submit_unit(self.copy.units[r]['id'], target, code, sent, failed)
+        unit_id = self.copy.units[r]['id']
+        if self.session.as_suggestions:
+            self.session.submit_suggestion(unit_id, target, suggested, failed)
+        else:
+            self.session.submit_unit(unit_id, target, code, sent, failed)
 
     def _failed(self, error):
         if error.status == 423:

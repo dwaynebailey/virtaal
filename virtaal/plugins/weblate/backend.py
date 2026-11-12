@@ -345,6 +345,13 @@ class WeblateSession(Session):
 
         self._ask(SUGGESTIONS, request, on_error)
 
+    def submit_suggestion(self, unit_id, target, on_done, on_error):
+        def request(failed):
+            data = {'target': list(target)}
+            self.client.add_to_unit(unit_id, 'suggestions', data, lambda _r: on_done(None), failed)
+
+        self._ask(SUGGESTIONS, request, on_error)
+
     def dismiss_suggestion(self, suggestion_id, on_done, on_error):
         def request(failed):
             self.client.delete_suggestion(suggestion_id, lambda _r: on_done(None), failed)

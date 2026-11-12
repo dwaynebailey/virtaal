@@ -19,6 +19,12 @@ it holds no secret:
 
   [send_finished]
   weblate https://hosted.weblate.org/api/ = true
+
+  [as_suggestions]
+  weblate https://hosted.weblate.org/api/ = true
+
+as_suggestions, for a platform that can_suggest: Submit sends each
+change as a suggestion, for a user who may suggest but not translate.
 """
 
 import configparser
@@ -30,6 +36,9 @@ from virtaal.common import pan_app
 CONFIG_NAME = 'platforms.ini'
 _LAST = 'last'
 _SEND_FINISHED = 'send_finished'
+_AS_SUGGESTIONS = 'as_suggestions'
+OPTIONS = (_SEND_FINISHED, _AS_SUGGESTIONS)
+"""A server's options: Server attributes, and sections of platforms.ini."""
 
 
 def _parser():
@@ -46,18 +55,25 @@ def _key(server):
 class Server:
     """One server: its platform, its address and its credentials."""
 
-    def __init__(self, platform, url, credentials, send_finished=False):
+    def __init__(self, platform, url, credentials, send_finished=False, as_suggestions=False):
         self.platform = platform
         self.url = url
         self.credentials = dict(credentials)
         self.send_finished = bool(send_finished)
         """Units at Translated or above are sent as they are saved."""
+        self.as_suggestions = bool(as_suggestions) and platform.can_suggest
+        """Submit sends each change as a suggestion."""
 
     def __repr__(self):
         return '<Server %s %s>' % (self.platform.id, self.url)
 
+    def options(self):
+        return {name: getattr(self, name) for name in OPTIONS}
+
     def session(self):
-        return self.platform.session(self.url, self.credentials)
+        session = self.platform.session(self.url, self.credentials)
+        session.as_suggestions = self.as_suggestions
+        return session
 
 
 class ServerList:
@@ -86,7 +102,10 @@ class ServerList:
         except (OSError, configparser.Error, UnicodeDecodeError) as e:
             logging.warning("%r can't be read: %s", self.path, e)
         for server in self.servers:
-            server.send_finished = parser.getboolean(_SEND_FINISHED, _key(server), fallback=False)
+            for option in OPTIONS:
+                value = parser.getboolean(option, _key(server), fallback=False)
+                setattr(server, option, value)
+            server.as_suggestions = server.as_suggestions and server.platform.can_suggest
         kind = parser.get(_LAST, 'platform', fallback='')
         platform = next((p for p in self.platforms if p.id == kind), None)
         self.last = self.find(platform, parser.get(_LAST, 'url', fallback=''))
@@ -111,27 +130,30 @@ class ServerList:
             parser.add_section(_LAST)
             parser.set(_LAST, 'platform', self.last.platform.id)
             parser.set(_LAST, 'url', self.last.url)
-        sending = [s for s in self.servers if s.send_finished]
-        if sending:
-            parser.add_section(_SEND_FINISHED)
-            for server in sending:
-                parser.set(_SEND_FINISHED, _key(server), 'true')
+        for option in OPTIONS:
+            chosen = [s for s in self.servers if getattr(s, option)]
+            if chosen:
+                parser.add_section(option)
+                for server in chosen:
+                    parser.set(option, _key(server), 'true')
         pan_app._write_ini(parser, self.path)
 
     def find(self, platform, url):
         return next((s for s in self.servers if s.platform is platform and s.url == url), None)
 
-    def put(self, platform, url, credentials, replace=None, send_finished=None):
+    def put(self, platform, url, credentials, replace=None, send_finished=None, **options):
         """Adds a server, or changes replace (a Server) in its place. The
-        Server, or None if url can't be used. send_finished None keeps
-        replace's, else False."""
+        Server, or None if url can't be used. Its options (send_finished,
+        as_suggestions) None or not given keep replace's, else False."""
         url = platform.normalise_url(url)
         if not url:
             return None
         old = [s for s in (replace, self.find(platform, url)) if s is not None]
-        if send_finished is None:
-            send_finished = any(s.send_finished for s in old)
-        server = Server(platform, url, credentials, send_finished)
+        options[_SEND_FINISHED] = send_finished
+        for option in OPTIONS:
+            if options.get(option) is None:
+                options[option] = any(getattr(s, option) for s in old)
+        server = Server(platform, url, credentials, **options)
         at = min((self.servers.index(s) for s in old), default=None)
         if at is None:
             at = max(

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 08:47+0000\n"
+"POT-Creation-Date: 2026-11-12 08:50+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2697,6 +2697,11 @@ msgstr ""
 msgid "Send _finished units as you go"
 msgstr ""
 
+#. l10n: A translation server's option, for a user who may suggest translations there but not change them: Submit sends each change as a suggestion for others to accept
+#: virtaal/support/platforms/serversdialog.py
+msgid "Submit as _suggestions"
+msgstr ""
+
 #. l10n: A translation server answered that the API token is wrong or expired
 #: virtaal/support/platforms/serversdialog.py
 msgid "The server refused the token."
@@ -2856,6 +2861,11 @@ msgid "Submit %(count)s changed unit to %(platform)s?"
 msgid_plural "Submit %(count)s changed units to %(platform)s?"
 msgstr[0] ""
 msgstr[1] ""
+
+#. l10n: Asking to Submit to a translation server whose option "Submit as suggestions" is on
+#: virtaal/support/platforms/submitdialog.py
+msgid "Each change goes to the server as a suggestion."
+msgstr ""
 
 #: virtaal/support/platforms/submitdialog.py
 msgid "There are no changes to submit."

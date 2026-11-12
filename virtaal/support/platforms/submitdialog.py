@@ -422,6 +422,9 @@ class SubmitDialogs(CopyDialogs):
         )
         sending = list(self.sending)
         lines = [files_message(sending) if len(sending) > 1 else self.copy.location()]
+        if self._as_suggestions():
+            # l10n: Asking to Submit to a translation server whose option "Submit as suggestions" is on
+            lines.append(_('Each change goes to the server as a suggestion.'))
         warning = self.session and budget_warning(self.session.budget(), count)
         if warning:
             lines.append(warning)
@@ -432,6 +435,11 @@ class SubmitDialogs(CopyDialogs):
         response = run_dialog(dialog)
         dialog.destroy()
         return response == Gtk.ResponseType.OK
+
+    def _as_suggestions(self):
+        """Whether a server of the Submit takes the changes as suggestions."""
+        sessions = getattr(self, '_sessions', {}).values()
+        return any(getattr(session, 'as_suggestions', False) for session in sessions)
 
     def choose(self, conflicts):
         return ConflictDialog(conflicts, self.parent).run()

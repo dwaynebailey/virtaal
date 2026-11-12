@@ -58,6 +58,10 @@ from the server. A unit the server refused keeps "changed" and gets
 "error", the server's reason. "submitted_at" is when a Submit last
 left no change unsent.
 
+Submitted as suggestions (a server's option), a unit keeps the
+server's text as its baseline, and "suggested" is the hash of the text
+suggested: it isn't sent again until it changes.
+
 "refused" lists what the server refused this user on the project
 (platforms.REVIEW: Reviewed is no longer offered); "has_suggestion"
 and "has_comment" are as the server last said (review.py asks again
@@ -368,6 +372,15 @@ class WorkCopy:
         self.units[r]['error'] = message
         self.write_record()
 
+    def mark_suggested(self, r, target):
+        """Notes units[r] as suggested with target: the server's text
+        stays its baseline."""
+        entry = self.units[r]
+        entry.update(suggested=text_hash(target), changed=False)
+        entry.pop('error', None)
+        entry.pop('conflict', None)
+        self.write_record()
+
     def index_of(self, unit):
         """The index in units of the file's unit, or None."""
         return self._indexes.get(id(unit))
@@ -435,6 +448,7 @@ class WorkCopy:
         )
         self.units[r].pop('error', None)
         self.units[r].pop('conflict', None)
+        self.units[r].pop('suggested', None)
 
     def mark_submitted(self):
         self.record['submitted_at'] = _now()
@@ -481,9 +495,13 @@ class WorkCopy:
         for r, unit in self.matched.items():
             entry = self.units[r]
             state = unit.get_state_n() if unit.STATE else None
-            entry['changed'] = text_hash(strings(unit.target)) != entry['target_hash'] or (
+            mine = text_hash(strings(unit.target))
+            entry['changed'] = mine != entry['target_hash'] or (
                 entry.get('virtaal_state') is not None and state != entry['virtaal_state']
             )
+            if entry.get('suggested') is not None:
+                # Suggested: a suggestion goes again once its text changes.
+                entry['changed'] = entry['changed'] and mine != entry['suggested']
             if states.is_adopted(unit):
                 entry['local_state'] = state
         try:

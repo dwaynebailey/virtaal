@@ -29,9 +29,9 @@ list of conflicts for all.
 Review (review.py, reviewview.py), for a platform that can_suggest or
 can_comment: the unit shown shows others' suggestions, to accept or
 dismiss, and its comments with its notes; its context menu adds a
-comment or reports a problem with the source text. Reviewed is
-offered only on a project with reviews, until the server refuses an
-approval.
+comment or reports a problem with the source text. A server's option
+submits changes as suggestions. Reviewed is offered only on a project
+with reviews, until the server refuses an approval.
 """
 
 from collections import namedtuple
@@ -177,6 +177,11 @@ class Session:
         permission), 423 locked, 429 out of budget, else no reply."""
         raise NotImplementedError
 
+    as_suggestions = False
+    """Submit sends each change as a suggestion (submit_suggestion())
+    instead of changing the unit: the server's option, for a platform
+    that can_suggest."""
+
     def budget(self):
         """The Budget as the server last said, to this session or another
         of the same server and credentials, or None if it doesn't say."""
@@ -194,6 +199,12 @@ class Session:
 
     def suggestions(self, unit_id, on_done, on_error):
         """on_done([Suggestion]): others' suggestions for a unit."""
+        raise NotImplementedError
+
+    def submit_suggestion(self, unit_id, target, on_done, on_error):
+        """Suggests target (a list of forms) for a unit, as Submit does
+        for a server with as_suggestions. on_done(None), or on_error:
+        status 400 or 403 for this unit alone, as submit_unit()'s."""
         raise NotImplementedError
 
     def dismiss_suggestion(self, suggestion_id, on_done, on_error):
@@ -238,7 +249,7 @@ class Platform:
     """(requests, seconds) a server allows by default, for one that
     doesn't say what is left: Submit stays under it."""
     can_suggest = False
-    """Its sessions list and dismiss suggestions."""
+    """Its sessions list, dismiss and submit suggestions."""
     can_comment = False
     """Its sessions list and add comments."""
 

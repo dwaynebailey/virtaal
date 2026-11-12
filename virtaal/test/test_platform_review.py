@@ -249,6 +249,23 @@ class TestPlatformReview(TestScaffolding):
 
         assert len(self.fake.comments) == before
 
+    def test_a_change_submitted_as_a_suggestion_shows_as_one(self, monkeypatch):
+        from virtaal.support.platforms.submitdialog import SubmitDialogs
+
+        monkeypatch.setattr(SubmitDialogs, 'confirm', lambda _self, _count: True)
+        self.servers.servers[0].as_suggestions = True
+        self._open()
+        self._asked('Help')
+        self.unit_controller.set_unit_target(0, 'Hulp')
+        self.unit_controller.finish_current_unit()
+
+        result = self.registry.submit()
+        run_until(lambda: self._rows())
+
+        assert result.sent == 1 and self.fake.patched == []
+        assert self._rows() == [('Suggestion from tester: Hulp', ['Accept', 'Reject'])]
+        assert self._server_unit('Help')['target'] == ['']
+
     def test_an_older_server_shows_none_of_it_quietly(self):
         self.fake.version = (5, 6)
         self._open()

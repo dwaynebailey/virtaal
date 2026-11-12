@@ -20,11 +20,27 @@ from . import AUTH, NETWORK, NOT_PLATFORM, UNSUPPORTED
 
 COL_TYPE, COL_URL = 0, 1
 SEND_FINISHED = 'send_finished'
+AS_SUGGESTIONS = 'as_suggestions'
 
 
 def send_finished_field():
     # l10n: A translation server's option: units at Translated or above go to the server each time the file is saved, instead of waiting for Submit
     return Field(SEND_FINISHED, _('Send _finished units as you go'), BOOL)
+
+
+def as_suggestions_field():
+    # l10n: A translation server's option, for a user who may suggest translations there but not change them: Submit sends each change as a suggestion for others to accept
+    return Field(AS_SUGGESTIONS, _('Submit as _suggestions'), BOOL)
+
+
+def option_fields(platform):
+    """The options of a server of platform, as Field()s."""
+    fields = ()
+    if platform.can_submit:
+        fields += (send_finished_field(),)
+    if platform.can_submit and platform.can_suggest:
+        fields += (as_suggestions_field(),)
+    return fields
 
 
 def error_message(error, platform):
@@ -80,12 +96,10 @@ class ServerDialog(SettingsDialog):
     """A server's address and credentials, as its platform asks for
     them; OK only for a usable address."""
 
-    def __init__(self, parent, platform, url='', credentials=None, send_finished=False):
+    def __init__(self, parent, platform, url='', credentials=None, send_finished=False, **options):
         self.platform = platform
-        values = {'url': url, **(credentials or {}), SEND_FINISHED: send_finished}
-        fields = platform.fields()
-        if platform.can_submit:
-            fields = (*fields, send_finished_field())
+        values = {'url': url, **(credentials or {}), SEND_FINISHED: send_finished, **options}
+        fields = (*platform.fields(), *option_fields(platform))
         super().__init__(parent, platform.name, fields, values)
 
     def problem(self):
@@ -206,15 +220,14 @@ class ServersDialog:
 
     # Actions #
 
-    def _ask(self, platform, url='', credentials=None, send_finished=False):
-        """The new (URL, credentials, send finished units), or None if
-        cancelled."""
-        values = ServerDialog(self.dialog, platform, url, credentials, send_finished).run()
+    def _ask(self, platform, url='', credentials=None, options=None):
+        """The new (URL, credentials, options), or None if cancelled."""
+        values = ServerDialog(self.dialog, platform, url, credentials, **(options or {})).run()
         if values is None:
             return None
         url = values.pop('url')
-        send_finished = values.pop(SEND_FINISHED, False)
-        return url, values, send_finished
+        chosen = {key: values.pop(key, False) for key in (SEND_FINISHED, AS_SUGGESTIONS)}
+        return url, values, chosen
 
     def _on_add(self):
         platforms = self.servers.platforms
@@ -233,7 +246,7 @@ class ServersDialog:
 
     def _add(self, platform):
         found = self._ask(platform)
-        server = found and self.servers.put(platform, *found[:2], send_finished=found[2])
+        server = found and self.servers.put(platform, *found[:2], **found[2])
         if server:
             self._save(server)
             self._on_test()
@@ -242,10 +255,8 @@ class ServersDialog:
         old = self.selected()
         if old is None:
             return
-        found = self._ask(old.platform, old.url, old.credentials, old.send_finished)
-        server = found and self.servers.put(
-            old.platform, *found[:2], replace=old, send_finished=found[2]
-        )
+        found = self._ask(old.platform, old.url, old.credentials, old.options())
+        server = found and self.servers.put(old.platform, *found[:2], replace=old, **found[2])
         if server:
             self._save(server)
 
