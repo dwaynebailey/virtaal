@@ -299,6 +299,7 @@ domains:
     - Next Unit and Advance State
     - Next Unit and Reverse State
     - None
+    - Open from Tra_nslation Server…
     - P_age Up
     - P_revious Placeable
     - Priority
@@ -308,12 +309,14 @@ domains:
     - Search
     - Settings…
     - Show Lo_gs
+    - Su_bmit to Server…
     - Suggestions for This _Unit
     - Terminology _Files…
     - Transfer From Source
     - Translated
     - Translation _Suggestions
     - Untranslated
+    - Up_date from Server…
     - Workflow
     - _Edit
     - _Export

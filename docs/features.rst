@@ -40,6 +40,7 @@ Virtaal will make you more productive
    placeables
    autoterm
    amagama
+   weblate
 
 - Fast and easy navigation within the file
 - Auto-correction of common mistakes
@@ -53,6 +54,8 @@ Virtaal will make you more productive
 - Translate the most important messages first, with a project's
   :doc:`priority file <priority_files>`
 - Automatically update the PO header when saving
+- Translate projects on a :doc:`Weblate <weblate>` server, offline, and submit
+  your changes when you choose
 - Terminology help. Suggestions can come from:
 
   - Local files on your computer

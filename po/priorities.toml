@@ -153,6 +153,12 @@ priority = "1"
 msgids = ["Show Lo_gs"]
 
 [[override]]
+# The File menu's translation server items: there only while a platform
+# plug-in such as Weblate is on, so the harvest never sees them.
+priority = "1"
+msgids = ["Open from Tra_nslation Server…", "Su_bmit to Server…", "Up_date from Server…"]
+
+[[override]]
 # The welcome screen's feature list.
 priority = "1~"
 msgids = [
