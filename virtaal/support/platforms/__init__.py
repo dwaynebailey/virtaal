@@ -204,6 +204,38 @@ class Session:
         permission), 423 locked, 429 out of budget, else no reply."""
         raise NotImplementedError
 
+    def submit_units(self, units, on_each, on_done, on_error):
+        """Changes several units of one file, as submit_unit() changes
+        one: units is [(unit_id, target, code)], at most the platform's
+        batch_size. on_each(index in units, the code the server stored,
+        or the PlatformError refusing that unit alone: status 400 or 403)
+        comes for each unit, then on_done(); on_error(PlatformError)
+        stops it, as submit_unit()'s would (the units without an on_each
+        weren't changed). This one sends them one at a time with
+        submit_unit(); a platform with a request for many overrides it."""
+        left = list(enumerate(units))
+
+        def next_unit():
+            if not left:
+                on_done()
+                return
+            index, (unit_id, target, code) = left.pop(0)
+
+            def stored(code):
+                on_each(index, code)
+                next_unit()
+
+            def failed(error):
+                if error.status in (400, 403):
+                    on_each(index, error)
+                    next_unit()
+                else:
+                    on_error(error)
+
+            self.submit_unit(unit_id, target, code, stored, failed)
+
+        next_unit()
+
     as_suggestions = False
     """Submit sends each change as a suggestion (submit_suggestion())
     instead of changing the unit: the server's option, for a platform
@@ -299,6 +331,9 @@ class Platform:
     rate_limit = None
     """(requests, seconds) a server allows by default, for one that
     doesn't say what is left: Submit stays under it."""
+    batch_size = 1
+    """How many units Submit sends at once (Session.submit_units()): 1
+    sends each with Session.submit_unit()."""
     states = None
     """The states (StateEnum) it stores, of states.PLATFORM_STATES, or
     None for all of them. A unit in another state is sent in the nearest

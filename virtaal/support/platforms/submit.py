@@ -27,7 +27,8 @@ the Session of the work copy's server:
    (sent anyway, over theirs), TAKE_THEIRS (the server's text and state
    into the file, and as the baseline) or SKIP (left as it is, to come
    up again next time).
-4. The units are sent one at a time. Each one sent is noted in the side
+4. The units are sent one at a time, or for a platform with a
+   batch_size, that many at once (Session.submit_units()). Each one sent is noted in the side
    record at once, so Submit, cut short by Cancel, the budget, an error
    or a crash, sends only the rest next time. A unit the server refuses
    (400, 403) is noted with its reason and not tried again until the
@@ -79,7 +80,7 @@ from collections import namedtuple
 
 from translate.storage.workflow import StateEnum
 
-from . import GONE, HTTP, states
+from . import GONE, HTTP, PlatformError, states
 from .workcopy import text_hash
 
 SEND, SAME, CONFLICT = 'send', 'same', 'conflict'
@@ -418,7 +419,45 @@ class Submission:
         done = self._sending - len(self._queue)
         self.on_progress(done + 1, self._sending)
         self.pacer.note()
-        self._send(self._queue[0])
+        batch = self._batch()
+        if len(batch) > 1:
+            self._send_batch(batch)
+        else:
+            self._send(self._queue[0])
+
+    def _batch(self):
+        """The units at the head of the queue to send at once, up to the
+        platform's batch_size: plain changes, not suggestions or a
+        suggestion's accept."""
+        size = getattr(self.platform, 'batch_size', 1)
+        if size <= 1 or self.session.as_suggestions:
+            return self._queue[:1]
+        batch = []
+        for r in self._queue[:size]:
+            if self.copy.accepted(r, self._mine(r)[0]) is not None:
+                break
+            batch.append(r)
+        return batch or self._queue[:1]
+
+    def _send_batch(self, batch):
+        """Sends batch, the units at the head of the queue, with one
+        Session.submit_units()."""
+        mine = {r: self._mine(r) for r in batch}
+        items = [(self.copy.units[r]['id'], mine[r][0], mine[r][2]) for r in batch]
+
+        def each(index, outcome):
+            r = batch[index]
+            self._queue.remove(r)
+            if isinstance(outcome, PlatformError):
+                self._refused(r, outcome)
+                return
+            target, state, code = mine[r]
+            stored = code if outcome is None else outcome
+            self.copy.mark_sent(r, target, stored, state)
+            self._sent[r] = stored
+            self.result.sent += 1
+
+        self.session.submit_units(items, each, self._send_next, self._failed)
 
     def _send(self, r):
         """Sends units[r], the first in the queue."""
@@ -455,20 +494,24 @@ class Submission:
                 self._failed(error)
                 return
             self._queue.pop(0)
-            if error.kind == GONE:
-                # Sent as an edit of its own next time.
-                self.copy.forget_accepted(r)
-                # l10n: Why a unit wasn't submitted: the suggestion accepted in Virtaal was accepted, rejected or withdrawn on the translation server meanwhile
-                message = _('The suggestion is no longer on the server.')
-            else:
-                message = error.detail or str(error.status)
-            self.copy.mark_failed(r, message)
-            if error.refused:
-                self.copy.refuse(error.refused)
-            self.result.failures[r] = message
+            self._refused(r, error)
             self._send_next()
 
         return failed
+
+    def _refused(self, r, error):
+        """Notes the server's refusal of units[r] alone."""
+        if error.kind == GONE:
+            # Sent as an edit of its own next time.
+            self.copy.forget_accepted(r)
+            # l10n: Why a unit wasn't submitted: the suggestion accepted in Virtaal was accepted, rejected or withdrawn on the translation server meanwhile
+            message = _('The suggestion is no longer on the server.')
+        else:
+            message = error.detail or str(error.status)
+        self.copy.mark_failed(r, message)
+        if error.refused:
+            self.copy.refuse(error.refused)
+        self.result.failures[r] = message
 
     def _accept(self, r, suggestion_id, mine, sent):
         """Accepts the suggestion units[r] took on the server (approved
