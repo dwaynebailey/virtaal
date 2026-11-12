@@ -1058,7 +1058,7 @@ jobs:
       matrix:
         runner: [macos-15, macos-latest]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     # Single Python version (whatever Homebrew currently ships), not the
     # 3.10-3.14 matrix the Linux job runs: unlike apt, Homebrew doesn't
     # provide an easy way to build PyGObject against several Python
@@ -1136,11 +1136,13 @@ jobs:
         # comment for why.
         # A run that stalls instead of failing (#4162) has its stacks
         # dumped and is killed well before the job's own timeout. The
-        # step takes 30-155 s (Nov 2026), so 240 s.
+        # step took 30-155 s (Nov 2026); measuring the coverage of the
+        # tests run in their own subprocess slows it: killed at 240 s at
+        # 51% and 86% done, so 600 s.
         run: |
           export VIRTAAL_STACKS_DIR="$RUNNER_TEMP/stacks"
           mkdir -p "$VIRTAAL_STACKS_DIR"
-          python devsupport/testing/stack_watchdog.py 240 -- \
+          python devsupport/testing/stack_watchdog.py 600 -- \
             pytest -rvxs -n auto --dist loadgroup --cov=virtaal --cov-report=xml virtaal
 
       - name: Collect macOS crash reports
