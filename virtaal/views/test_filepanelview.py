@@ -97,8 +97,8 @@ def _rows(model, it=None):
 
 
 def test_monolingual_sources_show_greyed_outside_the_stream():
-    entry = SimpleNamespace(display_name='po/af.po', language='af', template=None)
-    source = SimpleNamespace(display_name='i18n/en.properties', language='en', path='/p/en')
+    entry = SimpleNamespace(panel_name='po/af.po', language='af', template=None)
+    source = SimpleNamespace(panel_name='i18n/en.properties', language='en', path='/p/en')
     view, vbox = _loaded_view([entry], [source])
 
     view.update_progress([(1, 0, 2)])
@@ -136,9 +136,9 @@ def test_a_paired_file_shows_its_template_greyed_under_it(tmp_path):
 
 
 def test_a_file_with_no_known_template_shows_greyed_and_asks_for_one_when_activated():
-    entry = SimpleNamespace(display_name='po/af.po', language='af', template=None)
-    source = SimpleNamespace(display_name='i18n/en.properties', language='en', path='/p/en')
-    lone = SimpleNamespace(display_name='i18n/lone.properties', language=None, path='/p/lone')
+    entry = SimpleNamespace(panel_name='po/af.po', language='af', template=None)
+    source = SimpleNamespace(panel_name='i18n/en.properties', language='en', path='/p/en')
+    lone = SimpleNamespace(panel_name='i18n/lone.properties', language=None, path='/p/lone')
     asked = []
     view, vbox = _loaded_view([entry], [source], [lone], pair_file=asked.append)
 
@@ -186,9 +186,9 @@ def test_the_percentage_tooltip_counts_translated_needs_work_and_untranslated(mo
     # Numbers as English writes them, whatever language another test left.
     monkeypatch.setattr(pan_app, 'ui_language', 'en')
     entries = [
-        SimpleNamespace(display_name='de/a.po', language='de', template=None),
-        SimpleNamespace(display_name='de/b.po', language='de', template=None),
-        SimpleNamespace(display_name='c.po', language='de', template=None),
+        SimpleNamespace(panel_name='de/a.po', language='de', template=None),
+        SimpleNamespace(panel_name='de/b.po', language='de', template=None),
+        SimpleNamespace(panel_name='c.po', language='de', template=None),
     ]
     view, vbox = _loaded_view(entries, [])
 
@@ -206,8 +206,8 @@ def test_the_percentage_tooltip_counts_translated_needs_work_and_untranslated(mo
 
 
 def test_a_greyed_row_keeps_its_own_tooltip_over_the_percentage():
-    entry = SimpleNamespace(display_name='po/af.po', language='af', template=None)
-    source = SimpleNamespace(display_name='i18n/en.properties', language='en', path='/p/en')
+    entry = SimpleNamespace(panel_name='po/af.po', language='af', template=None)
+    source = SimpleNamespace(panel_name='i18n/en.properties', language='en', path='/p/en')
     view, vbox = _loaded_view([entry], [source])
     view.update_progress([(1, 0, 2)])
 
@@ -219,7 +219,7 @@ def test_a_greyed_row_keeps_its_own_tooltip_over_the_percentage():
 
 def _keyed_view():
     entries = [
-        SimpleNamespace(display_name=name, language='de', template=None)
+        SimpleNamespace(panel_name=name, language='de', template=None)
         for name in ('a.po', 'b.po', 'c.po')
     ]
     selected = []
