@@ -174,6 +174,9 @@ class FakeWeblate(FakeServer):
         global and report comments) as 'unit_id', and 'scope'."""
         self.source_units = {}
         """{source unit id: the unit}, for the comments on its source."""
+        self.converts = {'tbx'}
+        """The formats a download converts to (?format=), as an older
+        server's: Weblate converts to many, only TBX matters here."""
         self.failing = {}
         """{unit id: {check id: rule}} of the checks units fail on the
         server; rule(target) says whether an edit fixed it (None: never)."""
@@ -438,6 +441,18 @@ class FakeWeblate(FakeServer):
         ]
         self.set_file(project, component, code, _android_bytes(translated), units, 'text/xml')
         self._keyed(project, component, code, _android_bytes)
+        return units
+
+    def fill_glossary(self, project, component, code, terms):
+        """A glossary's language code: terms are (source, target), its
+        units. Its file is TBX, as Weblate stores a glossary made in
+        it, written from the units at each download."""
+        units = [
+            self.unit(project, component, code, source, target, position=position)
+            for position, (source, target) in enumerate(terms, 1)
+        ]
+        self.set_file(project, component, code, _tbx_bytes(code, units), units, 'application/x-tbx')
+        self._parent(project, component).setdefault('writers', {})[code] = _tbx_bytes
         return units
 
     def _keyed(self, project, component, code, writer):
@@ -851,18 +866,34 @@ class FakeWeblate(FakeServer):
         return 200, translation
 
     def translation_file(self, request, scope, project, component, code):
+        """The file as stored, or converted (?format=), as Weblate's
+        download: a format it can't convert to is 404. Last-Modified is
+        the last change of its units, and If-Modified-Since answers 304."""
         parent, translation = self._translation(scope, project, component, code)
         if translation is None or code not in parent.get('files', {}):
             return self._no_translation()
         data, content_type = parent['files'][code]
         writer = parent.get('writers', {}).get(code)
+        wanted = request['query'].get('format')
+        if wanted:
+            if wanted != 'tbx' or wanted not in self.converts:
+                return 404, self.error(
+                    404, 'not_found', 'Conversion to %s is not supported' % wanted
+                )
+            writer, content_type = _tbx_bytes, 'application/x-tbx'
+        modified = _http_date(parent['units'][code])
+        since = request['headers'].get('If-Modified-Since')
+        if since and modified and _not_after(modified, since):
+            return 304, b'', {'Last-Modified': modified}
         if writer is not None:
             data = writer(code, parent['units'][code])
         name = translation['filename'].rsplit('/', 1)[-1]
+        if wanted:
+            name = name.rsplit('.', 1)[0] + '.tbx'
         headers = {
             'Content-Type': content_type,
             'Content-Disposition': 'attachment; filename="%s"' % name,
-            'Last-Modified': 'Sun, 01 Nov 2026 12:00:00 GMT',
+            'Last-Modified': modified or 'Sun, 01 Nov 2026 12:00:00 GMT',
         }
         return 200, data, headers
 
@@ -1238,6 +1269,39 @@ def _android_bytes(strings):
     return ('\n'.join([*lines, '</resources>']) + '\n').encode('utf-8')
 
 
+def _tbx_bytes(code, units):
+    """A glossary's TBX, as Weblate exports one: a termEntry a unit."""
+    from translate.storage import tbx
+
+    store = tbx.tbxfile(sourcelanguage='en', targetlanguage=code)
+    for unit in units:
+        entry = store.addsourceunit(unit['source'][0])
+        entry.target = unit['target'][0]
+    return bytes(store)
+
+
+def _http_date(units):
+    """The Last-Modified of a file of units: their last change, or None."""
+    import datetime
+    from email.utils import format_datetime
+
+    stamps = [u['last_updated'] for u in units if u.get('last_updated')]
+    if not stamps:
+        return None
+    last = max(datetime.datetime.fromisoformat(s.replace('Z', '+00:00')) for s in stamps)
+    return format_datetime(last.replace(microsecond=0), usegmt=True)
+
+
+def _not_after(modified, since):
+    """Whether Last-Modified modified is no later than since."""
+    from email.utils import parsedate_to_datetime
+
+    try:
+        return parsedate_to_datetime(modified) <= parsedate_to_datetime(since)
+    except (TypeError, ValueError):
+        return False
+
+
 def _expand(value, base):
     """value with {api} and {web} links made absolute."""
     if isinstance(value, str):
@@ -1414,6 +1478,14 @@ def demo_checks():
     return fake
 
 
+DEMO_GLOSSARY = [
+    ('file', 'lêer'),
+    ('save', 'stoor'),
+    ('print', 'druk'),
+    ('help', 'hulp'),
+]
+"""(source, target) of the terms in Hello's Glossary in Afrikaans."""
+
 DEMO_MANUAL = [
     ('', 'Getting started', 'Aan die gang', 20),
     ('', 'Installing Virtaal', 'Installeer Virtaal', 20),
@@ -1432,7 +1504,8 @@ DEMO_TOOLBAR = [
 def demo_hand():
     """Everything at once, for a hand check of the Weblate plug-in:
     demo_many()'s Hello (reviews on: the user may approve) with
-    demo_review()'s suggestions and comments on Program's Afrikaans;
+    demo_review()'s suggestions and comments on Program's Afrikaans and
+    terms in its Glossary in Afrikaans;
     Documentation with reviews on but no approving for the user (User
     manual in Afrikaans); and Tools, with no reviews, whose Toolbar in
     Afrikaans has flags and checks: Save may be 6 characters, Open
@@ -1447,6 +1520,8 @@ def demo_hand():
     fake.suggest(units['Save'], 'Bewaar', user='ben')
     fake.comment(units['Save'], 'Most apps say "Stoor" here.', user='anna')
     fake.comment(units['Print'], 'Is this the verb or the noun?', user='ben', scope='global')
+
+    fake.fill_glossary('hello', 'glossary', 'af', DEMO_GLOSSARY)
 
     fake.projects['docs']['project']['translation_review'] = True
     fake.add_translation('docs', 'guides/manual', 'af', 'Afrikaans', 3, len(DEMO_MANUAL))
