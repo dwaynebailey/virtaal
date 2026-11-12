@@ -500,6 +500,8 @@ class Settings:
         "_helloworld": "disabled",
         # Off until enabled while it is being built (#3337).
         "weblate": "disabled",
+        # Experimental: tested against a fake server only.
+        "transifex": "disabled",
     }
     undo = {
         "depth": 10000,

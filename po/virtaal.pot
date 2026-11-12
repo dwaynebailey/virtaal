@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 20:11+0000\n"
+"POT-Creation-Date: 2026-11-12 20:24+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2517,6 +2517,32 @@ msgstr ""
 msgid "?"
 msgstr ""
 
+#. l10n: A plug-in's name in the plug-in list, for one not yet tested on the real service; %(name)s is the service, such as Transifex
+#: virtaal/plugins/transifex/__init__.py
+#, python-format
+msgid "%(name)s (experimental)"
+msgstr ""
+
+#: virtaal/plugins/transifex/__init__.py
+msgid "Translate projects hosted on Transifex"
+msgstr ""
+
+#. l10n: The API token a translation server gives each user, on their settings page
+#. l10n: The API token a Weblate server gives each user, on its profile page
+#: virtaal/plugins/transifex/backend.py virtaal/plugins/weblate/backend.py
+msgid "_Token:"
+msgstr ""
+
+#. l10n: Shown for an address starting http:// instead of https://
+#: virtaal/plugins/transifex/backend.py virtaal/plugins/weblate/backend.py
+msgid "Use https: the token would be sent unencrypted."
+msgstr ""
+
+#. l10n: Transifex's API is at https://rest.api.transifex.com/; something else answered
+#: virtaal/plugins/transifex/backend.py
+msgid "No Transifex API answered at this address."
+msgstr ""
+
 #: virtaal/plugins/weblate/__init__.py
 msgid "Translate projects hosted on Weblate servers"
 msgstr ""
@@ -2524,16 +2550,6 @@ msgstr ""
 #. l10n: Imports the servers and tokens of wlc, Weblate's command-line client
 #: virtaal/plugins/weblate/backend.py
 msgid "_Import from wlc"
-msgstr ""
-
-#. l10n: The API token a Weblate server gives each user, on its profile page
-#: virtaal/plugins/weblate/backend.py
-msgid "_Token:"
-msgstr ""
-
-#. l10n: Shown for an address starting http:// instead of https://
-#: virtaal/plugins/weblate/backend.py
-msgid "Use https: the token would be sent unencrypted."
 msgstr ""
 
 #: virtaal/plugins/weblate/backend.py
