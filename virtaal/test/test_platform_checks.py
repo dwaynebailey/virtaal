@@ -103,7 +103,7 @@ class TestPlatformChecks(TestScaffolding):
         self._show('Save')
         failures = self._type('Bewaar dit')
         assert failures['maxlength'] == 'Longer than 6 characters'
-        assert ('Long', 'Longer than 6 characters') in self._shown_checks()
+        assert ('Maximum length', 'Longer than 6 characters') in self._shown_checks()
 
         self._show('File')
         assert 'endpunc' not in self._type('Lêer.')

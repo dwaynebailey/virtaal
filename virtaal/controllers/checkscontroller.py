@@ -36,8 +36,8 @@ check_names = {
     'gconf': _("GConf values"),
     'kdecomments': _("Old KDE comment"),
     'long': _("Long"),
-    # A translation server's max-length flag (plugins/weblate/checks.py).
-    'maxlength': _("Long"),
+    # l10n: Name of a quality check: a translation server's limit on the length of a translation
+    'maxlength': _("Maximum length"),
     'musttranslatewords': _("Must translate words"),
     'newlines': _("Newlines"),
     'nplurals': _("Number of plurals"),

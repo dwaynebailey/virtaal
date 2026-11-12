@@ -179,7 +179,7 @@ def server_problem(entry, names):
         if label not in labels:
             labels.append(label)
     if labels:
-        # l10n: A quality check: the translation server reports failing checks; %s lists them, such as "Unchanged, Long"
+        # l10n: A quality check: the translation server reports failing checks; %s lists them, such as "Unchanged, Maximum length"
         return _('Weblate reports failing checks: %s') % ', '.join(labels)
     # l10n: A quality check: the translation server reports a failing check, not saying which
     return _('Weblate reports a failing check')

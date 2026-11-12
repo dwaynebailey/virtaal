@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 14:39+0000\n"
+"POT-Creation-Date: 2026-11-12 17:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -877,6 +877,11 @@ msgstr ""
 
 #: virtaal/controllers/checkscontroller.py
 msgid "Long"
+msgstr ""
+
+#. l10n: Name of a quality check: a translation server's limit on the length of a translation
+#: virtaal/controllers/checkscontroller.py
+msgid "Maximum length"
 msgstr ""
 
 #: virtaal/controllers/checkscontroller.py
@@ -2540,7 +2545,7 @@ msgstr[1] ""
 msgid "Missing placeholders: %s"
 msgstr ""
 
-#. l10n: A quality check: the translation server reports failing checks; %s lists them, such as "Unchanged, Long"
+#. l10n: A quality check: the translation server reports failing checks; %s lists them, such as "Unchanged, Maximum length"
 #: virtaal/plugins/weblate/checks.py
 #, python-format
 msgid "Weblate reports failing checks: %s"
