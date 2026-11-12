@@ -96,6 +96,17 @@ def test_a_directory_is_relative_to_itself_and_several_files_to_their_folder(tmp
     assert names == [os.path.join('po', 'af.po'), os.path.join('help', 'af.po')]
 
 
+def test_a_label_is_shown_instead_of_the_path(tmp_path):
+    _po(tmp_path / 'po' / 'af.po')
+    [entry] = FileSet.from_paths([str(tmp_path / 'po')])
+
+    entry.label = 'Hello/Program'
+
+    assert entry.display_name == 'Hello/Program'
+    entry.label = None
+    assert entry.display_name == 'af.po'
+
+
 def test_a_file_given_twice_is_listed_once(tmp_path):
     a = _po(tmp_path / 'af.po')
 

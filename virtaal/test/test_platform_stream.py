@@ -20,6 +20,7 @@ from translate.storage.workflow import StateEnum
 
 from devsupport.testing.fakeweblate import TOKEN, demo_many, run_until
 from virtaal.common import pan_app
+from virtaal.controllers.filepanelcontroller import FilePanelController
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.plugins.weblate.backend import WeblatePlatform
 from virtaal.support.platforms import Registry, submit, workcopy
@@ -27,6 +28,7 @@ from virtaal.support.platforms.browsedialog import COL_NAME, RESPONSE_OPEN, Brow
 from virtaal.support.platforms.servers import ServerList
 from virtaal.support.platforms.submitdialog import ConflictDialog, SubmitDialogs
 from virtaal.support.platforms.updatedialog import UpdateDialogs
+from virtaal.views import filepanelview
 
 AF_COMPONENTS = [
     'Hello/Program (Afrikaans)',
@@ -323,6 +325,54 @@ class TestOpenMany(Streaming, TestScaffolding):
         assert len(self.fake.requests_to('/api/translations/hello/program/de/file/')) == downloads
         self._opened(dialog)
         assert self.registry.notice_text() == '1 change to Hello/Program is not yet submitted.'
+
+
+class TestStreamNames(Streaming, TestScaffolding):
+    """A work copy's header in the unit list and its name in the Files
+    Panel: its project and component, with its language when the files
+    opened are in several."""
+
+    def setup_class(self):
+        TestScaffolding.setup_class(self)
+        PlaceablesController(self.main_controller)
+        self.panel = FilePanelController(self.main_controller)
+
+    def _headers(self):
+        store = self.sc.store
+        return [store.file_start(offset).display_name for offset, _entry in store.file_offsets()]
+
+    def _panel_names(self):
+        model = self.panel.view.model
+        names = []
+
+        def walk(it, prefix):
+            while it is not None:
+                names.append(prefix + model[it][filepanelview.COL_NAME])
+                walk(model.iter_children(it), names[-1] + '/')
+                it = model.iter_next(it)
+
+        walk(model.get_iter_first(), '')
+        return names
+
+    def test_one_language_names_each_file_by_its_component(self):
+        self._opened(self._open_components())
+
+        assert self._headers() == ['Hello/Program', 'Hello/Website', 'Hello/Installer']
+        # The project holding them all adds nothing; the website's
+        # template is under it.
+        assert self._panel_names() == ['Program', 'Website', 'Website/en.json', 'Installer']
+        assert self.sc.modified_stream_files() == []
+        self._edit('website', 'Welcome', 'Welkom hier')
+        assert self.sc.modified_stream_files() == ['Hello/Website']
+
+    def test_several_languages_add_the_language(self):
+        self._opened(self._open_languages(('Afrikaans', 'German')))
+
+        assert self._headers() == ['Hello/Program (Afrikaans)']
+        assert self._panel_names() == ['Program (Afrikaans)']
+        assert self.main_controller.open_stream_language('de')
+        assert self._headers() == ['Hello/Program (German)']
+        assert self._panel_names() == ['Program (German)']
 
 
 class TestStreamSubmitUpdate(Streaming, TestScaffolding):

@@ -546,6 +546,7 @@ class StoreController(BaseController):
         )
         copies = (workcopy.for_file(entry.path) for entry in all_files)
         self._set_work_copies({copy.path: copy for copy in copies if copy is not None})
+        self._name_work_copies(all_files)
         self._attach_loaded(store)
         self._modified = False
         self.main_controller.set_force_saveas(False)
@@ -555,6 +556,18 @@ class StoreController(BaseController):
         self.view.load_store(self.store)
         self.view.show()
         self._emit_store_loaded()
+
+    def _name_work_copies(self, all_files):
+        """Shows each work copy of the files by its project and component
+        ("Hello/Program"), and its language too when the files are in
+        more than one, instead of its path in the work folder."""
+        several = len([code for code in all_files.languages() if code]) > 1
+        for entry in all_files:
+            copy = self.work_copies.get(entry.path)
+            if copy is None:
+                entry.label = None
+            else:
+                entry.label = copy.label() if several else copy.location()
 
     def _start_cursor(self):
         from .cursor import Cursor

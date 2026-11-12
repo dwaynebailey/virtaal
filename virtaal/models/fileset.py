@@ -195,6 +195,9 @@ class FileEntry:
         """The L{TemplateMatch} a monolingual file is paired with."""
         self._language = template.language if template else None
         self._language_known = bool(self._language)
+        self.label = None
+        """The name to show instead of the path, such as a work copy's
+        project and component."""
 
     @property
     def language(self):
@@ -205,7 +208,10 @@ class FileEntry:
 
     @property
     def display_name(self):
-        """The path relative to the scanned directory, else the file name."""
+        """The label if any, else the path relative to the scanned
+        directory, else the file name."""
+        if self.label:
+            return self.label
         if self.root:
             return os.path.relpath(self.path, self.root)
         return os.path.basename(self.path)
