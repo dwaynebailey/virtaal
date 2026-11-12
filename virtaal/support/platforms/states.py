@@ -56,6 +56,22 @@ def coarse(state):
     return 1 if state < StateEnum.UNREVIEWED else 2
 
 
+def nearest(stored, state, target):
+    """Of the states stored (None: all of PLATFORM_STATES), the nearest to
+    state for a unit with target (its forms): the state itself, else the
+    nearest below it, else above it, but never EMPTY for a unit with
+    text. A state such as Needs work, where only EMPTY is below, goes as
+    the next state up."""
+    if stored is None or state is None or state in stored:
+        return state
+    choices = [s for s in stored if s != StateEnum.EMPTY] if any(target) else list(stored)
+    below = [s for s in choices if s <= state]
+    if below:
+        return max(below)
+    above = [s for s in choices if s > state]
+    return min(above) if above else state
+
+
 def _stored(base, value):
     """The state base's STATE can store nearest to value: the start of
     its range that holds value."""

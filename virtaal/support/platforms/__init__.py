@@ -299,6 +299,11 @@ class Platform:
     rate_limit = None
     """(requests, seconds) a server allows by default, for one that
     doesn't say what is left: Submit stays under it."""
+    states = None
+    """The states (StateEnum) it stores, of states.PLATFORM_STATES, or
+    None for all of them. A unit in another state is sent in the nearest
+    it stores (storable()); the side record keeps the one chosen, which
+    Virtaal still shows."""
     can_suggest = False
     """Its sessions list, dismiss and submit suggestions."""
     can_comment = False
@@ -348,6 +353,13 @@ class Platform:
 
     def session(self, url, credentials):
         raise NotImplementedError
+
+    def storable(self, state, target):
+        """The state the platform stores nearest to state (a StateEnum, or
+        None) for a unit with target (its forms)."""
+        from .states import nearest
+
+        return nearest(self.states, state, target)
 
     def state_code(self, state, target):
         """The platform's state code for one of Virtaal's states (a

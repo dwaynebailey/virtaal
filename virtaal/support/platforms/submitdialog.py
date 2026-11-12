@@ -152,6 +152,19 @@ def enforced_message(count):
     )
 
 
+def coarsened_message(count, platform):
+    """count changes are in states platform (its name) doesn't store."""
+    text = ngettext(
+        # l10n: Asking to Submit to a translation server, such as Transifex, that has fewer states than Virtaal (no Needs work, for one); %(platform)s is its name
+        "%(count)s change is in a state %(platform)s doesn't have, so it goes as the nearest "
+        'state it has; Virtaal keeps yours.',
+        "%(count)s changes are in states %(platform)s doesn't have, so they go as the nearest "
+        'state it has; Virtaal keeps yours.',
+        count,
+    )
+    return text % {'count': format_number(count), 'platform': platform}
+
+
 def sent_message(count):
     return _counted(
         # l10n: In the status bar after a Submit to a translation server
@@ -421,6 +434,8 @@ class SubmitDialogs(CopyDialogs):
     """The work copies with changes to send."""
     failing = 0
     """How many of the changes fail a check the server enforces."""
+    coarsened = 0
+    """How many of the changes are in a state the server doesn't store."""
 
     def confirm(self, count):
         dialog = Gtk.MessageDialog(
@@ -445,6 +460,8 @@ class SubmitDialogs(CopyDialogs):
             lines.append(warning)
         if self.failing:
             lines.append(enforced_message(self.failing))
+        if self.coarsened:
+            lines.append(coarsened_message(self.coarsened, self.copy.platform_name()))
         dialog.format_secondary_text('\n\n'.join(lines))
         dialog.add_button(_('_Cancel'), Gtk.ResponseType.CANCEL)
         # l10n: Submit to a translation server although some changes fail checks it enforces
@@ -490,6 +507,8 @@ class SubmitDialogs(CopyDialogs):
         if items is None:
             return None
         self.failing = self._failing_enforced()
+        if not self._as_suggestions():
+            self.coarsened = submit.coarsened(self.sending, self.registry.platform_of)
         if not self.confirm(sum(len(c.pending()) for c in self.sending)):
             return None
         if len(items) == 1:

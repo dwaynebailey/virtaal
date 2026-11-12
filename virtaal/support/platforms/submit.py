@@ -58,6 +58,12 @@ the Session of the work copy's server:
    coarser one for (Rejected as "needs editing" on an older Weblate)
    stays as chosen.
 
+A platform that stores fewer states than Virtaal shows (Platform.states,
+such as Transifex's untranslated, translated and reviewed) is sent the
+nearest it stores (Platform.storable()), and the side record keeps the
+state chosen; the refresh leaves that state as it is. Before Submit asks
+to send, it counts such changes (coarsened()), and the question says so.
+
 Before Submit asks to send, it counts the changes that fail, as Virtaal
 checks them, a check the server enforces (failing_enforced(),
 Platform.enforced()): the server may store them as needing work, and
@@ -128,6 +134,21 @@ def failing_enforced(copies, platform_of, checker):
         for r in copy.pending():
             failures = checker.run_filters(copy.matched[r], **options)
             count += bool(enforced & set(failures))
+    return count
+
+
+def coarsened(copies, platform_of):
+    """How many changes Submit would send from copies (attached) are in a
+    state their platform doesn't store (Platform.storable()): the server
+    gets the nearest it does, and the side record keeps the one chosen."""
+    count = 0
+    for copy in copies:
+        platform = platform_of(copy)
+        if platform is None or platform.states is None:
+            continue
+        for r in copy.pending():
+            target, state = copy.mine(r)
+            count += state is not None and platform.storable(state, target) != state
     return count
 
 
@@ -495,7 +516,8 @@ class Submission:
                 target, state, _code = self._mine(r)
                 same_text = text_hash(remote.target) == text_hash(target)
                 # A state the server only has a coarser one for stays.
-                if same_text and states.coarse(remote.state) == states.coarse(state):
+                stored = self.platform.storable(state, target)
+                if same_text and states.coarse(remote.state) == states.coarse(stored):
                     self.copy.units[r]['last_updated'] = remote.last_updated
                     self.copy.note_checks(r, remote)
                 else:

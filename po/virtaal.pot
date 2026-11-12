@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 18:19+0000\n"
+"POT-Creation-Date: 2026-11-12 20:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2863,6 +2863,18 @@ msgstr ""
 #, python-format
 msgid "%(count)s change fails checks this project enforces."
 msgid_plural "%(count)s changes fail checks this project enforces."
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: Asking to Submit to a translation server, such as Transifex, that has fewer states than Virtaal (no Needs work, for one); %(platform)s is its name
+#: virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid ""
+"%(count)s change is in a state %(platform)s doesn't have, so it goes as the "
+"nearest state it has; Virtaal keeps yours."
+msgid_plural ""
+"%(count)s changes are in states %(platform)s doesn't have, so they go as the "
+"nearest state it has; Virtaal keeps yours."
 msgstr[0] ""
 msgstr[1] ""
 
