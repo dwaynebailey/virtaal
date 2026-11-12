@@ -469,6 +469,12 @@ class WorkCopy:
             entry['has_suggestion'] = entry['id'] in suggested
             entry['has_comment'] = entry['id'] in commented
 
+    def note_checks(self, r, remote):
+        """Whether units[r] fails a check on the server, as remote (a
+        RemoteUnit) says, if it does."""
+        if remote.failing is not None:
+            self.units[r].update(failing=remote.failing, checks=list(remote.checks))
+
     def set_checks(self, failing):
         """Which units fail a check on the server now: {unit id: (ids of
         the enforced checks it fails)}."""
@@ -508,8 +514,7 @@ class WorkCopy:
             has_comment=bool(remote.has_comment),
             changed=False,
         )
-        if remote.failing is not None:
-            self.units[r].update(failing=remote.failing, checks=list(remote.checks))
+        self.note_checks(r, remote)
         self.units[r].pop('error', None)
         self.units[r].pop('conflict', None)
         self.units[r].pop('suggested', None)

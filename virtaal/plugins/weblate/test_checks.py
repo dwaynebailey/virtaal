@@ -308,3 +308,48 @@ def test_the_enforced_checks_are_virtaals(opened):
 
     assert platform.enforced(opened.copy.record) == {'unchanged', 'maxlength'}
     assert checks.virtaal_names('end_stop') == ('endpunc',)
+
+
+# Read again #
+
+
+def test_update_reads_again_which_units_fail_checks(fake):
+    from virtaal.plugins.weblate.test_update import Updating
+
+    copy = Updating(fake)
+    fake.fail_check(copy.server_unit('Help')['id'], 'same')
+    print_id = copy.server_unit('Print')['id']
+    fake.failing.pop(print_id)
+    fake.units[print_id]['has_failing_check'] = False
+
+    result = copy.update()
+
+    assert result.stop is None
+    assert (copy.entry('Help')['failing'], copy.entry('Help')['checks']) == (True, ['same'])
+    assert (copy.entry('Print')['failing'], copy.entry('Print')['checks']) == (False, [])
+    assert workcopy.for_file(copy.copy.path).record == copy.copy.record
+
+
+def test_an_update_that_cant_read_the_checks_keeps_them(fake, monkeypatch):
+    from virtaal.plugins.weblate.test_update import Updating
+
+    copy = Updating(fake)
+    original = fake._search
+    monkeypatch.setattr(
+        fake, '_search', lambda q, units: None if 'check' in q else original(q, units)
+    )
+
+    result = copy.update()
+
+    assert result.stop is None and copy.entry('Print')['checks'] == ['same']
+
+
+def test_submit_reads_whether_the_units_sent_fail_checks(fake):
+    copy = Copy(fake)
+    copy.edit('Print', 'Druk!', StateEnum.UNREVIEWED)
+    copy.save()
+
+    copy.submit()
+
+    # The fake's rule: any other text fixes it.
+    assert copy.entry('Print')['failing'] is False and copy.entry('Print')['checks'] == []

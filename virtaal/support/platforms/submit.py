@@ -53,9 +53,10 @@ the Session of the work copy's server:
 6. Refresh. One more query, for the units changed since Submit started,
    gives the units sent their last_updated, and the state the server
    really stored when it is another kind (a check it enforces can store
-   "needs editing" for "translated"), which the file then shows. A
-   state the server has only a coarser one for (Rejected as "needs
-   editing" on an older Weblate) stays as chosen.
+   "needs editing" for "translated"), which the file then shows, and
+   whether each fails a check there. A state the server has only a
+   coarser one for (Rejected as "needs editing" on an older Weblate)
+   stays as chosen.
 
 Someone can still change a unit between step 2 and its turn in step 4:
 the platform has no way to refuse a change made on an old baseline.
@@ -469,6 +470,7 @@ class Submission:
                 # A state the server only has a coarser one for stays.
                 if same_text and states.coarse(remote.state) == states.coarse(state):
                     self.copy.units[r]['last_updated'] = remote.last_updated
+                    self.copy.note_checks(r, remote)
                 else:
                     self.result.file_changed |= self.copy.take(r, remote)
             self._finish()

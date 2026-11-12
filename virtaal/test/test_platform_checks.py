@@ -132,3 +132,20 @@ class TestPlatformChecks(TestScaffolding):
         checker = self.checks_controller.get_checker()
         assert checker.config.extra_checks == expected
         assert 'weblate' not in self.checks_controller.check_unit(self._show('Alpha'))
+
+    def test_update_shows_what_the_server_says_now(self, monkeypatch):
+        from virtaal.support.platforms.updatedialog import UpdateDialogs
+
+        told = []
+        monkeypatch.setattr(UpdateDialogs, '_tell', lambda _self, text, *a: told.append(text))
+        self._open()
+        self._show('Help')
+        assert not any(name == 'Weblate' for name, _d in self._shown_checks())
+        help_id = next(u['id'] for u in self.fake.units.values() if u['source'] == ['Help'])
+        self.fake.fail_check(help_id, 'end_stop')
+
+        self.registry.update()
+
+        self._show('Open')
+        self._show('Help')
+        assert ('Weblate', 'Weblate reports a failing check') in self._shown_checks()

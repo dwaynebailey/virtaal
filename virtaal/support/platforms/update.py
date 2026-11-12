@@ -51,7 +51,12 @@ copy's server, and is Submit's comparison the other way round:
       over theirs; TAKE_THEIRS takes the server's; SKIP leaves it to
       come up again.
 
-4. The side record notes when Update started (updated_at), the next
+4. For a platform that can_check, which units fail a check on the
+   server now (Session.checks()), into the side record; a new download
+   brings them itself. A server that can't say leaves them as they
+   were.
+
+5. The side record notes when Update started (updated_at), the next
    Update's "since".
 """
 
@@ -161,6 +166,7 @@ class Update:
         self._conflicts = {}
         self._download = None
         self._plan = None
+        self._checked = False
 
     def _where(self):
         record = self.copy.record
@@ -349,8 +355,33 @@ class Update:
     def _failed(self, error):
         self._finish(FAILED, error)
 
+    def _wants_checks(self, stop):
+        return (
+            stop is None
+            and not self._checked
+            and self.result.downloaded is None
+            and getattr(self.platform, 'can_check', False)
+        )
+
+    def _refresh_checks(self):
+        """Which units fail a check on the server now, then the end."""
+        self._checked = True
+        project, component, language = self._where()
+
+        def got(failing):
+            self.copy.set_checks(failing)
+            self._finish()
+
+        enforced = self.copy.record.get('enforced_checks') or []
+        self.session.checks(
+            project, component, language, enforced, got, lambda _error: self._finish()
+        )
+
     def _finish(self, stop=None, error=None):
         if self.finished:
+            return
+        if self._wants_checks(stop):
+            self._refresh_checks()
             return
         self.finished = True
         self.result.stop = stop
