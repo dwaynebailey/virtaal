@@ -1392,7 +1392,11 @@ def test_typing_updates_which_states_can_be_picked():
     tb.elem = None
     tb.get_text = lambda: 'Oop'
     updates = []
-    view._widgets = {'targets': [tb], 'state': SimpleNamespace(set_unselectable=updates.append)}
+    reasons = []
+    view._widgets = {
+        'targets': [tb],
+        'state': SimpleNamespace(set_unselectable=updates.append, set_reasons=reasons.append),
+    }
     view.controller.main_controller = SimpleNamespace(
         lang_controller=SimpleNamespace(get_target_nplurals=lambda: 1)
     )
@@ -1400,7 +1404,24 @@ def test_typing_updates_which_states_can_be_picked():
 
     view._on_target_changed(None, 0)
 
-    assert updates == [['Untranslated']]
+    assert updates == [['Untranslated']] and reasons == [{}]
+
+
+def test_reviewed_not_to_be_picked_on_a_platforms_unit_says_why():
+    from virtaal.support.platforms import states
+
+    view = _states_view('Oop')
+    assert view._unselectable_reasons() == {}
+
+    states.allow_review(view.unit, False)
+
+    assert view._unselectable_states() == ['Untranslated', 'Reviewed']
+    assert view._unselectable_reasons() == {
+        'Reviewed': "You can't approve translations in this project."
+    }
+    # Nothing to say while the target is empty: Reviewed waits for text.
+    view.unit.target = ''
+    assert view._unselectable_reasons() == {}
 
 
 # _on_target_changed() #
