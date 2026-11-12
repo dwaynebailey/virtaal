@@ -33,6 +33,8 @@ from virtaal.support.platforms import AUTH, HTTP, NETWORK, NOT_PLATFORM, Budget,
 
 _LOOPBACK = ('localhost', '127.0.0.1', '::1')
 _BUSY = (502, 503, 504)
+CONDITIONAL = 'conditional'
+"""A raw download that may answer 304 Not Modified (get_file())."""
 
 
 def api_url(text):
@@ -172,6 +174,13 @@ class Client:
         on_error(PlatformError)."""
         self._get(url, on_reply, on_error, True)
 
+    def get_file(self, url, since, on_reply, on_error):
+        """Downloads url (a file) unless it is unchanged since since (its
+        Last-Modified from before, or None): on_reply(bytes, or None when
+        unchanged, and its Last-Modified or None), or on_error."""
+        headers = ['If-Modified-Since: ' + since] if since else []
+        self._get(url, on_reply, on_error, CONDITIONAL, headers=headers)
+
     def patch_json(self, url, data, on_reply, on_error):
         """Sends data as JSON to url with PATCH, and calls on_reply(the
         JSON reply), or on_error(PlatformError)."""
@@ -186,15 +195,19 @@ class Client:
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
         self._get(url, on_reply, on_error, False, (method, body))
 
-    def _get(self, url, on_reply, on_error, raw, write=None):
+    def _get(self, url, on_reply, on_error, raw, write=None, headers=()):
         generation = self._generation
 
         def current(handler):
             return lambda *args: generation == self._generation and handler(*args)
 
-        self._send(url, current(on_reply), current(on_error), 1, raw=raw, write=write)
+        self._send(
+            url, current(on_reply), current(on_error), 1, raw=raw, write=write, extra=headers
+        )
 
-    def _send(self, url, on_reply, on_error, attempt, waited=False, raw=False, write=None):
+    def _send(
+        self, url, on_reply, on_error, attempt, waited=False, raw=False, write=None, extra=()
+    ):
         wait = 0 if waited else self._resume_at - time.monotonic()
         if wait > self.MAX_WAIT:
             on_error(PlatformError(HTTP, 429))
@@ -202,11 +215,13 @@ class Client:
         if wait > 0:
             self.schedule(
                 wait,
-                lambda: self._send(url, on_reply, on_error, attempt, True, raw=raw, write=write),
+                lambda: self._send(
+                    url, on_reply, on_error, attempt, True, raw=raw, write=write, extra=extra
+                ),
             )
             return
         accept = 'Accept: */*' if raw else 'Accept: application/json'
-        headers = ['Authorization: Token ' + self.token, accept]
+        headers = ['Authorization: Token ' + self.token, accept, *extra]
         method, body = write or ('GET', None)
         if body is not None:
             headers.append('Content-Type: application/json')
@@ -217,14 +232,14 @@ class Client:
             headers=headers,
             user_agent=self.http.user_agent,
             # A file: stall detection instead of the short total timeout.
-            download=raw,
+            download=bool(raw),
         )
         if self.http.add(request) is False:
             on_error(PlatformError(NETWORK))
             return
 
         def done(request, _value):
-            self._replied(request, url, on_reply, on_error, attempt, raw, write)
+            self._replied(request, url, on_reply, on_error, attempt, raw, write, extra)
 
         def failed(request, reason):
             on_error(PlatformError(NETWORK, detail=str(reason)))
@@ -262,17 +277,19 @@ class Client:
         remaining, reset_at, limit = known
         return Budget(remaining, max(0.0, reset_at - time.monotonic()), limit)
 
-    def _replied(self, request, url, on_reply, on_error, attempt, raw=False, write=None):
+    def _replied(self, request, url, on_reply, on_error, attempt, raw=False, write=None, extra=()):
         status = request.status
         body = request.result.getvalue()
         self._note_limit(request)
         if status == 429 or status in _BUSY:
             again = write is None or write[0] != 'POST' or status == 429
-            if again and self._retry(request, url, on_reply, on_error, attempt, raw, write):
+            if again and self._retry(request, url, on_reply, on_error, attempt, raw, write, extra):
                 return
             on_error(PlatformError(HTTP, status, error_detail(body)))
         elif status == 401:
             on_error(PlatformError(AUTH, status, error_detail(body)))
+        elif raw == CONDITIONAL and status in (200, 304):
+            on_reply(body if status == 200 else None, request.response_header('Last-Modified'))
         elif status == 200 and raw:
             on_reply(body)
         elif status == 204 and write is not None:
@@ -291,7 +308,7 @@ class Client:
             error.fields = error_fields(body)
             on_error(error)
 
-    def _retry(self, request, url, on_reply, on_error, attempt, raw=False, write=None):
+    def _retry(self, request, url, on_reply, on_error, attempt, raw=False, write=None, extra=()):
         """Sends the request again after the wait the server asks for
         (or one that doubles), if that is soon enough."""
         if attempt >= self.MAX_TRIES:
@@ -305,7 +322,7 @@ class Client:
             '%s: HTTP %s, asking again in %d s', loggable_url(url), request.status, seconds
         )
         self._resume_at = max(self._resume_at, time.monotonic() + seconds)
-        self._send(url, on_reply, on_error, attempt + 1, raw=raw, write=write)
+        self._send(url, on_reply, on_error, attempt + 1, raw=raw, write=write, extra=extra)
         return True
 
     # Lists #
@@ -387,6 +404,14 @@ class Client:
         """on_done(bytes): the translation's file as Weblate stores it."""
         path = self._translation_path(project, component, language) + 'file/'
         self.get_bytes(self.url(path), on_done, on_error)
+
+    def glossary_file(self, project, component, language, file_format, since, on_done, on_error):
+        """A glossary's file in language, as file_format (such as tbx) or
+        as Weblate stores it (None), unless unchanged since since:
+        on_done(bytes or None, Last-Modified or None)."""
+        path = self._translation_path(project, component, language) + 'file/'
+        params = {'format': file_format} if file_format else None
+        self.get_file(self.url(path, params), since, on_done, on_error)
 
     def monolingual_base(self, project, component, on_done, on_error):
         """on_done(bytes): a monolingual component's template."""

@@ -35,6 +35,11 @@ comment or reports a problem with the source text. A server's option
 submits changes as suggestions. Reviewed is offered only on a project
 with reviews, until the server refuses an approval; Reject until it
 refuses a rejection.
+
+Glossaries (glossary.py), for a platform that can_glossary: a work
+copy's project's glossaries in its language are kept beside the work
+copies, and the terminology pane shows their terms (the terminology
+plug-in's Translation Server Glossaries).
 """
 
 from collections import namedtuple
@@ -128,6 +133,13 @@ Suggestion = namedtuple('Suggestion', 'id target user')
 Comment = namedtuple('Comment', 'id text user')
 """A comment on a unit or its source text: its id, its text and who
 wrote it (a name, or None)."""
+
+Glossary = namedtuple('Glossary', 'slug name data extension validator')
+"""One of a project's glossaries in a language, as downloaded: the slug
+that identifies it on the server, its name, its file's bytes (None when
+unchanged since the validator sent), the file's extension (tbx, po,
+csv...) and what to send to ask whether it changed (such as its
+Last-Modified), or None."""
 
 
 Budget = namedtuple('Budget', 'left reset_in limit', defaults=(None,))
@@ -245,6 +257,14 @@ class Session:
 
     # Checks (a platform that can_check) #
 
+    # Glossaries (a platform that can_glossary) #
+
+    def glossaries(self, project, language, known, on_done, on_error):
+        """on_done([Glossary]): project's glossaries that have language,
+        none if it has none. known is {slug: validator} of those kept: a
+        glossary unchanged since its validator comes without data."""
+        raise NotImplementedError
+
     def checks(self, project, component, language, enforced, on_done, on_error):
         """on_done({unit id: (check ids)}): the units of a language that
         fail a check on the server now, each with the ids of those it
@@ -288,6 +308,10 @@ class Platform:
     check = None
     """An extra check class (support/extrachecks.py) for its work
     copies, added while the platform is, or None."""
+    can_glossary = False
+    """Its sessions give a project's glossaries (Session.glossaries()),
+    whose terms show in the terminology pane for its work copies
+    (glossary.py)."""
 
     def credential_fields(self):
         """The fields a server needs besides its URL: Field()s, keyed as

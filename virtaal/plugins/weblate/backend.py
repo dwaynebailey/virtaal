@@ -57,6 +57,7 @@ from virtaal.support.platforms import (
     UNSUPPORTED,
     Comment,
     Download,
+    Glossary,
     Item,
     Platform,
     PlatformError,
@@ -68,6 +69,18 @@ from virtaal.support.platforms import (
 from . import client as weblate
 from .checks import WeblateCheck, enforced_names, parse_flags
 from .config import KeyFile, read_wlc, wlc_config_path
+
+GLOSSARY_EXTENSIONS = {
+    'tbx': 'tbx',
+    'po': 'po',
+    'csv': 'csv',
+    'csv-simple': 'csv',
+    'xliff': 'xlf',
+    'poxliff': 'xlf',
+    'tmx': 'tmx',
+}
+"""The file extension of each of Weblate's glossary file formats that
+Virtaal reads, for a glossary it can't give as TBX."""
 
 READ_ONLY = 100
 APPROVED = 30
@@ -505,6 +518,54 @@ class WeblateSession(Session):
 
         self._search_ids(project, component, language, 'has:check', failing, on_error)
 
+    # Glossaries #
+
+    def glossaries(self, project, language, known, on_done, on_error):
+        """Weblate's glossaries are a project's components marked
+        is_glossary (none on a server before 4.5, which has no such
+        field). Each comes as TBX, or as Weblate stores it where it
+        can't convert (404, as for a language it hasn't, or 400); one
+        without the language at all is left out."""
+        client = self.client
+        listed = []
+        found = []
+
+        def page(results):
+            listed.extend(c for c in results if c.get('is_glossary'))
+
+        def next_glossary(_count=None):
+            if not listed:
+                on_done(found)
+                return
+            info = listed.pop(0)
+            slug = weblate.component_slug(info)
+            name = info.get('name') or slug
+            since = known.get(slug)
+
+            def got(extension):
+                def reply(data, modified):
+                    found.append(Glossary(slug, name, data, extension, modified or since))
+                    next_glossary()
+
+                return reply
+
+            def as_stored(error):
+                extension = GLOSSARY_EXTENSIONS.get(info.get('file_format'))
+                if error.status not in (400, 404) or extension is None:
+                    failed(error)
+                    return
+                client.glossary_file(project, slug, language, None, since, got(extension), failed)
+
+            def failed(error):
+                if error.status == 404:
+                    next_glossary()
+                else:
+                    on_error(error)
+
+            client.glossary_file(project, slug, language, 'tbx', since, got('tbx'), as_stored)
+
+        client.components(project, page, next_glossary, on_error)
+
     def cancel(self):
         self.client.cancel()
 
@@ -526,6 +587,7 @@ class WeblatePlatform(Platform):
     can_comment = True
     can_check = True
     check = WeblateCheck
+    can_glossary = True
     rate_limit = (5000, 3600)
     """API_RATELIMIT_USER's default; replies say what is left."""
     # l10n: Imports the servers and tokens of wlc, Weblate's command-line client
