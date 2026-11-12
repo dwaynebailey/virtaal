@@ -13,6 +13,7 @@ XLIFF has state numbers between the StateEnum steps (state="new" is
 1, needs-l10n 32, needs-review-l10n 82, final 121), and undo must
 bring back that number, not just its StateEnum step."""
 
+import itertools
 import os
 import tempfile
 
@@ -62,6 +63,32 @@ XLIFF_STATES = {
     'Translated': 100,
     'Signed off': 120,
     'Final': 121,
+}
+
+PO = """msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\\n"
+"Language: af\\n"
+
+msgid "Untranslated"
+msgstr ""
+
+msgid "Also untranslated"
+msgstr ""
+
+#, fuzzy
+msgid "Fuzzy"
+msgstr "Wollerig"
+
+msgid "Translated"
+msgstr "Vertaal"
+"""
+
+PO_STATES = {
+    'Untranslated': 0,
+    'Also untranslated': 0,
+    'Fuzzy': 30,
+    'Translated': 100,
 }
 
 TS = """<?xml version="1.0" encoding="utf-8"?>
@@ -125,6 +152,13 @@ class _StateUndo(TestScaffolding):
         self.idle_calls = []
         # A state timer an earlier test left pending would block this one's.
         self.unit_controller._state_timer_active = False
+        self.unit_controller._state_timer_id = None
+        # Saving a PO file asks for these in a modal dialog.
+        monkeypatch.setattr(
+            self.main_controller,
+            'get_translator_details',
+            lambda *args: ('Tester', 'tester@example.org', 'Afrikaans'),
+        )
 
         def later(func, *args, **kwargs):
             self.idle_calls.append(lambda: func(*args))
@@ -382,6 +416,23 @@ class _StateUndo(TestScaffolding):
         assert self._target().get_text() == ''
         self._assert_state(unit, state_n)
 
+    def _hold_state_timers(self, monkeypatch):
+        """Keep state timers pending until _fire_state_timers()."""
+        self.timers = {}
+        ids = itertools.count(1)
+
+        def timeout_add(ms, func, *args):
+            timer_id = next(ids)
+            self.timers[timer_id] = lambda: func(*args)
+            return timer_id
+
+        monkeypatch.setattr(unitcontroller_module, 'timeout_add', timeout_add)
+        monkeypatch.setattr(unitcontroller_module, 'source_remove', self.timers.pop)
+
+    def _fire_state_timers(self):
+        while self.timers:
+            self.timers.pop(min(self.timers))()
+
 
 def pytest_generate_tests(metafunc):
     cls = metafunc.cls
@@ -397,7 +448,24 @@ def pytest_generate_tests(metafunc):
         )
 
 
-class TestXliffStateUndo(_StateUndo):
+class _TwoEmptyUnits:
+    """Tests for a format with two empty units in its fixture."""
+
+    def test_a_unit_typed_into_before_the_last_ones_timer_is_corrected(self, monkeypatch):
+        first, second = [s for s in self.STATES if self.STATES[s] < S.NEEDS_WORK][:2]
+        self._hold_state_timers(monkeypatch)
+        self._select(first)
+        self._type('Nuut')
+        unit = self._select(second)
+        self._type('Nuut')
+
+        self._fire_state_timers()
+
+        self._assert_state(unit, S.UNREVIEWED)
+        assert self._unit(first).get_state_id() == S.UNREVIEWED
+
+
+class TestXliffStateUndo(_TwoEmptyUnits, _StateUndo):
     SUFFIX = '.xlf'
     CONTENT = XLIFF
     STATES = XLIFF_STATES
@@ -429,6 +497,15 @@ class TestXliffStateUndo(_StateUndo):
 
         assert self._saved(empty_source).get_state_id() == S.NEEDS_WORK
         assert unit.get_state_id() == S.NEEDS_WORK
+
+
+class TestPoStateUndo(_TwoEmptyUnits, _StateUndo):
+    SUFFIX = '.po'
+    CONTENT = PO
+    STATES = PO_STATES
+    TRANSLATED = ['Fuzzy', 'Translated']
+    # An empty msgstr is untranslated, whatever was picked.
+    SAVED_PICK = {'Untranslated': S.EMPTY, 'Also untranslated': S.EMPTY}
 
 
 class TestTsStateUndo(_StateUndo):

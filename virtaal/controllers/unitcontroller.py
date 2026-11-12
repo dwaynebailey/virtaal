@@ -5,7 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from gi.repository.GLib import timeout_add
+from gi.repository.GLib import source_remove, timeout_add
 from gi.repository.GObject import SignalFlags
 from translate.storage import workflow
 from translate.storage.workflow import UnitState, Workflow
@@ -78,6 +78,7 @@ class UnitController(BaseController):
         self._recreate_workflow = False
         self._unit_state_names = {}
         self._state_timer_active = False
+        self._state_timer_id = None
 
     # ACCESSORS #
     def get_unit_target(self, target_index):
@@ -200,6 +201,9 @@ class UnitController(BaseController):
             self._start_state_timer()
 
     def _unit_done(self, widget, unit):
+        # The unit's timer correction is made here; the next unit starts
+        # its own timer.
+        self._stop_state_timer()
         if unit._modified and unit.STATE:
             self._settle_state(unit)
 
@@ -212,6 +216,7 @@ class UnitController(BaseController):
 
     def _state_timer_expired(self, unit):
         self._state_timer_active = False
+        self._state_timer_id = None
         if unit is not self.current_unit:
             return
         self._correct_empty_state(unit)
@@ -255,7 +260,15 @@ class UnitController(BaseController):
         if self._state_timer_active:
             return
         self._state_timer_active = True
-        timeout_add(self.STATE_TIMEOUT, self._state_timer_expired, self.current_unit)
+        self._state_timer_id = timeout_add(
+            self.STATE_TIMEOUT, self._state_timer_expired, self.current_unit
+        )
+
+    def _stop_state_timer(self):
+        if self._state_timer_id is not None:
+            source_remove(self._state_timer_id)
+            self._state_timer_id = None
+        self._state_timer_active = False
 
     def finish_current_unit(self):
         """Finish the current unit and load it again, as moving to another
