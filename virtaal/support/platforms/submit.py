@@ -38,6 +38,9 @@ the Session of the work copy's server:
    count to start again when that is at most MAX_WAIT seconds away,
    else it stops, resumable, saying when. The client itself waits out
    a 429's Retry-After.
+   A refusal that says what the user may not do (PlatformError's
+   refused: REVIEW, approving) is noted in the side record too, and
+   Reviewed is offered no more on that project.
 6. Refresh. One more query, for the units changed since Submit started,
    gives the units sent their last_updated, and the state the server
    really stored when it is another kind (a check it enforces can store
@@ -352,11 +355,14 @@ class Submission:
         if delay > 0:
             self.schedule(delay, self._send_next)
             return
-        r = self._queue[0]
-        target, state, code = self._mine(r)
         done = self._sending - len(self._queue)
         self.on_progress(done + 1, self._sending)
         self.pacer.note()
+        self._send(self._queue[0])
+
+    def _send(self, r):
+        """Sends units[r], the first in the queue."""
+        target, state, code = self._mine(r)
 
         def sent(stored):
             self._queue.pop(0)
@@ -370,6 +376,8 @@ class Submission:
                 self._queue.pop(0)
                 message = error.detail or str(error.status)
                 self.copy.mark_failed(r, message)
+                if error.refused:
+                    self.copy.refuse(error.refused)
                 self.result.failures[r] = message
                 self._send_next()
             else:

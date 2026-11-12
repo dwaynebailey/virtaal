@@ -249,6 +249,17 @@ def test_editing_a_server_sets_its_option(servers, weblate, monkeypatch):
     assert ServerList(servers.platforms, servers.path).servers[0].send_finished
 
 
+def test_a_platform_without_review_has_none_of_it(dummy):
+    from virtaal.support.platforms.review import Reviews
+
+    copy = SimpleNamespace(record={'platform': 'dummy', 'server': 'dummy://one'})
+    reviews = Reviews(lambda _copy: dummy, lambda _copy: None)
+
+    assert not (dummy.can_suggest or dummy.can_comment)
+    assert not reviews.wanted(copy) and not reviews.can_comment(copy)
+    assert not reviews.can_suggest(copy)
+
+
 def test_without_platforms_ini_a_platforms_own_last_server_is_used(tmp_path, weblate, dummy):
     dummy.saved = ([('dummy://one', {}), ('dummy://two', {})], 'dummy://two')
 

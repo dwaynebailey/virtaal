@@ -15,7 +15,9 @@ out (Retry-After), and so is a used-up X-RateLimit-Remaining; the last
 X-RateLimit headers seen are the budget() a Submit paces itself by,
 kept in budgets, which the platform shares between its clients of one
 server and token.
-A unit is changed with PATCH, which is safe to send again.
+A unit is changed with PATCH, which is safe to send again; a POST
+(a suggestion, a comment) is only sent again after a 429, which DRF
+answers before taking it.
 """
 
 import json
@@ -91,6 +93,19 @@ def error_detail(body):
     return str(reply.get('detail') or '')
 
 
+def error_fields(body):
+    """The fields a Weblate error reply names (5.10's errors[].attr):
+    "state" for a state refused."""
+    try:
+        reply = json.loads(body.decode('utf-8'))
+    except (UnicodeDecodeError, ValueError):
+        return set()
+    errors = reply.get('errors') if isinstance(reply, dict) else None
+    if not isinstance(errors, list):
+        return set(reply) - {'detail'} if isinstance(reply, dict) else set()
+    return {e.get('attr') for e in errors if isinstance(e, dict) and e.get('attr')}
+
+
 def _later(seconds, callback):
     GLib.timeout_add(int(seconds * 1000), lambda: callback() and False)
 
@@ -160,8 +175,16 @@ class Client:
     def patch_json(self, url, data, on_reply, on_error):
         """Sends data as JSON to url with PATCH, and calls on_reply(the
         JSON reply), or on_error(PlatformError)."""
+        self.send_json('PATCH', url, data, on_reply, on_error)
+
+    def send_json(self, method, url, data, on_reply, on_error):
+        """Sends data as JSON to url with method (POST, PATCH, DELETE),
+        and calls on_reply(the JSON reply, or None for none), or
+        on_error(PlatformError). A POST goes again after a 429 only,
+        which comes before the server takes it: after a busy server's
+        reply it may have been taken."""
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
-        self._get(url, on_reply, on_error, False, ('PATCH', body))
+        self._get(url, on_reply, on_error, False, (method, body))
 
     def _get(self, url, on_reply, on_error, raw, write=None):
         generation = self._generation
@@ -244,13 +267,16 @@ class Client:
         body = request.result.getvalue()
         self._note_limit(request)
         if status == 429 or status in _BUSY:
-            if self._retry(request, url, on_reply, on_error, attempt, raw, write):
+            again = write is None or write[0] != 'POST' or status == 429
+            if again and self._retry(request, url, on_reply, on_error, attempt, raw, write):
                 return
             on_error(PlatformError(HTTP, status, error_detail(body)))
         elif status == 401:
             on_error(PlatformError(AUTH, status, error_detail(body)))
         elif status == 200 and raw:
             on_reply(body)
+        elif status == 204 and write is not None:
+            on_reply(None)
         elif status in (200, 201):
             try:
                 data = json.loads(body.decode('utf-8'))
@@ -261,7 +287,9 @@ class Client:
         elif status == 404 or status < 400:
             on_error(PlatformError(NOT_PLATFORM, status))
         else:
-            on_error(PlatformError(HTTP, status, error_detail(body)))
+            error = PlatformError(HTTP, status, error_detail(body))
+            error.fields = error_fields(body)
+            on_error(error)
 
     def _retry(self, request, url, on_reply, on_error, attempt, raw=False, write=None):
         """Sends the request again after the wait the server asks for
@@ -402,6 +430,22 @@ class Client:
         """Changes one unit's fields ({"target": [...], "state": 20}):
         on_done(the fields as written)."""
         self.patch_json(self.url('units/%d/' % int(unit_id)), fields, on_done, on_error)
+
+    # Review #
+
+    def unit_list(self, unit_id, name, on_page, on_done, on_error):
+        """A unit's suggestions or comments (name), a page at a time."""
+        self.get_list('units/%d/%s/' % (int(unit_id), name), on_page, on_done, on_error)
+
+    def add_to_unit(self, unit_id, name, data, on_done, on_error):
+        """Adds a suggestion or a comment (name) to a unit: on_done(the
+        reply)."""
+        url = self.url('units/%d/%s/' % (int(unit_id), name))
+        self.send_json('POST', url, data, on_done, on_error)
+
+    def delete_suggestion(self, suggestion_id, on_done, on_error):
+        url = self.url('suggestions/%d/' % int(suggestion_id))
+        self.send_json('DELETE', url, {}, on_done, on_error)
 
 
 def _is_page(data):

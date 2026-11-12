@@ -28,6 +28,7 @@ from virtaal.support import (
     sdlxliff_compat,
     txml_compat,
 )
+from virtaal.support.platforms import states as platform_states
 
 from . import rendering
 from .baseview import BaseView
@@ -258,6 +259,10 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             'sources': [],
             'targets': [],
         }
+        self.note_sources = []
+        """Callables giving lines to add to a unit's translator notes,
+        called with each unit as it is shown, such as a translation
+        server's comments on it (support/platforms/review.py)."""
         self._get_widgets()
         # Gtk.Widget.reparent is deprecated with no direct replacement;
         # this is the documented manual equivalent.
@@ -876,6 +881,11 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
                 *self._memoq_notes(),
                 *self._phrase_notes(),
                 *self._wordfast_notes(),
+                *(
+                    line
+                    for source in getattr(self, 'note_sources', ())
+                    for line in source(self.unit)
+                ),
             ]
             note_text = '\n'.join(line for line in notes if line)
 
@@ -893,6 +903,12 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             self._widgets['notes'][origin].show_all()
         else:
             self._widgets['notes'][origin].hide()
+
+    def refresh_notes(self):
+        """Shows the translator notes of the unit shown again, as its
+        note_sources now give them."""
+        if self.unit is not None and 'translator' in self._widgets['notes']:
+            self._layout_update_notes('translator')
 
     def _trados_notes(self):
         """Lines about the unit's Trados segment, shown with the
@@ -1187,6 +1203,10 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             unselectable += [
                 name for state, name in state_names.items() if state >= StateEnum.UNREVIEWED
             ]
+        elif not platform_states.reviewable(self.unit):
+            # A translation server's project without reviews, or one
+            # that refused this user an approval.
+            unselectable.append(state_names[StateEnum.FINAL])
         return unselectable
 
     def _target_is_empty(self):

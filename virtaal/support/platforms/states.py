@@ -21,6 +21,11 @@ as a unit no longer fuzzy, wins over the side record.
 A unit the platform won't let anyone change is locked (locked()):
 catxliff_compat.is_locked() reads it, so it shows read-only as a
 locked Trados or memoQ segment does.
+
+A unit this user may not approve (a project without reviews, or one
+whose server refused an approval) isn't reviewable(): the state button
+doesn't offer Reviewed for it, though a unit already approved still
+shows so.
 """
 
 from translate.storage.workflow import StateEnum
@@ -113,3 +118,12 @@ def lock(unit, locked=True):
 
 def locked(unit):
     return bool(getattr(unit, 'platform_locked', False))
+
+
+def allow_review(unit, allowed=True):
+    unit.platform_no_review = not allowed
+
+
+def reviewable(unit):
+    """Whether Reviewed is this user's to choose for unit."""
+    return not getattr(unit, 'platform_no_review', False)

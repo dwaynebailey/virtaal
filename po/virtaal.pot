@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-11 19:28+0000\n"
+"POT-Creation-Date: 2026-11-12 08:47+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2638,6 +2638,60 @@ msgstr ""
 msgid "Open in All _Components"
 msgstr ""
 
+#. l10n: Someone's suggested translation of the unit, from a translation server such as Weblate
+#: virtaal/support/platforms/reviewview.py
+#, python-format
+msgid "Suggestion from %(user)s: %(text)s"
+msgstr ""
+
+#. l10n: A suggested translation of the unit by someone not named, from a translation server
+#: virtaal/support/platforms/reviewview.py
+#, python-format
+msgid "Suggestion: %(text)s"
+msgstr ""
+
+#. l10n: The title of the dialog writing a comment on a unit, for a translation server
+#: virtaal/support/platforms/reviewview.py
+msgid "Add Comment"
+msgstr ""
+
+#. l10n: The title of the dialog telling a translation server's project of a mistake or unclear wording in a unit's source text
+#: virtaal/support/platforms/reviewview.py
+msgid "Report a Source Problem"
+msgstr ""
+
+#: virtaal/support/platforms/reviewview.py
+#: virtaal/support/platforms/submitdialog.py
+#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
+#: virtaal/views/widgets/settingsdialog.py
+msgid "_Cancel"
+msgstr ""
+
+#: virtaal/support/platforms/reviewview.py
+#: virtaal/support/platforms/submitdialog.py
+msgid "_Submit"
+msgstr ""
+
+#. l10n: Makes someone's suggested translation, from a translation server, the unit's translation (sent with the next Submit)
+#: virtaal/support/platforms/reviewview.py
+msgid "Accept"
+msgstr ""
+
+#. l10n: Rejects someone's suggested translation on the translation server
+#: virtaal/support/platforms/reviewview.py
+msgid "Reject"
+msgstr ""
+
+#. l10n: The context menu of a unit from a translation server: write a comment on its translation there
+#: virtaal/support/platforms/reviewview.py
+msgid "Add _Comment…"
+msgstr ""
+
+#. l10n: The context menu of a unit from a translation server: tell the project there of a mistake or unclear wording in the source text
+#: virtaal/support/platforms/reviewview.py
+msgid "Report a _Source Problem…"
+msgstr ""
+
 #. l10n: A translation server's option: units at Translated or above go to the server each time the file is saved, instead of waiting for Submit
 #: virtaal/support/platforms/serversdialog.py
 msgid "Send _finished units as you go"
@@ -2652,6 +2706,11 @@ msgstr ""
 #: virtaal/support/platforms/serversdialog.py
 #, python-format
 msgid "Couldn't connect to the server: %(reason)s"
+msgstr ""
+
+#. l10n: A translation server is a version too old for what was asked, such as comments
+#: virtaal/support/platforms/serversdialog.py
+msgid "The server doesn't support this."
 msgstr ""
 
 #. l10n: %(status)s is an HTTP status code, such as 403 or 500
@@ -2758,19 +2817,9 @@ msgstr[1] ""
 msgid "Submitting %(number)s of %(total)s…"
 msgstr ""
 
-#: virtaal/support/platforms/submitdialog.py
-#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
-#: virtaal/views/widgets/settingsdialog.py
-msgid "_Cancel"
-msgstr ""
-
 #. l10n: The title of the dialog listing units changed both in Virtaal and on the translation server
 #: virtaal/support/platforms/submitdialog.py
 msgid "Changed on the Server"
-msgstr ""
-
-#: virtaal/support/platforms/submitdialog.py
-msgid "_Submit"
 msgstr ""
 
 #: virtaal/support/platforms/submitdialog.py

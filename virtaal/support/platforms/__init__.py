@@ -25,6 +25,13 @@ Panel (openmany.py): each file opened keeps its own work copy
 (StoreController.work_copies), and Submit, Update, sending as you go
 and the notices take in every one of them, with one question and one
 list of conflicts for all.
+
+Review (review.py, reviewview.py), for a platform that can_suggest or
+can_comment: the unit shown shows others' suggestions, to accept or
+dismiss, and its comments with its notes; its context menu adds a
+comment or reports a problem with the source text. Reviewed is
+offered only on a project with reviews, until the server refuses an
+approval.
 """
 
 from collections import namedtuple
@@ -38,16 +45,32 @@ NOT_PLATFORM = 'not-platform'
 """A reply, but not from the platform's API."""
 HTTP = 'http'
 """Any other error status, including a rate limit too long to wait."""
+UNSUPPORTED = 'unsupported'
+"""The server is too old to have what was asked for."""
+
+REVIEW = 'review'
+"""A PlatformError's refused: approving (Reviewed) is not this user's."""
+
+# A comment's scope (Session.add_comment).
+ON_TRANSLATION = 'translation'
+"""About this language's translation."""
+ON_SOURCE = 'source'
+"""About the source text, for every language."""
+SOURCE_REPORT = 'report'
+"""A problem with the source text, for its project's maintainers to fix:
+a platform without such reports takes it as ON_SOURCE."""
 
 
 class PlatformError:
-    """Why a request failed: kind, the HTTP status if any, and the
-    server's or curl's own words."""
+    """Why a request failed: kind, the HTTP status if any, the server's
+    or curl's own words, and what the server refused this user, if it
+    says (REVIEW)."""
 
-    def __init__(self, kind, status=None, detail=''):
+    def __init__(self, kind, status=None, detail='', refused=None):
         self.kind = kind
         self.status = status
         self.detail = detail
+        self.refused = refused
 
     def __repr__(self):
         return '<PlatformError %s %s %r>' % (self.kind, self.status, self.detail)
@@ -60,21 +83,37 @@ much of it is translated (0 to 1, or None) and whether it is a
 glossary."""
 
 RemoteUnit = namedtuple(
-    'RemoteUnit', 'id position context source target state code last_updated read_only'
+    'RemoteUnit',
+    'id position context source target state code last_updated read_only'
+    ' has_suggestion has_comment source_id',
+    defaults=(False, False, None),
 )
 """A unit as the platform holds it: its id there, its position in the
 file, its context (PO's msgctxt, a monolingual file's key), its source
 and target (lists of forms), its state as Virtaal's StateEnum (None if
 it has none Virtaal shows), the platform's own state code, when it
-last changed (the platform's text, or None) and whether no one may
-change it there."""
+last changed (the platform's text, or None), whether no one may
+change it there, whether it has suggestions and comments, and the id
+of the unit of its source text that comments on the source are on
+(None if it has none of its own)."""
 
-Download = namedtuple('Download', 'filename data template units names')
+Download = namedtuple('Download', 'filename data template units names options', defaults=(None,))
 """A language of a component (or project) as downloaded: the file's
 path as the platform has it ("po/af.po", "/" between parts) and its
 bytes in the platform's own format, the template as (path, bytes) or
-None, the RemoteUnits, and the names of the project and the component
-({'project': ..., 'component': ...}) to show."""
+None, the RemoteUnits, the names of the project and the component
+({'project': ..., 'component': ...}) to show, and the project's
+options, or None: {'review': whether translations are reviewed
+(approved), 'source_review': whether source problems can be reported},
+each None if unknown."""
+
+Suggestion = namedtuple('Suggestion', 'id target user')
+"""Someone's suggestion for a unit: its id on the platform, its target
+(a list of forms) and who made it (a name, or None)."""
+
+Comment = namedtuple('Comment', 'id text user')
+"""A comment on a unit or its source text: its id, its text and who
+wrote it (a name, or None)."""
 
 
 Budget = namedtuple('Budget', 'left reset_in limit', defaults=(None,))
@@ -143,6 +182,35 @@ class Session:
         of the same server and credentials, or None if it doesn't say."""
         return None
 
+    # Review (a platform that can_suggest or can_comment) #
+    #
+    # Each of these ends with on_error(PlatformError(UNSUPPORTED)) on a
+    # server too old to have it, and once it knows, without asking.
+
+    def flagged(self, project, component, language, on_done, on_error):
+        """on_done(ids, ids): the units of a language with suggestions,
+        and those with comments, now."""
+        raise NotImplementedError
+
+    def suggestions(self, unit_id, on_done, on_error):
+        """on_done([Suggestion]): others' suggestions for a unit."""
+        raise NotImplementedError
+
+    def dismiss_suggestion(self, suggestion_id, on_done, on_error):
+        """Rejects a suggestion. on_done(None), or on_error (403: not this
+        user's to dismiss)."""
+        raise NotImplementedError
+
+    def comments(self, unit_id, source_id, on_done, on_error):
+        """on_done([Comment]): the comments on a unit and on its source
+        text (the unit source_id, or None), in order."""
+        raise NotImplementedError
+
+    def add_comment(self, unit_id, text, scope, on_done, on_error):
+        """Comments on a unit: scope is ON_TRANSLATION, ON_SOURCE or
+        SOURCE_REPORT. on_done(the Comment)."""
+        raise NotImplementedError
+
     def cancel(self):
         """Drops the replies to every request made so far."""
 
@@ -169,6 +237,10 @@ class Platform:
     rate_limit = None
     """(requests, seconds) a server allows by default, for one that
     doesn't say what is left: Submit stays under it."""
+    can_suggest = False
+    """Its sessions list and dismiss suggestions."""
+    can_comment = False
+    """Its sessions list and add comments."""
 
     def credential_fields(self):
         """The fields a server needs besides its URL: Field()s, keyed as
@@ -285,6 +357,8 @@ class Registry:
         self._shown = []
         """The work copies open, as last seen."""
         self._reminded = False
+        self.review = None
+        """The ReviewPanel (reviewview.py) in the unit editor."""
         from .trickle import Trickler
 
         self.trickler = Trickler(self._server_of, self._trickled, self._trickle_conflicts)
@@ -315,6 +389,9 @@ class Registry:
             self._handlers = []
             self.trickler.stop()
             self._hide_notice()
+            if self.review is not None:
+                self.review.destroy()
+                self.review = None
             self._sync_menubar()
         else:
             self.sync_submit()
@@ -351,8 +428,16 @@ class Registry:
         for signal in ('store-loaded', 'store-saved', 'store-closed'):
             self._watch(store_controller, signal)
         self._watch_network()
+        self._add_review()
         self.sync_submit()
         self._sync_menubar()
+
+    def _add_review(self):
+        unit_controller = getattr(self.main_controller, 'unit_controller', None)
+        if getattr(unit_controller, 'view', None) is not None:
+            from .reviewview import ReviewPanel
+
+            self.review = ReviewPanel(self)
 
     def _watch_network(self):
         from . import trickle
@@ -433,7 +518,15 @@ class Registry:
         self.trickler.stop()
         result = SubmitDialogs(self, copies, self._parent(parent)).run()
         self._sync_notice()
+        self._review_changed()
         return result
+
+    def _review_changed(self):
+        """After Submit or Update: the server is asked again, for the
+        unit shown too."""
+        if self.review is not None:
+            self.review.reviews.clear()
+            self.review.refresh()
 
     def update(self, parent=None):
         """Saves the work copies open, then brings in what others changed
@@ -446,6 +539,7 @@ class Registry:
         self.trickler.stop()
         result = UpdateDialogs(self, copies, self._parent(parent)).run()
         self._sync_notice()
+        self._review_changed()
         for copy in self._open_copies():
             if copy.store is not None:
                 self.trickler.start(copy)

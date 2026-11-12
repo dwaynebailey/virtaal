@@ -23,18 +23,56 @@ Weblate's states and Virtaal's (translate-toolkit's StateEnum):
 Submit sends each unit's target and state with PATCH /api/units/<id>/,
 {"target": [every form], "state": code}: 0 with no text, never 0 with
 some (10 instead). A server older than 2026.x refuses 11 and 12 (400):
-those go again as 10, and Virtaal keeps its finer state.
+those go again as 10, and Virtaal keeps its finer state. Approving (30)
+takes the project's reviews and the user's right to review: else 400,
+naming the state, which says the user may not review (REVIEW); a 403
+is no right to change the unit at all.
+
+Review: a unit's suggestions (GET, POST /api/units/<id>/suggestions/;
+DELETE /api/suggestions/<id>/) are Weblate 2026.8's, adding a comment
+(POST /api/units/<id>/comments/) 5.12's and reading them 5.15's. There
+is no version to ask, so the first reply tells: 404 where there's no
+such request (405 for reading comments on 5.12 to 5.14), after which
+this server's sessions know without asking (Platform.features). A
+comment on the source text is a "global" one, a source report a
+"report" (which needs the project's source reviews), and both are on
+the source unit, whose comments a unit's are read with.
 """
 
 from translate.storage.workflow import StateEnum
 
-from virtaal.support.platforms import Download, Item, Platform, RemoteUnit, Session
+from virtaal.support.platforms import (
+    HTTP,
+    NOT_PLATFORM,
+    ON_SOURCE,
+    ON_TRANSLATION,
+    REVIEW,
+    SOURCE_REPORT,
+    UNSUPPORTED,
+    Comment,
+    Download,
+    Item,
+    Platform,
+    PlatformError,
+    RemoteUnit,
+    Session,
+    Suggestion,
+)
 
 from . import client as weblate
 from .config import KeyFile, read_wlc, wlc_config_path
 
 READ_ONLY = 100
+APPROVED = 30
 _NEWER_STATES = (11, 12)
+
+_SCOPES = {ON_TRANSLATION: 'translation', ON_SOURCE: 'global', SOURCE_REPORT: 'report'}
+"""Weblate's comment scopes: a report needs the project's source reviews."""
+
+# Platform.features: what a server was found not to have.
+SUGGESTIONS = 'suggestions'
+COMMENTS_LISTED = 'comments-listed'
+COMMENTS_ADDED = 'comments-added'
 
 _TO_VIRTAAL = {
     0: StateEnum.EMPTY,
@@ -69,9 +107,24 @@ def submit_code(state, target):
     return code or 10
 
 
+def link_id(url):
+    """The number at the end of an API link (".../units/42/"), or None."""
+    tail = str(url or '').rstrip('/').rpartition('/')[2]
+    return int(tail) if tail.isdigit() else None
+
+
+def user_name(url):
+    """The user name in a user's API link (".../users/anna/"), or None."""
+    from urllib import parse
+
+    tail = str(url or '').rstrip('/').rpartition('/')[2]
+    return parse.unquote(tail) or None
+
+
 def remote_unit(unit):
     """A RemoteUnit for a unit as the API gives it."""
     code = unit.get('state')
+    source_id = link_id(unit.get('source_unit'))
     return RemoteUnit(
         id=unit.get('id'),
         position=unit.get('position') or 0,
@@ -82,7 +135,26 @@ def remote_unit(unit):
         code=code,
         last_updated=unit.get('last_updated'),
         read_only=code == READ_ONLY or bool(unit.get('read_only')),
+        has_suggestion=bool(unit.get('has_suggestion')),
+        has_comment=bool(unit.get('has_comment')),
+        source_id=None if source_id == unit.get('id') else source_id,
     )
+
+
+def _suggestion(data):
+    return Suggestion(
+        data.get('id'), [str(t) for t in data.get('target') or ['']], user_name(data.get('user'))
+    )
+
+
+def _comment(data):
+    return Comment(data.get('id'), str(data.get('comment') or ''), user_name(data.get('user')))
+
+
+def _missing(error):
+    """Whether an error says the server has no such request: 404, or
+    405 for a method it doesn't take there."""
+    return (error.kind == NOT_PLATFORM and error.status == 404) or error.status == 405
 
 
 def file_path(filename, filemask, language):
@@ -99,8 +171,11 @@ def file_path(filename, filemask, language):
 class WeblateSession(Session):
     """A Client's replies as the browse dialog wants them."""
 
-    def __init__(self, client):
+    def __init__(self, client, features=None):
         self.client = client
+        self.missing = set() if features is None else features
+        """What the server was found not to have (SUGGESTIONS, ...),
+        shared by the sessions of one server."""
 
     def test_connection(self, on_done, on_error):
         self.client.test_connection(on_done, on_error)
@@ -149,6 +224,11 @@ class WeblateSession(Session):
                 'component': info.get('name') or component,
             }
             template = info.get('template') or ''
+            about = info.get('project') or {}
+            options = {
+                'review': about.get('translation_review'),
+                'source_review': about.get('source_review'),
+            }
 
             def units(body, base):
                 found = []
@@ -157,7 +237,7 @@ class WeblateSession(Session):
                     component,
                     language,
                     lambda results: found.extend(remote_unit(u) for u in results),
-                    lambda _count: on_done(Download(filename, body, base, found, names)),
+                    lambda _count: on_done(Download(filename, body, base, found, names, options)),
                     on_error,
                 )
 
@@ -200,16 +280,117 @@ class WeblateSession(Session):
             if error.status == 400 and code in _NEWER_STATES:
                 # An older Weblate: needs editing is the nearest it has.
                 self.client.patch_unit(unit_id, {'target': target, 'state': 10}, written, on_error)
-            else:
-                on_error(error)
+                return
+            if code == APPROVED and _refused_state(error):
+                error.refused = REVIEW
+            on_error(error)
 
         self.client.patch_unit(unit_id, {'target': list(target), 'state': code}, written, failed)
 
     def budget(self):
         return self.client.budget()
 
+    # Review #
+
+    def _ask(self, feature, request, on_error, also=()):
+        """Runs request(on_error) unless the server lacks feature; a reply
+        saying it has no such request notes that it lacks it (and also)."""
+        if feature in self.missing:
+            from gi.repository import GLib
+
+            GLib.idle_add(lambda: on_error(PlatformError(UNSUPPORTED)) and False)
+            return
+
+        def failed(error):
+            if _missing(error):
+                self.missing.add(feature)
+                if error.status == 404:
+                    self.missing.update(also)
+                error = PlatformError(UNSUPPORTED, error.status, error.detail)
+            on_error(error)
+
+        request(failed)
+
+    def flagged(self, project, component, language, on_done, on_error):
+        suggested, commented = set(), set()
+
+        def page(results):
+            for unit in results:
+                if unit.get('has_suggestion'):
+                    suggested.add(unit.get('id'))
+                if unit.get('has_comment'):
+                    commented.add(unit.get('id'))
+
+        self.client.units(
+            project,
+            component,
+            language,
+            page,
+            lambda _count: on_done(suggested, commented),
+            on_error,
+            query='has:suggestion OR has:comment',
+        )
+
+    def suggestions(self, unit_id, on_done, on_error):
+        found = []
+
+        def request(failed):
+            self.client.unit_list(
+                unit_id,
+                'suggestions',
+                lambda results: found.extend(_suggestion(r) for r in results),
+                lambda _count: on_done(found),
+                failed,
+            )
+
+        self._ask(SUGGESTIONS, request, on_error)
+
+    def dismiss_suggestion(self, suggestion_id, on_done, on_error):
+        def request(failed):
+            self.client.delete_suggestion(suggestion_id, lambda _r: on_done(None), failed)
+
+        self._ask(SUGGESTIONS, request, on_error)
+
+    def comments(self, unit_id, source_id, on_done, on_error):
+        found = []
+        ids = [unit_id] + ([source_id] if source_id is not None else [])
+
+        def request(failed):
+            def next_unit(_count=None):
+                if not ids:
+                    on_done(found)
+                    return
+                self.client.unit_list(
+                    ids.pop(0),
+                    'comments',
+                    lambda results: found.extend(_comment(r) for r in results),
+                    next_unit,
+                    failed,
+                )
+
+            next_unit()
+
+        self._ask(COMMENTS_LISTED, request, on_error, also=(COMMENTS_ADDED,))
+
+    def add_comment(self, unit_id, text, scope, on_done, on_error):
+        data = {'comment': text, 'scope': _SCOPES[scope]}
+
+        def request(failed):
+            self.client.add_to_unit(
+                unit_id, 'comments', data, lambda reply: on_done(_comment(reply or {})), failed
+            )
+
+        self._ask(COMMENTS_ADDED, request, on_error)
+
     def cancel(self):
         self.client.cancel()
+
+
+def _refused_state(error):
+    """Whether Weblate refused a unit's state: 400 naming the state, as
+    for approving without the right to review (a 403 is no right to
+    change the unit at all)."""
+    return error.kind == HTTP and error.status == 400 and 'state' in getattr(error, 'fields', ())
 
 
 class WeblatePlatform(Platform):
@@ -218,6 +399,8 @@ class WeblatePlatform(Platform):
     has_components = True
     supports_search = False
     can_submit = True
+    can_suggest = True
+    can_comment = True
     rate_limit = (5000, 3600)
     """API_RATELIMIT_USER's default; replies say what is left."""
     # l10n: Imports the servers and tokens of wlc, Weblate's command-line client
@@ -230,6 +413,9 @@ class WeblatePlatform(Platform):
         self.budgets = {}
         """What each server last said of its budget: one for every
         session of a server and token."""
+        self.features = {}
+        """{API URL: what the server was found not to have}, for every
+        session of a server."""
 
     def credential_fields(self):
         from virtaal.views.widgets.settingsdialog import SECRET, Field
@@ -261,7 +447,8 @@ class WeblatePlatform(Platform):
 
     def session(self, url, credentials):
         token = credentials.get('token', '')
-        return WeblateSession(self.client_factory(url, token, budgets=self.budgets))
+        client = self.client_factory(url, token, budgets=self.budgets)
+        return WeblateSession(client, self.features.setdefault(client.api, set()))
 
     def state_code(self, state, target):
         return submit_code(state, target)

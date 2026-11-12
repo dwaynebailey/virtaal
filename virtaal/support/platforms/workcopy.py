@@ -30,6 +30,8 @@ In the language's folder, .platform.json is the side record:
    "names": {"project": <name>, "component": <name or null>},
    "file": <path from the work folder, "/" between parts>,
    "template": <path from the work folder or null>,
+   "review": <whether the project reviews translations, or null>,
+   "source_review": <whether it takes source reports, or null>,
    "downloaded_at": <UTC, ISO 8601>, "sha256": <the file at download>,
    "saved_sha256": <the file as Virtaal last saved it, or null>,
    "units": [{"id": <the platform's unit id>, "position": <int>,
@@ -37,6 +39,8 @@ In the language's folder, .platform.json is the side record:
               "target_hash": <hash>, "state": <the platform's state>,
               "virtaal_state": <StateEnum or null>,
               "last_updated": <text or null>, "read_only": <bool>,
+              "has_suggestion": <bool>, "has_comment": <bool>,
+              "source_id": <its source text's unit id, or null>,
               "changed": <bool>, "local_state": <StateEnum>}]}
 
 Each unit's hashes, state and last_updated are as the server gave them
@@ -53,6 +57,11 @@ time: a unit sent has the sent text and state as its baseline,
 from the server. A unit the server refused keeps "changed" and gets
 "error", the server's reason. "submitted_at" is when a Submit last
 left no change unsent.
+
+"refused" lists what the server refused this user on the project
+(platforms.REVIEW: Reviewed is no longer offered); "has_suggestion"
+and "has_comment" are as the server last said (review.py asks again
+when a unit is shown).
 
 With "Send finished units as you go" on for the server (trickle.py),
 "queue" lists the ids of the units saved at Translated or above and not
@@ -233,6 +242,9 @@ def record_units(remote_units):
             'virtaal_state': unit.state,
             'last_updated': unit.last_updated,
             'read_only': bool(unit.read_only),
+            'has_suggestion': bool(unit.has_suggestion),
+            'has_comment': bool(unit.has_comment),
+            'source_id': unit.source_id,
             'changed': False,
         }
         for unit in remote_units
@@ -252,6 +264,8 @@ class WorkCopy:
         self._folder = os.path.abspath(folder) if folder else os.path.dirname(self.path)
         self.matched = {}
         """{index in record['units']: the store's unit}, once attached."""
+        self._indexes = {}
+        """{id(the store's unit): its index in record['units']}."""
         self.store = None
         """The StoreModel attached, if any."""
 
@@ -354,6 +368,39 @@ class WorkCopy:
         self.units[r]['error'] = message
         self.write_record()
 
+    def index_of(self, unit):
+        """The index in units of the file's unit, or None."""
+        return self._indexes.get(id(unit))
+
+    def may_review(self):
+        """Whether Reviewed is this user's to choose: the project reviews
+        translations (or isn't known not to) and the server hasn't
+        refused an approval."""
+        from . import REVIEW
+
+        return self.record.get('review') is not False and REVIEW not in self.refused()
+
+    def refused(self):
+        return self.record.get('refused') or []
+
+    def refuse(self, what):
+        """Notes that the server refused what (REVIEW) to this user."""
+        if what not in self.refused():
+            self.record['refused'] = [*self.refused(), what]
+            self.write_record()
+        self._allow_review()
+
+    def _allow_review(self):
+        allowed = self.may_review()
+        for unit in self.matched.values():
+            states.allow_review(unit, allowed)
+
+    def set_flags(self, suggested, commented):
+        """Which units have suggestions and comments now: their ids."""
+        for entry in self.units:
+            entry['has_suggestion'] = entry['id'] in suggested
+            entry['has_comment'] = entry['id'] in commented
+
     def take(self, r, remote):
         """The server's text and state (a RemoteUnit) into the file's
         unit for units[r], and as its baseline. Whether the unit
@@ -382,6 +429,8 @@ class WorkCopy:
             state=remote.code,
             virtaal_state=remote.state,
             last_updated=remote.last_updated,
+            has_suggestion=bool(remote.has_suggestion),
+            has_comment=bool(remote.has_comment),
             changed=False,
         )
         self.units[r].pop('error', None)
@@ -410,12 +459,14 @@ class WorkCopy:
         keyed = getattr(store, 'pair', None) is not None
         found = match(units, self.units, keyed)
         self.matched = {r: units[i] for r, i in found.items()}
+        self._indexes = {id(unit): r for r, unit in self.matched.items()}
         for r, unit in self.matched.items():
             entry = self.units[r]
             if entry.get('read_only'):
                 states.lock(unit)
             elif entry.get('virtaal_state') is not None:
                 states.adopt(unit, entry.get('local_state', entry['virtaal_state']))
+        self._allow_review()
         if len(found) < len(self.units):
             logging.info(
                 '%s: %d of the server\'s %d units not in the file',
@@ -575,6 +626,8 @@ def create(platform, server, project, component, language, download):
         'names': dict(download.names),
         'file': '/'.join(parts),
         'template': template,
+        'review': (download.options or {}).get('review'),
+        'source_review': (download.options or {}).get('source_review'),
         'downloaded_at': _now(),
         'sha256': hashlib.sha256(download.data).hexdigest(),
         'saved_sha256': None,

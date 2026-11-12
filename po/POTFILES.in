@@ -57,6 +57,7 @@ virtaal/support/crash_dialog.py
 virtaal/support/phrase_compat.py
 virtaal/support/platforms/__init__.py
 virtaal/support/platforms/browsedialog.py
+virtaal/support/platforms/reviewview.py
 virtaal/support/platforms/serversdialog.py
 virtaal/support/platforms/submitdialog.py
 virtaal/support/platforms/updatedialog.py

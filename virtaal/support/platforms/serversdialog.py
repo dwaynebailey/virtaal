@@ -16,7 +16,7 @@ from virtaal.support.libi18n.numbers import format_number
 from virtaal.views.widgets.settingsdialog import BOOL, Field, SettingsDialog
 from virtaal.views.widgets.util import run_dialog
 
-from . import AUTH, NETWORK, NOT_PLATFORM
+from . import AUTH, NETWORK, NOT_PLATFORM, UNSUPPORTED
 
 COL_TYPE, COL_URL = 0, 1
 SEND_FINISHED = 'send_finished'
@@ -37,6 +37,9 @@ def error_message(error, platform):
         return _("Couldn't connect to the server: %(reason)s") % {'reason': error.detail}
     if error.kind == NOT_PLATFORM:
         return platform.not_platform_message()
+    if error.kind == UNSUPPORTED:
+        # l10n: A translation server is a version too old for what was asked, such as comments
+        return _("The server doesn't support this.")
     # l10n: %(status)s is an HTTP status code, such as 403 or 500
     message = _('The server replied with error %(status)s.') % {'status': error.status}
     if error.detail:

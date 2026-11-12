@@ -768,6 +768,11 @@ class StoreCellRenderer(Gtk.CellRenderer):
         return GLib.SOURCE_REMOVE
 
     def _on_target_buffer_changed(self, _buffer, editor):
+        self.regrow(editor)
+
+    def regrow(self, editor):
+        """Measures the open editor's row again once idle, as for a
+        change of its height that isn't typing, such as notes added."""
         if not self._regrow_scheduled:
             self._regrow_scheduled = True
             GLib.idle_add(self._regrow_editor_row, editor)
