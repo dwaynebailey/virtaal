@@ -91,11 +91,12 @@ class PlatformError:
         return '<PlatformError %s %s %r>' % (self.kind, self.status, self.detail)
 
 
-Item = namedtuple('Item', 'name slug translated glossary', defaults=(None, False))
+Item = namedtuple('Item', 'name slug translated glossary info', defaults=(None, False, ''))
 """A project, component or language as a platform lists it: its name,
 the slug (a language's code) that identifies it on the server, how
-much of it is translated (0 to 1, or None) and whether it is a
-glossary."""
+much of it is translated (0 to 1, or None), whether it is a glossary
+and, for a component, what to show beside it, such as its file's
+format."""
 
 RemoteUnit = namedtuple(
     'RemoteUnit',

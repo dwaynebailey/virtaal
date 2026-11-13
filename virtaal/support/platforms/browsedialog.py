@@ -339,7 +339,7 @@ class BrowseDialog:
     def _row(self, item, kind, project, component=None):
         if kind == COMPONENT:
             # l10n: Marks a component (a part of a project) that is a glossary, not strings to translate
-            info = _('Glossary') if item.glossary else ''
+            info = _('Glossary') if item.glossary else item.info
             return [item.name, info, COMPONENT, project, item.slug, False, NORMAL]
         percent = format_percent(item.translated) if item.translated is not None else ''
         name = language_name(item.slug, item.name)
