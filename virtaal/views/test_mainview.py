@@ -220,6 +220,7 @@ class _FakeConfirmDialog:
     def __init__(self):
         self.calls = []
         self._MainView__save_button = _FakeSaveButton()
+        self.props = SimpleNamespace(text=None, secondary_text=None)
 
     def set_transient_for(self, window):
         pass
@@ -255,6 +256,7 @@ def test_show_save_confirm_dialog_shows_before_presenting_and_restores_parent_fo
     view = MainView.__new__(MainView)
     dialog = _FakeConfirmDialog()
     view.confirm_dialog = dialog
+    view.controller = SimpleNamespace(get_store_title=lambda: 'af.po')
     top_window = _FakeTopWindow()
     view._top_window = top_window
 
@@ -2279,6 +2281,7 @@ def test_show_save_confirm_dialog_returns_discard_on_the_discard_response(monkey
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     view = MainView.__new__(MainView)
     view.confirm_dialog = _FakeConfirmDialogWithResponse(Gtk.ResponseType.NO)
+    view.controller = SimpleNamespace(get_store_title=lambda: 'af.po')
     view._top_window = _FakeTopWindow()
 
     assert view.show_save_confirm_dialog() == 'discard'
@@ -2290,6 +2293,7 @@ def test_show_save_confirm_dialog_returns_cancel_on_any_other_response(monkeypat
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))
     view = MainView.__new__(MainView)
     view.confirm_dialog = _FakeConfirmDialogWithResponse(Gtk.ResponseType.CANCEL)
+    view.controller = SimpleNamespace(get_store_title=lambda: 'af.po')
     view._top_window = _FakeTopWindow()
 
     assert view.show_save_confirm_dialog() == 'cancel'

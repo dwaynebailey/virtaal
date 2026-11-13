@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 14:32+0000\n"
+"POT-Creation-Date: 2026-11-13 22:33+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3821,13 +3821,7 @@ msgid "PO Template Files"
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid ""
-"The current file has been modified.\n"
-"Do you want to save your changes?"
-msgstr ""
-
-#: virtaal/views/mainview.py
-msgid "_Discard"
+msgid "_Don’t Save"
 msgstr ""
 
 #: virtaal/views/mainview.py
@@ -3871,9 +3865,18 @@ msgstr ""
 msgid "Choose the Source-Language File for %s"
 msgstr ""
 
+#: virtaal/views/mainview.py
+msgid "If you don’t save, your changes will be lost."
+msgstr ""
+
 #. l10n: Followed by the list of files with unsaved changes
 #: virtaal/views/mainview.py
-msgid "These files have been modified. Do you want to save your changes?"
+msgid "Save changes to these files?"
+msgstr ""
+
+#: virtaal/views/mainview.py
+#, python-format
+msgid "Save changes to “%(filename)s”?"
 msgstr ""
 
 #: virtaal/views/mainview.py
@@ -3936,6 +3939,10 @@ msgid_plural ""
 "recovered."
 msgstr[0] ""
 msgstr[1] ""
+
+#: virtaal/views/mainview.py
+msgid "_Discard"
+msgstr ""
 
 #: virtaal/views/mainview.py
 msgid "_Recover"

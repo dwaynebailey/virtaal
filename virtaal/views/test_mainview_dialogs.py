@@ -8,12 +8,15 @@
 """MainView's own dialogs, built for real. Only Gtk.Dialog.run(), which
 blocks until a button is pressed, is replaced."""
 
+from types import SimpleNamespace
+
 import gi
 import pytest
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gtk
 
+from virtaal.common.platform import platform
 from virtaal.views.mainview import EntryDialog, MainView
 
 
@@ -86,16 +89,39 @@ def test_prompt_dialog_defaults_to_no(view):
     assert dialog.get_widget_for_response(Gtk.ResponseType.NO).has_default()
 
 
-def test_confirm_dialog_offers_save_discard_and_cancel_defaulting_to_save(view):
+def _button_order(dialog):
+    row = dialog.get_widget_for_response(Gtk.ResponseType.CANCEL).get_parent()
+    labels = [button.get_label() for button in row.get_children()]
+    # Windows lays the buttons out in the alternative order.
+    return sorted(labels) if platform.is_windows else labels
+
+
+def test_confirm_dialog_puts_cancel_before_save_and_defaults_to_save(view):
     dialog = view.confirm_dialog
     save = dialog.get_widget_for_response(Gtk.ResponseType.YES)
 
-    assert _button_labels(dialog) == {'_Save', '_Discard', '_Cancel'}
-    assert dialog.get_widget_for_response(Gtk.ResponseType.NO).get_label() == '_Discard'
+    expected = ['_Don’t Save', '_Cancel', '_Save']
+    assert _button_order(dialog) == (sorted(expected) if platform.is_windows else expected)
+    assert dialog.get_widget_for_response(Gtk.ResponseType.NO).get_label() == '_Don’t Save'
     assert dialog.get_widget_for_response(Gtk.ResponseType.CANCEL).get_label() == '_Cancel'
     assert save.has_default()
     # show_save_confirm_dialog() focuses this button.
     assert dialog._MainView__save_button is save
+
+
+def test_the_save_confirm_dialog_names_the_file(view, monkeypatch):
+    shown = []
+
+    def run(dialog):
+        shown.append((dialog.props.text, dialog.props.secondary_text))
+        return Gtk.ResponseType.CANCEL
+
+    monkeypatch.setattr(Gtk.Dialog, 'run', run)
+    view.controller = SimpleNamespace(get_store_title=lambda: 'af.po')
+
+    view.show_save_confirm_dialog()
+
+    assert shown == [('Save changes to “af.po”?', 'If you don’t save, your changes will be lost.')]
 
 
 def test_the_save_confirm_dialog_lists_several_modified_files_once(view, monkeypatch):
@@ -106,14 +132,16 @@ def test_the_save_confirm_dialog_lists_several_modified_files_once(view, monkeyp
         return Gtk.ResponseType.CANCEL
 
     monkeypatch.setattr(Gtk.Dialog, 'run', run)
-    single = view.confirm_dialog.props.text
+    view.controller = SimpleNamespace(get_store_title=lambda: 'af.po')
 
     assert view.show_save_confirm_dialog(['po/af.po', 'help/af.po']) == 'cancel'
     view.show_save_confirm_dialog()
 
-    assert shown[0][1] == 'po/af.po\nhelp/af.po'
-    assert shown[0][0] != single
-    assert shown[1] == (single, None)
+    assert shown[0] == (
+        'Save changes to these files?',
+        'po/af.po\nhelp/af.po\n\nIf you don’t save, your changes will be lost.',
+    )
+    assert shown[1][0] == 'Save changes to “af.po”?'
 
 
 @pytest.mark.parametrize(
@@ -127,6 +155,7 @@ def test_the_save_confirm_dialog_lists_several_modified_files_once(view, monkeyp
 )
 def test_show_save_confirm_dialog_runs_the_real_dialog(view, monkeypatch, response, expected):
     _press(monkeypatch, response)
+    view.controller = SimpleNamespace(get_store_title=lambda: 'af.po')
 
     assert view.show_save_confirm_dialog() == expected
     assert not view.confirm_dialog.get_visible()

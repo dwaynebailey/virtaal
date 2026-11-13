@@ -809,18 +809,17 @@ class MainView(BaseView):
 
     @cached_property
     def confirm_dialog(self):
-        # Save confirmation dialog (Save/Discard/Cancel buttons)
+        # Save confirmation dialog (Don't Save/Cancel/Save buttons)
         (RESPONSE_SAVE, RESPONSE_DISCARD) = (Gtk.ResponseType.YES, Gtk.ResponseType.NO)
         dialog = Gtk.MessageDialog(
             transient_for=self.main_window,
             modal=True,
             message_type=Gtk.MessageType.QUESTION,
             buttons=Gtk.ButtonsType.NONE,
-            text=_("The current file has been modified.\nDo you want to save your changes?"),
         )
-        dialog.__save_button = dialog.add_button(_("_Save"), RESPONSE_SAVE)
-        dialog.add_button(_("_Discard"), RESPONSE_DISCARD)
+        dialog.add_button(_("_Don’t Save"), RESPONSE_DISCARD)
         dialog.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
+        dialog.__save_button = dialog.add_button(_("_Save"), RESPONSE_SAVE)
         dialog.set_default_response(RESPONSE_SAVE)
         return dialog
 
@@ -1518,12 +1517,16 @@ class MainView(BaseView):
         """@param filenames: The modified files, when several are open.
         @returns: One of C{'save'}, C{'discard'}, or C{'cancel'},
         depending on the button pressed."""
+        lost = _("If you don’t save, your changes will be lost.")
         if filenames:
-            single_text = self.confirm_dialog.props.text
             # l10n: Followed by the list of files with unsaved changes
-            text = _("These files have been modified. Do you want to save your changes?")
-            self.confirm_dialog.props.text = text
-            self.confirm_dialog.props.secondary_text = '\n'.join(filenames)
+            self.confirm_dialog.props.text = _("Save changes to these files?")
+            self.confirm_dialog.props.secondary_text = '\n'.join(filenames) + '\n\n' + lost
+        else:
+            self.confirm_dialog.props.text = _("Save changes to “%(filename)s”?") % {
+                'filename': self.controller.get_store_title()
+            }
+            self.confirm_dialog.props.secondary_text = lost
         self.confirm_dialog.set_transient_for(self._top_window)
         old_top = self._top_window
         self._top_window = self.confirm_dialog
@@ -1532,9 +1535,6 @@ class MainView(BaseView):
         self.confirm_dialog.present()
         response = self.confirm_dialog.run()
         self.confirm_dialog.hide()
-        if filenames:
-            self.confirm_dialog.props.text = single_text
-            self.confirm_dialog.props.secondary_text = None
         from gi.repository import GLib
 
         GLib.idle_add(old_top.present)

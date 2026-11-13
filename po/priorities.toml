@@ -114,7 +114,9 @@ msgids = [
     "Machine translation",
     "Save",
     "Save As…",
-    "The current file has been modified.\nDo you want to save your changes?",
+    "Save changes to “%(filename)s”?",
+    "Save changes to these files?",
+    "If you don’t save, your changes will be lost.",
     # The current file's own label on its suggestions.
     "This file",
 ]
@@ -129,7 +131,7 @@ msgids = ["<i>(no suggestions)</i>", "Add \"%s\" to Dictionary", "Ignore All"]
 # The save prompt's buttons: Virtaal's own, not GTK's.
 priority = "1~"
 domain = "virtaal"
-msgids = ["_Cancel", "_Discard", "_Save"]
+msgids = ["_Cancel", "_Don’t Save", "_Save"]
 
 [[override]]
 # Update from Template's summary.
