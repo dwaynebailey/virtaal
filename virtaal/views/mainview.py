@@ -690,6 +690,7 @@ class MainView(BaseView):
         dialog = LanguageSelectDialog(languages, parent=self.main_window)
         # l10n: Title of the dialog of File > Translation Bundle > Add Language
         dialog.dialog.set_title(_('Add Language'))
+        dialog.btn_ok.set_label(_('_Add'))
         for name in ('frame1', 'btn_add', 'btn_edit'):
             dialog.gui.get_object(name).hide()
         try:
@@ -711,7 +712,7 @@ class MainView(BaseView):
         ]
         dialog = SelectDialog(
             items,
-            title=_('Save'),
+            title=_('Split by Language'),
             # l10n: Above the list of languages in File > Translation Bundle > Split by
             # Language: a bundle is saved for each language ticked
             message=_('Save a bundle for each of these languages:'),
@@ -734,6 +735,7 @@ class MainView(BaseView):
         if cancelled."""
         return self._ask_bundle_conflicts(
             conflicts,
+            _('_Update'),
             ngettext(
                 # l10n: At the top of the dialog listing units changed both in the open
                 # translation bundle and in the newer copy it is being updated from
@@ -748,6 +750,7 @@ class MainView(BaseView):
         open and in a returned one, or None if cancelled."""
         return self._ask_bundle_conflicts(
             conflicts,
+            _('_Merge'),
             ngettext(
                 # l10n: At the top of the dialog listing units changed both in the open
                 # translation bundle and in a translator's bundle being merged into it
@@ -757,13 +760,13 @@ class MainView(BaseView):
             ),
         )
 
-    def _ask_bundle_conflicts(self, conflicts, intro):
+    def _ask_bundle_conflicts(self, conflicts, ok_label, intro):
         from virtaal.support.platforms.submitdialog import ConflictDialog
 
         return ConflictDialog(
             conflicts,
             self.main_window,
-            _('_OK'),
+            ok_label,
             # l10n: The title of the dialog listing units changed both in the open
             # translation bundle and in another one being merged into it or updating it
             title=_('Changed in Both Bundles'),

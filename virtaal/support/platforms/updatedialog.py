@@ -76,7 +76,7 @@ class UpdateDialogs(CopyDialogs):
     update = None
 
     def choose(self, conflicts):
-        return ConflictDialog(conflicts, self.parent, _('_OK')).run()
+        return ConflictDialog(conflicts, self.parent, _('_Update')).run()
 
     def ask_download(self, copy, plan):
         """Whether to download again, keeping what plan keeps."""

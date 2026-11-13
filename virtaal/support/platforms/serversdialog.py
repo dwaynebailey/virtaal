@@ -100,7 +100,9 @@ class ServerDialog(SettingsDialog):
         self.platform = platform
         values = {'url': url, **(credentials or {}), SEND_FINISHED: send_finished, **options}
         fields = (*platform.fields(), *option_fields(platform))
-        super().__init__(parent, platform.name, fields, values)
+        # A new server is added; a known one, edited, is saved.
+        ok_label = _('_Save') if url else _('_Add')
+        super().__init__(parent, platform.name, fields, values, ok_label)
 
     def problem(self):
         return self.platform.url_problem(self.get_values()['url'])

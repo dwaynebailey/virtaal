@@ -277,7 +277,11 @@ class BundleActions:
             languages = self.view.ask_split_languages(languages)
             if not languages:
                 return False
-        folder = self.view.ask_folder(_("Save"), os.path.dirname(bundle.path))
+        folder = self.view.ask_folder(
+            # l10n: Title of the folder chooser of File > Translation Bundle > Split by Language
+            _("Choose a Folder for the Split Bundles"),
+            os.path.dirname(bundle.path),
+        )
         if not folder:
             return False
         try:
@@ -415,7 +419,9 @@ class BundleActions:
         try:
             if len(names) == 1 and (len(bundle.languages) == 1 or not all_languages):
                 return self._export_one(bundle, names[0], language)
-            folder = self.view.ask_folder(_("Export"), self._export_folder(bundle))
+            folder = self.view.ask_folder(
+                _("Export Translated Documents"), self._export_folder(bundle)
+            )
             if not folder:
                 return False
             if all_languages:
@@ -469,7 +475,9 @@ class BundleActions:
         suggested = os.path.join(
             self._export_folder(bundle), '%s.%s%s' % (stem, language, extension)
         )
-        path = self.view.show_save_dialog(current_filename=suggested, title=_("Export"))
+        path = self.view.show_save_dialog(
+            current_filename=suggested, title=_("Export Translated Document")
+        )
         if not path or not self._replace_confirmed(bundle, [path]):
             return False
         bundle.export_document(name, language, path)
@@ -483,14 +491,14 @@ class BundleActions:
             return False
         try:
             if all_languages and len(bundle.languages) > 1:
-                folder = self.view.ask_folder(_("Export"), self._export_folder(bundle))
+                folder = self.view.ask_folder(_("Export as TIPP"), self._export_folder(bundle))
                 if folder:
                     bundle.export_tipp_all(folder)
                 return bool(folder)
             suggested = os.path.join(
                 self._export_folder(bundle), '%s.%s.tipp' % (bundle.name, language)
             )
-            path = self.view.show_save_dialog(current_filename=suggested, title=_("Export"))
+            path = self.view.show_save_dialog(current_filename=suggested, title=_("Export as TIPP"))
             if path:
                 bundle.export_tipp(language, path)
             return bool(path)

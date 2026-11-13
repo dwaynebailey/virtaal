@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 22:58+0000\n"
+"POT-Creation-Date: 2026-11-13 23:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -40,7 +40,8 @@ msgstr ""
 msgid "Add Missing Language"
 msgstr ""
 
-#: share/virtaal/virtaal.ui
+#: share/virtaal/virtaal.ui virtaal/support/platforms/serversdialog.py
+#: virtaal/views/mainview.py
 msgid "_Add"
 msgstr ""
 
@@ -967,6 +968,7 @@ msgstr ""
 
 #. l10n: The button of that notice
 #: virtaal/controllers/bundleactions.py
+#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
 msgid "_Update"
 msgstr ""
 
@@ -992,9 +994,9 @@ msgid ""
 "This bundle has no target language yet. Add one to translate its documents."
 msgstr ""
 
-#: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
-#: virtaal/views/mainview.py
-msgid "Save"
+#. l10n: Title of the folder chooser of File > Translation Bundle > Split by Language
+#: virtaal/controllers/bundleactions.py
+msgid "Choose a Folder for the Split Bundles"
 msgstr ""
 
 #. l10n: After File > Translation Bundle > Split by Language: how many bundles
@@ -1036,8 +1038,8 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
-msgid "Export"
+#: virtaal/controllers/bundleactions.py
+msgid "Export Translated Documents"
 msgstr ""
 
 #. l10n: Asked before exporting translated documents over files of the
@@ -1055,6 +1057,14 @@ msgstr[1] ""
 
 #: virtaal/controllers/bundleactions.py
 msgid "_Replace"
+msgstr ""
+
+#: virtaal/controllers/bundleactions.py
+msgid "Export Translated Document"
+msgstr ""
+
+#: virtaal/controllers/bundleactions.py
+msgid "Export as TIPP"
 msgstr ""
 
 #: virtaal/controllers/checkscontroller.py virtaal/views/mainview.py
@@ -1313,6 +1323,10 @@ msgid "_Reload"
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
+msgid "Create Return Package"
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
 #, python-format
 msgid "Could not export “%(filename)s”"
 msgstr ""
@@ -1337,6 +1351,10 @@ msgstr ""
 
 #: virtaal/controllers/maincontroller.py
 msgid "Can only export Gettext PO files"
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
+msgid "Export"
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
@@ -3074,6 +3092,12 @@ msgid_plural "%(left)s of %(limit)s requests left until %(time)s."
 msgstr[0] ""
 msgstr[1] ""
 
+#: virtaal/support/platforms/serversdialog.py virtaal/views/mainview.py
+#: virtaal/views/propertiesview.py virtaal/views/widgets/langadddialog.py
+#: virtaal/views/widgets/settingsdialog.py
+msgid "_Save"
+msgstr ""
+
 #: virtaal/support/platforms/serversdialog.py
 msgid ""
 "Virtaal sends your token, and the translations you submit, to the servers "
@@ -3260,11 +3284,6 @@ msgid "Updated %(count)s unit from the server."
 msgid_plural "Updated %(count)s units from the server."
 msgstr[0] ""
 msgstr[1] ""
-
-#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
-#: virtaal/views/widgets/settingsdialog.py
-msgid "_OK"
-msgstr ""
 
 #: virtaal/support/platforms/updatedialog.py
 msgid "Your changes not yet submitted are kept."
@@ -3780,6 +3799,10 @@ msgstr ""
 msgid "All Supported Files"
 msgstr ""
 
+#: virtaal/views/mainview.py
+msgid "_OK"
+msgstr ""
+
 #. l10n: macOS app menu item that opens the Preferences dialog
 #: virtaal/views/mainview.py
 msgid "Settings…"
@@ -3799,15 +3822,14 @@ msgstr ""
 msgid "Add Language"
 msgstr ""
 
+#: virtaal/views/mainview.py
+msgid "Split by Language"
+msgstr ""
+
 #. l10n: Above the list of languages in File > Translation Bundle > Split by
 #. Language: a bundle is saved for each language ticked
 #: virtaal/views/mainview.py
 msgid "Save a bundle for each of these languages:"
-msgstr ""
-
-#: virtaal/views/mainview.py virtaal/views/propertiesview.py
-#: virtaal/views/widgets/langadddialog.py
-msgid "_Save"
 msgstr ""
 
 #. l10n: At the top of the dialog listing units changed both in the open
@@ -3819,6 +3841,10 @@ msgid_plural ""
 "%(count)s units were changed both here and in the refreshed bundle."
 msgstr[0] ""
 msgstr[1] ""
+
+#: virtaal/views/mainview.py
+msgid "_Merge"
+msgstr ""
 
 #. l10n: At the top of the dialog listing units changed both in the open
 #. translation bundle and in a translator's bundle being merged into it
@@ -3846,6 +3872,10 @@ msgstr ""
 
 #: virtaal/views/mainview.py
 msgid "PO Template Files"
+msgstr ""
+
+#: virtaal/views/mainview.py
+msgid "Save"
 msgstr ""
 
 #: virtaal/views/mainview.py

@@ -456,7 +456,7 @@ class MainController(BaseController):
         if self.store_controller.is_modified() and not self.save_file():
             return False
         filename = self.view.show_save_dialog(
-            current_filename=package.return_name(), title=_("Save")
+            current_filename=package.return_name(), title=_("Create Return Package")
         )
         if not filename:
             return False

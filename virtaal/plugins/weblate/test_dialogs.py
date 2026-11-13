@@ -105,6 +105,29 @@ def test_ok_needs_a_usable_address_and_a_token(weblate, url, token, ok):
     assert dialog.btn_ok.get_sensitive() is ok
 
 
+@pytest.mark.parametrize('url, label', [('', '_Add'), ('https://weblate.example.org', '_Save')])
+def test_ok_adds_a_new_server_and_saves_a_known_one(weblate, url, label):
+    dialog = ServerDialog(None, weblate, url, {'token': 'wlu_x'})
+
+    assert dialog.btn_ok.get_label() == label
+
+
+def test_the_token_has_its_own_show_check_box(weblate):
+    dialog = ServerDialog(None, weblate, '', {'token': 'wlu_x'})
+    labels = []
+
+    def walk(widget):
+        if isinstance(widget, Gtk.CheckButton):
+            labels.append(widget.get_label())
+        elif isinstance(widget, Gtk.Container):
+            widget.foreach(walk)
+
+    walk(dialog.dialog)
+
+    assert 'S_how token' in labels
+    assert '_Show key' not in labels
+
+
 def test_a_plain_http_address_says_why_it_is_refused(weblate):
     dialog = ServerDialog(None, weblate, 'http://weblate.example.org', {'token': 'wlu_x'})
 

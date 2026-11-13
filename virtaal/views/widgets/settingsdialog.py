@@ -41,13 +41,13 @@ class SettingsDialog:
     """OK is only sensitive while every field is valid. While problem()
     has something to say, it is shown below the fields."""
 
-    def __init__(self, parent, title, fields, values):
+    def __init__(self, parent, title, fields, values, ok_label=''):
         self.fields = tuple(fields)
         self.dialog = Gtk.Dialog(title=title, modal=True)
         if isinstance(parent, Gtk.Widget):
             self.dialog.set_transient_for(parent.get_toplevel())
         self.dialog.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
-        self.btn_ok = self.dialog.add_button(_("_OK"), Gtk.ResponseType.OK)
+        self.btn_ok = self.dialog.add_button(ok_label or _("_Save"), Gtk.ResponseType.OK)
         self.dialog.set_default_response(Gtk.ResponseType.OK)
 
         grid = Gtk.Grid(row_spacing=6, column_spacing=12, border_width=12)

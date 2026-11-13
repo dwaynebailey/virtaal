@@ -35,6 +35,11 @@ def test_an_empty_api_key_is_valid():
     assert valid(api_key_field(), '')
 
 
+def test_ok_saves_unless_told_otherwise():
+    assert SettingsDialog(None, 'Server', _SERVER, {}).btn_ok.get_label() == '_Save'
+    assert SettingsDialog(None, 'Server', _SERVER, {}, '_Add').btn_ok.get_label() == '_Add'
+
+
 def test_ok_is_only_sensitive_while_every_field_is_valid():
     dialog = SettingsDialog(None, 'Server', _SERVER, {'host': 'localhost', 'port': '55555'})
     assert dialog.btn_ok.get_sensitive()

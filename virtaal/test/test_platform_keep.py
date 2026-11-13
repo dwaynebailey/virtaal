@@ -277,7 +277,7 @@ class TestUpdate(Weblating, TestScaffolding):
 
         result = self.registry.update()
 
-        assert seen == [('_OK', ['Bewaar'], ['Stoor dit'])]
+        assert seen == [('_Update', ['Bewaar'], ['Stoor dit'])]
         assert result.taken == 1
         assert str(self._unit('Save').target) == 'Stoor dit'
 
