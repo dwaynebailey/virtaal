@@ -198,6 +198,13 @@ class DocumentBundle:
             raise BundleError(str(exc)) from exc
 
     @classmethod
+    def open_aside(cls, path):
+        """The bundle C{path}, to read beside the one open: in a work
+        folder of its own, so that choosing the bundle already open
+        never touches its files."""
+        return cls.open(path, packages.work_folder(path + '.read'))
+
+    @classmethod
     def _open(cls, path, work_dir):
         try:
             with zipfile.ZipFile(path) as archive:

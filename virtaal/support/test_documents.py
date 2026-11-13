@@ -655,6 +655,14 @@ def test_merge_refuses_a_bundle_from_an_older_split_of_its_language(tmp_path, ma
         master.plan_merge(returned)
 
 
+def test_a_bundle_opened_aside_leaves_the_open_ones_files(tmp_path, master):
+    aside = DocumentBundle.open_aside(master.path)
+
+    assert aside.work_dir != master.work_dir
+    assert aside.discard()
+    assert all(os.path.isfile(path) for path in master.files())
+
+
 # TIPP
 
 

@@ -232,7 +232,7 @@ class BundleActions:
         merged = 0
         for path in self.view.ask_bundles():
             try:
-                returned = DocumentBundle.open(path)
+                returned = DocumentBundle.open_aside(path)
                 try:
                     plan = bundle.plan_merge(returned)
                 finally:
