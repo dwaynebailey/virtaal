@@ -415,7 +415,9 @@ def test_check_for_config_recovery_lists_the_settings_it_reset(monkeypatch):
     monkeypatch.setattr(pan_app, 'reset_settings', ['windowwidth', 'min_quality'])
     v = Virtaal.__new__(Virtaal)
     shown = []
-    v.main_controller = SimpleNamespace(view=SimpleNamespace(show_info_notice=shown.append))
+    v.main_controller = SimpleNamespace(
+        view=SimpleNamespace(show_info_notice=lambda text, **_kw: shown.append(text))
+    )
 
     v._check_for_config_recovery()
 

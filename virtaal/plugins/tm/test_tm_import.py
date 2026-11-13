@@ -51,7 +51,7 @@ class _MainView:
     def sync_menubar(self):
         self.synced += 1
 
-    def show_info_notice(self, text):
+    def show_info_notice(self, text, **_kw):
         self.notices.append(text)
 
     def show_error_dialog(self, title='', message='', markup='', parent=None):

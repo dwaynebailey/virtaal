@@ -627,7 +627,7 @@ class TMView(BaseView, GObjectWrapper):
                     )
                     % {'count': skipped}
                 )
-            mainview.show_info_notice(notice)
+            mainview.show_info_notice(notice, for_file=False)
         if failed:
             mainview.show_error_dialog(
                 message='\n'.join(

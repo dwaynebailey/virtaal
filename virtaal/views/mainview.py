@@ -203,6 +203,12 @@ def _set_native_return_key(title, modifiers):
     )
 
 
+def _file_key(store_controller):
+    """The store controller's file_key(), if it has one."""
+    file_key = getattr(store_controller, 'file_key', None)
+    return file_key() if file_key is not None else None
+
+
 def _bundle_of(store_controller):
     """The translation bundle open, if any."""
     bundle = getattr(store_controller, 'bundle', None)
@@ -1920,6 +1926,7 @@ class MainView(BaseView):
         infobar.connect('response', on_response)
 
         self._template_update_infobar = infobar
+        self._for_file(infobar)
         infobar.show_all()
         vbox_main = self.gui.get_object('vbox_main')
         vbox_main.pack_start(infobar, False, False, 0)
@@ -2079,10 +2086,12 @@ class MainView(BaseView):
         menu.show_all()
         return menu
 
-    def show_info_notice(self, text, action=None, on_close=None):
+    def show_info_notice(self, text, action=None, on_close=None, for_file=True):
         """Show a dismissable notice with C{text}, in place of the last one,
         and return it. action: (button label, function) for a button that
-        calls the function; on_close: called when the user closes it."""
+        calls the function; on_close: called when the user closes it;
+        for_file: whether it is about the file open, and goes when another
+        file opens or it closes."""
         self.hide_info_notice()
 
         infobar = Gtk.InfoBar()
@@ -2104,6 +2113,8 @@ class MainView(BaseView):
         infobar.connect('response', on_response)
 
         self._info_infobar = infobar
+        if for_file:
+            self._for_file(infobar)
         infobar.show_all()
         vbox_main = self.gui.get_object('vbox_main')
         vbox_main.pack_start(infobar, False, False, 0)
@@ -2116,6 +2127,28 @@ class MainView(BaseView):
         if infobar is not None and notice in (None, infobar):
             self._info_infobar = None
             infobar.destroy()
+
+    def _file_notices(self):
+        """{notice: the file_key() of the file it is about}."""
+        return self.__dict__.setdefault('_notices_for_files', {})
+
+    def _for_file(self, infobar):
+        """Note C{infobar} as a notice about the file open."""
+        store_controller = getattr(getattr(self, 'controller', None), 'store_controller', None)
+        notices = self._file_notices()
+        notices[infobar] = _file_key(store_controller)
+        infobar.connect('destroy', lambda widget: notices.pop(widget, None))
+
+    def _hide_file_notices(self, key=None):
+        """Hide the notices about files other than the one C{key} names
+        (L{StoreController.file_key()}); all of them for None."""
+        for infobar, shown_for in list(self._file_notices().items()):
+            if key is None or shown_for != key:
+                if infobar is getattr(self, '_info_infobar', None):
+                    self._info_infobar = None
+                if infobar is getattr(self, '_template_update_infobar', None):
+                    self._template_update_infobar = None
+                infobar.destroy()
 
     def _on_file_open(self, _widget):
         self.open_file()
@@ -2299,6 +2332,7 @@ class MainView(BaseView):
             self.gui.get_object(item_id).set_sensitive(languages)
 
     def _on_store_closed(self, store_controller):
+        self._hide_file_notices()
         self._set_bundle_items(None)
         for widget_name in (
             'mnu_saveas',
@@ -2318,6 +2352,7 @@ class MainView(BaseView):
     def _on_store_loaded(self, store_controller):
         # Several files are each saved in place, and share no template.
         single = not store_controller.is_stream()
+        self._hide_file_notices(_file_key(store_controller))
         bundle = _bundle_of(store_controller)
         self.gui.get_object('mnu_saveas').set_sensitive(single or bundle is not None)
         self._set_bundle_items(bundle)

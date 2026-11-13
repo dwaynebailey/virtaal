@@ -343,7 +343,8 @@ class LocalTMDialog:
                 failed()
                 return
             self.mainview.show_info_notice(
-                _("Exported the translation memory to '%(file)s'.") % {'file': filename}
+                _("Exported the translation memory to '%(file)s'.") % {'file': filename},
+                for_file=False,
             )
 
         self.model.export_tmx(

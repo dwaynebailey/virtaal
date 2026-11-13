@@ -42,7 +42,7 @@ class _MainView:
         self.notices = []
         self.errors = []
 
-    def show_info_notice(self, text):
+    def show_info_notice(self, text, **_kw):
         self.notices.append(text)
 
     def show_error_dialog(self, title='', message='', markup='', parent=None):

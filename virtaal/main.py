@@ -280,7 +280,8 @@ class Virtaal:
             self.main_controller.view.show_info_notice(
                 # l10n: %s lists the settings by the names they have in the settings files.
                 _('Some settings were invalid and were reset to their defaults: %s')
-                % ', '.join(pan_app.reset_settings)
+                % ', '.join(pan_app.reset_settings),
+                for_file=False,
             )
 
     def _check_for_update(self):

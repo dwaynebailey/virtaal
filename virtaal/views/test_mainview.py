@@ -1696,6 +1696,54 @@ def test_hide_info_notice_leaves_a_newer_notice():
     assert view._info_infobar is None
 
 
+def _view_with_file(key):
+    view, vbox = _view_for_same_lang_notice()
+    opened = SimpleNamespace(key=key)
+    view.controller = SimpleNamespace(store_controller=SimpleNamespace(file_key=lambda: opened.key))
+    return view, opened
+
+
+def test_a_files_notices_go_when_another_file_opens_or_it_closes():
+    view, opened = _view_with_file('a.po')
+    destroyed = []
+    about_a = view.show_info_notice('About a.po.')
+    view.show_template_update_notice('File Updated', _BEFORE, _AFTER)
+    updated = view._template_update_infobar
+    for notice in (about_a, updated):
+        notice.connect('destroy', destroyed.append)
+
+    view._hide_file_notices('a.po')
+    assert view._info_infobar is about_a
+    view._hide_file_notices('b.po')
+
+    assert (view._info_infobar, view._template_update_infobar) == (None, None)
+    assert destroyed == [about_a, updated]
+    opened.key = 'b.po'
+    view.show_info_notice('About b.po.')
+    view._hide_file_notices()
+    assert view._info_infobar is None
+    assert view._file_notices() == {}
+
+
+def test_a_notice_not_about_the_file_stays_when_another_opens():
+    view, _opened = _view_with_file('a.po')
+    notice = view.show_info_notice('Exported the translation memory.', for_file=False)
+
+    view._hide_file_notices('b.po')
+    view._hide_file_notices()
+
+    assert view._info_infobar is notice
+
+
+def test_a_dismissed_file_notice_is_forgotten():
+    view, _opened = _view_with_file('a.po')
+    view.show_info_notice('About a.po.')
+
+    view._info_infobar.emit('response', Gtk.ResponseType.CLOSE)
+
+    assert view._file_notices() == {}
+
+
 def test_show_info_notice_dismiss_clears_the_tracked_infobar():
     view, vbox = _view_for_same_lang_notice()
     view.show_info_notice('text')

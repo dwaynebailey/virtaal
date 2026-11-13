@@ -423,6 +423,32 @@ class TestDocumentsOpen(TestScaffolding):
         assert str(sc.store.get_units()[0].target) == 'Hallo.'
         assert sc.is_modified()
 
+    def test_the_changed_document_notice_goes_when_another_file_opens(self, monkeypatch):
+        from virtaal.views.mainview import MainView
+
+        report = self._odt('report.odt', ['Hello world.'])
+        self.main_controller.open_file(report)
+        self.save_to = str(self.dir / 'report.af.virtaal')
+        self.main_controller.save_file()
+        self.store_controller.close_file()
+        (self.dir / 'report.odt').write_bytes(_docsamples.odt(['Hello world.', 'New.']))
+        monkeypatch.setattr(
+            self.view, 'show_info_notice', MainView.show_info_notice.__get__(self.view)
+        )
+
+        for other in (self.testfile[1], None):
+            assert self.main_controller.open_file(self.save_to)
+            notice = self.view._info_infobar
+            assert (
+                'original document has changed'
+                in notice.get_content_area().get_children()[0].get_text()
+            )
+            if other:
+                assert self.main_controller.open_file(other)
+            else:
+                self.store_controller.close_file()
+            assert self.view._info_infobar is None
+
     def test_update_from_template_takes_a_new_version_of_the_document(self, monkeypatch):
         report = self._odt('report.odt', ['Hello world.'])
         self.main_controller.open_file(report)

@@ -173,6 +173,18 @@ class StoreController(BaseController):
 
         return self.package if isinstance(self.package, DocumentBundle) else None
 
+    def file_key(self):
+        """What tells the file or files open apart from others (a
+        bundle's id, the paths opened), or None if none is open."""
+        bundle = self.bundle()
+        if bundle is not None:
+            return ('bundle', bundle.id)
+        if self.opened_paths:
+            return tuple(self.opened_paths)
+        if self.opened_filename:
+            return self.opened_filename
+        return getattr(self.store, 'filename', None)
+
     def open_bundle(self, bundle, language=None):
         """Open the files of the translation bundle C{bundle}: in
         C{language}, or with several, the user's target language if it
