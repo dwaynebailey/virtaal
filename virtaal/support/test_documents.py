@@ -767,3 +767,12 @@ def test_export_paths(tmp_path, report):
         os.path.join('/out', 'af', 'report.odt'),
         os.path.join('/out', 'zu', 'report.odt'),
     ]
+
+
+def test_saving_under_a_name_renames_the_project(tmp_path, report):
+    bundle = documents.from_documents([report], 'en', 'af')
+    bundle.save(str(tmp_path / 'annual.af.virtaal'))
+    assert (bundle.name, bundle.suggested_name()) == ('annual', 'annual.af.virtaal')
+    bundle.add_language('zu')
+    bundle.save(str(tmp_path / 'Annual Report.virtaal'))
+    assert bundle.name == 'Annual Report'

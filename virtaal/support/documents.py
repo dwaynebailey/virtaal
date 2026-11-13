@@ -558,6 +558,8 @@ class DocumentBundle:
         @returns: The translations whose documents are left to make."""
         path = os.path.abspath(path or self.path)
         self._check_destination(path)
+        if path != self.path:
+            self.manifest['name'] = self._name_for(path)
         stale = self.stale()
         left = []
         if background and sum(len(self.trans_data(e)) for e in stale) >= INLINE_BYTES:
@@ -567,6 +569,16 @@ class DocumentBundle:
                 self.make_target(entry)
         self._write(path)
         return left
+
+    def _name_for(self, path):
+        """The project name a bundle saved as C{path} takes: its file
+        name, without the language code of a one-language bundle."""
+        stem = os.path.basename(path)
+        if stem.lower().endswith('.' + EXTENSION):
+            stem = stem[: -len(EXTENSION) - 1]
+        if len(self.languages) == 1 and stem.endswith('.' + self.languages[0]):
+            stem = stem[: -len(self.languages[0]) - 1]
+        return stem or self.name
 
     def changed_on_disk(self):
         """Whether the bundle's file changed since it was opened or last
