@@ -378,7 +378,7 @@ def test_a_bundle_missing_a_member_or_not_a_zip_is_refused(tmp_path):
 
 def test_other_members_are_kept_as_they_are(tmp_path, report):
     bundle = documents.from_documents([report], 'en', 'af')
-    bundle.members['tm/shared.tmx'] = b'<tmx/>'
+    bundle.contents['tm/shared.tmx'] = b'<tmx/>'
     path = str(tmp_path / 'report.af.virtaal')
     bundle.save(path)
 
@@ -447,7 +447,7 @@ def test_a_changed_source_updates_every_language(tmp_path, master):
         assert units['Welcome.'] == ('Welcome in %s.' % language, False)
         assert units['Read this first, please.'] == ('First, %s.' % language, True)
         assert units['A new paragraph.'] == ('', False)
-    assert master.members['sources/intro.odt'] == new
+    assert master.contents['sources/intro.odt'] == new
     assert master.document('intro.odt')['sha256'] == documents.sha256(new)
     assert master.modified
 
@@ -468,7 +468,7 @@ def test_split_writes_a_bundle_per_language(tmp_path, master):
     assert zu.suggested_name() == 'manual.zu.virtaal'
     assert {e['language'] for e in zu.translations()} == {'zu'}
     assert zu.split_from()['id'] == master.id
-    assert 'baselines/zu/intro.odt.xlf' in master.members
+    assert 'baselines/zu/intro.odt.xlf' in master.contents
     assert master.manifest['splits']['zu']['id'] == zu.id
     assert master.modified
 
@@ -584,7 +584,7 @@ def test_split_needs_a_language(tmp_path):
 
 
 def test_split_copies_only_its_languages_tm_entries(tmp_path, master):
-    master.members['tm/shared.tmx'] = (
+    master.contents['tm/shared.tmx'] = (
         b'<?xml version="1.0"?><tmx version="1.4"><header srclang="en"/><body>'
         b'<tu><tuv xml:lang="en"><seg>Hi</seg></tuv><tuv xml:lang="zu"><seg>Sawubona</seg></tuv>'
         b'<tuv xml:lang="xh"><seg>Molo</seg></tuv></tu>'
@@ -629,3 +629,21 @@ def test_export_as_tipp_writes_a_package_per_language_that_virtaal_opens(tmp_pat
     assert 'One paragraph.' in [u.source for u in page_units.units]
     manifest = _read(written[0], 'manifest.xml')
     assert b'<TargetLanguage>zu</TargetLanguage>' in manifest
+
+
+def test_a_bundle_never_saved_has_its_work_folder_removed(report):
+    bundle = documents.from_documents([report], 'en', 'af')
+    _translate(bundle.files()[0], {'Hello world.': 'Hallo.'})
+
+    assert bundle.discard()
+    assert not os.path.exists(bundle.work_dir)
+
+
+def test_members_and_title(tmp_path, report):
+    bundle = documents.from_documents([report], 'en', 'af')
+    assert bundle.title() == 'report.odt'
+    assert not bundle.can_return()
+    [(path, (inner, member, _digest))] = bundle.members.items()
+    assert (path, inner, member) == (bundle.files()[0], None, 'trans/af/report.odt.xlf')
+    bundle.save(str(tmp_path / 'report.af.virtaal'))
+    assert bundle.title() == 'report.af.virtaal'

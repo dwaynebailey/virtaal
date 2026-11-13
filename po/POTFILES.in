@@ -4,6 +4,7 @@ share/metainfo/io.github.translate.Virtaal.metainfo.xml.in
 share/mime/packages/io.github.translate.Virtaal.xml.in
 share/virtaal/virtaal.ui
 virtaal/cli.py
+virtaal/controllers/bundleactions.py
 virtaal/controllers/checkscontroller.py
 virtaal/controllers/filepanelcontroller.py
 virtaal/controllers/maincontroller.py

@@ -49,6 +49,15 @@ _("Wordfast TXML Translation File")
 # CAT tools' packages (virtaal/support/packages.py), named in the Open dialog.
 _("Translation Packages")
 
+# Translation bundles (virtaal/support/documents.py) and the documents
+# Virtaal translates (virtaal/support/converters.py), named in the Open dialog.
+# l10n: A file type in the Open dialog: Virtaal's .virtaal files, documents and
+# their translations into one or more languages
+_("Translation Bundles")
+# l10n: A file type in the Open dialog: documents Virtaal can translate, such as
+# OpenDocument texts, web pages and plain text files
+_("Documents")
+
 # Windows installer only (devsupport/packaging/windows/virtaal.iss).
 _("SDL XLIFF Translation File")
 _("Associate Virtaal with translation file types (.po, .xlf, .tmx, ...)")

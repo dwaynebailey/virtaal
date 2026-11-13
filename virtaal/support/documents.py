@@ -151,7 +151,7 @@ class DocumentBundle:
     def __init__(self, path=None, work_dir=None, manifest=None):
         self.path = os.path.abspath(path) if path else None
         self.manifest = manifest
-        self.members = {}
+        self.contents = {}
         """{member name: bytes} of everything but the manifest and the
         translatable files."""
         self.work_dir = work_dir or packages.work_folder(
@@ -202,7 +202,7 @@ class DocumentBundle:
             if data is None:
                 raise BundleError('The bundle has no %s.' % entry['file'])
             bundle._write_work(entry['file'], data)
-        bundle.members = found
+        bundle.contents = found
         for document in bundle.documents():
             if document['source'] not in found:
                 raise BundleError('The bundle has no %s.' % document['source'])
@@ -287,7 +287,7 @@ class DocumentBundle:
 
     def _template(self, document):
         """The units of a document, untranslated."""
-        data = self.members[document['source']]
+        data = self.contents[document['source']]
         trans = self.converter(document).forward(data, document['name'])
         return _with_languages(trans, document['file_name'], self.source_language, None)
 
@@ -328,10 +328,31 @@ class DocumentBundle:
 
     def discard(self):
         """Remove the work folder, unless it holds edits not yet in the
-        bundle. @returns: Whether it was removed."""
-        if self.modified or self.path is None or self._changed_entries():
+        bundle; a bundle never saved has nowhere else to keep them.
+        @returns: Whether it was removed."""
+        if self.path is not None and (self.modified or self._changed_entries()):
             return False
         return packages.remove_work_folder(self.work_dir)
+
+    @property
+    def members(self):
+        """{work file: (None, member, its hash as last written)}, as a
+        packages.Package has them."""
+        return {
+            self.work_path(e['file']): (None, e['file'], e.get('sha256'))
+            for e in self.manifest['translations']
+        }
+
+    def can_return(self):
+        return False
+
+    def title(self):
+        """The bundle's name for the window title: its file's, or before
+        it is saved, the document's."""
+        if self.path:
+            return os.path.basename(self.path)
+        names = [d['name'] for d in self.documents()]
+        return names[0] if len(names) == 1 else self.suggested_name()
 
     def _changed_entries(self):
         changed = []
@@ -382,7 +403,7 @@ class DocumentBundle:
         if original:
             document['original'] = original
         self.manifest['documents'].append(document)
-        self.members[document['source']] = data
+        self.contents[document['source']] = data
         for language in self.languages:
             self._add_translation(document, language, trans)
         self._write_templates()
@@ -392,7 +413,7 @@ class DocumentBundle:
     def _add_translation(self, document, language, trans=None):
         if trans is None:
             trans = self.converter(document).forward(
-                self.members[document['source']], document['name']
+                self.contents[document['source']], document['name']
             )
         member = 'trans/%s/%s' % (language, document['file_name'])
         data = _with_languages(trans, document['file_name'], self.source_language, language)
@@ -409,7 +430,7 @@ class DocumentBundle:
     def remove_document(self, name):
         document = self.document(name)
         self.manifest['documents'].remove(document)
-        self.members.pop(document['source'], None)
+        self.contents.pop(document['source'], None)
         for entry in self.translations(document=name):
             self._drop_translation(entry)
         self._write_templates()
@@ -439,9 +460,9 @@ class DocumentBundle:
         self.manifest['target_languages'].remove(language)
         for entry in self.translations(language):
             self._drop_translation(entry)
-        self.members = {
+        self.contents = {
             name: data
-            for name, data in self.members.items()
+            for name, data in self.contents.items()
             if not name.startswith('baselines/%s/' % language)
         }
         self.manifest.get('splits', {}).pop(language, None)
@@ -450,7 +471,7 @@ class DocumentBundle:
 
     def _drop_translation(self, entry):
         self.manifest['translations'].remove(entry)
-        self.members.pop(entry['target'], None)
+        self.contents.pop(entry['target'], None)
         try:
             os.remove(self.work_path(entry['file']))
         except OSError:
@@ -459,7 +480,7 @@ class DocumentBundle:
     # Translated documents
 
     def _fresh(self, entry, data):
-        return entry.get('target_of') == sha256(data) and entry['target'] in self.members
+        return entry.get('target_of') == sha256(data) and entry['target'] in self.contents
 
     def stale(self):
         """The translations whose translated document is older than
@@ -471,10 +492,10 @@ class DocumentBundle:
         data = self.trans_data(entry)
         document = self.document(entry['document'])
         try:
-            target = self.converter(document).back(data, self.members[document['source']])
+            target = self.converter(document).back(data, self.contents[document['source']])
         except Exception as exc:
             self.failures[(entry['document'], entry['language'])] = str(exc) or repr(exc)
-            self.members.pop(entry['target'], None)
+            self.contents.pop(entry['target'], None)
             entry.pop('target_of', None)
             return False
         self.set_target(entry, target, sha256(data))
@@ -484,7 +505,7 @@ class DocumentBundle:
         """C{target}, made from the translatable file whose hash is
         C{made_from}, as C{entry}'s translated document."""
         self.failures.pop((entry['document'], entry['language']), None)
-        self.members[entry['target']] = target
+        self.contents[entry['target']] = target
         entry['target_of'] = made_from
 
     def regeneration_jobs(self, entries):
@@ -498,7 +519,7 @@ class DocumentBundle:
                     entry,
                     document['converter'],
                     self.trans_data(entry),
-                    self.members[document['source']],
+                    self.contents[document['source']],
                 )
             )
         return jobs
@@ -539,7 +560,7 @@ class DocumentBundle:
             entry['sha256'] = sha256(data)
         self.manifest['modified'] = _now()
         self.manifest['creator'] = _creator()
-        _replace_file(path, _zip(self.manifest, {**self.members, **trans}))
+        _replace_file(path, _zip(self.manifest, {**self.contents, **trans}))
         self.path = path
         self.modified = False
 
@@ -584,7 +605,7 @@ class DocumentBundle:
                     entry['language'],
                 ),
             )
-        self.members[document['source']] = data
+        self.contents[document['source']] = data
         document['sha256'] = sha256(data)
         if original:
             document['original'] = original
@@ -608,7 +629,7 @@ class DocumentBundle:
             manifest, members = self._split_bundle(language, sources)
             _replace_file(path, _zip(manifest, members))
             for entry in self.translations(language):
-                self.members[_baseline(entry)] = members[entry['file']]
+                self.contents[_baseline(entry)] = members[entry['file']]
             self.manifest.setdefault('splits', {})[language] = {
                 'id': manifest['id'],
                 'created': manifest['created'],
@@ -628,14 +649,14 @@ class DocumentBundle:
             translations=[e for e in manifest['translations'] if e['language'] == language],
             split_from={'id': self.id, 'language': language, 'sources': sources},
         )
-        members = {d['source']: self.members[d['source']] for d in self.documents()}
+        members = {d['source']: self.contents[d['source']] for d in self.documents()}
         for entry in manifest['translations']:
             data = self.trans_data(entry)
             members[entry['file']] = data
             entry['sha256'] = sha256(data)
-            if entry['target'] in self.members:
-                members[entry['target']] = self.members[entry['target']]
-        for name, data in self.members.items():
+            if entry['target'] in self.contents:
+                members[entry['target']] = self.contents[entry['target']]
+        for name, data in self.contents.items():
             if name.startswith('tm/') and name.lower().endswith('.tmx'):
                 members[name] = tmx_for_language(data, self.source_language, language)
             elif name.startswith(('tm/', 'terms/')):
@@ -657,12 +678,12 @@ class DocumentBundle:
             if name not in record['sources']:
                 continue
             entry = self.translation(name, language)
-            base = self.members.get(_baseline(entry))
+            base = self.contents.get(_baseline(entry))
             incoming = returned.trans_data(returned.translation(name, language))
             if base is None:
                 raise BundleError('The bundle has no record of %s as split.' % name)
             if record['sources'][name] != document['sha256']:
-                template = self.converter(document).forward(self.members[document['source']], name)
+                template = self.converter(document).forward(self.contents[document['source']], name)
                 args = (document['file_name'], self.source_language, language)
                 base = updated(template, base, *args)
                 incoming = updated(template, incoming, *args)
@@ -704,7 +725,7 @@ class DocumentBundle:
                 _take(part.local.units[index], theirs)
             changed += len(taken)
             self._write_work(part.entry['file'], bytes(part.local))
-            self.members[_baseline(part.entry)] = part.baseline(skipped)
+            self.contents[_baseline(part.entry)] = part.baseline(skipped)
         self.modified = True
         return changed
 
@@ -752,7 +773,7 @@ class DocumentBundle:
             raise BundleError(
                 "The translated document couldn't be made: %s" % self.failures[(document, language)]
             )
-        _replace_file(path, self.members[entry['target']])
+        _replace_file(path, self.contents[entry['target']])
         return path
 
     def _check_export(self, path):

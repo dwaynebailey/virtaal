@@ -240,19 +240,23 @@ class ConflictDialog:
     """The units changed on the server since the download, with their
     text there and here; for each, Keep mine, Take theirs or Skip."""
 
-    def __init__(self, conflicts, parent=None, ok_label=None):
+    def __init__(self, conflicts, parent=None, ok_label=None, title=None, intro=None):
+        """C{title} and C{intro} (from ngettext(), with %(count)s) for
+        conflicts other than with a server."""
         self.conflicts = conflicts
         self.dialog = Gtk.Dialog(transient_for=parent, modal=True)
         # l10n: The title of the dialog listing units changed both in Virtaal and on the translation server
-        self.dialog.set_title(_('Changed on the Server'))
+        self.dialog.set_title(title or _('Changed on the Server'))
         self.dialog.set_default_size(560, 420)
         self.dialog.add_button(_('_Cancel'), Gtk.ResponseType.CANCEL)
         self.dialog.add_button(ok_label or _('_Submit'), Gtk.ResponseType.OK)
         self.dialog.set_default_response(Gtk.ResponseType.OK)
+        text = intro
         intro = Gtk.Label(wrap=True, xalign=0, max_width_chars=60)
         intro.set_text(
             _counted(
-                ngettext(
+                text
+                or ngettext(
                     'Someone changed %(count)s unit on the server since you downloaded it.',
                     'Someone changed %(count)s units on the server since you downloaded them.',
                     len(conflicts),

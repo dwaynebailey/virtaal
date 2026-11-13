@@ -109,6 +109,11 @@ class FilePanelController(BaseController):
         """Check or search the files of every language."""
         self.scan_controller.show(kind)
 
+    def export_all(self, kind):
+        """Export every language's documents, or TIPP packages, of the
+        translation bundle open."""
+        getattr(self.main_controller.bundle_actions, kind)(all_languages=True)
+
     def pair_file(self, path):
         """Ask for the template of C{path}, a monolingual file the folder
         scan couldn't pair, and add it to the open files in its place,
@@ -224,6 +229,8 @@ class FilePanelController(BaseController):
         self._on_cursor_changed(sc.cursor)
 
     def _load_view(self, sc):
+        bundle = sc.bundle()
+        self.view.show_bundle_items(bool(bundle and bundle.languages))
         self.view.load(
             [segment.entry for segment in sc.store.segments],
             stream_languages(sc.all_files),

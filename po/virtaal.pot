@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 05:21+0000\n"
+"POT-Creation-Date: 2026-11-13 06:41+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -126,6 +126,41 @@ msgstr ""
 #. l10n: Writes the package a Trados or TIPP package asks to be sent back, with the translated files
 #: share/virtaal/virtaal.ui
 msgid "Create Re_turn Package…"
+msgstr ""
+
+#. l10n: File menu: what can be done with a translation bundle (.virtaal), the documents and their translations into one or more languages in one file
+#: share/virtaal/virtaal.ui
+msgid "Translation _Bundle"
+msgstr ""
+
+#. l10n: Adds a document (such as an OpenDocument text or a web page) to the open translation bundle
+#: share/virtaal/virtaal.ui
+msgid "Add _Document…"
+msgstr ""
+
+#. l10n: Adds a language to translate the bundle's documents into
+#: share/virtaal/virtaal.ui virtaal/controllers/bundleactions.py
+msgid "Add _Language…"
+msgstr ""
+
+#. l10n: Saves one bundle for each language, to send to each language's translator
+#: share/virtaal/virtaal.ui
+msgid "_Split by Language…"
+msgstr ""
+
+#. l10n: Brings the translations in the bundles translators send back into this one
+#: share/virtaal/virtaal.ui
+msgid "_Merge Returned Bundles…"
+msgstr ""
+
+#. l10n: Saves the translated documents, made from the documents and their translations
+#: share/virtaal/virtaal.ui virtaal/views/filepanelview.py
+msgid "Export Translated Doc_uments…"
+msgstr ""
+
+#. l10n: Saves the translations as a TIPP package, a format other translation tools open
+#: share/virtaal/virtaal.ui virtaal/views/filepanelview.py
+msgid "Export as _TIPP…"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -618,6 +653,18 @@ msgstr ""
 msgid "Translation Packages"
 msgstr ""
 
+#. l10n: A file type in the Open dialog: Virtaal's .virtaal files, documents and
+#. their translations into one or more languages
+#: devsupport/tmp_strings.py
+msgid "Translation Bundles"
+msgstr ""
+
+#. l10n: A file type in the Open dialog: documents Virtaal can translate, such as
+#. OpenDocument texts, web pages and plain text files
+#: devsupport/tmp_strings.py
+msgid "Documents"
+msgstr ""
+
 #: devsupport/tmp_strings.py
 msgid "SDL XLIFF Translation File"
 msgstr ""
@@ -794,6 +841,64 @@ msgstr ""
 #: virtaal/cli.py
 #, python-format
 msgid "Could not open profile file '%(filename)s'"
+msgstr ""
+
+#: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
+#, python-format
+msgid ""
+"Could not open file.\n"
+"\n"
+"%(error_message)s\n"
+"\n"
+"Try opening a different file."
+msgstr ""
+
+#: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
+#, python-format
+msgid ""
+"Could not export file.\n"
+"\n"
+"%(error_message)s\n"
+"\n"
+"Try saving to a different location."
+msgstr ""
+
+#: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
+#: virtaal/main.py virtaal/views/mainview.py
+#, python-format
+msgid "Loading '%s'…"
+msgstr ""
+
+#. l10n: Shown on opening a translation bundle with documents but no language
+#. to translate them into yet
+#: virtaal/controllers/bundleactions.py
+msgid ""
+"This bundle has no target language yet. Add one to translate its documents."
+msgstr ""
+
+#: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
+#: virtaal/views/mainview.py
+msgid "Save"
+msgstr ""
+
+#. l10n: After File > Translation Bundle > Split by Language
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "Saved %(count)s bundle, one for each language."
+msgid_plural "Saved %(count)s bundles, one for each language."
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: After File > Translation Bundle > Merge Returned Bundles
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "Merged %(count)s translation from the returned bundles."
+msgid_plural "Merged %(count)s translations from the returned bundles."
+msgstr[0] ""
+msgstr[1] ""
+
+#: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
+msgid "Export"
 msgstr ""
 
 #: virtaal/controllers/checkscontroller.py virtaal/views/mainview.py
@@ -1044,36 +1149,6 @@ msgid ""
 "file?"
 msgstr ""
 
-#: virtaal/controllers/maincontroller.py virtaal/main.py
-#: virtaal/views/mainview.py
-#, python-format
-msgid "Loading '%s'…"
-msgstr ""
-
-#: virtaal/controllers/maincontroller.py
-#, python-format
-msgid ""
-"Could not open file.\n"
-"\n"
-"%(error_message)s\n"
-"\n"
-"Try opening a different file."
-msgstr ""
-
-#: virtaal/controllers/maincontroller.py virtaal/views/mainview.py
-msgid "Save"
-msgstr ""
-
-#: virtaal/controllers/maincontroller.py
-#, python-format
-msgid ""
-"Could not export file.\n"
-"\n"
-"%(error_message)s\n"
-"\n"
-"Try saving to a different location."
-msgstr ""
-
 #: virtaal/controllers/maincontroller.py
 #, python-format
 msgid ""
@@ -1102,10 +1177,6 @@ msgstr ""
 
 #: virtaal/controllers/maincontroller.py
 msgid "Can only export Gettext PO files"
-msgstr ""
-
-#: virtaal/controllers/maincontroller.py
-msgid "Export"
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
@@ -1373,6 +1444,15 @@ msgstr ""
 #: virtaal/controllers/storecontroller.py
 #, python-format
 msgid "The plural forms of %(file)s need fixing."
+msgstr ""
+
+#. l10n: Shown after saving a translation bundle. %(document)s is a document's
+#. name, such as report.odt; the reason follows
+#: virtaal/controllers/storecontroller.py
+#, python-format
+msgid ""
+"The translated document of %(document)s couldn't be made. The translation "
+"was saved."
 msgstr ""
 
 #. l10n: this refers to updating a file to a new template (POT file)
@@ -3519,6 +3599,32 @@ msgstr ""
 #: virtaal/views/mainview.py
 msgid "Choose a Translation File"
 msgstr ""
+
+#. l10n: Title of the file dialog of File > Translation Bundle > Add Document
+#: virtaal/views/mainview.py
+msgid "Choose a Document"
+msgstr ""
+
+#. l10n: Title of the dialog of File > Translation Bundle > Add Language
+#: virtaal/views/mainview.py
+msgid "Add Language"
+msgstr ""
+
+#. l10n: The title of the dialog listing units changed both in the open
+#. translation bundle and in a translator's bundle being merged into it
+#: virtaal/views/mainview.py
+msgid "Changed in Both Bundles"
+msgstr ""
+
+#. l10n: At the top of the dialog listing units changed both in the open
+#. translation bundle and in a translator's bundle being merged into it
+#: virtaal/views/mainview.py
+#, python-format
+msgid "%(count)s unit was changed both here and in the returned bundle."
+msgid_plural ""
+"%(count)s units were changed both here and in the returned bundle."
+msgstr[0] ""
+msgstr[1] ""
 
 #: virtaal/views/mainview.py
 msgid "Choose a Folder of Translation Files"

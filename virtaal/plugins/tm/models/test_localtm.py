@@ -1024,6 +1024,20 @@ def test_a_file_in_a_packages_inner_zip_is_keyed_by_both_names(tmp_path):
     )
 
 
+def test_a_file_of_a_bundle_not_yet_saved_is_keyed_by_its_own_path(tmp_path):
+    extracted = str(tmp_path / 'work' / 'af' / 'a.odt.xlf')
+    package = SimpleNamespace(
+        path=None,
+        work_dir=str(tmp_path / 'work'),
+        members={extracted: (None, 'trans/af/a.odt.xlf', 'sha')},
+    )
+
+    assert localtm.file_key(SimpleNamespace(package=package), extracted) == (
+        os.path.realpath(extracted),
+        '',
+    )
+
+
 def test_a_package_opened_again_keeps_its_store(tmp_path):
     first = _package_controller(tmp_path, 'test1.wsxz', 'first')
     key = localtm.store_key(first)

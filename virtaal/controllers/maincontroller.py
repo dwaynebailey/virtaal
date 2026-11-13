@@ -66,6 +66,9 @@ class MainController(BaseController):
         # pick it up without open_file()'s own True/False contract
         # having to change for its many other callers.
         self.last_open_error = None
+        from .bundleactions import BundleActions
+
+        self.bundle_actions = BundleActions(self)
         self.view = MainView(self)
 
     def load_plugins(self):
@@ -209,15 +212,41 @@ class MainController(BaseController):
             return None
         if filename and os.path.isdir(_strip_file_uri(filename)):
             return self.open_files([filename])
-        from virtaal.support import packages
+        from virtaal.support import converters, documents, packages
 
-        if filename and packages.kind_of(_strip_file_uri(filename)):
-            return self.open_package(_strip_file_uri(filename))
+        path = _strip_file_uri(filename) if filename else None
+        if path and packages.kind_of(path):
+            return self.open_package(path)
+        if path and documents.is_bundle(path):
+            return self._open_guarded(self.bundle_actions.open_bundle, path)
+        if path and converters.is_document(path):
+            return self._open_guarded(self.bundle_actions.open_documents, [path])
         self._opening_file = True
         try:
             return self._open_file(filename, uri, forget_dir)
         finally:
             self._opening_file = False
+
+    def _open_guarded(self, open_, *args):
+        """Run C{open_(*args)} unless something is being opened already."""
+        if self._opening_file:
+            return None
+        self._opening_file = True
+        try:
+            self._wait_for_controllers()
+            return open_(*args)
+        finally:
+            self._opening_file = False
+
+    def confirm_leaving(self):
+        """Whether to go on and leave the files open, asking first to
+        save unsaved changes."""
+        if not self.store_controller.is_modified():
+            return True
+        response = self._show_save_confirm_dialog()
+        if response == 'save':
+            return bool(self.save_file())
+        return response != 'cancel'
 
     def _wait_for_controllers(self):
         # We might be a bit early for some of the other controllers, so
@@ -328,6 +357,10 @@ class MainController(BaseController):
         paths = [_strip_file_uri(path) for path in paths]
         if len(paths) == 1 and not os.path.isdir(paths[0]):
             return self.open_file(paths[0])
+        from virtaal.support import converters
+
+        if all(converters.is_document(path) for path in paths):
+            return self._open_guarded(self.bundle_actions.open_documents, paths)
         if self._opening_file:
             return None
         self._opening_file = True

@@ -203,6 +203,12 @@ def _set_native_return_key(title, modifiers):
     )
 
 
+def _bundle_of(store_controller):
+    """The translation bundle open, if any."""
+    bundle = getattr(store_controller, 'bundle', None)
+    return bundle() if callable(bundle) else None
+
+
 def add_translation_file_filters(chooser, extra_formats=()):
     """Give a file chooser the Open dialog's filters: all supported
     files, each format, and all files. C{extra_formats}: (name,
@@ -378,6 +384,16 @@ class MainView(BaseView):
         self.gui.get_object('mnu_update').connect('activate', self._on_file_update)
         self.gui.get_object('mnu_binary_export').connect('activate', self._on_file_binary_export)
         self.gui.get_object('mnu_return_package').connect('activate', self._on_return_package)
+        actions = self.controller.bundle_actions
+        for item_id, action in (
+            ('mnu_add_document', actions.add_document),
+            ('mnu_add_language', actions.add_language),
+            ('mnu_split_bundle', actions.split),
+            ('mnu_merge_bundles', actions.merge),
+            ('mnu_export_documents', actions.export_documents),
+            ('mnu_export_tipp', actions.export_tipp),
+        ):
+            self.gui.get_object(item_id).connect('activate', lambda _item, act=action: act())
         self.gui.get_object('mnu_revert').connect('activate', self._on_file_revert)
         self.gui.get_object('mnu_quit').connect('activate', self._on_quit)
         # Navigation menu signals
@@ -589,11 +605,109 @@ class MainView(BaseView):
             None,
             None,
         )
-        from virtaal.support import converters, packages
+        from virtaal.support import converters, documents, packages
 
-        add_translation_file_filters(chooser, converters.open_formats() + packages.open_formats())
+        add_translation_file_filters(
+            chooser,
+            converters.open_formats()
+            + packages.open_formats()
+            + documents.open_formats()
+            + converters.document_formats(),
+        )
         chooser.set_select_multiple(True)
         return chooser
+
+    def _chooser(self, title, action=Gtk.FileChooserAction.OPEN, formats=()):
+        chooser = Gtk.FileChooserNative.new(title, self.main_window, action, None, None)
+        for name, extensions in formats:
+            file_filter = Gtk.FileFilter()
+            file_filter.set_name(_(name))
+            for extension in extensions:
+                file_filter.add_pattern('*.' + extension)
+                file_filter.add_pattern('*.' + extension.upper())
+            chooser.add_filter(file_filter)
+        return chooser
+
+    @cached_property
+    def document_chooser(self):
+        from virtaal.support import converters
+
+        # l10n: Title of the file dialog of File > Translation Bundle > Add Document
+        chooser = self._chooser(_('Choose a Document'), formats=converters.document_formats())
+        chooser.set_select_multiple(True)
+        return chooser
+
+    @cached_property
+    def bundle_chooser(self):
+        from virtaal.support import documents
+
+        chooser = self._chooser(_('Choose a Translation File'), formats=documents.open_formats())
+        chooser.set_select_multiple(True)
+        return chooser
+
+    def _chosen_paths(self, chooser):
+        chosen = self.show_open_dialog(chooser=chooser)
+        if not chosen:
+            return []
+        return chosen[0] if isinstance(chosen[0], list) else [chosen[0]]
+
+    def ask_documents(self):
+        """The documents chosen to add to a bundle."""
+        return self._chosen_paths(self.document_chooser)
+
+    def ask_bundles(self):
+        """The returned bundles chosen to merge."""
+        return self._chosen_paths(self.bundle_chooser)
+
+    def ask_folder(self, title, folder=''):
+        """A folder chosen to write into, or None."""
+        chooser = self._chooser(title, Gtk.FileChooserAction.SELECT_FOLDER)
+        if folder and os.path.isdir(folder):
+            chooser.set_current_folder(folder)
+        chooser.set_transient_for(self._top_window)
+        accepted = chooser.run() == Gtk.ResponseType.ACCEPT
+        chooser.hide()
+        return chooser.get_filename() if accepted else None
+
+    def ask_language(self, source, current=None):
+        """The target language chosen to add to a bundle, or None."""
+        from virtaal.models.langmodel import LanguageModel
+        from virtaal.views.widgets.langselectdialog import LanguageSelectDialog
+
+        languages = [LanguageModel(code) for code in LanguageModel.languages]
+        languages.sort(key=lambda lang: locale.strxfrm(lang.name))
+        dialog = LanguageSelectDialog(languages, parent=self.main_window)
+        # l10n: Title of the dialog of File > Translation Bundle > Add Language
+        dialog.dialog.set_title(_('Add Language'))
+        for name in ('frame1', 'btn_add', 'btn_edit'):
+            dialog.gui.get_object(name).hide()
+        try:
+            if not dialog.run(source, current):
+                return None
+            return dialog.get_selected_target_lang() or None
+        finally:
+            dialog.dialog.destroy()
+
+    def ask_merge_conflicts(self, conflicts):
+        """{conflict index: choice} for units changed both in the bundle
+        open and in a returned one, or None if cancelled."""
+        from virtaal.support.platforms.submitdialog import ConflictDialog
+
+        return ConflictDialog(
+            conflicts,
+            self.main_window,
+            _('_OK'),
+            # l10n: The title of the dialog listing units changed both in the open
+            # translation bundle and in a translator's bundle being merged into it
+            title=_('Changed in Both Bundles'),
+            intro=ngettext(
+                # l10n: At the top of the dialog listing units changed both in the open
+                # translation bundle and in a translator's bundle being merged into it
+                '%(count)s unit was changed both here and in the returned bundle.',
+                '%(count)s units were changed both here and in the returned bundle.',
+                len(conflicts),
+            ),
+        ).run()
 
     @cached_property
     def folder_chooser(self):
@@ -2117,7 +2231,20 @@ class MainView(BaseView):
 
         GLib.idle_add(self.main_window.present)
 
+    def _set_bundle_items(self, bundle):
+        """The Translation Bundle menu's items that can be used now."""
+        languages = bool(bundle and bundle.languages)
+        self.gui.get_object('mnu_bundle').set_sensitive(bundle is not None)
+        self.gui.get_object('mnu_add_document').set_sensitive(bundle is not None)
+        self.gui.get_object('mnu_add_language').set_sensitive(bundle is not None)
+        self.gui.get_object('mnu_merge_bundles').set_sensitive(
+            bool(bundle and bundle.manifest.get('splits'))
+        )
+        for item_id in ('mnu_split_bundle', 'mnu_export_documents', 'mnu_export_tipp'):
+            self.gui.get_object(item_id).set_sensitive(languages)
+
     def _on_store_closed(self, store_controller):
+        self._set_bundle_items(None)
         for widget_name in (
             'mnu_saveas',
             'mnu_close',
@@ -2136,7 +2263,9 @@ class MainView(BaseView):
     def _on_store_loaded(self, store_controller):
         # Several files are each saved in place, and share no template.
         single = not store_controller.is_stream()
-        self.gui.get_object('mnu_saveas').set_sensitive(single)
+        bundle = _bundle_of(store_controller)
+        self.gui.get_object('mnu_saveas').set_sensitive(single or bundle is not None)
+        self._set_bundle_items(bundle)
         self.gui.get_object('mnu_close').set_sensitive(True)
         self.gui.get_object('mnu_update').set_sensitive(single)
         self.gui.get_object('mnu_properties').set_sensitive(True)
@@ -2158,7 +2287,13 @@ class MainView(BaseView):
     def _add_recent_file(self, store_controller):
         from virtaal.views import recent
 
-        if store_controller.project:
+        bundle = _bundle_of(store_controller)
+        if bundle is not None:
+            if bundle.path:
+                recent.rm.add_item(('file:///' if platform.is_windows else 'file://') + bundle.path)
+                if platform.is_mac:
+                    _note_recent_document(bundle.path)
+        elif store_controller.project:
             path = store_controller.get_bundle_filename()
             recent.rm.add_item('file://' + path)
             if platform.is_mac:

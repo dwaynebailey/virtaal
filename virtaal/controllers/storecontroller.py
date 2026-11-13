@@ -16,6 +16,21 @@ from virtaal.common import GObjectWrapper
 from .basecontroller import BaseController
 
 
+def suggested_bundle_path(bundle):
+    """Where to save a new translation bundle: beside its first
+    document, or in Documents if that folder can't be written to."""
+    folder = None
+    originals = [d.get('original') for d in bundle.documents() if d.get('original')]
+    if originals:
+        folder = os.path.dirname(originals[0])
+    if not folder or not os.access(folder, os.W_OK):
+        from gi.repository import GLib
+
+        folder = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOCUMENTS)
+        folder = folder or os.path.expanduser('~')
+    return os.path.join(folder, bundle.suggested_name())
+
+
 class StoreController(BaseController):
     """The controller for all store-level activities."""
 
@@ -122,6 +137,9 @@ class StoreController(BaseController):
 
     def get_bundle_filename(self):
         """Returns the file name of the bundle archive, if we are working with one."""
+        bundle = self.bundle()
+        if bundle is not None:
+            return bundle.path or suggested_bundle_path(bundle)
         if self.project:
             from virtaal.support.bundleprojstore import BundleProjectStore
 
@@ -148,6 +166,64 @@ class StoreController(BaseController):
                 self.open_files([package.work_dir])
         finally:
             self._opening_package = None
+
+    def bundle(self):
+        """The translation bundle (virtaal.support.documents) open, or None."""
+        from virtaal.support.documents import DocumentBundle
+
+        return self.package if isinstance(self.package, DocumentBundle) else None
+
+    def open_bundle(self, bundle, language=None):
+        """Open the files of the translation bundle C{bundle}: in
+        C{language}, or with several, the user's target language if it
+        has it."""
+        files = bundle.files()
+        self._opening_package = bundle
+        try:
+            if len(files) == 1:
+                self.open_file(files[0])
+            else:
+                self.open_files([bundle.work_dir])
+                if language and language != self.stream_language and language in bundle.languages:
+                    self.open_stream_language(language)
+        finally:
+            self._opening_package = None
+        self.main_controller.set_force_saveas(bundle.path is None)
+        if bundle.path is None:
+            self.main_controller.set_saveable(True)
+
+    def reopen_bundle(self, language=None):
+        """Open the bundle's files again after a change to the bundle
+        (a document or language added), in C{language} or the one shown,
+        keeping the edits not yet saved."""
+        bundle = self.bundle()
+        self.unit_controller.prepare_for_save()
+        self.store.save_file()
+        self.open_bundle(bundle, language or self.stream_language or self._file_language())
+        self.set_modified(True)
+
+    def _file_language(self):
+        label = self.bundle().label(self.store.filename) if self.store is not None else None
+        return label[1] if label else None
+
+    def _lock_bundle_units(self, model):
+        """A bundle with no target language shows its documents' units,
+        not to be edited."""
+        bundle = self.bundle()
+        if bundle is None or not bundle.read_only():
+            return
+        for unit in model.get_units():
+            unit.read_only = True
+
+    def _name_bundle_files(self, all_files):
+        """Show each of a bundle's files as its document."""
+        bundle = self.bundle()
+        if bundle is None:
+            return
+        for entry in all_files:
+            found = bundle.label(entry.path)
+            if found:
+                entry.label = entry.panel_label = found[0]
 
     def _leave_package(self, package):
         """Note C{package} (or None) as the one whose files are open,
@@ -256,6 +332,8 @@ class StoreController(BaseController):
 
     def _attach_loaded(self, store):
         for segment in store.segments:
+            if segment.loaded:
+                self._lock_bundle_units(segment.model)
             copy = self.work_copies.get(segment.path)
             if copy is not None and segment.loaded and copy.store is not segment.model:
                 copy.attach(segment.model)
@@ -277,6 +355,8 @@ class StoreController(BaseController):
             # %(location)s is its project and component, such as "Hello/Program";
             # %(platform)s is the kind of server, such as Weblate
             return _('%(location)s (%(platform)s)') % names
+        if self.bundle() is not None and self.store is not None:
+            return self.bundle().title()
         return os.path.basename(self.get_store_filename())
 
     def get_store_filename(self):
@@ -304,6 +384,8 @@ class StoreController(BaseController):
     def can_binary_export(self):
         """Whether the open file is a Gettext PO file, the only kind
         L{binary_export()} compiles."""
+        if self.bundle() is not None:
+            return False
         return self.get_store_filename().endswith(('.po', '.po.bz2', '.po.gz'))
 
     def get_store_checker(self):
@@ -551,6 +633,7 @@ class StoreController(BaseController):
         copies = (workcopy.for_file(entry.path) for entry in all_files)
         self._set_work_copies({copy.path: copy for copy in copies if copy is not None})
         self._name_work_copies(all_files)
+        self._name_bundle_files(all_files)
         self._attach_loaded(store)
         self._modified = False
         self.main_controller.set_force_saveas(False)
@@ -661,6 +744,7 @@ class StoreController(BaseController):
         if work_copy is not None:
             work_copy.attach(self.store)
             self._set_work_copies({work_copy.path: work_copy})
+        self._lock_bundle_units(self.store)
 
         # A translation carried over from a renamed key isn't in the file yet.
         pair = getattr(self.store, 'pair', None)
@@ -726,12 +810,15 @@ class StoreController(BaseController):
 
     def save_file(self, filename=None):
         self.unit_controller.prepare_for_save()
+        if self.bundle() is not None:
+            self._save_bundle(filename)
+            return
         if filename:
             # Saved elsewhere, the file is no longer the package's.
             self.package = None
             if self.work_copy is not None and os.path.abspath(filename) != self.work_copy.path:
                 self._set_work_copies({})
-        saving = [entry.path for entry in self.store.modified_entries()] if self.is_stream() else []
+        saving = self._saving()
         if self.project is None:
             self.store.save_file(
                 filename
@@ -751,6 +838,13 @@ class StoreController(BaseController):
             self.project.save()
         if self.package is not None:
             self.package.write_back()
+        self._saved(saving)
+
+    def _saving(self):
+        """The paths of the files a save writes, with several open."""
+        return [entry.path for entry in self.store.modified_entries()] if self.is_stream() else []
+
+    def _saved(self, saving):
         # Only the local copies: Submit sends.
         if self.is_stream():
             saved = [self.work_copies[path] for path in saving if path in self.work_copies]
@@ -768,6 +862,64 @@ class StoreController(BaseController):
         self.emit('stats-changed')
         self.emit('store-saved')
 
+    def _save_bundle(self, filename):
+        """Save the translation bundle open, to C{filename} for Save As:
+        its files into the work folder, then the bundle. Translated
+        documents too large to make now are made in a child process."""
+        bundle = self.bundle()
+        saving = self._saving()
+        self.store.save_file()
+        self._stop_regeneration()
+        left = bundle.save(filename, background=True)
+        self._saved(saving)
+        self._show_bundle_failures(bundle)
+        if left:
+            self._start_regeneration(bundle, left)
+
+    def _show_bundle_failures(self, bundle):
+        if not bundle.failures:
+            return
+        (document, _language), error = next(iter(bundle.failures.items()))
+        text = _(
+            # l10n: Shown after saving a translation bundle. %(document)s is a document's
+            # name, such as report.odt; the reason follows
+            "The translated document of %(document)s couldn't be made. The translation was saved."
+        )
+        self.main_controller.view.show_info_notice(text % {'document': document} + '\n' + error)
+
+    _regeneration = None
+
+    def _start_regeneration(self, bundle, entries):
+        from gi.repository import GLib
+
+        from virtaal.support import docregen
+
+        self._regeneration = docregen.Regeneration(bundle.regeneration_jobs(entries))
+
+        def poll():
+            regeneration = self._regeneration
+            if regeneration is None:
+                return False
+            result = regeneration.poll()
+            if result is None:
+                return True
+            self._regeneration = None
+            made, failed = result
+            for number, error in failed.items():
+                entry = entries[number]
+                bundle.failures[(entry['document'], entry['language'])] = error
+            if self.bundle() is bundle:
+                bundle.save_targets(made)
+                self._show_bundle_failures(bundle)
+            return False
+
+        GLib.timeout_add(200, poll)
+
+    def _stop_regeneration(self):
+        if self._regeneration is not None:
+            self._regeneration.close()
+            self._regeneration = None
+
     def binary_export(self, filename):
         from translate.tools.pocompile import POCompile
 
@@ -776,6 +928,7 @@ class StoreController(BaseController):
             binary_output.write(compiler.convertstore(self.store._trans_store))
 
     def close_file(self):
+        self._stop_regeneration()
         self.package = None
         self._set_work_copies({})
         self._leave_package(None)
@@ -796,6 +949,12 @@ class StoreController(BaseController):
         gc.collect()
 
     def revert_file(self):
+        bundle = self.bundle()
+        if bundle is not None and bundle.path:
+            from virtaal.support.documents import DocumentBundle
+
+            self.open_bundle(DocumentBundle.open(bundle.path), self.stream_language)
+            return
         if self.is_stream():
             self.open_stream_language(self.stream_language)
             return

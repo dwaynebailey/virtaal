@@ -327,7 +327,7 @@ class TestSetScan(TestScaffolding):
     def test_the_files_panel_has_both_in_its_language_row(self):
         self._open_folder()
         menu = self.panel.view.all_languages_button.get_popup()
-        labels = [item.get_label() for item in menu.get_children()]
+        labels = [item.get_label() for item in menu.get_children() if item.get_visible()]
         assert labels == ['Find in All _Languages…', 'Check All Lan_guages…']
 
         menu.get_children()[0].activate()

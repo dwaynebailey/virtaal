@@ -477,7 +477,8 @@ def file_key(store_controller, path):
     the working folder it was taken out to, which goes on closing."""
     real = os.path.realpath(path)
     package = getattr(store_controller, 'package', None)
-    if package is not None:
+    # A translation bundle not yet saved has no path to key it by.
+    if package is not None and package.path:
         if real == os.path.realpath(package.work_dir):
             return os.path.realpath(package.path), ''
         for extracted, (inner, member, _digest) in package.members.items():

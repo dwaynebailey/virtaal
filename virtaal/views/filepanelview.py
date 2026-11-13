@@ -205,7 +205,20 @@ class FilePanelView(BaseView):
             item = Gtk.MenuItem.new_with_mnemonic(label)
             item.connect('activate', lambda _item, kind=kind: self.controller.scan_all(kind))
             menu.append(item)
+        # A translation bundle's: every language's documents, or a TIPP
+        # package for each language.
+        self.bundle_items = [Gtk.SeparatorMenuItem()]
+        for label, kind in (
+            (_("Export Translated Doc_uments…"), 'export_documents'),
+            (_("Export as _TIPP…"), 'export_tipp'),
+        ):
+            item = Gtk.MenuItem.new_with_mnemonic(label)
+            item.connect('activate', lambda _item, kind=kind: self.controller.export_all(kind))
+            self.bundle_items.append(item)
+        for item in self.bundle_items:
+            menu.append(item)
         menu.show_all()
+        self.show_bundle_items(False)
         button = Gtk.MenuButton(popup=menu)
         button.set_image(Gtk.Image.new_from_icon_name('view-more-symbolic', Gtk.IconSize.BUTTON))
         # l10n: Tooltip of the button beside the language list in the files panel
@@ -368,6 +381,10 @@ class FilePanelView(BaseView):
         if language in self._languages:
             self.language_combo.set_active(self._languages.index(language))
         self.language_box.set_visible(len(languages) > 1)
+
+    def show_bundle_items(self, shown):
+        for item in self.bundle_items:
+            item.set_visible(shown)
 
     def select_language(self, language):
         """Show C{language} as chosen, without acting on it."""
