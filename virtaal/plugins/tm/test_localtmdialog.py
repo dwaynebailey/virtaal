@@ -28,6 +28,7 @@ from virtaal.plugins.tm.localtmdialog import (
     COL_TOOLTIP,
     COL_UNITS,
     COL_UPDATED,
+    ONLY_SELECTED,
     RESPONSE_EXPORT,
     RESPONSE_REMOVE,
     LocalTMDialog,
@@ -499,30 +500,30 @@ def test_a_reply_after_closing_is_ignored(tm, tmp_path):
 def test_choose_export_file_offers_tmx_and_the_limit(tm, tmp_path, monkeypatch):
     _app, model, _pump = tm
     dialog = LocalTMDialog(model)
-    seen = {}
+    seen = []
 
     def run(chooser):
-        seen['title'] = chooser.get_title()
-        seen['filters'] = [f.get_name() for f in chooser.list_filters()]
-        seen['name'] = chooser.get_current_name()
-        extra = chooser.get_extra_widget()
-        seen['limit'] = extra and (extra.get_label(), extra.get_active())
-        chooser.set_filename(str(tmp_path / 'x.tmx'))
+        limit = chooser.get_choice(ONLY_SELECTED) if seen == [] else None
+        seen.append(
+            (
+                chooser.get_title(),
+                [f.get_name() for f in chooser.list_filters()],
+                chooser.get_current_name(),
+                limit,
+            )
+        )
         return Gtk.ResponseType.ACCEPT
 
-    monkeypatch.setattr(Gtk.FileChooserDialog, 'run', run)
-    monkeypatch.setattr(Gtk.FileChooserDialog, 'get_filename', lambda c: str(tmp_path / 'x.tmx'))
+    monkeypatch.setattr(Gtk.FileChooserNative, 'run', run)
+    monkeypatch.setattr(Gtk.FileChooserNative, 'get_filename', lambda c: str(tmp_path / 'x.tmx'))
     monkeypatch.setitem(pan_app.settings.general, 'lastdir', str(tmp_path))
 
     assert dialog.choose_export_file('af.tmx', True) == (str(tmp_path / 'x.tmx'), True)
-    assert seen == {
-        'title': 'Export Translation Memory',
-        'filters': ['TMX Translation Memory'],
-        'name': 'af.tmx',
-        'limit': ('_Only the selected file', True),
-    }
-    assert dialog.choose_export_file('af.tmx', False)[1] is False
-    assert seen['limit'] is None
+    assert dialog.choose_export_file('af.tmx', False) == (str(tmp_path / 'x.tmx'), False)
+    assert seen == [
+        ('Export Translation Memory', ['TMX Translation Memory'], 'af.tmx', 'true'),
+        ('Export Translation Memory', ['TMX Translation Memory'], 'af.tmx', None),
+    ]
     dialog.dialog.destroy()
 
 

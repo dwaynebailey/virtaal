@@ -31,6 +31,7 @@ from virtaal.support import tmdb
 
 RESPONSE_REMOVE = 1
 RESPONSE_EXPORT = 2
+ONLY_SELECTED = 'only-selected'
 
 
 def _gtk_text(msgid):
@@ -285,29 +286,19 @@ class LocalTMDialog:
     def choose_export_file(self, default_name, can_limit):
         """The file the user picks to export to, and whether to export only
         the selected file; None if cancelled."""
-        chooser = Gtk.FileChooserDialog(
-            title=_('Export Translation Memory'),
-            transient_for=self.dialog,
-            modal=True,
-            action=Gtk.FileChooserAction.SAVE,
+        # Native, like every other chooser.
+        chooser = Gtk.FileChooserNative.new(
+            _('Export Translation Memory'), self.dialog, Gtk.FileChooserAction.SAVE, None, None
         )
-        chooser.add_buttons(
-            _gtk_text('_Cancel'),
-            Gtk.ResponseType.CANCEL,
-            _gtk_text('_Save'),
-            Gtk.ResponseType.ACCEPT,
-        )
-        chooser.set_default_response(Gtk.ResponseType.ACCEPT)
+        chooser.set_modal(True)
         chooser.set_do_overwrite_confirmation(True)
         tmx_filter = Gtk.FileFilter()
         tmx_filter.set_name(_('TMX Translation Memory'))
         tmx_filter.add_pattern('*.tmx')
         chooser.add_filter(tmx_filter)
-        only_selected = None
         if can_limit:
-            only_selected = Gtk.CheckButton.new_with_mnemonic(_('_Only the selected file'))
-            only_selected.set_active(True)
-            chooser.set_extra_widget(only_selected)
+            chooser.add_choice(ONLY_SELECTED, _('Only the selected file'), None, None)
+            chooser.set_choice(ONLY_SELECTED, 'true')
         last_dir = pan_app.settings.general['lastdir'] or ''
         if os.path.isdir(last_dir):
             chooser.set_current_folder(last_dir)
@@ -316,7 +307,7 @@ class LocalTMDialog:
             if chooser.run() != Gtk.ResponseType.ACCEPT:
                 return None
             filename = chooser.get_filename()
-            limit = only_selected is not None and only_selected.get_active()
+            limit = can_limit and chooser.get_choice(ONLY_SELECTED) == 'true'
         finally:
             chooser.destroy()
         pan_app.settings.general['lastdir'] = os.path.dirname(filename)
