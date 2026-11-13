@@ -324,8 +324,15 @@ class ConflictDialog:
             for index, buttons in self.buttons.items()
         }
 
+    def focus_first(self):
+        """Focus the first unit's choice, not the selectable text above it."""
+        for buttons in self.buttons.values():
+            next(b for b in buttons.values() if b.get_active()).grab_focus()
+            return
+
     def run(self):
         """The decisions, or None if cancelled."""
+        self.focus_first()
         response = run_dialog(self.dialog)
         decisions = self.decisions() if response == Gtk.ResponseType.OK else None
         self.dialog.destroy()
