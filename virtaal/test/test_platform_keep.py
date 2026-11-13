@@ -112,7 +112,7 @@ class Weblating:
         return bar.get_message_area().get_children()[0].get_text()
 
 
-OPEN_NOTICE = ['Su_bmit to Server…', 'Up_date from Server…']
+OPEN_NOTICE = ['Sub_mit to Server…', 'Up_date from Server…']
 
 
 class TestUnsubmittedWork(Weblating, TestScaffolding):
@@ -390,7 +390,7 @@ class TestSendAsYouGo(Weblating, TestScaffolding):
         assert self._patches() == []
         assert self._notice() == (
             '1 finished unit was also changed on the server, and waits for Submit.',
-            ['Su_bmit to Server…'],
+            ['Sub_mit to Server…'],
         )
 
     def test_reopening_sends_what_was_queued(self):

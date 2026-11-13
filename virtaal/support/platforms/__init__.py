@@ -550,7 +550,7 @@ class Registry:
         self.menuitem.show()
         menu.insert(self.menuitem, menu.get_children().index(after) + 1)
         # l10n: File menu: send the changes of a file opened from a translation server back to it
-        self.submit_item = Gtk.MenuItem.new_with_mnemonic(_('Su_bmit to Server…'))
+        self.submit_item = Gtk.MenuItem.new_with_mnemonic(_('Sub_mit to Server…'))
         self.submit_item.connect('activate', lambda _item: self.submit())
         self.submit_item.show()
         save_as = view.gui.get_object('mnu_saveas')
@@ -730,7 +730,7 @@ class Registry:
         )
         self._show_notice(
             text % {'count': format_number(count)},
-            [(_('Su_bmit to Server…'), lambda: self.submit())],
+            [(_('Sub_mit to Server…'), lambda: self.submit())],
         )
 
     # Unsubmitted work #
@@ -804,7 +804,7 @@ class Registry:
         self._show_notice(
             pending_message(count, location_of(copies)),
             [
-                (_('Su_bmit to Server…'), lambda: self.submit()),
+                (_('Sub_mit to Server…'), lambda: self.submit()),
                 (_('Up_date from Server…'), lambda: self.update()),
             ],
         )

@@ -121,7 +121,7 @@ class TestPlaceholderNumbering(TestScaffolding):
         try:
             self.view._on_populate_popup(target, menu)
             labels = [item.get_label() for item in menu.get_children() if item.get_label()]
-            assert labels == ['Number the Placeholders']
+            assert labels == ['_Number the Placeholders']
 
             menu.get_children()[-1].activate()
 

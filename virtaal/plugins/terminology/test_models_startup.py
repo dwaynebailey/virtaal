@@ -264,7 +264,7 @@ class TestTerminologyModelsStartup(TestScaffolding):
             textbox.buffer.select_range(*textbox.buffer.get_bounds())
             text = textbox.get_text()
 
-            assert self._add_term_items(textbox) == ['Add _Term "%s"…' % text]
+            assert self._add_term_items(textbox) == ['Add Te_rm “%s”…' % text]
 
     def test_textboxes_created_later_get_the_context_menu_item(self, tmp_path, monkeypatch):
         widgets = self.unit_view._widgets

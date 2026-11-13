@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 22:54+0000\n"
+"POT-Creation-Date: 2026-11-13 22:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -258,7 +258,7 @@ msgstr ""
 
 #. l10n: Marks every space in the text with a dot. Unusual spaces are always marked.
 #: share/virtaal/virtaal.ui
-msgid "Show All _Spaces"
+msgid "Show _All Spaces"
 msgstr ""
 
 #. l10n: Each item in a menu needs its own access key, the letter after _
@@ -2107,7 +2107,7 @@ msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
 #, python-format
-msgid "Add _Term “%(selection)s”…"
+msgid "Add Te_rm “%(selection)s”…"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
@@ -2694,7 +2694,7 @@ msgstr ""
 #. l10n: Ticked, saving the file adds its translations to the
 #. local translation memory; unticked, it leaves them out
 #: virtaal/plugins/tm/tmview.py
-msgid "Add to Local _TM on Save"
+msgid "Add to _Local TM on Save"
 msgstr ""
 
 #: virtaal/plugins/tm/tmview.py
@@ -2906,7 +2906,7 @@ msgstr ""
 
 #. l10n: File menu: send the changes of a file opened from a translation server back to it
 #: virtaal/support/platforms/__init__.py
-msgid "Su_bmit to Server…"
+msgid "Sub_mit to Server…"
 msgstr ""
 
 #. l10n: File menu: bring others' changes from a translation server into a file opened from it
@@ -3007,12 +3007,12 @@ msgstr ""
 
 #. l10n: The context menu of a unit from a translation server: write a comment on its translation there
 #: virtaal/support/platforms/reviewview.py
-msgid "Add _Comment…"
+msgid "Add Co_mment…"
 msgstr ""
 
 #. l10n: The context menu of a unit from a translation server: tell the project there of a mistake or unclear wording in the source text
 #: virtaal/support/platforms/reviewview.py
-msgid "Report a _Source Problem…"
+msgid "Report a Source Pro_blem…"
 msgstr ""
 
 #. l10n: A translation server's option: units at Translated or above go to the server each time the file is saved, instead of waiting for Submit
@@ -4067,7 +4067,7 @@ msgstr ""
 #. l10n: Changes %s, %d... in the translation into %1$s, %2$d... by
 #. their order in the source, so that they can be in another order
 #: virtaal/views/placeholdernumbering.py
-msgid "Number the Placeholders"
+msgid "_Number the Placeholders"
 msgstr ""
 
 #. l10n: The translation has placeholders like %s and %d in another

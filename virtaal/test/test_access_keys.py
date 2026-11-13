@@ -16,8 +16,10 @@ from test_scaffolding import TestScaffolding
 
 from virtaal.common.signaltracker import SignalTracker
 from virtaal.plugins.terminology.models.localfile.localfileview import LocalFileView
+from virtaal.plugins.tm.tmview import TMView
+from virtaal.support.platforms import Registry
 
-CHECKED = ('menuitem_edit', 'menuitem_view', 'menuitem_nav', 'menuitem_help')
+CHECKED = ('menuitem_file', 'menuitem_edit', 'menuitem_view', 'menuitem_nav', 'menuitem_help')
 
 
 def access_key(label):
@@ -66,7 +68,7 @@ def submenus(menu):
 
 
 def test_access_key_skips_doubled_underscores():
-    assert access_key('Add _Term "a__b"…') == 't'
+    assert access_key('Add Te_rm “a__b”…') == 'r'
     assert access_key('a__b') is None
 
 
@@ -80,6 +82,27 @@ class TestAccessKeys(TestScaffolding):
         terminology._signal_tracker = SignalTracker()
         terminology._setup_menus()
         self.terminology = terminology
+
+        tm = TMView.__new__(TMView)
+        tm.controller = SimpleNamespace(
+            main_controller=self.main_controller,
+            translated_suggestions=None,
+            update_suggestions=lambda: None,
+        )
+        tm.accel_group = Gtk.AccelGroup()
+        tm.isvisible, tm.summoned = True, False
+        tm.mnu_import = tm.mnu_add_on_save = tm.mnu_fetch = None
+        tm._opened = 0
+        tm._setup_menu_items()
+        tm.add_import_menu_item(object())
+        tm.add_exclude_menu_item(object())
+
+        servers = Registry.__new__(Registry)
+        servers.main_controller = self.main_controller
+        servers.menuitem = None
+        for name in ('_watch', '_watch_network', '_add_review', 'sync_submit'):
+            setattr(servers, name, lambda *args: None)
+        servers._add_menu_item()
 
     def teardown_class(self):
         self.terminology._signal_tracker.disconnect_all()

@@ -488,7 +488,7 @@ def test_one_menu_item_serves_every_platform(weblate, dummy):
         'Open from Tra_nslation Server…',
         'mnu_save',
         'mnu_saveas',
-        'Su_bmit to Server…',
+        'Sub_mit to Server…',
         'Up_date from Server…',
     ]
 

@@ -16,7 +16,7 @@ from gi.repository import GObject, Gtk
 from virtaal.plugins.tm.test_tm_import import _ImportingPlugin, _MainView, _Plugin
 from virtaal.plugins.tm.tmview import TMView
 
-LABEL = 'Add to Local _TM on Save'
+LABEL = 'Add to _Local TM on Save'
 
 
 class _StoreController:

@@ -257,7 +257,7 @@ class TestPlatformReview(TestScaffolding):
 
         monkeypatch.setattr(reviewview.ReviewPanel, 'ask_comment', ask)
         _menu, labels = self._menu()
-        assert labels[-2:] == ['Add _Comment…', 'Report a _Source Problem…']
+        assert labels[-2:] == ['Add Co_mment…', 'Report a Source Pro_blem…']
 
         assert self.panel.add_comment(about_source=False)
         run_until(lambda: 'Hulp, of Help?' in self._notes())
@@ -346,5 +346,5 @@ class TestPlatformReview(TestScaffolding):
         assert self.panel.where(unit)[0] is not None
         assert not self.panel.reviews.wanted(self.panel.where(unit)[0])
         assert self.panel._timer is None and not self.panel.box.get_visible()
-        assert self._menu()[1][-1:] != ['Report a _Source Problem…']
+        assert self._menu()[1][-1:] != ['Report a Source Pro_blem…']
         assert self.fake.requests == []

@@ -407,7 +407,7 @@ class TMView(BaseView, GObjectWrapper):
                 _(
                     # l10n: Ticked, saving the file adds its translations to the
                     # local translation memory; unticked, it leaves them out
-                    'Add to Local _TM on Save'
+                    'Add to _Local TM on Save'
                 )
             )
             after = self.mnu_import or mainview.gui.get_object('mnu_binary_export')

@@ -158,7 +158,7 @@ msgids = ["S_how Logs"]
 # The File menu's translation server items: there only while a platform
 # plug-in such as Weblate is on, so the harvest never sees them.
 priority = "1"
-msgids = ["Open from Tra_nslation Server…", "Su_bmit to Server…", "Up_date from Server…"]
+msgids = ["Open from Tra_nslation Server…", "Sub_mit to Server…", "Up_date from Server…"]
 
 [[override]]
 # The welcome screen's feature list.

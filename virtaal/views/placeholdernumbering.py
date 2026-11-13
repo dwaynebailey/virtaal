@@ -109,7 +109,7 @@ class PlaceholderNumbering:
         menu.append(Gtk.SeparatorMenuItem())
         # l10n: Changes %s, %d... in the translation into %1$s, %2$d... by
         # their order in the source, so that they can be in another order
-        item = Gtk.MenuItem(label=_('Number the Placeholders'))
+        item = Gtk.MenuItem.new_with_mnemonic(_('_Number the Placeholders'))
         item.connect('activate', self.number)
         menu.append(item)
         menu.show_all()

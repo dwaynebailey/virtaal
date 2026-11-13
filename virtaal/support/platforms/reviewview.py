@@ -324,11 +324,11 @@ class ReviewPanel:
             return
         menu.append(Gtk.SeparatorMenuItem())
         # l10n: The context menu of a unit from a translation server: write a comment on its translation there
-        add = Gtk.MenuItem.new_with_mnemonic(_('Add _Comment…'))
+        add = Gtk.MenuItem.new_with_mnemonic(_('Add Co_mment…'))
         add.connect('activate', lambda _item: self.add_comment(about_source=False))
         menu.append(add)
         # l10n: The context menu of a unit from a translation server: tell the project there of a mistake or unclear wording in the source text
-        report = Gtk.MenuItem.new_with_mnemonic(_('Report a _Source Problem…'))
+        report = Gtk.MenuItem.new_with_mnemonic(_('Report a Source Pro_blem…'))
         report.connect('activate', lambda _item: self.add_comment(about_source=True))
         menu.append(report)
         menu.show_all()

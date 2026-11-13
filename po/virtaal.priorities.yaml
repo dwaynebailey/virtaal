@@ -278,7 +278,7 @@ domains:
     - <u>Report a Bug</u>
     - <u>Tutorial</u>
     - A_dd Term…
-    - Add to Local _TM on Save
+    - Add to _Local TM on Save
     - All
     - 'Checks: %(checker_name)s'
     - 'Conte_xt:'
@@ -303,7 +303,8 @@ domains:
     - S_how Logs
     - Search
     - Settings…
-    - Su_bmit to Server…
+    - Show _All Spaces
+    - Sub_mit to Server…
     - Suggestions for This _Unit
     - Ter_minology Files…
     - Transfer From _Source
@@ -338,6 +339,7 @@ domains:
     - '%(modified_marker)s%(current_file)s - Virtaal'
     - Accelerators
     - Acronyms
+    - Add Te_rm “%(selection)s”…
     - All Files
     - All Supported Files
     - Amagama
