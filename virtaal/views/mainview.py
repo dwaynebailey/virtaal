@@ -256,6 +256,12 @@ def add_translation_file_filters(chooser, extra_formats=()):
     chooser.add_filter(all_filter)
 
 
+def _activate_if_sensitive(item):
+    if item.is_sensitive():
+        item.activate()
+    return True
+
+
 def fill_dialog(dialog, title='', message='', markup='', detail=''):
     """Fill a message dialog: C{message} (or C{markup}) is its heading,
     C{detail} the text below it."""
@@ -506,8 +512,11 @@ class MainView(BaseView):
             # macOS already adds its own native "Enter Full Screen" to
             # every resizable window's View menu.
             self.gui.get_object("mnu_fullscreen").hide()
-            # Move the about menu item
+            # Move the about menu item, named as macOS names it.
             mnu_about = self.gui.get_object("mnu_about")
+            mnu_about.set_property('use-stock', False)
+            about = 'About %s'  # gtk-mac-integration's message, not Virtaal's
+            mnu_about.set_label(GLib.dgettext('gtk-mac-integration', about) % _("Virtaal"))
             osxapp.insert_app_menu_item(mnu_about, 0)
             self.gui.get_object("separator_mnu_help_1").hide()
             # Move the preferences menu item
@@ -840,11 +849,17 @@ class MainView(BaseView):
         ):
             Gtk.AccelMap.add_entry(path, key, Gdk.ModifierType.CONTROL_MASK)
         if not platform.is_mac:
-            # Ctrl+P here, not the usual Ctrl->Cmd translation above -
-            # macOS keeps its own conventional Cmd+, from virtaal.accel
-            # instead (loaded in _setup_macos_integration()).
+            # macOS keeps Cmd+, from virtaal.accel (loaded in
+            # _setup_macos_integration()). Ctrl+P works too.
             Gtk.AccelMap.add_entry(
-                "<Virtaal>/Edit/Preferences", Gdk.KEY_p, Gdk.ModifierType.CONTROL_MASK
+                "<Virtaal>/Edit/Preferences", Gdk.KEY_comma, Gdk.ModifierType.CONTROL_MASK
+            )
+            mnu_prefs = self.gui.get_object('mnu_prefs')
+            self.accel_group.connect(
+                Gdk.KEY_p,
+                Gdk.ModifierType.CONTROL_MASK,
+                Gtk.AccelFlags.VISIBLE,
+                lambda *_args: _activate_if_sensitive(mnu_prefs),
             )
         if platform.is_mac:
             # Ctrl->Cmd translation doesn't reach shifted keys - see Redo.

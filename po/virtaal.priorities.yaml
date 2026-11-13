@@ -452,7 +452,6 @@ domains:
     - Comma Separated Value
     - Command Line Options
     - Copy the source, if nothing is selected
-    - Ctrl+%(number_key)d
     - E-mail
     - 'E-mail address:'
     - E-mail addresses
@@ -472,9 +471,7 @@ domains:
     - Global
     - Haiku catkeys file
     - Hide translation suggestions, if shown
-    - If the source will remain mostly or completely unchanged it is convenient to copy the entire source string with Ctrl+Shift+V. Here is almost nothing to translate, so just press Ctrl+Shift+V and make corrections if necessary.
     - If you have created any terminology in the previous entries you may now see some of the words with a green background (or other color depending on your theme). This means that Virtaal has terminology suggestions for that word. Use Alt+Right to select the highlighted word, and then press Alt+Down. If only one suggestion is provided then Alt+Down just copies the suggestion to the translation field. But if several suggestions are available Alt+Down shows a suggestion list which you can navigate using Down and Up keys. Once you have selected the desired suggestion press Enter to copy it to the translation field.
-    - If you translated the previous message you should see a window with that translation and a percentage indicating how similar the source strings (English) are. It is Virtaal's translation memory at work. Press Ctrl+1 to copy the suggested translation to the current translation. Remember to always review suggestions before you use them.
     - Import data from other applications?
     - In the previous entry you have created one terminology entry for the "filter" verb. Now do the same for "filter" noun.
     - In this entry you can see other kind of accelerator.
@@ -608,7 +605,6 @@ domains:
     - This message has two sentences. Translate them and make sure you start each with a capital letter if your language uses them, and end each sentence properly.
     - This message is a label as part of a form. Note how it ends with a colon (:).
     - This message is a question. Make sure that you use the correct question mark in your translation as well.
-    - This message is very similar to the previous message. Use the suggestion of the previous translation with Ctrl+1. Note how the only difference is that this one ends with a full stop after the last tag.
     - 'This message marks the word "now" as important with bold tags. These tags can be transferred from the source with Alt+Right and Alt+Down. Leave the <b> and </b> in the translation around the part that corresponds to "now". Read more about XML markup here: http://en.wikipedia.org/wiki/XML'
     - This message refers to a website with more information. Sometimes you might be allowed or encouraged to change the URL (web address) to a website in your language. In this case, replace the "en" at the start of the address to your language code so that the address points to the corresponding article in your language about XML.
     - This message refers to miles. If the programmers encourage it, you might want to change this to kilometres in your translation, if kilometers are more commonly used in your language. Note that 1 mile is about 1.6 kilometres. Note that automated tests for "numbers" will complain if the number is changed, but in this case it is safe to do so.
@@ -651,7 +647,6 @@ domains:
     - XML Entities
     - XML Tags
     - XML tags, such as <b> and </i>
-    - You can maintain a local terminology file to help you translate consistently. To add a term, select a word (or words), press Ctrl+T and fill in the details for the new term. Select the text below and add a term for it.
     - _Add Missing Language…
     - _Edit Translation Language…
     - _OK

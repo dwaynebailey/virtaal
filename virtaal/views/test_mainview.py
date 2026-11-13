@@ -1353,7 +1353,7 @@ def _real_view_for_key_bindings():
     )
 
 
-def test_setup_key_bindings_registers_preferences_with_ctrl_p_off_mac(monkeypatch):
+def test_setup_key_bindings_registers_preferences_with_ctrl_comma_off_mac(monkeypatch):
     # Spies on the call rather than checking Gtk.AccelMap's own
     # resulting state: that's real global process state, and
     # add_entry() is a no-op once a path already has an entry - two
@@ -1368,7 +1368,19 @@ def test_setup_key_bindings_registers_preferences_with_ctrl_p_off_mac(monkeypatc
 
     MainView._setup_key_bindings(view)
 
-    assert ("<Virtaal>/Edit/Preferences", Gdk.KEY_p, Gdk.ModifierType.CONTROL_MASK) in calls
+    assert ("<Virtaal>/Edit/Preferences", Gdk.KEY_comma, Gdk.ModifierType.CONTROL_MASK) in calls
+
+
+def test_ctrl_p_still_opens_preferences_off_mac(monkeypatch):
+    monkeypatch.setattr(platform, 'is_mac', False)
+    view = _real_view_for_key_bindings()
+    opened = []
+    view.gui.get_object('mnu_prefs').connect('activate', lambda item: opened.append(item))
+
+    MainView._setup_key_bindings(view)
+    Gtk.accel_groups_activate(view.main_window, Gdk.KEY_p, Gdk.ModifierType.CONTROL_MASK)
+
+    assert len(opened) == 1
 
 
 def test_setup_key_bindings_leaves_preferences_alone_on_mac(monkeypatch):
@@ -3535,6 +3547,34 @@ def test_macos_integration_titles_preferences_settings_in_the_app_menu(monkeypat
 
     assert titles == ["Settings…"]
     assert not mnu_prefs.get_property('use-stock')
+
+
+def test_macos_integration_names_about_after_the_app(monkeypatch):
+    from unittest import mock
+
+    titles = []
+    mnu_about = Gtk.ImageMenuItem(label='gtk-about', use_stock=True)
+
+    class FakeApplication:
+        def insert_app_menu_item(self, item, index):
+            if item is mnu_about:
+                titles.append(item.get_label())
+
+        def __getattr__(self, name):
+            return lambda *args: None
+
+    monkeypatch.setattr(gi, 'require_version', lambda *args: None)
+    monkeypatch.setattr(
+        gi.repository, 'GtkosxApplication', mock.Mock(Application=FakeApplication), raising=False
+    )
+    monkeypatch.setattr(mainview, 'rebind_library_domain', lambda domain: None)
+    monkeypatch.setattr(Gtk.AccelMap, 'load', lambda path: None)
+    view = mock.Mock()
+    view.gui.get_object.side_effect = lambda name: mnu_about if name == 'mnu_about' else mock.Mock()
+
+    mainview.MainView._setup_macos_integration(view)
+
+    assert titles == ["About Virtaal"]
 
 
 # show_translator_dialog() #
