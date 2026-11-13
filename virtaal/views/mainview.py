@@ -683,6 +683,35 @@ class MainView(BaseView):
         finally:
             dialog.dialog.destroy()
 
+    def ask_split_languages(self, languages):
+        """Those of C{languages} chosen to split the bundle into, or None
+        if cancelled."""
+        from virtaal.models.langmodel import LanguageModel
+        from virtaal.views.widgets.selectdialog import SelectDialog
+
+        items = [
+            {'name': LanguageModel(code).name, 'desc': code, 'data': code, 'enabled': True}
+            for code in languages
+        ]
+        dialog = SelectDialog(
+            items,
+            title=_('Save'),
+            # l10n: Above the list of languages in File > Translation Bundle > Split by
+            # Language: a bundle is saved for each language ticked
+            message=_('Save a bundle for each of these languages:'),
+            parent=self.main_window,
+            buttons=[(_('_Cancel'), Gtk.ResponseType.CANCEL), (_('_Save'), Gtk.ResponseType.OK)],
+        )
+        dialog.sview.set_headers_visible(False)
+        dialog.dialog.set_default_size(-1, 360)
+        dialog.dialog.set_default_response(Gtk.ResponseType.OK)
+        try:
+            if dialog.run() != Gtk.ResponseType.OK:
+                return None
+            return [item['data'] for item in dialog.sview.get_all_items() if item['enabled']]
+        finally:
+            dialog.dialog.destroy()
+
     def ask_merge_conflicts(self, conflicts):
         """{conflict index: choice} for units changed both in the bundle
         open and in a returned one, or None if cancelled."""

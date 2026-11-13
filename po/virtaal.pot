@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 06:54+0000\n"
+"POT-Creation-Date: 2026-11-13 09:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3653,6 +3653,16 @@ msgstr ""
 msgid "Add Language"
 msgstr ""
 
+#. l10n: Above the list of languages in File > Translation Bundle > Split by
+#. Language: a bundle is saved for each language ticked
+#: virtaal/views/mainview.py
+msgid "Save a bundle for each of these languages:"
+msgstr ""
+
+#: virtaal/views/mainview.py virtaal/views/propertiesview.py
+msgid "_Save"
+msgstr ""
+
 #. l10n: The title of the dialog listing units changed both in the open
 #. translation bundle and in a translator's bundle being merged into it
 #: virtaal/views/mainview.py
@@ -3685,10 +3695,6 @@ msgstr ""
 msgid ""
 "The current file has been modified.\n"
 "Do you want to save your changes?"
-msgstr ""
-
-#: virtaal/views/mainview.py virtaal/views/propertiesview.py
-msgid "_Save"
 msgstr ""
 
 #: virtaal/views/mainview.py

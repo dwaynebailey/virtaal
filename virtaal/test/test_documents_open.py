@@ -179,6 +179,7 @@ class TestDocumentsOpen(TestScaffolding):
         out = self.dir / 'out'
         out.mkdir()
         monkeypatch.setattr(self.view, 'ask_folder', lambda *_args: str(out))
+        monkeypatch.setattr(self.view, 'ask_split_languages', lambda languages: languages)
         assert self.main_controller.bundle_actions.split()
         assert sorted(os.listdir(out)) == [
             'manual.st.virtaal',
@@ -477,3 +478,45 @@ class TestDocumentsOpen(TestScaffolding):
 
         assert labels[-2:] == ['Export Translated Doc_uments…', 'Export as _TIPP…']
         assert self.panel.view.language_box.get_visible()
+
+    def test_split_by_language_writes_the_languages_chosen(self, monkeypatch):
+        bundle = self._master(monkeypatch)
+        out = self.dir / 'split'
+        out.mkdir()
+        monkeypatch.setattr(self.view, 'ask_folder', lambda *_args: str(out))
+        offered = []
+        chosen = iter([None, ['xh']])
+
+        def ask(languages):
+            offered.append(languages)
+            return next(chosen)
+
+        monkeypatch.setattr(self.view, 'ask_split_languages', ask)
+
+        assert not self.main_controller.bundle_actions.split()
+        assert os.listdir(out) == []
+        assert self.main_controller.bundle_actions.split()
+
+        assert offered == [['zu', 'xh'], ['zu', 'xh']]
+        assert os.listdir(out) == ['manual.xh.virtaal']
+        assert list(bundle.manifest['splits']) == ['xh']
+
+    def test_the_language_choice_lists_the_bundles_languages_ticked(self, monkeypatch):
+        from gi.repository import Gtk
+
+        from virtaal.views.widgets.selectdialog import SelectDialog
+
+        shown = []
+
+        def run(dialog, items=None, parent=None):
+            shown.append(dialog.sview.get_all_items())
+            for row in dialog.sview.get_model():
+                row[0] = row[3] != 'zu'
+            return Gtk.ResponseType.OK
+
+        monkeypatch.setattr(SelectDialog, 'run', run)
+
+        chosen = self.view.ask_split_languages(['zu', 'xh'])
+
+        assert sorted((i['desc'], i['enabled']) for i in shown[0]) == [('xh', True), ('zu', True)]
+        assert chosen == ['xh']

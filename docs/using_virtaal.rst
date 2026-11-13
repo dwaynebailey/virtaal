@@ -760,10 +760,11 @@ A bundle can hold several documents, translated into several languages:
 - Updating a document updates every language at once.
 - :menuselection:`Split by Language…` saves one bundle per language
   (``manual.zu.virtaal``) to send to each translator, so nobody changes another
-  language by accident. :menuselection:`Merge Returned Bundles…` brings their
-  work back: only translations the translator changed come in, and where both
-  you and the translator changed a unit, you choose which to keep. A bundle
-  from another project, or whose documents were changed, is refused.
+  language by accident; with several languages, you tick the ones to save.
+  :menuselection:`Merge Returned Bundles…` brings their work back: only
+  translations the translator changed come in, and where both you and the
+  translator changed a unit, you choose which to keep. A bundle from another
+  project, or whose documents were changed, is refused.
 - :menuselection:`Export as TIPP…` writes a TIPP package for other translation
   tools, one per language.
 

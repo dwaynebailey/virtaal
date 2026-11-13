@@ -28,10 +28,11 @@ class SelectDialog(GObjectWrapper):
     }
 
     # INITIALIZERS #
-    def __init__(self, items=None, title=None, message=None, parent=None, size=None):
+    def __init__(self, items=None, title=None, message=None, parent=None, size=None, buttons=None):
+        """C{buttons}: (label, response) pairs, instead of Close."""
         super().__init__()
         self.sview = SelectView(items)
-        self._create_gui(title, message, parent)
+        self._create_gui(title, message, parent, buttons)
         self._connect_signals()
 
         if size and len(size) == 2:
@@ -47,7 +48,7 @@ class SelectDialog(GObjectWrapper):
         self.sview.connect('item-disabled', self._on_item_disabled)
         self.sview.connect('item-selected', self._on_item_selected)
 
-    def _create_gui(self, title, message, parent):
+    def _create_gui(self, title, message, parent, buttons=None):
         self.dialog = Gtk.Dialog()
         self.dialog.set_modal(True)
         if isinstance(parent, Gtk.Widget):
@@ -62,7 +63,8 @@ class SelectDialog(GObjectWrapper):
         scrolled_window.set_propagate_natural_width(True)
         scrolled_window.add(self.sview)
         content_area.pack_end(scrolled_window, True, True, 0)
-        self.dialog.add_buttons(_("_Close"), Gtk.ResponseType.CLOSE)
+        for label, response in buttons or [(_("_Close"), Gtk.ResponseType.CLOSE)]:
+            self.dialog.add_button(label, response)
 
     # METHODS #
     def get_message(self):

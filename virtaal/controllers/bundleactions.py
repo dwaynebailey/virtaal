@@ -196,11 +196,16 @@ class BundleActions:
         bundle = self.bundle()
         if bundle is None or not self._saved_first():
             return False
+        languages = bundle.languages
+        if len(languages) > 1:
+            languages = self.view.ask_split_languages(languages)
+            if not languages:
+                return False
         folder = self.view.ask_folder(_("Save"), os.path.dirname(bundle.path))
         if not folder:
             return False
         try:
-            written = bundle.split(folder)
+            written = bundle.split(folder, languages)
             bundle.save()
         except Exception as exc:
             self._export_error(exc)
