@@ -136,3 +136,46 @@ def test_no_document_formats_without_any_converter(monkeypatch):
 def test_trans_names():
     assert converters.OdfConverter().trans_name('a.odt') == 'a.odt.xlf'
     assert converters.HtmlConverter().trans_name('a.html') == 'a.html.po'
+
+
+needs_mistletoe = pytest.mark.skipif(
+    not converters.MarkdownConverter().available(), reason='mistletoe is not installed'
+)
+
+MARKDOWN = b"""# A title
+
+The first paragraph, with **bold** text.
+
+- One item
+- Another item
+
+```
+code stays
+```
+"""
+
+
+@needs_mistletoe
+def test_markdown_round_trip_leaves_out_needs_work_translations():
+    converter = converters.MarkdownConverter()
+    sources = _sources(converter, MARKDOWN)
+    assert 'A title' in sources
+    assert 'One item' in sources
+    trans = _translate(
+        converter,
+        MARKDOWN,
+        {'A title': "Opskrif", 'One item': 'Een item'},
+        fuzzy=('One item',),
+    )
+
+    translated = converter.back(trans, MARKDOWN).decode('utf-8')
+
+    assert translated.startswith("# Opskrif\n")
+    assert '- One item\n' in translated
+    assert '- Another item\n' in translated
+
+
+@needs_mistletoe
+def test_markdown_documents_are_offered():
+    assert converters.document_converter('README.md').id == 'markdown'
+    assert 'markdown' in converters.document_extensions()

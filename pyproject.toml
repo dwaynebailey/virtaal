@@ -46,6 +46,9 @@ dependencies = [
     # supported-formats list (and Virtaal's Open dialog offers it),
     # but actually opening one raises ModuleNotFoundError.
     "fluent.syntax==0.19.0",
+    # The same for Markdown documents (its "markdown" extra; MIT licence).
+    # 1.5.x is in the range of both translate-toolkit pins.
+    "mistletoe==1.5.1",
     "pycurl==7.48.0",
     # pycurl's own wheel bundles no CA bundle to verify against - see
     # httpclient.py's own _configure_ca_bundle().

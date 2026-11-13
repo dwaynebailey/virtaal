@@ -30,6 +30,8 @@ Required Packages
 - `Translate Toolkit <https://pypi.org/project/translate-toolkit/>`_
 - `fluent.syntax <https://pypi.org/project/fluent.syntax/>`_ - Fluent
   (``.ftl``) files
+- `mistletoe <https://pypi.org/project/mistletoe/>`_ - Markdown (``.md``)
+  documents
 - `lxml <https://pypi.org/project/lxml/>`_
 - `PycURL <https://pypi.org/project/pycurl/>`_
 - `certifi <https://pypi.org/project/certifi/>`_

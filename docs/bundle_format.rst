@@ -18,7 +18,8 @@ Members
   Each source document, as it was added.
 ``trans/<lang>/<document>.<ext>``
   The file to translate for each document and target language: XLIFF 1.2
-  (``.xlf``) for OpenDocument, Gettext PO (``.po``) for HTML and plain text.
+  (``.xlf``) for OpenDocument, Gettext PO (``.po``) for HTML, plain text and
+  Markdown.
 ``targets/<lang>/<document>``
   Each translated document, made from the source document and its
   translation.
@@ -59,7 +60,7 @@ The manifest
   The languages the documents are translated into; can be empty.
 ``documents``
   One object per source document: ``name`` (unique in the bundle),
-  ``converter`` (``odf``, ``html`` or ``txt``), ``source`` (its
+  ``converter`` (``odf``, ``html``, ``txt`` or ``markdown``), ``source`` (its
   member), ``file_name`` (the name of its files under ``trans/``), ``sha256``
   (of the source document) and, if known, ``original`` (the path it was added
   from).

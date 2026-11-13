@@ -1620,10 +1620,47 @@ class TextConverter(DocumentConverter):
         po2txt.run_converter(trans, out, template, includefuzzy=False)
 
 
+class MarkdownConverter(DocumentConverter):
+    """Through translate-toolkit's Markdown store, as md2po and po2md do;
+    their own interfaces differ between releases, the store's doesn't."""
+
+    id = 'markdown'
+    name = 'Markdown'
+    extensions = ('md', 'markdown')
+    mimetypes = ('text/markdown',)
+    modules = ('mistletoe', 'translate.storage.markdown')
+    tier = 2
+
+    def _forward(self, source, out):
+        from translate.storage import markdown, po
+
+        store = po.pofile()
+        for unit in markdown.MarkdownFile(inputfile=source).units:
+            added = store.addsourceunit(unit.source)
+            added.addlocations(unit.getlocations())
+        store.removeduplicates('msgctxt')
+        store.serialize(out)
+
+    def _back(self, trans, out, template):
+        from translate.storage import markdown, po
+
+        store = po.pofile(trans)
+        store.require_index()
+
+        def lookup(text):
+            found = store.sourceindex.get(text)
+            unit = found[0] if found else None
+            return text if unit is None or _not_ready(unit) else unit.target
+
+        translated = markdown.MarkdownFile(inputfile=template, callback=lookup)
+        out.write(translated.filesrc.encode('utf-8'))
+
+
 DOCUMENT_CONVERTERS = [
     OdfConverter(),
     HtmlConverter(),
     TextConverter(),
+    MarkdownConverter(),
 ]
 
 
