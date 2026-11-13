@@ -504,7 +504,7 @@ class TestDocumentsOpen(TestScaffolding):
         out.mkdir()
         monkeypatch.setattr(self.view, 'ask_folder', lambda *_args: str(out))
         offered = []
-        chosen = iter([None, ['xh']])
+        chosen = iter([None, ['xh'], ['zu', 'xh']])
 
         def ask(languages):
             offered.append(languages)
@@ -519,6 +519,9 @@ class TestDocumentsOpen(TestScaffolding):
         assert offered == [['zu', 'xh'], ['zu', 'xh']]
         assert os.listdir(out) == ['manual.xh.virtaal']
         assert list(bundle.manifest['splits']) == ['xh']
+        assert self.notices[-1] == 'Saved 1 bundle: Xhosa.'
+        assert self.main_controller.bundle_actions.split()
+        assert self.notices[-1] == 'Saved 2 bundles: Zulu, Xhosa.'
 
     def test_the_language_choice_lists_the_bundles_languages_ticked(self, monkeypatch):
         from gi.repository import Gtk

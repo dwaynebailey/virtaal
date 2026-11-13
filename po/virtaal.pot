@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 14:15+0000\n"
+"POT-Creation-Date: 2026-11-13 14:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -975,11 +975,12 @@ msgstr ""
 msgid "Save"
 msgstr ""
 
-#. l10n: After File > Translation Bundle > Split by Language
+#. l10n: After File > Translation Bundle > Split by Language: how many bundles
+#. were saved, and %(languages)s, their languages' names separated by ", "
 #: virtaal/controllers/bundleactions.py
 #, python-format
-msgid "Saved %(count)s bundle, one for each language."
-msgid_plural "Saved %(count)s bundles, one for each language."
+msgid "Saved %(count)s bundle: %(languages)s."
+msgid_plural "Saved %(count)s bundles: %(languages)s."
 msgstr[0] ""
 msgstr[1] ""
 

@@ -22,9 +22,16 @@ def _counted(text, count):
 
 
 def _language_name(code):
-    from virtaal.models.langmodel import LanguageModel
+    """code's language's name, also for a language Virtaal has no
+    plural rules for."""
+    from virtaal.models.langmodel import LanguageModel, gettext_lang
+    from virtaal.support.translate_compat import english_name
 
-    return LanguageModel(code).name if code else ''
+    if not code:
+        return ''
+    name = LanguageModel(code).name
+    english = english_name(code) if name == code else None
+    return gettext_lang(english, code) if english else name
 
 
 def _refusal_text(exc, path, merging):
@@ -275,16 +282,18 @@ class BundleActions:
         except Exception as exc:
             self._export_error(exc)
             return False
+        from virtaal.support.libi18n.numbers import format_number
+
+        names = [_language_name(code) for code in bundle.languages if code in languages]
+        text = ngettext(
+            # l10n: After File > Translation Bundle > Split by Language: how many bundles
+            # were saved, and %(languages)s, their languages' names separated by ", "
+            'Saved %(count)s bundle: %(languages)s.',
+            'Saved %(count)s bundles: %(languages)s.',
+            len(written),
+        )
         self.view.show_info_notice(
-            _counted(
-                ngettext(
-                    # l10n: After File > Translation Bundle > Split by Language
-                    'Saved %(count)s bundle, one for each language.',
-                    'Saved %(count)s bundles, one for each language.',
-                    len(written),
-                ),
-                len(written),
-            )
+            text % {'count': format_number(len(written)), 'languages': ', '.join(names)}
         )
         return True
 
