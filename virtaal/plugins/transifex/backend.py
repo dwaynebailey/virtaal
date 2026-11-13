@@ -610,7 +610,8 @@ class TransifexPlatform(Platform):
     """The bulk PATCH's limit."""
     states = (StateEnum.EMPTY, StateEnum.UNREVIEWED, StateEnum.FINAL)
     # l10n: Imports the servers and tokens of tx, Transifex's command-line client
-    import_label = _('_Import from tx')
+    import_label = _('Import from Trans_ifex Client')
+    import_tooltip = _('Adds the servers and tokens saved by tx, Transifex’s command-line client')
 
     client_factory = transifex.Client
 
@@ -625,7 +626,16 @@ class TransifexPlatform(Platform):
         from virtaal.views.widgets.settingsdialog import SECRET, Field
 
         # l10n: The API token a translation server gives each user, on their settings page
-        return (Field('token', _('_Token:'), SECRET, required=True),)
+        return (
+            Field(
+                'token',
+                _('_Token:'),
+                SECRET,
+                required=True,
+                # l10n: Shows the token's characters instead of dots
+                reveal=_('S_how token'),
+            ),
+        )
 
     def normalise_url(self, text):
         return transifex.api_url(text)

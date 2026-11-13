@@ -258,7 +258,7 @@ def test_each_failure_gets_a_dismiss_button_and_each_dismissed_one_restore():
 
     assert _rows(view) == [('xmltags', 'Different XML tags'), ('urls', 'Different URLs')]
     dismiss, restore = _buttons(view)
-    assert (dismiss.get_label(), restore.get_label()) == ('Dismiss', 'Restore')
+    assert (dismiss.get_label(), restore.get_label()) == ('_Dismiss', 'Rest_ore')
     dismiss.clicked()
     restore.clicked()
     assert calls == [('xmltags', True), ('urls', False)]

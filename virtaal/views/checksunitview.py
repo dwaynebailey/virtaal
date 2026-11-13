@@ -184,11 +184,11 @@ class ChecksUnitView(BaseView):
     def _make_dismiss_button(self, check, dismissed):
         if dismissed:
             # l10n: Show a quality check result again that was marked as fine
-            button = Gtk.Button(label=_("Restore"))
+            button = Gtk.Button.new_with_mnemonic(_("Rest_ore"))
             button.set_tooltip_text(_("Show this check’s result on this unit again"))
         else:
             # l10n: Mark a quality check result as fine (a false positive)
-            button = Gtk.Button(label=_("Dismiss"))
+            button = Gtk.Button.new_with_mnemonic(_("_Dismiss"))
             button.set_tooltip_text(
                 _(
                     "Mark this result as fine: it stays hidden until the source or translation changes"

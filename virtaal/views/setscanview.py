@@ -138,7 +138,7 @@ class SetScanView(BaseView):
             flow.add(button)
         box.pack_start(flow, True, True, 0)
         # l10n: Button: check every language's files
-        self.btn_start = Gtk.Button.new_with_mnemonic(_("_Check"))
+        self.btn_start = Gtk.Button.new_with_mnemonic(_("Ch_eck"))
         self.btn_start.connect('clicked', self._on_start)
         box.pack_end(self.btn_start, False, False, 0)
         return box
@@ -149,16 +149,20 @@ class SetScanView(BaseView):
         self.ent_search.set_activates_default(False)
         self.ent_search.connect('activate', self._on_start)
         self.ent_search.connect('changed', self._on_search_changed)
-        self.ent_search.get_accessible().set_name(_("Search"))
+        # l10n: Placeholder of the search box in Find in All Languages
+        self.ent_search.set_placeholder_text(_("Text to find"))
+        self.ent_search.get_accessible().set_name(_("Text to find"))
         # l10n: Check box in Find in All Languages: search the source text
-        self.chk_source = Gtk.CheckButton(label=_("Source"), active=True)
+        self.chk_source = Gtk.CheckButton.new_with_mnemonic(_("S_ource"))
+        self.chk_source.set_active(True)
         # l10n: Check box in Find in All Languages: search the translations
-        self.chk_target = Gtk.CheckButton(label=_("Translation"), active=True)
+        self.chk_target = Gtk.CheckButton.new_with_mnemonic(_("_Translation"))
+        self.chk_target.set_active(True)
         for button in (self.chk_source, self.chk_target):
             button.connect('toggled', self._on_search_changed)
-        self.chk_case = Gtk.CheckButton.new_with_mnemonic(_('_Case sensitive'))
+        self.chk_case = Gtk.CheckButton.new_with_mnemonic(_('C_ase sensitive'))
         self.chk_regex = Gtk.CheckButton.new_with_mnemonic(_("_Regular expression"))
-        self.btn_start = Gtk.Button(label=_('Search'))
+        self.btn_start = Gtk.Button.new_with_mnemonic(_('_Find'))
         self.btn_start.connect('clicked', self._on_start)
         box.pack_start(self.ent_search, True, True, 0)
         box.pack_start(self.chk_source, False, False, 0)

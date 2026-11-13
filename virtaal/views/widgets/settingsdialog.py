@@ -14,10 +14,11 @@ from gi.repository import Gtk
 
 TEXT, SECRET, PORT, BOOL = 'text', 'secret', 'port', 'bool'
 
-Field = namedtuple('Field', 'key label kind required', defaults=(TEXT, False))
+Field = namedtuple('Field', 'key label kind required reveal', defaults=(TEXT, False, None))
 """One setting: its config key, its label (with a mnemonic), its kind
 and whether it may be empty. A PORT is always required; a BOOL is a
-check box, its value True or False."""
+check box, its value True or False. A SECRET's reveal labels the check
+box showing its characters (Show key by default)."""
 
 
 def api_key_field():
@@ -81,7 +82,7 @@ class SettingsDialog:
                 entry.set_visibility(False)
                 entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
                 # l10n: Shows the API key's characters instead of dots
-                show = Gtk.CheckButton.new_with_mnemonic(_('_Show key'))
+                show = Gtk.CheckButton.new_with_mnemonic(field.reveal or _('_Show key'))
                 show.connect('toggled', lambda btn, e=entry: e.set_visibility(btn.get_active()))
                 grid.attach(show, 1, row, 1, 1)
                 row += 1

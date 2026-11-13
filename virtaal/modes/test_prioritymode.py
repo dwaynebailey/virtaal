@@ -139,7 +139,7 @@ def test_selected_lists_the_levels_in_order_with_their_progress(tmp_path):
     assert _menu(mode) == [
         ('First (1/3)', False, True),
         ('Later (1/2)', False, True),
-        ('Load Priority File…', False, True),
+        ('_Load Priority File…', False, True),
     ]
     assert mode.btn_popup.get_label() == 'Select Priorities'
     assert mode.storecursor.indices == [0, 1, 2, 3, 4, 5]
@@ -166,7 +166,7 @@ def test_selected_without_a_priority_file_offers_to_load_one(tmp_path):
 
     assert _menu(mode) == [
         ('No Priority File', False, False),
-        ('Load Priority File…', False, True),
+        ('_Load Priority File…', False, True),
     ]
     assert mode.btn_popup.get_label() == 'No Priority File'
     assert mode.storecursor.indices == [0, 1, 2, 3, 4, 5]

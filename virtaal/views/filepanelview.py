@@ -124,7 +124,7 @@ class FilePanelView(BaseView):
         self.widget.set_border_width(6)
 
         self.language_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        label = Gtk.Label(label=_("Language:"))
+        label = Gtk.Label.new_with_mnemonic(_("Lan_guage:"))
         self.language_combo = Gtk.ComboBox.new_with_model(Gtk.ListStore(str, str))
         cell = Gtk.CellRendererText()
         cell.props.ellipsize = Pango.EllipsizeMode.END

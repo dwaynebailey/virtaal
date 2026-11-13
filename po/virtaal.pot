@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 22:56+0000\n"
+"POT-Creation-Date: 2026-11-13 22:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -390,7 +390,7 @@ msgstr ""
 msgid "<b>Fonts</b>"
 msgstr ""
 
-#: share/virtaal/virtaal.ui virtaal/views/filepanelview.py
+#: share/virtaal/virtaal.ui
 msgid "Language:"
 msgstr ""
 
@@ -1720,7 +1720,7 @@ msgid "No Priority File"
 msgstr ""
 
 #: virtaal/modes/prioritymode.py
-msgid "Load Priority File…"
+msgid "_Load Priority File…"
 msgstr ""
 
 #. l10n: This is the button where the user can select units by translation priority
@@ -1770,8 +1770,7 @@ msgstr ""
 msgid "Incomplete"
 msgstr ""
 
-#: virtaal/modes/searchmode.py virtaal/views/setscanview.py
-#: virtaal/views/widgets/shortcutswindow.py
+#: virtaal/modes/searchmode.py virtaal/views/widgets/shortcutswindow.py
 msgid "Search"
 msgstr ""
 
@@ -1779,7 +1778,7 @@ msgstr ""
 msgid "_Search"
 msgstr ""
 
-#: virtaal/modes/searchmode.py virtaal/views/setscanview.py
+#: virtaal/modes/searchmode.py
 msgid "_Case sensitive"
 msgstr ""
 
@@ -2795,13 +2794,21 @@ msgstr ""
 
 #. l10n: Imports the servers and tokens of tx, Transifex's command-line client
 #: virtaal/plugins/transifex/backend.py
-msgid "_Import from tx"
+msgid "Import from Trans_ifex Client"
 msgstr ""
 
-#. l10n: The API token a translation server gives each user, on their settings page
-#. l10n: The API token a Weblate server gives each user, on its profile page
+#: virtaal/plugins/transifex/backend.py
+msgid ""
+"Adds the servers and tokens saved by tx, Transifex’s command-line client"
+msgstr ""
+
 #: virtaal/plugins/transifex/backend.py virtaal/plugins/weblate/backend.py
 msgid "_Token:"
+msgstr ""
+
+#. l10n: Shows the token's characters instead of dots
+#: virtaal/plugins/transifex/backend.py virtaal/plugins/weblate/backend.py
+msgid "S_how token"
 msgstr ""
 
 #. l10n: Shown for an address starting http:// instead of https://
@@ -2820,7 +2827,11 @@ msgstr ""
 
 #. l10n: Imports the servers and tokens of wlc, Weblate's command-line client
 #: virtaal/plugins/weblate/backend.py
-msgid "_Import from wlc"
+msgid "Import from _Weblate Client"
+msgstr ""
+
+#: virtaal/plugins/weblate/backend.py
+msgid "Adds the servers and tokens saved by wlc, Weblate’s command-line client"
 msgstr ""
 
 #: virtaal/plugins/weblate/backend.py
@@ -2992,17 +3003,17 @@ msgstr ""
 
 #. l10n: Makes someone's suggested translation, from a translation server, the unit's translation (sent with the next Submit)
 #: virtaal/support/platforms/reviewview.py
-msgid "Accept"
+msgid "Accep_t"
 msgstr ""
 
 #. l10n: Makes someone's suggested translation the unit's translation, and marks it Reviewed (sent with the next Submit)
 #: virtaal/support/platforms/reviewview.py
-msgid "Accept and Approve"
+msgid "Accept and A_pprove"
 msgstr ""
 
 #. l10n: Rejects someone's suggested translation on the translation server
 #: virtaal/support/platforms/reviewview.py
-msgid "Reject"
+msgid "Re_ject"
 msgstr ""
 
 #. l10n: The context menu of a unit from a translation server: write a comment on its translation there
@@ -3022,7 +3033,7 @@ msgstr ""
 
 #. l10n: A translation server's option, for a user who may suggest translations there but not change them: Submit sends each change as a suggestion for others to accept
 #: virtaal/support/platforms/serversdialog.py
-msgid "Submit as _suggestions"
+msgid "Submit as su_ggestions"
 msgstr ""
 
 #. l10n: A translation server answered that the API token is wrong or expired
@@ -3681,7 +3692,7 @@ msgstr[1] ""
 
 #. l10n: Show a quality check result again that was marked as fine
 #: virtaal/views/checksunitview.py
-msgid "Restore"
+msgid "Rest_ore"
 msgstr ""
 
 #: virtaal/views/checksunitview.py
@@ -3690,7 +3701,7 @@ msgstr ""
 
 #. l10n: Mark a quality check result as fine (a false positive)
 #: virtaal/views/checksunitview.py
-msgid "Dismiss"
+msgid "_Dismiss"
 msgstr ""
 
 #: virtaal/views/checksunitview.py
@@ -3715,6 +3726,10 @@ msgid "%(language)s (%(count)s file)"
 msgid_plural "%(language)s (%(count)s files)"
 msgstr[0] ""
 msgstr[1] ""
+
+#: virtaal/views/filepanelview.py
+msgid "Lan_guage:"
+msgstr ""
 
 #: virtaal/views/filepanelview.py virtaal/views/setscanview.py
 #: virtaal/views/widgets/langselectdialog.py
@@ -4040,7 +4055,7 @@ msgid "_Change Language Pair"
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid "Open Translation"
+msgid "_Open Translation"
 msgstr ""
 
 #: virtaal/views/mainview.py
@@ -4191,19 +4206,30 @@ msgstr ""
 
 #. l10n: Button: check every language's files
 #: virtaal/views/setscanview.py
-msgid "_Check"
+msgid "Ch_eck"
+msgstr ""
+
+#. l10n: Placeholder of the search box in Find in All Languages
+#: virtaal/views/setscanview.py
+msgid "Text to find"
 msgstr ""
 
 #. l10n: Check box in Find in All Languages: search the source text
-#. l10n: Column heading: the source text of a unit
 #: virtaal/views/setscanview.py
-msgid "Source"
+msgid "S_ource"
 msgstr ""
 
 #. l10n: Check box in Find in All Languages: search the translations
-#. l10n: Column heading: the translation of a unit
 #: virtaal/views/setscanview.py
-msgid "Translation"
+msgid "_Translation"
+msgstr ""
+
+#: virtaal/views/setscanview.py
+msgid "C_ase sensitive"
+msgstr ""
+
+#: virtaal/views/setscanview.py
+msgid "_Find"
 msgstr ""
 
 #. l10n: Column heading: the quality check a translation fails
@@ -4214,6 +4240,16 @@ msgstr ""
 #. l10n: Column heading: the unit's number in its file
 #: virtaal/views/setscanview.py
 msgid "Unit"
+msgstr ""
+
+#. l10n: Column heading: the source text of a unit
+#: virtaal/views/setscanview.py
+msgid "Source"
+msgstr ""
+
+#. l10n: Column heading: the translation of a unit
+#: virtaal/views/setscanview.py
+msgid "Translation"
 msgstr ""
 
 #. l10n: Where a translation in a Trados Studio, Phrase or Wordfast

@@ -271,7 +271,7 @@ def test_import_from_wlc_is_offered_only_when_wlc_has_a_file(servers, tmp_path, 
     dialog = ServersDialog(servers)
     button = dialog.import_buttons[weblate]
     assert button.get_sensitive()
-    assert button.get_label() == '_Import from wlc'
+    assert button.get_label() == 'Import from _Weblate Client'
 
     button.clicked()
 

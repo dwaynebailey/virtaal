@@ -73,7 +73,7 @@ class SuggestionRow(Gtk.Box):
         self.buttons = []
 
     def add_button(self, label, action):
-        button = Gtk.Button(label=label)
+        button = Gtk.Button.new_with_mnemonic(label)
         button.connect('clicked', lambda _button: action())
         self.pack_start(button, False, False, 0)
         self.buttons.append(button)
@@ -253,13 +253,13 @@ class ReviewPanel:
         row = SuggestionRow(suggestion_text(suggestion))
         if not self.unit_view.locked:
             # l10n: Makes someone's suggested translation, from a translation server, the unit's translation (sent with the next Submit)
-            row.add_button(_('Accept'), lambda: self.accept(suggestion))
+            row.add_button(_('Accep_t'), lambda: self.accept(suggestion))
             if copy is not None and copy.may_review():
                 # l10n: Makes someone's suggested translation the unit's translation, and marks it Reviewed (sent with the next Submit)
-                row.add_button(_('Accept and Approve'), lambda: self.accept(suggestion, True))
+                row.add_button(_('Accept and A_pprove'), lambda: self.accept(suggestion, True))
         if copy is not None and self.reviews.can_dismiss(copy):
             # l10n: Rejects someone's suggested translation on the translation server
-            row.add_button(_('Reject'), lambda: self.dismiss(suggestion))
+            row.add_button(_('Re_ject'), lambda: self.dismiss(suggestion))
         row.show_all()
         return row
 

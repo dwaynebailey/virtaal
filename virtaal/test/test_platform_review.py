@@ -119,8 +119,8 @@ class TestPlatformReview(TestScaffolding):
         self._asked('Save')
 
         assert self._rows() == [
-            ('Suggestion from anna: Berg', ['Accept', 'Accept and Approve', 'Reject']),
-            ('Suggestion from ben: Bewaar', ['Accept', 'Accept and Approve', 'Reject']),
+            ('Suggestion from anna: Berg', ['Accep_t', 'Accept and A_pprove', 'Re_ject']),
+            ('Suggestion from ben: Bewaar', ['Accep_t', 'Accept and A_pprove', 'Re_ject']),
         ]
         assert self.panel.box.get_visible()
         assert 'Comment from anna: Most apps say "Stoor" here.' in self._notes()
@@ -158,7 +158,7 @@ class TestPlatformReview(TestScaffolding):
         copy = self._open()
         unit = self._asked('Save')
 
-        self._button(1, 'Accept').clicked()
+        self._button(1, 'Accep_t').clicked()
 
         assert self.unit_controller.view.get_target_n(0) == 'Bewaar'
         self.unit_controller.finish_current_unit()
@@ -177,7 +177,7 @@ class TestPlatformReview(TestScaffolding):
         self._open()
         unit = self._asked('Save')
 
-        self._button(0, 'Accept and Approve').clicked()
+        self._button(0, 'Accept and A_pprove').clicked()
         state = self.unit_controller.view._widgets['state']
         assert state.btn_popup.get_label() == 'Reviewed'
         self.unit_controller.finish_current_unit()
@@ -194,11 +194,11 @@ class TestPlatformReview(TestScaffolding):
         self._open()
         self._asked('Save')
 
-        self._button(0, 'Reject').clicked()
+        self._button(0, 'Re_ject').clicked()
         run_until(lambda: len(self._rows()) == 1)
 
         assert self._rows() == [
-            ('Suggestion from ben: Bewaar', ['Accept', 'Accept and Approve', 'Reject'])
+            ('Suggestion from ben: Bewaar', ['Accep_t', 'Accept and A_pprove', 'Re_ject'])
         ]
         assert [s['target'] for s in self.fake.suggestions.values()] == [['Bewaar']]
 
@@ -207,12 +207,12 @@ class TestPlatformReview(TestScaffolding):
         self._open()
         self._asked('Save')
 
-        self._button(0, 'Reject').clicked()
+        self._button(0, 'Re_ject').clicked()
         run_until(lambda: self.errors)
 
         assert self.errors[0].startswith('The server replied with error 403.')
         assert len(self.fake.suggestions) == 2
-        assert [buttons[-1] for _text, buttons in self._rows()] == ['Accept and Approve'] * 2
+        assert [buttons[-1] for _text, buttons in self._rows()] == ['Accept and A_pprove'] * 2
         assert self.store_controller.work_copy.refused() == ['dismiss']
 
     def test_who_may_not_approve_is_offered_reject_still(self):
@@ -220,7 +220,7 @@ class TestPlatformReview(TestScaffolding):
         self.store_controller.work_copy.refuse('review')
         self._asked('Save')
 
-        assert [buttons for _text, buttons in self._rows()] == [['Accept', 'Reject']] * 2
+        assert [buttons for _text, buttons in self._rows()] == [['Accep_t', 'Re_ject']] * 2
 
     def test_reviewed_is_offered_only_to_who_may_approve(self):
         self._open()
@@ -310,7 +310,7 @@ class TestPlatformReview(TestScaffolding):
 
         assert result.sent == 1 and self.fake.patched == []
         assert self._rows() == [
-            ('Suggestion from tester: Hulp', ['Accept', 'Accept and Approve', 'Reject'])
+            ('Suggestion from tester: Hulp', ['Accep_t', 'Accept and A_pprove', 'Re_ject'])
         ]
         assert self._server_unit('Help')['target'] == ['']
 

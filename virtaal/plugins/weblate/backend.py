@@ -591,7 +591,8 @@ class WeblatePlatform(Platform):
     rate_limit = (5000, 3600)
     """API_RATELIMIT_USER's default; replies say what is left."""
     # l10n: Imports the servers and tokens of wlc, Weblate's command-line client
-    import_label = _('_Import from wlc')
+    import_label = _('Import from _Weblate Client')
+    import_tooltip = _('Adds the servers and tokens saved by wlc, Weblate’s command-line client')
 
     client_factory = weblate.Client
 
@@ -608,7 +609,16 @@ class WeblatePlatform(Platform):
         from virtaal.views.widgets.settingsdialog import SECRET, Field
 
         # l10n: The API token a Weblate server gives each user, on its profile page
-        return (Field('token', _('_Token:'), SECRET, required=True),)
+        return (
+            Field(
+                'token',
+                _('_Token:'),
+                SECRET,
+                required=True,
+                # l10n: Shows the token's characters instead of dots
+                reveal=_('S_how token'),
+            ),
+        )
 
     def normalise_url(self, text):
         return weblate.api_url(text)

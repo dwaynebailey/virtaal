@@ -333,6 +333,8 @@ class Platform:
     else the filter matches the projects loaded so far."""
     import_label = None
     """The label of a button importing servers from elsewhere, or None."""
+    import_tooltip = None
+    """Where that button imports them from."""
     can_submit = False
     """Its sessions take a work copy's changes back (Session's Submit
     methods)."""

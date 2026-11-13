@@ -175,7 +175,7 @@ class PriorityMode(BaseMode):
                 menu.append(menuitem)
             self._update_menu_sensitivity()
         menu.append(Gtk.SeparatorMenuItem())
-        menuitem = Gtk.MenuItem(label=_('Load Priority File…'))
+        menuitem = Gtk.MenuItem.new_with_mnemonic(_('_Load Priority File…'))
         menuitem.connect('activate', self._on_load_activate)
         menu.append(menuitem)
         menu.show_all()

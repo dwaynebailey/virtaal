@@ -2086,7 +2086,7 @@ class MainView(BaseView):
         infobar.get_content_area().pack_start(label, True, True, 0)
         button = None
         if translations:
-            button = infobar.add_button(_('Open Translation'), Gtk.ResponseType.OK)
+            button = infobar.add_button(_('_Open Translation'), Gtk.ResponseType.OK)
 
         def open_later(path):
             GLib.idle_add(lambda: self.controller.open_file(path) and False)

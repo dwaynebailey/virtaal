@@ -361,7 +361,6 @@ domains:
     - GConf values
     - Highlighting and insertion of placeables
     - If you don’t save, your changes will be lost.
-    - Load Priority File…
     - Local TM
     - Long
     - Machine translation
@@ -411,7 +410,9 @@ domains:
     - XML tags
     - _Cancel
     - _Case sensitive
+    - _Dismiss
     - _Don’t Save
+    - _Load Priority File…
     - _Look Up “%(selection)s”
     - _New Language Pair…
     - _Regular expression

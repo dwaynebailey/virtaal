@@ -30,7 +30,7 @@ def send_finished_field():
 
 def as_suggestions_field():
     # l10n: A translation server's option, for a user who may suggest translations there but not change them: Submit sends each change as a suggestion for others to accept
-    return Field(AS_SUGGESTIONS, _('Submit as _suggestions'), BOOL)
+    return Field(AS_SUGGESTIONS, _('Submit as su_ggestions'), BOOL)
 
 
 def option_fields(platform):
@@ -158,6 +158,8 @@ class ServersDialog:
             for platform in servers.platforms
             if platform.import_label
         }
+        for platform, button in self.import_buttons.items():
+            button.set_tooltip_text(platform.import_tooltip)
 
         self.spinner = Gtk.Spinner()
         self.status = Gtk.Label(wrap=True, xalign=0, selectable=True, hexpand=True)

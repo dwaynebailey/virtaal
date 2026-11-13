@@ -131,4 +131,4 @@ def test_importing_never_writes_txs_file(tmp_path):
 
 
 def test_the_button_says_tx():
-    assert backend.TransifexPlatform.import_label == '_Import from tx'
+    assert backend.TransifexPlatform.import_label == 'Import from Trans_ifex Client'
