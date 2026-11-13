@@ -35,6 +35,8 @@ of the resource (1000 a page), each with the latest of its dates
 translated, reviewed and proofread as its last_updated.
 """
 
+import os
+
 from gi.repository import GLib
 from translate.storage.workflow import StateEnum
 
@@ -48,7 +50,7 @@ from virtaal.support.platforms import (
 )
 
 from . import client as transifex
-from .config import KeyFile
+from .config import KeyFile, read_tx, tx_config_path
 
 UNTRANSLATED, TRANSLATED, REVIEWED, PROOFREAD = (
     'untranslated',
@@ -529,6 +531,8 @@ class TransifexPlatform(Platform):
     batch_size = 150
     """The bulk PATCH's limit."""
     states = (StateEnum.EMPTY, StateEnum.UNREVIEWED, StateEnum.FINAL)
+    # l10n: Imports the servers and tokens of tx, Transifex's command-line client
+    import_label = _('_Import from tx')
 
     client_factory = transifex.Client
 
@@ -571,6 +575,12 @@ class TransifexPlatform(Platform):
     def session(self, url, credentials):
         client = self.client_factory(url, credentials.get('token', ''))
         return TransifexSession(client, self)
+
+    def can_import(self):
+        return tx_config_path() is not None or bool(os.environ.get('TX_TOKEN', '').strip())
+
+    def import_servers(self):
+        return [(url, {'token': token}) for url, token in read_tx()]
 
     def state_code(self, state, target):
         if not any(target):

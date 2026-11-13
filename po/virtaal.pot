@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-12 20:24+0000\n"
+"POT-Creation-Date: 2026-11-13 05:19+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2525,6 +2525,11 @@ msgstr ""
 
 #: virtaal/plugins/transifex/__init__.py
 msgid "Translate projects hosted on Transifex"
+msgstr ""
+
+#. l10n: Imports the servers and tokens of tx, Transifex's command-line client
+#: virtaal/plugins/transifex/backend.py
+msgid "_Import from tx"
 msgstr ""
 
 #. l10n: The API token a translation server gives each user, on their settings page
