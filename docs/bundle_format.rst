@@ -72,15 +72,20 @@ The manifest
   different value means it is out of date and is made again).
 
 A bundle split from a master also has ``split_from``: the master's ``id``,
-the ``language`` and the ``sources`` (``{document name: sha256}``) it was made
-from. A master that was split has ``splits``: for each language, the split
-bundle's ``id``, when it was made and its ``sources``.
+the ``language``, the ``number`` of that language's split (1 for the first,
+counted by the master) and the ``sources`` (``{document name: sha256}``) it was
+made from. A master that was split has ``splits``: for each language, the last
+split bundle's ``id``, when it was made (``created``), its ``number`` and its
+``sources``.
 
 Splitting and merging
 =====================
 A master with several target languages can be split into one bundle per
 language, an ordinary bundle with one target language and ``split_from``. The
 master keeps a copy of each language's files as split under ``baselines/``.
+Splitting some languages again (after a document changed, was added or removed,
+or translations were reviewed) replaces those languages' record in ``splits``
+and their copies under ``baselines/``.
 
 Merging a returned bundle compares it with that copy, unit by unit (by unit
 id): a unit only the translator changed is taken, a unit changed in both is a

@@ -601,6 +601,29 @@ def test_split_copies_only_its_languages_tm_entries(tmp_path, master):
     assert b'Bye' not in tmx
 
 
+def test_splitting_one_language_again_replaces_only_its_record(tmp_path, master):
+    out = tmp_path / 'out'
+    out.mkdir()
+    master.split(str(out))
+    before = json.loads(json.dumps(master.manifest['splits']))
+    master.remove_document('usage.odt')
+    _translate(_file(master, 'intro.odt', 'zu'), {'Welcome.': 'Wamukelekile.'})
+
+    [path] = master.split(str(tmp_path / 'out'), ['zu', 'fr'])
+
+    assert os.path.basename(path) == 'manual.zu.virtaal'
+    splits = master.manifest['splits']
+    assert (splits['xh'], splits['st']) == (before['xh'], before['st'])
+    assert splits['zu']['id'] != before['zu']['id']
+    assert (before['zu']['number'], splits['zu']['number']) == (1, 2)
+    assert splits['zu']['sources'] == {'intro.odt': master.document('intro.odt')['sha256']}
+    assert DocumentBundle.open(path, str(tmp_path / 'w')).split_from()['number'] == 2
+    baselines = sorted(n for n in master.contents if n.startswith('baselines/zu/'))
+    assert baselines == ['baselines/zu/intro.odt.xlf']
+    assert b'Wamukelekile.' in master.contents['baselines/zu/intro.odt.xlf']
+    assert master.split(str(out), ['fr']) == []
+
+
 # TIPP
 
 

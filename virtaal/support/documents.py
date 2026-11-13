@@ -476,11 +476,7 @@ class DocumentBundle:
         self.manifest['target_languages'].remove(language)
         for entry in self.translations(language):
             self._drop_translation(entry)
-        self.contents = {
-            name: data
-            for name, data in self.contents.items()
-            if not name.startswith('baselines/%s/' % language)
-        }
+        self._drop_baselines(language)
         self.manifest.get('splits', {}).pop(language, None)
         self._write_templates()
         self.modified = True
@@ -715,32 +711,45 @@ class DocumentBundle:
 
     # Splitting by language, and merging what comes back
 
-    def split(self, folder):
-        """Write one bundle for each target language to C{folder}
-        (manual.zu.virtaal), for each language's translator. The master
-        keeps each language's files as split, to merge what comes back.
+    def split(self, folder, languages=None):
+        """Write one bundle for each target language, or each of
+        C{languages}, to C{folder} (manual.zu.virtaal), for each
+        language's translator. The master keeps each language's files as
+        split, to merge what comes back; splitting a language again
+        replaces what it kept of the language's last split.
         @returns: Their paths."""
         if not self.languages:
             raise BundleError('The bundle has no target language to split.')
+        if languages is None:
+            languages = self.languages
+        languages = [language for language in self.languages if language in languages]
         sources = {d['name']: d['sha256'] for d in self.documents()}
         written = []
-        for language in self.languages:
+        for language in languages:
             path = os.path.join(folder, '%s.%s.%s' % (self.name, language, EXTENSION))
             self.check_export(path)
-            manifest, members = self._split_bundle(language, sources)
+            splits = self.manifest.setdefault('splits', {})
+            number = splits.get(language, {}).get('number', 0) + 1
+            manifest, members = self._split_bundle(language, sources, number)
             _replace_file(path, _zip(manifest, members))
+            self._drop_baselines(language)
             for entry in self.translations(language):
                 self.contents[_baseline(entry)] = members[entry['file']]
-            self.manifest.setdefault('splits', {})[language] = {
+            splits[language] = {
                 'id': manifest['id'],
                 'created': manifest['created'],
+                'number': number,
                 'sources': sources,
             }
             written.append(path)
         self.modified = True
         return written
 
-    def _split_bundle(self, language, sources):
+    def _drop_baselines(self, language):
+        prefix = 'baselines/%s/' % language
+        self.contents = {n: d for n, d in self.contents.items() if not n.startswith(prefix)}
+
+    def _split_bundle(self, language, sources, number):
         manifest = json.loads(json.dumps(self.manifest))
         manifest.pop('splits', None)
         manifest.update(
@@ -748,7 +757,12 @@ class DocumentBundle:
             created=_now(),
             target_languages=[language],
             translations=[e for e in manifest['translations'] if e['language'] == language],
-            split_from={'id': self.id, 'language': language, 'sources': sources},
+            split_from={
+                'id': self.id,
+                'language': language,
+                'number': number,
+                'sources': sources,
+            },
         )
         members = {d['source']: self.contents[d['source']] for d in self.documents()}
         for entry in manifest['translations']:
