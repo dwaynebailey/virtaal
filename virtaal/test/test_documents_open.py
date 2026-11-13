@@ -520,3 +520,119 @@ class TestDocumentsOpen(TestScaffolding):
 
         assert sorted((i['desc'], i['enabled']) for i in shown[0]) == [('xh', True), ('zu', True)]
         assert chosen == ['xh']
+
+    def _translator(self):
+        """A master of two documents into zu and xh, its zu bundle split
+        and open, as its translator has it."""
+        folder = self.dir / 'manual'
+        folder.mkdir()
+        intro = self._odt('intro.odt', ['Welcome.', 'Read this first.'], folder)
+        usage = self._odt('usage.odt', ['Press the button.'], folder)
+        master = documents.from_documents([intro, usage], 'en')
+        master.add_language('zu')
+        master.add_language('xh')
+        master.save(str(self.dir / 'manual.virtaal'))
+        path = self._resplit(master, 'v1')
+        assert self.main_controller.open_file(path)
+        return master, path
+
+    def _resplit(self, master, folder):
+        (self.dir / folder).mkdir()
+        return master.split(str(self.dir / folder), ['zu'])[0]
+
+    @staticmethod
+    def _units(bundle, document):
+        entry = bundle.translation(document, 'zu')
+        store = factory.getobject(bundle.work_path(entry['file']))
+        return {
+            u.source: (str(u.target or ''), u.isfuzzy()) for u in store.units if u.istranslatable()
+        }
+
+    def test_a_split_bundle_updates_from_a_refreshed_one(self, monkeypatch):
+        master, path = self._translator()
+        sc = self.store_controller
+        assert self.view.gui.get_object('mnu_refresh_bundle').get_sensitive()
+        assert not self.view.gui.get_object('mnu_merge_bundles').get_sensitive()
+        self._edit(0, 'Wamukelekile.')
+        master.update_document(
+            'intro.odt', _docsamples.odt(['Welcome.', 'Read this first, please.'])
+        )
+        master.add_document(self._odt('faq.odt', ['Any questions?'], self.dir / 'manual'))
+        _translated = master.work_path(master.translation('faq.odt', 'zu')['file'])
+        store = factory.getobject(_translated)
+        store.units[0].target = 'Imibuzo?'
+        store.save()
+        refreshed = self._resplit(master, 'v2')
+        monkeypatch.setattr(self.view, 'ask_bundles', lambda: [refreshed])
+
+        assert self.main_controller.bundle_actions.update_from_refreshed()
+
+        bundle = sc.bundle()
+        assert [e.display_name for e in sc.all_files] == ['faq.odt', 'intro.odt', 'usage.odt']
+        assert self._units(bundle, 'intro.odt') == {
+            'Welcome.': ('Wamukelekile.', False),
+            'Read this first, please.': ('', False),
+        }
+        assert self._units(bundle, 'faq.odt') == {'Any questions?': ('Imibuzo?', False)}
+        assert sc.is_modified()
+        assert self.notices[-1] == 'Updated the bundle, with 0 translations from the refreshed one.'
+        assert self.main_controller.save_file()
+        assert self.errors == []
+
+        returned = DocumentBundle.open(path, str(self.dir / 'returned'))
+        plan = master.plan_merge(returned)
+        assert (plan.takes, plan.conflicts) == (1, [])
+
+    def test_a_refresh_asks_about_conflicts_and_removed_work(self, monkeypatch):
+        from virtaal.support.platforms.submit import TAKE_THEIRS
+
+        master, path = self._translator()
+        sc = self.store_controller
+        self._edit(0, 'Mine.')
+        self._edit(2, 'Inkinobho.')
+        entry = master.translation('intro.odt', 'zu')
+        store = factory.getobject(master.work_path(entry['file']))
+        store.units[0].target = 'Theirs.'
+        store.save()
+        master.remove_document('usage.odt')
+        refreshed = self._resplit(master, 'v2')
+        monkeypatch.setattr(self.view, 'ask_bundles', lambda: [refreshed])
+        prompts = []
+        answers = iter([False, True, True])
+        monkeypatch.setattr(
+            self.main_controller,
+            'show_prompt',
+            lambda **kw: prompts.append(kw['msg']) or next(answers),
+        )
+        conflicts = []
+        decisions = iter([None, {0: TAKE_THEIRS}])
+        monkeypatch.setattr(
+            self.view,
+            'ask_refresh_conflicts',
+            lambda found: conflicts.append(found) or next(decisions),
+        )
+        actions = self.main_controller.bundle_actions
+
+        assert not actions.update_from_refreshed()  # No to removing usage.odt
+        assert not actions.update_from_refreshed()  # Cancelled the conflicts
+        assert sc.bundle().split_from()['number'] == 1
+        assert actions.update_from_refreshed()
+
+        assert len(prompts) == 3 and 'no longer has usage.odt' in prompts[0]
+        assert [(c.mine, c.theirs) for c in conflicts[0]] == [(['Mine.'], ['Theirs.'])]
+        bundle = sc.bundle()
+        assert [d['name'] for d in bundle.documents()] == ['intro.odt']
+        assert self._units(bundle, 'intro.odt')['Welcome.'] == ('Theirs.', False)
+        assert self.notices[-1] == 'Updated the bundle, with 1 translation from the refreshed one.'
+
+    def test_a_refresh_refuses_other_bundles_and_keeps_its_files(self, monkeypatch):
+        master, path = self._translator()
+        bundle = self.store_controller.bundle()
+        actions = self.main_controller.bundle_actions
+
+        for chosen, message in ((master.path, 'same bundle'), (path, "isn't newer")):
+            monkeypatch.setattr(self.view, 'ask_bundles', lambda chosen=chosen: [chosen])
+            assert not actions.update_from_refreshed()
+            assert message in self.errors[-1]
+
+        assert all(os.path.isfile(f) for f in bundle.files())

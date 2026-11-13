@@ -765,6 +765,14 @@ A bundle can hold several documents, translated into several languages:
   translations the translator changed come in, and where both you and the
   translator changed a unit, you choose which to keep. A bundle from another
   project, or whose documents were changed, is refused.
+- To send a translator a newer bundle (after changing, adding or removing a
+  document, or reviewing translations), split their language again. A bundle
+  from before that split can't be merged any more: the translator first takes
+  in the new one with :menuselection:`Update from Refreshed Bundle…` in their
+  bundle. Their translations stay, units whose source changed are marked as
+  needing review, new documents come in, and translations in the new bundle
+  fill units they haven't touched; where both changed a unit, they choose
+  which to keep. Removing a document they translated in asks first.
 - :menuselection:`Export as TIPP…` writes a TIPP package for other translation
   tools, one per language.
 

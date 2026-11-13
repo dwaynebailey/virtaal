@@ -384,6 +384,7 @@ class MainView(BaseView):
             ('mnu_add_language', actions.add_language),
             ('mnu_split_bundle', actions.split),
             ('mnu_merge_bundles', actions.merge),
+            ('mnu_refresh_bundle', actions.update_from_refreshed),
             ('mnu_export_documents', actions.export_documents),
             ('mnu_export_tipp', actions.export_tipp),
         ):
@@ -712,9 +713,36 @@ class MainView(BaseView):
         finally:
             dialog.dialog.destroy()
 
+    def ask_refresh_conflicts(self, conflicts):
+        """{conflict index: choice} for units changed both in the split
+        bundle open and in the refreshed one it is updated from, or None
+        if cancelled."""
+        return self._ask_bundle_conflicts(
+            conflicts,
+            ngettext(
+                # l10n: At the top of the dialog listing units changed both in the open
+                # translation bundle and in the newer copy it is being updated from
+                '%(count)s unit was changed both here and in the refreshed bundle.',
+                '%(count)s units were changed both here and in the refreshed bundle.',
+                len(conflicts),
+            ),
+        )
+
     def ask_merge_conflicts(self, conflicts):
         """{conflict index: choice} for units changed both in the bundle
         open and in a returned one, or None if cancelled."""
+        return self._ask_bundle_conflicts(
+            conflicts,
+            ngettext(
+                # l10n: At the top of the dialog listing units changed both in the open
+                # translation bundle and in a translator's bundle being merged into it
+                '%(count)s unit was changed both here and in the returned bundle.',
+                '%(count)s units were changed both here and in the returned bundle.',
+                len(conflicts),
+            ),
+        )
+
+    def _ask_bundle_conflicts(self, conflicts, intro):
         from virtaal.support.platforms.submitdialog import ConflictDialog
 
         return ConflictDialog(
@@ -722,15 +750,9 @@ class MainView(BaseView):
             self.main_window,
             _('_OK'),
             # l10n: The title of the dialog listing units changed both in the open
-            # translation bundle and in a translator's bundle being merged into it
+            # translation bundle and in another one being merged into it or updating it
             title=_('Changed in Both Bundles'),
-            intro=ngettext(
-                # l10n: At the top of the dialog listing units changed both in the open
-                # translation bundle and in a translator's bundle being merged into it
-                '%(count)s unit was changed both here and in the returned bundle.',
-                '%(count)s units were changed both here and in the returned bundle.',
-                len(conflicts),
-            ),
+            intro=intro,
         ).run()
 
     @cached_property
@@ -2266,6 +2288,9 @@ class MainView(BaseView):
         self.gui.get_object('mnu_add_language').set_sensitive(bundle is not None)
         self.gui.get_object('mnu_merge_bundles').set_sensitive(
             bool(bundle and bundle.manifest.get('splits'))
+        )
+        self.gui.get_object('mnu_refresh_bundle').set_sensitive(
+            bool(bundle and bundle.split_from())
         )
         for item_id in ('mnu_split_bundle', 'mnu_export_documents', 'mnu_export_tipp'):
             self.gui.get_object(item_id).set_sensitive(languages)

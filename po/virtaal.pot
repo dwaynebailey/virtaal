@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 09:44+0000\n"
+"POT-Creation-Date: 2026-11-13 09:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -151,6 +151,11 @@ msgstr ""
 #. l10n: Brings the translations in the bundles translators send back into this one
 #: share/virtaal/virtaal.ui
 msgid "_Merge Returned Bundles…"
+msgstr ""
+
+#. l10n: In a translator's bundle split from a bigger one: takes in a newer copy of it, split again with changed or added documents or reviewed translations, keeping the translator's work
+#: share/virtaal/virtaal.ui
+msgid "Update from _Refreshed Bundle…"
 msgstr ""
 
 #. l10n: Saves the translated documents, made from the documents and their translations
@@ -916,6 +921,28 @@ msgstr[1] ""
 #, python-format
 msgid "Merged %(count)s translation from the returned bundles."
 msgid_plural "Merged %(count)s translations from the returned bundles."
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: After File > Translation Bundle > Update from Refreshed Bundle
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "Updated the bundle, with %(count)s translation from the refreshed one."
+msgid_plural ""
+"Updated the bundle, with %(count)s translations from the refreshed one."
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: Asked on updating a translator's bundle from a newer copy that
+#. no longer has some of its documents; %(documents)s are their names
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid ""
+"The refreshed bundle no longer has %(documents)s, and your translations in "
+"it will be removed. Update anyway?"
+msgid_plural ""
+"The refreshed bundle no longer has %(documents)s, and your translations in "
+"them will be removed. Update anyway?"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -3663,11 +3690,15 @@ msgstr ""
 msgid "_Save"
 msgstr ""
 
-#. l10n: The title of the dialog listing units changed both in the open
-#. translation bundle and in a translator's bundle being merged into it
+#. l10n: At the top of the dialog listing units changed both in the open
+#. translation bundle and in the newer copy it is being updated from
 #: virtaal/views/mainview.py
-msgid "Changed in Both Bundles"
-msgstr ""
+#, python-format
+msgid "%(count)s unit was changed both here and in the refreshed bundle."
+msgid_plural ""
+"%(count)s units were changed both here and in the refreshed bundle."
+msgstr[0] ""
+msgstr[1] ""
 
 #. l10n: At the top of the dialog listing units changed both in the open
 #. translation bundle and in a translator's bundle being merged into it
@@ -3678,6 +3709,12 @@ msgid_plural ""
 "%(count)s units were changed both here and in the returned bundle."
 msgstr[0] ""
 msgstr[1] ""
+
+#. l10n: The title of the dialog listing units changed both in the open
+#. translation bundle and in another one being merged into it or updating it
+#: virtaal/views/mainview.py
+msgid "Changed in Both Bundles"
+msgstr ""
 
 #: virtaal/views/mainview.py
 msgid "Choose a Folder of Translation Files"

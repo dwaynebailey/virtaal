@@ -717,6 +717,15 @@ If you are translating from English to French then French would be your translat
                               </object>
                             </child>
                             <child>
+                              <object class="GtkMenuItem" id="mnu_refresh_bundle">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="use_action_appearance">False</property>
+                                <property name="label" translatable="yes" comments="l10n: In a translator's bundle split from a bigger one: takes in a newer copy of it, split again with changed or added documents or reviewed translations, keeping the translator's work">Update from _Refreshed Bundle…</property>
+                                <property name="use_underline">True</property>
+                              </object>
+                            </child>
+                            <child>
                               <object class="GtkSeparatorMenuItem" id="separator_mnu_bundle_2">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>

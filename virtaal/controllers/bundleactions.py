@@ -259,6 +259,64 @@ class BundleActions:
             )
         return merged
 
+    def update_from_refreshed(self):
+        """File > Translation Bundle > Update from Refreshed Bundle: take
+        in a newer split of the split bundle open, keeping the work in it.
+        @returns: Whether it was updated."""
+        from virtaal.support.documents import DocumentBundle
+
+        bundle = self.bundle()
+        if bundle is None or not bundle.split_from():
+            return False
+        paths = self.view.ask_bundles()
+        if not paths:
+            return False
+        self.store_controller.flush_bundle()
+        try:
+            refreshed = DocumentBundle.open_aside(paths[0])
+            try:
+                plan = bundle.plan_refresh(refreshed)
+            finally:
+                refreshed.discard()
+        except Exception as exc:
+            self._error(exc, paths[0])
+            return False
+        if plan.removed_work and not self._removing_confirmed(plan.removed_work):
+            return False
+        choices = self.view.ask_refresh_conflicts(plan.conflicts) if plan.conflicts else {}
+        if choices is None:
+            return False
+        taken = bundle.apply_refresh(plan, choices)
+        self._changed(plan.language)
+        self.view.show_info_notice(
+            _counted(
+                ngettext(
+                    # l10n: After File > Translation Bundle > Update from Refreshed Bundle
+                    'Updated the bundle, with %(count)s translation from the refreshed one.',
+                    'Updated the bundle, with %(count)s translations from the refreshed one.',
+                    taken,
+                ),
+                taken,
+            )
+        )
+        return True
+
+    def _removing_confirmed(self, names):
+        """Whether to update from a refreshed bundle that no longer has
+        the documents C{names}, though they have translations."""
+        return self.main_controller.show_prompt(
+            msg=ngettext(
+                # l10n: Asked on updating a translator's bundle from a newer copy that
+                # no longer has some of its documents; %(documents)s are their names
+                'The refreshed bundle no longer has %(documents)s, and your translations '
+                'in it will be removed. Update anyway?',
+                'The refreshed bundle no longer has %(documents)s, and your translations '
+                'in them will be removed. Update anyway?',
+                len(names),
+            )
+            % {'documents': ', '.join(names)}
+        )
+
     def _language(self):
         """The language the files open are in."""
         bundle = self.bundle()
