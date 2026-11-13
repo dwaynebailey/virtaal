@@ -501,6 +501,18 @@ def test_show_leaves_file_size_untouched_when_absent():
     assert view._widgets['lbl_filesize'].get_text() == 'previous'
 
 
+def test_show_focuses_close_and_hides_the_single_tab():
+    view = _show_ready_view()
+    view.live_stats = {}
+    focused = []
+    view._widgets['dialog'].run = lambda: focused.append(view._widgets['dialog'].get_focus())
+
+    view.show()
+
+    assert focused == [view._widgets['dialog'].get_widget_for_response(0)]
+    assert not view.gui.get_object('notebook2').get_show_tabs()
+
+
 def test_show_presents_the_transient_parent_again_after_closing(monkeypatch):
     calls = []
     monkeypatch.setattr(

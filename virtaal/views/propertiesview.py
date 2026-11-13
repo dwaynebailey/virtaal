@@ -104,6 +104,9 @@ class PropertiesView(BaseView, GObjectWrapper):
             self._widgets[name] = self.gui.get_object(name)
 
         self._widgets['dialog'] = self.gui.get_object('PropertiesDlg')
+        # One page: no tab to focus or show.
+        notebook = self.gui.get_object('notebook2')
+        notebook.set_show_tabs(notebook.get_n_pages() > 1)
         self._widgets['dialog'].set_transient_for(self.controller.main_controller.view.main_window)
         self._widgets['dialog'].set_icon(
             self.controller.main_controller.view.main_window.get_icon()
@@ -155,6 +158,8 @@ class PropertiesView(BaseView, GObjectWrapper):
             self._init_gui()
         self._refresh()
 
+        # Close, not the info bar's Save, so Enter and Escape close it.
+        self._widgets['dialog'].get_widget_for_response(0).grab_focus()
         run_dialog(self._widgets['dialog'])
 
     def _refresh(self):

@@ -99,11 +99,10 @@ def _show_dialog(full_text):
     from virtaal.views.direction import fix_expander_direction
 
     dialog = Gtk.MessageDialog(
-        None,
-        Gtk.DialogFlags.MODAL,
-        Gtk.MessageType.ERROR,
-        Gtk.ButtonsType.NONE,
-        _("Virtaal hit an unexpected error"),
+        modal=True,
+        message_type=Gtk.MessageType.ERROR,
+        buttons=Gtk.ButtonsType.NONE,
+        text=_("Virtaal hit an unexpected error"),
     )
     dialog.format_secondary_text(
         _(
@@ -124,8 +123,10 @@ def _show_dialog(full_text):
     expander.show_all()
 
     dialog.add_button(_("_Close"), Gtk.ResponseType.CLOSE)
-    dialog.add_button(_("_Report This Bug…"), Gtk.ResponseType.ACCEPT)
+    report = dialog.add_button(_("_Report This Bug…"), Gtk.ResponseType.ACCEPT)
     dialog.set_default_response(Gtk.ResponseType.ACCEPT)
+    # Enter reports the bug, not toggles the details.
+    report.grab_focus()
 
     # present() only raises/focuses an already-realized window -
     # show() explicitly first, run() alone doesn't guarantee that.

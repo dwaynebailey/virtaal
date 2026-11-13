@@ -64,6 +64,18 @@ def test_the_program_name_is_virtaal_not_the_executable(monkeypatch):
         parent.destroy()
 
 
+def test_the_about_dialog_opens_over_its_parent():
+    from gi.repository import Gtk
+
+    parent = Gtk.Window()
+    dialog = AboutDialog(parent)
+    try:
+        assert dialog.get_transient_for() is parent
+    finally:
+        dialog.destroy()
+        parent.destroy()
+
+
 def test_metainfo_describes_virtaal_as_the_about_dialog_does():
     # One message for both; the metainfo's lacked its subject (#4548).
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))

@@ -128,7 +128,7 @@ def test_show_dialog_shows_before_presenting(monkeypatch):
             return Gtk.Box()
 
         def add_button(self, label, response):
-            pass
+            return Gtk.Button()
 
         def set_default_response(self, response):
             pass
@@ -151,3 +151,19 @@ def test_show_dialog_shows_before_presenting(monkeypatch):
     crash_dialog._show_dialog('traceback text')
 
     assert calls == ['show', 'present', 'run', 'destroy']
+
+
+def test_the_dialog_focuses_report_this_bug(monkeypatch):
+    from gi.repository import Gtk
+
+    focused = []
+
+    def run(dialog):
+        focused.append(dialog.get_focus().get_label())
+        return Gtk.ResponseType.CLOSE
+
+    monkeypatch.setattr(Gtk.Dialog, 'run', run)
+
+    crash_dialog._show_dialog('Traceback')
+
+    assert focused == ['_Report This Bug…']

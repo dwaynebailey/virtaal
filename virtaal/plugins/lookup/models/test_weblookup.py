@@ -88,6 +88,14 @@ def test_add_dialog_run_restores_the_parents_focus_on_close(monkeypatch):
     assert calls == ['parent']
 
 
+def test_enter_in_the_add_dialog_adds():
+    dialog = WebLookupAddDialog(parent=None)
+
+    assert dialog.dialog.get_default_widget() is dialog.btn_url_ok
+    assert dialog.ent_url.get_activates_default()
+    assert dialog.ent_url_name.get_activates_default()
+
+
 def test_add_dialog_derives_an_id_from_the_typed_name(monkeypatch):
     # Never asks the user for one directly.
     monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: func(*args))

@@ -80,6 +80,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.""")
         self.set_authors(authors)
         # l10n: Rather than translating, fill in the names of the translators
         self.set_translator_credits(_("translator-credits"))
+        self.set_transient_for(parent)
         self.set_icon(parent.get_icon())
         self.set_logo(
             GdkPixbuf.Pixbuf.new_from_file(
