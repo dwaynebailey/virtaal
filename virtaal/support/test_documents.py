@@ -1069,3 +1069,18 @@ def test_saving_under_a_name_renames_the_project(tmp_path, report):
     bundle.add_language('zu')
     bundle.save(str(tmp_path / 'Annual Report.virtaal'))
     assert bundle.name == 'Annual Report'
+
+
+def test_the_translation_memory_in_the_language_asked_for(tmp_path, master):
+    master.contents['tm/a.tmx'] = (
+        b'<?xml version="1.0"?><tmx version="1.4"><header srclang="en"/><body>'
+        b'<tu><tuv xml:lang="zu"><seg>Sawubona</seg></tuv><tuv xml:lang="en-US"><seg>Hi</seg>'
+        b'</tuv><tuv xml:lang="xh"><seg>Molo</seg></tuv></tu>'
+        b'<tu><tuv xml:lang="en"><seg>Bye</seg></tuv><tuv xml:lang="xh"><seg>Hamba</seg></tuv></tu>'
+        b'</body></tmx>'
+    )
+    master.contents['tm/broken.tmx'] = b'<tmx'
+
+    assert master.memory('zu') == [('Hi', 'Sawubona')]
+    assert master.memory('xh') == [('Hi', 'Molo'), ('Bye', 'Hamba')]
+    assert master.memory('st') == []

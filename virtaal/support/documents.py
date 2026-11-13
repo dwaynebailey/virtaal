@@ -996,6 +996,20 @@ class DocumentBundle:
         self.modified = True
         return changed
 
+    # The bundle's translation memory
+
+    def memory(self, language):
+        """The translations of its TMX files (tm/*.tmx) from its source
+        language into C{language}: [(source, translation)]."""
+        return self._pairs('tm/', '.tmx', tmx_pairs, language)
+
+    def _pairs(self, folder, extension, read, language):
+        pairs = []
+        for name, data in sorted(self.contents.items()):
+            if name.startswith(folder) and name.lower().endswith(extension):
+                pairs.extend(read(data, self.source_language, language))
+        return pairs
+
     # TIPP
 
     def export_tipp(self, language, path):
@@ -1271,6 +1285,36 @@ class RefreshPlan(MergePlan):
         """The documents it no longer has."""
         self.removed_work = []
         """Those of them with translations made here."""
+
+
+def _in_language(texts, language):
+    """The texts of C{texts}, [(language code, text)], in C{language}."""
+    from virtaal.models.langmodel import same_language
+
+    return [text for code, text in texts if text and same_language(_code(code), language)]
+
+
+def _code(code):
+    return (code or '').replace('-', '_')
+
+
+def tmx_pairs(data, source, language):
+    """A TMX file's translations from C{source} into C{language}:
+    [(source, translation)]."""
+    from translate.misc.xml_helpers import getXMLlang
+    from translate.storage import tmx
+
+    try:
+        store = tmx.tmxfile.parsestring(data)
+    except Exception:
+        return []
+    pairs = []
+    for unit in store.units:
+        texts = [(getXMLlang(n), unit.getNodeText(n)) for n in unit.getlanguageNodes()]
+        sources, targets = _in_language(texts, source), _in_language(texts, language)
+        if sources and targets:
+            pairs.append((sources[0], targets[0]))
+    return pairs
 
 
 def tmx_for_language(data, source, language):

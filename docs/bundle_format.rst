@@ -27,7 +27,9 @@ Members
   Each language's file as it was when the bundle was split (see below): in a
   master, as it was sent; in a split bundle, as it came.
 ``tm/``, ``terms/``
-  TMX translation memories and TBX glossaries, kept as they are.
+  TMX translation memories and TBX glossaries, kept as they are. While the
+  bundle is open, Virtaal suggests the TMX entries between the source
+  language and the language open.
 
 ``<lang>`` is a language code as Virtaal writes it (``zu``, ``pt_BR``).
 Member names use ``/`` and never ``..`` or an absolute path. Other members are

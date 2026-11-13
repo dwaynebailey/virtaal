@@ -63,6 +63,11 @@ def _note_reset(name):
         reset_settings.append(name)
 
 
+def config_bool(value):
+    """value, a switch from a config file (True, "False", "0"), as a bool."""
+    return str(value).strip().lower() not in ('false', 'no', 'off', '0', '')
+
+
 def config_int(value, default, minimum, maximum, name):
     """value as a whole number from minimum to maximum, or default: a
     hand edit or another tool can leave anything in a config file, and
