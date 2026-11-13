@@ -14,7 +14,7 @@ languages. No GTK here.
     sources/intro.odt           each source document, as it was added
     trans/zu/intro.odt.xlf      one translatable file per document and language
     targets/zu/intro.odt        the translated documents, made on saving
-    baselines/zu/intro.odt.xlf  in a master, each language's file as split
+    baselines/zu/intro.odt.xlf  each language's file as split (master and split bundle)
     tm/, terms/                 TMX and TBX files, kept as they are
 
 Opening a bundle takes its translatable files out into a work folder
@@ -768,6 +768,7 @@ class DocumentBundle:
         for entry in manifest['translations']:
             data = self.trans_data(entry)
             members[entry['file']] = data
+            members[_baseline(entry)] = data
             entry['sha256'] = sha256(data)
             if entry['target'] in self.contents:
                 members[entry['target']] = self.contents[entry['target']]
@@ -960,7 +961,8 @@ class DocumentBundle:
 
 
 def _baseline(entry):
-    """The master's copy of a translatable file as split."""
+    """The copy of a translatable file as split: in a master, as it sent
+    it; in a split bundle, as it came."""
     return 'baselines/' + entry['file'].split('/', 1)[1]
 
 

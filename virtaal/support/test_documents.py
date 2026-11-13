@@ -601,6 +601,23 @@ def test_split_copies_only_its_languages_tm_entries(tmp_path, master):
     assert b'Bye' not in tmx
 
 
+def test_a_split_bundle_keeps_its_files_as_they_came(tmp_path, master):
+    out = tmp_path / 'out'
+    out.mkdir()
+    _translate(_file(master, 'intro.odt', 'zu'), {'Welcome.': 'Wamukelekile.'})
+    path = master.split(str(out), ['zu'])[0]
+
+    zu = DocumentBundle.open(path, str(tmp_path / 'work-zu'))
+    _translate(_file(zu, 'intro.odt', 'zu'), {'Welcome.': 'Edited.'})
+    zu.save()
+
+    assert _members(path).count('baselines/zu/intro.odt.xlf') == 1
+    baseline = tmp_path / 'baseline.xlf'
+    baseline.write_bytes(_read(path, 'baselines/zu/intro.odt.xlf'))
+    assert _units(str(baseline))['Welcome.'] == ('Wamukelekile.', False)
+    assert 'baselines/zu/usage.odt.xlf' in _members(path)
+
+
 def _split(tmp_path, master, language, folder):
     out = tmp_path / folder
     out.mkdir()

@@ -24,8 +24,8 @@ Members
   Each translated document, made from the source document and its
   translation.
 ``baselines/<lang>/<document>.<ext>``
-  In a master, each language's file as it was when the bundle was split (see
-  below).
+  Each language's file as it was when the bundle was split (see below): in a
+  master, as it was sent; in a split bundle, as it came.
 ``tm/``, ``terms/``
   TMX translation memories and TBX glossaries, kept as they are.
 
@@ -82,10 +82,10 @@ Splitting and merging
 =====================
 A master with several target languages can be split into one bundle per
 language, an ordinary bundle with one target language and ``split_from``. The
-master keeps a copy of each language's files as split under ``baselines/``.
-Splitting some languages again (after a document changed, was added or removed,
-or translations were reviewed) replaces those languages' record in ``splits``
-and their copies under ``baselines/``.
+master keeps a copy of each language's files as split under ``baselines/``,
+and so does the split bundle. Splitting some languages again (after a document
+changed, was added or removed, or translations were reviewed) replaces those
+languages' record in ``splits`` and their copies under ``baselines/``.
 
 Merging a returned bundle compares it with that copy, unit by unit (by unit
 id): a unit only the translator changed is taken, a unit changed in both is a
