@@ -813,6 +813,11 @@ class DocumentBundle:
         record = self.manifest.get('splits', {}).get(language)
         if split.get('id') != self.id or record is None or language not in self.languages:
             raise BundleError("This bundle wasn't split from the one open.")
+        if returned.id != record.get('id', returned.id):
+            raise BundleError(
+                '%s was split again since this bundle was made from it: update it '
+                'from the newer split first.' % language
+            )
         names = {d['name']: d['sha256'] for d in returned.documents()}
         if names != split.get('sources') or set(names) != set(record['sources']):
             raise BundleError("The returned bundle's documents were changed.")

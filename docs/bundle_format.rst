@@ -93,7 +93,9 @@ conflict for the user to decide, and only that bundle's language changes. A
 bundle whose ``split_from`` names another master, or whose documents changed,
 is refused. If the master's source documents changed after the split, the
 returned files and the copy are first brought up to the new sources, and units
-whose source changed are marked as needing review.
+whose source changed are marked as needing review. A bundle from an older split
+of its language than the master's last one is refused: it has to be updated
+from the newer split first.
 
 TIPP
 ====

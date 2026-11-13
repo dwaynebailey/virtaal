@@ -601,6 +601,12 @@ def test_split_copies_only_its_languages_tm_entries(tmp_path, master):
     assert b'Bye' not in tmx
 
 
+def _split(tmp_path, master, language, folder):
+    out = tmp_path / folder
+    out.mkdir()
+    return master.split(str(out), [language])[0]
+
+
 def test_splitting_one_language_again_replaces_only_its_record(tmp_path, master):
     out = tmp_path / 'out'
     out.mkdir()
@@ -622,6 +628,14 @@ def test_splitting_one_language_again_replaces_only_its_record(tmp_path, master)
     assert baselines == ['baselines/zu/intro.odt.xlf']
     assert b'Wamukelekile.' in master.contents['baselines/zu/intro.odt.xlf']
     assert master.split(str(out), ['fr']) == []
+
+
+def test_merge_refuses_a_bundle_from_an_older_split_of_its_language(tmp_path, master):
+    returned = _returned(tmp_path, master, 'zu', {'Welcome.': 'Wamukelekile.'})
+    _split(tmp_path, master, 'zu', 'again')
+
+    with pytest.raises(BundleError, match='split again'):
+        master.plan_merge(returned)
 
 
 # TIPP
