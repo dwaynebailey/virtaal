@@ -7,6 +7,7 @@
 
 import json
 import os
+import shutil
 import zipfile
 from pathlib import Path
 
@@ -661,6 +662,210 @@ def test_a_bundle_opened_aside_leaves_the_open_ones_files(tmp_path, master):
     assert aside.work_dir != master.work_dir
     assert aside.discard()
     assert all(os.path.isfile(path) for path in master.files())
+
+
+# Updating a split bundle from a refreshed one
+
+
+def test_a_refreshed_split_round_trip(tmp_path, master):
+    """Split zu, translate it, change a document and add one in the
+    master, split zu again, update the translator's bundle from it, and
+    merge that back."""
+    v1 = _split(tmp_path, master, 'zu', 'v1')
+    mine = DocumentBundle.open(v1, str(tmp_path / 'translator'))
+    _translate(
+        _file(mine, 'intro.odt', 'zu'),
+        {'Welcome.': 'Wamukelekile.', 'Read this first.': 'Funda lokhu kuqala.'},
+    )
+    _translate(_file(mine, 'usage.odt', 'zu'), {'Press the button.': 'Cindezela inkinobho.'})
+    mine.save()
+    master.update_document('intro.odt', _docsamples.odt(['Welcome.', 'Read this first, please.']))
+    master.add_document(_odt(tmp_path, 'faq.odt', ['Any questions?']))
+    _translate(_file(master, 'faq.odt', 'zu'), {'Any questions?': 'Imibuzo?'})
+    v2 = _split(tmp_path, master, 'zu', 'v2')
+    with pytest.raises(BundleError, match='split again'):
+        master.plan_merge(DocumentBundle.open(v1, str(tmp_path / 'old')))
+
+    refreshed = DocumentBundle.open(v2, str(tmp_path / 'refreshed'))
+    plan = mine.plan_refresh(refreshed)
+    refreshed.discard()
+
+    assert (plan.changed, list(plan.added), plan.removed) == (
+        ['intro.odt'],
+        ['trans/zu/faq.odt.xlf'],
+        [],
+    )
+    assert (plan.takes, plan.conflicts) == (0, [])
+    mine.apply_refresh(plan)
+    intro = _units(_file(mine, 'intro.odt', 'zu'))
+    assert intro == {
+        'Welcome.': ('Wamukelekile.', False),
+        'Read this first, please.': ('Funda lokhu kuqala.', True),
+    }
+    assert _units(_file(mine, 'usage.odt', 'zu'))['Press the button.'][0] == 'Cindezela inkinobho.'
+    assert _units(_file(mine, 'faq.odt', 'zu')) == {'Any questions?': ('Imibuzo?', False)}
+    assert mine.split_from() == refreshed.split_from() and mine.id == refreshed.id
+    assert [d['name'] for d in mine.documents()] == ['intro.odt', 'usage.odt', 'faq.odt']
+    assert mine.contents['sources/faq.odt'] == master.contents['sources/faq.odt']
+    assert mine.name == 'manual' and mine.modified
+    mine.save()
+
+    returned = DocumentBundle.open(v1, str(tmp_path / 'returned'))
+    master.apply_merge(master.plan_merge(returned))
+
+    assert _units(_file(master, 'intro.odt', 'zu')) == intro
+    assert _units(_file(master, 'usage.odt', 'zu'))['Press the button.'] == (
+        'Cindezela inkinobho.',
+        False,
+    )
+    assert _units(_file(master, 'faq.odt', 'zu')) == {'Any questions?': ('Imibuzo?', False)}
+    assert _units(_file(master, 'intro.odt', 'xh'))['Welcome.'] == ('', False)
+    assert master.plan_merge(returned).takes == 0
+
+
+def _refresh(tmp_path, mine, master, folder):
+    refreshed = DocumentBundle.open(_split(tmp_path, master, 'zu', folder), str(tmp_path / folder))
+    try:
+        return mine.plan_refresh(refreshed)
+    finally:
+        refreshed.discard()
+
+
+def test_refresh_fills_untouched_units_and_asks_about_units_both_changed(tmp_path, master):
+    from virtaal.support.platforms.submit import KEEP_MINE, SKIP, TAKE_THEIRS
+
+    mine = DocumentBundle.open(_split(tmp_path, master, 'zu', 'v1'), str(tmp_path / 'mine'))
+    _translate(
+        _file(mine, 'intro.odt', 'zu'),
+        {'Welcome.': 'Mine one.', 'Read this first.': 'Mine two.'},
+    )
+    _translate(_file(mine, 'usage.odt', 'zu'), {'Press the button.': 'Same.'})
+    _translate(
+        _file(master, 'intro.odt', 'zu'),
+        {'Welcome.': 'Theirs one.', 'Read this first.': 'Theirs two.'},
+    )
+    _translate(_file(master, 'usage.odt', 'zu'), {'Press the button.': 'Same.'})
+    plan = _refresh(tmp_path, mine, master, 'v2')
+
+    assert [(c.source, c.mine, c.theirs, c.where) for c in plan.conflicts] == [
+        ('Welcome.', ['Mine one.'], ['Theirs one.'], 'intro.odt'),
+        ('Read this first.', ['Mine two.'], ['Theirs two.'], 'intro.odt'),
+    ]
+    assert (plan.same, plan.takes) == (1, 0)
+    assert mine.apply_refresh(plan, {0: TAKE_THEIRS, 1: SKIP}) == 1
+    assert _units(_file(mine, 'intro.odt', 'zu')) == {
+        'Welcome.': ('Theirs one.', False),
+        'Read this first.': ('Mine two.', False),
+    }
+
+    # The unit skipped comes up again; an untouched one is filled.
+    _translate(_file(master, 'usage.odt', 'zu'), {'Press the button.': 'Reviewed.'})
+    again = _refresh(tmp_path, mine, master, 'v3')
+    assert [c.source for c in again.conflicts] == ['Read this first.']
+    assert again.takes == 1
+    mine.apply_refresh(again, {0: KEEP_MINE})
+    assert _units(_file(mine, 'usage.odt', 'zu'))['Press the button.'][0] == 'Reviewed.'
+    assert _refresh(tmp_path, mine, master, 'v4').conflicts == []
+
+
+def test_refresh_of_an_old_split_bundle_with_no_copy_as_split(tmp_path, master):
+    path = _split(tmp_path, master, 'zu', 'v1')
+    mine = DocumentBundle.open(path, str(tmp_path / 'mine'))
+    mine.contents = {n: d for n, d in mine.contents.items() if not n.startswith('baselines/')}
+    del mine.manifest['split_from']['number']
+    mine.save()
+    mine = DocumentBundle.open(path, str(tmp_path / 'mine-again'))
+    _translate(
+        _file(mine, 'intro.odt', 'zu'),
+        {'Welcome.': 'Mine one.', 'Read this first.': 'Mine two.'},
+    )
+    _translate(_file(master, 'intro.odt', 'zu'), {'Welcome.': 'Theirs one.'})
+    _translate(_file(master, 'usage.odt', 'zu'), {'Press the button.': 'Theirs three.'})
+    mine.manifest['created'] = '2000-01-01T00:00:00Z'
+
+    plan = _refresh(tmp_path, mine, master, 'v2')
+
+    # Nothing tells who changed what: a translation fills an empty unit,
+    # a translation only here stays, and any other difference is asked.
+    assert [(c.source, c.mine, c.theirs) for c in plan.conflicts] == [
+        ('Welcome.', ['Mine one.'], ['Theirs one.'])
+    ]
+    assert plan.takes == 1
+    mine.apply_refresh(plan)
+    assert _units(_file(mine, 'intro.odt', 'zu')) == {
+        'Welcome.': ('Mine one.', False),
+        'Read this first.': ('Mine two.', False),
+    }
+    assert _units(_file(mine, 'usage.odt', 'zu'))['Press the button.'][0] == 'Theirs three.'
+    assert 'baselines/zu/intro.odt.xlf' in mine.contents
+
+
+def test_refresh_drops_removed_documents_and_tells_which_have_work(tmp_path):
+    folder = tmp_path / 'manual'
+    folder.mkdir()
+    paths = [_odt(folder, n + '.odt', [n.title() + '.']) for n in ('one', 'two', 'three')]
+    master = documents.from_documents(paths, 'en')
+    master.add_language('zu')
+    master.save(str(tmp_path / 'manual.virtaal'))
+    mine = DocumentBundle.open(_split(tmp_path, master, 'zu', 'v1'), str(tmp_path / 'mine'))
+    _translate(_file(mine, 'one.odt', 'zu'), {'One.': 'Kunye.'})
+    master.remove_document('one.odt')
+    master.remove_document('two.odt')
+
+    plan = _refresh(tmp_path, mine, master, 'v2')
+
+    assert (plan.removed, plan.removed_work) == (['one.odt', 'two.odt'], ['one.odt'])
+    gone = [_file(mine, name, 'zu') for name in ('one.odt', 'two.odt')]
+    mine.apply_refresh(plan)
+    assert [d['name'] for d in mine.documents()] == ['three.odt']
+    assert not any(os.path.exists(path) for path in gone)
+    assert sorted(n for n in mine.contents if not n.startswith('targets/')) == [
+        'baselines/zu/three.odt.xlf',
+        'sources/three.odt',
+    ]
+
+
+def test_refresh_refuses_other_masters_languages_and_older_splits(tmp_path, master, report):
+    out = tmp_path / 'out'
+    out.mkdir()
+    zu, xh = master.split(str(out), ['zu', 'xh'])
+    newer = _split(tmp_path, master, 'zu', 'v2')
+    mine = DocumentBundle.open(newer, str(tmp_path / 'mine'))
+    other = documents.from_documents([report], 'en', 'zu')
+    other.save(str(tmp_path / 'other.zu.virtaal'))
+    other_master = DocumentBundle.open(str(tmp_path / 'manual.virtaal'), str(tmp_path / 'm'))
+    other_master.manifest['id'] = 'urn:uuid:other'
+    other_split = _split(tmp_path, other_master, 'zu', 'other')
+
+    for path, message in (
+        (str(tmp_path / 'other.zu.virtaal'), 'same bundle'),
+        (other_split, 'same bundle'),
+        (xh, 'another language'),
+        (zu, "isn't newer"),
+        (newer, "isn't newer"),
+    ):
+        with pytest.raises(BundleError, match=message):
+            mine.plan_refresh(DocumentBundle.open_aside(path))
+    with pytest.raises(BundleError, match="wasn't split"):
+        other.plan_refresh(DocumentBundle.open_aside(newer))
+
+
+def test_refresh_from_a_bundle_saved_over_the_one_open(tmp_path, master):
+    path = _split(tmp_path, master, 'zu', 'v1')
+    mine = DocumentBundle.open(path, str(tmp_path / 'mine'))
+    _translate(_file(mine, 'intro.odt', 'zu'), {'Welcome.': 'Wamukelekile.'})
+    shutil.copyfile(_split(tmp_path, master, 'zu', 'v2'), path)
+    assert mine.changed_on_disk()
+
+    refreshed = DocumentBundle.open_aside(path)
+    plan = mine.plan_refresh(refreshed)
+    refreshed.discard()
+    mine.apply_refresh(plan)
+    mine.save()
+
+    again = DocumentBundle.open(path, str(tmp_path / 'again'))
+    assert _units(_file(again, 'intro.odt', 'zu'))['Welcome.'] == ('Wamukelekile.', False)
+    assert again.split_from()['number'] == 2
 
 
 # TIPP

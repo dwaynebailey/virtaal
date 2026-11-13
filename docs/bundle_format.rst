@@ -97,6 +97,29 @@ whose source changed are marked as needing review. A bundle from an older split
 of its language than the master's last one is refused: it has to be updated
 from the newer split first.
 
+Updating from a refreshed bundle
+================================
+A split bundle can be updated from a newer split of the same master into the
+same language (``split_from`` with the same ``id`` and ``language``, and a
+higher ``number``, or with no ``number``, a later ``created``); another master,
+another language or an older or the same split is refused.
+
+- The documents become the refreshed bundle's: added documents come in with
+  their files, and removed ones go (a tool asks first when they have
+  translations made since the split).
+- A document whose source changed brings the bundle's file up to the new
+  source first: translations are kept, and units whose source changed are
+  marked as needing review.
+- Then the refreshed files are compared with the bundle's files against the
+  bundle's ``baselines/``, unit by unit, as in a merge: a unit changed only in
+  the refreshed bundle is taken, and a unit changed in both is a conflict for
+  the user to decide. With no ``baselines/`` (a bundle split before split
+  bundles kept them), a refreshed translation only fills units that are empty,
+  and any other difference is a conflict.
+- The bundle then takes the refreshed bundle's ``id``, ``created``,
+  ``split_from``, documents, ``baselines/``, TMX and TBX files, so the master's
+  merge accepts it when it comes back.
+
 TIPP
 ====
 :menuselection:`File --> Translation Bundle --> Export as TIPP…` writes a TIPP

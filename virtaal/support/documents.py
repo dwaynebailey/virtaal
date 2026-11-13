@@ -836,24 +836,108 @@ class DocumentBundle:
         KEEP_MINE, TAKE_THEIRS or SKIP}; a conflict not in it is skipped
         and comes up again at the next merge.
         @returns: How many units changed."""
-        from virtaal.support.platforms.submit import KEEP_MINE, TAKE_THEIRS
-
-        choices = choices or {}
         changed = 0
         for part in plan.parts:
-            taken = list(part.takes)
-            skipped = []
-            for number, (index, theirs) in part.conflicts:
-                choice = choices.get(number)
-                if choice == TAKE_THEIRS:
-                    taken.append((index, theirs))
-                elif choice != KEEP_MINE:
-                    skipped.append(index)
-            for index, theirs in taken:
-                _take(part.local.units[index], theirs)
-            changed += len(taken)
+            taken, skipped = part.resolve(choices or {})
+            changed += taken
             self._write_work(part.entry['file'], bytes(part.local))
             self.contents[_baseline(part.entry)] = part.baseline(skipped)
+        self.modified = True
+        return changed
+
+    # Updating a split bundle from a newer split
+
+    def plan_refresh(self, refreshed):
+        """What updating this split bundle from C{refreshed}, a newer
+        split of the same master and language, brings in: its documents
+        (added, removed and changed ones), and unit by unit, its
+        translations of units not changed here since this bundle was
+        split, with conflicts where both changed. A changed document
+        brings this bundle's files up to its new source first."""
+        language = self._refresh_language(refreshed)
+        plan = RefreshPlan(refreshed, language)
+        mine = {d['name'] for d in self.documents()}
+        names = {d['name'] for d in refreshed.documents()}
+        for document in self.documents():
+            if document['name'] not in names:
+                plan.removed.append(document['name'])
+                if self._has_work(self.translation(document['name'], language)):
+                    plan.removed_work.append(document['name'])
+        for document in refreshed.documents():
+            entry = refreshed.translation(document['name'], language)
+            incoming = refreshed.trans_data(entry)
+            if document['name'] not in mine:
+                plan.added[entry['file']] = incoming
+                continue
+            own = self.translation(document['name'], language)
+            local, base = self.trans_data(own), self.contents.get(_baseline(own))
+            if self.document(document['name'])['sha256'] != document['sha256']:
+                template = refreshed.converter(document).forward(
+                    refreshed.contents[document['source']], document['name']
+                )
+                args = (document['file_name'], self.source_language, language)
+                local = updated(template, local, *args)
+                base = None if base is None else updated(template, base, *args)
+                plan.changed.append(document['name'])
+            plan.compare(entry, local, base, incoming)
+        return plan
+
+    def _refresh_language(self, refreshed):
+        """The language of this split bundle, if C{refreshed} is a newer
+        split of the same master into it."""
+        mine, theirs = self.split_from(), refreshed.split_from() or {}
+        if not mine:
+            raise BundleError("The bundle open wasn't split from another bundle.")
+        if theirs.get('id') != mine.get('id'):
+            raise BundleError("This bundle wasn't split from the same bundle as the one open.")
+        if theirs.get('language') != mine.get('language'):
+            raise BundleError('This bundle is for another language than the one open.')
+        if not _newer(refreshed.manifest, self.manifest):
+            raise BundleError("This bundle isn't newer than the one open.")
+        return mine['language']
+
+    def _has_work(self, entry):
+        """Whether the translatable file of C{entry} has translations
+        changed since it came (all of its translations, with no copy
+        of it as it came)."""
+        local = _keyed(_store(self.trans_data(entry), entry['file']))
+        base = self.contents.get(_baseline(entry))
+        base = _keyed(_store(base, entry['file'])) if base is not None else {}
+        return any(
+            unit.target and _value(unit) != _value(base.get(key)) for key, unit in local.items()
+        )
+
+    def apply_refresh(self, plan, choices=None):
+        """Bring in what C{plan} has, as L{apply_merge()} does, and take
+        on the refreshed bundle's documents, files and record of the
+        split, so that the master merges this bundle when it comes back.
+        @returns: How many units changed."""
+        changed = 0
+        baselines = {}
+        for part in plan.parts:
+            taken, skipped = part.resolve(choices or {})
+            changed += taken
+            self._write_work(part.entry['file'], bytes(part.local))
+            baselines[_baseline(part.entry)] = part.baseline(skipped)
+        for member, data in plan.added.items():
+            self._write_work(member, data)
+            baselines[_baseline({'file': member})] = data
+        kept = {e['file'] for e in plan.manifest['translations']}
+        for entry in list(self.manifest['translations']):
+            if entry['file'] not in kept:
+                self._drop_translation(entry)
+        manifest = plan.manifest
+        manifest['name'] = self.name
+        if 'exports' in self.manifest:
+            manifest['exports'] = self.manifest['exports']
+        self.manifest = manifest
+        contents = {n: d for n, d in plan.contents.items() if not n.startswith('baselines/')}
+        self.contents = {**contents, **baselines}
+        if plan.path and self.path and _same_file(plan.path, self.path):
+            # The refreshed bundle was saved over this one: what is on
+            # disk now is taken in, so saving over it is no loss.
+            self._opened = plan.stat
+        self._write_templates()
         self.modified = True
         return changed
 
@@ -973,6 +1057,17 @@ def _baseline(entry):
     return 'baselines/' + entry['file'].split('/', 1)[1]
 
 
+def _newer(manifest, than):
+    """Whether the split bundle C{manifest} was split after C{than}:
+    by the master's count of its splits, else by when it was made."""
+    if manifest['id'] == than['id']:
+        return False
+    numbers = (manifest['split_from'].get('number'), than['split_from'].get('number'))
+    if None not in numbers:
+        return numbers[0] > numbers[1]
+    return manifest.get('created', '') > than.get('created', '')
+
+
 def _value(unit):
     """What a merge compares of a unit: its translation and whether it
     needs work."""
@@ -1001,23 +1096,59 @@ class _MergePart:
         self.entry = entry
         self.local = local
         self.base = base
+        """The file as split, or None if not known."""
         self.incoming = incoming
         self.takes = []
         """(index in local, incoming unit) of units changed only there."""
         self.conflicts = []
         """(conflict number, (index in local, incoming unit))."""
 
+    def resolve(self, choices):
+        """Give the local file the incoming units taken and chosen.
+        @returns: How many units changed, and the indexes of the
+        conflicts skipped."""
+        from virtaal.support.platforms.submit import KEEP_MINE, TAKE_THEIRS
+
+        taken = list(self.takes)
+        skipped = []
+        for number, (index, theirs) in self.conflicts:
+            choice = choices.get(number)
+            if choice == TAKE_THEIRS:
+                taken.append((index, theirs))
+            elif choice != KEEP_MINE:
+                skipped.append(index)
+        for index, theirs in taken:
+            _take(self.local.units[index], theirs)
+        return len(taken), skipped
+
     def baseline(self, skipped):
-        """The new baseline: the returned file, but with the conflicts
+        """The new baseline: the incoming file, but with the conflicts
         skipped as they were, so they come up again."""
         baseline = _store(bytes(self.incoming), self.entry['file'])
         units = _keyed(baseline)
-        old = _keyed(self.base)
+        old = _keyed(self.base) if self.base is not None else {}
         for index in skipped:
             key = self.local.units[index].getid()
             if key in units:
                 _take(units[key], old.get(key))
         return bytes(baseline)
+
+
+def _decide(before, mine, now):
+    """What a merge does with a unit: C{before}, C{mine} and C{now} are
+    its values as split (None if not known), here and incoming."""
+    if now == mine:
+        return 'same' if now != (before or ('', False)) else None
+    if before is None:
+        # With no copy as split, nothing tells who changed what: an
+        # incoming translation fills an empty unit, and any other
+        # difference is a conflict.
+        if not now[0]:
+            return None
+        return 'take' if not mine[0] else 'conflict'
+    if now == before:
+        return None
+    return 'take' if mine == before else 'conflict'
 
 
 class MergePlan:
@@ -1038,30 +1169,53 @@ class MergePlan:
         return sum(len(part.takes) for part in self.parts)
 
     def compare(self, entry, local, base, incoming):
+        """Compare the translatable file C{local} with C{incoming}, unit
+        by unit, against C{base}, the file as split (None if not known)."""
         from virtaal.support.platforms.submit import Conflict
 
         name = entry['file']
-        part = _MergePart(entry, _store(local, name), _store(base, name), _store(incoming, name))
-        base_units = _keyed(part.base)
+        base = None if base is None else _store(base, name)
+        part = _MergePart(entry, _store(local, name), base, _store(incoming, name))
+        base_units = _keyed(base) if base is not None else None
         incoming_units = _keyed(part.incoming)
         for index, unit in enumerate(part.local.units):
             theirs = incoming_units.get(unit.getid()) if unit.istranslatable() else None
             if theirs is None:
                 continue
-            before, mine, now = _value(base_units.get(unit.getid())), _value(unit), _value(theirs)
-            if now == before:
-                continue
-            if now == mine:
+            before = None if base_units is None else _value(base_units.get(unit.getid()))
+            mine, now = _value(unit), _value(theirs)
+            decision = _decide(before, mine, now)
+            if decision == 'same':
                 self.same += 1
-            elif mine == before:
+            elif decision == 'take':
                 part.takes.append((index, theirs))
-            else:
+            elif decision == 'conflict':
                 number = len(self.conflicts)
                 self.conflicts.append(
                     Conflict(number, str(unit.source), [mine[0]], [now[0]], entry['document'])
                 )
                 part.conflicts.append((number, (index, theirs)))
         self.parts.append(part)
+
+
+class RefreshPlan(MergePlan):
+    """What updating a split bundle from a newer split brings in
+    (L{DocumentBundle.plan_refresh()})."""
+
+    def __init__(self, refreshed, language):
+        super().__init__(refreshed, language)
+        self.manifest = json.loads(json.dumps(refreshed.manifest))
+        self.contents = dict(refreshed.contents)
+        self.path = refreshed.path
+        self.stat = _stat(refreshed.path) if refreshed.path else None
+        self.added = {}
+        """{member: bytes} of the files of documents new in it."""
+        self.changed = []
+        """The documents whose source changed."""
+        self.removed = []
+        """The documents it no longer has."""
+        self.removed_work = []
+        """Those of them with translations made here."""
 
 
 def tmx_for_language(data, source, language):
