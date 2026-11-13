@@ -129,22 +129,13 @@ def enforced_names(record):
 
 def _length_problem(target, params):
     """What max-length:<n> says of target (its forms), or None."""
-    from virtaal.common.pan_app import ngettext
-    from virtaal.support.libi18n.numbers import format_number
+    from virtaal.support.extrachecks import length_problem
 
     try:
         limit = int(params[-1])
     except (IndexError, ValueError):
         return None
-    if all(len(form) <= limit for form in target):
-        return None
-    text = ngettext(
-        # l10n: A quality check: a translation server allows at most this many characters for the string
-        'Longer than %(count)s character',
-        'Longer than %(count)s characters',
-        limit,
-    )
-    return text % {'count': format_number(limit)}
+    return length_problem(target, limit)
 
 
 def _placeholder_problem(source, target, params):

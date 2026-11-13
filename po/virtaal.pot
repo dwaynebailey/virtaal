@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 05:19+0000\n"
+"POT-Creation-Date: 2026-11-13 05:21+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2561,14 +2561,6 @@ msgstr ""
 msgid "No Weblate server answered at this address."
 msgstr ""
 
-#. l10n: A quality check: a translation server allows at most this many characters for the string
-#: virtaal/plugins/weblate/checks.py
-#, python-format
-msgid "Longer than %(count)s character"
-msgid_plural "Longer than %(count)s characters"
-msgstr[0] ""
-msgstr[1] ""
-
 #. l10n: A quality check: placeholders a translation server says the translation must keep; %s is the list of them
 #: virtaal/plugins/weblate/checks.py
 #, python-format
@@ -2607,6 +2599,14 @@ msgstr ""
 #: virtaal/support/crash_dialog.py
 msgid "Report This Bug…"
 msgstr ""
+
+#. l10n: A quality check: a translation server, or the file, allows at most this many characters for the string
+#: virtaal/support/extrachecks.py
+#, python-format
+msgid "Longer than %(count)s character"
+msgid_plural "Longer than %(count)s characters"
+msgstr[0] ""
+msgstr[1] ""
 
 #. l10n: Phrase (Memsource) tags such as {1} or {1>, which
 #. a translation must keep. %s is the list of them.

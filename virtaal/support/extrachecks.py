@@ -37,8 +37,30 @@ A plug-in may add its check to EXTRA_CHECKS while it is on.
 from virtaal.support import dismissedchecks
 from virtaal.support.gettextpo import MsgfmtCheck
 from virtaal.support.phrase_compat import PhraseTagCheck
+from virtaal.support.xliff2_compat import SizeRestrictionCheck
 
-EXTRA_CHECKS = [MsgfmtCheck, PhraseTagCheck]
+EXTRA_CHECKS = [MsgfmtCheck, PhraseTagCheck, SizeRestrictionCheck]
+
+MAX_LENGTH = 'maxlength'
+"""The failure name of a translation longer than its file or server
+allows."""
+
+
+def length_problem(forms, limit, length=len):
+    """What a limit of limit characters says of forms (a translation's
+    forms, each measured with length), or None."""
+    from virtaal.common.pan_app import ngettext
+    from virtaal.support.libi18n.numbers import format_number
+
+    if all(length(form) <= limit for form in forms):
+        return None
+    text = ngettext(
+        # l10n: A quality check: a translation server, or the file, allows at most this many characters for the string
+        'Longer than %(count)s character',
+        'Longer than %(count)s characters',
+        limit,
+    )
+    return text % {'count': format_number(limit)}
 
 
 def checks_for(store):

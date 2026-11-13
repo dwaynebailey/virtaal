@@ -490,3 +490,69 @@ def serialize(self, out):
 
 xliff2.Xliff2File.parse = parse
 xliff2.Xliff2File.serialize = serialize
+
+
+# Size and length restriction
+
+SLR = "urn:oasis:names:tc:xliff:sizerestriction:2.0"
+SIZE_RESTRICTION = "{%s}sizeRestriction" % SLR
+PROFILES = "{%s}profiles" % SLR
+CODEPOINTS = "xliff:codepoints"
+"""The standard profile that counts a text's code points, in NFC."""
+
+
+def size_limit(unit):
+    """The most characters (code points) a translation of C{unit}, an
+    XLIFF 2 unit, may have: its <unit>'s slr:sizeRestriction, where its
+    <file> measures in xliff:codepoints. None if it has none."""
+    element = unit.getunitelement()
+    limit = element.get(SIZE_RESTRICTION)
+    if limit is None:
+        return None
+    file = next(element.iterancestors(unit.namespaced("file")), None)
+    profiles = file.find(PROFILES) if file is not None else None
+    if profiles is None or profiles.get("generalProfile") != CODEPOINTS:
+        return None
+    try:
+        return int(limit) if int(limit) > 0 else None
+    except ValueError:
+        return None
+
+
+def _codepoints(text):
+    import unicodedata
+
+    return len(unicodedata.normalize("NFC", text))
+
+
+class SizeRestrictionCheck:
+    """The "maxlength" extra check: a translation of an XLIFF 2 unit
+    longer than its size restriction in code points (L{size_limit}),
+    each form of a plural on its own."""
+
+    name = "maxlength"
+    in_child = False
+
+    def __init__(self):
+        from translate.filters.decorators import Category
+
+        self.category = Category.FUNCTIONAL
+
+    @staticmethod
+    def applies_to(store):
+        return isinstance(store, xliff2.Xliff2File)
+
+    @staticmethod
+    def available():
+        return True
+
+    def check(self, unit):
+        if not isinstance(unit, Xliff2Unit) or not unit.target:
+            return None
+        limit = size_limit(unit)
+        if limit is None:
+            return None
+        from virtaal.support.extrachecks import length_problem
+
+        forms = getattr(unit.target, "strings", None) or [unit.target]
+        return length_problem([str(form) for form in forms], limit, _codepoints)
