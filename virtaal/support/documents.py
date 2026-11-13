@@ -564,6 +564,150 @@ class DocumentBundle:
         self.save()
         return True
 
+    # Source changes
+
+    def update_document(self, name, data, original=None):
+        """Replace the document C{name} by C{data}, a new version of it:
+        every language's translatable file is brought up to it
+        (L{updated()})."""
+        document = self.document(name)
+        template = self.converter(document).forward(data, name)
+        _check_translatable(template, document['file_name'])
+        for entry in self.translations(document=name):
+            self._write_work(
+                entry['file'],
+                updated(
+                    template,
+                    self.trans_data(entry),
+                    document['file_name'],
+                    self.source_language,
+                    entry['language'],
+                ),
+            )
+        self.members[document['source']] = data
+        document['sha256'] = sha256(data)
+        if original:
+            document['original'] = original
+        self._write_templates()
+        self.modified = True
+
+    # Splitting by language, and merging what comes back
+
+    def split(self, folder):
+        """Write one bundle for each target language to C{folder}
+        (manual.zu.virtaal), for each language's translator. The master
+        keeps each language's files as split, to merge what comes back.
+        @returns: Their paths."""
+        if not self.languages:
+            raise BundleError('The bundle has no target language to split.')
+        sources = {d['name']: d['sha256'] for d in self.documents()}
+        written = []
+        for language in self.languages:
+            path = os.path.join(folder, '%s.%s.%s' % (self.name, language, EXTENSION))
+            self._check_export(path)
+            manifest, members = self._split_bundle(language, sources)
+            _replace_file(path, _zip(manifest, members))
+            for entry in self.translations(language):
+                self.members[_baseline(entry)] = members[entry['file']]
+            self.manifest.setdefault('splits', {})[language] = {
+                'id': manifest['id'],
+                'created': manifest['created'],
+                'sources': sources,
+            }
+            written.append(path)
+        self.modified = True
+        return written
+
+    def _split_bundle(self, language, sources):
+        manifest = json.loads(json.dumps(self.manifest))
+        manifest.pop('splits', None)
+        manifest.update(
+            id='urn:uuid:%s' % uuid.uuid4(),
+            created=_now(),
+            target_languages=[language],
+            translations=[e for e in manifest['translations'] if e['language'] == language],
+            split_from={'id': self.id, 'language': language, 'sources': sources},
+        )
+        members = {d['source']: self.members[d['source']] for d in self.documents()}
+        for entry in manifest['translations']:
+            data = self.trans_data(entry)
+            members[entry['file']] = data
+            entry['sha256'] = sha256(data)
+            if entry['target'] in self.members:
+                members[entry['target']] = self.members[entry['target']]
+        for name, data in self.members.items():
+            if name.startswith('tm/') and name.lower().endswith('.tmx'):
+                members[name] = tmx_for_language(data, self.source_language, language)
+            elif name.startswith(('tm/', 'terms/')):
+                members[name] = data
+        return manifest, members
+
+    def plan_merge(self, returned):
+        """What merging the bundle C{returned}, split from this one and
+        sent back, brings into its language: unit by unit, the
+        translator's changes to units not changed here since the split,
+        and conflicts where both changed. Documents whose source changed
+        here since are merged against the split's own copy, then
+        brought up to the new source."""
+        language = self._split_language(returned)
+        record = self.manifest['splits'][language]
+        plan = MergePlan(returned, language)
+        for document in self.documents():
+            name = document['name']
+            if name not in record['sources']:
+                continue
+            entry = self.translation(name, language)
+            base = self.members.get(_baseline(entry))
+            incoming = returned.trans_data(returned.translation(name, language))
+            if base is None:
+                raise BundleError('The bundle has no record of %s as split.' % name)
+            if record['sources'][name] != document['sha256']:
+                template = self.converter(document).forward(self.members[document['source']], name)
+                args = (document['file_name'], self.source_language, language)
+                base = updated(template, base, *args)
+                incoming = updated(template, incoming, *args)
+            plan.compare(entry, self.trans_data(entry), base, incoming)
+        return plan
+
+    def _split_language(self, returned):
+        """The language of C{returned} if it was split from this bundle
+        and still has the documents it had then."""
+        split = returned.split_from() or {}
+        language = split.get('language')
+        record = self.manifest.get('splits', {}).get(language)
+        if split.get('id') != self.id or record is None or language not in self.languages:
+            raise BundleError("This bundle wasn't split from the one open.")
+        names = {d['name']: d['sha256'] for d in returned.documents()}
+        if names != split.get('sources') or set(names) != set(record['sources']):
+            raise BundleError("The returned bundle's documents were changed.")
+        return language
+
+    def apply_merge(self, plan, choices=None):
+        """Write what C{plan} brings in. C{choices}: {conflict index:
+        KEEP_MINE, TAKE_THEIRS or SKIP}; a conflict not in it is skipped
+        and comes up again at the next merge.
+        @returns: How many units changed."""
+        from virtaal.support.platforms.submit import KEEP_MINE, TAKE_THEIRS
+
+        choices = choices or {}
+        changed = 0
+        for part in plan.parts:
+            taken = list(part.takes)
+            skipped = []
+            for number, (index, theirs) in part.conflicts:
+                choice = choices.get(number)
+                if choice == TAKE_THEIRS:
+                    taken.append((index, theirs))
+                elif choice != KEEP_MINE:
+                    skipped.append(index)
+            for index, theirs in taken:
+                _take(part.local.units[index], theirs)
+            changed += len(taken)
+            self._write_work(part.entry['file'], bytes(part.local))
+            self.members[_baseline(part.entry)] = part.baseline(skipped)
+        self.modified = True
+        return changed
+
     # Export
 
     def export_document(self, document, language, path):
@@ -602,6 +746,124 @@ class DocumentBundle:
         for language in self.languages:
             written += self.export_language(language, os.path.join(folder, language))
         return written
+
+
+def _baseline(entry):
+    """The master's copy of a translatable file as split."""
+    return 'baselines/' + entry['file'].split('/', 1)[1]
+
+
+def _value(unit):
+    """What a merge compares of a unit: its translation and whether it
+    needs work."""
+    if unit is None:
+        return ('', False)
+    return (str(unit.target or ''), bool(unit.isfuzzy()))
+
+
+def _take(unit, other):
+    """Give C{unit} the translation and state of C{other}."""
+    if other is None or not other.target:
+        unit.target = ''
+    else:
+        unit.rich_target = other.rich_target
+    unit.markfuzzy(bool(other is not None and other.isfuzzy()))
+
+
+def _keyed(store):
+    return {u.getid(): u for u in store.units if u.istranslatable()}
+
+
+class _MergePart:
+    """One translatable file's share of a merge."""
+
+    def __init__(self, entry, local, base, incoming):
+        self.entry = entry
+        self.local = local
+        self.base = base
+        self.incoming = incoming
+        self.takes = []
+        """(index in local, incoming unit) of units changed only there."""
+        self.conflicts = []
+        """(conflict number, (index in local, incoming unit))."""
+
+    def baseline(self, skipped):
+        """The new baseline: the returned file, but with the conflicts
+        skipped as they were, so they come up again."""
+        baseline = _store(bytes(self.incoming), self.entry['file'])
+        units = _keyed(baseline)
+        old = _keyed(self.base)
+        for index in skipped:
+            key = self.local.units[index].getid()
+            if key in units:
+                _take(units[key], old.get(key))
+        return bytes(baseline)
+
+
+class MergePlan:
+    """What a merge of a returned bundle brings in (L{DocumentBundle.plan_merge()})."""
+
+    def __init__(self, returned, language):
+        self.returned = returned
+        self.language = language
+        self.parts = []
+        self.conflicts = []
+        """Conflict tuples (platforms.submit.Conflict): source, mine,
+        theirs and the document's name."""
+        self.same = 0
+        """Units the translator changed to what this bundle has."""
+
+    @property
+    def takes(self):
+        return sum(len(part.takes) for part in self.parts)
+
+    def compare(self, entry, local, base, incoming):
+        from virtaal.support.platforms.submit import Conflict
+
+        name = entry['file']
+        part = _MergePart(entry, _store(local, name), _store(base, name), _store(incoming, name))
+        base_units = _keyed(part.base)
+        incoming_units = _keyed(part.incoming)
+        for index, unit in enumerate(part.local.units):
+            theirs = incoming_units.get(unit.getid()) if unit.istranslatable() else None
+            if theirs is None:
+                continue
+            before, mine, now = _value(base_units.get(unit.getid())), _value(unit), _value(theirs)
+            if now == before:
+                continue
+            if now == mine:
+                self.same += 1
+            elif mine == before:
+                part.takes.append((index, theirs))
+            else:
+                number = len(self.conflicts)
+                self.conflicts.append(
+                    Conflict(number, str(unit.source), [mine[0]], [now[0]], entry['document'])
+                )
+                part.conflicts.append((number, (index, theirs)))
+        self.parts.append(part)
+
+
+def tmx_for_language(data, source, language):
+    """A TMX file's bytes with only the entries in C{source} and
+    C{language}."""
+    from lxml import etree
+
+    from virtaal.models.langmodel import same_language
+
+    try:
+        root = etree.fromstring(data, packages._PARSER)
+    except etree.XMLSyntaxError:
+        return data
+    lang_attr = '{http://www.w3.org/XML/1998/namespace}lang'
+    for tu in list(root.iter('tu')):
+        for tuv in list(tu.iter('tuv')):
+            code = (tuv.get(lang_attr) or tuv.get('lang') or '').replace('-', '_')
+            if not (same_language(code, source) or same_language(code, language)):
+                tu.remove(tuv)
+        if len(tu.findall('tuv')) < 2:
+            tu.getparent().remove(tu)
+    return etree.tostring(root, xml_declaration=True, encoding='UTF-8')
 
 
 def _same_file(a, b):

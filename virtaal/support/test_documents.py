@@ -409,3 +409,193 @@ def test_html_and_text_documents(tmp_path):
 
     assert '<p>Een paragraaf.</p>' in (tmp_path / 'af' / 'page.html').read_text('utf-8')
     assert (tmp_path / 'af' / 'notes.txt').read_text('utf-8').startswith("'n Nota.")
+
+
+# Source changes, splitting and merging
+
+
+@pytest.fixture
+def master(tmp_path):
+    """A master of two documents in three languages, saved."""
+    folder = tmp_path / 'manual'
+    folder.mkdir()
+    intro = _odt(folder, 'intro.odt', ['Welcome.', 'Read this first.'])
+    usage = _odt(folder, 'usage.odt', ['Press the button.'])
+    bundle = documents.from_documents([intro, usage], 'en')
+    for language in ('zu', 'xh', 'st'):
+        bundle.add_language(language)
+    bundle.save(str(tmp_path / 'manual.virtaal'))
+    return bundle
+
+
+def _file(bundle, document, language):
+    return bundle.work_path(bundle.translation(document, language)['file'])
+
+
+def test_a_changed_source_updates_every_language(tmp_path, master):
+    for language in master.languages:
+        _translate(
+            _file(master, 'intro.odt', language),
+            {'Welcome.': 'Welcome in %s.' % language, 'Read this first.': 'First, %s.' % language},
+        )
+    new = _docsamples.odt(['Welcome.', 'Read this first, please.', 'A new paragraph.'])
+
+    master.update_document('intro.odt', new)
+
+    for language in master.languages:
+        units = _units(_file(master, 'intro.odt', language))
+        assert units['Welcome.'] == ('Welcome in %s.' % language, False)
+        assert units['Read this first, please.'] == ('First, %s.' % language, True)
+        assert units['A new paragraph.'] == ('', False)
+    assert master.members['sources/intro.odt'] == new
+    assert master.document('intro.odt')['sha256'] == documents.sha256(new)
+    assert master.modified
+
+
+def test_split_writes_a_bundle_per_language(tmp_path, master):
+    out = tmp_path / 'out'
+    out.mkdir()
+
+    written = master.split(str(out))
+
+    assert [os.path.basename(p) for p in written] == [
+        'manual.zu.virtaal',
+        'manual.xh.virtaal',
+        'manual.st.virtaal',
+    ]
+    zu = DocumentBundle.open(written[0], str(tmp_path / 'work-zu'))
+    assert zu.languages == ['zu']
+    assert zu.suggested_name() == 'manual.zu.virtaal'
+    assert {e['language'] for e in zu.translations()} == {'zu'}
+    assert zu.split_from()['id'] == master.id
+    assert 'baselines/zu/intro.odt.xlf' in master.members
+    assert master.manifest['splits']['zu']['id'] == zu.id
+    assert master.modified
+
+
+def _returned(tmp_path, master, language, translations):
+    out = tmp_path / 'out'
+    out.mkdir(exist_ok=True)
+    path = [p for p in master.split(str(out)) if '.%s.' % language in p][0]
+    returned = DocumentBundle.open(path, str(tmp_path / ('work-' + language)))
+    for entry in returned.translations():
+        _translate(returned.work_path(entry['file']), translations)
+    returned.save()
+    return DocumentBundle.open(path, str(tmp_path / ('again-' + language)))
+
+
+def test_merge_brings_back_one_languages_translations(tmp_path, master):
+    returned = _returned(tmp_path, master, 'zu', {'Welcome.': 'Wamukelekile.'})
+
+    plan = master.plan_merge(returned)
+
+    assert (plan.language, plan.takes, plan.conflicts) == ('zu', 1, [])
+    assert master.apply_merge(plan) == 1
+    assert _units(_file(master, 'intro.odt', 'zu'))['Welcome.'] == ('Wamukelekile.', False)
+    for language in ('xh', 'st'):
+        assert _units(_file(master, 'intro.odt', language))['Welcome.'] == ('', False)
+
+
+def test_merging_the_same_bundle_again_brings_nothing(tmp_path, master):
+    returned = _returned(tmp_path, master, 'zu', {'Welcome.': 'Wamukelekile.'})
+    master.apply_merge(master.plan_merge(returned))
+
+    plan = master.plan_merge(returned)
+
+    assert (plan.takes, plan.conflicts, plan.same) == (0, [], 0)
+
+
+def test_merge_conflicts_keep_mine_take_theirs_or_skip(tmp_path, master):
+    from virtaal.support.platforms.submit import KEEP_MINE, SKIP, TAKE_THEIRS
+
+    returned = _returned(
+        tmp_path,
+        master,
+        'zu',
+        {
+            'Welcome.': 'Theirs one.',
+            'Read this first.': 'Theirs two.',
+            'Press the button.': 'Same.',
+        },
+    )
+    _translate(
+        _file(master, 'intro.odt', 'zu'), {'Welcome.': 'Mine one.', 'Read this first.': 'Mine two.'}
+    )
+    _translate(_file(master, 'usage.odt', 'zu'), {'Press the button.': 'Same.'})
+
+    plan = master.plan_merge(returned)
+
+    assert [(c.source, c.mine, c.theirs, c.where) for c in plan.conflicts] == [
+        ('Welcome.', ['Mine one.'], ['Theirs one.'], 'intro.odt'),
+        ('Read this first.', ['Mine two.'], ['Theirs two.'], 'intro.odt'),
+    ]
+    assert plan.same == 1
+    master.apply_merge(plan, {0: TAKE_THEIRS, 1: SKIP})
+    units = _units(_file(master, 'intro.odt', 'zu'))
+    assert units['Welcome.'] == ('Theirs one.', False)
+    assert units['Read this first.'] == ('Mine two.', False)
+    # The conflict skipped comes up again; the one decided doesn't.
+    again = master.plan_merge(returned)
+    assert [c.source for c in again.conflicts] == ['Read this first.']
+    master.apply_merge(again, {0: KEEP_MINE})
+    assert master.plan_merge(returned).conflicts == []
+    assert _units(_file(master, 'intro.odt', 'zu'))['Read this first.'] == ('Mine two.', False)
+
+
+def test_merge_refuses_a_bundle_from_another_master(tmp_path, master, report):
+    other = documents.from_documents([report], 'en', 'zu')
+    other.save(str(tmp_path / 'report.zu.virtaal'))
+
+    with pytest.raises(BundleError, match="wasn't split"):
+        master.plan_merge(other)
+
+
+def test_merge_refuses_a_bundle_whose_documents_changed(tmp_path, master):
+    returned = _returned(tmp_path, master, 'zu', {'Welcome.': 'Wamukelekile.'})
+    returned.add_document(_odt(tmp_path, 'extra.odt', ['Extra.']))
+
+    with pytest.raises(BundleError, match='documents were changed'):
+        master.plan_merge(returned)
+
+
+def test_merge_after_the_source_changed_marks_changed_units_for_review(tmp_path, master):
+    returned = _returned(
+        tmp_path,
+        master,
+        'zu',
+        {'Welcome.': 'Wamukelekile.', 'Read this first.': 'Funda lokhu kuqala.'},
+    )
+    master.update_document('intro.odt', _docsamples.odt(['Welcome.', 'Read this first, please.']))
+
+    plan = master.plan_merge(returned)
+    master.apply_merge(plan)
+
+    units = _units(_file(master, 'intro.odt', 'zu'))
+    assert units['Welcome.'] == ('Wamukelekile.', False)
+    assert units['Read this first, please.'] == ('Funda lokhu kuqala.', True)
+
+
+def test_split_needs_a_language(tmp_path):
+    bundle = documents.from_documents(
+        [_odt(tmp_path, 'a.odt', ['A.']), _odt(tmp_path, 'b.odt', ['B.'])], 'en'
+    )
+    with pytest.raises(BundleError, match='no target language'):
+        bundle.split(str(tmp_path))
+
+
+def test_split_copies_only_its_languages_tm_entries(tmp_path, master):
+    master.members['tm/shared.tmx'] = (
+        b'<?xml version="1.0"?><tmx version="1.4"><header srclang="en"/><body>'
+        b'<tu><tuv xml:lang="en"><seg>Hi</seg></tuv><tuv xml:lang="zu"><seg>Sawubona</seg></tuv>'
+        b'<tuv xml:lang="xh"><seg>Molo</seg></tuv></tu>'
+        b'<tu><tuv xml:lang="en"><seg>Bye</seg></tuv><tuv xml:lang="xh"><seg>Hamba</seg></tuv></tu>'
+        b'</body></tmx>'
+    )
+    out = tmp_path / 'out'
+    out.mkdir()
+    zu = master.split(str(out))[0]
+
+    tmx = _read(zu, 'tm/shared.tmx')
+    assert b'Sawubona' in tmx
+    assert b'Molo' not in tmx
+    assert b'Bye' not in tmx
