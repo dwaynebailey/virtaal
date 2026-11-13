@@ -457,8 +457,12 @@ FORMAT_PARSERS = {
     'json-vue': (VuePlaceable,),
     'mxliff': (PhraseTagPlaceable,),
     'strings': (ApplePlaceable,),
+    'ruby': (RubyPlaceable,),
+    'dotnet': (DotNetPlaceable, BracePlaceable),
 }
-"""Format (see L{format_of}) -> the parsers its text needs."""
+"""Format (see L{format_of}) -> the parsers its text needs: 'ruby' for
+Ruby on Rails' YAML, 'dotnet' for .resx and the like, for a file whose
+model names its format (placeable_format)."""
 
 FLAG_PARSERS = {
     'python-brace-format': (BracePlaceable,),
@@ -506,8 +510,13 @@ def _model_of(store, unit):
 def format_of(store, unit=None):
     """The key in L{FORMAT_PARSERS} of the file of unit in store (a
     L{virtaal.models.storemodel.StoreModel} or a stream of them), or
-    None."""
+    None. A model's placeable_format, if set, says: such as a
+    translation server's work copy built in XLIFF from strings of
+    another format."""
     model = _model_of(store, unit)
+    chosen = getattr(model, 'placeable_format', None)
+    if chosen:
+        return chosen
     pair = getattr(model, 'pair', None)
     if pair is None:
         return _bilingual_format(model)

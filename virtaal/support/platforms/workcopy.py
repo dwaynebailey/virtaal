@@ -45,7 +45,10 @@ In the language's folder, .platform.json is the side record:
               "checks": [<ids of the checks it fails, if known>],
               "changed": <bool>, "local_state": <StateEnum>}],
    "check_flags": <the component's check flags>,
-   "enforced_checks": [<ids of the checks the server enforces>]}
+   "enforced_checks": [<ids of the checks the server enforces>],
+   "origin": <"units" for a file built from the server's units, or null>,
+   "platform_format": <the platform's id of the file's format, or null>,
+   "placeables": <the placeables' format (formatplaceables), or null>}
 
 Each unit's hashes, state and last_updated are as the server gave them
 at download: the baseline Submit (submit.py) checks for conflicts
@@ -91,6 +94,13 @@ sent yet; a unit that changed on the server too gets "conflict" and
 waits for Submit or Update, which clear it. "updated_at" is when Update
 last asked the server for changes (update.py).
 
+A file Virtaal can't read is built from the server's units instead, in
+a format it can (origin "units", such as XLIFF 2 with each unit's id
+on the server as its id): Submit and Update work per unit anyway, and
+its units match by their ids. "platform_format" is the format the
+platform holds them in, and "placeables" (formatplaceables'
+FORMAT_PARSERS) which placeables its text has.
+
 Matching the file's units to the platform's (match()): by context
 (PO's msgctxt; a monolingual file's key), then by source text, then by
 position. Units with the same context and source pair in file order.
@@ -122,6 +132,8 @@ FORMAT = 1
 DIRECTORY = 'platforms'
 RECORD = '.platform.json'
 TEMPLATE_FOLDER = '_template'
+BUILT = 'units'
+"""A side record's origin: its file was built from the server's units."""
 
 _UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 _RESERVED = {'CON', 'PRN', 'AUX', 'NUL'} | {
@@ -540,7 +552,9 @@ class WorkCopy:
         the record's, showing the platform's states and locks."""
         self.store = store
         units = store.get_units()
-        keyed = getattr(store, 'pair', None) is not None
+        keyed = getattr(store, 'pair', None) is not None or self.record.get('origin') == BUILT
+        if self.record.get('placeables'):
+            store.placeable_format = self.record['placeables']
         found = match(units, self.units, keyed)
         self.matched = {r: units[i] for r, i in found.items()}
         self._indexes = {id(unit): r for r, unit in self.matched.items()}
@@ -719,6 +733,9 @@ def create(platform, server, project, component, language, download):
         'source_review': options.get('source_review'),
         'check_flags': options.get('check_flags') or '',
         'enforced_checks': list(options.get('enforced_checks') or ()),
+        'origin': options.get('origin'),
+        'platform_format': options.get('platform_format'),
+        'placeables': options.get('placeables'),
         'downloaded_at': _now(),
         'sha256': hashlib.sha256(download.data).hexdigest(),
         'saved_sha256': None,

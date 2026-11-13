@@ -125,7 +125,11 @@ options, or None: {'review': whether translations are reviewed
 (approved), 'source_review': whether source problems can be reported},
 each None if unknown; for a platform that can_check also
 'check_flags', the component's check flags (the platform's text), and
-'enforced_checks', the ids of the checks it enforces."""
+'enforced_checks', the ids of the checks it enforces; and for a file
+built from the units (data in a format Virtaal reads, such as XLIFF,
+for a format it can't): 'origin' workcopy.BUILT, 'platform_format' the
+platform's own format and 'placeables' the placeables' format
+(formatplaceables.FORMAT_PARSERS)."""
 
 Suggestion = namedtuple('Suggestion', 'id target user')
 """Someone's suggestion for a unit: its id on the platform, its target

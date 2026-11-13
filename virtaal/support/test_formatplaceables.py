@@ -485,3 +485,11 @@ def test_a_phrase_file_is_mxliff_whatever_its_name():
     assert fp.format_of(phrase) == 'mxliff'
     assert fp.format_of(_xliff_model(' xmlns:mq="MQXliff"')) is None
     assert fp.format_of(_xliff_model('')) is None
+
+
+def test_a_model_may_name_its_placeables_format():
+    model = SimpleNamespace(placeable_format='ruby', pair=None)
+
+    assert fp.format_of(model) == 'ruby'
+    assert fp.placeables_for('ruby') == [fp.RubyPlaceable, fp.ApplePlaceable, fp.DotNetPlaceable]
+    assert fp.BracePlaceable in fp.placeables_for('dotnet')

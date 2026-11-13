@@ -411,3 +411,46 @@ def test_work_not_submitted_is_kept():
 
     assert workcopy.existing('weblate', SERVER, 'hello', 'program', 'af').has_local_changes()
     assert workcopy.existing('weblate', SERVER, 'hello', 'other', 'af') is None
+
+
+XLIFF2 = b'''<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="af">
+ <file id="f1">
+  <unit id="b2"><segment><source>Save</source><target>Bewaar</target></segment></unit>
+  <unit id="a1"><segment><source>Save</source><target>Stoor</target></segment></unit>
+ </file>
+</xliff>
+'''
+
+
+def test_a_file_built_from_the_units_matches_them_by_id():
+    from translate.storage import xliff2
+
+    remote = [
+        _remote('a1', 1, 'a1', 'Save', 'Stoor'),
+        _remote('b2', 2, 'b2', 'Save', 'Bewaar'),
+    ]
+    options = {'origin': workcopy.BUILT, 'platform_format': 'DOCX', 'placeables': 'ruby'}
+    download = Download('af.xlf', XLIFF2, None, remote, {'project': 'Hello'}, options)
+    copy = workcopy.create(PLATFORM, SERVER, 'hello', 'program', 'af', download)
+    store = xliff2.Xliff2File.parsefile(copy.path)
+    model = SimpleNamespace(get_units=lambda: store.units)
+
+    copy.attach(model)
+
+    # Both "Save": by their ids, not in file order.
+    assert {r: str(unit.target) for r, unit in copy.matched.items()} == {0: 'Stoor', 1: 'Bewaar'}
+    assert model.placeable_format == 'ruby'
+    record = workcopy.for_file(copy.path).record
+    assert (record['origin'], record['platform_format']) == ('units', 'DOCX')
+
+
+def test_a_downloaded_file_has_no_origin_nor_placeables():
+    copy = _create()
+    store = po.pofile.parsefile(copy.path)
+    model = _Store(store)
+
+    copy.attach(model)
+
+    assert copy.record['origin'] is None and copy.record['placeables'] is None
+    assert not hasattr(model, 'placeable_format')
