@@ -35,6 +35,11 @@ rate_limit answers 429 with the wait in its text only, as Transifex does
 review() change a string as someone else would; forbid() refuses
 changes to one string (403); offline drops every connection.
 
+add_formats() adds a project of resources in other formats: DOCX, SRT,
+a made-up one, Rails YAML and JSON with a plural, which Virtaal builds
+as XLIFF from their strings, and Apple .strings and ARB, which it
+downloads; the hand server has them too.
+
 Never point Virtaal at a real Transifex from a test.
 
 Run by hand:  python -m devsupport.testing.faketransifex --port 8766
@@ -55,7 +60,7 @@ from urllib import parse
 from devsupport.testing import transifex_schema
 from devsupport.testing.fakeplatform import FakeServer, run_until
 
-__all__ = ['TOKEN', 'FakeTransifex', 'demo', 'run_until']
+__all__ = ['TOKEN', 'FakeTransifex', 'add_formats', 'demo', 'run_until']
 
 TOKEN = '1/fake0123456789abcdef0123456789abcdef01234567'
 """The personal token the server accepts."""
@@ -158,12 +163,16 @@ class FakeTransifex(FakeServer):
             return None
         return self.organisations.get(found.group(1), {}).get('projects', {}).get(found.group(2))
 
-    def add_string(self, resource, key, source, translations=None, context='', plural=False):
+    def add_string(
+        self, resource, key, source, translations=None, context='', plural=False, **about
+    ):
         """A string of resource: source is its text (a list of forms for a
         plural, one and other), translations {language: (forms, state)}
-        with state 'translated', 'reviewed' or 'proofread'."""
+        with state 'translated', 'reviewed' or 'proofread'; about, its
+        other attributes (developer_comment, character_limit, tags...)."""
         forms = source if isinstance(source, list) else [source]
         string = {
+            'about': dict(about),
             'hash': _hash(key, context),
             'key': key,
             'context': context,
@@ -441,9 +450,14 @@ class FakeTransifex(FakeServer):
                 'context': string['context'],
                 'strings': dict(string['strings']),
                 'pluralized': string['pluralized'],
+                'developer_comment': None,
+                'instructions': None,
+                'character_limit': None,
+                'occurrences': None,
                 'tags': [],
                 'string_hash': string['hash'],
                 'strings_datetime_modified': string['modified'],
+                **string['about'],
             },
         }
 
@@ -714,18 +728,49 @@ def _json(body):
         return None
 
 
+def _pairs(resource, code):
+    """(key, text) of each string of resource in code (None: its source),
+    "" for none."""
+    for string in resource['strings']:
+        if code is None:
+            yield string['key'], string['strings']['other']
+        else:
+            strings = (string['translations'].get(code) or {}).get('strings') or {}
+            yield string['key'], strings.get('other', '')
+
+
+def _json_bytes(resource, code, head=None):
+    data = dict(head or {})
+    data.update(_pairs(resource, code))
+    return (json.dumps(data, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+
+
+def _strings_bytes(resource, code):
+    def quoted(text):
+        return text.replace('\\', '\\\\').replace('"', '\\"')
+
+    lines = ['"%s" = "%s";' % (quoted(k), quoted(v)) for k, v in _pairs(resource, code) if v]
+    return ('\n'.join(lines) + '\n').encode('utf-8')
+
+
+def _properties_bytes(resource, code):
+    lines = ['%s=%s' % (k, v) for k, v in _pairs(resource, code) if v or code is None]
+    return ('\n'.join(lines) + '\n').encode('utf-8')
+
+
 def file_bytes(resource, code):
     """The resource's file in code (None: the source file), as Transifex
-    builds it from its strings."""
-    if resource['format'] == 'KEYVALUEJSON':
-        data = {}
-        for string in resource['strings']:
-            if code is None:
-                data[string['key']] = string['strings']['other']
-            else:
-                strings = (string['translations'].get(code) or {}).get('strings') or {}
-                data[string['key']] = strings.get('other', '')
-        return (json.dumps(data, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    builds it from its strings. A format Virtaal builds itself (DOCX,
+    SRT...) comes as PO, which Virtaal never asks for."""
+    file_format = resource['format']
+    if file_format == 'KEYVALUEJSON':
+        return _json_bytes(resource, code)
+    if file_format == 'ARB':
+        return _json_bytes(resource, code, {'@@locale': code or 'en'})
+    if file_format == 'STRINGS':
+        return _strings_bytes(resource, code)
+    if file_format == 'PROPERTIES':
+        return _properties_bytes(resource, code)
     return _po_bytes(resource, code or 'en')
 
 
@@ -831,13 +876,59 @@ def demo():
     return fake
 
 
+def add_formats(fake):
+    """Hello Org's Formats, in Afrikaans and Russian: resources in formats
+    Virtaal builds a file for (DOCX, SRT, a format Transifex might add,
+    Rails YAML, JSON with a plural) and in ones it reads (Apple
+    .strings, ARB)."""
+    fake.add_project('hello-org', 'formats', 'Formats', languages=('af', 'ru'))
+    guide = fake.add_resource('hello-org', 'formats', 'guide', 'User guide', 'DOCX')
+    fake.add_string(
+        guide,
+        'p1',
+        'Welcome to the guide.',
+        {'af': ('Welkom by die gids.', 'reviewed')},
+        developer_comment='The first paragraph.',
+        instructions='Keep it friendly.',
+    )
+    fake.add_string(guide, 'p2', 'Save', {'af': ('Stoor', 'translated')}, character_limit=6)
+    fake.add_string(guide, 'p3', 'Save', occurrences='guide.docx:12')
+    fake.add_string(
+        guide,
+        'files',
+        ['%d file', '%d files'],
+        {'af': (['%d lêer', '%d lêers'], 'translated')},
+        plural=True,
+        tags=['ui', 'count'],
+        character_limit=12,
+    )
+    subtitles = fake.add_resource('hello-org', 'formats', 'subtitles', 'Subtitles', 'SRT')
+    fake.add_string(subtitles, '1', 'Hello.', {'af': ('Hallo.', 'proofread')})
+    fake.add_string(subtitles, '2', 'Goodbye.')
+    future = fake.add_resource('hello-org', 'formats', 'future', 'Future', 'NEW_FORMAT_2027')
+    fake.add_string(future, 'one', 'Something new')
+    rails = fake.add_resource('hello-org', 'formats', 'rails', 'Rails', 'YML_KEY')
+    fake.add_string(rails, 'en.greeting', 'Hello %{name}', {'af': ('Hallo %{name}', 'translated')})
+    fake.add_string(rails, 'en.bye', 'Goodbye')
+    counts = fake.add_resource('hello-org', 'formats', 'counts', 'Counts', 'KEYVALUEJSON')
+    fake.add_string(counts, 'title', 'Counts {name}')
+    fake.add_string(counts, 'items', ['{count} item', '{count} items'], plural=True)
+    apple = fake.add_resource('hello-org', 'formats', 'apple', 'Apple', 'STRINGS')
+    fake.add_string(apple, 'open', 'Open %@', {'af': ('Maak %@ oop', 'translated')})
+    fake.add_string(apple, 'close', 'Close')
+    flutter = fake.add_resource('hello-org', 'formats', 'flutter', 'Flutter', 'ARB')
+    fake.add_string(flutter, 'title', 'Hello {name}', {'af': ('Hallo {name}', 'translated')})
+    fake.add_string(flutter, 'quit', 'Quit')
+    return fake
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', type=int, default=8766, help='0 for a free one')
     parser.add_argument('--port-file', help='where to write the port, once it listens')
     parser.add_argument('--hand', action='store_true', help='POST /_fake/edit/ to change a string')
     args = parser.parse_args()
-    fake = demo()
+    fake = add_formats(demo())
     fake.controls = args.hand
     if args.hand:
         handle = fake.handle
