@@ -5,16 +5,19 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""The translation bundle open as a source of suggestions: its TMX
-files, in the language open, while it is open."""
+"""The translation bundle open as a source of suggestions and terms: its
+TMX and TBX files, in the language open, while it is open."""
 
 from types import SimpleNamespace
 
 import pytest
 from gi.repository import GLib
+from translate.storage.placeables.terminology import TerminologyPlaceable
 
 from virtaal.common import pan_app
 from virtaal.controllers.placeablescontroller import PlaceablesController
+from virtaal.plugins.terminology import termview
+from virtaal.plugins.terminology.termcontroller import TerminologyController
 from virtaal.plugins.tm.models import bundle as bundle_tm
 from virtaal.plugins.tm.tmcontroller import TMController
 from virtaal.support import _docsamples, documents, packages
@@ -28,6 +31,13 @@ TMX = (
     b'<tu><tuv xml:lang="en"><seg>Close the window.</seg></tuv>'
     b'<tuv xml:lang="xh"><seg>Vala ifestile.</seg></tuv></tu>'
     b'</body></tmx>'
+)
+TBX = (
+    b'<?xml version="1.0"?><martif type="TBX" xml:lang="en"><text><body>'
+    b'<termEntry><langSet xml:lang="en"><tig><term>button</term></tig></langSet>'
+    b'<langSet xml:lang="zu"><tig><term>inkinobho</term></tig></langSet>'
+    b'<langSet xml:lang="xh"><tig><term>iqhosha</term></tig></langSet></termEntry>'
+    b'</body></text></martif>'
 )
 OTHERS = [
     '_dummytm',
@@ -71,6 +81,7 @@ class TestBundleSources(TestScaffolding):
         for language in languages:
             bundle.add_language(language)
         bundle.contents['tm/project.tmx'] = TMX
+        bundle.contents['terms/project.tbx'] = TBX
         saved = str(self.dir / ('%s.virtaal' % name))
         bundle.save(saved)
         return bundle, saved
@@ -137,6 +148,47 @@ class TestBundleSources(TestScaffolding):
         assert model.match_weight({}) == 1.0
         assert pan_app.load_config(str(self.dir / 'tm.ini'), 'bundle')['first'] == 'False'
         assert self._tm().match_weight({}) == 1.0
+
+    def _terms(self):
+        controller = TerminologyController(
+            self.main_controller,
+            {
+                'disabled_models': [
+                    'localfile',
+                    'autoterm',
+                    'pontoon',
+                    'microsoft',
+                    'platformglossary',
+                ]
+            },
+        )
+        self.controllers.append(controller)
+        return controller.plugin_controller.plugins['bundle']
+
+    def test_its_terms_in_the_language_open_are_offered_first(self):
+        _bundle, path = self._bundle(languages=('zu', 'xh'))
+        model = self._terms()
+
+        assert self.main_controller.open_file(path)
+        self.store_controller.open_stream_language('xh')
+
+        assert model.matcher in TerminologyPlaceable.matchers
+        assert [u.target for u in model.matcher.matches('the button')] == ['iqhosha']
+        assert self._candidates() == ['iqhosha', 'aqhosha']
+        model.config['first'] = False
+        model._reload()
+        assert self._candidates() == ['aqhosha', 'iqhosha']
+        self.store_controller.close_file()
+        assert model.matcher is None
+        assert model.matcher not in TerminologyPlaceable.matchers
+
+    @staticmethod
+    def _candidates():
+        elem = TerminologyPlaceable(['button'])
+        elem.translations = ['aqhosha', 'iqhosha']
+        info = termview.TerminologyGUIInfo.__new__(termview.TerminologyGUIInfo)
+        info.elem = elem
+        return info.get_insert_candidates()
 
 
 def test_a_bundles_matches_rank_above_other_sources_of_the_same_kind():

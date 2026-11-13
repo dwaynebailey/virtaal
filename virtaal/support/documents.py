@@ -996,12 +996,17 @@ class DocumentBundle:
         self.modified = True
         return changed
 
-    # The bundle's translation memory
+    # The bundle's translation memory and terms
 
     def memory(self, language):
         """The translations of its TMX files (tm/*.tmx) from its source
         language into C{language}: [(source, translation)]."""
         return self._pairs('tm/', '.tmx', tmx_pairs, language)
+
+    def terms(self, language):
+        """The terms of its TBX files (terms/*.tbx) in its source
+        language and C{language}: [(term, translation)]."""
+        return self._pairs('terms/', '.tbx', tbx_pairs, language)
 
     def _pairs(self, folder, extension, read, language):
         pairs = []
@@ -1314,6 +1319,30 @@ def tmx_pairs(data, source, language):
         sources, targets = _in_language(texts, source), _in_language(texts, language)
         if sources and targets:
             pairs.append((sources[0], targets[0]))
+    return pairs
+
+
+def tbx_pairs(data, source, language):
+    """A TBX file's terms in C{source} and C{language}: each source term
+    of a concept that has both, with the concept's first term in
+    C{language}. [(term, translation)]."""
+    from lxml import etree
+
+    try:
+        root = etree.fromstring(data, packages._PARSER)
+    except etree.XMLSyntaxError:
+        return []
+    lang_attr = '{http://www.w3.org/XML/1998/namespace}lang'
+    pairs = []
+    for concept in root.iter('{*}termEntry', '{*}conceptEntry'):
+        texts = [
+            (section.get(lang_attr) or section.get('lang'), ''.join(term.itertext()).strip())
+            for section in concept.iter('{*}langSet', '{*}langSec')
+            for term in section.iter('{*}term')
+        ]
+        targets = _in_language(texts, language)
+        if targets:
+            pairs.extend((term, targets[0]) for term in _in_language(texts, source))
     return pairs
 
 

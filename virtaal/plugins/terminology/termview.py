@@ -12,6 +12,9 @@ from virtaal.views.baseview import BaseView
 from virtaal.views.placeablesguiinfo import StringElemGUI
 from virtaal.views.theme import base_color, is_inverse
 
+first_matchers = []
+"""The terminology matchers whose translations are offered first."""
+
 _default_fg = '#006600'
 _default_bg = '#eeffee'
 _inverse_fg = '#c7ffff'
@@ -35,8 +38,15 @@ class TerminologyGUIInfo(StringElemGUI):
     # METHODS #
     def get_insert_candidates(self):
         if len(self.elem.translations) > 1:
+            first = {
+                unit.target
+                for matcher in first_matchers
+                for unit in matcher.matches(str(self.elem))
+            }
             # translations comes from a set(), so sort for a stable order (#3912).
-            return sorted(self.elem.translations, key=locale.strxfrm)
+            return sorted(
+                self.elem.translations, key=lambda text: (text not in first, locale.strxfrm(text))
+            )
         return None
 
     @classmethod

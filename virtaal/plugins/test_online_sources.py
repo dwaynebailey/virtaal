@@ -39,6 +39,7 @@ SOURCES = [
     ('virtaal.plugins.tm.models.localtm', 'TMModel', None, None),
     ('virtaal.plugins.tm.models.currentfile', 'TMModel', None, None),
     ('virtaal.plugins.tm.models.bundle', 'TMModel', None, None),
+    ('virtaal.plugins.terminology.models.bundle', 'TerminologyModel', None, None),
     # Fetch whole term lists by language, never the text.
     ('virtaal.plugins.terminology.models.pontoon', 'TerminologyModel', None, None),
     ('virtaal.plugins.terminology.models.autoterm', 'TerminologyModel', None, None),

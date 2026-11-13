@@ -1084,3 +1084,23 @@ def test_the_translation_memory_in_the_language_asked_for(tmp_path, master):
     assert master.memory('zu') == [('Hi', 'Sawubona')]
     assert master.memory('xh') == [('Hi', 'Molo'), ('Bye', 'Hamba')]
     assert master.memory('st') == []
+
+
+def test_the_terms_in_the_language_asked_for(tmp_path, master):
+    master.contents['terms/a.tbx'] = (
+        b'<?xml version="1.0"?><martif type="TBX" xml:lang="en"><text><body>'
+        b'<termEntry><langSet xml:lang="en"><tig><term>file</term></tig></langSet>'
+        b'<langSet xml:lang="zu"><tig><term>ifayela</term></tig></langSet></termEntry>'
+        b'<termEntry><langSet xml:lang="en"><ntig><termGrp><term>window</term></termGrp></ntig>'
+        b'</langSet><langSet xml:lang="xh"><tig><term>ifestile</term></tig></langSet></termEntry>'
+        b'</body></text></martif>'
+    )
+    master.contents['terms/b.tbx'] = (
+        b'<tbx xmlns="urn:iso:std:iso:30042:ed-2" xml:lang="en"><text><body>'
+        b'<conceptEntry id="c1"><langSec xml:lang="en"><termSec><term>save</term></termSec>'
+        b'</langSec><langSec xml:lang="zu-ZA"><termSec><term>londoloza</term></termSec>'
+        b'</langSec></conceptEntry></body></text></tbx>'
+    )
+
+    assert master.terms('zu') == [('file', 'ifayela'), ('save', 'londoloza')]
+    assert master.terms('xh') == [('window', 'ifestile')]

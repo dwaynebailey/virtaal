@@ -780,15 +780,17 @@ A bundle can hold several documents, translated into several languages:
   :menuselection:`File --> Update from Template` are off in it.
 - :menuselection:`Export as TIPP…` writes a TIPP package for other translation
   tools, one per language.
-- A bundle can carry a project's translation memory (TMX files under
-  ``tm/``). While it is open, its entries in the language open are
-  suggestions, listed above other sources' (an exact match from elsewhere
-  still comes before a fuzzy one), with the bundle's file name as their
-  origin. Nothing is copied into your local translation memory. To rank them
-  like any other source, open :menuselection:`Edit --> Preferences`, click
-  :guilabel:`Configure…` for Translation Memory, and untick
-  :guilabel:`List its suggestions first` under :guilabel:`Configure…` for
-  Translation Bundle; untick Translation Bundle there to leave them out.
+- A bundle can carry a project's translation memory (TMX files under ``tm/``)
+  and glossaries (TBX files under ``terms/``). While it is open, their entries
+  in the language open are suggestions and terms, listed above other sources'
+  (an exact match from elsewhere still comes before a fuzzy one), with the
+  bundle's file name as their origin. Nothing is copied into your local
+  translation memory. To rank them like any other source, open
+  :menuselection:`Edit --> Preferences`, click :guilabel:`Configure…` for
+  Translation Memory or Terminology, and untick :guilabel:`List its
+  suggestions first` (or :guilabel:`List its terms first`) under
+  :guilabel:`Configure…` for Translation Bundle; untick Translation Bundle
+  there to leave them out.
 
 The format is described in :doc:`bundle_format`. Bundles made by Virtaal 0.7
 and the Translate Toolkit (.zip, with a ``project.xtp``) still open.

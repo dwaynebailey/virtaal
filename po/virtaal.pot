@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 14:31+0000\n"
+"POT-Creation-Date: 2026-11-13 14:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2023,6 +2023,21 @@ msgstr ""
 msgid "Selected localization terminology"
 msgstr ""
 
+#. l10n: A source of suggestions and terms: the translation bundle (.virtaal) open
+#: virtaal/plugins/terminology/models/bundle.py
+#: virtaal/plugins/tm/models/bundle.py
+msgid "Translation Bundle"
+msgstr ""
+
+#: virtaal/plugins/terminology/models/bundle.py
+msgid "The terms in the translation bundle open"
+msgstr ""
+
+#. l10n: A setting of the Translation Bundle source of terms
+#: virtaal/plugins/terminology/models/bundle.py
+msgid "_List its terms first"
+msgstr ""
+
 #: virtaal/plugins/terminology/models/localfile/__init__.py
 msgid "Local Files"
 msgstr ""
@@ -2491,11 +2506,6 @@ msgstr ""
 
 #: virtaal/plugins/tm/models/apertium.py
 msgid "Unreviewed machine translations from Apertium"
-msgstr ""
-
-#. l10n: A source of suggestions and terms: the translation bundle (.virtaal) open
-#: virtaal/plugins/tm/models/bundle.py
-msgid "Translation Bundle"
 msgstr ""
 
 #: virtaal/plugins/tm/models/bundle.py

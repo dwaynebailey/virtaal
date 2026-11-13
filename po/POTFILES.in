@@ -32,6 +32,7 @@ virtaal/plugins/migration.py
 virtaal/plugins/spellchecker.py
 virtaal/plugins/terminology/__init__.py
 virtaal/plugins/terminology/models/autoterm.py
+virtaal/plugins/terminology/models/bundle.py
 virtaal/plugins/terminology/models/localfile/__init__.py
 virtaal/plugins/terminology/models/localfile/localfileview.py
 virtaal/plugins/terminology/models/microsoft.py
