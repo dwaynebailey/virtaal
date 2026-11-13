@@ -71,7 +71,11 @@ NATIVE = {
 }
 """i18n_format: (the translation's path, the source-language file's for
 a format of one language a file, whether Virtaal reads its plurals as
-Transifex stores them)."""
+Transifex stores them).
+
+Not UNICODEPROPERTIES, UTF-8 .properties: Virtaal tells that from
+Java's Latin-1 PROPERTIES by a file's bytes, so a download still all
+ASCII would save as Latin-1 (or with \\u escapes) once translated."""
 
 BUILT_PATH = '{slug}/{lang}.xlf'
 

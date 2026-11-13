@@ -350,11 +350,28 @@ def test_a_po_resource_still_downloads_as_po(fake):
         ('ARB', True, formats.BUILT),
         ('STRINGSDICT', True, formats.BUILT),
         ('DOCX', False, formats.BUILT),
+        ('UNICODEPROPERTIES', False, formats.BUILT),
         (None, False, formats.BUILT),
     ],
 )
 def test_how_each_format_opens(file_format, pluralized, opens):
     assert formats.mode(file_format, pluralized) == opens
+
+
+def test_utf8_properties_are_built_not_downloaded(tmp_path):
+    # UNICODEPROPERTIES is UTF-8 .properties. Virtaal tells it from
+    # Java's Latin-1 dialect by the file's bytes, so a download still all
+    # ASCII would save as Latin-1 once it has an ê.
+    from virtaal.support.converters import PropertiesConverter
+
+    template, target = tmp_path / 'r.properties', tmp_path / 'r_af.properties'
+    template.write_bytes(b'save=Save\n')
+    target.write_bytes(b'save=Save\n')
+
+    saved = PropertiesConverter().to_monolingual(str(template), str(target), {'save': 'Lêer'})
+
+    assert saved == b'save=L\xeaer\n'
+    assert 'UNICODEPROPERTIES' not in formats.NATIVE
 
 
 @pytest.mark.parametrize(
