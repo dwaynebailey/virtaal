@@ -509,7 +509,7 @@ def test_the_last_server_used_is_remembered(servers, monkeypatch, tmp_path):
         servers.put(servers.platforms[0], other.url, {'token': TOKEN})
         dialog = _browse(servers, monkeypatch)
         assert dialog.server_combo.get_visible()
-        assert dialog.dialog.get_title() == 'Weblate'
+        assert dialog.dialog.get_title() == 'Open from Weblate'
         assert _names(dialog.filtered)[0] == 'Hello'
 
         dialog.server_combo.set_active(1)

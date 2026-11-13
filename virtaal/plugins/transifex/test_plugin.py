@@ -118,7 +118,7 @@ def test_the_browser_opens_a_resources_language(fake, tmp_path, platforms):
     run_until(lambda: not dialog.spinner.get_visible(), timeout=20)
     model = dialog.filtered
 
-    assert dialog.dialog.get_title() == 'Transifex'
+    assert dialog.dialog.get_title() == 'Open from Transifex'
     assert [model[it][COL_NAME] for it in _rows(model)] == [
         'Hello Org / Program',
         'Tools / Toolbar',

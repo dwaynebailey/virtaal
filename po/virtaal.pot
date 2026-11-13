@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 23:00+0000\n"
+"POT-Creation-Date: 2026-11-13 23:01+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2249,7 +2249,6 @@ msgstr ""
 
 #: virtaal/plugins/tm/amagamadialog.py virtaal/plugins/tm/fetchdialog.py
 #: virtaal/plugins/tm/localtmdialog.py virtaal/support/crash_dialog.py
-#: virtaal/support/platforms/browsedialog.py
 #: virtaal/support/platforms/serversdialog.py virtaal/views/mainview.py
 #: virtaal/views/setscanview.py virtaal/views/widgets/selectdialog.py
 msgid "_Close"
@@ -2968,10 +2967,29 @@ msgid_plural "%(count)s translations could not be downloaded:"
 msgstr[0] ""
 msgstr[1] ""
 
+#: virtaal/support/platforms/browsedialog.py
+#: virtaal/support/platforms/reviewview.py
+#: virtaal/support/platforms/submitdialog.py
+#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
+#: virtaal/views/widgets/settingsdialog.py
+msgid "_Cancel"
+msgstr ""
+
+#. l10n: Placeholder of the box filtering a translation server's projects
+#: virtaal/support/platforms/browsedialog.py
+msgid "Filter projects"
+msgstr ""
+
 #. l10n: The servers of translation platforms, such as Weblate
 #: virtaal/support/platforms/browsedialog.py
 #: virtaal/support/platforms/serversdialog.py
 msgid "Translation Servers"
+msgstr ""
+
+#. l10n: Title of File > Open from Translation Server; %(platform)s is the kind of server, such as Weblate
+#: virtaal/support/platforms/browsedialog.py
+#, python-format
+msgid "Open from %(platform)s"
 msgstr ""
 
 #. l10n: Marks a component (a part of a project) that is a glossary, not strings to translate
@@ -3005,13 +3023,6 @@ msgstr ""
 #. l10n: The title of the dialog telling a translation server's project of a mistake or unclear wording in a unit's source text
 #: virtaal/support/platforms/reviewview.py
 msgid "Report a Source Problem"
-msgstr ""
-
-#: virtaal/support/platforms/reviewview.py
-#: virtaal/support/platforms/submitdialog.py
-#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
-#: virtaal/views/widgets/settingsdialog.py
-msgid "_Cancel"
 msgstr ""
 
 #: virtaal/support/platforms/reviewview.py

@@ -30,7 +30,13 @@ from virtaal.support.platforms import (
     Session,
     workcopy,
 )
-from virtaal.support.platforms.browsedialog import COL_INFO, COL_KIND, COL_NAME, BrowseDialog
+from virtaal.support.platforms.browsedialog import (
+    COL_INFO,
+    COL_KIND,
+    COL_NAME,
+    RESPONSE_OPEN,
+    BrowseDialog,
+)
 from virtaal.support.platforms.servers import ServerList
 from virtaal.support.platforms.serversdialog import ServerDialog, ServersDialog, error_message
 from virtaal.views.widgets.settingsdialog import SECRET, Field
@@ -396,7 +402,9 @@ def test_the_browser_follows_the_platform(servers, dummy):
     dialog = _browse(servers)
     model = dialog.filtered
 
-    assert dialog.dialog.get_title() == 'Dummy'
+    assert dialog.dialog.get_title() == 'Open from Dummy'
+    assert dialog.dialog.get_widget_for_response(RESPONSE_OPEN).has_default()
+    assert dialog.filter_entry.get_activates_default()
     assert _names(model) == ['Alpha', 'Beta', 'Gamma']
     path = model.get_path(next(_rows(model)))
     dialog.treeview.expand_row(path, False)

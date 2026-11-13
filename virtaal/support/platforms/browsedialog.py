@@ -126,13 +126,16 @@ class BrowseDialog:
 
         self.dialog = Gtk.Dialog(transient_for=parent, modal=True)
         self.dialog.set_default_size(560, 480)
-        self.dialog.add_button(_('_Close'), Gtk.ResponseType.CLOSE)
+        self.dialog.add_button(_('_Cancel'), Gtk.ResponseType.CLOSE)
         self.open_button = self.dialog.add_button(_gtk_text('_Open'), RESPONSE_OPEN)
+        self.dialog.set_default_response(RESPONSE_OPEN)
         self.open_button.set_sensitive(False)
         self.dialog.connect('response', self._on_response)
 
         self.server_combo = self._server_combo(servers)
-        self.filter_entry = Gtk.SearchEntry(hexpand=True)
+        self.filter_entry = Gtk.SearchEntry(hexpand=True, activates_default=True)
+        # l10n: Placeholder of the box filtering a translation server's projects
+        self.filter_entry.set_placeholder_text(_('Filter projects'))
         # 'changed', not 'search-changed': the delay is FILTER_DELAY.
         self.filter_entry.connect('changed', lambda _entry: self._on_filter_changed())
 
@@ -228,7 +231,8 @@ class BrowseDialog:
             self.servers.last = server
             self.servers.save()
         self.server = server
-        self.dialog.set_title(server.platform.name)
+        # l10n: Title of File > Open from Translation Server; %(platform)s is the kind of server, such as Weblate
+        self.dialog.set_title(_('Open from %(platform)s') % {'platform': server.platform.name})
         self.treeview.get_accessible().set_name(server.platform.name)
         self._restart()
 
