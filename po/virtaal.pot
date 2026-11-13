@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 23:01+0000\n"
+"POT-Creation-Date: 2026-11-13 23:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2969,6 +2969,7 @@ msgstr[1] ""
 
 #: virtaal/support/platforms/browsedialog.py
 #: virtaal/support/platforms/reviewview.py
+#: virtaal/support/platforms/serversdialog.py
 #: virtaal/support/platforms/submitdialog.py
 #: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
 #: virtaal/views/widgets/settingsdialog.py
@@ -3121,6 +3122,16 @@ msgstr ""
 
 #: virtaal/support/platforms/serversdialog.py
 msgid "_Test Connection"
+msgstr ""
+
+#. l10n: %(server)s is a translation server's address
+#: virtaal/support/platforms/serversdialog.py
+#, python-format
+msgid "Remove “%(server)s”?"
+msgstr ""
+
+#: virtaal/support/platforms/serversdialog.py
+msgid "Its saved token is deleted too."
 msgstr ""
 
 #. l10n: Why a unit wasn't submitted: the suggestion accepted in Virtaal was accepted, rejected or withdrawn on the translation server meanwhile

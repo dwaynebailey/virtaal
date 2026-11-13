@@ -266,10 +266,30 @@ class ServersDialog:
 
     def _on_remove(self):
         server = self.selected()
-        if server is not None:
+        if server is not None and self.confirm_remove(server):
             self.servers.remove(server)
             self._save()
             self._show_status('')
+
+    def confirm_remove(self, server):
+        """Whether the user wants C{server} and its saved token removed."""
+        dialog = Gtk.MessageDialog(
+            transient_for=self.dialog,
+            modal=True,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.NONE,
+            # l10n: %(server)s is a translation server's address
+            text=_('Remove “%(server)s”?') % {'server': server.url},
+        )
+        dialog.format_secondary_text(_('Its saved token is deleted too.'))
+        dialog.add_button(_('_Cancel'), Gtk.ResponseType.CANCEL)
+        remove = dialog.add_button(_('_Remove'), Gtk.ResponseType.ACCEPT)
+        remove.get_style_context().add_class('destructive-action')
+        dialog.set_default_response(Gtk.ResponseType.CANCEL)
+        try:
+            return run_dialog(dialog) == Gtk.ResponseType.ACCEPT
+        finally:
+            dialog.destroy()
 
     def _on_import(self, platform):
         self.servers.import_servers(platform)

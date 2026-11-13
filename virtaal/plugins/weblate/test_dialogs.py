@@ -232,14 +232,38 @@ def test_cancelling_the_edit_changes_nothing(servers, monkeypatch, no_wlc):
     assert servers.servers[0].credentials == {'token': TOKEN}
 
 
-def test_removing_a_server(servers, no_wlc):
+def _confirm(monkeypatch, response):
+    asked = []
+
+    def run(dialog):
+        asked.append((dialog.props.text, dialog.props.secondary_text))
+        return response
+
+    monkeypatch.setattr(Gtk.Dialog, 'run', run)
+    return asked
+
+
+def test_removing_a_server(servers, no_wlc, monkeypatch):
     dialog = ServersDialog(servers)
+    url = servers.servers[0].url
+    asked = _confirm(monkeypatch, Gtk.ResponseType.ACCEPT)
 
     dialog.btn_remove.clicked()
 
+    assert asked == [('Remove “%s”?' % url, 'Its saved token is deleted too.')]
     assert len(dialog.store) == 0
     assert _saved(servers) == []
     assert not dialog.btn_remove.get_sensitive()
+
+
+def test_cancelling_the_removal_keeps_the_server(servers, no_wlc, monkeypatch):
+    dialog = ServersDialog(servers)
+    _confirm(monkeypatch, Gtk.ResponseType.CANCEL)
+
+    dialog.btn_remove.clicked()
+
+    assert len(dialog.store) == 1
+    assert len(servers.servers) == 1
 
 
 def test_a_refused_token_says_so(servers, fake, no_wlc):
