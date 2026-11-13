@@ -881,7 +881,10 @@ class MainView(BaseView):
             Gdk.KEY_slash if platform.is_mac else Gdk.KEY_question,
             primary,
         )
+        # macOS: Ctrl+Cmd+S from virtaal.accel, the Show Sidebar key.
+        Gtk.AccelMap.add_entry("<Virtaal>/View/Files Panel", Gdk.KEY_F7, 0)
         self.gui.get_object('menu_file').set_accel_group(self.accel_group)
+        self.gui.get_object('menu_view').set_accel_group(self.accel_group)
         self.gui.get_object('menu_help').set_accel_group(self.accel_group)
         self.gui.get_object('mnu_shortcuts').set_accel_path("<Virtaal>/Help/Shortcuts")
 
@@ -898,6 +901,7 @@ class MainView(BaseView):
             ('menu_file', 'mnu_save'),
             ('menu_file', 'mnu_saveas'),
             ('menu_file', 'mnu_close'),
+            ('menu_view', 'mnu_files_panel'),
             ('menu_help', 'mnu_shortcuts'),
         ):
             menu = self.gui.get_object(menu_id)

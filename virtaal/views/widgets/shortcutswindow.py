@@ -49,14 +49,20 @@ SHORTCUT_GROUPS = [
             ("<Primary>Page_Down", _("Move 10 units down")),
             ("<Primary>Home", _("Move to first unit")),
             ("<Primary>End", _("Move to last unit")),
-            ("<Alt>Home", _("Move to the first unit of all the files open")),
-            ("<Alt>End", _("Move to the last unit of all the files open")),
+            (
+                "<Primary><Alt>Up" if platform.is_mac else "<Alt>Home",
+                _("Move to the first unit of all the files open"),
+            ),
+            (
+                "<Primary><Alt>Down" if platform.is_mac else "<Alt>End",
+                _("Move to the last unit of all the files open"),
+            ),
             ("<Primary><Shift>Page_Up", _("Move to the previous file")),
             ("<Primary><Shift>Page_Down", _("Move to the next file")),
             ("<Primary>f F3", _("Search")),
             ("<Primary>g", _("Move to next search match")),
             ("<Primary><Shift>g", _("Move to previous search match")),
-            ("F7", _("Show/Hide the files panel")),
+            ("<Control><Primary>s" if platform.is_mac else "F7", _("Show/Hide the files panel")),
         ],
     ),
     (

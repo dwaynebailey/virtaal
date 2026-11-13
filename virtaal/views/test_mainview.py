@@ -1399,6 +1399,19 @@ def test_setup_key_bindings_leaves_preferences_alone_on_mac(monkeypatch):
     assert not any(path == "<Virtaal>/Edit/Preferences" for path, key, mods in calls)
 
 
+def test_setup_key_bindings_registers_the_files_panel_on_f7(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        Gtk.AccelMap, 'add_entry', lambda path, key, mods: calls.append((path, key, mods))
+    )
+    view = _real_view_for_key_bindings()
+
+    MainView._setup_key_bindings(view)
+
+    assert ("<Virtaal>/View/Files Panel", Gdk.KEY_F7, 0) in calls
+    assert view.gui.get_object('mnu_files_panel').get_accel_path() == "<Virtaal>/View/Files Panel"
+
+
 @pytest.mark.parametrize('is_mac', [True, False])
 def test_setup_key_bindings_registers_close(monkeypatch, is_mac):
     # Without it, Ctrl+W in a target is GTK's delete-word-backward

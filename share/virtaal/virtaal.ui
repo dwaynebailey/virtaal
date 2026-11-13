@@ -1065,7 +1065,7 @@ If you are translating from English to French then French would be your translat
                         <property name="use_action_appearance">False</property>
                         <property name="label" translatable="yes">Files _Panel</property>
                         <property name="use_underline">True</property>
-                        <accelerator key="F7" signal="activate"/>
+                        <property name="accel_path">&lt;Virtaal&gt;/View/Files Panel</property>
                       </object>
                     </child>
                     <child>

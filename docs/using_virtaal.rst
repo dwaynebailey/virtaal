@@ -48,7 +48,8 @@ Open a folder with :menuselection:`File --> Open Folder…` (:kbd:`Ctrl+Shift+O`
 once you have. A folder opens the translation files in it and its subfolders
 (PO, XLIFF and Qt .ts), leaving out templates.
 
-The :menuselection:`View --> Files Panel` (:kbd:`F7`) beside the units lists
+The :menuselection:`View --> Files Panel` (:kbd:`F7`, :kbd:`Ctrl+Cmd+S` on
+macOS) beside the units lists
 the folders and files with how much of each is translated; hover over the
 percentage for how many units are translated, need work and are untranslated.
 It is open for a folder, and hidden until you show it for several files.
@@ -64,9 +65,9 @@ file you are in shows in bold.
 the first unit of the next or previous file. :kbd:`Ctrl+Home` and
 :kbd:`Ctrl+End` go to the first and last unit of the file you are in, and
 :menuselection:`Navigation --> First Unit of All Files` (:kbd:`Alt+Home`,
-:kbd:`Option+Home` on macOS) and :menuselection:`Navigation --> Last Unit of
-All Files` (:kbd:`Alt+End`) to the first unit of the first file and the last
-unit of the last one. In a navigation mode such as Incomplete, they skip files with
+:kbd:`Cmd+Option+Up` on macOS) and :menuselection:`Navigation --> Last Unit of
+All Files` (:kbd:`Alt+End`, :kbd:`Cmd+Option+Down`) to the first unit of the
+first file and the last unit of the last one. In a navigation mode such as Incomplete, they skip files with
 nothing in it. Moving from unit to unit stops at the first and last unit of
 all the files, while search matches and quality check failures go round from
 the last file to the first. The navigation ribbon beside the units has a line
