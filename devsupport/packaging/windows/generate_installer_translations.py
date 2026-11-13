@@ -155,6 +155,7 @@ MESSAGE_KEY_TO_MSGID = {
     "TmxFileType": "TMX Translation Memory",
     "QphFileType": "Qt Phrase Book",
     "FluentFileType": "Fluent file",
+    "BundleFileType": "Virtaal Translation Bundle",
 }
 
 

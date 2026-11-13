@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 06:41+0000\n"
+"POT-Creation-Date: 2026-11-13 06:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -790,6 +790,10 @@ msgstr ""
 
 #: share/mime/packages/io.github.translate.Virtaal.xml.in
 msgid "Universal Terminology eXchange"
+msgstr ""
+
+#: share/mime/packages/io.github.translate.Virtaal.xml.in
+msgid "Virtaal Translation Bundle"
 msgstr ""
 
 #: virtaal/cli.py

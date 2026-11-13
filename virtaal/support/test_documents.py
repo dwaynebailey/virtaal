@@ -647,3 +647,16 @@ def test_members_and_title(tmp_path, report):
     assert (path, inner, member) == (bundle.files()[0], None, 'trans/af/report.odt.xlf')
     bundle.save(str(tmp_path / 'report.af.virtaal'))
     assert bundle.title() == 'report.af.virtaal'
+
+
+def test_a_bundle_is_told_by_its_first_bytes(tmp_path, report):
+    # The shared-mime-info magic (share/mime/packages): a zip whose first
+    # member, named mimetype and stored, holds the type at offset 38.
+    bundle = documents.from_documents([report], 'en', 'af')
+    path = tmp_path / 'report.af.virtaal'
+    bundle.save(str(path))
+
+    data = path.read_bytes()
+
+    assert data[:4] == b'PK\x03\x04'
+    assert data[38 : 38 + len(documents.MIMETYPE)] == documents.MIMETYPE.encode()

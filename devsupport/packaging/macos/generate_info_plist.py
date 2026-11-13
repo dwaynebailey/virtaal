@@ -54,6 +54,20 @@ def document_types():
     return types
 
 
+def bundle_document_type():
+    """Virtaal's own translation bundles (virtaal/support/documents.py)."""
+    from virtaal.support import documents
+
+    return {
+        "CFBundleTypeExtensions": [documents.EXTENSION],
+        "CFBundleTypeIconFile": "VirtaalDocument.icns",
+        "CFBundleTypeMIMETypes": [documents.MIMETYPE],
+        "CFBundleTypeName": "Virtaal Translation Bundle",
+        "CFBundleTypeRole": "Editor",
+        "LSHandlerRank": "Owner",
+    }
+
+
 def bundle_localizations(languages):
     """CFBundleLocalizations: without it AppKit runs the app in English
     whatever the user's language, so its own menu items, and the Help
@@ -82,7 +96,7 @@ def build_plist():
         "LSMinimumSystemVersion": "10.15",
         "LSApplicationCategoryType": "public.app-category.productivity",
         "NSHighResolutionCapable": True,
-        "CFBundleDocumentTypes": document_types(),
+        "CFBundleDocumentTypes": document_types() + [bundle_document_type()],
         "CFBundleLocalizations": bundle_localizations(read_linguas(ROOT / "po" / "LINGUAS")),
     }
 
