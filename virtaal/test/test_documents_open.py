@@ -38,7 +38,11 @@ class TestDocumentsOpen(TestScaffolding):
             lambda *args: ('Tester', 'tester@example.org', 'Afrikaans'),
         )
         self.errors = []
-        monkeypatch.setattr(self.main_controller, 'show_error', self.errors.append)
+        monkeypatch.setattr(
+            self.main_controller,
+            'show_error',
+            lambda msg, parent=None, detail='': self.errors.append((msg + '\n\n' + detail).strip()),
+        )
         self.view = self.main_controller.view
         self.notices = []
         monkeypatch.setattr(

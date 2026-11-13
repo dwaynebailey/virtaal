@@ -50,7 +50,7 @@ class Plugin(BasePlugin):
 
     # EVENT HANDLERS #
     def on_store_loaded(self, storecontroller):
-        self.main_controller.show_info(self.config["name"], self.config["info"])
+        self.main_controller.show_info(self.config["name"], detail=self.config["info"])
         self._cursor_changed_id = storecontroller.cursor.connect(
             'cursor-changed', self.on_cursor_change
         )
@@ -58,5 +58,5 @@ class Plugin(BasePlugin):
     def on_cursor_change(self, cursor):
         if self.annoy:
             self.annoy = not self.main_controller.show_prompt(
-                self.config["name"], self.config["question"]
+                self.config["name"], detail=self.config["question"]
             )

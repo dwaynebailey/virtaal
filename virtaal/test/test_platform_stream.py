@@ -78,7 +78,11 @@ class Streaming:
             lambda *args: pytest.fail('A work copy never asks for its template'),
         )
         self.errors = []
-        monkeypatch.setattr(self.main_controller, 'show_error', self.errors.append)
+        monkeypatch.setattr(
+            self.main_controller,
+            'show_error',
+            lambda msg, parent=None, detail='': self.errors.append((msg + '\n\n' + detail).strip()),
+        )
         self.told = []
         for dialogs in (SubmitDialogs, UpdateDialogs):
             monkeypatch.setattr(dialogs, '_tell', lambda _self, text, *a: self.told.append(text))

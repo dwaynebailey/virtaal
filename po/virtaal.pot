@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 22:44+0000\n"
+"POT-Creation-Date: 2026-11-13 22:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -941,24 +941,8 @@ msgstr ""
 msgid "Choose a bundle split from this one."
 msgstr ""
 
-#: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
-#, python-format
-msgid ""
-"Could not open file.\n"
-"\n"
-"%(error_message)s\n"
-"\n"
-"Try opening a different file."
-msgstr ""
-
-#: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
-#, python-format
-msgid ""
-"Could not export file.\n"
-"\n"
-"%(error_message)s\n"
-"\n"
-"Try saving to a different location."
+#: virtaal/controllers/bundleactions.py
+msgid "Could not export the translations"
 msgstr ""
 
 #: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
@@ -1308,13 +1292,21 @@ msgid ""
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
-msgid ""
-"You selected the currently open file for opening. Do you want to reload the "
-"file?"
+#, python-format
+msgid "Reload “%(filename)s”?"
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
+msgid "The file is already open."
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
 msgid "_Reload"
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
+#, python-format
+msgid "Could not export “%(filename)s”"
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
@@ -1323,44 +1315,20 @@ msgstr ""
 
 #: virtaal/controllers/maincontroller.py
 #, python-format
-msgid ""
-"%(filename)s is read-only.\n"
-"\n"
-"Try saving to a different location."
+msgid "“%(filename)s” is read-only"
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
+msgid "Try saving to a different location."
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
 #, python-format
-msgid ""
-"Could not save file.\n"
-"\n"
-"%(error_message)s\n"
-"\n"
-"Try saving to a different location."
-msgstr ""
-
-#: virtaal/controllers/maincontroller.py
-#, python-format
-msgid ""
-"Could not save file.\n"
-"\n"
-"%(error_message)s"
+msgid "Could not save “%(filename)s”"
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
 msgid "Can only export Gettext PO files"
-msgstr ""
-
-#: virtaal/controllers/maincontroller.py
-#, python-format
-msgid ""
-"Could not export file.\n"
-"\n"
-"%(error_message)s"
-msgstr ""
-
-#: virtaal/controllers/maincontroller.py
-msgid "Revert to Saved"
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
@@ -1369,6 +1337,20 @@ msgstr ""
 
 #: virtaal/controllers/maincontroller.py
 msgid "_Revert"
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
+#: virtaal/plugins/terminology/models/localfile/localfileview.py
+#, python-format
+msgid "Could not open “%(filename)s”"
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
+msgid "Could not open the file"
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
+msgid "Try opening a different file."
 msgstr ""
 
 #. l10n: See http://en.wikipedia.org/wiki/CamelCase
@@ -2000,11 +1982,12 @@ msgid "Migration Assistant"
 msgstr ""
 
 #: virtaal/plugins/migration.py
-msgid "Should Virtaal try to import settings and data from other applications?"
+msgid "Import data from other applications?"
 msgstr ""
 
 #: virtaal/plugins/migration.py
-msgid "Import data from other applications?"
+msgid ""
+"Virtaal can import settings and translation memory from Poedit and Lokalize."
 msgstr ""
 
 #: virtaal/plugins/migration.py
@@ -2013,10 +1996,6 @@ msgstr ""
 
 #: virtaal/plugins/migration.py
 msgid "_Don’t Import"
-msgstr ""
-
-#: virtaal/plugins/migration.py
-msgid "Migration was successfully completed"
 msgstr ""
 
 #: virtaal/plugins/migration.py
@@ -2148,18 +2127,6 @@ msgid ""
 "Virtaal can only read this termbase with the access-parser Python module, "
 "which is not installed. In MultiTerm, export the termbase as MultiTerm XML "
 "and add that file instead."
-msgstr ""
-
-#: virtaal/plugins/terminology/models/localfile/localfileview.py
-#, python-format
-msgid ""
-"Unable to load %(filename)s:\n"
-"\n"
-"%(errormsg)s"
-msgstr ""
-
-#: virtaal/plugins/terminology/models/localfile/localfileview.py
-msgid "Error opening file"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
@@ -3804,10 +3771,6 @@ msgid "Settings…"
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid "Error"
-msgstr ""
-
-#: virtaal/views/mainview.py
 msgid "Choose a Translation File"
 msgstr ""
 
@@ -3875,7 +3838,11 @@ msgid "_Don’t Save"
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid "Could not open the dropped file - its file name could not be decoded."
+msgid "Could not open the dropped file"
+msgstr ""
+
+#: virtaal/views/mainview.py
+msgid "Its file name could not be decoded."
 msgstr ""
 
 #. l10n: This is the title of the main window of Virtaal

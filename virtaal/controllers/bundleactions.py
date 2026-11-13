@@ -108,12 +108,7 @@ class BundleActions:
 
     def _error(self, exc, where=''):
         logging.exception('Translation bundle')
-        prefix = where + ':\n' if where else ''
-        self.main_controller.show_error(
-            prefix
-            + _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
-            % {'error_message': str(exc)}
-        )
+        self.main_controller.show_open_error(exc, where)
 
     def _refused(self, exc, path, merging):
         """Say why the bundle C{path} can't be merged or updated from,
@@ -128,10 +123,7 @@ class BundleActions:
 
     def _export_error(self, exc):
         logging.exception('Translation bundle export')
-        self.main_controller.show_error(
-            _("Could not export file.\n\n%(error_message)s\n\nTry saving to a different location.")
-            % {'error_message': str(exc)}
-        )
+        self.main_controller.show_write_error(_("Could not export the translations"), exc)
 
     def _open(self, make, where):
         """Open the bundle C{make()} gives, asking first about unsaved

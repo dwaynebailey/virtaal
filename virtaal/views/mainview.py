@@ -256,13 +256,16 @@ def add_translation_file_filters(chooser, extra_formats=()):
     chooser.add_filter(all_filter)
 
 
-def fill_dialog(dialog, title='', message='', markup=''):
+def fill_dialog(dialog, title='', message='', markup='', detail=''):
+    """Fill a message dialog: C{message} (or C{markup}) is its heading,
+    C{detail} the text below it."""
     if title:
         dialog.set_title(title)
     if markup:
         dialog.set_markup(markup)
     else:
         dialog.set_markup(message.replace('<', '&lt;'))
+    dialog.props.secondary_text = detail or None
 
 
 class EntryDialog(Gtk.Dialog):
@@ -570,7 +573,6 @@ class MainView(BaseView):
             message_type=Gtk.MessageType.ERROR,
             buttons=Gtk.ButtonsType.OK,
         )
-        dialog.set_title(_("Error"))
         return dialog
 
     @cached_property
@@ -973,7 +975,8 @@ class MainView(BaseView):
             filename = self._decode_dropped_uri(raw)
             if filename is None:
                 self.controller.show_error(
-                    _("Could not open the dropped file - its file name could not be decoded.")
+                    _("Could not open the dropped file"),
+                    detail=_("Its file name could not be decoded."),
                 )
             elif filename.startswith("file://"):
                 self.controller.open_file(filename)
@@ -1447,8 +1450,8 @@ class MainView(BaseView):
             chooser.set_current_folder(os.path.dirname(os.path.abspath(target)))
         return chooser
 
-    def show_error_dialog(self, title='', message='', markup='', parent=None):
-        fill_dialog(self.error_dialog, title, message, markup)
+    def show_error_dialog(self, title='', message='', markup='', parent=None, detail=''):
+        fill_dialog(self.error_dialog, title, message, markup, detail)
 
         self.error_dialog.set_transient_for(parent or self._top_window)
         old_top = self._top_window
@@ -1463,12 +1466,12 @@ class MainView(BaseView):
         self._top_window = old_top
 
     def show_prompt_dialog(
-        self, title='', message='', markup='', parent=None, yes_label='', no_label=''
+        self, title='', message='', markup='', parent=None, yes_label='', no_label='', detail=''
     ):
         """Ask a question with two buttons, C{no_label} (the default) and
         C{yes_label}, which say what each does.
         @returns: Whether C{yes_label} was pressed."""
-        fill_dialog(self.prompt_dialog, title, message, markup)
+        fill_dialog(self.prompt_dialog, title, message, markup, detail)
         for response in (Gtk.ResponseType.NO, Gtk.ResponseType.YES):
             button = self.prompt_dialog.get_widget_for_response(response)
             if button is not None:
@@ -1491,9 +1494,9 @@ class MainView(BaseView):
 
         return response == Gtk.ResponseType.YES
 
-    def show_info_dialog(self, title='', message='', markup='', parent=None):
+    def show_info_dialog(self, title='', message='', markup='', parent=None, detail=''):
         """shows a simple info dialog containing a message and an OK button"""
-        fill_dialog(self.info_dialog, title, message, markup)
+        fill_dialog(self.info_dialog, title, message, markup, detail)
 
         self.info_dialog.set_transient_for(parent or self._top_window)
         old_top = self._top_window

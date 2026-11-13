@@ -380,6 +380,7 @@ domains:
     - Quality Check
     - Quality checks
     - Re_place
+    - Reload “%(filename)s”?
     - Repeated word
     - Replace A_ll
     - Replace _with
@@ -400,13 +401,13 @@ domains:
     - TM Source
     - Tabs
     - Terminology assistance
+    - The file is already open.
     - This file
     - Translation memory
     - Translator credits
     - Unchanged
     - Valid characters
     - XML tags
-    - You selected the currently open file for opening. Do you want to reload the file?
     - _Cancel
     - _Case sensitive
     - _Don’t Save
@@ -499,7 +500,6 @@ domains:
     - Migrate settings from KBabel, Lokalize and/or Poedit to Virtaal
     - Migration Assistant
     - Migration completed
-    - Migration was successfully completed
     - Move 10 units down
     - Move 10 units up
     - Move one step back in the workflow (Ctrl+Shift+Enter)
@@ -561,7 +561,6 @@ domains:
     - Select next placeable
     - Select previous placeable
     - Settings
-    - Should Virtaal try to import settings and data from other applications?
     - Show file properties and statistics
     - Show preferences dialog
     - Show this Keyboard Shortcuts window
@@ -673,10 +672,6 @@ domains:
     - Uninstall the older Virtaal 0.7 first
     '3':
     - '"alt" Attributes'
-    - '%(filename)s is read-only.
-
-
-      Try saving to a different location.'
     - <b>Language Information</b>
     - <b>Options</b>
     - '?'
@@ -694,39 +689,9 @@ domains:
     - Choose a PO Template File
     - Community localization terminology from Mozilla Pontoon
     - Configure…
-    - 'Could not export file.
-
-
-      %(error_message)s'
-    - 'Could not export file.
-
-
-      %(error_message)s
-
-
-      Try saving to a different location.'
-    - 'Could not open file.
-
-
-      %(error_message)s
-
-
-      Try opening a different file.'
     - Could not open log file '%(filename)s'
     - Could not open profile file '%(filename)s'
-    - Could not open the dropped file - its file name could not be decoded.
     - Could not read configuration file '%(filename)s'
-    - 'Could not save file.
-
-
-      %(error_message)s'
-    - 'Could not save file.
-
-
-      %(error_message)s
-
-
-      Try saving to a different location.'
     - Couldn't open '%(file)s'.
     - 'Couldn''t open ''%(file)s'': %(reason)s'
     - Depending on the translation task, the plural information might be optional.
@@ -734,8 +699,6 @@ domains:
     - Downloading %(language)s thesaurus…
     - Edit Language
     - Enter a language name.
-    - Error
-    - Error opening file
     - 'Existing translations: %(translations)s'
     - Export
     - Extendable
@@ -783,7 +746,6 @@ domains:
     - Remote Server
     - Remote TM
     - Restart Virtaal for the new language to take effect.
-    - Revert to Saved
     - Revert to the last saved copy and lose all changes?
     - Reviewed
     - 'Reviewed:'
@@ -803,10 +765,6 @@ domains:
     - This might not affect your current work, but if it keeps happening, reporting it helps get it fixed.
     - Translated units from the currently open file
     - URL
-    - 'Unable to load %(filename)s:
-
-
-      %(errormsg)s'
     - Unreviewed machine translations from Apertium
     - Unreviewed machine translations from Google's translation service
     - Unreviewed machine translations from a Moses server

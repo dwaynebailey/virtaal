@@ -67,14 +67,15 @@ def test_open_file_shows_a_translated_error_message_on_failure():
     )
     errors = []
     controller.view = SimpleNamespace(
-        busy=_not_busy, show_error_dialog=lambda message, parent=None: errors.append(message)
+        busy=_not_busy,
+        show_error_dialog=lambda message, parent=None, detail='': errors.append((message, detail)),
     )
 
     result = controller.open_file('missing.po')
 
     assert result is False
     assert errors == [
-        'missing.po:\nCould not open file.\n\nThe file does not exist.\n\nTry opening a different file.'
+        ('Could not open “missing.po”', 'The file does not exist.\n\nTry opening a different file.')
     ]
     assert controller.last_open_error == 'The file does not exist.'
 
@@ -167,7 +168,9 @@ def _controller_for_export(bundle_filename, raises=None):
     controller = MainController.__new__(MainController)
     controller.view = SimpleNamespace(
         show_save_dialog=lambda current_filename, title: current_filename,
-        show_error_dialog=lambda message, parent=None: calls.__setitem__('error', message),
+        show_error_dialog=lambda message, parent=None, detail='': calls.__setitem__(
+            'error', (message, detail)
+        ),
     )
     controller._store_controller = SimpleNamespace(
         get_bundle_filename=lambda: bundle_filename,
@@ -296,7 +299,7 @@ def test_save_file_rejects_a_readonly_target_before_ever_calling_save(tmp_path):
     os.chmod(real_file, 0o444)
     errors = []
     controller.view = SimpleNamespace(
-        show_error_dialog=lambda message, parent=None: errors.append(message)
+        show_error_dialog=lambda message, parent=None, detail='': errors.append((message, detail))
     )
 
     try:
@@ -313,7 +316,7 @@ def test_do_save_file_shows_an_error_dialog_on_oserror():
     controller = _controller_for_save(save_raises=OSError('disk full'))
     errors = []
     controller.view = SimpleNamespace(
-        show_error_dialog=lambda message, parent=None: errors.append(message)
+        show_error_dialog=lambda message, parent=None, detail='': errors.append((message, detail))
     )
 
     result = controller.save_file(filename='explicit.po')
@@ -329,17 +332,17 @@ def _translate_only(monkeypatch, msgid):
 
 
 def test_do_save_file_shows_an_error_dialog_on_a_generic_exception(monkeypatch):
-    _translate_only(monkeypatch, "Could not save file.\n\n%(error_message)s")
+    _translate_only(monkeypatch, "Could not save “%(filename)s”")
     controller = _controller_for_save(save_raises=ValueError('unexpected'))
     errors = []
     controller.view = SimpleNamespace(
-        show_error_dialog=lambda message, parent=None: errors.append(message)
+        show_error_dialog=lambda message, parent=None, detail='': errors.append((message, detail))
     )
 
     result = controller.save_file(filename='explicit.po')
 
     assert result is False
-    assert errors == ['T:Could not save file.\n\nunexpected']
+    assert errors == [('T:Could not save “explicit.po”', 'unexpected')]
 
 
 def test_close_file_closes_directly_when_not_modified():
@@ -627,7 +630,9 @@ def test_update_file_asks_to_reload_when_the_template_is_the_currently_open_file
 def test_update_file_shows_an_error_on_failure():
     controller = _controller_for_update_file()
     errors = []
-    controller.view.show_error_dialog = lambda message, parent=None: errors.append(message)
+    controller.view.show_error_dialog = lambda message, parent=None, detail='': errors.append(
+        (message, detail)
+    )
 
     def raise_missing(filename, uri):
         raise OSError('nope')
@@ -669,7 +674,9 @@ def test_revert_file_shows_an_error_on_failure():
     controller = MainController.__new__(MainController)
     controller.view = SimpleNamespace(show_prompt_dialog=lambda **kwargs: True)
     errors = []
-    controller.view.show_error_dialog = lambda message, parent=None: errors.append(message)
+    controller.view.show_error_dialog = lambda message, parent=None, detail='': errors.append(
+        (message, detail)
+    )
 
     def raise_missing():
         raise OSError('gone')
@@ -714,13 +721,13 @@ def test_binary_export_falls_back_to_the_store_filename_without_a_bundle_filenam
 
 
 def test_binary_export_shows_an_error_and_returns_false_on_a_generic_exception(monkeypatch):
-    _translate_only(monkeypatch, "Could not export file.\n\n%(error_message)s")
+    _translate_only(monkeypatch, "Could not export “%(filename)s”")
     controller = _controller_for_export('translations/af.po', raises=ValueError('boom'))
 
     result = controller.binary_export()
 
     assert result is False
-    assert controller.calls['error'] == 'T:Could not export file.\n\nboom'
+    assert controller.calls['error'] == ('T:Could not export “af.mo”', 'boom')
 
 
 # get_translator_details() #
@@ -829,22 +836,22 @@ def test_show_prompt_delegates_to_the_view():
     controller = MainController.__new__(MainController)
     controller.view = SimpleNamespace(show_prompt_dialog=lambda **kwargs: kwargs)
 
-    assert controller.show_prompt('T', 'M', parent='P', yes_label='_Go') == {
-        'title': 'T',
+    assert controller.show_prompt('M', parent='P', yes_label='_Go', detail='D') == {
         'message': 'M',
         'parent': 'P',
         'yes_label': '_Go',
         'no_label': '',
+        'detail': 'D',
     }
 
 
 def test_show_info_delegates_to_the_view():
     controller = MainController.__new__(MainController)
     controller.view = SimpleNamespace(
-        show_info_dialog=lambda title, message, parent: (title, message, parent)
+        show_info_dialog=lambda message, parent, detail: (message, parent, detail)
     )
 
-    assert controller.show_info('T', 'M', parent='P') == ('T', 'M', 'P')
+    assert controller.show_info('M', parent='P', detail='D') == ('M', 'P', 'D')
 
 
 def test_run_shows_the_view():

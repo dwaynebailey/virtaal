@@ -275,6 +275,7 @@ class _FakeMessageDialog:
     def __init__(self, response=Gtk.ResponseType.YES):
         self.calls = []
         self._response = response
+        self.props = SimpleNamespace(secondary_text=None)
 
     def get_widget_for_response(self, response):
         return None
@@ -2197,6 +2198,7 @@ class _FakeDialogForFill:
     def __init__(self):
         self.title = None
         self.markup = None
+        self.props = SimpleNamespace(secondary_text=None)
 
     def set_title(self, title):
         self.title = title
@@ -2505,7 +2507,7 @@ def test_on_drag_data_received_shows_an_error_for_undecodable_bytes(monkeypatch)
     view = MainView.__new__(MainView)
     errors = []
     view.controller = SimpleNamespace(
-        show_error=lambda msg: errors.append(msg),
+        show_error=lambda msg, detail='': errors.append(msg),
         open_file=lambda *a: pytest.fail('must not open an undecodable drop'),
     )
     context = SimpleNamespace(list_targets=lambda: ['text/uri-list'])

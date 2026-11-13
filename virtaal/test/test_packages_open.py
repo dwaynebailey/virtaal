@@ -37,7 +37,11 @@ class TestPackagesOpen(TestScaffolding):
             lambda *args: ('Tester', 'tester@example.org', 'French'),
         )
         self.errors = []
-        monkeypatch.setattr(self.main_controller, 'show_error', self.errors.append)
+        monkeypatch.setattr(
+            self.main_controller,
+            'show_error',
+            lambda msg, parent=None, detail='': self.errors.append((msg + '\n\n' + detail).strip()),
+        )
         self.dir = tmp_path
         self.store_controller.close_file()
         yield

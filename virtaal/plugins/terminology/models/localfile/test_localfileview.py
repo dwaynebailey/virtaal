@@ -337,7 +337,7 @@ def test_add_file_clicked_shows_an_error_for_a_file_that_no_longer_exists(monkey
     fake_controller = SimpleNamespace(
         main_controller=SimpleNamespace(
             view=SimpleNamespace(
-                show_error_dialog=lambda title, message: errors.append((title, message))
+                show_error_dialog=lambda message, detail: errors.append((message, detail))
             )
         )
     )
@@ -942,7 +942,7 @@ def test_add_file_clicked_suggests_a_multiterm_xml_export_without_access_parser(
     fake_controller = SimpleNamespace(
         main_controller=SimpleNamespace(
             view=SimpleNamespace(
-                show_error_dialog=lambda title, message: errors.append((title, message))
+                show_error_dialog=lambda message, detail: errors.append((message, detail))
             )
         )
     )

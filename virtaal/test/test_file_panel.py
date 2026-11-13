@@ -413,7 +413,11 @@ class TestFilePanel(TestScaffolding):
         en.write_text('hello=Hello\nbye=Goodbye\n', encoding='utf-8')
         sc = self.store_controller
         errors = []
-        monkeypatch.setattr(self.main_controller, 'show_error', errors.append)
+        monkeypatch.setattr(
+            self.main_controller,
+            'show_error',
+            lambda msg, parent=None, detail='': errors.append((msg + '\n\n' + detail).strip()),
+        )
 
         assert self.main_controller.open_files([str(folder)]), errors
 
@@ -455,7 +459,11 @@ class TestFilePanel(TestScaffolding):
         folder.mkdir()
         (folder / 'README').write_text('hi', encoding='utf-8')
         errors = []
-        monkeypatch.setattr(self.main_controller, 'show_error', errors.append)
+        monkeypatch.setattr(
+            self.main_controller,
+            'show_error',
+            lambda msg, parent=None, detail='': errors.append((msg + '\n\n' + detail).strip()),
+        )
 
         assert not self.main_controller.open_files([str(folder)])
         assert 'nothing to translate' in errors[0]

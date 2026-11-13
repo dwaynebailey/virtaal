@@ -266,11 +266,15 @@ class MainController(BaseController):
         """Whether to go on opening C{filename}: asks first if it's the
         file already open."""
         if self.store_controller.store and self.store_controller.store.get_filename() == filename:
-            promptmsg = _(
-                'You selected the currently open file for opening. Do you want to reload the file?'
-            )
-            return self.show_prompt(msg=promptmsg, yes_label=_("_Reload"))
+            return self._reload_prompt(filename)
         return True
+
+    def _reload_prompt(self, filename):
+        return self.show_prompt(
+            msg=_("Reload “%(filename)s”?") % {'filename': os.path.basename(filename)},
+            detail=_("The file is already open."),
+            yes_label=_("_Reload"),
+        )
 
     def _open_file(self, filename, uri, forget_dir):
         self._wait_for_controllers()
@@ -309,12 +313,7 @@ class MainController(BaseController):
 
             logging.exception('MainController.open_file(filename="%s", uri="%s")' % (filename, uri))
             self.last_open_error = str(exc)
-            self.show_error(
-                filename
-                + ":\n"
-                + _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
-                % {'error_message': str(exc)}
-            )
+            self.show_open_error(exc, filename)
             return False
 
     def _monolingual_template(self, filename):
@@ -389,12 +388,7 @@ class MainController(BaseController):
 
             logging.exception('MainController.open_files(%r)', paths)
             self.last_open_error = str(exc)
-            self.show_error(
-                paths[0]
-                + ":\n"
-                + _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
-                % {'error_message': str(exc)}
-            )
+            self.show_open_error(exc, paths[0])
             return False
 
     def open_stream_language(self, language):
@@ -419,10 +413,7 @@ class MainController(BaseController):
             import logging
 
             logging.exception('MainController.open_stream_language(%r)', language)
-            self.show_error(
-                _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
-                % {'error_message': str(exc)}
-            )
+            self.show_open_error(exc, self.store_controller.stream_name())
             return False
         finally:
             self._opening_file = False
@@ -451,12 +442,7 @@ class MainController(BaseController):
 
             logging.exception('MainController.open_package(%r)', path)
             self.last_open_error = str(exc)
-            self.show_error(
-                path
-                + ":\n"
-                + _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
-                % {'error_message': str(exc)}
-            )
+            self.show_open_error(exc, path)
             return False
         finally:
             self._opening_file = False
@@ -481,11 +467,8 @@ class MainController(BaseController):
             import logging
 
             logging.exception('MainController.create_return_package(%r)', filename)
-            self.show_error(
-                _(
-                    "Could not export file.\n\n%(error_message)s\n\nTry saving to a different location."
-                )
-                % {'error_message': str(exc)}
+            self.show_write_error(
+                _("Could not export “%(filename)s”") % {'filename': os.path.basename(filename)}, exc
             )
             return False
 
@@ -523,8 +506,8 @@ class MainController(BaseController):
         # prompts or the write itself, not after (#517).
         if filename and os.path.exists(filename) and not os.access(filename, os.W_OK):
             self.show_error(
-                _("%(filename)s is read-only.\n\nTry saving to a different location.")
-                % {'filename': filename}
+                _("“%(filename)s” is read-only") % {'filename': os.path.basename(filename)},
+                detail=_("Try saving to a different location."),
             )
             return False
 
@@ -539,23 +522,19 @@ class MainController(BaseController):
         """Delegate saving to the store_controller, but do error handling.
 
         Return True on success, False otherwise."""
+        heading = _("Could not save “%(filename)s”") % {
+            'filename': os.path.basename(filename) if filename else self.get_store_title()
+        }
         try:
             self.store_controller.save_file(filename)
             return True
         except OSError as exc:
-            self.show_error(
-                _(
-                    "Could not save file.\n\n%(error_message)s\n\nTry saving to a different location."
-                )
-                % {'error_message': str(exc)}
-            )
+            self.show_write_error(heading, exc)
         except Exception as exc:
             import logging
 
             logging.exception('MainController.save_file(filename="%s")' % (filename))
-            self.show_error(
-                _("Could not save file.\n\n%(error_message)s") % {'error_message': str(exc)}
-            )
+            self.show_error(heading, detail=str(exc))
         return False
 
     def binary_export(self):
@@ -578,23 +557,17 @@ class MainController(BaseController):
         filename = self.view.show_save_dialog(current_filename=filename, title=_("Export"))
         if not filename:
             return False
+        heading = _("Could not export “%(filename)s”") % {'filename': os.path.basename(filename)}
         try:
             self.store_controller.binary_export(filename)
             return True
         except OSError as exc:
-            self.show_error(
-                _(
-                    "Could not export file.\n\n%(error_message)s\n\nTry saving to a different location."
-                )
-                % {'error_message': str(exc)}
-            )
+            self.show_write_error(heading, exc)
         except Exception as exc:
             import logging
 
             logging.exception('MainController.binary_export(filename="%s")' % (filename))
-            self.show_error(
-                _("Could not export file.\n\n%(error_message)s") % {'error_message': str(exc)}
-            )
+            self.show_error(heading, detail=str(exc))
         return False
 
     def close_file(self):
@@ -610,9 +583,7 @@ class MainController(BaseController):
 
     def revert_file(self, filename=None):
         confirm = self.show_prompt(
-            _("Revert to Saved"),
-            _("Revert to the last saved copy and lose all changes?"),
-            yes_label=_("_Revert"),
+            _("Revert to the last saved copy and lose all changes?"), yes_label=_("_Revert")
         )
         if not confirm:
             return
@@ -624,10 +595,7 @@ class MainController(BaseController):
             import logging
 
             logging.exception('MainController.revert_file(filename="%s")' % (filename))
-            self.show_error(
-                _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
-                % {'error_message': str(exc)}
-            )
+            self.show_open_error(exc, filename or self.get_store_title())
 
     def update_file(self, filename, uri=''):
         """Update the current file using the file given by C{filename} as template.
@@ -642,10 +610,7 @@ class MainController(BaseController):
             # Unnecessary to test for 'discard'
 
         if self.store_controller.store and self.store_controller.store.get_filename() == filename:
-            promptmsg = _(
-                'You selected the currently open file for opening. Do you want to reload the file?'
-            )
-            if not self.show_prompt(msg=promptmsg, yes_label=_("_Reload")):
+            if not self._reload_prompt(filename):
                 return False
 
         try:
@@ -658,29 +623,44 @@ class MainController(BaseController):
             logging.exception(
                 'MainController.update_file(filename="%s", uri="%s")' % (filename, uri)
             )
-            self.show_error(
-                _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
-                % {'error_message': str(exc)}
-            )
+            self.show_open_error(exc, filename)
             return False
 
     def select_unit(self, unit, force=False):
         """Select the specified unit in the store view."""
         self.store_controller.select_unit(unit, force)
 
-    def show_error(self, msg, parent=None):
-        """Shortcut for C{self.view.show_error_dialog()}"""
-        return self.view.show_error_dialog(message=msg, parent=parent)
+    def show_error(self, msg, parent=None, detail=''):
+        """Shortcut for C{self.view.show_error_dialog()}: C{msg} is the
+        heading, C{detail} the text below it."""
+        return self.view.show_error_dialog(message=msg, parent=parent, detail=detail)
 
-    def show_prompt(self, title='', msg='', parent=None, yes_label='', no_label=''):
-        """Shortcut for C{self.view.show_prompt_dialog()}"""
-        return self.view.show_prompt_dialog(
-            title=title, message=msg, parent=parent, yes_label=yes_label, no_label=no_label
+    def show_open_error(self, exc, filename=''):
+        """Say that C{filename} could not be opened, and why."""
+        if filename:
+            heading = _("Could not open “%(filename)s”") % {
+                'filename': os.path.basename(os.path.normpath(filename))
+            }
+        else:
+            heading = _("Could not open the file")
+        self.show_error(heading, detail=str(exc) + '\n\n' + _("Try opening a different file."))
+
+    def show_write_error(self, heading, exc):
+        """Show C{heading}, why the file couldn't be written, and what to do."""
+        self.show_error(
+            heading, detail=str(exc) + '\n\n' + _("Try saving to a different location.")
         )
 
-    def show_info(self, title='', msg='', parent=None):
+    def show_prompt(self, msg='', parent=None, yes_label='', no_label='', detail=''):
+        """Shortcut for C{self.view.show_prompt_dialog()}: C{msg} is the
+        question, C{detail} the text below it."""
+        return self.view.show_prompt_dialog(
+            message=msg, parent=parent, yes_label=yes_label, no_label=no_label, detail=detail
+        )
+
+    def show_info(self, msg='', parent=None, detail=''):
         """Shortcut for C{self.view.show_info_dialog()}"""
-        return self.view.show_info_dialog(title=title, message=msg, parent=parent)
+        return self.view.show_info_dialog(message=msg, parent=parent, detail=detail)
 
     def show_template_update_notice(self, title, before, after):
         """Shortcut for C{self.view.show_template_update_notice()}"""

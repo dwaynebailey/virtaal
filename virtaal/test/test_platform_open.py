@@ -62,7 +62,11 @@ class TestPlatformOpen(TestScaffolding):
             lambda *args: ('Tester', 'tester@example.org', 'Afrikaans'),
         )
         self.errors = []
-        monkeypatch.setattr(self.main_controller, 'show_error', self.errors.append)
+        monkeypatch.setattr(
+            self.main_controller,
+            'show_error',
+            lambda msg, parent=None, detail='': self.errors.append((msg + '\n\n' + detail).strip()),
+        )
         monkeypatch.setattr(
             self.main_controller.view,
             'ask_template',
@@ -301,6 +305,6 @@ class TestPlatformOpen(TestScaffolding):
 
         assert dialog.opened and os.path.isfile(dialog.opened)
         assert not self.main_controller.open_file(dialog.opened)
-        assert len(self.errors) == 1 and 'Could not open file.' in self.errors[0]
+        assert len(self.errors) == 1 and 'Could not open' in self.errors[0]
         # The work folder stays.
         assert os.path.isfile(dialog.opened)
