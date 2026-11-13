@@ -234,6 +234,8 @@ a = Analysis(  # noqa: F821
     hiddenimports=(
         collect_submodules("virtaal", filter=_not_test)
         + collect_submodules("translate.storage")
+        # Document converters, imported only when a document opens.
+        + collect_submodules("translate.convert")
         + (collect_submodules("enchant", filter=_not_enchant_dialog) if _bundle_enchant else [])
     ),
     hooksconfig={
