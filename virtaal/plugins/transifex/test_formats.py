@@ -12,6 +12,7 @@ Submit, Update (strings added and removed) and reopening treat as any
 other work copy; one in a format it reads downloads its file; and the
 placeables follow the format."""
 
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -265,7 +266,7 @@ def test_rails_placeables_are_rubys(fake):
 def test_json_with_a_plural_is_built_with_each_category(fake):
     copy = Built(fake, 'counts')
 
-    assert copy.copy.path.endswith('counts/af.xlf')
+    assert copy.copy.path.endswith(os.path.join('counts', 'af.xlf'))
     assert list(copy.by_key('items').source.strings) == ['{count} item', '{count} items']
     assert copy.copy.record['placeables'] == 'json-vue'
 
