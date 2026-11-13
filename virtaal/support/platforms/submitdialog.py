@@ -17,7 +17,7 @@ from gi.repository import GLib, Gtk, Pango
 
 from virtaal.common.pan_app import ngettext
 from virtaal.support.libi18n.numbers import format_number
-from virtaal.views.widgets.util import run_dialog
+from virtaal.views.widgets.util import run_dialog, tell
 
 from . import HTTP, PlatformError, submit
 from .serversdialog import budget_message, clock_time, error_message
@@ -351,15 +351,7 @@ class CopyDialogs:
         self._sessions = {}
 
     def _tell(self, text, kind=Gtk.MessageType.INFO):
-        dialog = Gtk.MessageDialog(
-            transient_for=self.parent,
-            modal=True,
-            message_type=kind,
-            buttons=Gtk.ButtonsType.CLOSE,
-            text=text,
-        )
-        run_dialog(dialog)
-        dialog.destroy()
+        tell(self.parent, text, kind)
 
     def _server(self, copy=None):
         """The server copy (the first) came from, or None, said."""

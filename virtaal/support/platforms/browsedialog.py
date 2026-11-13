@@ -35,7 +35,7 @@ those the server doesn't have, and the rest open (opened_all)."""
 from gi.repository import Gdk, GLib, Gtk, Pango
 
 from virtaal.support.libi18n.numbers import format_number, format_percent
-from virtaal.views.widgets.util import run_dialog
+from virtaal.views.widgets.util import run_dialog, tell
 
 from . import HTTP, PlatformError, location_of, pending_message, workcopy
 from .serversdialog import error_message
@@ -623,15 +623,7 @@ class BrowseDialog:
         self._opened_all(result.paths)
 
     def _tell_failed(self, text):
-        dialog = Gtk.MessageDialog(
-            transient_for=self.dialog,
-            modal=True,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.CLOSE,
-            text=text,
-        )
-        run_dialog(dialog)
-        dialog.destroy()
+        tell(self.dialog, text, Gtk.MessageType.WARNING)
 
     def run(self):
         """Shows the dialog until it's closed. The work file opened, or

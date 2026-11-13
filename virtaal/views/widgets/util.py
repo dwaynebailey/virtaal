@@ -45,3 +45,19 @@ def run_dialog(dialog, show_all=False):
     if transient_for is not None:
         GLib.idle_add(transient_for.present)
     return response
+
+
+def tell(parent, text, kind=Gtk.MessageType.INFO):
+    """Show C{text} in a message dialog with a Close button: its first
+    line as the heading, the rest below it."""
+    heading, _newline, detail = text.partition('\n')
+    dialog = Gtk.MessageDialog(
+        transient_for=parent,
+        modal=True,
+        message_type=kind,
+        buttons=Gtk.ButtonsType.CLOSE,
+        text=heading,
+        secondary_text=detail.strip('\n') or None,
+    )
+    run_dialog(dialog)
+    dialog.destroy()

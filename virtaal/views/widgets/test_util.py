@@ -7,7 +7,7 @@
 
 from gi.repository import GLib, Gtk
 
-from virtaal.views.widgets.util import forall_widgets, get_children, run_dialog
+from virtaal.views.widgets.util import forall_widgets, get_children, run_dialog, tell
 
 
 def test_get_children_default_is_empty():
@@ -95,3 +95,21 @@ def test_run_dialog_presents_the_parent_from_idle(monkeypatch):
 
     assert dialog.calls[-1] == 'hide'
     assert queued == [parent.present]
+
+
+def test_tell_shows_the_first_line_as_the_heading(monkeypatch):
+    shown = []
+
+    def run(dialog):
+        shown.append((dialog.props.text, dialog.props.secondary_text, dialog.props.message_type))
+        return Gtk.ResponseType.CLOSE
+
+    monkeypatch.setattr(Gtk.Dialog, 'run', run)
+
+    tell(None, 'Submitted 3 units.\nSubmit again to send the rest.', Gtk.MessageType.WARNING)
+    tell(None, 'Nothing to submit.')
+
+    assert shown == [
+        ('Submitted 3 units.', 'Submit again to send the rest.', Gtk.MessageType.WARNING),
+        ('Nothing to submit.', None, Gtk.MessageType.INFO),
+    ]
