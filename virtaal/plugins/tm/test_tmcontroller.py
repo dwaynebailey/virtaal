@@ -425,8 +425,8 @@ def test_accept_response_adds_a_genuinely_new_match_and_displays_it():
 
 def test_accept_response_keeps_an_existing_qualified_match_over_a_duplicate_target():
     """A duplicate suggestion (same normalized target) that already has
-    quality information is trusted over a new one - only a
-    qualityless existing match (e.g. from MT) gets replaced."""
+    quality information is trusted over a new one that ranks no higher -
+    a qualityless existing match (e.g. from MT) gets replaced."""
     existing = {'target': 'hallo', 'quality': 95, 'tmsource': 'Local TM', 'query_str': 'hello'}
     controller = _make_controller(matches=[existing])
 
@@ -434,6 +434,16 @@ def test_accept_response_keeps_an_existing_qualified_match_over_a_duplicate_targ
 
     assert controller.matches == [existing]
     assert controller.displayed == []  # nothing new, so display_matches is never called
+
+
+def test_accept_response_replaces_a_duplicate_that_ranks_lower():
+    existing = {'target': 'hallo', 'quality': 95, 'tmsource': 'Local TM', 'query_str': 'hello'}
+    controller = _make_controller(matches=[existing])
+    weighted = SimpleNamespace(display_name='Bundle', match_weight=lambda match: 2.0)
+
+    controller.accept_response(weighted, 'hello', [{'target': 'hallo', 'quality': 80}])
+
+    assert [(m['tmsource'], m['quality']) for m in controller.matches] == [('Bundle', 80)]
 
 
 def test_accept_response_replaces_an_unqualified_duplicate_with_a_qualified_one():

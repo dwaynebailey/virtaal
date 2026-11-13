@@ -299,7 +299,8 @@ class TMController(BaseController):
 
     def _add_match(self, match):
         """Add match unless one with its target is already there, which
-        it replaces if that one has no quality. True if added."""
+        it replaces if that one has no quality or ranks lower. True if
+        added."""
         norm_match_target = normalize(match['target'])
         prevmatch = next(
             (m for m in self.matches if normalize(m['target']) == norm_match_target), None
@@ -310,7 +311,7 @@ class TMController(BaseController):
             # way an existing 100% will be above a new 100%.
             self.matches.append(match)
             return True
-        if 'quality' not in prevmatch or not prevmatch['quality']:
+        if not prevmatch.get('quality') or _rank(match) > _rank(prevmatch):
             # Matches without quality are assumed to be less appropriate
             # (ie. MT matches) than matches with an associated quality.
             self.matches.remove(prevmatch)
