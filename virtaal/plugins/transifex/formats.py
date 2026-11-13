@@ -186,6 +186,9 @@ def _element(parent, tag, text=None, **attributes):
 
 def _segment(unit, source, target, code, case=None):
     segment = _element(unit, '{%s}segment' % XLIFF)
+    # Where translate-toolkit reads it (and writes it) for a segment's
+    # text, beside the <file>'s.
+    segment.set('{%s}space' % XML, 'preserve')
     if case is not None:
         segment.set('{%s}case' % PGS, case)
     _element(segment, '{%s}source' % XLIFF, source)
