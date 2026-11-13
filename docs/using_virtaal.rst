@@ -722,8 +722,8 @@ comparing them before and after, not by opening them in the tools again.
 Documents and translation bundles
 ---------------------------------
 Virtaal translates documents: OpenDocument texts, spreadsheets and
-presentations (.odt, .ods, .odp), web pages (.html) and plain text files
-(.txt). Open one as you would a translation file. Virtaal never writes to the
+presentations (.odt, .ods, .odp), web pages (.html), plain text files (.txt)
+and Markdown (.md). Open one as you would a translation file. Virtaal never writes to the
 document itself: what you translate goes into a translation bundle (.virtaal),
 which holds a copy of the document, the translation and the translated
 document. Nothing is written until you save, and the first save asks where,
@@ -736,6 +736,17 @@ writes the translated documents out, ``report.af.odt`` for example; it saves
 the bundle first. Paragraphs that are untranslated or need work keep the
 document's text.
 
+The bundle keeps track of the document it was made from. When you open it
+and the document has changed since, Virtaal offers to update the
+translation: unchanged paragraphs keep their translations, changed ones keep
+theirs marked as needing review, and new ones are untranslated.
+:menuselection:`File --> Update from Template` takes in a new version of a
+document from anywhere. Moving the bundle and the document together keeps
+them tied; moving or deleting only the document just stops the check. Opening
+a document again offers the bundle beside it that already holds its
+translation. Exporting again over a translated document that someone has
+edited since asks first.
+
 A bundle can hold several documents, translated into several languages:
 
 - Opening several documents together makes one bundle with no target
@@ -746,6 +757,7 @@ A bundle can hold several documents, translated into several languages:
 - With several languages, the bundle opens in one of them; choose another in
   the Files Panel. The panel's :guilabel:`All languages` menu exports every
   language's documents, each language into a folder of its own.
+- Updating a document updates every language at once.
 - :menuselection:`Split by Language…` saves one bundle per language
   (``manual.zu.virtaal``) to send to each translator, so nobody changes another
   language by accident. :menuselection:`Merge Returned Bundles…` brings their

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 06:42+0000\n"
+"POT-Creation-Date: 2026-11-13 06:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -873,6 +873,24 @@ msgstr ""
 msgid "Loading '%s'…"
 msgstr ""
 
+#. l10n: Shown on opening a translation bundle whose source document
+#. was changed since its translation was last brought up to date
+#: virtaal/controllers/bundleactions.py
+msgid "The original document has changed. Update the translation?"
+msgstr ""
+
+#. l10n: The button of that notice
+#: virtaal/controllers/bundleactions.py
+msgid "_Update"
+msgstr ""
+
+#. l10n: Asked on opening a document already being translated in a
+#. translation bundle beside it; %(bundle)s is its file name
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "%(bundle)s already holds this document's translation. Open it instead?"
+msgstr ""
+
 #. l10n: Shown on opening a translation bundle with documents but no language
 #. to translate them into yet
 #: virtaal/controllers/bundleactions.py
@@ -904,6 +922,19 @@ msgstr[1] ""
 #: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py
 msgid "Export"
 msgstr ""
+
+#. l10n: Asked before exporting translated documents over files of the
+#. same name that are not as Virtaal last exported them
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid ""
+"%(count)s file there was changed after it was exported, or is another file. "
+"Replace it?"
+msgid_plural ""
+"%(count)s files there were changed after they were exported, or are other "
+"files. Replace them?"
+msgstr[0] ""
+msgstr[1] ""
 
 #: virtaal/controllers/checkscontroller.py virtaal/views/mainview.py
 msgid "Fuzzy"
@@ -1448,6 +1479,14 @@ msgstr ""
 #: virtaal/controllers/storecontroller.py
 #, python-format
 msgid "The plural forms of %(file)s need fixing."
+msgstr ""
+
+#. l10n: Shown when saving a translation bundle that another program, or
+#. another Virtaal, changed after it was opened
+#: virtaal/controllers/storecontroller.py
+msgid ""
+"The bundle was changed by another program since it was opened. Save it under "
+"a new name."
 msgstr ""
 
 #. l10n: Shown after saving a translation bundle. %(document)s is a document's

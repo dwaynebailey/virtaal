@@ -75,14 +75,68 @@ class BundleActions:
             self.main_controller.last_open_error = str(exc)
             self._error(exc, where)
             return False
-        if bundle.read_only():
+        if bundle.changed_documents():
+            self._offer_update()
+        elif bundle.read_only():
             self._offer_language()
+        return True
+
+    def _offer_update(self):
+        # l10n: Shown on opening a translation bundle whose source document
+        # was changed since its translation was last brought up to date
+        text = _("The original document has changed. Update the translation?")
+        # l10n: The button of that notice
+        update = _("_Update")
+        self.view.show_info_notice(text, action=(update, self.update_changed))
+
+    def update_changed(self):
+        """Bring the translations up to the source documents as they are
+        now, beside the bundle."""
+        bundle = self.bundle()
+        if bundle is None:
+            return False
+        self.store_controller.flush_bundle()
+        try:
+            for name, path in bundle.changed_documents():
+                bundle.update_from(path, name)
+        except Exception as exc:
+            self._error(exc)
+            return False
+        self._changed()
+        return True
+
+    def update_from_document(self):
+        """File > Update from Template on a bundle: a new version of one
+        of its documents, for every language."""
+        bundle = self.bundle()
+        paths = self.view.ask_documents()
+        if bundle is None or not paths:
+            return False
+        self.store_controller.flush_bundle()
+        try:
+            bundle.update_from(paths[0])
+        except Exception as exc:
+            self._error(exc, paths[0])
+            return False
+        self._changed()
         return True
 
     def open_documents(self, paths):
         """Open documents to translate, as one new bundle."""
         from virtaal.support import documents
 
+        if len(paths) == 1:
+            for existing in documents.bundles_for(paths[0]):
+                if self.main_controller.show_prompt(
+                    msg=_(
+                        # l10n: Asked on opening a document already being translated in a
+                        # translation bundle beside it; %(bundle)s is its file name
+                        "%(bundle)s already holds this document's translation. Open it instead?"
+                    )
+                    % {'bundle': os.path.basename(existing)}
+                ):
+                    return self.open_bundle(existing)
+                break
         source, target = self._languages()
         return self._open(lambda: documents.from_documents(paths, source, target), paths[0])
 
@@ -109,6 +163,7 @@ class BundleActions:
         paths = self.view.ask_documents()
         if bundle is None or not paths:
             return False
+        self.store_controller.flush_bundle()
         try:
             for path in paths:
                 bundle.add_document(path)
@@ -125,6 +180,7 @@ class BundleActions:
         language = self.view.ask_language(bundle.source_language, self._languages()[1])
         if not language or language in bundle.languages:
             return False
+        self.store_controller.flush_bundle()
         bundle.add_language(language)
         self.view.hide_info_notice()
         self._changed(language)
@@ -221,13 +277,43 @@ class BundleActions:
             if not folder:
                 return False
             if all_languages:
+                paths = bundle.export_all_paths(folder)
+            else:
+                paths = bundle.export_paths(language, folder)
+            if not self._replace_confirmed(bundle, paths):
+                return False
+            if all_languages:
                 bundle.export_all(folder)
             else:
                 bundle.export_language(language, folder)
+            bundle.save()
         except Exception as exc:
             self._export_error(exc)
             return False
         return True
+
+    def _replace_confirmed(self, bundle, paths):
+        """Whether to write over translated documents someone edited
+        after they were exported."""
+        for path in paths:
+            bundle.check_export(path)
+        edited = bundle.edited_exports(paths)
+        if not edited:
+            return True
+        return self.main_controller.show_prompt(
+            msg=_counted(
+                ngettext(
+                    # l10n: Asked before exporting translated documents over files of the
+                    # same name that are not as Virtaal last exported them
+                    '%(count)s file there was changed after it was exported, or is '
+                    'another file. Replace it?',
+                    '%(count)s files there were changed after they were exported, or are '
+                    'other files. Replace them?',
+                    len(edited),
+                ),
+                len(edited),
+            )
+        )
 
     def _export_folder(self, bundle):
         originals = [d.get('original') for d in bundle.documents() if d.get('original')]
@@ -241,9 +327,10 @@ class BundleActions:
             self._export_folder(bundle), '%s.%s%s' % (stem, language, extension)
         )
         path = self.view.show_save_dialog(current_filename=suggested, title=_("Export"))
-        if not path:
+        if not path or not self._replace_confirmed(bundle, [path]):
             return False
         bundle.export_document(name, language, path)
+        bundle.save()
         return True
 
     def export_tipp(self, all_languages=False):

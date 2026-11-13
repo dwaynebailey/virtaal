@@ -660,3 +660,110 @@ def test_a_bundle_is_told_by_its_first_bytes(tmp_path, report):
 
     assert data[:4] == b'PK\x03\x04'
     assert data[38 : 38 + len(documents.MIMETYPE)] == documents.MIMETYPE.encode()
+
+
+# Keeping a bundle tied to its documents
+
+
+def test_a_changed_source_document_is_noticed(tmp_path, report):
+    bundle = documents.from_documents([report], 'en', 'af')
+    path = str(tmp_path / 'report.af.virtaal')
+    bundle.save(path)
+    assert bundle.changed_documents() == []
+
+    Path(report).write_bytes(_docsamples.odt(['Hello world.', 'New.']))
+
+    again = DocumentBundle.open(path, str(tmp_path / 'work'))
+    assert again.changed_documents() == [('report.odt', report)]
+    again.update_from(report, 'report.odt')
+    assert again.changed_documents() == []
+    assert 'New.' in _units(again.files()[0])
+
+
+def test_moving_the_bundle_and_document_together_keeps_them_tied(tmp_path, report):
+    bundle = documents.from_documents([report], 'en', 'af')
+    bundle.save(str(tmp_path / 'report.af.virtaal'))
+    moved = tmp_path / 'moved'
+    moved.mkdir()
+    os.rename(report, moved / 'report.odt')
+    os.rename(tmp_path / 'report.af.virtaal', moved / 'report.af.virtaal')
+    (moved / 'report.odt').write_bytes(_docsamples.odt(['Changed.']))
+
+    again = DocumentBundle.open(str(moved / 'report.af.virtaal'), str(tmp_path / 'work'))
+
+    assert again.changed_documents() == [('report.odt', str(moved / 'report.odt'))]
+
+
+def test_a_deleted_source_document_turns_off_change_detection_only(tmp_path, report):
+    bundle = documents.from_documents([report], 'en', 'af')
+    path = str(tmp_path / 'report.af.virtaal')
+    bundle.save(path)
+    os.remove(report)
+
+    again = DocumentBundle.open(path, str(tmp_path / 'work'))
+
+    assert again.changed_documents() == []
+    again.export_document('report.odt', 'af', str(tmp_path / 'out.odt'))
+
+
+def test_update_from_finds_the_document_by_name_or_as_the_only_one(tmp_path, report):
+    bundle = documents.from_documents([report], 'en', 'af')
+    other = tmp_path / 'renamed.odt'
+    other.write_bytes(_docsamples.odt(['Renamed.']))
+
+    assert bundle.update_from(str(other)) == 'report.odt'
+    bundle.add_document(_odt(tmp_path, 'notes.odt', ['A note.']))
+    with pytest.raises(BundleError, match='no document renamed.odt'):
+        bundle.update_from(str(other))
+
+
+def test_a_bundle_changed_on_disk_is_not_saved_over(tmp_path, report):
+    bundle = documents.from_documents([report], 'en', 'af')
+    path = str(tmp_path / 'report.af.virtaal')
+    bundle.save(path)
+    assert not bundle.changed_on_disk()
+    other = DocumentBundle.open(path, str(tmp_path / 'other'))
+    os.utime(path, ns=(0, 0))
+    other._opened = None
+
+    assert bundle.changed_on_disk()
+    with pytest.raises(documents.BundleChangedError):
+        bundle.save()
+    bundle.save(str(tmp_path / 'elsewhere.virtaal'))
+    assert not bundle.changed_on_disk()
+
+
+def test_an_export_left_as_written_is_replaced_silently(tmp_path, report):
+    bundle = documents.from_documents([report], 'en', 'af')
+    out = str(tmp_path / 'report.af.odt')
+    assert bundle.edited_exports([out]) == []
+    bundle.export_document('report.odt', 'af', out)
+
+    assert bundle.edited_exports([out]) == []
+    Path(out).write_bytes(b'edited by hand')
+    assert bundle.edited_exports([out]) == [out]
+    other = tmp_path / 'other.odt'
+    other.write_bytes(b'someone else')
+    assert bundle.edited_exports([str(other)]) == [str(other)]
+
+
+def test_bundles_for_a_document(tmp_path, report):
+    assert documents.bundles_for(report) == []
+    bundle = documents.from_documents([report], 'en', 'af')
+    path = str(tmp_path / 'report.af.virtaal')
+    bundle.save(path)
+    (tmp_path / 'broken.virtaal').write_bytes(b'not a zip')
+
+    assert documents.bundles_for(report) == [path]
+    copy = tmp_path / 'copy.odt'
+    copy.write_bytes(Path(report).read_bytes())
+    assert documents.bundles_for(str(copy)) == [path]
+
+
+def test_export_paths(tmp_path, report):
+    bundle = documents.from_documents([report], 'en', 'af')
+    bundle.add_language('zu')
+    assert bundle.export_all_paths('/out') == [
+        os.path.join('/out', 'af', 'report.odt'),
+        os.path.join('/out', 'zu', 'report.odt'),
+    ]

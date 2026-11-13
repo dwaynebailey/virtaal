@@ -2095,6 +2095,9 @@ class MainView(BaseView):
         self.controller.close_file()
 
     def _on_file_update(self, _widget):
+        if _bundle_of(getattr(self.controller, 'store_controller', None)) is not None:
+            self.controller.bundle_actions.update_from_document()
+            return
         filename_and_uri = self.show_open_dialog(chooser=self.template_chooser)
         if filename_and_uri:
             filename, uri = filename_and_uri
@@ -2262,7 +2265,7 @@ class MainView(BaseView):
         self.gui.get_object('mnu_saveas').set_sensitive(single or bundle is not None)
         self._set_bundle_items(bundle)
         self.gui.get_object('mnu_close').set_sensitive(True)
-        self.gui.get_object('mnu_update').set_sensitive(single)
+        self.gui.get_object('mnu_update').set_sensitive(single or bundle is not None)
         self.gui.get_object('mnu_properties').set_sensitive(True)
         self.gui.get_object('mnu_next_unit').set_sensitive(True)
         self.gui.get_object('mnu_state_advance').set_sensitive(True)

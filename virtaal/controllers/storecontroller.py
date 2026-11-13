@@ -192,13 +192,17 @@ class StoreController(BaseController):
         if bundle.path is None:
             self.main_controller.set_saveable(True)
 
-    def reopen_bundle(self, language=None):
-        """Open the bundle's files again after a change to the bundle
-        (a document or language added), in C{language} or the one shown,
-        keeping the edits not yet saved."""
-        bundle = self.bundle()
+    def flush_bundle(self):
+        """Write the edits not yet saved into the bundle's work folder,
+        before the bundle changes its files there."""
         self.unit_controller.prepare_for_save()
         self.store.save_file()
+
+    def reopen_bundle(self, language=None):
+        """Open the bundle's files again after a change to the bundle
+        (a document or language added; L{flush_bundle()} first), in
+        C{language} or the one shown."""
+        bundle = self.bundle()
         self.open_bundle(bundle, language or self.stream_language or self._file_language())
         self.set_modified(True)
 
@@ -867,6 +871,17 @@ class StoreController(BaseController):
         its files into the work folder, then the bundle. Translated
         documents too large to make now are made in a child process."""
         bundle = self.bundle()
+        if not filename and bundle.changed_on_disk():
+            from virtaal.support.documents import BundleChangedError
+
+            self.main_controller.set_force_saveas(True)
+            raise BundleChangedError(
+                _(
+                    # l10n: Shown when saving a translation bundle that another program, or
+                    # another Virtaal, changed after it was opened
+                    "The bundle was changed by another program since it was opened. Save it under a new name."
+                )
+            )
         saving = self._saving()
         self.store.save_file()
         self._stop_regeneration()
@@ -909,7 +924,10 @@ class StoreController(BaseController):
                 entry = entries[number]
                 bundle.failures[(entry['document'], entry['language'])] = error
             if self.bundle() is bundle:
-                bundle.save_targets(made)
+                try:
+                    bundle.save_targets(made)
+                except Exception:
+                    logging.exception('Saving the translated documents')
                 self._show_bundle_failures(bundle)
             return False
 

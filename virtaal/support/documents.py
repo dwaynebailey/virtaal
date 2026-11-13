@@ -56,6 +56,19 @@ class BundleError(ValueError):
     """A bundle Virtaal can't open, write or merge."""
 
 
+class BundleChangedError(BundleError):
+    """The bundle's file changed since it was opened, so saving over it
+    would lose those changes."""
+
+
+def _stat(path):
+    try:
+        info = os.stat(path)
+    except OSError:
+        return None
+    return (info.st_mtime_ns, info.st_size)
+
+
 def open_formats():
     """(name, extensions) of the bundles, for the Open dialog: also the
     .zip project bundles of Virtaal 0.7 and translate-toolkit."""
@@ -164,6 +177,7 @@ class DocumentBundle:
         self.failures = {}
         """{(document, language): error} of the translated documents
         that couldn't be made at the last save."""
+        self._opened = None
         if os.path.isdir(self.work_dir):
             shutil.rmtree(self.work_dir)
         os.makedirs(self.work_dir)
@@ -208,6 +222,7 @@ class DocumentBundle:
             if document['source'] not in found:
                 raise BundleError('The bundle has no %s.' % document['source'])
         bundle._write_templates()
+        bundle._opened = _stat(path)
         return bundle
 
     # The manifest
@@ -553,7 +568,15 @@ class DocumentBundle:
         self._write(path)
         return left
 
+    def changed_on_disk(self):
+        """Whether the bundle's file changed since it was opened or last
+        written, by another program or another Virtaal."""
+        return self.path is not None and self._opened != _stat(self.path)
+
     def _write(self, path):
+        if os.path.normcase(path) == os.path.normcase(self.path or '') and self.changed_on_disk():
+            raise BundleChangedError('The bundle was changed by another program.')
+        self._record_originals(path)
         trans = {}
         for entry in self.manifest['translations']:
             data = self.trans_data(entry)
@@ -563,7 +586,72 @@ class DocumentBundle:
         self.manifest['creator'] = _creator()
         _replace_file(path, _zip(self.manifest, {**self.contents, **trans}))
         self.path = path
+        self._opened = _stat(path)
         self.modified = False
+
+    # The documents the bundle was made from
+
+    def _record_originals(self, path):
+        """Note each source document's place from the bundle's folder
+        too, so moving both together keeps them tied."""
+        folder = os.path.dirname(path)
+        for document in self.documents():
+            original = document.get('original')
+            if not original:
+                continue
+            try:
+                relative = os.path.relpath(original, folder)
+            except ValueError:
+                document.pop('original_relpath', None)
+                continue
+            document['original_relpath'] = relative.replace(os.sep, '/')
+
+    def original_path(self, document):
+        """Where the source document C{document} is now, or None: beside
+        the bundle as it was when saved, else where it was added from."""
+        relative = document.get('original_relpath')
+        if relative and self.path:
+            path = os.path.normpath(os.path.join(os.path.dirname(self.path), relative))
+            if os.path.isfile(path):
+                return path
+        original = document.get('original')
+        return original if original and os.path.isfile(original) else None
+
+    def changed_documents(self):
+        """[(document name, path)] of the source documents that changed
+        where they are since the bundle last took them in."""
+        changed = []
+        for document in self.documents():
+            path = self.original_path(document)
+            if path is None:
+                continue
+            try:
+                with open(path, 'rb') as f:
+                    data = f.read()
+            except OSError:
+                continue
+            if sha256(data) != document['sha256']:
+                changed.append((document['name'], path))
+        return changed
+
+    def update_from(self, path, name=None):
+        """Take in a new version of a source document from C{path}: the
+        document C{name}, or the one of that file name, or the only one."""
+        if name is None:
+            name = self._document_for(path)
+        with open(path, 'rb') as f:
+            data = f.read()
+        self.update_document(name, data, os.path.abspath(path))
+        return name
+
+    def _document_for(self, path):
+        names = [d['name'] for d in self.documents()]
+        if os.path.basename(path) in names:
+            return os.path.basename(path)
+        if len(names) == 1 and converters.document_converter(path) is not None:
+            if converters.document_converter(path).id == self.documents()[0]['converter']:
+                return names[0]
+        raise BundleError('The bundle has no document %s.' % os.path.basename(path))
 
     def save_targets(self, made):
         """Write the translated documents made in the background:
@@ -626,7 +714,7 @@ class DocumentBundle:
         written = []
         for language in self.languages:
             path = os.path.join(folder, '%s.%s.%s' % (self.name, language, EXTENSION))
-            self._check_export(path)
+            self.check_export(path)
             manifest, members = self._split_bundle(language, sources)
             _replace_file(path, _zip(manifest, members))
             for entry in self.translations(language):
@@ -736,7 +824,7 @@ class DocumentBundle:
         """Write a TIPP 2.0 package asking for the translation of the
         documents into C{language}, with this bundle's work so far: the
         translatable files, as XLIFF."""
-        self._check_export(path)
+        self.check_export(path)
         files = []
         for entry in self.translations(language):
             name = entry['file'].split('/')[-1]
@@ -769,15 +857,44 @@ class DocumentBundle:
         """Write the translated document of C{document} into
         C{language} to C{path}."""
         entry = self.translation(document, language)
-        self._check_export(path)
+        self.check_export(path)
         if not self._fresh(entry, self.trans_data(entry)) and not self.make_target(entry):
             raise BundleError(
                 "The translated document couldn't be made: %s" % self.failures[(document, language)]
             )
         _replace_file(path, self.contents[entry['target']])
+        exports = self.manifest.setdefault('exports', {}).setdefault(language, {})
+        exports[document] = {
+            'path': os.path.abspath(path),
+            'sha256': sha256(self.contents[entry['target']]),
+        }
+        self.modified = True
         return path
 
-    def _check_export(self, path):
+    def edited_exports(self, paths):
+        """Those of C{paths} that a translated document would replace
+        though they aren't an export left as Virtaal wrote it: edited
+        since, or another file."""
+        written = {
+            os.path.normcase(record['path']): record['sha256']
+            for records in self.manifest.get('exports', {}).values()
+            for record in records.values()
+        }
+        edited = []
+        for path in paths:
+            if not os.path.exists(path):
+                continue
+            with open(path, 'rb') as f:
+                digest = sha256(f.read())
+            if written.get(os.path.normcase(os.path.abspath(path))) != digest:
+                edited.append(path)
+        return edited
+
+    def export_paths(self, language, folder):
+        """Where L{export_language()} writes."""
+        return [os.path.join(folder, d['name']) for d in self.documents()]
+
+    def check_export(self, path):
         if self.path and _same_file(self.path, path):
             raise BundleError("The bundle can't be replaced by a translated document.")
         for document in self.documents():
@@ -790,8 +907,16 @@ class DocumentBundle:
         @returns: Their paths."""
         os.makedirs(folder, exist_ok=True)
         return [
-            self.export_document(d['name'], language, os.path.join(folder, d['name']))
-            for d in self.documents()
+            self.export_document(d['name'], language, path)
+            for d, path in zip(self.documents(), self.export_paths(language, folder), strict=True)
+        ]
+
+    def export_all_paths(self, folder):
+        """Where L{export_all()} writes."""
+        return [
+            path
+            for language in self.languages
+            for path in self.export_paths(language, os.path.join(folder, language))
         ]
 
     def export_all(self, folder):
@@ -1019,6 +1144,35 @@ def _zip(manifest, members):
         for name in sorted(members):
             archive.writestr(zipfile.ZipInfo(name, stamp), members[name], zipfile.ZIP_DEFLATED)
     return out.getvalue()
+
+
+def bundles_for(path):
+    """The bundles beside the document C{path} made from it: from that
+    path, or from a document with the same contents."""
+    folder = os.path.dirname(os.path.abspath(path))
+    with open(path, 'rb') as f:
+        digest = sha256(f.read())
+    found = []
+    try:
+        names = sorted(os.listdir(folder))
+    except OSError:
+        return found
+    for name in names:
+        candidate = os.path.join(folder, name)
+        if is_bundle(name) and _made_from(candidate, os.path.abspath(path), digest):
+            found.append(candidate)
+    return found
+
+
+def _made_from(bundle_path, path, digest):
+    try:
+        with zipfile.ZipFile(bundle_path) as archive:
+            manifest = _manifest(archive.read(MANIFEST))
+    except (OSError, KeyError, zipfile.BadZipFile, BundleError, packages.PackageError):
+        return False
+    return any(
+        d.get('original') == path or d.get('sha256') == digest for d in manifest['documents']
+    )
 
 
 def from_documents(paths, source_language, target_language=None):

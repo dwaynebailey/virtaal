@@ -24,6 +24,9 @@ class TestDocumentsOpen(TestScaffolding):
     def setup_class(self):
         TestScaffolding.setup_class(self)
         PlaceablesController(self.main_controller)
+        from virtaal.controllers.filepanelcontroller import FilePanelController
+
+        self.panel = FilePanelController(self.main_controller)
 
     @pytest.fixture(autouse=True)
     def _work(self, monkeypatch, tmp_path, tmp_path_factory):
@@ -374,3 +377,103 @@ class TestDocumentsOpen(TestScaffolding):
 
         assert [c.theirs for c in asked[0]] == [['Theirs.']]
         assert not bundle.modified
+
+    def test_a_changed_source_document_offers_to_update_every_language(self, monkeypatch):
+        report = self._odt('report.odt', ['Hello world.'])
+        self.main_controller.open_file(report)
+        self._edit(0, 'Hallo.')
+        self.save_to = str(self.dir / 'report.af.virtaal')
+        self.main_controller.save_file()
+        self.store_controller.close_file()
+        (self.dir / 'report.odt').write_bytes(_docsamples.odt(['Hello world.', 'New.']))
+        offered = []
+        monkeypatch.setattr(
+            self.view,
+            'show_info_notice',
+            lambda text, action=None, **_kw: offered.append((text, action)),
+        )
+
+        self.main_controller.open_file(self.save_to)
+
+        [(text, action)] = offered
+        assert 'original document has changed' in text
+        action[1]()
+        sc = self.store_controller
+        assert [str(u.source) for u in sc.store.get_units()] == ['Hello world.', 'New.']
+        assert str(sc.store.get_units()[0].target) == 'Hallo.'
+        assert sc.is_modified()
+
+    def test_update_from_template_takes_a_new_version_of_the_document(self, monkeypatch):
+        report = self._odt('report.odt', ['Hello world.'])
+        self.main_controller.open_file(report)
+        new = self._odt('report-v2.odt', ['Hello world.', 'Added.'])
+        monkeypatch.setattr(self.view, 'ask_documents', lambda: [new])
+
+        self.view._on_file_update(None)
+
+        assert [str(u.source) for u in self.store_controller.store.get_units()] == [
+            'Hello world.',
+            'Added.',
+        ]
+
+    def test_opening_a_document_again_offers_its_bundle(self, monkeypatch):
+        report = self._odt('report.odt', ['Hello world.'])
+        self.main_controller.open_file(report)
+        self._edit(0, 'Hallo.')
+        self.save_to = str(self.dir / 'report.af.virtaal')
+        self.main_controller.save_file()
+        self.store_controller.close_file()
+        asked = []
+        monkeypatch.setattr(
+            self.main_controller, 'show_prompt', lambda **kw: asked.append(kw['msg']) or True
+        )
+
+        assert self.main_controller.open_file(report)
+
+        assert 'report.af.virtaal' in asked[0]
+        assert self.store_controller.bundle().path == self.save_to
+        assert str(self.store_controller.store[0].target) == 'Hallo.'
+
+    def test_export_asks_before_replacing_an_edited_export(self, monkeypatch):
+        report = self._odt('report.odt', ['Hello world.'])
+        self.main_controller.open_file(report)
+        out = str(self.dir / 'out.odt')
+        self.save_to = [str(self.dir / 'report.af.virtaal'), out, out, out]
+        assert self.main_controller.bundle_actions.export_documents()
+        asked = []
+        monkeypatch.setattr(
+            self.main_controller, 'show_prompt', lambda **kw: asked.append(kw['msg']) or False
+        )
+
+        assert self.main_controller.bundle_actions.export_documents()
+        assert asked == []
+        (self.dir / 'out.odt').write_bytes(b'edited')
+        assert not self.main_controller.bundle_actions.export_documents()
+
+        assert len(asked) == 1
+        assert (self.dir / 'out.odt').read_bytes() == b'edited'
+
+    def test_saving_a_bundle_changed_on_disk_forces_save_as(self):
+        report = self._odt('report.odt', ['Hello world.'])
+        self.main_controller.open_file(report)
+        self.save_to = str(self.dir / 'report.af.virtaal')
+        self.main_controller.save_file()
+        self._edit(0, 'Hallo.')
+        os.utime(self.save_to, ns=(0, 0))
+
+        assert not self.main_controller.save_file()
+
+        assert 'changed by another program' in self.errors[0]
+        assert self.main_controller.get_force_saveas()
+        self.save_to = str(self.dir / 'mine.virtaal')
+        assert self.main_controller.save_file()
+        assert os.path.exists(self.save_to)
+
+    def test_the_files_panel_offers_every_languages_exports_for_a_bundle(self, monkeypatch):
+        self._master(monkeypatch)
+
+        menu = self.panel.view.all_languages_button.get_popup()
+        labels = [item.get_label() for item in menu.get_children() if item.get_visible()]
+
+        assert labels[-2:] == ['Export Translated Doc_uments…', 'Export as _TIPP…']
+        assert self.panel.view.language_box.get_visible()
