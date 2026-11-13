@@ -2281,18 +2281,21 @@ class MainView(BaseView):
         GLib.idle_add(self.main_window.present)
 
     def _set_bundle_items(self, bundle):
-        """The Translation Bundle menu's items that can be used now."""
+        """The Translation Bundle menu's items that can be used now. A
+        split bundle keeps its documents and language as split, for its
+        master to merge it."""
         languages = bool(bundle and bundle.languages)
+        split = bool(bundle and bundle.split_from())
+        changeable = bundle is not None and not split
         self.gui.get_object('mnu_bundle').set_sensitive(bundle is not None)
-        self.gui.get_object('mnu_add_document').set_sensitive(bundle is not None)
-        self.gui.get_object('mnu_add_language').set_sensitive(bundle is not None)
+        self.gui.get_object('mnu_add_document').set_sensitive(changeable)
+        self.gui.get_object('mnu_add_language').set_sensitive(changeable)
         self.gui.get_object('mnu_merge_bundles').set_sensitive(
             bool(bundle and bundle.manifest.get('splits'))
         )
-        self.gui.get_object('mnu_refresh_bundle').set_sensitive(
-            bool(bundle and bundle.split_from())
-        )
-        for item_id in ('mnu_split_bundle', 'mnu_export_documents', 'mnu_export_tipp'):
+        self.gui.get_object('mnu_refresh_bundle').set_sensitive(split)
+        self.gui.get_object('mnu_split_bundle').set_sensitive(languages and not split)
+        for item_id in ('mnu_export_documents', 'mnu_export_tipp'):
             self.gui.get_object(item_id).set_sensitive(languages)
 
     def _on_store_closed(self, store_controller):
@@ -2319,7 +2322,10 @@ class MainView(BaseView):
         self.gui.get_object('mnu_saveas').set_sensitive(single or bundle is not None)
         self._set_bundle_items(bundle)
         self.gui.get_object('mnu_close').set_sensitive(True)
-        self.gui.get_object('mnu_update').set_sensitive(single or bundle is not None)
+        split = bundle is not None and bundle.split_from()
+        self.gui.get_object('mnu_update').set_sensitive(
+            (single or bundle is not None) and not split
+        )
         self.gui.get_object('mnu_properties').set_sensitive(True)
         self.gui.get_object('mnu_next_unit').set_sensitive(True)
         self.gui.get_object('mnu_state_advance').set_sensitive(True)

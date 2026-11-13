@@ -774,6 +774,10 @@ A bundle can hold several documents, translated into several languages:
   needing review, new documents come in, and translations in the new bundle
   fill units they haven't touched; where both changed a unit, they choose
   which to keep. Removing a document they translated in asks first.
+- A translator's bundle keeps the documents and language it was split with,
+  so that it can be merged: :menuselection:`Add Document…`,
+  :menuselection:`Add Language…`, :menuselection:`Split by Language…` and
+  :menuselection:`File --> Update from Template` are off in it.
 - :menuselection:`Export as TIPP…` writes a TIPP package for other translation
   tools, one per language.
 

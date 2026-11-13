@@ -177,12 +177,20 @@ class BundleActions:
         self._changed()
         return True
 
+    def _changeable(self):
+        """The bundle open, if its documents and languages can change:
+        not a split bundle, which its master merges as it was split."""
+        bundle = self.bundle()
+        return bundle if bundle is not None and not bundle.split_from() else None
+
     def update_from_document(self):
         """File > Update from Template on a bundle: a new version of one
         of its documents, for every language."""
-        bundle = self.bundle()
+        bundle = self._changeable()
+        if bundle is None:
+            return False
         paths = self.view.ask_documents()
-        if bundle is None or not paths:
+        if not paths:
             return False
         self.store_controller.flush_bundle()
         try:
@@ -231,9 +239,11 @@ class BundleActions:
             self._error(exc)
 
     def add_document(self):
-        bundle = self.bundle()
+        bundle = self._changeable()
+        if bundle is None:
+            return False
         paths = self.view.ask_documents()
-        if bundle is None or not paths:
+        if not paths:
             return False
         self.store_controller.flush_bundle()
         try:
@@ -246,7 +256,7 @@ class BundleActions:
         return True
 
     def add_language(self):
-        bundle = self.bundle()
+        bundle = self._changeable()
         if bundle is None:
             return False
         language = self.view.ask_language(bundle.source_language, self._languages()[1])
@@ -265,7 +275,7 @@ class BundleActions:
         return True
 
     def split(self):
-        bundle = self.bundle()
+        bundle = self._changeable()
         if bundle is None or not self._saved_first():
             return False
         languages = bundle.languages

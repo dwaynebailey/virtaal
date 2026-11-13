@@ -605,6 +605,30 @@ class TestDocumentsOpen(TestScaffolding):
         plan = master.plan_merge(returned)
         assert (plan.takes, plan.conflicts) == (1, [])
 
+    def _sensitive(self, *item_ids):
+        return [self.view.gui.get_object(i).get_sensitive() for i in item_ids]
+
+    def test_a_split_bundle_keeps_its_documents_and_language(self, monkeypatch):
+        items = ('mnu_add_document', 'mnu_add_language', 'mnu_split_bundle', 'mnu_update')
+        master, _path = self._translator()
+        actions = self.main_controller.bundle_actions
+
+        def unasked(*_args):
+            raise AssertionError('asked')
+
+        for name in ('ask_documents', 'ask_language', 'ask_split_languages', 'ask_folder'):
+            monkeypatch.setattr(self.view, name, unasked)
+
+        assert self._sensitive(*items) == [False] * 4
+        assert self._sensitive('mnu_refresh_bundle', 'mnu_export_documents') == [True, True]
+        assert not actions.add_document()
+        assert not actions.add_language()
+        assert not actions.split()
+        assert not actions.update_from_document()
+        assert self.main_controller.open_file(master.path)
+        assert self._sensitive(*items) == [True] * 4
+        assert self._sensitive('mnu_refresh_bundle') == [False]
+
     def test_a_refresh_asks_about_conflicts_and_removed_work(self, monkeypatch):
         from virtaal.support.platforms.submit import TAKE_THEIRS
 
