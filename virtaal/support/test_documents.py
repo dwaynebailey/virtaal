@@ -602,6 +602,21 @@ def test_split_copies_only_its_languages_tm_entries(tmp_path, master):
     assert b'Bye' not in tmx
 
 
+def test_a_split_bundle_leaves_out_the_coordinators_paths(tmp_path, master):
+    master.export_language('zu', str(tmp_path / 'exported'))
+    out = tmp_path / 'out'
+    out.mkdir()
+    path = master.split(str(out), ['zu'])[0]
+    (tmp_path / 'manual' / 'intro.odt').write_bytes(_docsamples.odt(['Changed.']))
+
+    zu = DocumentBundle.open(path, str(tmp_path / 'work-zu'))
+
+    assert master.changed_documents() != []
+    assert zu.changed_documents() == []
+    assert not any('original' in d or 'original_relpath' in d for d in zu.documents())
+    assert 'exports' not in zu.manifest
+
+
 def test_a_split_bundle_keeps_its_files_as_they_came(tmp_path, master):
     out = tmp_path / 'out'
     out.mkdir()

@@ -81,7 +81,8 @@ split bundle's ``id``, when it was made (``created``), its ``number`` and its
 Splitting and merging
 =====================
 A master with several target languages can be split into one bundle per
-language, an ordinary bundle with one target language and ``split_from``. The
+language, an ordinary bundle with one target language and ``split_from``,
+without the master's ``original`` paths and ``exports``. The
 master keeps a copy of each language's files as split under ``baselines/``,
 and so does the split bundle. Splitting some languages again (after a document
 changed, was added or removed, or translations were reviewed) replaces those

@@ -758,7 +758,13 @@ class DocumentBundle:
 
     def _split_bundle(self, language, sources, number):
         manifest = json.loads(json.dumps(self.manifest))
-        manifest.pop('splits', None)
+        # Paths on the coordinator's computer: the translator's bundle
+        # takes its documents only from the master.
+        for key in ('splits', 'exports'):
+            manifest.pop(key, None)
+        for document in manifest['documents']:
+            document.pop('original', None)
+            document.pop('original_relpath', None)
         manifest.update(
             id='urn:uuid:%s' % uuid.uuid4(),
             created=_now(),
