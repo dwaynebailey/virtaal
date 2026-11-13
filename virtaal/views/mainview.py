@@ -1626,8 +1626,8 @@ class MainView(BaseView):
         )
         infobar.get_content_area().pack_start(label, True, True, 0)
         if asset_url:
-            infobar.add_button(_('Release Notes'), Gtk.ResponseType.HELP)
-        infobar.add_button(_('Download'), Gtk.ResponseType.OK)
+            infobar.add_button(_('Release _Notes'), Gtk.ResponseType.HELP)
+        infobar.add_button(_('_Download'), Gtk.ResponseType.OK)
 
         def on_response(infobar, response_id):
             from virtaal.support import openmailto
@@ -1995,7 +1995,7 @@ class MainView(BaseView):
         infobar.set_show_close_button(True)
         label = Gtk.Label(label=_('Source and target language are the same.'))
         infobar.get_content_area().pack_start(label, True, True, 0)
-        infobar.add_button(_('Change Language Pair'), Gtk.ResponseType.OK)
+        infobar.add_button(_('_Change Language Pair'), Gtk.ResponseType.OK)
 
         def on_response(infobar, response_id):
             if response_id == Gtk.ResponseType.OK:
@@ -2030,7 +2030,7 @@ class MainView(BaseView):
         infobar.set_show_close_button(True)
         label = Gtk.Label(label=_('This file is read-only.'))
         infobar.get_content_area().pack_start(label, True, True, 0)
-        infobar.add_button(_('Save As…'), Gtk.ResponseType.OK)
+        infobar.add_button(_('Save _As…'), Gtk.ResponseType.OK)
 
         def on_response(infobar, response_id):
             if response_id == Gtk.ResponseType.OK:

@@ -160,7 +160,7 @@ def test_create_menu_items_offers_a_download_when_nothing_is_cached(monkeypatch,
     items = model.create_menu_items('abaja', 'source', 'pl_PL', 'en', None)
 
     assert len(items) == 1
-    assert 'Download' in items[0].get_label()
+    assert 'Do_wnload' in items[0].get_label()
 
 
 def test_create_menu_items_starts_a_background_parse_when_a_dat_is_cached_but_not_yet_parsed(
@@ -228,7 +228,7 @@ def test_create_menu_items_does_not_reparse_a_locale_that_already_failed(monkeyp
 
     assert threads == []
     assert len(items) == 1
-    assert 'Download' in items[0].get_label()
+    assert 'Do_wnload' in items[0].get_label()
 
 
 def test_start_check_clears_a_previous_parse_failure(monkeypatch):
@@ -305,7 +305,7 @@ def test_create_menu_items_uses_the_target_language_for_a_target_selection():
     items = model.create_menu_items('abaja', 'target', 'pl_PL', 'en', None)
 
     assert len(items) == 1
-    assert items[0].get_label() == 'Synonyms'
+    assert items[0].get_label() == 'S_ynonyms'
 
 
 class _Textbox:
@@ -659,7 +659,7 @@ def test_create_menu_items_download_button_names_the_language():
     items = model.create_menu_items('word', 'source', 'af_ZA', 'en', None)
 
     assert len(items) == 1
-    assert items[0].get_label() == 'Download Afrikaans thesaurus…'
+    assert items[0].get_label() == 'Do_wnload Afrikaans thesaurus…'
     assert items[0].get_sensitive()
 
 
@@ -684,7 +684,7 @@ def test_create_menu_items_offers_a_download_when_the_cache_has_no_dat(monkeypat
     items = model.create_menu_items('abaja', 'source', 'pl_PL', 'en', None)
 
     assert threads == []
-    assert 'Download' in items[0].get_label()
+    assert 'Do_wnload' in items[0].get_label()
 
 
 def test_synonyms_are_grouped_under_their_part_of_speech():
@@ -741,7 +741,7 @@ def test_check_that_cannot_reach_the_server_can_be_retried(monkeypatch):
     assert 'af_ZA' not in model._checking
     assert 'af_ZA' not in model._unavailable
     assert (
-        'Download' in model.create_menu_items('word', 'source', 'af_ZA', 'en', None)[0].get_label()
+        'Do_wnload' in model.create_menu_items('word', 'source', 'af_ZA', 'en', None)[0].get_label()
     )
 
 

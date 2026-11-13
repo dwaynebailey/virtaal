@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 22:37+0000\n"
+"POT-Creation-Date: 2026-11-13 22:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -45,19 +45,19 @@ msgid "_Add"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Language name:"
+msgid "_Language name:"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "ISO code:"
+msgid "_ISO code:"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Plural expression:"
+msgid "_Plural expression:"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Number of plurals:"
+msgid "_Number of plurals:"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -111,6 +111,7 @@ msgstr ""
 msgid "_Select"
 msgstr ""
 
+#. l10n: Each item in a menu needs its own access key, the letter after _
 #: share/virtaal/virtaal.ui
 msgid "_File"
 msgstr ""
@@ -180,6 +181,7 @@ msgstr ""
 msgid "_Recent Files"
 msgstr ""
 
+#. l10n: Each item in a menu needs its own access key, the letter after _
 #: share/virtaal/virtaal.ui
 msgid "_Edit"
 msgstr ""
@@ -212,7 +214,7 @@ msgstr ""
 
 #. l10n: Activating this menu item replaces the target with the whole source. The "copy" is not necessarily the same as the source: language-specific punctuation changes are made automatically.
 #: share/virtaal/virtaal.ui
-msgid "Transfer From Source"
+msgid "Transfer From _Source"
 msgstr ""
 
 #. l10n: Inserts the highlighted placeable from the source into the translation, then highlights the next one.
@@ -222,13 +224,18 @@ msgstr ""
 
 #. l10n: More information about placeables: https://docs.translatehouse.org/projects/virtaal/en/latest/placeables.html
 #: share/virtaal/virtaal.ui
-msgid "P_revious Placeable"
+msgid "Previ_ous Placeable"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
 msgid "_Next Placeable"
 msgstr ""
 
+#: share/virtaal/virtaal.ui
+msgid "Pr_eferences"
+msgstr ""
+
+#. l10n: Each item in a menu needs its own access key, the letter after _
 #: share/virtaal/virtaal.ui
 msgid "_View"
 msgstr ""
@@ -250,6 +257,7 @@ msgstr ""
 msgid "Show All _Spaces"
 msgstr ""
 
+#. l10n: Each item in a menu needs its own access key, the letter after _
 #: share/virtaal/virtaal.ui
 msgid "_Navigation"
 msgstr ""
@@ -287,17 +295,18 @@ msgid "Ne_xt File"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Next Unit"
+msgid "_Next Unit"
 msgstr ""
 
-#: share/virtaal/virtaal.ui virtaal/views/widgets/shortcutswindow.py
-msgid "Next Unit and Advance State"
+#: share/virtaal/virtaal.ui
+msgid "Next Unit and Advance _State"
 msgstr ""
 
-#: share/virtaal/virtaal.ui virtaal/views/widgets/shortcutswindow.py
-msgid "Next Unit and Reverse State"
+#: share/virtaal/virtaal.ui
+msgid "Next Unit and Rev_erse State"
 msgstr ""
 
+#. l10n: Each item in a menu needs its own access key, the letter after _
 #: share/virtaal/virtaal.ui
 msgid "_Help"
 msgstr ""
@@ -319,7 +328,7 @@ msgid "Report a _Bug"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Show Lo_gs"
+msgid "S_how Logs"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -458,7 +467,12 @@ msgid "Add URL"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "URL:"
+msgid "_Name:"
+msgstr ""
+
+#. l10n: The address of a translation server, such as https://hosted.weblate.org/
+#: share/virtaal/virtaal.ui virtaal/support/platforms/__init__.py
+msgid "_URL:"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -1767,6 +1781,10 @@ msgstr ""
 msgid "Search"
 msgstr ""
 
+#: virtaal/modes/searchmode.py
+msgid "_Search"
+msgstr ""
+
 #: virtaal/modes/searchmode.py virtaal/views/setscanview.py
 msgid "_Case sensitive"
 msgstr ""
@@ -1782,17 +1800,17 @@ msgstr ""
 #. If this sentence construction is hard to use, consider translating this as
 #. "Replacement"
 #: virtaal/modes/searchmode.py
-msgid "Replace with"
+msgid "Replace _with"
 msgstr ""
 
 #. l10n: Button text
 #: virtaal/modes/searchmode.py
-msgid "Replace"
+msgid "Re_place"
 msgstr ""
 
 #. l10n: Check box
 #: virtaal/modes/searchmode.py
-msgid "Replace _All"
+msgid "Replace A_ll"
 msgstr ""
 
 #. l10n: %s is the reason, in English, such as "missing ), unterminated subpattern"
@@ -1851,7 +1869,7 @@ msgstr ""
 
 #: virtaal/plugins/lookup/lookupview.py
 #, python-format
-msgid "Look-up \"%(selection)s\""
+msgid "_Look-up \"%(selection)s\""
 msgstr ""
 
 #. l10n: plugin name
@@ -1881,12 +1899,12 @@ msgstr ""
 #. l10n: %(language)s is a language name, e.g. "Afrikaans"
 #: virtaal/plugins/lookup/models/thesaurus.py
 #, python-format
-msgid "Download %(language)s thesaurus…"
+msgid "Do_wnload %(language)s thesaurus…"
 msgstr ""
 
 #. l10n: The menu entry offering synonyms for the selected word.
 #: virtaal/plugins/lookup/models/thesaurus.py
-msgid "Synonyms"
+msgid "S_ynonyms"
 msgstr ""
 
 #. l10n: plugin name
@@ -2089,16 +2107,16 @@ msgid "Manage…"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
-msgid "Terminology _Files…"
+msgid "Ter_minology Files…"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
-msgid "Add _Term…"
+msgid "A_dd Term…"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
 #, python-format
-msgid "Add Term \"%(selection)s\"…"
+msgid "Add _Term \"%(selection)s\"…"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
@@ -2234,7 +2252,7 @@ msgid "Amagama Sources"
 msgstr ""
 
 #: virtaal/plugins/tm/amagamadialog.py virtaal/plugins/tm/fetchdialog.py
-#: virtaal/plugins/tm/localtmdialog.py
+#: virtaal/plugins/tm/localtmdialog.py virtaal/support/crash_dialog.py
 #: virtaal/support/platforms/browsedialog.py
 #: virtaal/support/platforms/serversdialog.py virtaal/views/mainview.py
 #: virtaal/views/setscanview.py virtaal/views/widgets/selectdialog.py
@@ -2867,15 +2885,11 @@ msgid ""
 msgstr ""
 
 #: virtaal/support/crash_dialog.py
-msgid "Details"
+msgid "_Details"
 msgstr ""
 
 #: virtaal/support/crash_dialog.py
-msgid "Close"
-msgstr ""
-
-#: virtaal/support/crash_dialog.py
-msgid "Report This Bug…"
+msgid "_Report This Bug…"
 msgstr ""
 
 #. l10n: A quality check: a translation server, or the file, allows at most this many characters for the string
@@ -2898,11 +2912,6 @@ msgstr ""
 #: virtaal/support/phrase_compat.py
 #, python-format
 msgid "Phrase tags not in the source: %s"
-msgstr ""
-
-#. l10n: The address of a translation server, such as https://hosted.weblate.org/
-#: virtaal/support/platforms/__init__.py
-msgid "_URL:"
 msgstr ""
 
 #. l10n: One of several files opened from a translation server. %(location)s is
@@ -3926,11 +3935,11 @@ msgid "Virtaal %s is available (you have %s)"
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid "Release Notes"
+msgid "Release _Notes"
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid "Download"
+msgid "_Download"
 msgstr ""
 
 #: virtaal/views/mainview.py
@@ -4048,11 +4057,11 @@ msgid "Source and target language are the same."
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid "Change Language Pair"
+msgid "_Change Language Pair"
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid "Save As…"
+msgid "Save _As…"
 msgstr ""
 
 #: virtaal/views/mainview.py
@@ -4549,6 +4558,14 @@ msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py
 msgid "Enter a new line"
+msgstr ""
+
+#: virtaal/views/widgets/shortcutswindow.py
+msgid "Next Unit and Advance State"
+msgstr ""
+
+#: virtaal/views/widgets/shortcutswindow.py
+msgid "Next Unit and Reverse State"
 msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py

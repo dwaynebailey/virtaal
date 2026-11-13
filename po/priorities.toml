@@ -113,7 +113,7 @@ msgids = [
     "Choose a Translation File",
     "Machine translation",
     "Save",
-    "Save As…",
+    "Save _As…",
     "Save changes to “%(filename)s”?",
     "Save changes to these files?",
     "If you don’t save, your changes will be lost.",
@@ -152,7 +152,7 @@ msgids = ["Default", "<b><big>Recent Files</big></b>"]
 [[override]]
 # Help > Show Logs: Windows builds only, so the harvest never sees it.
 priority = "1"
-msgids = ["Show Lo_gs"]
+msgids = ["S_how Logs"]
 
 [[override]]
 # The File menu's translation server items: there only while a platform

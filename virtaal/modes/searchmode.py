@@ -141,7 +141,7 @@ class SearchMode(BaseMode):
         self.ent_search.connect('focus-out-event', self._on_search_focus_out)
         self.ent_search.connect('focus-in-event', self._on_search_focus_in)
         self._search_cursor_pos = None
-        self.btn_search = Gtk.Button(label=_('Search'))
+        self.btn_search = Gtk.Button.new_with_mnemonic(_('_Search'))
         self.btn_search.connect('clicked', self._on_search_clicked)
         self.chk_casesensitive = Gtk.CheckButton.new_with_mnemonic(_('_Case sensitive'))
         self.chk_casesensitive.connect('toggled', self._refresh_proxy)
@@ -155,13 +155,14 @@ class SearchMode(BaseMode):
         # text is typed. Keep in mind that the text box will appear after this text.
         # If this sentence construction is hard to use, consider translating this as
         # "Replacement"
-        self.lbl_replace = Gtk.Label(label=_('Replace with'))
+        self.lbl_replace = Gtk.Label.new_with_mnemonic(_('Replace _with'))
         self.ent_replace = Gtk.Entry()
+        self.lbl_replace.set_mnemonic_widget(self.ent_replace)
         # l10n: Button text
-        self.btn_replace = Gtk.Button(label=_('Replace'))
+        self.btn_replace = Gtk.Button.new_with_mnemonic(_('Re_place'))
         self.btn_replace.connect('clicked', self._on_replace_clicked)
         # l10n: Check box
-        self.chk_replace_all = Gtk.CheckButton.new_with_mnemonic(_('Replace _All'))
+        self.chk_replace_all = Gtk.CheckButton.new_with_mnemonic(_('Replace A_ll'))
 
         self.widgets = [
             self.ent_search,
