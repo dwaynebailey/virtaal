@@ -154,7 +154,7 @@ class ReviewPanel:
         self.main_controller = registry.main_controller
         self.reviews = Reviews(registry.platform_of, registry._server_of)
         self.unit_view = self.main_controller.unit_controller.view
-        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.box.set_margin_start(12)
         self.box.set_margin_end(12)
         self.box.set_no_show_all(True)

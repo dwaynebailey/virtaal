@@ -106,9 +106,10 @@ class LocalTMDialog:
             modal=True,
         )
         self.dialog.set_default_size(820, 400)
-        self.btn_remove = self.dialog.add_button(_('_Remove'), RESPONSE_REMOVE)
-        self.btn_export = self.dialog.add_button(_('_Export…'), RESPONSE_EXPORT)
         self.dialog.add_button(_('_Close'), Gtk.ResponseType.CLOSE)
+        buttons = Gtk.Box(spacing=6)
+        self.btn_remove = self._button(buttons, _('_Remove'), RESPONSE_REMOVE)
+        self.btn_export = self._button(buttons, _('_Export…'), RESPONSE_EXPORT)
         self.dialog.connect('response', self._on_response)
 
         self.liststore = Gtk.ListStore(
@@ -125,12 +126,21 @@ class LocalTMDialog:
         scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scrolled.add(self.treeview)
         content = self.dialog.get_content_area()
-        content.set_border_width(6)
+        content.set_border_width(12)
+        content.set_spacing(6)
         content.pack_start(scrolled, True, True, 0)
+        content.pack_start(buttons, False, False, 0)
         self.glossary_link = glossary_link()
         self.glossary_link.set_halign(Gtk.Align.START)
         content.pack_start(self.glossary_link, False, False, 0)
         self._update_buttons()
+
+    def _button(self, box, label, response):
+        """A button under the list, acting on it."""
+        button = Gtk.Button.new_with_mnemonic(label)
+        button.connect('clicked', lambda _button: self.dialog.response(response))
+        box.pack_start(button, False, False, 0)
+        return button
 
     def _add_columns(self):
         def column(title, col, expand=False, numeric=False, sort_col=None, **attributes):

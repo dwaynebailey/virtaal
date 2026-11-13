@@ -264,7 +264,7 @@ class ConflictDialog:
                 len(conflicts),
             )
         )
-        grid = Gtk.Grid(row_spacing=4, column_spacing=12, border_width=6)
+        grid = Gtk.Grid(row_spacing=6, column_spacing=12, border_width=6)
         self.buttons = {}
         row = 0
         where = None

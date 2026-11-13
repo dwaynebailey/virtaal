@@ -251,6 +251,14 @@ def test_a_service_with_everything_fetched_has_nothing_to_fetch(made, tmp_path):
     ]
 
 
+def test_clear_sits_under_the_list_not_with_the_dialogs_buttons(made, tmp_path):
+    dialog = _dialog(made, tmp_path, _Service('amagama'))
+
+    assert dialog.dialog.get_widget_for_response(RESPONSE_CLEAR) is None
+    assert dialog.clear_button.get_parent() is dialog.clear_paid.get_parent()
+    assert dialog.clear_button.get_parent().get_parent() is dialog.dialog.get_content_area()
+
+
 def test_clear_is_offered_only_with_fetched_suggestions_kept(made, tmp_path):
     dialog = _dialog(made, tmp_path, _Service('amagama'))
 

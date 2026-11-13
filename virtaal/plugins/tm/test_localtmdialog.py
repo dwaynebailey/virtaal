@@ -237,6 +237,18 @@ def test_the_list_shows_each_file_per_language_pair(tm, tmp_path, monkeypatch):
     dialog.dialog.destroy()
 
 
+def test_remove_and_export_sit_under_the_list_not_with_close(tm):
+    _app, model, pump = tm
+
+    dialog = _open(model, pump)
+
+    for response in (RESPONSE_REMOVE, RESPONSE_EXPORT):
+        assert dialog.dialog.get_widget_for_response(response) is None
+    assert dialog.btn_remove.get_parent() is dialog.btn_export.get_parent()
+    assert dialog.btn_remove.get_parent().get_parent() is dialog.dialog.get_content_area()
+    dialog.dialog.destroy()
+
+
 def test_remove_and_export_need_a_selection_and_a_row(tm, tmp_path):
     app, model, pump = tm
 

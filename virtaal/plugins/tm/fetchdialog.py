@@ -60,11 +60,11 @@ class FetchSuggestionsDialog:
         self.stop_button = self.dialog.add_button(_('_Stop'), RESPONSE_STOP)
         # l10n: Button: asks the ticked services for suggestions for the file
         self.fetch_button = self.dialog.add_button(_('_Fetch'), RESPONSE_FETCH)
-        self.clear_button = self.dialog.add_button(
+        self.clear_button = Gtk.Button.new_with_mnemonic(
             # l10n: Button: forgets every suggestion fetched before, for every file and language
-            _('C_lear Fetched Suggestions'),
-            RESPONSE_CLEAR,
+            _('C_lear Fetched Suggestions')
         )
+        self.clear_button.connect('clicked', lambda _button: self.dialog.response(RESPONSE_CLEAR))
         self.clear_button.set_tooltip_text(
             # l10n: Tooltip of the button that forgets the suggestions fetched before
             _('Forget the suggestions fetched for every file and language, to ask for them again.')
@@ -75,11 +75,9 @@ class FetchSuggestionsDialog:
             use_underline=True,
         )
         self.clear_paid.connect('toggled', lambda _button: self._update_buttons())
-        action_area = self.clear_button.get_parent()
-        action_area.pack_start(self.clear_paid, False, False, 0)
-        action_area.set_child_secondary(self.clear_button, True)
-        action_area.set_child_secondary(self.clear_paid, True)
-        action_area.set_child_non_homogeneous(self.clear_paid, True)
+        clear_row = Gtk.Box(spacing=12)
+        clear_row.pack_start(self.clear_button, False, False, 0)
+        clear_row.pack_start(self.clear_paid, False, False, 0)
         self.dialog.set_default_response(RESPONSE_FETCH)
         self.dialog.connect('response', self._on_response)
 
@@ -109,11 +107,12 @@ class FetchSuggestionsDialog:
         )
 
         content = self.dialog.get_content_area()
-        content.set_border_width(6)
+        content.set_border_width(12)
         content.set_spacing(6)
         content.pack_start(intro, False, False, 0)
         content.pack_start(scrolled, True, True, 0)
         content.pack_start(self.billed_note, False, False, 0)
+        content.pack_start(clear_row, False, False, 0)
         content.pack_start(self.progress, False, False, 0)
         self.fill(models)
 

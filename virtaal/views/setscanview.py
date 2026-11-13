@@ -84,7 +84,7 @@ class SetScanView(BaseView):
         self.dialog.connect('delete-event', self._on_delete)
 
         content = self.dialog.get_content_area()
-        content.set_border_width(6)
+        content.set_border_width(12)
         content.set_spacing(6)
         if kind == KIND_CHECK:
             content.pack_start(self._check_choices(check_names, chosen_checks), False, False, 0)

@@ -105,7 +105,7 @@ class AmagamaSourcesDialog:
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled.add(self.treeview)
         content = self.dialog.get_content_area()
-        content.set_border_width(6)
+        content.set_border_width(12)
         content.set_spacing(6)
         content.pack_start(intro, False, False, 0)
         content.pack_start(self.status, False, False, 0)
@@ -147,7 +147,7 @@ class AmagamaSourcesDialog:
             no_show_all=True,
         )
         self.licence_note.get_style_context().add_class('dim-label')
-        grid = Gtk.Grid(column_spacing=6, row_spacing=3)
+        grid = Gtk.Grid(column_spacing=6, row_spacing=6)
         grid.attach(label, 0, 0, 1, 1)
         grid.attach(self.licence_combo, 1, 0, 1, 1)
         grid.attach(self.licence, 2, 0, 1, 1)
