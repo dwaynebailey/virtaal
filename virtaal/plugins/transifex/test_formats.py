@@ -398,3 +398,23 @@ def _named(data):
     stream = io.BytesIO(data)
     stream.name = 'built.xlf'
     return stream
+
+
+def test_the_hand_server_adds_and_removes_a_string(fake):
+    import json
+    import urllib.request
+
+    fake.controls = True
+    resource = fake._resource(backend.resource_id(FORMATS, 'guide'))
+
+    def post(data):
+        request = urllib.request.Request(
+            fake.url + '_fake/string/', json.dumps(data).encode('utf-8'), method='POST'
+        )
+        with urllib.request.urlopen(request, timeout=10) as reply:
+            return reply.status
+
+    assert post({'resource': 'hello-org/formats/guide', 'key': 'p9', 'source': 'Quit'}) == 200
+    assert resource['strings'][-1]['key'] == 'p9'
+    assert post({'resource': 'hello-org/formats/guide', 'key': 'p1', 'remove': True}) == 200
+    assert 'p1' not in [s['key'] for s in resource['strings']]

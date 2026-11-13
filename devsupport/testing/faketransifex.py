@@ -44,7 +44,9 @@ Never point Virtaal at a real Transifex from a test.
 
 Run by hand:  python -m devsupport.testing.faketransifex --port 8766
 (--hand: POST /_fake/edit/ {"source", "target", "reviewed"} changes a
-string as someone else would.)
+string as someone else would; POST /_fake/string/ {"resource":
+"org/project/resource", "key", "source"} adds a string, with "remove":
+true removes the one with key.)
 """
 
 import argparse
@@ -308,6 +310,8 @@ class FakeTransifex(FakeServer):
             )
         if self.controls and request['path'] == '/_fake/edit/' and request['method'] == 'POST':
             return self._control_edit(request)
+        if self.controls and request['path'] == '/_fake/string/' and request['method'] == 'POST':
+            return self._control_string(request)
         refused = self._authorise(request['headers'])
         if refused:
             return refused
@@ -354,6 +358,22 @@ class FakeTransifex(FakeServer):
                             )
                             return 200, {}, b'{}'
         return 404, {}, b'{}'
+
+    def _control_string(self, request):
+        """Adds a string to a resource ("org/project/resource"), or removes
+        the one with key."""
+        data = json.loads(request['body'] or b'{}')
+        organisation, project, slug = str(data.get('resource', '')).split('/')
+        resource = self._resource('o:%s:p:%s:r:%s' % (organisation, project, slug))
+        if resource is None:
+            return 404, {}, b'{}'
+        if data.get('remove'):
+            found = [s for s in resource['strings'] if s['key'] == data.get('key')]
+            for string in found:
+                resource['strings'].remove(string)
+            return (200 if found else 404), {}, b'{}'
+        self.add_string(resource, data['key'], data['source'])
+        return 200, {}, b'{}'
 
     # Objects #
 
