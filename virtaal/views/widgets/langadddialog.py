@@ -35,6 +35,7 @@ class LanguageAddDialog:
 
         self._get_widgets()
         self._add_title = self.dialog.get_title()
+        self._add_label = self.btn_add_ok.get_label()
         if isinstance(parent, Gtk.Widget):
             self.dialog.set_transient_for(parent)
             self.dialog.set_icon(parent.get_toplevel().get_icon())
@@ -114,6 +115,7 @@ class LanguageAddDialog:
         self.clear()
         self.langname, self.langcode, self.nplurals, self.plural = name, code, nplurals, plural
         self.dialog.set_title(_('Edit Language'))
+        self.btn_add_ok.set_label(_('_Save'))
         for entry in (self.ent_langname, self.ent_langcode):
             entry.set_sensitive(False)
         try:
@@ -121,6 +123,7 @@ class LanguageAddDialog:
         finally:
             self._editing = False
             self.dialog.set_title(self._add_title)
+            self.btn_add_ok.set_label(self._add_label)
             for entry in (self.ent_langname, self.ent_langcode):
                 entry.set_sensitive(True)
 

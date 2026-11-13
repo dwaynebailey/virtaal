@@ -78,11 +78,7 @@ domains:
     - Select _All
     - "Stock label\x04Select _All"
     - "Stock label\x04_Delete"
-    - "Stock label\x04_No"
-    - "Stock label\x04_Yes"
     - _Delete
-    - _No
-    - _Yes
     '2':
     - About %s
     - Artwork by
@@ -418,6 +414,7 @@ domains:
     - _Don’t Save
     - _New Language Pair…
     - _Regular expression
+    - _Reload
     - _Save
     - printf()
     '2':

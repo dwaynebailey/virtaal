@@ -83,7 +83,10 @@ class Plugin(BasePlugin):
 
         message = _('Should Virtaal try to import settings and data from other applications?')
         must_migrate = self.main_controller.show_prompt(
-            _('Import data from other applications?'), message
+            _('Import data from other applications?'),
+            message,
+            yes_label=_('_Import'),
+            no_label=_('_Don’t Import'),
         )
         if not must_migrate:
             logging.debug('Migration not done due to user choice')

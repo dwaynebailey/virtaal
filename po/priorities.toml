@@ -173,7 +173,7 @@ msgids = [
 ]
 
 [[override]]
-# macOS's title for Preferences, and the New Language Pair dialog's OK.
+# macOS's title for Preferences, and OK buttons.
 priority = "2"
 msgids = ["Settings", "_OK"]
 

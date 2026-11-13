@@ -213,7 +213,9 @@ class BundleActions:
                         # translation bundle beside it; %(bundle)s is its file name
                         "%(bundle)s already holds this document's translation. Open it instead?"
                     )
-                    % {'bundle': os.path.basename(existing)}
+                    % {'bundle': os.path.basename(existing)},
+                    yes_label=_("_Open Bundle"),
+                    no_label=_("_New Bundle"),
                 ):
                     return self.open_bundle(existing)
                 break
@@ -398,7 +400,8 @@ class BundleActions:
                 'in them will be removed. Update anyway?',
                 len(names),
             )
-            % {'documents': ', '.join(names)}
+            % {'documents': ', '.join(names)},
+            yes_label=_("_Update"),
         )
 
     def _language(self):
@@ -459,7 +462,8 @@ class BundleActions:
                     len(edited),
                 ),
                 len(edited),
-            )
+            ),
+            yes_label=_("_Replace"),
         )
 
     def _export_folder(self, bundle):

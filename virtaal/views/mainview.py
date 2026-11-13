@@ -280,7 +280,7 @@ class EntryDialog(Gtk.Dialog):
         self.vbox.pack_start(self.ent_input, True, True, 0)
 
         self.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
-        self.add_button(_("_OK"), Gtk.ResponseType.OK)
+        self.ok_button = self.add_button(_("_OK"), Gtk.ResponseType.OK)
         self.set_default_response(Gtk.ResponseType.OK)
 
     def run(self, title=None, message=None, keepInput=False):
@@ -575,15 +575,13 @@ class MainView(BaseView):
 
     @cached_property
     def prompt_dialog(self):
-        # Yes/No prompt dialog
-        dialog = Gtk.MessageDialog(
+        # Question dialog: its buttons come from show_prompt_dialog().
+        return Gtk.MessageDialog(
             transient_for=self.main_window,
             modal=True,
             message_type=Gtk.MessageType.QUESTION,
-            buttons=Gtk.ButtonsType.YES_NO,
+            buttons=Gtk.ButtonsType.NONE,
         )
-        dialog.set_default_response(Gtk.ResponseType.NO)
-        return dialog
 
     @cached_property
     def info_dialog(self):
@@ -1163,14 +1161,17 @@ class MainView(BaseView):
             while True:
                 try:
                     nplurals = self.show_input_dialog(
-                        message=_("Please enter the number of noun forms (plurals) to use")
+                        message=_("Please enter the number of noun forms (plurals) to use"),
+                        ok_label=_("_Use"),
                     )
                     return int(nplurals)
                 except ValueError as _e:
                     pass
 
         def ask_for_plurals_equation():
-            return self.show_input_dialog(message=_("Please enter the plural equation to use"))
+            return self.show_input_dialog(
+                message=_("Please enter the plural equation to use"), ok_label=_("_Use")
+            )
 
         from translate.lang import factory as langfactory
 
@@ -1291,9 +1292,11 @@ class MainView(BaseView):
         # print "\n".join(sorted(sys.modules.keys()))
         Gtk.main()
 
-    def show_input_dialog(self, title='', message=''):
-        """Shows a simple dialog containing a text entry.
+    def show_input_dialog(self, title='', message='', ok_label=''):
+        """Shows a simple dialog containing a text entry, with an OK button
+        labelled C{ok_label}.
         @returns: The text entered into the dialog, or C{None}."""
+        self.input_dialog.ok_button.set_label(ok_label or _("_OK"))
         self.input_dialog.set_transient_for(self._top_window)
         old_top = self._top_window
         self._top_window = self.input_dialog
@@ -1315,7 +1318,7 @@ class MainView(BaseView):
             title=_('Header information'), transient_for=self._top_window, modal=True
         )
         dialog.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
-        dialog.add_button(_("_OK"), Gtk.ResponseType.OK)
+        dialog.add_button(_("_Save"), Gtk.ResponseType.OK)
         dialog.set_default_response(Gtk.ResponseType.OK)
 
         grid = Gtk.Grid(row_spacing=6, column_spacing=12, border_width=12)
@@ -1456,8 +1459,20 @@ class MainView(BaseView):
         GLib.idle_add(old_top.present)
         self._top_window = old_top
 
-    def show_prompt_dialog(self, title='', message='', markup='', parent=None):
+    def show_prompt_dialog(
+        self, title='', message='', markup='', parent=None, yes_label='', no_label=''
+    ):
+        """Ask a question with two buttons, C{no_label} (the default) and
+        C{yes_label}, which say what each does.
+        @returns: Whether C{yes_label} was pressed."""
         fill_dialog(self.prompt_dialog, title, message, markup)
+        for response in (Gtk.ResponseType.NO, Gtk.ResponseType.YES):
+            button = self.prompt_dialog.get_widget_for_response(response)
+            if button is not None:
+                button.destroy()
+        self.prompt_dialog.add_button(no_label or _("_Cancel"), Gtk.ResponseType.NO)
+        self.prompt_dialog.add_button(yes_label or _("_OK"), Gtk.ResponseType.YES)
+        self.prompt_dialog.set_default_response(Gtk.ResponseType.NO)
 
         self.prompt_dialog.set_transient_for(parent or self._top_window)
         old_top = self._top_window

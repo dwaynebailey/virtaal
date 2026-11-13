@@ -827,11 +827,15 @@ def test_select_unit_delegates_to_the_store_controller():
 
 def test_show_prompt_delegates_to_the_view():
     controller = MainController.__new__(MainController)
-    controller.view = SimpleNamespace(
-        show_prompt_dialog=lambda title, message, parent: (title, message, parent)
-    )
+    controller.view = SimpleNamespace(show_prompt_dialog=lambda **kwargs: kwargs)
 
-    assert controller.show_prompt('T', 'M', parent='P') == ('T', 'M', 'P')
+    assert controller.show_prompt('T', 'M', parent='P', yes_label='_Go') == {
+        'title': 'T',
+        'message': 'M',
+        'parent': 'P',
+        'yes_label': '_Go',
+        'no_label': '',
+    }
 
 
 def test_show_info_delegates_to_the_view():

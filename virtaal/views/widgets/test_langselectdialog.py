@@ -55,6 +55,7 @@ def test_ok_is_the_default_button():
     dialog = LanguageSelectDialog(languages=[])
 
     assert dialog.dialog.get_default_widget() is dialog.btn_ok
+    assert dialog.btn_ok.get_label() == '_Select'
 
 
 def test_activating_a_row_from_the_keyboard_accepts_the_dialog():
