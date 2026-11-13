@@ -1472,3 +1472,198 @@ def open_formats():
         for converter in MONOLINGUAL_CONVERTERS
         if converter.available() and not set(converter.extensions) <= listed
     ]
+
+
+# Documents: formats translated through a translatable file of another
+# format, made from the document and turned back into one with the
+# document as template.
+
+
+def _not_ready(unit):
+    """Whether a unit's translation stays out of a translated document:
+    untranslated, or needing work."""
+    return unit.isfuzzy() or not unit.istranslated()
+
+
+class DocumentConverter:
+    """One document format."""
+
+    id = ''
+    name = ''
+    """The format's name, translated where it's shown."""
+    extensions = ()
+    mimetypes = ()
+    trans_extension = 'po'
+    """The translatable file's extension: 'xlf' or 'po'."""
+    modules = ()
+    """Modules the converter needs; without them it isn't offered."""
+    tier = 1
+
+    def available(self):
+        import importlib
+
+        try:
+            for module in self.modules:
+                importlib.import_module(module)
+        except ImportError:
+            return False
+        return True
+
+    def trans_name(self, name):
+        """The translatable file's name for the document C{name}."""
+        return '%s.%s' % (name, self.trans_extension)
+
+    def forward(self, data, name):
+        """The bytes of the translatable file for the document C{data}
+        (bytes), named C{name}: its name, not its path, goes into the
+        file, so the file doesn't depend on where the document was."""
+        import tempfile
+
+        source = io.BytesIO(data)
+        source.name = name
+        with tempfile.TemporaryDirectory(prefix='virtaal-doc-') as folder:
+            path = os.path.join(folder, self.trans_name('document'))
+            with open(path, 'wb') as out:
+                self._forward(source, out)
+            return _read(path)
+
+    def back(self, trans, template):
+        """The bytes of the translated document: C{trans} the bytes of
+        the translatable file, C{template} those of the document it was
+        made from. Units untranslated or needing work keep the
+        document's text."""
+        out = io.BytesIO()
+        out.close = lambda: None
+        self._back(io.BytesIO(self._ready_only(trans)), out, io.BytesIO(template))
+        return out.getvalue()
+
+    def _ready_only(self, trans):
+        return trans
+
+    def _forward(self, source, out):
+        raise NotImplementedError
+
+    def _back(self, trans, out, template):
+        raise NotImplementedError
+
+
+class OdfConverter(DocumentConverter):
+    id = 'odf'
+    name = 'OpenDocument'
+    extensions = ('odt', 'ods', 'odp', 'odg')
+    mimetypes = (
+        'application/vnd.oasis.opendocument.text',
+        'application/vnd.oasis.opendocument.spreadsheet',
+        'application/vnd.oasis.opendocument.presentation',
+        'application/vnd.oasis.opendocument.graphics',
+    )
+    trans_extension = 'xlf'
+    modules = ('translate.convert.odf2xliff', 'translate.convert.xliff2odf')
+
+    def _forward(self, source, out):
+        from translate.convert import odf2xliff
+
+        odf2xliff.convertodf(source, out, None)
+
+    def _ready_only(self, trans):
+        # xliff2odf takes needs-work targets, and before translate-
+        # toolkit 3.19 can't be told not to. A unit with no target keeps
+        # the document's text and formatting.
+        from translate.storage import xliff
+
+        store = xliff.xlifffile.parsestring(trans)
+        for unit in store.units:
+            target = unit.xmlelement.find(unit.namespaced('target'))
+            if target is not None and _not_ready(unit):
+                unit.xmlelement.remove(target)
+        return bytes(store)
+
+    def _back(self, trans, out, template):
+        from translate.convert import xliff2odf
+
+        xliff2odf.convertxliff(trans, out, template)
+
+
+class HtmlConverter(DocumentConverter):
+    id = 'html'
+    name = 'HTML'
+    extensions = ('html', 'htm', 'xhtml')
+    mimetypes = ('text/html', 'application/xhtml+xml')
+    modules = ('translate.convert.html2po', 'translate.convert.po2html')
+
+    def _forward(self, source, out):
+        from translate.convert import html2po
+
+        html2po.converthtml(source, out, None)
+
+    def _back(self, trans, out, template):
+        from translate.convert import po2html
+
+        po2html.converthtml(trans, out, template, includefuzzy=False)
+
+
+class TextConverter(DocumentConverter):
+    id = 'txt'
+    name = 'Plain Text'
+    extensions = ('txt',)
+    mimetypes = ('text/plain',)
+    modules = ('translate.convert.txt2po', 'translate.convert.po2txt')
+
+    def _forward(self, source, out):
+        from translate.convert import txt2po
+
+        txt2po.run_converter(source, out, None)
+
+    def _back(self, trans, out, template):
+        from translate.convert import po2txt
+
+        po2txt.run_converter(trans, out, template, includefuzzy=False)
+
+
+DOCUMENT_CONVERTERS = [
+    OdfConverter(),
+    HtmlConverter(),
+    TextConverter(),
+]
+
+
+def _documents_by_extension():
+    table = {}
+    for converter in DOCUMENT_CONVERTERS:
+        if converter.available():
+            for extension in converter.extensions:
+                table.setdefault(extension, converter)
+    return table
+
+
+def document_converter(path):
+    """The converter for the document C{path}'s format, or C{None}: also
+    for a format whose converter's modules are missing."""
+    return _documents_by_extension().get(_extension(path))
+
+
+def document_converter_by_id(converter_id):
+    """The converter with the id C{converter_id} if it is available."""
+    for converter in DOCUMENT_CONVERTERS:
+        if converter.id == converter_id and converter.available():
+            return converter
+    return None
+
+
+def is_document(path):
+    return document_converter(path) is not None
+
+
+def document_extensions():
+    """The extensions of every document format available."""
+    return sorted(_documents_by_extension())
+
+
+# The Open dialog's name for them, translated there (devsupport/tmp_strings.py).
+DOCUMENTS_NAME = 'Documents'
+
+
+def document_formats():
+    """(name, extensions) of the documents, for the Open dialog."""
+    extensions = document_extensions()
+    return [(DOCUMENTS_NAME, extensions)] if extensions else []
