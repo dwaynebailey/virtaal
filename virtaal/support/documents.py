@@ -708,6 +708,39 @@ class DocumentBundle:
         self.modified = True
         return changed
 
+    # TIPP
+
+    def export_tipp(self, language, path):
+        """Write a TIPP 2.0 package asking for the translation of the
+        documents into C{language}, with this bundle's work so far: the
+        translatable files, as XLIFF."""
+        self._check_export(path)
+        files = []
+        for entry in self.translations(language):
+            name = entry['file'].split('/')[-1]
+            data = self.trans_data(entry)
+            if not name.endswith('.xlf'):
+                data, name = _as_xliff(data, name), name + '.xlf'
+            files.append((name, data))
+        manifest = _tipp_manifest(self.source_language, language, [n for n, _d in files])
+        members = {'manifest.xml': manifest}
+        members.update(('resources/bilingual/' + name, data) for name, data in files)
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as archive:
+            for name, data in members.items():
+                archive.writestr(name, data)
+        _replace_file(path, out.getvalue())
+        return path
+
+    def export_tipp_all(self, folder):
+        """One TIPP package for each target language in C{folder}
+        (manual.zu.tipp): a TIPP has one language pair."""
+        os.makedirs(folder, exist_ok=True)
+        return [
+            self.export_tipp(language, os.path.join(folder, '%s.%s.tipp' % (self.name, language)))
+            for language in self.languages
+        ]
+
     # Export
 
     def export_document(self, document, language, path):
@@ -863,6 +896,55 @@ def tmx_for_language(data, source, language):
                 tu.remove(tuv)
         if len(tu.findall('tuv')) < 2:
             tu.getparent().remove(tu)
+    return etree.tostring(root, xml_declaration=True, encoding='UTF-8')
+
+
+def _as_xliff(data, name):
+    from translate.convert import po2xliff
+
+    return po2xliff.po2xliff().convertstore(_store(data, name))
+
+
+def _bcp47(code):
+    return code.replace('_', '-')
+
+
+def _tipp_manifest(source, target, names):
+    """A TIPP 2.0 request manifest for translating the bilingual files
+    C{names}, as the specification's samples have it."""
+    from lxml import etree
+
+    from virtaal.__version__ import ver
+
+    namespace = packages._TIPP_2
+
+    def add(parent, local, text=None, **attributes):
+        element = etree.SubElement(parent, '{%s}%s' % (namespace, local), **attributes)
+        element.text = text
+        return element
+
+    root = etree.Element('{%s}TIPPManifest' % namespace, nsmap={None: namespace}, version='2.0')
+    descriptor = add(root, 'GlobalDescriptor')
+    add(descriptor, 'UniquePackageID', 'urn:uuid:%s' % uuid.uuid4())
+    creator = add(descriptor, 'Creator')
+    add(creator, 'Name', packages._creator_name())
+    add(creator, 'ID', packages.HOMEPAGE)
+    add(creator, 'Date', _now())
+    tool = add(creator, 'Tool')
+    add(tool, 'ToolName', 'Virtaal')
+    add(tool, 'ToolID', packages.HOMEPAGE)
+    add(tool, 'ToolVersion', ver)
+    task = add(root, 'TaskRequest')
+    add(task, 'TaskType', namespace + 'tasks/translate-strict-bitext')
+    add(task, 'SourceLanguage', _bcp47(source))
+    add(task, 'TargetLanguage', _bcp47(target))
+    bilingual = add(add(root, 'Resources'), 'Bilingual', name='bilingual')
+    for sequence, name in enumerate(names, 1):
+        resource = add(bilingual, 'File', sequence=str(sequence))
+        add(resource, 'Name', name)
+        add(resource, 'Location', name)
+    if hasattr(etree, 'indent'):
+        etree.indent(root, '  ')
     return etree.tostring(root, xml_declaration=True, encoding='UTF-8')
 
 

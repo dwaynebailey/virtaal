@@ -599,3 +599,33 @@ def test_split_copies_only_its_languages_tm_entries(tmp_path, master):
     assert b'Sawubona' in tmx
     assert b'Molo' not in tmx
     assert b'Bye' not in tmx
+
+
+# TIPP
+
+
+def test_export_as_tipp_writes_a_package_per_language_that_virtaal_opens(tmp_path, master):
+    from virtaal.support import packages
+
+    page = tmp_path / 'page.html'
+    page.write_bytes(_docsamples.html(['One paragraph.']))
+    master.add_document(str(page))
+    _translate(_file(master, 'intro.odt', 'zu'), {'Welcome.': 'Wamukelekile.'})
+
+    written = master.export_tipp_all(str(tmp_path / 'tipp'))
+
+    assert [os.path.basename(p) for p in written] == [
+        'manual.zu.tipp',
+        'manual.xh.tipp',
+        'manual.st.tipp',
+    ]
+    package = packages.open_package(written[0], str(tmp_path / 'tipp-work'))
+    assert (package.kind, package.package_type, package.version) == ('tipp', 'request', '2.0')
+    names = [os.path.basename(p) for p in package.files()]
+    assert names == ['intro.odt.xlf', 'usage.odt.xlf', 'page.html.po.xlf']
+    intro = factory.getobject(package.files()[0])
+    assert {u.source: str(u.target or '') for u in intro.units}['Welcome.'] == 'Wamukelekile.'
+    page_units = factory.getobject(package.files()[2])
+    assert 'One paragraph.' in [u.source for u in page_units.units]
+    manifest = _read(written[0], 'manifest.xml')
+    assert b'<TargetLanguage>zu</TargetLanguage>' in manifest
