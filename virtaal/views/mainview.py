@@ -244,12 +244,6 @@ def add_translation_file_filters(chooser, extra_formats=()):
                     all_supported_filter.add_pattern("*.%s.%s" % (extension, compress_extension))
         chooser.add_filter(new_filter)
 
-    # proj_filter = Gtk.FileFilter()
-    # proj_filter.set_name(_('Translate project bundles'))
-    # proj_filter.add_pattern('*.zip')
-    # all_supported_filter.add_pattern('*.zip')
-    # chooser.add_filter(proj_filter)
-
     all_filter = Gtk.FileFilter()
     all_filter.set_name(_("All Files"))
     all_filter.add_pattern("*")
@@ -641,7 +635,8 @@ class MainView(BaseView):
     def bundle_chooser(self):
         from virtaal.support import documents
 
-        chooser = self._chooser(_('Choose a Translation File'), formats=documents.open_formats())
+        formats = [(documents.NAME, [documents.EXTENSION])]
+        chooser = self._chooser(_('Choose a Translation File'), formats=formats)
         chooser.set_select_multiple(True)
         return chooser
 

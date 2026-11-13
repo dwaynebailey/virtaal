@@ -756,8 +756,7 @@ A bundle can hold several documents, translated into several languages:
   tools, one per language.
 
 The format is described in :doc:`bundle_format`. Bundles made by Virtaal 0.7
-and the Translate Toolkit (.zip, with a ``project.xtp``) still open, from the
-command line or by dropping them on the window.
+and the Translate Toolkit (.zip, with a ``project.xtp``) still open.
 
 .. _using_virtaal#network_based_translation_memory:
 

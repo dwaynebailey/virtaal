@@ -57,8 +57,9 @@ class BundleError(ValueError):
 
 
 def open_formats():
-    """(name, extensions) of the bundles, for the Open dialog."""
-    return [(NAME, [EXTENSION])]
+    """(name, extensions) of the bundles, for the Open dialog: also the
+    .zip project bundles of Virtaal 0.7 and translate-toolkit."""
+    return [(NAME, [EXTENSION, 'zip'])]
 
 
 def is_bundle(path):

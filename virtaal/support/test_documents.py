@@ -391,7 +391,7 @@ def test_other_members_are_kept_as_they_are(tmp_path, report):
 def test_is_bundle_and_open_formats():
     assert documents.is_bundle('/a/manual.zu.VIRTAAL')
     assert not documents.is_bundle('manual.zip')
-    assert documents.open_formats() == [('Translation Bundles', ['virtaal'])]
+    assert documents.open_formats() == [('Translation Bundles', ['virtaal', 'zip'])]
 
 
 def test_html_and_text_documents(tmp_path):
