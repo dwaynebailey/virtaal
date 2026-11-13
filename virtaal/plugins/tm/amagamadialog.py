@@ -37,7 +37,7 @@ def licence_presets():
         # l10n: A choice of licences: those that let translations be used in any software, such as MIT or Apache
         ('permissive', _('Permissive only'), BUILTIN_PREFIX + 'permissive'),
         # l10n: A choice of licences: shows a field to list them
-        (CUSTOM, _('Custom…'), None),
+        (CUSTOM, _('Custom'), None),
     )
 
 

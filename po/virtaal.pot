@@ -2239,7 +2239,7 @@ msgstr ""
 
 #. l10n: A choice of licences: shows a field to list them
 #: virtaal/plugins/tm/amagamadialog.py
-msgid "Custom…"
+msgid "Custom"
 msgstr ""
 
 #. l10n: The title of the window listing the projects Amagama has translations from
@@ -2480,7 +2480,7 @@ msgid "Translations"
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py
-msgid "Last updated"
+msgid "Last Updated"
 msgstr ""
 
 #. l10n: Column heading: how a file came into the translation

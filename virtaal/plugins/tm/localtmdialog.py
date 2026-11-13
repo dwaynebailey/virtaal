@@ -160,7 +160,7 @@ class LocalTMDialog:
         column(_('File'), COL_NAME, expand=True, sensitive=COL_EXISTS).set_min_width(280)
         column(_('Languages'), COL_PAIR, sort_col=COL_PAIR_CODES)
         column(_('Translations'), COL_UNITS, numeric=True)
-        column(_('Last updated'), COL_UPDATED, sort_col=COL_TIME)
+        column(_('Last Updated'), COL_UPDATED, sort_col=COL_TIME)
         column(
             _(
                 # l10n: Column heading: how a file came into the translation

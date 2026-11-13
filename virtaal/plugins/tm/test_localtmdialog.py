@@ -182,7 +182,7 @@ def test_the_list_sorts_by_codes_and_times_not_by_what_it_shows(tm, tmp_path, mo
     try:
         columns = {col.get_title(): col for col in dialog.treeview.get_columns()}
         assert columns['Languages'].get_sort_column_id() == localtmdialog.COL_PAIR_CODES
-        assert columns['Last updated'].get_sort_column_id() == localtmdialog.COL_TIME
+        assert columns['Last Updated'].get_sort_column_id() == localtmdialog.COL_TIME
         dialog.liststore.set_sort_column_id(localtmdialog.COL_PAIR_CODES, Gtk.SortType.ASCENDING)
         # German (de) before French (fr), though French sorts first by name.
         assert [row[COL_PAIR] for row in dialog.liststore] == [
@@ -232,7 +232,7 @@ def test_the_list_shows_each_file_per_language_pair(tm, tmp_path, monkeypatch):
         'File',
         'Languages',
         'Translations',
-        'Last updated',
+        'Last Updated',
         'Type',
     ]
     dialog.dialog.destroy()
