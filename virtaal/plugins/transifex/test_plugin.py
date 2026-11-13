@@ -124,6 +124,11 @@ def test_the_browser_opens_a_resources_language(fake, tmp_path, platforms):
         'Tools / Toolbar',
     ]
     program = _expand(dialog, next(_rows(model)))
+    # Each resource with its format.
+    assert [(model[it][COL_NAME], model[it][COL_INFO]) for it in _rows(model, program)] == [
+        ('Messages', 'PO'),
+        ('Website', 'KEYVALUEJSON'),
+    ]
     messages = _expand(dialog, next(_rows(model, program)))
     languages = list(_rows(model, messages))
     assert [(model[it][COL_NAME], model[it][COL_INFO]) for it in languages] == [
@@ -140,3 +145,28 @@ def test_the_browser_opens_a_resources_language(fake, tmp_path, platforms):
     assert copy.platform_name() == 'Transifex'
     assert copy.location() == 'Program/Messages'
     assert dialog.opened.endswith(os.path.join('messages', 'af.po'))
+
+
+def test_the_browser_opens_a_docx_resource_as_any_other(fake, tmp_path, platforms):
+    from devsupport.testing.faketransifex import add_formats
+
+    add_formats(fake)
+    _weblate, transifex = platforms
+    servers = ServerList([transifex], str(tmp_path / 'platforms.ini'))
+    servers.put(transifex, fake.url, {'token': TOKEN})
+    dialog = BrowseDialog(servers)
+    run_until(lambda: not dialog.spinner.get_visible(), timeout=20)
+    model = dialog.filtered
+    project = next(it for it in _rows(model) if model[it][COL_NAME] == 'Hello Org / Formats')
+    project = _expand(dialog, project)
+    guide = next(it for it in _rows(model, project) if model[it][COL_NAME] == 'User guide')
+    assert model[guide][COL_INFO] == 'DOCX'
+    guide = _expand(dialog, guide)
+    afrikaans = next(_rows(model, guide))
+    dialog.treeview.get_selection().select_iter(afrikaans)
+
+    dialog.open_selected()
+    run_until(lambda: dialog.opened is not None, timeout=20)
+
+    assert dialog.opened.endswith(os.path.join('guide', 'af.xlf'))
+    assert workcopy.for_file(dialog.opened).record['origin'] == workcopy.BUILT

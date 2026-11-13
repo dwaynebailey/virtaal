@@ -132,7 +132,9 @@ def test_a_resource_no_longer_there_is_a_404(fake, tmp_path):
         ('PO', ('res/pt_BR.po', None)),
         ('ANDROID', ('res/res/values-pt-rBR/strings.xml', 'res/res/values/strings.xml')),
         ('XLIFF', ('res/pt_BR.xlf', None)),
-        ('YAML_GENERIC', ('res/pt_BR.yaml_generic', None)),
+        ('YAML_GENERIC', ('res/pt_BR.xlf', None)),
+        ('STRINGS', ('res/pt_BR.lproj/Localizable.strings', 'res/en.lproj/Localizable.strings')),
+        ('ARB', ('res/res_pt_BR.arb', 'res/res_en.arb')),
     ],
 )
 def test_each_format_has_its_file_path(file_format, paths):

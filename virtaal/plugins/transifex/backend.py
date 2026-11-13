@@ -29,6 +29,13 @@ its state. Submit PATCHes {"strings": {CLDR plural: text}, "reviewed":
 bool}, with null strings for none, up to 150 a request (bulk); it never
 sets proofread, a proofreader's second review.
 
+Every resource opens (formats.py): one in a format Virtaal reads
+downloads as its file; any other, or one whose plurals its file can't
+hold as Virtaal reads them, is built as XLIFF 2 from its strings, a
+unit a string by its hash. Submit and Update work a string at a time
+either way; Update builds the file again when strings come or go.
+tx's servers and tokens (config.read_tx()) can be imported.
+
 There is no lock and no change feed for reviews: only the date
 translated can be filtered on, so changed_since() reads every string
 of the resource (1000 a page), each with the latest of its dates
@@ -47,9 +54,11 @@ from virtaal.support.platforms import (
     Platform,
     RemoteUnit,
     Session,
+    workcopy,
 )
 
 from . import client as transifex
+from . import formats
 from .config import KeyFile, read_tx, tx_config_path
 
 UNTRANSLATED, TRANSLATED, REVIEWED, PROOFREAD = (
@@ -68,21 +77,6 @@ _TO_VIRTAAL = {
 
 CLDR = ('zero', 'one', 'two', 'few', 'many', 'other')
 """CLDR's plural categories, in the order of a file's plural forms."""
-
-FILES = {
-    'PO': ('{slug}/{lang}.po', None),
-    'XLIFF': ('{slug}/{lang}.xlf', None),
-    'QT': ('{slug}/{lang}.ts', None),
-    'ANDROID': ('{slug}/res/values-{android}/strings.xml', '{slug}/res/values/strings.xml'),
-    'KEYVALUEJSON': ('{slug}/{lang}.json', '{slug}/{source}.json'),
-    'PROPERTIES': ('{slug}/{slug}_{lang}.properties', '{slug}/{slug}.properties'),
-}
-"""The file path, and the source-language file's for a format with one
-language a file, of each of Transifex's formats (i18n_format) Virtaal
-opens; another format is <slug>/<lang>.<its name>."""
-
-KEYED = {name for name, (_path, template) in FILES.items() if template}
-"""The formats with one language a file, matched by key."""
 
 
 def virtaal_state(code):
@@ -145,14 +139,19 @@ def _language(ident):
     return ident[2:] if ident.startswith('l:') else ident
 
 
-def file_paths(file_format, slug, language, source):
-    """(the translation's path, the source file's path or None)."""
+def file_paths(file_format, slug, language, source, opens=None):
+    """(the work file's path, the source file's path or None) of a
+    resource that opens as opens (formats.mode(), by default as a
+    resource without plurals does)."""
     android = language.replace('_', '-r', 1) if '_' in language else language
     names = {'slug': slug, 'lang': language, 'source': source, 'android': android}
-    translation, template = FILES.get(
-        file_format, ('{slug}/{lang}.' + (file_format or 'txt').lower(), None)
-    )
-    return translation.format(**names), template and template.format(**names)
+    return formats.paths(file_format, opens or formats.mode(file_format, False), names)
+
+
+def _string_hash(string):
+    """A resource string's hash: its id's last part."""
+    about = string.get('attributes') or {}
+    return about.get('string_hash') or str(string.get('id') or '').rpartition(':s:')[2]
 
 
 def _idle(callback, *args):
@@ -248,8 +247,9 @@ class TransifexSession(Session):
             for resource in data:
                 attributes = resource.get('attributes') or {}
                 slug = attributes.get('slug', '')
-                found.append(Item(attributes.get('name') or slug, slug))
-                self.formats[resource.get('id')] = _related(resource, 'i18n_format')
+                file_format = _related(resource, 'i18n_format')
+                self.formats[resource.get('id')] = file_format
+                found.append(Item(attributes.get('name') or slug, slug, info=file_format))
 
         params = {'filter[project]': project_id(project)}
         self.client.get_list('resources', params, page, lambda: on_done(found), on_error)
@@ -325,63 +325,118 @@ class TransifexSession(Session):
 
     def download(self, project, component, language, on_done, on_error):
         # The resource and its format, the project, the language's plural
-        # rules, the file, the source file for a format of one language a
-        # file, then the strings.
-        rid = resource_id(project, component)
-
+        # rules and the strings; then, for a format Virtaal reads, the
+        # file and the source file for a format of one language a file,
+        # else a file built from the strings.
         def got_resource(resource, file_format):
             def got_project(data):
                 attributes = data.get('attributes') or {}
-                source = _language(_related(data, 'source_language')) or 'en'
-                names = {
-                    'project': attributes.get('name') or project,
-                    'component': resource.get('name') or component,
+                where = {
+                    'project': project,
+                    'component': component,
+                    'language': language,
+                    'format': file_format,
+                    'source': _language(_related(data, 'source_language')) or 'en',
+                    'names': {
+                        'project': attributes.get('name') or project,
+                        'component': resource.get('name') or component,
+                    },
                 }
-                paths = file_paths(file_format, component, language, source)
                 self._plural_rules(
-                    language, lambda: fetch(names, paths, file_format in KEYED), on_error
-                )
-
-            self.client.get_one('projects/' + project_id(project), got_project, on_error)
-
-        def fetch(names, paths, keyed):
-            def got_file(body):
-                if paths[1] is None:
-                    units(body, None)
-                    return
-                self.client.download_job(
-                    'resource_strings_async_downloads',
-                    {'content_encoding': 'text', 'file_type': 'default'},
-                    {'resource': rid},
-                    lambda base: units(body, (paths[1], base)),
-                    on_error,
-                )
-
-            def units(body, template):
-                options = {'review': None, 'source_review': None}
-                self._units(
-                    project,
-                    component,
                     language,
-                    keyed,
-                    lambda found: on_done(
-                        Download(paths[0], body, template, found, names, options)
+                    lambda: self._strings(
+                        project,
+                        component,
+                        language,
+                        lambda pairs: self._downloaded(where, pairs, on_done, on_error),
+                        on_error,
                     ),
                     on_error,
                 )
 
-            self.client.download_job(
-                'resource_translations_async_downloads',
-                {'content_encoding': 'text', 'file_type': 'default', 'mode': 'default'},
-                {'language': 'l:' + language, 'resource': rid},
-                got_file,
-                on_error,
-            )
+            self.client.get_one('projects/' + project_id(project), got_project, on_error)
 
         self._format(project, component, got_resource, on_error)
 
-    def _units(self, project, component, language, keyed, on_done, on_error):
-        """on_done([RemoteUnit]): every string of a resource in language."""
+    def _downloaded(self, where, pairs, on_done, on_error):
+        """The strings read: the Download, its file fetched or built."""
+        file_format = where['format']
+        opens = self._opens(file_format, pairs)
+        units = self._remote_units(pairs, where['language'], opens)
+        paths = file_paths(
+            file_format, where['component'], where['language'], where['source'], opens
+        )
+        options = {'review': None, 'source_review': None, 'platform_format': file_format}
+        if opens == formats.BUILT:
+            options.update(
+                origin=workcopy.BUILT,
+                placeables=formats.placeables(file_format, [str(u.source[-1]) for u in units]),
+            )
+            data = self._built(where, pairs, units)
+            _idle(on_done, Download(paths[0], data, None, units, where['names'], options))
+            return
+
+        def fetched(body, template):
+            on_done(Download(paths[0], body, template, units, where['names'], options))
+
+        self._fetch(where, paths, fetched, on_error)
+
+    def _fetch(self, where, paths, on_done, on_error):
+        """on_done(the file's bytes, (the source file's path, bytes) or
+        None)."""
+        rid = resource_id(where['project'], where['component'])
+
+        def got_file(body):
+            if paths[1] is None:
+                on_done(body, None)
+                return
+            self.client.download_job(
+                'resource_strings_async_downloads',
+                {'content_encoding': 'text', 'file_type': 'default'},
+                {'resource': rid},
+                lambda base: on_done(body, (paths[1], base)),
+                on_error,
+            )
+
+        self.client.download_job(
+            'resource_translations_async_downloads',
+            {'content_encoding': 'text', 'file_type': 'default', 'mode': 'default'},
+            {'language': 'l:' + where['language'], 'resource': rid},
+            got_file,
+            on_error,
+        )
+
+    def _built(self, where, pairs, units):
+        """The XLIFF bytes of a resource's strings (formats.py)."""
+        entries = []
+        for (_translation, string), unit in zip(pairs, units, strict=True):
+            about = string.get('attributes') or {}
+            entries.append(
+                formats.Entry(
+                    unit.context,
+                    about.get('key') or '',
+                    unit.source,
+                    unit.target,
+                    (self.plurals.get(where['language']) or ['other'])
+                    if about.get('pluralized')
+                    else None,
+                    unit.code,
+                    formats.notes_of(about),
+                    formats.limit_of(about),
+                )
+            )
+        return formats.build_xliff(entries, where['source'], where['language'], where['component'])
+
+    @staticmethod
+    def _opens(file_format, pairs):
+        pluralized = any(
+            (string.get('attributes') or {}).get('pluralized') for _translation, string in pairs
+        )
+        return formats.mode(file_format, pluralized)
+
+    def _strings(self, project, component, language, on_done, on_error):
+        """on_done([(translation, its resource string)]): every string of
+        a resource in language."""
         found = []
         params = {
             'filter[resource]': resource_id(project, component),
@@ -389,30 +444,48 @@ class TransifexSession(Session):
             'include': 'resource_string',
             'limit': self.client.UNITS_PAGE_SIZE,
         }
-        names = self.plurals.get(language) or ['other']
 
         def page(data, included):
             strings = {s.get('id'): s for s in included if s.get('type') == 'resource_strings'}
             for translation in data:
                 string = strings.get(_related(translation, 'resource_string')) or {}
-                found.append(self._remote_unit(translation, string, names, keyed, len(found) + 1))
+                found.append((translation, string))
 
         self.client.get_list(
             'resource_translations', params, page, lambda: on_done(found), on_error
         )
 
-    def _remote_unit(self, translation, string, names, keyed, position):
+    def _remote_units(self, pairs, language, opens):
+        names = self.plurals.get(language) or ['other']
+        return [
+            self._remote_unit(translation, string, names, opens, position)
+            for position, (translation, string) in enumerate(pairs, 1)
+        ]
+
+    def _remote_unit(self, translation, string, names, opens, position):
         attributes = translation.get('attributes') or {}
         about = string.get('attributes') or {}
         pluralized = bool(about.get('pluralized'))
         self.pluralized[translation.get('id')] = pluralized
         source = about.get('strings') or {}
         code = code_of(attributes)
+        if opens == formats.BUILT:
+            # The file's: its id, and a source form for each category.
+            context = _string_hash(string)
+            source = forms({c: source.get(c) or source.get('other') for c in names}, names)
+        else:
+            if opens == formats.NATIVE_KEYED:
+                context = str(about.get('key') or '')
+            else:
+                context = context_text(about.get('context'))
+            source = forms(source, categories(source))
+        if not pluralized:
+            source = source[-1:]
         return RemoteUnit(
             id=translation.get('id'),
             position=position,
-            context=str(about.get('key') or '') if keyed else context_text(about.get('context')),
-            source=forms(source, categories(source)),
+            context=context,
+            source=source,
             target=forms(attributes.get('strings'), names if pluralized else ['other']),
             state=virtaal_state(code),
             code=code,
@@ -439,8 +512,13 @@ class TransifexSession(Session):
         rid = resource_id(project, component)
 
         def read(_resource=None, file_format=None):
-            keyed = (file_format or self.formats.get(rid)) in KEYED
-            self._units(project, component, language, keyed, on_done, on_error)
+            file_format = file_format or self.formats.get(rid)
+
+            def got(pairs):
+                opens = self._opens(file_format, pairs)
+                on_done(self._remote_units(pairs, language, opens))
+
+            self._strings(project, component, language, got, on_error)
 
         def with_rules():
             if rid in self.formats:

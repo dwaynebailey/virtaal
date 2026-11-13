@@ -170,7 +170,10 @@ def test_projects_are_listed_as_organisation_and_project(fake, platform):
 def test_a_projects_resources_are_its_components(fake, platform):
     session = platform.session(fake.url, {'token': TOKEN})
     (items,) = _ask(session.components, 'hello-org/program')
-    assert items == [Item('Messages', 'messages'), Item('Website', 'website')]
+    assert items == [
+        Item('Messages', 'messages', info='PO'),
+        Item('Website', 'website', info='KEYVALUEJSON'),
+    ]
 
 
 def test_a_resources_languages_leave_out_the_source(fake, platform):
