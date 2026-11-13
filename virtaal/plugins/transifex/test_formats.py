@@ -255,6 +255,15 @@ def test_any_other_format_opens_built(fake, component, file_format, placeables):
     assert _jobs(fake) == []
 
 
+def test_a_built_unit_shows_its_key_only_when_it_says_something(fake):
+    rails, counts, subtitles = Built(fake, 'rails'), Built(fake, 'counts'), Built(fake, 'subtitles')
+
+    assert [u.getlocations() for u in rails.units] == [['en.greeting'], ['en.bye']]
+    assert [u.getlocations() for u in counts.units] == [['title'], ['items']]
+    assert [u.getlocations() for u in subtitles.units] == [[], []]
+    assert [u.getlocations() for u in Built(fake).units] == [[], [], [], ['files']]
+
+
 def test_rails_placeables_are_rubys(fake):
     copy = Built(fake, 'rails')
     unit = copy.by_key('en.greeting')

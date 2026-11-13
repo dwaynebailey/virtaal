@@ -7,6 +7,7 @@
 
 from io import BytesIO
 
+import pytest
 from translate.storage import factory, xliff, xliff2
 from translate.storage.workflow import StateEnum
 
@@ -128,6 +129,71 @@ def test_removenotes_by_origin_keeps_the_others(tmp_path):
     unit.removenotes()
     assert unit.getnotes() == ''
     assert unit.xmlelement.getparent().find(unit.namespaced('notes')) is None
+
+
+@pytest.mark.parametrize(
+    ('key', 'readable'),
+    [
+        ('users.welcome_title', True),
+        ('checkout_button_label', True),
+        ('greeting', True),
+        ('en.greeting', True),
+        ('menu.items.[0]', True),
+        ('IDS_FILE_OPEN', True),
+        ('заголовок', True),
+        ('5d41402abc4b2a76b9719d911017c592', False),
+        ('2fd4e1c67a2d28fced849ee1bb76e7391b93eb12', False),
+        ('5D41402ABC4B2A76B9719D911017C592:menu', True),
+        ('5d41402abc4b2a76b9719d911017c592:3', False),
+        ('123e4567-e89b-12d3-a456-426614174000', False),
+        ('42', False),
+        ('1.2.3', False),
+        ('[0]', False),
+        ('p1', False),
+        ('seg_12', False),
+        ('tu-3', False),
+        ('', False),
+        (None, False),
+        ('  ', False),
+        ('Save', False),
+        ('save  file', False),
+        ('Close', True),
+    ],
+)
+def test_readable_key(key, readable):
+    assert xliff2_compat.readable_key(key, ['Save file', 'Save']) is readable
+
+
+NAMED = b'''<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0"
+ xmlns:pgs="urn:oasis:names:tc:xliff:pgs:1.0" version="2.2" srcLang="en" trgLang="af">
+  <file id="f1">
+    <unit id="1" name="checkout_button_label"><segment><source>Pay</source></segment></unit>
+    <unit id="2" name="p2"><segment><source>Save</source></segment></unit>
+    <unit id="3" name="Open"><segment><source>Open</source></segment></unit>
+    <unit id="4"><segment><source>Quit</source></segment></unit>
+    <unit id="5" name="files.count" pgs:switch="plural:count">
+      <segment pgs:case="one"><source>%d file</source></segment>
+      <segment pgs:case="other"><source>%d files</source></segment></unit>
+  </file>
+</xliff>
+'''
+
+
+def test_a_readable_name_is_the_units_location(tmp_path):
+    from virtaal.models.storemodel import StoreModel
+
+    path = tmp_path / 'named.xlf'
+    path.write_bytes(NAMED)
+    model = StoreModel(str(path), object())
+
+    assert [u.getlocations() for u in model.get_units()] == [
+        ['checkout_button_label'],
+        [],
+        [],
+        [],
+        ['files.count'],
+    ]
 
 
 def test_storemodel_opens_and_saves_an_xliff2_file(tmp_path):

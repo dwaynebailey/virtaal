@@ -23,7 +23,10 @@ string's plural forms as one unit, a segment for each CLDR category
 plural groups open as a unit a form. Each string is a <unit>:
 
   id                  the string's hash (Transifex's string_hash)
-  name                its key
+  name                its key, which Virtaal shows (as a location) only
+                      when it says something: users.welcome_title, not
+                      a DOCX or HTML string's hash
+                      (xliff2_compat.readable_key())
   pgs:switch          "plural:count" for a string with plurals, each
                       <segment>'s pgs:case one of the language's
                       categories, its source the source string's form

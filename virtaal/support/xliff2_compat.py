@@ -13,7 +13,9 @@ Xliff2Unit's state table has an empty range for "translated" and sorts
 so here a segment's state maps to Virtaal's Untranslated, Needs work
 (initial with a target), Translated and Reviewed (reviewed or final).
 Its notes are read from and written to the <unit>, where XLIFF 2 keeps
-them, not inside the <segment>.
+them, not inside the <segment>. A unit's name, its key in the original
+file, is its location, as a monolingual file's key is, unless it is an
+id that tells a translator nothing (L{readable_key()}).
 
 A file is saved as it was read, apart from the <unit>s that changed
 (L{xmlinplace}).
@@ -184,6 +186,42 @@ Xliff2Unit.set_state_n = set_state_n
 Xliff2Unit.getnotes = getnotes
 Xliff2Unit.addnote = addnote
 Xliff2Unit.removenotes = removenotes
+
+
+# A unit's key
+
+_HASH = re.compile(r"[0-9a-f]{16,}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", re.I)
+_SEGMENT = re.compile(
+    r"(?:p|s|seg|segment|tu|text|para|paragraph|string|str|id|item|line|row|unit)[_.-]?\d+",
+    re.I,
+)
+
+
+def _folded(text):
+    return " ".join(str(text).split()).casefold()
+
+
+def readable_key(key, sources=()):
+    """Whether a unit's key tells a translator something: a name such as
+    users.welcome_title or checkout_button_label, not an id (a hash, a
+    UUID, a number, a document's segment id such as p1 or seg_12) nor
+    one of its C{sources} again."""
+    key = (key or "").strip()
+    if _SEGMENT.fullmatch(key) or not any(c.isalpha() for c in _HASH.sub("", key)):
+        return False
+    return all(_folded(key) != _folded(source) for source in sources)
+
+
+def getlocations(self):
+    """The unit's name, its key in the original file, as a monolingual
+    file's key is its location, when it is L{readable_key()}. (Xliff2Unit
+    has no locations of its own.)"""
+    name = self.getunitelement().get("name")
+    sources = getattr(self.source, "strings", [self.source])
+    return [name] if readable_key(name, sources) else []
+
+
+Xliff2Unit.getlocations = getlocations
 
 
 # Showing a unit
