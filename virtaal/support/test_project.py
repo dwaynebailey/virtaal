@@ -221,7 +221,7 @@ def test_add_source_convert_adds_then_converts_the_added_source():
 
 
 # Project.convert_forward() - real ProjectStore + real files, with only
-# the external translate.convert.factory.convert() call stubbed out #
+# the conversion itself stubbed out #
 
 
 def _append(append, path):
@@ -245,7 +245,7 @@ def _stub_convert(
             created.append(out_path)
         return open(out_path, 'rb'), ext
 
-    monkeypatch.setattr(project_module.convert_factory, 'convert', fake_convert)
+    monkeypatch.setattr(project_module, 'convert', fake_convert)
 
 
 def test_convert_forward_converts_a_source_file_and_records_the_conversion(tmp_path, monkeypatch):
@@ -465,7 +465,7 @@ def test_convert_forward_passes_the_input_name_and_convert_options(tmp_path, mon
         seen['convert_options'] = convert_options
         raise ValueError('no converter')
 
-    monkeypatch.setattr(project_module.convert_factory, 'convert', fake_convert)
+    monkeypatch.setattr(project_module, 'convert', fake_convert)
     src_path = tmp_path / 'greeting.odt'
     src_path.write_bytes(b'source bytes')
     store = ProjectStore()
@@ -486,7 +486,7 @@ def test_convert_forward_closes_the_input_when_the_conversion_fails(tmp_path, mo
         seen['input'] = inputfile
         raise ValueError('no converter')
 
-    monkeypatch.setattr(project_module.convert_factory, 'convert', fake_convert)
+    monkeypatch.setattr(project_module, 'convert', fake_convert)
     src_path = tmp_path / 'greeting.odt'
     src_path.write_bytes(b'source bytes')
     project = Project(ProjectStore())
@@ -610,3 +610,65 @@ def test_a_bundle_round_trip_leaves_no_file_open(tmp_path, monkeypatch):
         if issubclass(w.category, ResourceWarning) and 'unclosed file' in str(w.message)
     ]
     assert unclosed == []
+
+
+# convert() - Virtaal's converter table, and an old-style bundle saved #
+
+
+def test_convert_makes_the_translatable_file_of_a_document(tmp_path):
+    from virtaal.support import _docsamples
+
+    document = tmp_path / 'greeting.odt'
+    document.write_bytes(_docsamples.odt(['Hello.']))
+
+    with open(document, 'rb') as inputfile:
+        converted, extension = project_module.convert(inputfile)
+    with converted:
+        data = converted.read()
+    os.remove(converted.name)
+
+    assert extension == 'xlf'
+    assert b'<source>Hello.</source>' in data
+
+
+def test_convert_refuses_a_file_it_has_no_converter_for(tmp_path):
+    path = tmp_path / 'notes.po'
+    path.write_bytes(b'')
+
+    with open(path, 'rb') as inputfile, pytest.raises(project_module.UnsupportedConversionError):
+        project_module.convert(inputfile)
+
+
+def test_an_old_bundle_saves_its_translated_document(tmp_path):
+    import zipfile
+
+    from translate.storage import factory
+
+    from virtaal.support import _docsamples
+    from virtaal.support.bundleprojstore import BundleProjectStore
+
+    document = tmp_path / 'greeting.odt'
+    document.write_bytes(_docsamples.odt(['Hello.', 'Goodbye.']))
+    bundle_path = str(tmp_path / 'greeting_en__af.zip')
+    project = Project(BundleProjectStore(bundle_path))
+    _srcfile, _srcname, transfile, transname = project.add_source_convert(str(document))
+    transfile.close()
+    project.save()
+    project.close()
+
+    project = Project(BundleProjectStore(bundle_path))
+    real = project.get_real_filename(transname)
+    store = factory.getobject(real)
+    store.units[0].target = 'Hallo.'
+    store.save()
+    with open(real, 'rb') as infile:
+        project.update_file(transname, infile)
+    outputfile, outname = project.convert_forward(transname, overwrite_output=True)
+    outputfile.close()
+    project.save()
+    project.close()
+
+    assert outname == 'targets/greeting.odt'
+    with zipfile.ZipFile(bundle_path) as archive:
+        translated = archive.read('targets/greeting.odt')
+    assert _docsamples.odt_text(translated) == ['Hallo.', 'Goodbye.']

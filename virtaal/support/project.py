@@ -34,12 +34,12 @@
 # they get from the store, and convert_forward() takes a template's project
 # file name as documented instead of unpacking the file it gets for it.
 # split_extensions() lost its notes on translate.convert.factory, whose
-# converters dict is empty (translate/virtaal#3806).
+# converters dict is empty (translate/virtaal#3806); convert_forward()
+# converts with Virtaal's own table (virtaal.support.converters) instead.
 
 import os
+import tempfile
 from typing import cast
-
-from translate.convert import factory as convert_factory
 
 from virtaal.support.projstore import ProjectStore
 
@@ -67,6 +67,43 @@ def split_extensions(filename):
     if len(extensions) == len(filename_parts):
         extensions = extensions[1:]
     return os.extsep.join(filename_parts[: -len(extensions)]), os.extsep.join(extensions)
+
+
+class UnsupportedConversionError(ValueError):
+    """No converter for a file of a project."""
+
+
+def convert(inputfile, template=None, options=None, convert_options=None):
+    """
+    Convert a project's file with Virtaal's document converters: a source
+    document into its translatable file, or a translatable file into the
+    translated document, its ``template`` (file object) the source
+    document.
+
+    :returns 2-tuple: the converted temporary file, open, and its
+                      extension.
+    """
+    from virtaal.support import converters
+
+    name = (options or {}).get("in_fname") or getattr(inputfile, "name", "")
+    data = inputfile.read()
+    converter = converters.document_converter(name)
+    if converter is not None:
+        result, extension = (
+            converter.forward(data, os.path.basename(name)),
+            converter.trans_extension,
+        )
+    else:
+        template_name = getattr(template, "name", None) or ""
+        converter = converters.document_converter(template_name)
+        if converter is None:
+            raise UnsupportedConversionError(f"No converter for {name}")
+        result = converter.back(data, template.read())
+        extension = os.path.splitext(template_name)[1][1:]
+    handle, path = tempfile.mkstemp(suffix=os.extsep + extension)
+    with os.fdopen(handle, "wb") as out:
+        out.write(result)
+    return open(path, "rb"), extension
 
 
 class Project:
@@ -141,7 +178,7 @@ class Project:
                 if out_name in self.store._files and options.get("overwrite_output", True):
                     self.remove_file(out_name)
 
-            converted_file, converted_ext = convert_factory.convert(
+            converted_file, converted_ext = convert(
                 inputfile,
                 template=template,
                 options=conv_options,
