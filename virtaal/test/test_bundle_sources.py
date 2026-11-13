@@ -107,7 +107,7 @@ class TestBundleSources(TestScaffolding):
         assert self.main_controller.open_file(path)
 
         assert self._matches(model, 'Press the red button.') == [
-            ('Cindezela inkinobho ebomvu.', 'manual.virtaal')
+            ('Cindezela inkinobho ebomvu.', 'Translation Bundle')
         ]
         assert self._matches(model, 'Close the window.') == []
 
@@ -134,7 +134,7 @@ class TestBundleSources(TestScaffolding):
         assert self.main_controller.open_file(xh)
 
         assert self._matches(model, 'Close the window.') == [
-            ('Vala ifestile.', 'manual.xh.virtaal')
+            ('Vala ifestile.', 'Translation Bundle')
         ]
 
     def test_its_suggestions_rank_first_unless_the_user_says_otherwise(self):

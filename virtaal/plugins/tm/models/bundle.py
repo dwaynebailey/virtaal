@@ -10,8 +10,6 @@ translations into the language open, while it is open, listed before
 every other source's unless the user says otherwise. Nothing goes into
 the local translation memory."""
 
-import os
-
 from translate.search import match
 from translate.storage import po
 
@@ -82,7 +80,7 @@ class TMModel(BaseTMModel):
             min_similarity=self.controller.min_quality,
             max_length=1000,
         )
-        self.origin = os.path.basename(bundle.path) if bundle.path else bundle.suggested_name()
+        self.origin = self.display_name
 
     def _drop(self, *_args):
         self.matcher = None
