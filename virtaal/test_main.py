@@ -247,7 +247,7 @@ def test_open_startup_file_hides_the_loading_notice_and_defers_load_extras_on_su
 
     # No welcome screen re-activation and no failure notice on success.
     # Progress stays up while the plugins load and process the file.
-    assert calls == ['hidden', ('resume', True), ('progress', "Loading 'some.po'…")]
+    assert calls == ['hidden', ('resume', True), ('progress', "Loading “some.po”…")]
     assert deferred == [(v._load_extras, ())]
 
 

@@ -356,7 +356,7 @@ class TestDocumentsOpen(TestScaffolding):
         assert self.main_controller.bundle_actions.merge() == 0
 
         assert self.errors == [
-            "other.zu.virtaal wasn't made by Split by Language.\n\n"
+            "other.zu.virtaal wasn’t made by Split by Language.\n\n"
             'Choose a bundle split from this one.'
         ]
 
@@ -711,7 +711,7 @@ class TestDocumentsOpen(TestScaffolding):
             assert not actions.update_from_refreshed()
 
         assert self.errors == [
-            "manual.virtaal wasn't made by Split by Language.\n\n"
+            "manual.virtaal wasn’t made by Split by Language.\n\n"
             'Choose the latest Zulu bundle split from the same project.',
             'manual.zu.virtaal is not newer than this bundle.\n\n'
             'Choose the latest Zulu bundle split from the same project.',

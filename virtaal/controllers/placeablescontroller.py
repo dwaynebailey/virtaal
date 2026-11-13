@@ -101,7 +101,7 @@ class PlaceablesController(BaseController):
         )
         self.parser_info[general.FormattingPlaceable.parse] = (
             _('Placeholders (printf)'),
-            _('Placeholders used in "printf" strings'),
+            _('Placeholders used in “printf” strings'),
         )
         self.parser_info[general.PythonFormattingPlaceable.parse] = (
             _('Placeholders (Python)'),
@@ -157,8 +157,8 @@ class PlaceablesController(BaseController):
 
         (_('Spaces'),)
         _('Double spaces and spaces in unexpected positions')
-        (_('"alt" Attributes'),)
-        _('Placeable for "alt" attributes (as found in HTML)')
+        (_('“alt” Attributes'),)
+        _('Placeable for “alt” attributes (as found in HTML)')
         (_('Placeholders (Drupal)'),)
         _('Placeholders in Drupal strings')
 

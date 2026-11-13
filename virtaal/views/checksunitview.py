@@ -185,7 +185,7 @@ class ChecksUnitView(BaseView):
         if dismissed:
             # l10n: Show a quality check result again that was marked as fine
             button = Gtk.Button(label=_("Restore"))
-            button.set_tooltip_text(_("Show this check's result on this unit again"))
+            button.set_tooltip_text(_("Show this check’s result on this unit again"))
         else:
             # l10n: Mark a quality check result as fine (a false positive)
             button = Gtk.Button(label=_("Dismiss"))

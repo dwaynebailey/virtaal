@@ -284,7 +284,7 @@ def test_a_tm_that_never_answers_leaves_the_item_usable():
     assert mainview.errors == []
     _untick(view)
     assert view.mnu_add_on_save.get_active()
-    assert mainview.errors == ["Couldn't remove 'af.po' from the translation memory."]
+    assert mainview.errors == ["Couldn’t remove “af.po” from the translation memory."]
 
 
 def test_saving_under_another_name_asks_about_the_new_file():
@@ -379,7 +379,7 @@ def test_unticking_when_the_tm_fails_ticks_it_again_and_says_so(fail_status):
     _untick(view)
 
     assert view.mnu_add_on_save.get_active()
-    assert mainview.errors == ["Couldn't remove 'af.po' from the translation memory."]
+    assert mainview.errors == ["Couldn’t remove “af.po” from the translation memory."]
 
 
 def test_ticking_a_saved_file_again_adds_it_now():
@@ -403,7 +403,7 @@ def test_ticking_a_changed_file_again_adds_it_on_save():
 
     assert model.set == [('/home/user/af.po', False)]
     assert model.pushed == []
-    assert mainview.notices == ["'af.po' will be added to the translation memory when you save it."]
+    assert mainview.notices == ["“af.po” will be added to the translation memory when you save it."]
 
 
 def test_ticking_when_the_tm_fails_unticks_it_again_and_says_so():
@@ -414,7 +414,7 @@ def test_ticking_when_the_tm_fails_unticks_it_again_and_says_so():
     view.mnu_add_on_save.set_active(True)
 
     assert not view.mnu_add_on_save.get_active()
-    assert mainview.errors == ["Couldn't add 'af.po' to the translation memory."]
+    assert mainview.errors == ["Couldn’t add “af.po” to the translation memory."]
 
 
 def test_the_confirmation_names_the_file_and_count(monkeypatch):
@@ -440,7 +440,7 @@ def test_the_confirmation_names_the_file_and_count(monkeypatch):
 
     assert view.confirm_exclude('af.po', 1)
     assert shown[0][0] == (
-        "Stop adding 'af.po' to the translation memory and remove the 1 translation it added?"
+        "Stop adding “af.po” to the translation memory and remove the 1 translation it added?"
     )
     assert shown[0][1] == 'Translations another file also added stay in the translation memory.'
     assert shown[0][2] is mainview.main_window
@@ -538,7 +538,7 @@ def test_unticking_and_ticking_again_with_the_real_local_tm(tmp_path, monkeypatc
         view.mnu_add_on_save.set_active(True)
         send_all()
         assert mainview.notices == [
-            "'af.po' will be added to the translation memory when you save it."
+            "“af.po” will be added to the translation memory when you save it."
         ]
         store_controller.emit('store-saved')
         send_all()

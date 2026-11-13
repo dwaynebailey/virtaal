@@ -452,7 +452,7 @@ def test_open_file_loads_the_file_while_the_view_shows_it_is_busy():
     controller._mode_controller.refresh_mode = lambda: calls.append('refreshed')
 
     assert controller.open_file('/home/user/af.xlf') is True
-    assert calls == [('busy', "Loading 'af.xlf'…"), 'opened', 'refreshed', 'idle']
+    assert calls == [('busy', "Loading “af.xlf”…"), 'opened', 'refreshed', 'idle']
 
 
 def test_open_file_returns_false_when_the_user_cancels_the_save_prompt():

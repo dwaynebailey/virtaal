@@ -126,7 +126,7 @@ class PlaceholderNumbering:
             # order than the source. Numbered (%2$d, %1$s), each keeps its value.
             'The placeholders are in a different order from the source, '
             'so they would show the wrong values. Numbering them keeps '
-            "each one's value."
+            "each one’s value."
         )
         # l10n: Button: number the placeholders (%s to %1$s)
         button = _('_Number Them')

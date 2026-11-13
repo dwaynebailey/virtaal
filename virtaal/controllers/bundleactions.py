@@ -48,7 +48,7 @@ def _refusal_text(exc, path, merging):
     reasons = {
         # l10n: Why a translation bundle chosen to merge or update from is refused.
         # %(bundle)s is its file name
-        documents.NOT_SPLIT: _("%(bundle)s wasn't made by Split by Language."),
+        documents.NOT_SPLIT: _("%(bundle)s wasn’t made by Split by Language."),
         # l10n: Why a translation bundle chosen to merge or update from is refused:
         # it was split from the bundle of another project
         documents.OTHER_PROJECT: _("%(bundle)s is from another project."),
@@ -131,7 +131,7 @@ class BundleActions:
         if not self.main_controller.confirm_leaving():
             return False
         try:
-            with self.view.busy(_("Loading '%s'…") % os.path.basename(where)):
+            with self.view.busy(_("Loading “%s”…") % os.path.basename(where)):
                 bundle = make()
                 self.store_controller.open_bundle(bundle)
                 self.main_controller.mode_controller.refresh_mode()
@@ -203,7 +203,7 @@ class BundleActions:
                     msg=_(
                         # l10n: Asked on opening a document already being translated in a
                         # translation bundle beside it; %(bundle)s is its file name
-                        "%(bundle)s already holds this document's translation. Open it instead?"
+                        "%(bundle)s already holds this document’s translation. Open it instead?"
                     )
                     % {'bundle': os.path.basename(existing)},
                     yes_label=_("_Open Bundle"),

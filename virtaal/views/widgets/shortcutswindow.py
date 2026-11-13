@@ -90,7 +90,7 @@ SHORTCUT_GROUPS = [
             ("Tab", _("Move to the next target field")),
             ("<Shift>Tab", _("Move to the previous target field")),
             ("<Control>Tab", _("Jump to the language-pair selector")),
-            ("<Control><Shift>Tab", _('Jump to the "Navigation:" mode selector')),
+            ("<Control><Shift>Tab", _('Jump to the “Navigation:” mode selector')),
             ("Escape", _("Close the search bar and return to normal editing")),
         ],
     ),

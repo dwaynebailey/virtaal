@@ -19,7 +19,7 @@ class AboutDialog(Gtk.AboutDialog):
         self._register_uri_handlers()
         self.set_program_name(_("Virtaal"))
         self.set_version(__version__.version_string())
-        self.set_copyright(_("Copyright © 2007-2026 Zuza Software Foundation"))
+        self.set_copyright(_("Copyright © 2007–2026 Zuza Software Foundation"))
         self.set_comments(
             # l10n: Please retain the literal name "Virtaal", but feel free to
             # additionally transliterate the name and to add a translation of "For Language", which is what the name means.

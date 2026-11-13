@@ -302,7 +302,7 @@ class MainController(BaseController):
             return False
 
         try:
-            with self.view.busy(_("Loading '%s'…") % os.path.basename(filename)):
+            with self.view.busy(_("Loading “%s”…") % os.path.basename(filename)):
                 self.store_controller.open_file(
                     filename, uri, forget_dir=forget_dir, template=template
                 )
@@ -379,7 +379,7 @@ class MainController(BaseController):
                 return False
         name = os.path.basename(os.path.normpath(paths[0]))
         try:
-            with self.view.busy(_("Loading '%s'…") % name):
+            with self.view.busy(_("Loading “%s”…") % name):
                 self.store_controller.open_files(paths)
                 self.mode_controller.refresh_mode()
             return True
@@ -405,7 +405,7 @@ class MainController(BaseController):
                         return False
                 elif response == 'cancel':
                     return False
-            with self.view.busy(_("Loading '%s'…") % self.store_controller.stream_name()):
+            with self.view.busy(_("Loading “%s”…") % self.store_controller.stream_name()):
                 self.store_controller.open_stream_language(language)
                 self.mode_controller.refresh_mode()
             return True
@@ -433,7 +433,7 @@ class MainController(BaseController):
                         return False
                 elif response == 'cancel':
                     return False
-            with self.view.busy(_("Loading '%s'…") % os.path.basename(path)):
+            with self.view.busy(_("Loading “%s”…") % os.path.basename(path)):
                 self.store_controller.open_package(path)
                 self.mode_controller.refresh_mode()
             return True

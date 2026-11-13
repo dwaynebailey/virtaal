@@ -304,8 +304,8 @@ def test_the_notice_says_how_many_glossary_rows_were_skipped(run_idle):
     _import(view, '/home/user/a.csv', '/home/user/b.zip')
 
     assert mainview.notices == [
-        "Added 3 translations to the translation memory. Skipped 1 row that couldn't be read.",
-        "Added 6 translations to the translation memory. Skipped 3 rows that couldn't be read.",
+        "Added 3 translations to the translation memory. Skipped 1 row that couldn’t be read.",
+        "Added 6 translations to the translation memory. Skipped 3 rows that couldn’t be read.",
     ]
 
 
@@ -316,7 +316,7 @@ def test_a_file_that_cant_be_imported_is_named_in_an_error(run_idle):
     _import(view, '/home/user/a.tmx')
 
     assert mainview.notices == []
-    assert mainview.errors == ["Couldn't import 'a.tmx' into the translation memory."]
+    assert mainview.errors == ["Couldn’t import “a.tmx” into the translation memory."]
 
 
 def test_some_files_imported_and_some_not_shows_both(run_idle):
@@ -327,8 +327,8 @@ def test_some_files_imported_and_some_not_shows_both(run_idle):
 
     assert mainview.notices == ['Added 4 translations to the translation memory.']
     assert mainview.errors == [
-        "Couldn't import 'b.po' into the translation memory.\n"
-        "Couldn't import 'c.xlf' into the translation memory."
+        "Couldn’t import “b.po” into the translation memory.\n"
+        "Couldn’t import “c.xlf” into the translation memory."
     ]
 
 

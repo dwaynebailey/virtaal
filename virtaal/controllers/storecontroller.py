@@ -910,7 +910,7 @@ class StoreController(BaseController):
         text = _(
             # l10n: Shown after saving a translation bundle. %(document)s is a document's
             # name, such as report.odt; the reason follows
-            "The translated document of %(document)s couldn't be made. The translation was saved."
+            "The translated document of %(document)s couldn’t be made. The translation was saved."
         )
         self.main_controller.view.show_info_notice(text % {'document': document} + '\n' + error)
 

@@ -85,7 +85,7 @@ def glossary_link():
         # l10n: A link in the Local Translation Memory window to the page where
         # Microsoft offers its translations of its software for download, to
         # import with File > Import into Translation Memory
-        _("Get Microsoft's UI strings glossaries"),
+        _("Get Microsoft’s UI strings glossaries"),
     )
     link.connect('activate-link', lambda button: openmailto.open(button.get_uri()) or True)
     return link
@@ -167,7 +167,7 @@ class LocalTMDialog:
     def refresh(self):
         """Ask the local TM for its stores again."""
         self.model.list_stores(
-            self._fill, lambda: self._error(_("Couldn't read the local translation memory."))
+            self._fill, lambda: self._error(_("Couldn’t read the local translation memory."))
         )
 
     def _fill(self, stores):
@@ -234,8 +234,8 @@ class LocalTMDialog:
             buttons=Gtk.ButtonsType.NONE,
             text=ngettext(
                 # l10n: %(file)s is a file name, or "Earlier translations (file not recorded)"
-                "Remove %(count)d translation from '%(file)s'?",
-                "Remove %(count)d translations from '%(file)s'?",
+                "Remove %(count)d translation from “%(file)s”?",
+                "Remove %(count)d translations from “%(file)s”?",
                 pair['units'],
             )
             % {'count': pair['units'], 'file': store_name(store)},
@@ -266,7 +266,7 @@ class LocalTMDialog:
             pair['target_lang'],
             lambda _removed: self.refresh(),
             lambda: self._error(
-                _("Couldn't remove '%(file)s' from the translation memory.")
+                _("Couldn’t remove “%(file)s” from the translation memory.")
                 % {'file': store_name(store)}
             ),
         )
@@ -332,7 +332,7 @@ class LocalTMDialog:
 
         def failed():
             self._error(
-                _("Couldn't export the translation memory to '%(file)s'.") % {'file': filename}
+                _("Couldn’t export the translation memory to “%(file)s”.") % {'file': filename}
             )
 
         def write(data):
@@ -343,7 +343,7 @@ class LocalTMDialog:
                 failed()
                 return
             self.mainview.show_info_notice(
-                _("Exported the translation memory to '%(file)s'.") % {'file': filename},
+                _("Exported the translation memory to “%(file)s”.") % {'file': filename},
                 for_file=False,
             )
 

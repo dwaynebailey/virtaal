@@ -148,7 +148,7 @@ def test_a_file_with_no_known_template_shows_greyed_and_asks_for_one_when_activa
     row = rows['lone.properties']
     # Greyed, with no progress and no units.
     assert row[4] == [] and row[7] is False and row[2] == 0
-    assert row[6].startswith("Virtaal can't tell which file this one translates.")
+    assert row[6].startswith("Virtaal can’t tell which file this one translates.")
     assert rows['en.properties'][6] == 'This is the source-language file.'
     assert rows['en.properties'][8] is None
     for name in ('lone.properties', 'en.properties', 'af.po'):

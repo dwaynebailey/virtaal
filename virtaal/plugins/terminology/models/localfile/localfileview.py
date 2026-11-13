@@ -118,7 +118,7 @@ class LocalFileView:
         if not selection:
             return
 
-        label = _('Add _Term "%(selection)s"…') % {'selection': selection.replace('_', '__')}
+        label = _('Add _Term “%(selection)s”…') % {'selection': selection.replace('_', '__')}
         menu_item = Gtk.MenuItem(label=label, use_underline=True)
         # Pango ellipsizes on grapheme clusters, unlike a raw string
         # slice - safer for combining marks (e.g. Arabic niqqud,
@@ -228,7 +228,7 @@ class FileSelectDialog:
         if not hit or is_extendable(model.get_value(itr, self.COL_FILE)):
             return False
         # l10n: Shown over a terminology file that new terms can't be saved to
-        tooltip.set_text(_("This glossary can't be changed"))
+        tooltip.set_text(_("This glossary can’t be changed"))
         treeview.set_tooltip_row(tooltip, path)
         return True
 

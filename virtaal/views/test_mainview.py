@@ -2779,11 +2779,11 @@ def test_busy_shows_a_wait_cursor_and_message_only_while_the_body_runs():
     view = _view_for_busy()
     seen = []
     try:
-        with view.busy("Loading 'af.xlf'…"):
+        with view.busy("Loading “af.xlf”…"):
             cursor = view.main_window.get_window().get_cursor()
             seen.append((cursor is not None, _statusbar_text(view.status_bar)))
 
-        assert seen == [(True, "Loading 'af.xlf'…")]
+        assert seen == [(True, "Loading “af.xlf”…")]
         assert view.main_window.get_window().get_cursor() is None
         assert _statusbar_text(view.status_bar) == ''
     finally:
@@ -2830,10 +2830,10 @@ def test_busy_draws_the_message_before_the_body_runs(monkeypatch):
     drawn = []
     view.status_bar.connect_after('draw', lambda *a: drawn.append(_statusbar_text(view.status_bar)))
     try:
-        with view.busy("Loading 'af.xlf'…"):
+        with view.busy("Loading “af.xlf”…"):
             seen = list(drawn)
 
-        assert "Loading 'af.xlf'…" in seen
+        assert "Loading “af.xlf”…" in seen
     finally:
         view.main_window.destroy()
 
@@ -2841,10 +2841,10 @@ def test_busy_draws_the_message_before_the_body_runs(monkeypatch):
 def test_show_progress_shows_a_progress_cursor_and_message_until_hidden():
     view = _view_for_busy()
     try:
-        view.show_progress("Loading 'af.xlf'…")
+        view.show_progress("Loading “af.xlf”…")
 
         assert view.main_window.get_window().get_cursor() is not None
-        assert _statusbar_text(view.status_bar) == "Loading 'af.xlf'…"
+        assert _statusbar_text(view.status_bar) == "Loading “af.xlf”…"
 
         view.hide_progress()
 
@@ -2915,7 +2915,7 @@ def test_show_startup_open_failure_notice_includes_the_reason_when_given():
     assert isinstance(infobar, Gtk.InfoBar)
     assert infobar.get_message_type() == Gtk.MessageType.WARNING
     label = infobar.get_content_area().get_children()[0]
-    assert label.get_text() == "Couldn't open 'missing.po': The file does not exist."
+    assert label.get_text() == "Couldn’t open “missing.po”: The file does not exist."
 
 
 def test_show_startup_open_failure_notice_names_the_file_with_its_path_in_the_tooltip():
@@ -2929,8 +2929,8 @@ def test_show_startup_open_failure_notice_names_the_file_with_its_path_in_the_to
 
     labels = [infobar.get_content_area().get_children()[0] for infobar in vbox.packed]
     assert [label.get_text() for label in labels] == [
-        "Couldn't open 'missing.po'.",
-        "Couldn't open 'de'.",
+        "Couldn’t open “missing.po”.",
+        "Couldn’t open “de”.",
     ]
     assert [label.get_tooltip_text() for label in labels] == [
         os.path.abspath(os.path.join('sub', 'missing.po')),
@@ -2946,7 +2946,7 @@ def test_show_startup_open_failure_notice_falls_back_without_a_reason():
     view.show_startup_open_failure_notice('missing.po', None)
 
     label = vbox.packed[0].get_content_area().get_children()[0]
-    assert label.get_text() == "Couldn't open 'missing.po'."
+    assert label.get_text() == "Couldn’t open “missing.po”."
 
 
 def test_show_startup_open_failure_notice_dismisses_on_response():
@@ -3640,7 +3640,7 @@ def test_show_resume_blocked_notice_names_the_file_and_reopen_runs_the_callback(
     infobar = view._resume_blocked_infobar
 
     label = infobar.get_content_area().get_children()[0]
-    assert label.get_text() == "Virtaal closed unexpectedly while reopening 'open.po'."
+    assert label.get_text() == "Virtaal closed unexpectedly while reopening “open.po”."
     assert label.get_tooltip_text() == path
     infobar.emit('response', Gtk.ResponseType.OK)
 

@@ -238,7 +238,7 @@ def test_no_reply_says_why(tmp_path, no_wlc):
 
     dialog.btn_test.clicked()
 
-    assert _status(dialog).startswith("Couldn't connect to the server: ")
+    assert _status(dialog).startswith("Couldn’t connect to the server: ")
 
 
 def test_another_site_is_not_weblate(servers, fake, no_wlc):

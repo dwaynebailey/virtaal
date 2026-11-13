@@ -285,7 +285,7 @@ def test_two_crashes_while_resuming_show_the_welcome_screen(launcher):
     guarded = launcher.read('guarded')
     assert guarded['store'] is None
     [notice] = guarded['notices']
-    assert notice['text'] == "Virtaal closed unexpectedly while reopening '%s'." % launcher.po.name
+    assert notice['text'] == "Virtaal closed unexpectedly while reopening “%s”." % launcher.po.name
     reopened = launcher.read('reopened')
     assert (reopened['store'], reopened['index']) == (po, 2)
 

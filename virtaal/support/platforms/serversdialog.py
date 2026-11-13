@@ -50,12 +50,12 @@ def error_message(error, platform):
         return _('The server refused the token.')
     if error.kind == NETWORK:
         # l10n: %(reason)s is the network library's own message, in English
-        return _("Couldn't connect to the server: %(reason)s") % {'reason': error.detail}
+        return _("Couldn’t connect to the server: %(reason)s") % {'reason': error.detail}
     if error.kind == NOT_PLATFORM:
         return platform.not_platform_message()
     if error.kind == UNSUPPORTED:
         # l10n: A translation server is a version too old for what was asked, such as comments
-        return _("The server doesn't support this.")
+        return _("The server doesn’t support this.")
     # l10n: %(status)s is an HTTP status code, such as 403 or 500
     message = _('The server replied with error %(status)s.') % {'status': error.status}
     if error.detail:

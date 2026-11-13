@@ -166,7 +166,7 @@ def test_the_submit_question_says_when_a_state_is_coarsened(monkeypatch):
 
     assert not dialogs.confirm(2)
     assert shown == [
-        'Alpha\n\n2 changes are in states Dummy doesn\'t have, so they go as the nearest '
+        'Alpha\n\n2 changes are in states Dummy doesn’t have, so they go as the nearest '
         'state it has; Virtaal keeps yours.'
     ]
 

@@ -319,7 +319,7 @@ class FilePanelView(BaseView):
                 # A file whose language isn't known joins the language chosen.
                 name += ' (?)'
                 # l10n: Tooltip of a file in the files panel
-                tooltip = _("This file doesn't say what language it is in.")
+                tooltip = _("This file doesn’t say what language it is in.")
             it = self.model.append(
                 parent,
                 [
@@ -367,7 +367,7 @@ class FilePanelView(BaseView):
                 # l10n: Tooltip of a greyed file in the files panel, like
                 # af.properties, whose English (or other source-language)
                 # file Virtaal couldn't find
-                "Virtaal can't tell which file this one translates. "
+                "Virtaal can’t tell which file this one translates. "
                 "Double-click to choose its source-language file."
             )
         return [name, 'text-x-generic', 0, '', [], Pango.Weight.NORMAL, tooltip, False, path, None]

@@ -160,7 +160,7 @@ class TerminologyModel(CachedRemoteTerminologyModel):
     __gtype_name__ = 'MicrosoftTerminology'
     # l10n: A terminology source: the terms Microsoft uses in its software
     display_name = _('Microsoft Terminology')
-    description = _("The terms used in Microsoft's software, in your language")
+    description = _("The terms used in Microsoft’s software, in your language")
     downloads_from = 'Microsoft'
     terms_url = 'https://learn.microsoft.com/globalization/reference/microsoft-terminology'
 

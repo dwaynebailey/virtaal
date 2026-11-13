@@ -154,7 +154,7 @@ class LanguageAddDialog:
 
         if not re.fullmatch(r'[A-Za-z0-9_@.-]+', code):
             # l10n: Leave the four characters in quotes as they are.
-            return _('Language code can only contain letters, digits, "_", "-", "@" and ".".')
+            return _('Language code can only contain letters, digits, “_”, “-”, “@” and “.”.')
 
         if data.normalize_code(code) in {data.normalize_code(c) for c in LanguageModel.languages}:
             return _('Language code %s is already used.') % code

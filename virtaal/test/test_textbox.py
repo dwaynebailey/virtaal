@@ -1225,7 +1225,7 @@ class TestTextBox(TestScaffolding):
         textbox.buffer.insert_interactive_at_cursor('a\x0bb\x0c', -1, True)
         textbox.buffer.insert_interactive_at_cursor('c', -1, True)
 
-        assert notices == ["Removed 2 characters this file format can't store."]
+        assert notices == ["Removed 2 characters this file format can’t store."]
 
     def test_a_lone_control_character_leaves_an_xliff_target_unchanged(self):
         unit, textbox = self._xliff_target()

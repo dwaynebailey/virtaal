@@ -315,7 +315,7 @@ class StoreModel(BaseModel):
                 if platform.is_flatpak:
                     raise OSError(
                         _(
-                            "The file does not exist, or Virtaal can't reach it from its Flatpak sandbox. Open it with File > Open or from your file manager."
+                            "The file does not exist, or Virtaal can’t reach it from its Flatpak sandbox. Open it with File > Open or from your file manager."
                         )
                     )
                 raise OSError(_('The file does not exist.'))

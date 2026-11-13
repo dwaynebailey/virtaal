@@ -120,9 +120,9 @@ class SetScanView(BaseView):
         # The scan reads the files from disk, the open ones included.
         if kind == KIND_CHECK:
             # l10n: In Check All Languages: the files are read from disk
-            return _("Saved files only: unsaved changes aren't checked.")
+            return _("Saved files only: unsaved changes aren’t checked.")
         # l10n: In Find in All Languages: the files are read from disk
-        return _("Saved files only: unsaved changes aren't searched.")
+        return _("Saved files only: unsaved changes aren’t searched.")
 
     def _check_choices(self, check_names, chosen):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)

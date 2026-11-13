@@ -1417,7 +1417,7 @@ def test_reviewed_not_to_be_picked_on_a_platforms_unit_says_why():
 
     assert view._unselectable_states() == ['Untranslated', 'Reviewed']
     assert view._unselectable_reasons() == {
-        'Reviewed': "You can't approve translations in this project."
+        'Reviewed': "You can’t approve translations in this project."
     }
     # Nothing to say while the target is empty: Reviewed waits for text.
     view.unit.target = ''

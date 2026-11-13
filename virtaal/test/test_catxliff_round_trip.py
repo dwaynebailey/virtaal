@@ -160,7 +160,7 @@ class TestCatXliffRoundTrip(TestScaffolding):
 
         assert not target.get_editable()
         assert not view._widgets['state'].get_sensitive()
-        assert "Locked: this translation can't be changed." in self._notes(view)
+        assert "Locked: this translation can’t be changed." in self._notes(view)
         view.set_target_n(0, 'Neu')
         unit.target = 'Neu'
         unit.set_state_n(StateEnum.FINAL)
@@ -220,7 +220,7 @@ class TestCatXliffRoundTrip(TestScaffolding):
         ]
         _unit, view = self._load(1)
         assert not view.targets[0].get_editable()
-        assert "Locked: this translation can't be changed." in self._notes(view)
+        assert "Locked: this translation can’t be changed." in self._notes(view)
         _unit, view = self._load(3)
         assert self._notes(view) == 'Origin: mt, 62% match'
 

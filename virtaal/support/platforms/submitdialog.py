@@ -47,7 +47,7 @@ def _part_sent(result):
 def used_up_message(reset_in):
     """The server's budget is used up for reset_in seconds."""
     # l10n: A translation server allows so many requests an hour; %(time)s is when it allows more, such as 14:05
-    return _("The server's request limit is used up until %(time)s.") % {
+    return _("The server’s request limit is used up until %(time)s.") % {
         'time': clock_time(reset_in)
     }
 
@@ -156,9 +156,9 @@ def coarsened_message(count, platform):
     """count changes are in states platform (its name) doesn't store."""
     text = ngettext(
         # l10n: Asking to Submit to a translation server, such as Transifex, that has fewer states than Virtaal (no Needs work, for one); %(platform)s is its name
-        "%(count)s change is in a state %(platform)s doesn't have, so it goes as the nearest "
+        "%(count)s change is in a state %(platform)s doesn’t have, so it goes as the nearest "
         'state it has; Virtaal keeps yours.',
-        "%(count)s changes are in states %(platform)s doesn't have, so they go as the nearest "
+        "%(count)s changes are in states %(platform)s doesn’t have, so they go as the nearest "
         'state it has; Virtaal keeps yours.',
         count,
     )

@@ -315,7 +315,7 @@ def test_a_submit_cut_short_says_how_far_it_got_and_what_to_do(monkeypatch):
 
     assert budget == (
         'Submitted 2 of 4 changed units.\n'
-        "The server's request limit is used up until 14:05.\n"
+        "The server’s request limit is used up until 14:05.\n"
         'Submit again to send the rest.'
     )
     assert cancelled == 'Submitted 1 of 4 changed units.\nSubmit again to send the rest.'

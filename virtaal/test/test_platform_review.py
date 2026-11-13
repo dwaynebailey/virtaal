@@ -234,7 +234,7 @@ class TestPlatformReview(TestScaffolding):
         self._show('Save')
 
         assert 'Reviewed' in state.unselectable
-        assert self._reason(state, 'Reviewed') == "You can't approve translations in this project."
+        assert self._reason(state, 'Reviewed') == "You can’t approve translations in this project."
         assert self._reason(state, 'Translated') is None
 
     def test_a_project_without_reviews_offers_no_reviewed(self):

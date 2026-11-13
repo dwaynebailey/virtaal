@@ -100,7 +100,7 @@ def test_keyboard_shortcuts_shortcut_matches_the_platform(
         ('Next Unit and Advance State', '<Control>Return'),
         ('Next Unit and Reverse State', '<Control><Shift>Return'),
         ('Jump to the language-pair selector', '<Control>Tab'),
-        ('Jump to the "Navigation:" mode selector', '<Control><Shift>Tab'),
+        ('Jump to the “Navigation:” mode selector', '<Control><Shift>Tab'),
     ],
 )
 def test_textbox_shortcuts_use_control_on_every_platform(description, accelerator):

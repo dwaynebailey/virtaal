@@ -920,7 +920,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
                 _(
                     # l10n: A Trados Studio, memoQ or Phrase file can lock a
                     # translation.
-                    "Locked: this translation can't be changed."
+                    "Locked: this translation can’t be changed."
                 )
             )
         seg = sdlxliff_compat.segment_def(self.unit)
@@ -959,7 +959,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
                     # l10n: memoQ keeps the edits it tracks in the file until
                     # they are accepted there. Deleted text isn't shown here,
                     # and the user's own edits are tracked as theirs.
-                    "Tracked changes: deleted text isn't shown, and your edits are tracked."
+                    "Tracked changes: deleted text isn’t shown, and your edits are tracked."
                 )
             )
         return notes
@@ -1044,8 +1044,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if removed:
             self.controller.main_controller.view.show_info_notice(
                 ngettext(
-                    "Removed %(count)d character this file format can't store.",
-                    "Removed %(count)d characters this file format can't store.",
+                    "Removed %(count)d character this file format can’t store.",
+                    "Removed %(count)d characters this file format can’t store.",
                     removed,
                 )
                 % {'count': removed}
@@ -1216,7 +1216,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             return {}
         names = self.controller.get_unit_state_names()
         # l10n: Tooltip of the greyed-out Reviewed state of a unit from a translation server
-        return {names[StateEnum.FINAL]: _("You can't approve translations in this project.")}
+        return {names[StateEnum.FINAL]: _("You can’t approve translations in this project.")}
 
     def _target_is_empty(self):
         target = self.unit.target

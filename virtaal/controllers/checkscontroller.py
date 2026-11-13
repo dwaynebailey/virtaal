@@ -41,7 +41,7 @@ check_names = {
     'musttranslatewords': _("Must translate words"),
     'newlines': _("Newlines"),
     'nplurals': _("Number of plurals"),
-    'notranslatewords': _("Don't translate words"),
+    'notranslatewords': _("Don’t translate words"),
     'numbers': _("Numbers"),
     'options': _("Options"),
     # l10n: Name of a quality check: the tags such as {1} in a Phrase (Memsource) file

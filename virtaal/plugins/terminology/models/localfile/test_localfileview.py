@@ -764,7 +764,7 @@ def test_a_read_only_termbase_says_why_it_cant_be_extended():
 
     assert _query_tooltip(dialog, dialog.lst_files[0]) == (
         True,
-        "This glossary can't be changed",
+        "This glossary can’t be changed",
         ['0'],
     )
 

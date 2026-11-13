@@ -205,7 +205,7 @@ class Virtaal:
             import os
 
             name = os.path.basename(os.path.normpath(_first_path(startupfile)))
-            main_controller.view.show_progress(_("Loading '%s'…") % name)
+            main_controller.view.show_progress(_("Loading “%s”…") % name)
         else:
             main_controller.welcomescreen_controller.activate()
             main_controller.view.show_startup_open_failure_notice(

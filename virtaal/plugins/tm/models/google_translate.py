@@ -40,7 +40,7 @@ class TMModel(BaseTMModel):
     __gtype_name__ = 'GoogleTranslateTMModel'
     # l10n: The name of Google Translate in your language (translated in most languages). See http://translate.google.com/
     display_name = _('Google Translate')
-    description = _("Unreviewed machine translations from Google's translation service")
+    description = _("Unreviewed machine translations from Google’s translation service")
     online_service = 'Google'
     billed = True
     terms_url = 'https://cloud.google.com/terms'

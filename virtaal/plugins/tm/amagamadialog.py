@@ -85,7 +85,7 @@ class AmagamaSourcesDialog:
 
         intro = Gtk.Label(
             label=_(
-                "Choose the projects Amagama's suggestions come from, and how much to prefer each."
+                "Choose the projects Amagama’s suggestions come from, and how much to prefer each."
             ),
             wrap=True,
             xalign=0,

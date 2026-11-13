@@ -347,7 +347,7 @@ domains:
     - Compendium conflict
     - Current File
     - Description
-    - Don't translate words
+    - Don’t translate words
     - Double quotes
     - Double spaces
     - Ending punctuation
@@ -452,7 +452,6 @@ domains:
     - Comma Separated Value
     - Command Line Options
     - Copy the source, if nothing is selected
-    - Copyright © 2007-2026 Zuza Software Foundation
     - Ctrl+%(number_key)d
     - E-mail
     - 'E-mail address:'
@@ -490,13 +489,11 @@ domains:
     - In this message, "%s" is a placeholder (variable) that represents a file name. Make sure your translation contains %s somewhere. When this message is used, the %s will be replaced with a file name e.g. 'The file will be saved as example.odt'.  Note that "%s" does not refer to a percentage.
     - Insert the selected placeable
     - Integer numbers and decimal fractions
-    - Jump to the "Navigation:" mode selector
     - Jump to the language-pair selector
     - Language
     - 'Language:'
     - 'Location:'
     - Lokalize settings
-    - 'Lokalize''s Translation Memory: %(database_name)s'
     - Migrate settings from KBabel, Lokalize and/or Poedit to Virtaal
     - Migration Assistant
     - Migration completed
@@ -538,7 +535,6 @@ domains:
     - Placeholders in Java strings
     - Placeholders in Python strings
     - Placeholders in Qt strings
-    - Placeholders used in "printf" strings
     - Plug-ins
     - Poedit settings
     - Properties
@@ -668,7 +664,6 @@ domains:
     - SDL XLIFF Translation File
     - Uninstall the older Virtaal 0.7 first
     '3':
-    - '"alt" Attributes'
     - <b>Language Information</b>
     - <b>Options</b>
     - '?'
@@ -689,8 +684,6 @@ domains:
     - Could not open log file '%(filename)s'
     - Could not open profile file '%(filename)s'
     - Could not read configuration file '%(filename)s'
-    - Couldn't open '%(file)s'.
-    - 'Couldn''t open ''%(file)s'': %(reason)s'
     - Depending on the translation task, the plural information might be optional.
     - Double spaces and spaces in unexpected positions
     - Downloading %(language)s thesaurus…
@@ -708,7 +701,6 @@ domains:
     - Language code must be an ASCII string.
     - Language code must be at least 2 characters long.
     - Language code must not contain spaces.
-    - Loading '%s'…
     - Loading thesaurus…
     - Local Files
     - Local Translation Memory
@@ -718,7 +710,6 @@ domains:
     - Look up synonyms for the selected word
     - Moses
     - Mozilla Pontoon
-    - Names starting with "virtaal-" are reserved.
     - Needs review
     - 'Needs review:'
     - 'Needs work:'
@@ -726,7 +717,6 @@ domains:
     - No translation found for language '%(lang)s'
     - Not a valid file.
     - PO Template Files
-    - Placeable for "alt" attributes (as found in HTML)
     - Placeholders (Drupal)
     - Placeholders in Drupal strings
     - Please enter the number of noun forms (plurals) to use
@@ -753,7 +743,6 @@ domains:
     - Source and target language are the same.
     - Spaces
     - Terminology Files
-    - The file does not exist, or Virtaal can't reach it from its Flatpak sandbox. Open it with File > Open or from your file manager.
     - The file does not exist.
     - Thesaurus
     - This file is read-only.
@@ -761,7 +750,6 @@ domains:
     - Translated units from the currently open file
     - URL
     - Unreviewed machine translations from Apertium
-    - Unreviewed machine translations from Google's translation service
     - Unreviewed machine translations from a Moses server
     - 'Untranslated:'
     - Virtaal %s is available (you have %s)
