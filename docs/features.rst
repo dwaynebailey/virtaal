@@ -111,6 +111,9 @@ Virtaal supports many file formats:
 - Wordfast Pro bilingual files (.txml) (see :ref:`using_virtaal#wordfast`)
 - Packages from Trados Studio (.sdlppx, .sdlrpx), WorldServer (.wsxz) and
   TIPP 1.5 and 2.0 (see :ref:`using_virtaal#packages`)
+- Documents: OpenDocument (.odt, .ods, .odp), HTML and plain text, translated
+  in translation bundles (.virtaal) holding the documents and their
+  translations into one or more languages (see :ref:`using_virtaal#documents`)
 
 Files that hold one language each are translated against their English (or
 other source-language) file (see :ref:`using_virtaal#one_language_files`):

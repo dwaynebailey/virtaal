@@ -35,6 +35,7 @@ Help menu.
    tips
    cli_options
    priority_files
+   bundle_format
    releases/index
 
 .. _index#installation:

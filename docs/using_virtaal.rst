@@ -717,6 +717,48 @@ packages (.mqxlz, .mqout, .mqback) and WorldServer's older .xlz don't open:
 there is no sample of them to check against. These packages were checked by
 comparing them before and after, not by opening them in the tools again.
 
+.. _using_virtaal#documents:
+
+Documents and translation bundles
+---------------------------------
+Virtaal translates documents: OpenDocument texts, spreadsheets and
+presentations (.odt, .ods, .odp), web pages (.html) and plain text files
+(.txt). Open one as you would a translation file. Virtaal never writes to the
+document itself: what you translate goes into a translation bundle (.virtaal),
+which holds a copy of the document, the translation and the translated
+document. Nothing is written until you save, and the first save asks where,
+suggesting a name such as ``report.af.virtaal`` beside the document. Microsoft
+Word, Excel and PowerPoint files don't open yet: save them as OpenDocument
+files first.
+
+:menuselection:`File --> Translation Bundle --> Export Translated Documents…`
+writes the translated documents out, ``report.af.odt`` for example; it saves
+the bundle first. Paragraphs that are untranslated or need work keep the
+document's text.
+
+A bundle can hold several documents, translated into several languages:
+
+- Opening several documents together makes one bundle with no target
+  language yet, named after their folder (``manual.virtaal``). Its paragraphs
+  are shown, but can't be changed, until you add a language with
+  :menuselection:`File --> Translation Bundle --> Add Language…`.
+  :menuselection:`Add Document…` adds a document to every language.
+- With several languages, the bundle opens in one of them; choose another in
+  the Files Panel. The panel's :guilabel:`All languages` menu exports every
+  language's documents, each language into a folder of its own.
+- :menuselection:`Split by Language…` saves one bundle per language
+  (``manual.zu.virtaal``) to send to each translator, so nobody changes another
+  language by accident. :menuselection:`Merge Returned Bundles…` brings their
+  work back: only translations the translator changed come in, and where both
+  you and the translator changed a unit, you choose which to keep. A bundle
+  from another project, or whose documents were changed, is refused.
+- :menuselection:`Export as TIPP…` writes a TIPP package for other translation
+  tools, one per language.
+
+The format is described in :doc:`bundle_format`. Bundles made by Virtaal 0.7
+and the Translate Toolkit (.zip, with a ``project.xtp``) still open, from the
+command line or by dropping them on the window.
+
 .. _using_virtaal#network_based_translation_memory:
 
 Network Based Translation Memory
