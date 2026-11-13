@@ -12,6 +12,8 @@ from gi.repository import Gdk, GLib, GObject, Gtk
 from .storecellrenderer import StoreCellRenderer
 from .storetreemodel import COLUMN_EDITABLE, COLUMN_UNIT, StoreTreeModel
 
+EDIT_KEYS = (Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_space, Gdk.KEY_Escape)
+
 
 class StoreTreeView(Gtk.TreeView):
     """
@@ -611,10 +613,36 @@ class StoreTreeView(Gtk.TreeView):
         GLib.idle_add(do_scroll)
         return True
 
-    def _on_key_press(self, _widget, _event, _data=None):
-        # The TreeView does interesting things with combos like SHIFT+TAB.
-        # So we're going to stop it from doing this.
+    def _on_key_press(self, _widget, event, _data=None):
+        """Tab and Shift+Tab leave the list, Ctrl+Tab goes on to the
+        status bar's Checks button, and Enter, Space and Escape edit the
+        unit at the cursor. GTK's own keys stay off: they move the cursor
+        without the editor."""
+        mods = event.state & Gtk.accelerator_get_default_mod_mask()
+        shift = mods & Gdk.ModifierType.SHIFT_MASK or event.keyval == Gdk.KEY_ISO_Left_Tab
+        if event.keyval in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab, Gdk.KEY_KP_Tab):
+            if mods & Gdk.ModifierType.CONTROL_MASK and not shift:
+                self.view.controller.main_controller.checks_controller.focus()
+            else:
+                backward = Gtk.DirectionType.TAB_BACKWARD
+                self.get_toplevel().emit(
+                    'move-focus', backward if shift else Gtk.DirectionType.TAB_FORWARD
+                )
+            return True
+        if not mods and event.keyval in EDIT_KEYS:
+            self.edit_at_cursor()
         return True
+
+    def edit_at_cursor(self):
+        """Put the focus in the translation of the unit at the cursor."""
+        path, _column = self.get_cursor()
+        if path is None:
+            return
+        targets = self.view.controller.main_controller.unit_controller.view.targets
+        if not targets or not targets[0].get_mapped():
+            self.set_cursor(path, self.get_columns()[0], start_editing=True)
+        if targets:
+            targets[0].grab_focus()
 
     def _on_modified(self, _widget):
         self.emit("modified")

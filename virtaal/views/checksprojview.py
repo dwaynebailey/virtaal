@@ -7,7 +7,7 @@
 
 import locale
 
-from gi.repository import Gtk
+from gi.repository import Gdk, Gtk
 
 from virtaal.views.widgets.popupmenubutton import PopupMenuButton
 
@@ -37,6 +37,7 @@ class ChecksProjectView(BaseView):
             menu.append(mitem)
             self._checker_menu_items[checkername] = mitem
         self.btn_proj.set_menu(menu)
+        self.btn_proj.connect('key-press-event', self._on_key_press)
 
     # METHODS #
     def show(self):
@@ -52,5 +53,13 @@ class ChecksProjectView(BaseView):
         self.btn_proj.set_label(_('Checks: %(checker_name)s') % {'checker_name': cname})
 
     # EVENT HANDLER #
+    def _on_key_press(self, _button, event):
+        # Ctrl+Tab goes from the units' list here, then back to editing.
+        mods = event.state & Gtk.accelerator_get_default_mod_mask()
+        if event.keyval in (Gdk.KEY_Tab, Gdk.KEY_KP_Tab) and mods == Gdk.ModifierType.CONTROL_MASK:
+            self.controller.main_controller.store_controller.view.edit_at_cursor()
+            return True
+        return False
+
     def _on_menu_item_activate(self, menuitem):
         self.controller.set_checker_by_name(menuitem.get_child().get_label())

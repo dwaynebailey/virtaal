@@ -275,6 +275,10 @@ class StoreView(BaseView):
         return self.controller.get_unit_celleditor(unit)
 
     # METHODS #
+    def edit_at_cursor(self):
+        """Put the focus in the translation of the current unit."""
+        self._treeview.edit_at_cursor()
+
     def hide(self):
         self.parent_widget.props.visible = False
         self.load_store(None)

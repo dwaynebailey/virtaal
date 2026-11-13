@@ -155,6 +155,10 @@ class ChecksController(BaseController):
 
     projview = property(_get_projview)
 
+    def focus(self):
+        """Focus the status bar's Checks button."""
+        self.projview.btn_proj.grab_focus()
+
     def _get_unitview(self):
         from virtaal.views.checksunitview import ChecksUnitView
 

@@ -1072,8 +1072,53 @@ def test_on_cursor_changed_do_scroll_gives_up_if_the_cursor_became_invalid(monke
 # _on_key_press() / _on_modified() #
 
 
-def test_on_key_press_always_swallows_the_event():
-    assert StoreTreeView._on_key_press(SimpleNamespace(), None, None) is True
+def _key(keyval, state=0):
+    event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
+    event.keyval, event.state = keyval, Gdk.ModifierType(state)
+    return event
+
+
+def _key_view():
+    calls = []
+    window = SimpleNamespace(emit=lambda *args: calls.append(args))
+    checks = SimpleNamespace(focus=lambda: calls.append('checks'))
+    view = SimpleNamespace(
+        get_toplevel=lambda: window,
+        edit_at_cursor=lambda: calls.append('edit'),
+        view=SimpleNamespace(
+            controller=SimpleNamespace(main_controller=SimpleNamespace(checks_controller=checks))
+        ),
+    )
+    return view, calls
+
+
+@pytest.mark.parametrize(
+    'keyval, state, expected',
+    [
+        (Gdk.KEY_Tab, 0, ('move-focus', Gtk.DirectionType.TAB_FORWARD)),
+        (
+            Gdk.KEY_ISO_Left_Tab,
+            Gdk.ModifierType.SHIFT_MASK,
+            ('move-focus', Gtk.DirectionType.TAB_BACKWARD),
+        ),
+        (Gdk.KEY_Tab, Gdk.ModifierType.CONTROL_MASK, 'checks'),
+        (Gdk.KEY_Return, 0, 'edit'),
+        (Gdk.KEY_space, 0, 'edit'),
+        (Gdk.KEY_Escape, 0, 'edit'),
+    ],
+)
+def test_the_unit_list_is_no_keyboard_trap(keyval, state, expected):
+    view, calls = _key_view()
+
+    assert StoreTreeView._on_key_press(view, None, _key(keyval, state)) is True
+    assert calls == [expected]
+
+
+def test_other_keys_are_still_swallowed():
+    view, calls = _key_view()
+
+    assert StoreTreeView._on_key_press(view, None, _key(Gdk.KEY_Down)) is True
+    assert calls == []
 
 
 def test_on_modified_emits_the_modified_signal():
