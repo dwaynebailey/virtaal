@@ -269,7 +269,7 @@ class EntryDialog(Gtk.Dialog):
     """A simple dialog containing a dialog for user input."""
 
     def __init__(self, parent):
-        super().__init__(title='Input Dialog', transient_for=parent)
+        super().__init__(transient_for=parent)
         self.set_size_request(450, 100)
 
         self.lbl_message = Gtk.Label()
@@ -1161,6 +1161,7 @@ class MainView(BaseView):
             while True:
                 try:
                     nplurals = self.show_input_dialog(
+                        title=_("Number of Plurals"),
                         message=_("Please enter the number of noun forms (plurals) to use"),
                         ok_label=_("_Use"),
                     )
@@ -1170,7 +1171,9 @@ class MainView(BaseView):
 
         def ask_for_plurals_equation():
             return self.show_input_dialog(
-                message=_("Please enter the plural equation to use"), ok_label=_("_Use")
+                title=_("Plural Equation"),
+                message=_("Please enter the plural equation to use"),
+                ok_label=_("_Use"),
             )
 
         from translate.lang import factory as langfactory
@@ -1315,7 +1318,7 @@ class MainView(BaseView):
         """Asks for the translator details stored in a file's header.
         @returns: (name, email, team), or C{None} if cancelled."""
         dialog = Gtk.Dialog(
-            title=_('Header information'), transient_for=self._top_window, modal=True
+            title=_('Header Information'), transient_for=self._top_window, modal=True
         )
         dialog.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
         dialog.add_button(_("_Save"), Gtk.ResponseType.OK)

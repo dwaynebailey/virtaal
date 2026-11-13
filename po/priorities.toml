@@ -72,7 +72,7 @@ screen = "^mode QualityCheck menu$"
 
 [[seen]]
 priority = "2"
-window = "virtaal_tutorial\\.po|New Language Pair|'Add Term'|'Settings'|'Virtaal Preferences'|'Properties'|^ShortcutsWindow|^AboutDialog"
+window = "virtaal_tutorial\\.po|New Language Pair|'Add Term'|'Settings'|'Preferences'|'Properties'|^ShortcutsWindow|^AboutDialog"
 
 [[seen]]
 # The main window once working in a file (titled with the file's name,

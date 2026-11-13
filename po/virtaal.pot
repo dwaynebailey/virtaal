@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 22:43+0000\n"
+"POT-Creation-Date: 2026-11-13 22:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -336,7 +336,7 @@ msgid "Keyboard _Shortcuts"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Virtaal Preferences"
+msgid "Preferences"
 msgstr ""
 
 #: share/virtaal/virtaal.ui virtaal/views/mainview.py
@@ -463,7 +463,7 @@ msgid "Terminology Files"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Add URL"
+msgid "Add Web Look-up"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -1315,6 +1315,10 @@ msgstr ""
 
 #: virtaal/controllers/maincontroller.py
 msgid "_Reload"
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
+msgid "Save As"
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
@@ -2788,7 +2792,7 @@ msgstr ""
 #. l10n: The 'sources' here refer to different translation memory plugins,
 #. such as local tm, open-tran.eu, the current file, etc.
 #: virtaal/plugins/tm/tmview.py
-msgid "Select sources of Translation Memory"
+msgid "Select Translation Memory Sources"
 msgstr ""
 
 #: virtaal/plugins/tm/tmview.py
@@ -3893,6 +3897,10 @@ msgid "%(modified_marker)s%(current_file)s"
 msgstr ""
 
 #: virtaal/views/mainview.py
+msgid "Number of Plurals"
+msgstr ""
+
+#: virtaal/views/mainview.py
 msgid "Please enter the number of noun forms (plurals) to use"
 msgstr ""
 
@@ -3901,11 +3909,15 @@ msgid "_Use"
 msgstr ""
 
 #: virtaal/views/mainview.py
+msgid "Plural Equation"
+msgstr ""
+
+#: virtaal/views/mainview.py
 msgid "Please enter the plural equation to use"
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid "Header information"
+msgid "Header Information"
 msgstr ""
 
 #. l10n: Title of the file chooser for the English (or other

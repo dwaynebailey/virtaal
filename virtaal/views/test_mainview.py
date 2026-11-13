@@ -2336,9 +2336,11 @@ def test_ask_plural_info_prompts_for_an_equation_when_the_default_is_a_placehold
     view.controller = SimpleNamespace(
         lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='ar'))
     )
-    view.show_input_dialog = lambda message, ok_label: 'n % 100 == 1 ? 0 : 1'
+    asked = []
+    view.show_input_dialog = lambda **kw: asked.append(kw['title']) or 'n % 100 == 1 ? 0 : 1'
 
     assert view.ask_plural_info() == (3, 'n % 100 == 1 ? 0 : 1')
+    assert asked == ['Plural Equation']
 
 
 def test_ask_plural_info_prompts_for_a_plural_count_when_the_language_has_none(monkeypatch):
@@ -2351,9 +2353,11 @@ def test_ask_plural_info_prompts_for_a_plural_count_when_the_language_has_none(m
         lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='xx'))
     )
     prompts = iter(['not a number', '1'])
-    view.show_input_dialog = lambda message, ok_label: next(prompts)
+    asked = []
+    view.show_input_dialog = lambda **kw: asked.append(kw['title']) or next(prompts)
 
     assert view.ask_plural_info() == (1, '0')
+    assert asked == ['Number of Plurals', 'Number of Plurals']
 
 
 # append_menu_item() #
