@@ -351,8 +351,27 @@ class TestDocumentsOpen(TestScaffolding):
 
         assert self.main_controller.bundle_actions.merge() == 0
 
-        assert len(self.errors) == 1
-        assert "wasn't split" in self.errors[0]
+        assert self.errors == [
+            "other.zu.virtaal wasn't made by Split by Language.\n\n"
+            'Choose a bundle split from this one.'
+        ]
+
+    def test_merge_of_an_older_split_says_to_update_it_first(self, monkeypatch):
+        bundle = self._master(monkeypatch, languages=('zu',))
+        old, new = self.dir / 'old', self.dir / 'new'
+        old.mkdir()
+        new.mkdir()
+        [path] = bundle.split(str(old))
+        bundle.split(str(new))
+        bundle.save()
+        monkeypatch.setattr(self.view, 'ask_bundles', lambda: [path])
+
+        assert self.main_controller.bundle_actions.merge() == 0
+
+        assert self.errors == [
+            'manual.zu.virtaal is from an older split of Zulu.\n\n'
+            'Open it and update it from the latest Zulu bundle first.'
+        ]
 
     def test_cancelling_the_merge_conflicts_changes_nothing(self, monkeypatch):
         bundle = self._master(monkeypatch, languages=('zu',))
@@ -630,9 +649,15 @@ class TestDocumentsOpen(TestScaffolding):
         bundle = self.store_controller.bundle()
         actions = self.main_controller.bundle_actions
 
-        for chosen, message in ((master.path, 'same bundle'), (path, "isn't newer")):
+        for chosen in (master.path, path):
             monkeypatch.setattr(self.view, 'ask_bundles', lambda chosen=chosen: [chosen])
             assert not actions.update_from_refreshed()
-            assert message in self.errors[-1]
+
+        assert self.errors == [
+            "manual.virtaal wasn't made by Split by Language.\n\n"
+            'Choose the latest Zulu bundle split from the same project.',
+            'manual.zu.virtaal is not newer than this bundle.\n\n'
+            'Choose the latest Zulu bundle split from the same project.',
+        ]
 
         assert all(os.path.isfile(f) for f in bundle.files())

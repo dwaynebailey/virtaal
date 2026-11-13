@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 09:46+0000\n"
+"POT-Creation-Date: 2026-11-13 14:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -850,6 +850,73 @@ msgstr ""
 #: virtaal/cli.py
 #, python-format
 msgid "Could not open profile file '%(filename)s'"
+msgstr ""
+
+#. l10n: Why a translation bundle chosen to merge or update from is refused.
+#. %(bundle)s is its file name
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "%(bundle)s wasn't made by Split by Language."
+msgstr ""
+
+#. l10n: Why a translation bundle chosen to merge or update from is refused:
+#. it was split from the bundle of another project
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "%(bundle)s is from another project."
+msgstr ""
+
+#. l10n: Why a translation bundle chosen to update from is refused.
+#. %(other)s and %(language)s are language names
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "%(bundle)s is for %(other)s, not %(language)s."
+msgstr ""
+
+#. l10n: Why a returned translation bundle is refused: the language was split
+#. again since it was made. %(language)s is a language name
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "%(bundle)s is from an older split of %(language)s."
+msgstr ""
+
+#. l10n: Why a translation bundle chosen to update from is refused
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "%(bundle)s is not newer than this bundle."
+msgstr ""
+
+#. l10n: Why a returned translation bundle is refused: a document was added,
+#. removed or updated in it
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "Documents in %(bundle)s were changed after it was split."
+msgstr ""
+
+#. l10n: After why a bundle chosen to update from is refused; %(language)s is a
+#. language name
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "Choose the latest %(language)s bundle split from the same project."
+msgstr ""
+
+#. l10n: After why a returned bundle is refused; %(language)s is a language name
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid "Open it and update it from the latest %(language)s bundle first."
+msgstr ""
+
+#. l10n: After why a returned bundle is refused; %(language)s is a language name
+#: virtaal/controllers/bundleactions.py
+#, python-format
+msgid ""
+"Split %(language)s again, then open it and update it from the new bundle "
+"first."
+msgstr ""
+
+#. l10n: After why a returned bundle is refused
+#: virtaal/controllers/bundleactions.py
+msgid "Choose a bundle split from this one."
 msgstr ""
 
 #: virtaal/controllers/bundleactions.py virtaal/controllers/maincontroller.py

@@ -56,6 +56,33 @@ class BundleError(ValueError):
     """A bundle Virtaal can't open, write or merge."""
 
 
+class BundleRefusal(BundleError):
+    """A bundle that can't be merged into the one open, or update it:
+    C{reason} says why (one of the reasons below), for telling the user
+    what to do; C{language} is the language concerned and C{other} the
+    other bundle's, when they differ."""
+
+    def __init__(self, reason, message, language=None, other=None):
+        super().__init__(message)
+        self.reason = reason
+        self.language = language
+        self.other = other
+
+
+NOT_SPLIT = 'not-split'
+"""The bundle wasn't made by splitting another."""
+OTHER_PROJECT = 'other-project'
+"""It was split from another master."""
+OTHER_LANGUAGE = 'other-language'
+"""It is for another language than the bundle open."""
+OLDER_SPLIT = 'older-split'
+"""The master split its language again since."""
+NOT_NEWER = 'not-newer'
+"""It is no newer a split than the bundle open."""
+DOCUMENTS_CHANGED = 'documents-changed'
+"""Its documents changed since it was split."""
+
+
 class BundleChangedError(BundleError):
     """The bundle's file changed since it was opened, so saving over it
     would lose those changes."""
@@ -822,19 +849,27 @@ class DocumentBundle:
     def _split_language(self, returned):
         """The language of C{returned} if it was split from this bundle
         and still has the documents it had then."""
-        split = returned.split_from() or {}
+        split = returned.split_from()
+        if not split:
+            raise BundleRefusal(NOT_SPLIT, "This bundle wasn't split from another bundle.")
         language = split.get('language')
         record = self.manifest.get('splits', {}).get(language)
-        if split.get('id') != self.id or record is None or language not in self.languages:
-            raise BundleError("This bundle wasn't split from the one open.")
+        if split.get('id') != self.id:
+            raise BundleRefusal(OTHER_PROJECT, "This bundle wasn't split from the one open.")
+        if record is None or language not in self.languages:
+            raise BundleError('The bundle open has no %s split to merge into.' % language)
         if returned.id != record.get('id', returned.id):
-            raise BundleError(
+            raise BundleRefusal(
+                OLDER_SPLIT,
                 '%s was split again since this bundle was made from it: update it '
-                'from the newer split first.' % language
+                'from the newer split first.' % language,
+                language,
             )
         names = {d['name']: d['sha256'] for d in returned.documents()}
         if names != split.get('sources') or set(names) != set(record['sources']):
-            raise BundleError("The returned bundle's documents were changed.")
+            raise BundleRefusal(
+                DOCUMENTS_CHANGED, "The returned bundle's documents were changed.", language
+            )
         return language
 
     def apply_merge(self, plan, choices=None):
@@ -894,13 +929,27 @@ class DocumentBundle:
         mine, theirs = self.split_from(), refreshed.split_from() or {}
         if not mine:
             raise BundleError("The bundle open wasn't split from another bundle.")
+        language = mine.get('language')
+        if not theirs:
+            raise BundleRefusal(
+                NOT_SPLIT, "This bundle wasn't split from another bundle.", language
+            )
         if theirs.get('id') != mine.get('id'):
-            raise BundleError("This bundle wasn't split from the same bundle as the one open.")
-        if theirs.get('language') != mine.get('language'):
-            raise BundleError('This bundle is for another language than the one open.')
+            raise BundleRefusal(
+                OTHER_PROJECT,
+                "This bundle wasn't split from the same bundle as the one open.",
+                language,
+            )
+        if theirs.get('language') != language:
+            raise BundleRefusal(
+                OTHER_LANGUAGE,
+                'This bundle is for another language than the one open.',
+                language,
+                theirs.get('language'),
+            )
         if not _newer(refreshed.manifest, self.manifest):
-            raise BundleError("This bundle isn't newer than the one open.")
-        return mine['language']
+            raise BundleRefusal(NOT_NEWER, "This bundle isn't newer than the one open.", language)
+        return language
 
     def _has_work(self, entry):
         """Whether the translatable file of C{entry} has translations

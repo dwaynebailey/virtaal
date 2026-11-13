@@ -764,7 +764,8 @@ A bundle can hold several documents, translated into several languages:
   :menuselection:`Merge Returned Bundles…` brings their work back: only
   translations the translator changed come in, and where both you and the
   translator changed a unit, you choose which to keep. A bundle from another
-  project, or whose documents were changed, is refused.
+  project, or whose documents were changed, is refused, and Virtaal says what
+  to do instead.
 - To send a translator a newer bundle (after changing, adding or removing a
   document, or reviewing translations), split their language again. A bundle
   from before that split can't be merged any more: the translator first takes

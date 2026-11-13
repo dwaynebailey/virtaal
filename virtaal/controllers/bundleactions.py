@@ -21,6 +21,60 @@ def _counted(text, count):
     return text % {'count': format_number(count)}
 
 
+def _language_name(code):
+    from virtaal.models.langmodel import LanguageModel
+
+    return LanguageModel(code).name if code else ''
+
+
+def _refusal_text(exc, path, merging):
+    """What to tell the user about the bundle C{path} refused by
+    BundleRefusal C{exc}, on merging it or updating from it: why, and
+    what to do instead."""
+    from virtaal.support import documents
+
+    values = {
+        'bundle': os.path.basename(path),
+        'language': _language_name(exc.language),
+        'other': _language_name(exc.other),
+    }
+    reasons = {
+        # l10n: Why a translation bundle chosen to merge or update from is refused.
+        # %(bundle)s is its file name
+        documents.NOT_SPLIT: _("%(bundle)s wasn't made by Split by Language."),
+        # l10n: Why a translation bundle chosen to merge or update from is refused:
+        # it was split from the bundle of another project
+        documents.OTHER_PROJECT: _("%(bundle)s is from another project."),
+        # l10n: Why a translation bundle chosen to update from is refused.
+        # %(other)s and %(language)s are language names
+        documents.OTHER_LANGUAGE: _("%(bundle)s is for %(other)s, not %(language)s."),
+        # l10n: Why a returned translation bundle is refused: the language was split
+        # again since it was made. %(language)s is a language name
+        documents.OLDER_SPLIT: _("%(bundle)s is from an older split of %(language)s."),
+        # l10n: Why a translation bundle chosen to update from is refused
+        documents.NOT_NEWER: _("%(bundle)s is not newer than this bundle."),
+        # l10n: Why a returned translation bundle is refused: a document was added,
+        # removed or updated in it
+        documents.DOCUMENTS_CHANGED: _("Documents in %(bundle)s were changed after it was split."),
+    }
+    if not merging:
+        # l10n: After why a bundle chosen to update from is refused; %(language)s is a
+        # language name
+        action = _("Choose the latest %(language)s bundle split from the same project.")
+    elif exc.reason == documents.OLDER_SPLIT:
+        # l10n: After why a returned bundle is refused; %(language)s is a language name
+        action = _("Open it and update it from the latest %(language)s bundle first.")
+    elif exc.reason == documents.DOCUMENTS_CHANGED:
+        action = _(
+            # l10n: After why a returned bundle is refused; %(language)s is a language name
+            "Split %(language)s again, then open it and update it from the new bundle first."
+        )
+    else:
+        # l10n: After why a returned bundle is refused
+        action = _("Choose a bundle split from this one.")
+    return '%s\n\n%s' % (reasons[exc.reason] % values, action % values)
+
+
 class BundleActions:
     """The File > Translation Bundle menu and opening documents, for
     the main controller."""
@@ -53,6 +107,17 @@ class BundleActions:
             + _("Could not open file.\n\n%(error_message)s\n\nTry opening a different file.")
             % {'error_message': str(exc)}
         )
+
+    def _refused(self, exc, path, merging):
+        """Say why the bundle C{path} can't be merged or updated from,
+        if it was refused; else the error opening it."""
+        from virtaal.support.documents import BundleRefusal
+
+        if not isinstance(exc, BundleRefusal):
+            self._error(exc, path)
+            return
+        logging.info('Translation bundle %s refused: %s', path, exc)
+        self.main_controller.show_error(_refusal_text(exc, path, merging))
 
     def _export_error(self, exc):
         logging.exception('Translation bundle export')
@@ -238,7 +303,7 @@ class BundleActions:
                 finally:
                     returned.discard()
             except Exception as exc:
-                self._error(exc, path)
+                self._refused(exc, path, merging=True)
                 continue
             choices = self.view.ask_merge_conflicts(plan.conflicts) if plan.conflicts else {}
             if choices is None:
@@ -279,7 +344,7 @@ class BundleActions:
             finally:
                 refreshed.discard()
         except Exception as exc:
-            self._error(exc, paths[0])
+            self._refused(exc, paths[0], merging=False)
             return False
         if plan.removed_work and not self._removing_confirmed(plan.removed_work):
             return False

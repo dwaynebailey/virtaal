@@ -15,7 +15,7 @@ import pytest
 from translate.storage import factory
 
 from virtaal.support import _docsamples, documents
-from virtaal.support.documents import BundleError, DocumentBundle
+from virtaal.support.documents import BundleError, BundleRefusal, DocumentBundle
 
 
 @pytest.fixture(autouse=True)
@@ -546,17 +546,25 @@ def test_merge_conflicts_keep_mine_take_theirs_or_skip(tmp_path, master):
 def test_merge_refuses_a_bundle_from_another_master(tmp_path, master, report):
     other = documents.from_documents([report], 'en', 'zu')
     other.save(str(tmp_path / 'report.zu.virtaal'))
+    other_master = DocumentBundle.open(master.path, str(tmp_path / 'm'))
+    other_master.manifest['id'] = 'urn:uuid:other'
+    other_split = DocumentBundle.open(_split(tmp_path, other_master, 'zu', 'other'))
 
-    with pytest.raises(BundleError, match="wasn't split"):
+    with pytest.raises(BundleRefusal) as refused:
         master.plan_merge(other)
+    assert refused.value.reason == documents.NOT_SPLIT
+    with pytest.raises(BundleRefusal) as refused:
+        master.plan_merge(other_split)
+    assert refused.value.reason == documents.OTHER_PROJECT
 
 
 def test_merge_refuses_a_bundle_whose_documents_changed(tmp_path, master):
     returned = _returned(tmp_path, master, 'zu', {'Welcome.': 'Wamukelekile.'})
     returned.add_document(_odt(tmp_path, 'extra.odt', ['Extra.']))
 
-    with pytest.raises(BundleError, match='documents were changed'):
+    with pytest.raises(BundleRefusal, match='documents were changed') as refused:
         master.plan_merge(returned)
+    assert (refused.value.reason, refused.value.language) == (documents.DOCUMENTS_CHANGED, 'zu')
 
 
 def test_merge_after_the_source_changed_marks_changed_units_for_review(tmp_path, master):
@@ -667,8 +675,9 @@ def test_merge_refuses_a_bundle_from_an_older_split_of_its_language(tmp_path, ma
     returned = _returned(tmp_path, master, 'zu', {'Welcome.': 'Wamukelekile.'})
     _split(tmp_path, master, 'zu', 'again')
 
-    with pytest.raises(BundleError, match='split again'):
+    with pytest.raises(BundleRefusal, match='split again') as refused:
         master.plan_merge(returned)
+    assert (refused.value.reason, refused.value.language) == (documents.OLDER_SPLIT, 'zu')
 
 
 def test_a_bundle_opened_aside_leaves_the_open_ones_files(tmp_path, master):
@@ -852,15 +861,17 @@ def test_refresh_refuses_other_masters_languages_and_older_splits(tmp_path, mast
     other_master.manifest['id'] = 'urn:uuid:other'
     other_split = _split(tmp_path, other_master, 'zu', 'other')
 
-    for path, message in (
-        (str(tmp_path / 'other.zu.virtaal'), 'same bundle'),
-        (other_split, 'same bundle'),
-        (xh, 'another language'),
-        (zu, "isn't newer"),
-        (newer, "isn't newer"),
+    for path, reason, theirs in (
+        (str(tmp_path / 'other.zu.virtaal'), documents.NOT_SPLIT, None),
+        (other_split, documents.OTHER_PROJECT, None),
+        (xh, documents.OTHER_LANGUAGE, 'xh'),
+        (zu, documents.NOT_NEWER, None),
+        (newer, documents.NOT_NEWER, None),
     ):
-        with pytest.raises(BundleError, match=message):
+        with pytest.raises(BundleRefusal) as refused:
             mine.plan_refresh(DocumentBundle.open_aside(path))
+        assert (refused.value.reason, refused.value.language) == (reason, 'zu')
+        assert refused.value.other == theirs
     with pytest.raises(BundleError, match="wasn't split"):
         other.plan_refresh(DocumentBundle.open_aside(newer))
 
