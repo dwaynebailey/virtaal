@@ -225,3 +225,27 @@ def test_a_bundles_matches_rank_above_other_sources_of_the_same_kind():
         ('Bundle', 'Bundle'),
         ('Local', 'Local'),
     ]
+
+
+def test_a_bundles_exact_match_ranks_above_another_sources_exact_match():
+    controller = TMController.__new__(TMController)
+    controller.storecursor = True
+    controller.current_query = 'Press the button.'
+    controller.matches = []
+    controller.max_matches = 5
+    controller.view = SimpleNamespace(display_matches=lambda matches: None)
+    bundle = SimpleNamespace(display_name='Bundle', match_weight=lambda m: bundle_tm.FIRST_WEIGHT)
+    local = SimpleNamespace(display_name='Local')
+
+    controller.accept_response(
+        local,
+        'Press the button.',
+        [{'source': 'Press the button.', 'target': 'Local', 'quality': 100}],
+    )
+    controller.accept_response(
+        bundle,
+        'Press the button.',
+        [{'source': 'Press the button.', 'target': 'Bundle', 'quality': 100}],
+    )
+
+    assert [m['target'] for m in controller.matches] == ['Bundle', 'Local']
