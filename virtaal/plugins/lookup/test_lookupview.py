@@ -140,6 +140,15 @@ def test_populate_popup_does_nothing_without_a_selection():
     assert menu.get_children() == []
 
 
+def test_populate_popup_skips_a_selection_of_only_spaces():
+    view = _make_view({'thesaurus': _FakeTopLevelModel()})
+    menu = Gtk.Menu()
+
+    view._on_populate_popup(_FakeTextbox('   '), menu)
+
+    assert menu.get_children() == []
+
+
 def test_populate_popup_ellipsizes_a_long_selection():
     view = _make_view({'weblookup': _FakeNestedModel()})
     menu = Gtk.Menu()
@@ -147,7 +156,7 @@ def test_populate_popup_ellipsizes_a_long_selection():
     view._on_populate_popup(_FakeTextbox('a' * 60), menu)
 
     item = next(i for i in menu.get_children() if isinstance(i, Gtk.MenuItem) and i.get_submenu())
-    assert item.get_label() == '_Look-up "%s"' % ('a' * 60)
+    assert item.get_label() == '_Look Up “%s”' % ('a' * 60)
     label_widget = item.get_child()
     assert label_widget.get_ellipsize() == Pango.EllipsizeMode.MIDDLE
     assert label_widget.get_max_width_chars() == 40

@@ -196,8 +196,7 @@ class LookupModel(BaseLookupModel):
     def _create_download_item(self, locale_code):
         item = Gtk.MenuItem(
             # l10n: %(language)s is a language name, e.g. "Afrikaans"
-            label=_('Do_wnload %(language)s thesaurus…')
-            % {'language': _language_name(locale_code)},
+            label=_('Do_wnload %(language)s thesaurus') % {'language': _language_name(locale_code)},
             use_underline=True,
         )
         item.connect('activate', self._on_download, locale_code)

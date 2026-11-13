@@ -43,7 +43,7 @@ def _labels(menu):
 
 def _lookup_submenu(menu):
     item = next(
-        (i for i in menu.get_children() if (i.get_label() or '').startswith('_Look-up "')), None
+        (i for i in menu.get_children() if (i.get_label() or '').startswith('_Look Up “')), None
     )
     return item and _labels(item.get_submenu())
 

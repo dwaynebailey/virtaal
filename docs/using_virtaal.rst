@@ -740,7 +740,7 @@ The bundle keeps track of the document it was made from. When you open it
 and the document has changed since, Virtaal offers to update the
 translation: unchanged paragraphs keep their translations, changed ones keep
 theirs marked as needing review, and new ones are untranslated.
-:menuselection:`File --> Update from Template` takes in a new version of a
+:menuselection:`File --> Update from Template…` takes in a new version of a
 document from anywhere. Moving the bundle and the document together keeps
 them tied; moving or deleting only the document just stops the check. Opening
 a document again offers the bundle beside it that already holds its
@@ -777,7 +777,7 @@ A bundle can hold several documents, translated into several languages:
 - A translator's bundle keeps the documents and language it was split with,
   so that it can be merged: :menuselection:`Add Document…`,
   :menuselection:`Add Language…`, :menuselection:`Split by Language…` and
-  :menuselection:`File --> Update from Template` are off in it.
+  :menuselection:`File --> Update from Template…` are off in it.
 - :menuselection:`Export as TIPP…` writes a TIPP package for other translation
   tools, one per language.
 - A bundle can carry a project's translation memory (TMX files under ``tm/``)
