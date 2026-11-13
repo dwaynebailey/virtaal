@@ -109,3 +109,10 @@ def test_run_reports_every_item_when_done(monkeypatch):
 
     assert response == Gtk.ResponseType.CLOSE
     assert [item['name'] for item in done[0]] == ['Open-Tran']
+
+
+def test_the_list_keeps_clear_of_the_window_edge():
+    dialog = SelectDialog(message='Choose')
+
+    assert dialog.dialog.get_content_area().get_border_width() == 12
+    assert dialog.message.get_xalign() == 0

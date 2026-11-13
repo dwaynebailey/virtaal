@@ -499,6 +499,16 @@ def test_init_treeview_lists_configured_files_and_marks_the_extend_file(monkeypa
     assert [(row[0], row[1]) for row in dialog.lst_files] == [('a.po', False), ('b.po', True)]
 
 
+def test_the_extendable_column_is_as_wide_as_its_heading(monkeypatch):
+    monkeypatch.setattr(FileSelectDialog, '_init_add_chooser', lambda self: None)
+    model = SimpleNamespace(controller=None, config={'files': ['a.po'], 'extendfile': 'a.po'})
+
+    dialog = FileSelectDialog(model=model)
+    column = dialog.tvw_termfiles.get_column(1)
+
+    assert column.get_min_width() >= column.get_button().get_preferred_width()[1] > 0
+
+
 def test_init_treeview_defaults_to_the_first_file_when_none_is_marked_to_extend(monkeypatch):
     monkeypatch.setattr(FileSelectDialog, '_init_add_chooser', lambda self: None)
     saved = []

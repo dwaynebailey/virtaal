@@ -256,6 +256,13 @@ def add_translation_file_filters(chooser, extra_formats=()):
     chooser.add_filter(all_filter)
 
 
+def _infobar_text(label):
+    """C{label}, start-aligned and wrapping, as an info bar's text."""
+    label.set_xalign(0)
+    label.set_line_wrap(True)
+    return label
+
+
 def _activate_if_sensitive(item):
     if item.is_sensitive():
         item.activate()
@@ -1652,7 +1659,7 @@ class MainView(BaseView):
         label = Gtk.Label(
             label=_('Virtaal %s is available (you have %s)') % (tag_name.removeprefix('v'), ver)
         )
-        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
         if asset_url:
             infobar.add_button(_('Release _Notes'), Gtk.ResponseType.HELP)
         infobar.add_button(_('_Download'), Gtk.ResponseType.OK)
@@ -1702,7 +1709,7 @@ class MainView(BaseView):
         infobar.set_show_close_button(True)
         label = Gtk.Label(label=text)
         label.set_line_wrap(True)
-        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
 
         def on_response(infobar, response_id):
             infobar.destroy()
@@ -1763,7 +1770,7 @@ class MainView(BaseView):
         label = Gtk.Label(label=text)
         label.set_line_wrap(True)
         label.set_tooltip_text(os.path.abspath(filename))
-        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
 
         def on_response(infobar, response_id):
             self._startup_open_failure_infobar = None
@@ -1797,7 +1804,7 @@ class MainView(BaseView):
         )
         label.set_line_wrap(True)
         label.set_tooltip_text(os.path.abspath(filename))
-        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
         infobar.add_button(_('_Reopen'), Gtk.ResponseType.OK)
 
         def on_response(infobar, response_id):
@@ -1840,7 +1847,7 @@ class MainView(BaseView):
             % {'count': format_number(count), 'time': _format_time(timestamp)}
         )
         label.set_line_wrap(True)
-        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
         infobar.add_button(_('_Discard'), Gtk.ResponseType.REJECT)
         infobar.add_button(_('_Recover'), Gtk.ResponseType.ACCEPT)
 
@@ -1923,7 +1930,7 @@ class MainView(BaseView):
         infobar.set_message_type(Gtk.MessageType.INFO)
         infobar.set_show_close_button(True)
         label = Gtk.Label(label=_('Restart Virtaal for the new language to take effect.'))
-        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
         infobar.add_button(_('_Restart'), RESTART_RESPONSE)
 
         def on_response(infobar, response_id):
@@ -2022,7 +2029,7 @@ class MainView(BaseView):
         infobar.set_message_type(Gtk.MessageType.WARNING)
         infobar.set_show_close_button(True)
         label = Gtk.Label(label=_('Source and target language are the same.'))
-        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
         infobar.add_button(_('_Change Language Pair'), Gtk.ResponseType.OK)
 
         def on_response(infobar, response_id):
@@ -2057,7 +2064,7 @@ class MainView(BaseView):
         infobar.set_message_type(Gtk.MessageType.WARNING)
         infobar.set_show_close_button(True)
         label = Gtk.Label(label=_('This file is read-only.'))
-        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
         infobar.add_button(_('Save _As…'), Gtk.ResponseType.OK)
 
         def on_response(infobar, response_id):
@@ -2090,7 +2097,7 @@ class MainView(BaseView):
         infobar.set_message_type(Gtk.MessageType.INFO)
         infobar.set_show_close_button(True)
         label = Gtk.Label(label=_source_file_text())
-        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
         button = None
         if translations:
             button = infobar.add_button(_('_Open Translation'), Gtk.ResponseType.OK)
@@ -2142,7 +2149,7 @@ class MainView(BaseView):
         infobar.set_show_close_button(True)
         label = Gtk.Label(label=text)
         label.set_line_wrap(True)
-        infobar.get_content_area().pack_start(label, True, True, 0)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
         if action is not None:
             infobar.add_button(action[0], Gtk.ResponseType.OK)
 

@@ -4015,3 +4015,10 @@ def test_show_info_notice_tells_when_it_is_closed():
     notice.emit('response', Gtk.ResponseType.CLOSE)
 
     assert calls == ['closed']
+
+
+def test_info_bar_text_starts_at_the_start_and_wraps():
+    label = mainview._infobar_text(Gtk.Label(label='Restart Virtaal for the new language.'))
+
+    assert label.get_xalign() == 0
+    assert label.get_line_wrap()

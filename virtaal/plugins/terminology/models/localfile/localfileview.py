@@ -181,6 +181,10 @@ class FileSelectDialog:
         col = Gtk.TreeViewColumn(_('File'))
         col.pack_start(cell, True)
         col.add_attribute(cell, 'text', self.COL_FILE)
+        # Fixed, so a long path is shortened instead of pushing the
+        # Extendable column out of sight.
+        col.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
+        col.set_fixed_width(200)
         col.set_expand(True)
         col.set_sort_column_id(0)
         self.tvw_termfiles.append_column(col)
@@ -193,8 +197,9 @@ class FileSelectDialog:
         col.add_attribute(cell, 'active', self.COL_EXTEND)
         col.set_cell_data_func(cell, self._extendable_cell_data)
         col.set_expand(False)
-        col.set_min_width(90)  # wide enough for the header label itself
         self.tvw_termfiles.append_column(col)
+        # As wide as its heading, in any language.
+        col.set_min_width(col.get_button().get_preferred_width()[1])
         self.tvw_termfiles.set_has_tooltip(True)
         self.tvw_termfiles.connect('query-tooltip', self._on_query_tooltip)
 
