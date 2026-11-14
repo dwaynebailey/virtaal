@@ -19,6 +19,7 @@ import types
 from pathlib import Path
 
 import pytest
+from translate.search.lshtein import LevenshteinComparer
 from translate.storage import base, pypo, tmx, xliff
 
 from virtaal.support import abstraction, tmdb
@@ -2274,3 +2275,86 @@ def test_fulltext_words_are_each_word_once_the_longest_if_too_many(monkeypatch):
 
     assert tmdb._fulltext_words('an apple, an apple; pear') == ['apple', 'pear']
     assert tmdb._fulltext_words('abc defgh ijkl mnopqr abc stu') == ['defgh', 'ijkl', 'mnopqr']
+
+
+def _scores(db, query, lang='en'):
+    return [(m['source'], m['quality']) for m in db.translate_unit(query, lang, 'af')]
+
+
+@pytest.mark.parametrize('fulltext', [True, False])
+@pytest.mark.parametrize(
+    ('stored', 'query', 'lang'),
+    [
+        ('Open file', 'OPEN FILE', 'en'),
+        ('Open file', 'open file', 'en'),
+        ('Straße', 'STRASSE', 'de'),
+        ('Straße', 'Strasse', 'de'),
+        ('Strasse', 'Straße', 'de'),
+        ('café', 'CAFÉ', 'fr'),
+        ('Kayıt', 'KAYIT', 'tr'),
+        ('İptal', 'iptal', 'tr'),
+        ('Αρχείο', 'ΑΡΧΕΙΟ', 'el'),
+        (LONG, LONG.upper(), 'en'),
+        ('Die Straße öffnet heute wieder', 'DIE STRASSE ÖFFNET HEUTE WIEDER', 'de'),
+        ('Kayıt dosyası açıldı ve kaydedildi', 'KAYIT DOSYASI AÇILDI VE KAYDEDİLDİ', 'tr'),
+        ('Το αρχείο ανοίγει τώρα αμέσως', 'ΤΟ ΑΡΧΕΙΟ ΑΝΟΙΓΕΙ ΤΩΡΑ ΑΜΕΣΩΣ', 'el'),
+        ('ΤΟ ΑΡΧΕΙΟ ΑΝΟΙΓΕΙ ΤΩΡΑ ΑΜΕΣΩΣ', 'Το αρχείο ανοίγει τώρα αμέσως', 'el'),
+        ('Größe ändern über Menü', 'GRÖSSE ÄNDERN ÜBER MENÜ', 'de'),
+    ],
+)
+def test_a_source_differing_only_in_case_is_a_near_exact_match(
+    db_path, stored, query, lang, fulltext
+):
+    db = tmdb.TMDB(db_path)
+    db.add_dict({'source': stored, 'target': 'x', 'context': ''}, lang, 'af')
+    db.fulltext = db.fulltext and fulltext
+
+    assert _scores(db, query, lang) == [(stored, 97)]
+
+
+@pytest.mark.parametrize(
+    ('stored', 'query', 'lang'),
+    [('Kayıt', 'KAYIT', 'en'), ('Αρχείο', 'ΑΡΧΕΙΟ', 'en'), ('café', 'cafe', 'fr')],
+)
+def test_other_differences_stay_fuzzy(db_path, stored, query, lang):
+    db = tmdb.TMDB(db_path)
+    db.add_dict({'source': stored, 'target': 'x', 'context': ''}, lang, 'af')
+
+    assert all(quality < 90 for _source, quality in _scores(db, query, lang))
+
+
+def test_an_exact_match_scores_above_one_differing_in_case(db_path):
+    db = tmdb.TMDB(db_path)
+    for source in ('OPEN FILE', 'Open file', 'Open files', 'Open the file'):
+        db.add_dict({'source': source, 'target': source, 'context': ''}, 'en', 'af')
+
+    assert _scores(db, 'Open file') == [('Open file', 100), ('OPEN FILE', 97), ('Open files', 90)]
+
+
+def test_ordinary_fuzzy_matches_score_and_order_as_before(db_path):
+    db = tmdb.TMDB(db_path)
+    sources = ['Open the selected file', 'Open the selected files now', 'Save the selected file']
+    for source in sources:
+        db.add_dict({'source': source, 'target': source, 'context': ''}, 'en', 'af')
+    query = 'Open the selected files'
+
+    levenshtein = LevenshteinComparer(1000)
+    expected = sorted(
+        ((round(levenshtein.similarity(query, s, 0)), s) for s in sources), reverse=True
+    )
+
+    assert _scores(db, query) == [
+        (source, quality) for quality, source in expected if quality >= 75
+    ]
+
+
+def test_fulltext_terms_add_each_words_forms_the_index_tells_apart():
+    terms = tmdb._fulltext_terms(['STRASSE', 'open', 'KAYIT'], 'tr')
+
+    assert terms == ['STRASSE', 'straße', 'open', 'KAYIT', 'kayıt']
+
+
+def test_fulltext_terms_are_capped(monkeypatch):
+    monkeypatch.setattr(tmdb, 'FULLTEXT_TERMS', 2)
+
+    assert tmdb._fulltext_terms(['Straße', 'apple'], 'de') == ['Straße', 'STRASSE']

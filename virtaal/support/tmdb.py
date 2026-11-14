@@ -47,10 +47,9 @@ from sqlite3 import dbapi2
 
 from translate.lang import data
 from translate.misc.xml_helpers import getXMLspace
-from translate.search.lshtein import LevenshteinComparer
 from translate.storage import tmx
 
-from virtaal.support import concordance, inlinecodes, shareddb
+from virtaal.support import concordance, inlinecodes, shareddb, textfold
 from virtaal.support.abstraction import abstract, adapt
 from virtaal.support.tmx_compat import tuv_lang
 
@@ -560,7 +559,8 @@ class TMDB(TMFile):
         self.fulltext = False
         self.init_fulltext()
 
-        self.comparer = LevenshteinComparer(self.max_length)
+        self.comparer = textfold.Comparer(None, self.max_length)
+        self._comparers = {}
 
         self.preload_db()
 
@@ -1306,6 +1306,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         langs_in = "%s AND %s" % (source_in, target_in)
         lang_params = (*source_params, *target_params)
 
+        comparer = self._comparer(source_langs)
         queries = [(unit_source, self._query_abstract(unit_source), "s.length")]
         if plain is not None:
             queries.append(
@@ -1313,10 +1314,10 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             )
         windows = []
         for text, query_abstract, column in queries:
-            windows.append((len(text), column))
+            windows += _windows(text, column)
             if self.abstract:
                 # Either window: abstraction may only add candidates.
-                windows.append((len(query_abstract), "length(COALESCE(s.abstract, s.text))"))
+                windows += _windows(query_abstract, "length(COALESCE(s.abstract, s.text))")
         window_sql = " OR ".join("%s BETWEEN ? AND ?" % column for _length, column in windows)
         window_params = []
         for length, _column in windows:
@@ -1335,14 +1336,16 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
             "s.text, t.text, s.context, s.abstract, t.source_markup, t.target_markup, "
             "t.plural_source, t.plural_targets, %s" % _layout_select()
         )
-        if self.fulltext and len(unit_words) > 3:
+        if self.fulltext and len(unit_words) > 3 and _fulltext_finds(unit_source, source_langs):
             logger.debug("fulltext matching")
             query = """SELECT %s FROM sources s JOIN targets t ON s.sid = t.sid JOIN fulltext f ON s.sid = f.docid
                        WHERE %s AND (%s)
                        AND fulltext MATCH ?""" % (columns, langs_in, window_sql)
             # Quoted, so a word such as AND, NOT or NEAR isn't read as an
             # FTS operator (#4332). STRIP_REGEXP has removed any quote.
-            search_str = " OR ".join('"%s"' % word for word in unit_words)
+            search_str = " OR ".join(
+                '"%s"' % term for term in _fulltext_terms(unit_words, source_langs)
+            )
             self.cursor.execute(query, (*lang_params, *window_params, search_str))
         else:
             logger.debug("nonfulltext matching")
@@ -1352,7 +1355,7 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
 
         results = []
         for row in self.cursor.fetchall():
-            scores = [self._score(*texts) for texts in _match_texts(queries, row)]
+            scores = [self._score(comparer, *texts) for texts in _match_texts(queries, row)]
             scores = [score for score in scores if score is not None]
             if not scores:
                 continue
@@ -1421,22 +1424,31 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
     def _query_abstract(self, text):
         return _abstract(text) if self.abstract else text
 
-    def _score(self, query, query_abstract, source, target, source_abstract):
+    def _comparer(self, source_langs):
+        """The comparer for sources in source_langs."""
+        rule = textfold.rule(source_langs)
+        if rule is None:
+            return self.comparer
+        if rule not in self._comparers:
+            self._comparers[rule] = textfold.Comparer(source_langs, self.max_length)
+        return self._comparers[rule]
+
+    def _score(self, comparer, query, query_abstract, source, target, source_abstract):
         """(quality, raw quality) of the entry source with target for
         query, or None below the minimum."""
-        raw_quality = self.comparer.similarity(query, source, self.min_similarity)
+        raw_quality = comparer.similarity(query, source, self.min_similarity)
         if not self.abstract:
             return (raw_quality, raw_quality) if raw_quality >= self.min_similarity else None
         if raw_quality < self.min_similarity:
             if source_abstract is None:
                 source_abstract = _abstract(source)
             # Penalties only lower it: an upper bound on the quality.
-            bound = self.comparer.similarity(query_abstract, source_abstract, self.min_similarity)
+            bound = comparer.similarity(query_abstract, source_abstract, self.min_similarity)
             if round(bound) < self.min_similarity:
                 return None
             # Cut short below the minimum: worked out in full.
-            raw_quality = self.comparer.similarity(query, source, 0)
-        adapted = adapt(query, source, target, raw_quality)
+            raw_quality = comparer.similarity(query, source, 0)
+        adapted = adapt(query, source, target, raw_quality, lang=comparer.lang)
         if adapted.quality < self.min_similarity:
             return None
         return adapted.quality, adapted.raw_quality
@@ -1932,6 +1944,41 @@ def _fulltext_words(text):
         longest = set(sorted(words, key=len, reverse=True)[:FULLTEXT_WORDS])
         words = [word for word in words if word in longest]
     return words
+
+
+FULLTEXT_TERMS = 4000
+"""Most terms a full-text query has, each word's forms in other cases
+counted (#4732)."""
+
+
+def _fulltext_terms(words, lang):
+    """The words of a full-text query, each in its other cases and forms
+    (textfold.case_forms): the index folds the case of ASCII letters only."""
+    terms = {}
+    for word in words:
+        for form in textfold.case_forms(word, lang):
+            terms.setdefault(_ascii_lower(form), form)
+    return list(terms.values())[:FULLTEXT_TERMS]
+
+
+def _ascii_lower(text):
+    return text.translate(_ASCII_LOWER)
+
+
+_ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+
+
+def _fulltext_finds(text, lang):
+    """Whether the full-text index finds text's matches: not for Greek
+    capitals, whose matches may have accents the words lack."""
+    return not (textfold.rule(lang) == textfold.GREEK_CAPITALS and textfold.is_capitals(text))
+
+
+def _windows(text, column):
+    """The (length, column) windows for text: its folded length too, if
+    folding changes it, as for "ß" or "ǅ"."""
+    folded = len(textfold.fold(text))
+    return [(len(text), column)] + ([(folded, column)] if folded != len(text) else [])
 
 
 def min_levenshtein_length(length, min_similarity):
