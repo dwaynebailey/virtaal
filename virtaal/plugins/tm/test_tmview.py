@@ -118,6 +118,11 @@ def test_select_match_index_does_nothing_past_the_end_of_the_list():
 # display_matches(): tooltip only names the first nine (Ctrl+1..Ctrl+9)
 
 
+def _ctrl(number):
+    # Ctrl+1 here, ⌃1 on macOS.
+    return Gtk.accelerator_get_label(Gdk.KEY_0 + number, Gdk.ModifierType.CONTROL_MASK)
+
+
 @pytest.fixture
 def match_keys():
     # What TMView._setup_key_bindings() registers.
@@ -139,7 +144,7 @@ def test_display_matches_adds_a_shortcut_tooltip_for_the_first_nine_only(match_k
     view.display_matches(matches)
 
     tooltips = [row[1] for row in view.tmwindow.liststore]
-    assert tooltips[:9] == ['Ctrl+%d' % n for n in range(1, 10)]
+    assert tooltips[:9] == [_ctrl(n) for n in range(1, 10)]
     assert tooltips[9:] == ['', '']
     assert shown == ['show', 'geometry']
 
@@ -154,8 +159,8 @@ def test_display_matches_shows_the_tm_target_of_an_adapted_match(match_keys):
 
     tooltips = [row[1] for row in view.tmwindow.liststore]
     assert tooltips == [
-        'Ctrl+1',
-        'Ctrl+2\nAdapted to this unit from: Klik &lt;strong&gt;hier&lt;/strong&gt;',
+        _ctrl(1),
+        _ctrl(2) + '\nAdapted to this unit from: Klik &lt;strong&gt;hier&lt;/strong&gt;',
     ]
 
 
