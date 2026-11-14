@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 08:00+0000\n"
+"POT-Creation-Date: 2026-11-14 08:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2253,9 +2253,10 @@ msgid "Amagama Sources"
 msgstr ""
 
 #: virtaal/plugins/tm/amagamadialog.py virtaal/plugins/tm/fetchdialog.py
-#: virtaal/plugins/tm/localtmdialog.py virtaal/support/crash_dialog.py
-#: virtaal/support/platforms/serversdialog.py virtaal/views/mainview.py
-#: virtaal/views/setscanview.py virtaal/views/widgets/selectdialog.py
+#: virtaal/plugins/tm/localtmdialog.py virtaal/plugins/tm/pretranslatedialog.py
+#: virtaal/support/crash_dialog.py virtaal/support/platforms/serversdialog.py
+#: virtaal/views/mainview.py virtaal/views/setscanview.py
+#: virtaal/views/widgets/selectdialog.py
 msgid "_Close"
 msgstr ""
 
@@ -2675,6 +2676,94 @@ msgstr ""
 msgid "_Port:"
 msgstr ""
 
+#. l10n: Pre-translate's result: how many units were filled from translation memories
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "From translation memory:"
+msgstr ""
+
+#. l10n: Pre-translate's result: how many units were filled with machine translation
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "From machine translation:"
+msgstr ""
+
+#. l10n: Pre-translate's result: how many units it found no suggestion for
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "Still to translate:"
+msgstr ""
+
+#. l10n: Pre-translate's result when it filled nothing
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "No suggestion was good enough to fill a unit."
+msgstr ""
+
+#. l10n: Pre-translate's result
+#: virtaal/plugins/tm/pretranslatedialog.py
+#, python-format
+msgid "Filled %(count)s unit."
+msgid_plural "Filled %(count)s units."
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: The title of the window that fills the units still to translate with suggestions
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "Pre-translate"
+msgstr ""
+
+#: virtaal/plugins/tm/pretranslatedialog.py
+#: virtaal/support/platforms/browsedialog.py
+#: virtaal/support/platforms/reviewview.py
+#: virtaal/support/platforms/serversdialog.py
+#: virtaal/support/platforms/submitdialog.py
+#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
+#: virtaal/views/widgets/settingsdialog.py
+msgid "_Cancel"
+msgstr ""
+
+#. l10n: Button: fills the units still to translate with their best suggestions
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "_Pre-translate"
+msgstr ""
+
+#. l10n: In the Pre-translate window: nothing to fill
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "Every unit has a translation already."
+msgstr ""
+
+#. l10n: The first lines of the Pre-translate window
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid ""
+"Fill the units still to translate with their best suggestion. Undo takes "
+"them all back at once."
+msgstr ""
+
+#. l10n: Before a list of percentages: the lowest quality of a translation memory match used
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "_Use matches of at least:"
+msgstr ""
+
+#. l10n: Check box in the Pre-translate window
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "Also use _machine translation fetched for these units"
+msgstr ""
+
+#. l10n: Check box in the Pre-translate window: an exact match is marked Translated, not for review
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "Mark _exact matches as translated"
+msgstr ""
+
+#. l10n: In the Pre-translate window; %(state)s is a state such as Needs review
+#: virtaal/plugins/tm/pretranslatedialog.py
+#, python-format
+msgid "The units filled are marked “%(state)s”, for you to review."
+msgstr ""
+
+#. l10n: In the Pre-translate window: online services are asked nothing; "Fetch Suggestions for This File" is in the File menu
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid ""
+"Online services fill only units whose suggestions were fetched with Fetch "
+"Suggestions for This File."
+msgstr ""
+
 #. l10n: A submenu of the target's context menu: the translation suggestions, to insert
 #. one at the cursor or over the selected text
 #: virtaal/plugins/tm/tmview.py
@@ -2718,6 +2807,11 @@ msgstr ""
 #. to translate, for use without a connection
 #: virtaal/plugins/tm/tmview.py
 msgid "Fetch Su_ggestions for This File…"
+msgstr ""
+
+#. l10n: Fills every unit of the file still to translate with its best suggestion, marked for review
+#: virtaal/plugins/tm/tmview.py
+msgid "Pre-translate T_his File…"
 msgstr ""
 
 #. l10n: Adds the translations in files the user picks to the local
@@ -2985,15 +3079,6 @@ msgid "%(count)s translation could not be downloaded:"
 msgid_plural "%(count)s translations could not be downloaded:"
 msgstr[0] ""
 msgstr[1] ""
-
-#: virtaal/support/platforms/browsedialog.py
-#: virtaal/support/platforms/reviewview.py
-#: virtaal/support/platforms/serversdialog.py
-#: virtaal/support/platforms/submitdialog.py
-#: virtaal/support/platforms/updatedialog.py virtaal/views/mainview.py
-#: virtaal/views/widgets/settingsdialog.py
-msgid "_Cancel"
-msgstr ""
 
 #. l10n: Placeholder of the box filtering a translation server's projects
 #: virtaal/support/platforms/browsedialog.py

@@ -1425,6 +1425,40 @@ def test_fetch_suggestions_follows_export_and_needs_an_open_file():
     assert not view.mnu_fetch.get_sensitive()
 
 
+def test_pre_translate_follows_fetch_suggestions_and_needs_an_open_file():
+    view, _main_window, _groups = _real_tmview()
+    gui = view.controller.main_controller.view.gui
+    items = gui.get_object('menuitem_file').get_submenu().get_children()
+
+    assert items[items.index(view.mnu_fetch) + 1] is view.mnu_pretranslate
+    assert view.mnu_pretranslate.get_label() == 'Pre-translate T_his File…'
+    assert not view.mnu_pretranslate.get_sensitive()
+    view.controller.main_controller.store_controller.emit('store-loaded')
+    assert view.mnu_pretranslate.get_sensitive()
+    view.controller.main_controller.store_controller.emit('store-closed')
+    assert not view.mnu_pretranslate.get_sensitive()
+
+
+def test_pre_translate_opens_its_dialog(monkeypatch):
+    from virtaal.plugins.tm import pretranslatedialog
+
+    opened = []
+
+    class _Dialog:
+        def __init__(self, controller, parent):
+            opened.append((controller, parent))
+
+        def show(self):
+            opened.append('shown')
+
+    monkeypatch.setattr(pretranslatedialog, 'PretranslateDialog', _Dialog)
+    view, main_window, _groups = _real_tmview()
+
+    view.mnu_pretranslate.activate()
+
+    assert opened == [(view.controller, main_window), 'shown']
+
+
 def test_fetch_suggestions_opens_the_dialog_for_the_loaded_backends(monkeypatch):
     from virtaal.plugins.tm import fetchdialog
 

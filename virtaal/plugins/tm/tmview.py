@@ -73,6 +73,8 @@ class TMView(BaseView, GObjectWrapper):
 
     # File > Fetch Suggestions for This File… (#1679).
     mnu_fetch = None
+    # File > Pre-translate This File…
+    mnu_pretranslate = None
     # File > Import into Translation Memory…, and the model it imports into.
     mnu_import = None
     _import_model = None
@@ -347,9 +349,10 @@ class TMView(BaseView, GObjectWrapper):
         self.menu.remove(self.mnu_suggestions)
         self.menu.remove(self.mnu_translated)
         self.menu.remove(self.mnu_summon)
-        if self.mnu_fetch is not None:
-            self.mnu_fetch.get_parent().remove(self.mnu_fetch)
-            self.mnu_fetch = None
+        for item in (self.mnu_fetch, self.mnu_pretranslate):
+            if item is not None:
+                item.get_parent().remove(item)
+        self.mnu_fetch = self.mnu_pretranslate = None
         self.remove_import_menu_item()
         self.remove_exclude_menu_item()
         self._match_menu.destroy()
@@ -369,6 +372,15 @@ class TMView(BaseView, GObjectWrapper):
         self.mnu_fetch.set_sensitive(get_store() is not None)
         self.mnu_fetch.connect('activate', self._on_fetch)
         self.mnu_fetch.show()
+
+        self.mnu_pretranslate = Gtk.MenuItem.new_with_mnemonic(
+            # l10n: Fills every unit of the file still to translate with its best suggestion, marked for review
+            _('Pre-translate T_his File…')
+        )
+        menu.insert(self.mnu_pretranslate, menu.get_children().index(self.mnu_fetch) + 1)
+        self.mnu_pretranslate.set_sensitive(get_store() is not None)
+        self.mnu_pretranslate.connect('activate', self._on_pretranslate)
+        self.mnu_pretranslate.show()
         getattr(mainview, 'sync_menubar', lambda: None)()
 
     def add_import_menu_item(self, model):
@@ -701,6 +713,12 @@ class TMView(BaseView, GObjectWrapper):
         parent = self.controller.main_controller.view.main_window
         FetchSuggestionsDialog(self.controller, models, parent).show()
 
+    def _on_pretranslate(self, _item=None):
+        from .pretranslatedialog import PretranslateDialog
+
+        parent = self.controller.main_controller.view.main_window
+        PretranslateDialog(self.controller, parent).show()
+
     def select_backends(self, parent):
         from virtaal.views.backendselect import select_backends
 
@@ -949,15 +967,17 @@ class TMView(BaseView, GObjectWrapper):
         self.hide()
         self.mnu_suggestions.set_sensitive(False)
         self.mnu_summon.set_sensitive(False)
-        if self.mnu_fetch is not None:
-            self.mnu_fetch.set_sensitive(False)
+        for item in (self.mnu_fetch, self.mnu_pretranslate):
+            if item is not None:
+                item.set_sensitive(False)
         self._show_add_on_save()
 
     def _on_store_loaded(self, storecontroller):
         self.mnu_suggestions.set_sensitive(True)
         self.mnu_summon.set_sensitive(True)
-        if self.mnu_fetch is not None:
-            self.mnu_fetch.set_sensitive(True)
+        for item in (self.mnu_fetch, self.mnu_pretranslate):
+            if item is not None:
+                item.set_sensitive(True)
         self._show_add_on_save()
 
     def _on_store_saved(self, storecontroller):
