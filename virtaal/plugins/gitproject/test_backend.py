@@ -198,6 +198,9 @@ def test_addresses_git_takes_are_kept_as_typed(platform):
         assert platform.normalise_url(url) is None
     assert platform.url_problem('http://example.org/x.git')
     assert platform.url_problem('https://example.org/x.git') is None
+    assert platform.url_problem('http://127.0.0.1:8765/team.git') is None
+    assert platform.url_problem('http://localhost/team.git') is None
+    assert platform.url_problem('http://127.example.org/team.git')
 
 
 def test_a_project_is_named_and_kept_apart_by_host_path_and_branch():

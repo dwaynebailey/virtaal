@@ -35,6 +35,7 @@ which leaves keeping them to the system's password store.
 
 import hashlib
 import io
+import ipaddress
 import os
 import re
 import threading
@@ -88,6 +89,17 @@ _ERRORS = {
 _BAD_BRANCH = re.compile(r'[\x00-\x20\x7f~^:?*\[\\]|\.\.|@\{|//|^[-/.]|[/.]$|\.lock$|^@$')
 _SCP = re.compile(r'^[^/\s:]+:[^\s]')
 _SCHEME = re.compile(r'^[a-zA-Z][a-zA-Z0-9+.-]*://\S+$')
+
+
+def _loopback(url):
+    """Whether url's host is this computer, where http stays on it."""
+    host = (parse.urlsplit(url).hostname or '').lower()
+    if host == 'localhost':
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 class Changed(Exception):
@@ -515,7 +527,8 @@ class GitPlatform(Platform):
         return None
 
     def url_problem(self, text):
-        if (text or '').strip().lower().startswith('http://'):
+        text = (text or '').strip()
+        if text.lower().startswith('http://') and not _loopback(text):
             # l10n: Shown for an address starting http:// instead of https://
             return _('Use https: the token would be sent unencrypted.')
         return None
