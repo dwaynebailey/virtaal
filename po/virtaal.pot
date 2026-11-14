@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 13:16+0000\n"
+"POT-Creation-Date: 2026-11-14 14:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -217,7 +217,7 @@ msgstr ""
 msgid "Check All Lan_guages…"
 msgstr ""
 
-#. l10n: Opens a window that finds a word or phrase in the translation memory and the files open, with its translations
+#. l10n: Opens a panel under the units that finds a word or phrase in the translation memory and the files open, with its translations
 #: share/virtaal/virtaal.ui
 msgid "Se_arch Translation Memory…"
 msgstr ""
@@ -260,6 +260,11 @@ msgstr ""
 
 #: share/virtaal/virtaal.ui
 msgid "Files _Panel"
+msgstr ""
+
+#. l10n: Shows or hides the panel under the units that finds a word or phrase in the translation memory and the files open
+#: share/virtaal/virtaal.ui
+msgid "Translation _Memory Search"
 msgstr ""
 
 #. l10n: Marks every space in the text with a dot. Unusual spaces are always marked.
@@ -3961,6 +3966,67 @@ msgid ""
 "changes"
 msgstr ""
 
+#. l10n: Placeholder of the search box in Find in All Languages
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "Text to find"
+msgstr ""
+
+#. l10n: Check box in Find in All Languages: search the source text
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "S_ource"
+msgstr ""
+
+#. l10n: Check box in Find in All Languages: search the translations
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "_Translation"
+msgstr ""
+
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "C_ase sensitive"
+msgstr ""
+
+#. l10n: Check box in the Translation Memory Search panel: find only whole words
+#. l10n: Check box in Search Translation Memory: find only whole words
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "_Whole words"
+msgstr ""
+
+#. l10n: The name screen readers give the list of the Translation Memory Search panel
+#. l10n: Window title
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "Search Translation Memory"
+msgstr ""
+
+#. l10n: Column heading: the source text of a unit
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "Source"
+msgstr ""
+
+#. l10n: Column heading: the translation of a unit
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "Translation"
+msgstr ""
+
+#. l10n: Column heading in the Translation Memory Search panel: the file
+#. or source a translation is from
+#. l10n: Column heading in Search Translation Memory: the file or source a translation is from
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "Found in"
+msgstr ""
+
+#. l10n: Button in the Translation Memory Search panel: puts the
+#. translation chosen at the cursor
+#. l10n: Button in Search Translation Memory: puts the translation chosen at the cursor
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "_Insert"
+msgstr ""
+
+#. l10n: Button in the Translation Memory Search panel: moves to the unit of an open file
+#. l10n: Button in Search Translation Memory: moves to the unit of an open file
+#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+msgid "_Go to Unit"
+msgstr ""
+
 #. l10n: Tooltip of a file's or folder's percentage in the files panel
 #: virtaal/views/filepanelview.py
 #, python-format
@@ -4473,11 +4539,6 @@ msgstr ""
 
 #. l10n: Window title
 #: virtaal/views/setscanview.py
-msgid "Search Translation Memory"
-msgstr ""
-
-#. l10n: Window title
-#: virtaal/views/setscanview.py
 msgid "Find in All Languages"
 msgstr ""
 
@@ -4496,30 +4557,6 @@ msgstr ""
 msgid "Ch_eck"
 msgstr ""
 
-#. l10n: Placeholder of the search box in Find in All Languages
-#: virtaal/views/setscanview.py
-msgid "Text to find"
-msgstr ""
-
-#. l10n: Check box in Find in All Languages: search the source text
-#: virtaal/views/setscanview.py
-msgid "S_ource"
-msgstr ""
-
-#. l10n: Check box in Find in All Languages: search the translations
-#: virtaal/views/setscanview.py
-msgid "_Translation"
-msgstr ""
-
-#: virtaal/views/setscanview.py
-msgid "C_ase sensitive"
-msgstr ""
-
-#. l10n: Check box in Search Translation Memory: find only whole words
-#: virtaal/views/setscanview.py
-msgid "_Whole words"
-msgstr ""
-
 #: virtaal/views/setscanview.py
 msgid "_Find"
 msgstr ""
@@ -4532,31 +4569,6 @@ msgstr ""
 #. l10n: Column heading: the unit's number in its file
 #: virtaal/views/setscanview.py
 msgid "Unit"
-msgstr ""
-
-#. l10n: Column heading: the source text of a unit
-#: virtaal/views/setscanview.py
-msgid "Source"
-msgstr ""
-
-#. l10n: Column heading: the translation of a unit
-#: virtaal/views/setscanview.py
-msgid "Translation"
-msgstr ""
-
-#. l10n: Button in Search Translation Memory: puts the translation chosen at the cursor
-#: virtaal/views/setscanview.py
-msgid "_Insert"
-msgstr ""
-
-#. l10n: Button in Search Translation Memory: moves to the unit of an open file
-#: virtaal/views/setscanview.py
-msgid "_Go to Unit"
-msgstr ""
-
-#. l10n: Column heading in Search Translation Memory: the file or source a translation is from
-#: virtaal/views/setscanview.py
-msgid "Found in"
 msgstr ""
 
 #. l10n: Where a translation in a Trados Studio, Phrase or Wordfast

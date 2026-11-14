@@ -964,7 +964,7 @@ If you are translating from English to French then French would be your translat
                         <property name="sensitive">False</property>
                         <property name="can_focus">False</property>
                         <property name="use_action_appearance">False</property>
-                        <property name="label" translatable="yes" comments="l10n: Opens a window that finds a word or phrase in the translation memory and the files open, with its translations">Se_arch Translation Memory…</property>
+                        <property name="label" translatable="yes" comments="l10n: Opens a panel under the units that finds a word or phrase in the translation memory and the files open, with its translations">Se_arch Translation Memory…</property>
                         <property name="use_underline">True</property>
                       </object>
                     </child>
@@ -1081,6 +1081,16 @@ If you are translating from English to French then French would be your translat
                         <property name="label" translatable="yes">Files _Panel</property>
                         <property name="use_underline">True</property>
                         <property name="accel_path">&lt;Virtaal&gt;/View/Files Panel</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkCheckMenuItem" id="mnu_concordance_panel">
+                        <property name="visible">True</property>
+                        <property name="sensitive">False</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="label" translatable="yes" comments="l10n: Shows or hides the panel under the units that finds a word or phrase in the translation memory and the files open">Translation _Memory Search</property>
+                        <property name="use_underline">True</property>
                       </object>
                     </child>
                     <child>

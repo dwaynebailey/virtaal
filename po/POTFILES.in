@@ -79,6 +79,7 @@ virtaal/support/tutorial.py
 virtaal/views/backendselect.py
 virtaal/views/checksprojview.py
 virtaal/views/checksunitview.py
+virtaal/views/concordancepanel.py
 virtaal/views/filepanelview.py
 virtaal/views/langview.py
 virtaal/views/mainview.py

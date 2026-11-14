@@ -7,13 +7,14 @@
 
 """Edit > Search Translation Memory…: a word or phrase in the files open
 and the sources of translations that can search for one, listed in a
-window to insert from."""
+panel under the units to insert from."""
 
 import datetime
 import os
 
 from gi.repository import Gdk, GLib, Gtk
 
+from virtaal.common import pan_app
 from virtaal.common.pan_app import ngettext
 from virtaal.support import concordance, inlinecodes
 from virtaal.support.libi18n.numbers import format_number
@@ -128,7 +129,7 @@ def row_markup(match, side):
 
 class ConcordanceController:
     """Runs a search in every source that can search for a phrase, and
-    keeps its window."""
+    keeps its panel."""
 
     def __init__(self, tm_controller):
         self.tm_controller = tm_controller
@@ -147,12 +148,19 @@ class ConcordanceController:
         self.menu_item = mainview.gui.get_object('mnu_search_tm')
         self._activate_id = self.menu_item.connect('activate', self.show)
         self._setup_accelerator(mainview)
-        self.menu_item.set_sensitive(True)
+        self.view_item = mainview.gui.get_object('mnu_concordance_panel')
+        self._toggled_id = self.view_item.connect('toggled', self._on_view_toggled)
+        self._syncing_menu = False
         store_controller = self.main_controller.store_controller
         self._store_ids = [
-            store_controller.connect(signal, self._on_store_changed)
-            for signal in ('store-loaded', 'store-closed')
+            store_controller.connect('store-loaded', self._on_store_loaded),
+            store_controller.connect('store-closed', self._on_store_closed),
         ]
+        # Built now: putting it in place moves the units, and the focus
+        # with them.
+        self._view()
+        if store_controller.get_store() is not None:
+            self._on_store_loaded(store_controller)
 
     def _setup_accelerator(self, mainview):
         Gtk.AccelMap.add_entry(ACCEL_PATH, Gdk.KEY_k, Gdk.ModifierType.CONTROL_MASK)
@@ -174,30 +182,62 @@ class ConcordanceController:
         for signal_id in self._store_ids:
             self.main_controller.store_controller.disconnect(signal_id)
         self.menu_item.disconnect(self._activate_id)
-        self.menu_item.set_sensitive(False)
+        self.view_item.disconnect(self._toggled_id)
+        self._sync_view_item(False)
+        for item in (self.menu_item, self.view_item):
+            item.set_sensitive(False)
         if self.view is not None:
             self.view.destroy()
             self.view = None
 
     # METHODS #
     def show(self, *_args):
-        view = self._view()
-        if view.dialog.is_active():
-            # macOS: the menu's shortcut reaches the main window's menu.
-            view.show()
-            return
+        """Ctrl+K: search the text selected in the unit, else go to the
+        panel's entry; from the panel, go back to the translation."""
         text, side = self._selection()
+        view = self._view()
+        if view.shown and view.has_focus():
+            self.focus_editor()
+            return
         if text:
             view.set_search(text, side)
-        view.show()
+        self.set_shown(True)
         if text and view.can_start():
             self.start()
+            view.focus_results()
+        else:
+            view.focus_entry()
+
+    def set_shown(self, shown):
+        view = self._view()
+        if shown:
+            view.show()
+        else:
+            if view.has_focus():
+                self.focus_editor()
+            view.hide()
+        pan_app.settings.general['concordancepanel'] = '1' if shown else ''
+        self._sync_view_item(shown)
+
+    def _sync_view_item(self, shown):
+        self._syncing_menu = True
+        try:
+            self.view_item.set_active(shown)
+        finally:
+            self._syncing_menu = False
+
+    def focus_editor(self):
+        """Put the focus back in the translation being edited."""
+        unit_view = getattr(self.main_controller.unit_controller, 'view', None)
+        targets = getattr(unit_view, 'targets', None)
+        if targets:
+            targets[min(unit_view.focused_target_n or 0, len(targets) - 1)].grab_focus()
 
     def _view(self):
         if self.view is None:
-            from virtaal.views.setscanview import KIND_CONCORDANCE, SetScanView
+            from virtaal.views.concordancepanel import ConcordancePanel
 
-            self.view = SetScanView(self, KIND_CONCORDANCE, (), ())
+            self.view = ConcordancePanel(self)
         return self.view
 
     def _selection(self):
@@ -215,7 +255,7 @@ class ConcordanceController:
         return '', None
 
     def start(self, _kind=None):
-        """Search every source for the phrase in the window."""
+        """Search every source for the phrase in the panel."""
         self.stop()
         search = self.view.search()
         self._query = concordance.Query(search['text'], search['case'], search['whole_words'])
@@ -353,11 +393,31 @@ class ConcordanceController:
         return self.matches[index]
 
     # EVENT HANDLERS #
-    def _on_store_changed(self, *_args):
+    def _on_store_loaded(self, store_controller):
+        self._drop_open_files()
+        for item in (self.menu_item, self.view_item):
+            item.set_sensitive(True)
+        if pan_app.config_bool(pan_app.settings.general.get('concordancepanel', '')):
+            self._view().show()
+            self._sync_view_item(True)
+
+    def _on_store_closed(self, _store_controller):
+        self._drop_open_files()
+        for item in (self.menu_item, self.view_item):
+            item.set_sensitive(False)
+
+    def _drop_open_files(self):
         """The files open's matches go with them."""
         self.stop()
         if self._found.pop(open_files_name(), None) is not None and self.view is not None:
             self._update()
+
+    def _on_view_toggled(self, item):
+        if self._syncing_menu:
+            return
+        self.set_shown(item.get_active())
+        if item.get_active():
+            self.view.focus_entry()
 
     def _on_found(self, generation, name, matches, total, complete, first):
         if generation != self._generation:
