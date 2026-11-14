@@ -494,7 +494,7 @@ class GitPlatform(Platform):
         text = (text or '').strip()
         if not text or text.startswith('-') or re.search(r'\s', text):
             return None
-        if _SCHEME.match(text) or _SCP.match(text) or os.path.isabs(text):
+        if _SCHEME.match(text) or _SCP.match(text) or os.path.isabs(text) or text[0] in '/\\':
             return text
         return None
 
