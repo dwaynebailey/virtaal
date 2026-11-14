@@ -359,6 +359,8 @@ class TestConcordancePanel(TestScaffolding):
 
     def test_it_goes_inside_the_files_panel(self):
         # The files panel is beside the units, the full height.
+        # A TMController destroyed with a file open still hears it close.
+        self.store_controller.close_file()
         self.tm.destroy()
         hbox = self.main_controller.view.gui.get_object('scrwnd_storeview').get_parent()
         files = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
@@ -377,6 +379,8 @@ class TestConcordancePanel(TestScaffolding):
             self.tm = TMController(self.main_controller, {'disabled_models': MODELS})
 
     def test_destroying_it_puts_the_units_back(self):
+        # A TMController destroyed with a file open still hears it close.
+        self.store_controller.close_file()
         self.conc._view()
         vbox = self.main_controller.view.gui.get_object('vbox_main')
         storeview = self.main_controller.view.gui.get_object('scrwnd_storeview')
@@ -398,6 +402,8 @@ class TestConcordancePanel(TestScaffolding):
 
     @pytest.mark.parametrize('first', [0, 1])
     def test_two_panels_put_the_units_back_in_either_order(self, first):
+        # A TMController destroyed with a file open still hears it close.
+        self.store_controller.close_file()
         vbox = self.main_controller.view.gui.get_object('vbox_main')
         storeview = self.main_controller.view.gui.get_object('scrwnd_storeview')
         tms = [self.tm, TMController(self.main_controller, {'disabled_models': MODELS})]
