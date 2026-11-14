@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-06 06:39+0000\n"
+"POT-Creation-Date: 2026-11-14 05:27+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2415,17 +2415,11 @@ msgid "PO Template Files"
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid ""
-"The current file has been modified.\n"
-"Do you want to save your changes?"
+msgid "_Don’t Save"
 msgstr ""
 
 #: virtaal/views/mainview.py virtaal/views/propertiesview.py
 msgid "_Save"
-msgstr ""
-
-#: virtaal/views/mainview.py
-msgid "_Discard"
 msgstr ""
 
 #: virtaal/views/mainview.py
@@ -2460,6 +2454,15 @@ msgstr ""
 
 #: virtaal/views/mainview.py
 msgid "Header information"
+msgstr ""
+
+#: virtaal/views/mainview.py
+msgid "If you don’t save, your changes will be lost."
+msgstr ""
+
+#: virtaal/views/mainview.py
+#, python-format
+msgid "Save changes to “%(filename)s”?"
 msgstr ""
 
 #: virtaal/views/mainview.py

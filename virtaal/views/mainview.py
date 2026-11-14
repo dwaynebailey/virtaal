@@ -583,18 +583,17 @@ class MainView(BaseView):
 
     @cached_property
     def confirm_dialog(self):
-        # Save confirmation dialog (Save/Discard/Cancel buttons)
+        # Save confirmation dialog (Don't Save/Cancel/Save buttons)
         (RESPONSE_SAVE, RESPONSE_DISCARD) = (Gtk.ResponseType.YES, Gtk.ResponseType.NO)
         dialog = Gtk.MessageDialog(
             transient_for=self.main_window,
             modal=True,
             message_type=Gtk.MessageType.QUESTION,
             buttons=Gtk.ButtonsType.NONE,
-            text=_("The current file has been modified.\nDo you want to save your changes?"),
         )
-        dialog.__save_button = dialog.add_button(_("_Save"), RESPONSE_SAVE)
-        dialog.add_button(_("_Discard"), RESPONSE_DISCARD)
+        dialog.add_button(_("_Don’t Save"), RESPONSE_DISCARD)
         dialog.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
+        dialog.__save_button = dialog.add_button(_("_Save"), RESPONSE_SAVE)
         dialog.set_default_response(RESPONSE_SAVE)
         return dialog
 
@@ -1198,6 +1197,11 @@ class MainView(BaseView):
     def show_save_confirm_dialog(self):
         """@returns: One of C{'save'}, C{'discard'}, or C{'cancel'},
         depending on the button pressed."""
+        lost = _("If you don’t save, your changes will be lost.")
+        self.confirm_dialog.props.text = _("Save changes to “%(filename)s”?") % {
+            'filename': os.path.basename(self.controller.get_store_filename() or '')
+        }
+        self.confirm_dialog.props.secondary_text = lost
         self.confirm_dialog.set_transient_for(self._top_window)
         old_top = self._top_window
         self._top_window = self.confirm_dialog

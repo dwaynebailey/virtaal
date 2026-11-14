@@ -1566,9 +1566,9 @@ Invoke-VirtaalCheck "Ctrl+S with missing translator info prompts, then saves" {
 Invoke-VirtaalCheck "Real unsaved-changes dialog appears and Discard works" {
     # Never tested before this either - every earlier check that closes
     # a file either isn't actually dirty, or already undid its change
-    # first. mainview.py's confirm_dialog has three buttons (Save/
-    # _Discard/Cancel, Save is the *default* response) - explicitly
-    # activating Discard via its own Alt+D mnemonic rather than
+    # first. mainview.py's confirm_dialog has three buttons (_Don't
+    # Save/Cancel/Save, Save is the *default* response) - explicitly
+    # activating Don't Save via its own Alt+D mnemonic rather than
     # Enter/the default button, since accidentally hitting Save here
     # would write real content (mitigated anyway by using a scratch
     # copy, but there's no reason to rely on that as the only

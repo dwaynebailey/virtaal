@@ -276,6 +276,7 @@ domains:
     - Fuzzy
     - GConf values
     - Highlighting and insertion of placeables
+    - If you don’t save, your changes will be lost.
     - Load Priority File…
     - Local TM
     - Long
@@ -302,6 +303,7 @@ domains:
     - Replace with
     - Save
     - Save As…
+    - Save changes to “%(filename)s”?
     - Select Checks
     - Select States
     - Short
@@ -315,9 +317,6 @@ domains:
     - TM Source
     - Tabs
     - Terminology assistance
-    - 'The current file has been modified.
-
-      Do you want to save your changes?'
     - This file
     - Translation memory
     - Translator credits
@@ -327,7 +326,7 @@ domains:
     - You selected the currently open file for opening. Do you want to reload the file?
     - _Cancel
     - _Case sensitive
-    - _Discard
+    - _Don’t Save
     - _New Language Pair…
     - _Regular expression
     - _Save
