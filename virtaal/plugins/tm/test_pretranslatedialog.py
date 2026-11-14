@@ -105,6 +105,7 @@ def test_it_fills_and_says_what_it_filled(idle):
     store = _store(('Open', ''), ('Close', ''), ('Quit', 'Hou op'))
     dialog = _dialog(store, [OPEN])
     dialog.show()
+    assert not dialog.close_button.get_visible()
 
     dialog.dialog.response(RESPONSE_RUN)
     idle()
@@ -116,6 +117,8 @@ def test_it_fills_and_says_what_it_filled(idle):
     assert dialog.intro.get_text() == 'Filled 1 unit.'
     labels = [child.get_text() for child in reversed(dialog.summary.get_children())]
     assert labels == ['From translation memory:', '1', 'Still to translate:', '1']
+    assert dialog.summary.get_visible()
+    assert all(child.get_visible() for child in dialog.summary.get_children())
     assert dialog.close_button.get_visible()
     assert not dialog.run_button.get_visible()
     dialog.dialog.destroy()

@@ -79,6 +79,7 @@ class PretranslateDialog:
         self.run_button = self.dialog.add_button(_('_Pre-translate'), RESPONSE_RUN)
         self.close_button = self.dialog.add_button(_('_Close'), Gtk.ResponseType.CLOSE)
         self.close_button.set_no_show_all(True)
+        self.close_button.hide()
         self.dialog.set_default_response(RESPONSE_RUN)
         self.dialog.connect('response', self._on_response)
 
@@ -216,11 +217,15 @@ class PretranslateDialog:
         for row, (text, count) in enumerate(summary_rows(result, self.options)):
             self.summary.attach(Gtk.Label(label=text, xalign=0), 0, row, 1, 1)
             self.summary.attach(Gtk.Label(label=format_number(count), xalign=1), 1, row, 1, 1)
-        self.summary.show_all()
+        for child in self.summary.get_children():
+            child.show()
+        self.summary.show()
         self.cancel_button.hide()
         self.run_button.hide()
         self.close_button.show()
         self.close_button.grab_focus()
+        # As small as what is left in it.
+        self.dialog.resize(1, 1)
 
     # EVENT HANDLERS #
     def _on_progress(self, done, total):
