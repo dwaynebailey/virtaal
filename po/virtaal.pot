@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 05:35+0000\n"
+"POT-Creation-Date: 2026-11-14 05:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -116,16 +116,20 @@ msgstr ""
 msgid "_File"
 msgstr ""
 
+#: share/virtaal/virtaal.ui virtaal/views/mainview.py
+msgid "Save _As…"
+msgstr ""
+
 #: share/virtaal/virtaal.ui
 msgid "Re_vert to Saved"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "_Update from Template"
+msgid "_Update from Template…"
 msgstr ""
 
-#: share/virtaal/virtaal.ui
-msgid "_Export"
+#: share/virtaal/virtaal.ui virtaal/plugins/tm/localtmdialog.py
+msgid "_Export…"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -334,11 +338,11 @@ msgid "Properties"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Saved file"
+msgid "Saved File"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "With unsaved changes"
+msgid "With Unsaved Changes"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -379,6 +383,10 @@ msgid "Terminology Files"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
+msgid "_Add…"
+msgstr ""
+
+#: share/virtaal/virtaal.ui
 msgid "Add Web Look-up"
 msgstr ""
 
@@ -391,7 +399,7 @@ msgid "_URL:"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Put queries in quotes"
+msgid "_Quote query"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -1354,7 +1362,7 @@ msgstr ""
 
 #: virtaal/plugins/lookup/lookupview.py
 #, python-format
-msgid "_Look-up \"%(selection)s\""
+msgid "_Look Up “%(selection)s”"
 msgstr ""
 
 #. l10n: plugin name
@@ -1384,7 +1392,7 @@ msgstr ""
 #. l10n: %(language)s is a language name, e.g. "Afrikaans"
 #: virtaal/plugins/lookup/models/thesaurus.py
 #, python-format
-msgid "Do_wnload %(language)s thesaurus…"
+msgid "Do_wnload %(language)s thesaurus"
 msgstr ""
 
 #. l10n: The menu entry offering synonyms for the selected word.
@@ -1398,7 +1406,7 @@ msgid "Web Look-up"
 msgstr ""
 
 #: virtaal/plugins/lookup/models/weblookup.py
-msgid "Look-up the selected text on a web site"
+msgid "Look up the selected text on a website"
 msgstr ""
 
 #. l10n: Try to keep this as short as possible. Feel free to transliterate.
@@ -1677,10 +1685,6 @@ msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py virtaal/plugins/tm/tmview.py
 msgid "_Remove"
-msgstr ""
-
-#: virtaal/plugins/tm/localtmdialog.py
-msgid "_Export…"
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py virtaal/support/crash_dialog.py
@@ -2553,10 +2557,6 @@ msgid "This file is read-only."
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid "Save _As…"
-msgstr ""
-
-#: virtaal/views/mainview.py
 msgid "Logs"
 msgstr ""
 
@@ -2807,7 +2807,7 @@ msgid "Show file properties and statistics"
 msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py
-msgid "Toggle fullscreen mode"
+msgid "Turn full screen on or off"
 msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py

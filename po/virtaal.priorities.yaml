@@ -39,7 +39,6 @@ domains:
     - Home
     - No items found
     - "Stock label\x04Cu_t"
-    - "Stock label\x04Save _As"
     - "Stock label\x04_About"
     - "Stock label\x04_Close"
     - "Stock label\x04_Copy"
@@ -226,7 +225,7 @@ domains:
     - Untranslated
     - Workflow
     - _Edit
-    - _Export
+    - _Export…
     - _File
     - _Find…
     - _First Unit
@@ -245,7 +244,7 @@ domains:
     - _Recent Files
     - _Redo
     - _Tutorial
-    - _Update from Template
+    - _Update from Template…
     - _View
     1~:
     - '%(modified_marker)s%(current_file)s - Virtaal'
@@ -322,6 +321,7 @@ domains:
     - _Cancel
     - _Case sensitive
     - _Don’t Save
+    - _Look Up “%(selection)s”
     - _New Language Pair…
     - _Regular expression
     - _Reload
@@ -468,7 +468,6 @@ domains:
     - Report a bug on GitHub
     - Save the current file
     - Save the current file under a new name
-    - Saved file
     - Select next placeable
     - Select previous placeable
     - Settings
@@ -531,7 +530,6 @@ domains:
     - This translation contains an ambiguous word - it has two possible meanings. Make sure you can see the context information showing that this is a noun (a thing as in "click to change the view to full screen"). If Virtaal gives your previous translation as a suggestion, take care to only use it if it is definitely appropriate in this case as well.
     - This translation contains an ambiguous word - it has two possible meanings. Make sure you can see the context information showing that this is a verb (an action as in "click here to view it").
     - This tutorial will show you some of the things you might want to pay attention to while translating software programs. It will help you to avoid some problems and produce translations of a higher quality.
-    - Toggle fullscreen mode
     - Total
     - Trados Translation Memory
     - Translate
@@ -561,7 +559,6 @@ domains:
     - 'We thank our donors:'
     - Welcome to the Virtaal tutorial. You can do the first translation by typing just the translation for "Welcome". Then press Enter.
     - WiX Localization File
-    - With unsaved changes
     - Wordfast Translation Memory
     - Words containing uppercase letters only
     - Words with internal capitalization, such as some brand names and WikiWords
@@ -627,7 +624,6 @@ domains:
     - Localization Terminology
     - Logs
     - Look up synonyms for the selected word
-    - Look-up the selected text on a web site
     - Moses
     - Mozilla Pontoon
     - Names starting with "virtaal-" are reserved.
@@ -647,7 +643,6 @@ domains:
     - Previous translations for Free and Open Source Software
     - Previous translations you have made
     - Project Type
-    - Put queries in quotes
     - Quote Query
     - Rejected
     - 'Rejected:'

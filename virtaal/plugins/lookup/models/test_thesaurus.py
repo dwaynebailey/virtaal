@@ -659,7 +659,7 @@ def test_create_menu_items_download_button_names_the_language():
     items = model.create_menu_items('word', 'source', 'af_ZA', 'en', None)
 
     assert len(items) == 1
-    assert items[0].get_label() == 'Do_wnload Afrikaans thesaurus…'
+    assert items[0].get_label() == 'Do_wnload Afrikaans thesaurus'
     assert items[0].get_sensitive()
 
 

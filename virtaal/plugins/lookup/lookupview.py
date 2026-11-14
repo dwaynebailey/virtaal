@@ -54,14 +54,14 @@ class LookupView(BaseView):
 
     def _on_populate_popup(self, textbox, menu):
         selection = self._word_selector.selected_text(textbox.buffer)
-        if selection is None:
+        if selection is None or not selection.strip():
             return
         role = textbox.role
         srclang = self.lang_controller.source_lang.code
         tgtlang = self.lang_controller.target_lang.code
 
         lookup_menu = Gtk.Menu()
-        selection_entry = _('_Look-up "%(selection)s"') % {
+        selection_entry = _('_Look Up “%(selection)s”') % {
             'selection': selection.replace('_', '__')
         }
         menu_item = Gtk.MenuItem(label=selection_entry, use_underline=True)

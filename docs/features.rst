@@ -23,7 +23,7 @@ Virtaal is perfect for the new member on your team:
 - :doc:`Quality checks <checks>`
 - Displays comments from programmers and previous translators
 - Displays context (like msgctxt in PO)
-- Easy way to :doc:`look-up <weblookups>` selected text on the web
+- Easy way to :doc:`look up <weblookups>` selected text on the web
 - Tutorial and :wiki:`guide <guide/start>` for localisation available from the
   Help menu
 

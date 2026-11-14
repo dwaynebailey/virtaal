@@ -48,12 +48,12 @@ from virtaal.views.baseview import BaseView
 
 
 class LookupModel(BaseLookupModel):
-    """Look-up the selected string on the web."""
+    """Look up the selected string on the web."""
 
     __gtype_name__ = 'WebLookupModel'
     # l10n: plugin name
     display_name = _('Web Look-up')
-    description = _('Look-up the selected text on a web site')
+    description = _('Look up the selected text on a website')
 
     URLDATA = [
         {
