@@ -5,7 +5,9 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""Compatibility shim around translate-toolkit's search.match.matcher.
+"""Compatibility shim around translate-toolkit's search.match.matcher,
+which compares sources past case and Unicode form (textfold) in its
+source language (set_language).
 
 Fixes two upstream bugs:
 
@@ -34,10 +36,23 @@ from operator import itemgetter
 from translate.search.match import matcher as _UpstreamMatcher
 from translate.search.match import sourcelen
 
+from virtaal.support import textfold
+
 
 class matcher(_UpstreamMatcher):
     """matcher with the heapq tie-breaking crash and the quality-note
-    rounding bug fixed."""
+    rounding bug fixed, comparing folded sources."""
+
+    def __init__(self, store, *args, lang=None, **kwargs) -> None:
+        self.lang = lang
+        super().__init__(store, *args, **kwargs)
+        if kwargs.get('comparer') is None and len(args) < 4:
+            self.set_language(lang)
+
+    def set_language(self, lang):
+        """Compare sources in lang (textfold)."""
+        self.lang = lang
+        self.comparer = textfold.Comparer(lang, self.MAX_LENGTH)
 
     def matches(self, text):
         # Identical to upstream, except the heap tuples carry an extra

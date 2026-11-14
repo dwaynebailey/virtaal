@@ -16,7 +16,7 @@ from translate.misc.multistring import multistring
 from translate.search import match
 
 from virtaal.common import pan_app
-from virtaal.support import inlinecodes
+from virtaal.support import inlinecodes, textfold
 from virtaal.support.match_compat import matcher as _matcher
 
 from .basetmmodel import BaseTMModel
@@ -150,6 +150,8 @@ class TMModel(BaseTMModel):
     LOAD_CHUNK = 500  # Units read per extendtm() call.
     LOAD_BUDGET = 0.02  # Seconds of the main loop each loading step takes.
     _loading = None  # The file being read, if any.
+    matcher = None
+    source_lang = None
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
@@ -176,6 +178,10 @@ class TMModel(BaseTMModel):
         self._stop_loading()
         super().destroy()
 
+    def set_source_lang(self, language):
+        if self.matcher is not None:
+            self.matcher.set_language(language)
+
     def recreate_matcher(self, storecontroller):
         """Read the file's translations from the main loop, a step at a
         time, so that a large file doesn't freeze the window."""
@@ -193,7 +199,7 @@ class TMModel(BaseTMModel):
                 'max_candidates': self.controller.max_matches,
                 'min_similarity': self.controller.min_quality,
             }
-            self.matcher = _UnitMatcher([], **options)
+            self.matcher = _UnitMatcher([], lang=self.source_lang, **options)
         else:
             # Earlier files' translations stay as memory, no longer tied to
             # a unit.
@@ -310,9 +316,7 @@ class TMModel(BaseTMModel):
         if not alttrans:
             return []
 
-        from translate.search.lshtein import LevenshteinComparer
-
-        lcomparer = LevenshteinComparer(max_len=1000)
+        lcomparer = textfold.comparer(self.source_lang)
 
         results = []
         for alt in alttrans:
@@ -375,9 +379,7 @@ class TMModel(BaseTMModel):
         def source_for(n):
             return sources[min(n, len(sources) - 1)]
 
-        from translate.search.lshtein import LevenshteinComparer
-
-        lcomparer = LevenshteinComparer(max_len=1000)
+        lcomparer = textfold.comparer(self.source_lang)
         own = targets[target_n] if target_n < len(targets) else ''
         seen = {own, ''}
         results = []

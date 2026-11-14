@@ -72,3 +72,7 @@ def test_matches_orders_by_the_true_score_even_when_rounded_scores_tie():
     )
 
     assert [unit.source for unit in results] == ['source_bbb', 'source_aaa']
+
+
+def test_matches_scores_a_source_differing_only_in_case_below_100():
+    assert _matched_quality('OPEN FILE', 'Open file') == '97'

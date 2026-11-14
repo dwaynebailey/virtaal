@@ -733,3 +733,26 @@ def test_lookup_with_no_file_read_gives_nothing():
     model.lookup(_FakeUnit('Open'), found.append)
 
     assert found == [[]]
+
+
+def test_lookup_matches_another_units_source_past_case():
+    store = _po_store([(None, 'Open file', 'Maak lêer oop'), (None, 'OPEN FILE', '')])
+    model, _emitted = _model_for(store)
+    found = []
+
+    model.lookup(store.units[1], found.append)
+
+    ((match,),) = found
+    assert (match['target'], int(match['quality'])) == ('Maak lêer oop', 97)
+
+
+def test_lookup_folds_a_dotless_i_in_the_source_language():
+    store = _po_store([(None, 'Kayıt', 'Opname'), (None, 'KAYIT', '')])
+    model, _emitted = _model_for(store)
+    found = []
+
+    for lang in ('en', 'tr'):
+        model.set_source_lang(lang)
+        model.lookup(store.units[1], found.append)
+
+    assert [[int(m['quality']) for m in matches] for matches in found] == [[77], [97]]

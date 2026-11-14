@@ -82,6 +82,7 @@ class TMModel(BaseTMModel):
             max_candidates=self.controller.max_matches,
             min_similarity=self.controller.min_quality,
             max_length=1000,
+            lang=self.source_lang,
         )
         self.origin = self.display_name
 
