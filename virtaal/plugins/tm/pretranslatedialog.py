@@ -17,7 +17,15 @@ from virtaal.models.streammodel import PeekUnit
 from virtaal.support.libi18n.numbers import format_number, format_percent
 
 from . import pretranslate
-from .fetchdialog import _progress_text
+from .fetchdialog import (
+    COL_MODEL,
+    COL_STATUS,
+    COL_UNITS,
+    ServiceList,
+    _progress_text,
+    finished_status,
+    listed,
+)
 
 RESPONSE_RUN = 1
 
@@ -40,7 +48,7 @@ def summary_rows(result, options):
         # l10n: Pre-translate's result: how many units were filled from translation memories
         (_('From translation memory:'), result.count(pretranslate.TM)),
     ]
-    if options.use_mt:
+    if options.mt_services:
         # l10n: Pre-translate's result: how many units were filled with machine translation
         rows.append((_('From machine translation:'), result.count(pretranslate.MT)))
     # l10n: Pre-translate's result: how many units it found no suggestion for
@@ -66,7 +74,12 @@ def unreachable_note(service):
     }
 
 
-class PretranslateDialog:
+def machine_translation(models):
+    """The machine translation services of models the window lists."""
+    return [m for m in models if getattr(m, 'machine_translation', False) and listed(m)]
+
+
+class PretranslateDialog(ServiceList):
     """Asks how to pre-translate the files open, does it, and says what
     it filled."""
 
@@ -93,6 +106,8 @@ class PretranslateDialog:
         self.close_button.hide()
         self.dialog.set_default_response(RESPONSE_RUN)
         self.dialog.connect('response', self._on_response)
+        self._init_services(tm_controller, self.dialog)
+        self.columns[COL_UNITS].set_visible(False)
 
         content = self.dialog.get_content_area()
         content.set_border_width(12)
@@ -146,13 +161,7 @@ class PretranslateDialog:
         row.pack_start(self.quality, False, False, 0)
         box.pack_start(row, False, False, 0)
 
-        self.use_mt = Gtk.CheckButton(
-            # l10n: Check box in the Pre-translate window
-            label=_('Also use _machine translation fetched for these units'),
-            use_underline=True,
-            active=self.options.use_mt,
-        )
-        box.pack_start(self.use_mt, False, False, 0)
+        self._mt_list(box)
         self.exact_translated = Gtk.CheckButton(
             # l10n: Check box in the Pre-translate window: an exact match is marked Translated, not for review
             label=_('Mark _exact matches as translated'),
@@ -174,8 +183,52 @@ class PretranslateDialog:
             box.pack_start(self._label(online), False, False, 0)
         return box
 
+    def _mt_list(self, box):
+        """The machine translation services to tick, if any is on."""
+        models = machine_translation(self._models())
+        if not models:
+            return
+        label = Gtk.Label(
+            # l10n: In the Pre-translate window, above the list of machine translation services to tick
+            label=_('_Machine translation for the units translation memory doesn’t fill:'),
+            use_underline=True,
+            xalign=0,
+            mnemonic_widget=self.treeview,
+        )
+        box.pack_start(label, False, False, 0)
+        scrolled = Gtk.ScrolledWindow(min_content_height=110)
+        scrolled.set_shadow_type(Gtk.ShadowType.IN)
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled.add(self.treeview)
+        box.pack_start(scrolled, True, True, 0)
+        box.pack_start(self.billed_note, False, False, 0)
+        self.fill(models)
+
     def _models(self):
         return list(self.tm_controller.plugin_controller.plugins.values())
+
+    # The list of machine translation services #
+    def _plan(self, model):
+        if self.run is not None:
+            return self.run.mt_sources(model), True
+        return self.tm_controller.unfetched(model, [u.source for u in self.units]), True
+
+    @staticmethod
+    def _tickable(asked):
+        # Suggestions fetched before are used too.
+        return True
+
+    def _ticked_at_first(self, model, asked):
+        # A service that charges is ticked anew each time.
+        return not model.billed and model.internal_name in self.options.mt_services
+
+    def _update_buttons(self):
+        pass
+
+    def _describe_all(self):
+        for row in self.liststore:
+            if row[COL_MODEL] not in self._checking:
+                self._describe(row, row[COL_MODEL])
 
     def _review_state_name(self):
         for unit in self.units:
@@ -191,13 +244,16 @@ class PretranslateDialog:
     def chosen_options(self):
         return pretranslate.Options(
             int(self.quality.get_active_id()),
-            self.use_mt.get_active(),
             self.exact_translated.get_active(),
+            tuple(model.internal_name for model in self.ticked()),
         )
 
     def start(self):
         self.options = self.chosen_options()
-        pretranslate.save_options(self.tm_controller.config, self.options)
+        free = tuple(m.internal_name for m in self.ticked() if not m.billed)
+        pretranslate.save_options(
+            self.tm_controller.config, self.options._replace(mt_services=free)
+        )
         self.options_box.set_sensitive(False)
         self.run_button.set_sensitive(False)
         self.progress.show()
@@ -209,6 +265,8 @@ class PretranslateDialog:
             self._on_progress,
             self._on_done,
             self._read,
+            limits={model: self.allowances.get(model) for model in self.ticked()},
+            on_phase=self._on_phase,
         )
         self.run.start()
 
@@ -230,6 +288,7 @@ class PretranslateDialog:
             self.run = None
 
     def close(self):
+        self._closed = True
         self.cancel()
         store_controller = self.main_controller.store_controller
         for signal_id in self._store_ids:
@@ -260,11 +319,27 @@ class PretranslateDialog:
         self.dialog.resize(1, 1)
 
     # EVENT HANDLERS #
-    def _on_progress(self, done, total):
-        fetching = self.run is not None and self.run.fetching
+    def _on_phase(self):
+        run = self.run
+        fetching = run.fetching and bool(run.fetches)
         # l10n: In the Pre-translate window, above its progress: online services are being asked for the units' suggestions
         self.phase.set_text(_('Fetching suggestions…') if fetching else '')
         self.phase.set_visible(fetching)
+        if run.kind != pretranslate.MT:
+            return
+        if run.fetching:
+            # What the services are sent: the units left.
+            self.fetches = {fetch.model: fetch for fetch in run.fetches}
+            self._describe_all()
+            return
+        for model, fetch in self.fetches.items():
+            self._row_of(model)[COL_STATUS] = finished_status(fetch.finished)
+
+    def _on_progress(self, done, total):
+        run = self.run
+        if run is not None and run.kind == pretranslate.MT and run.fetching:
+            for model, fetch in self.fetches.items():
+                self._row_of(model)[COL_STATUS] = _progress_text(fetch.fetched, fetch.total)
         self.progress.set_fraction(done / total if total else 1.0)
         self.progress.set_text(_progress_text(done, total))
 

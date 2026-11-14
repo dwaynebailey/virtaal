@@ -32,11 +32,13 @@ def _name(model):
     return model.display_name or model.internal_name
 
 
-class FetchSuggestionsDialog:
-    """Lists the services with how much of the file each may be asked
-    for, and fetches from the ticked ones, each at its own pace."""
+class ServiceList:
+    """The list of services to ask, each with how much it would be asked
+    for, its characters and allowance if it charges, and its status;
+    shared by the Fetch Suggestions and Pre-translate windows. Those
+    give _plan(model) and _update_buttons()."""
 
-    def __init__(self, controller, models, parent=None):
+    def _init_services(self, controller, parent_dialog):
         self.controller = controller
         self.fetches = {}
         # What is left of each service's allowance (None: no limit), the
@@ -47,7 +49,165 @@ class FetchSuggestionsDialog:
         # The status each fetch ended with.
         self._results = {}
         self._closed = False
+        self.liststore = Gtk.ListStore(object, bool, bool, str, str, str, str)
+        self.treeview = Gtk.TreeView(model=self.liststore)
+        self.treeview.get_accessible().set_name(parent_dialog.get_title())
+        self._add_columns()
+        self.billed_note = Gtk.Label(
+            # l10n: Under the list of services; the characters column shows only for those that charge
+            label=_('Services that charge by the character show how many would be sent.'),
+            wrap=True,
+            xalign=0,
+        )
 
+    def _add_columns(self):
+        use = Gtk.CellRendererToggle()
+        use.connect('toggled', self._on_toggled)
+        # l10n: Column heading: whether to ask this service
+        column = Gtk.TreeViewColumn(
+            _('Ask'), use, active=COL_USE, activatable=COL_AVAILABLE, sensitive=COL_AVAILABLE
+        )
+        self.treeview.append_column(column)
+
+        name = Gtk.CellRendererText(ellipsize=Pango.EllipsizeMode.END)
+        # l10n: Column heading: a source of suggestions, such as Amagama or Google Translate
+        column = Gtk.TreeViewColumn(_('Service'), name, text=COL_NAME, sensitive=COL_AVAILABLE)
+        column.set_expand(True)
+        self.treeview.append_column(column)
+
+        self.columns = {}
+        for heading, col, xalign in (
+            # l10n: Column heading: how much of the file a service is asked for: "Whole file" or "Next hour (about 40 units)"
+            (_('Covers'), COL_UNITS, 0.0),
+            # l10n: Column heading: how many characters are sent to a service that charges by the character
+            (_('Characters'), COL_CHARS, 1.0),
+        ):
+            renderer = Gtk.CellRendererText(xalign=xalign)
+            self.columns[col] = Gtk.TreeViewColumn(
+                heading, renderer, text=col, sensitive=COL_AVAILABLE
+            )
+            self.treeview.append_column(self.columns[col])
+
+        status = Gtk.CellRendererText()
+        # l10n: Column heading: how the fetch from a service is going
+        self.treeview.append_column(
+            Gtk.TreeViewColumn(_('Status'), status, text=COL_STATUS, sensitive=COL_AVAILABLE)
+        )
+
+    def fill(self, models):
+        self.liststore.clear()
+        for model in sorted(filter(listed, models), key=lambda m: _name(m).casefold()):
+            row = [model, False, False, _name(model), '', '', '']
+            self._describe(row, model, default=True)
+            self.liststore.append(row)
+        self.billed_note.set_no_show_all(True)
+        self.billed_note.set_visible(any(row[COL_MODEL].billed for row in self.liststore))
+        for row in self.liststore:
+            if row[COL_AVAILABLE]:
+                self._check_allowance(row[COL_MODEL], default=True)
+
+    def _check_allowance(self, model, default=False):
+        """Ask model what is left of its allowance, and show it."""
+        self._checking.add(model)
+        self._describe(self._row_of(model), model)
+
+        def answer(left):
+            self._checking.discard(model)
+            self.allowances[model] = left
+            if not self._closed:
+                self._describe(self._row_of(model), model, default)
+                self._update_buttons()
+
+        def refused():
+            self._checking.discard(model)
+            self._refused.add(model)
+            if not self._closed:
+                self._describe(self._row_of(model), model)
+                self._update_buttons()
+
+        model.bulk_allowance(answer, refused)
+
+    def _describe(self, row, model, default=False):
+        """Fill row in for model and what the file still needs from it."""
+        if self._unavailable(model):
+            row[COL_USE] = row[COL_AVAILABLE] = False
+            row[COL_UNITS] = row[COL_CHARS] = ''
+            # l10n: Status: this service can't be asked for a whole file's suggestions
+            row[COL_STATUS] = _('Unavailable')
+            return
+        if model in self._checking:
+            row[COL_USE] = row[COL_AVAILABLE] = False
+            row[COL_UNITS] = row[COL_CHARS] = ''
+            # l10n: Status: asking a service how many characters are left of the account's allowance
+            row[COL_STATUS] = _('Checking the allowance…')
+            return
+        asked, whole = self._plan(model)
+        left = self.allowances.get(model)
+        capped = False
+        if left is not None:
+            asked, capped = self.controller.cap_characters(model, asked, left)
+        row[COL_AVAILABLE] = self._tickable(asked)
+        if default:
+            row[COL_USE] = self._ticked_at_first(model, asked)
+        elif not row[COL_AVAILABLE]:
+            row[COL_USE] = False
+        row[COL_UNITS] = self._covers(asked, whole and not capped)
+        row[COL_CHARS] = _characters(model, asked, left)
+        row[COL_STATUS] = self._status(model, asked, capped)
+
+    @staticmethod
+    def _tickable(asked):
+        return bool(asked)
+
+    @staticmethod
+    def _ticked_at_first(model, asked):
+        # Asking a service that charges is the user's choice.
+        return bool(asked) and not model.billed
+
+    def _status(self, model, asked, capped):
+        fetch = self.fetches.get(model)
+        if fetch is not None and fetch.finished is None:
+            return _progress_text(fetch.fetched, fetch.total)
+        return self._results.get(model) or _plan_status(asked, capped)
+
+    def _unavailable(self, model):
+        return (
+            not self.controller.fetch_budget(model)
+            or not model.bulk_ready()
+            or model in self._refused
+        )
+
+    def _covers(self, asked, whole):
+        if whole and self.controller.is_stream():
+            # l10n: Covers: every unit still needing suggestions, in all the files open together
+            return _('All files')
+        if whole:
+            # l10n: Covers: every unit of the file still needing suggestions
+            return _('Whole file')
+        return ngettext(
+            # l10n: Covers: the units about an hour of translating takes, from the current one
+            'Next hour (about %(count)s unit)',
+            'Next hour (about %(count)s units)',
+            len(asked),
+        ) % {'count': format_number(len(asked))}
+
+    def ticked(self):
+        return [row[COL_MODEL] for row in self.liststore if row[COL_USE] and row[COL_AVAILABLE]]
+
+    def _row_of(self, model):
+        return next(row for row in self.liststore if row[COL_MODEL] is model)
+
+    def _on_toggled(self, _renderer, path):
+        row = self.liststore[path]
+        row[COL_USE] = not row[COL_USE]
+        self._update_buttons()
+
+
+class FetchSuggestionsDialog(ServiceList):
+    """Lists the services with how much of the file each may be asked
+    for, and fetches from the ticked ones, each at its own pace."""
+
+    def __init__(self, controller, models, parent=None):
         self.dialog = Gtk.Dialog(
             # l10n: The title of the window that gets suggestions for every unit of the file at once
             title=_('Fetch Suggestions'),
@@ -90,21 +250,12 @@ class FetchSuggestionsDialog:
             wrap=True,
             xalign=0,
         )
-        self.liststore = Gtk.ListStore(object, bool, bool, str, str, str, str)
-        self.treeview = Gtk.TreeView(model=self.liststore)
-        self.treeview.get_accessible().set_name(self.dialog.get_title())
-        self._add_columns()
+        self._init_services(controller, self.dialog)
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_shadow_type(Gtk.ShadowType.IN)
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled.add(self.treeview)
         self.progress = Gtk.ProgressBar(show_text=True)
-        self.billed_note = Gtk.Label(
-            # l10n: Under the list of services; the characters column shows only for those that charge
-            label=_('Services that charge by the character show how many would be sent.'),
-            wrap=True,
-            xalign=0,
-        )
 
         content = self.dialog.get_content_area()
         content.set_border_width(12)
@@ -116,38 +267,6 @@ class FetchSuggestionsDialog:
         content.pack_start(self.progress, False, False, 0)
         self.fill(models)
 
-    def _add_columns(self):
-        use = Gtk.CellRendererToggle()
-        use.connect('toggled', self._on_toggled)
-        # l10n: Column heading: whether to ask this service
-        column = Gtk.TreeViewColumn(
-            _('Ask'), use, active=COL_USE, activatable=COL_AVAILABLE, sensitive=COL_AVAILABLE
-        )
-        self.treeview.append_column(column)
-
-        name = Gtk.CellRendererText(ellipsize=Pango.EllipsizeMode.END)
-        # l10n: Column heading: a source of suggestions, such as Amagama or Google Translate
-        column = Gtk.TreeViewColumn(_('Service'), name, text=COL_NAME, sensitive=COL_AVAILABLE)
-        column.set_expand(True)
-        self.treeview.append_column(column)
-
-        for heading, col, xalign in (
-            # l10n: Column heading: how much of the file a service is asked for: "Whole file" or "Next hour (about 40 units)"
-            (_('Covers'), COL_UNITS, 0.0),
-            # l10n: Column heading: how many characters are sent to a service that charges by the character
-            (_('Characters'), COL_CHARS, 1.0),
-        ):
-            renderer = Gtk.CellRendererText(xalign=xalign)
-            self.treeview.append_column(
-                Gtk.TreeViewColumn(heading, renderer, text=col, sensitive=COL_AVAILABLE)
-            )
-
-        status = Gtk.CellRendererText()
-        # l10n: Column heading: how the fetch from a service is going
-        self.treeview.append_column(
-            Gtk.TreeViewColumn(_('Status'), status, text=COL_STATUS, sensitive=COL_AVAILABLE)
-        )
-
     # METHODS #
     def show(self):
         self.dialog.show_all()
@@ -155,98 +274,12 @@ class FetchSuggestionsDialog:
         self._update_buttons()
 
     def fill(self, models):
-        self.liststore.clear()
-        for model in sorted(filter(listed, models), key=lambda m: _name(m).casefold()):
-            row = [model, False, False, _name(model), '', '', '']
-            self._describe(row, model, default=True)
-            self.liststore.append(row)
-        self.billed_note.set_no_show_all(True)
-        self.billed_note.set_visible(any(row[COL_MODEL].billed for row in self.liststore))
-        for row in self.liststore:
-            if row[COL_AVAILABLE]:
-                self._check_allowance(row[COL_MODEL], default=True)
+        super().fill(models)
         # Units failing a quality check join the plan once known.
         self.controller.check_files(self._on_checks_done)
 
-    def _check_allowance(self, model, default=False):
-        """Ask model what is left of its allowance, and show it."""
-        self._checking.add(model)
-        self._describe(self._row_of(model), model)
-
-        def answer(left):
-            self._checking.discard(model)
-            self.allowances[model] = left
-            if not self._closed:
-                self._describe(self._row_of(model), model, default)
-                self._update_buttons()
-
-        def refused():
-            self._checking.discard(model)
-            self._refused.add(model)
-            if not self._closed:
-                self._describe(self._row_of(model), model)
-                self._update_buttons()
-
-        model.bulk_allowance(answer, refused)
-
-    def _describe(self, row, model, default=False):
-        """Fill row in for model and what the file still needs from it."""
-        if self._unavailable(model):
-            row[COL_USE] = row[COL_AVAILABLE] = False
-            row[COL_UNITS] = row[COL_CHARS] = ''
-            # l10n: Status: this service can't be asked for a whole file's suggestions
-            row[COL_STATUS] = _('Unavailable')
-            return
-        if model in self._checking:
-            row[COL_USE] = row[COL_AVAILABLE] = False
-            row[COL_UNITS] = row[COL_CHARS] = ''
-            # l10n: Status: asking a service how many characters are left of the account's allowance
-            row[COL_STATUS] = _('Checking the allowance…')
-            return
-        asked, whole = self.controller.fetch_plan(model)
-        left = self.allowances.get(model)
-        capped = False
-        if left is not None:
-            asked, capped = self.controller.cap_characters(model, asked, left)
-        row[COL_AVAILABLE] = bool(asked)
-        if default:
-            # Asking a service that charges is the user's choice.
-            row[COL_USE] = bool(asked) and not model.billed
-        elif not asked:
-            row[COL_USE] = False
-        row[COL_UNITS] = self._covers(asked, whole and not capped)
-        row[COL_CHARS] = _characters(model, asked, left)
-        row[COL_STATUS] = self._status(model, asked, capped)
-
-    def _status(self, model, asked, capped):
-        fetch = self.fetches.get(model)
-        if fetch is not None and fetch.finished is None:
-            return _progress_text(fetch.fetched, fetch.total)
-        return self._results.get(model) or _plan_status(asked, capped)
-
-    def _unavailable(self, model):
-        return (
-            not self.controller.fetch_budget(model)
-            or not model.bulk_ready()
-            or model in self._refused
-        )
-
-    def _covers(self, asked, whole):
-        if whole and self.controller.is_stream():
-            # l10n: Covers: every unit still needing suggestions, in all the files open together
-            return _('All files')
-        if whole:
-            # l10n: Covers: every unit of the file still needing suggestions
-            return _('Whole file')
-        return ngettext(
-            # l10n: Covers: the units about an hour of translating takes, from the current one
-            'Next hour (about %(count)s unit)',
-            'Next hour (about %(count)s units)',
-            len(asked),
-        ) % {'count': format_number(len(asked))}
-
-    def ticked(self):
-        return [row[COL_MODEL] for row in self.liststore if row[COL_USE] and row[COL_AVAILABLE]]
+    def _plan(self, model):
+        return self.controller.fetch_plan(model)
 
     def fetch(self):
         """Ask every ticked service at once, each a batch at a time."""
@@ -314,9 +347,6 @@ class FetchSuggestionsDialog:
     def _running(self):
         return [fetch for fetch in self.fetches.values() if fetch.finished is None]
 
-    def _row_of(self, model):
-        return next(row for row in self.liststore if row[COL_MODEL] is model)
-
     def _update_progress(self):
         fetches = list(self.fetches.values())
         total = sum(fetch.total for fetch in fetches)
@@ -335,25 +365,12 @@ class FetchSuggestionsDialog:
         self.treeview.set_sensitive(not running)
 
     # EVENT HANDLERS #
-    def _on_toggled(self, _renderer, path):
-        row = self.liststore[path]
-        row[COL_USE] = not row[COL_USE]
-        self._update_buttons()
-
     def _on_progress(self, fetch):
         self._row_of(fetch.model)[COL_STATUS] = _progress_text(fetch.fetched, fetch.total)
         self._update_progress()
 
     def _on_done(self, fetch):
-        if fetch.finished == DONE:
-            # l10n: Status: every unit asked for was answered
-            result = _('Fetched')
-        elif fetch.finished in (CANCELLED, REFUSED):
-            # l10n: Status: the user stopped the fetch, or the service kept asking to wait
-            result = _('Stopped')
-        else:
-            # l10n: Status: the service gave an error or no answer, so the fetch stopped
-            result = _('Failed')
+        result = finished_status(fetch.finished)
         self._results[fetch.model] = result
         self._row_of(fetch.model)[COL_STATUS] = result
         if not self._running():
@@ -397,6 +414,18 @@ class FetchSuggestionsDialog:
         self._closed = True
         self.controller.stop_checking()
         self.dialog.destroy()
+
+
+def finished_status(finished):
+    """The Status column for a fetch that ended as finished says."""
+    if finished == DONE:
+        # l10n: Status: every unit asked for was answered
+        return _('Fetched')
+    if finished in (CANCELLED, REFUSED):
+        # l10n: Status: the user stopped the fetch, or the service kept asking to wait
+        return _('Stopped')
+    # l10n: Status: the service gave an error or no answer, so the fetch stopped
+    return _('Failed')
 
 
 def _progress_text(done, total):

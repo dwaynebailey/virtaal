@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 11:30+0000\n"
+"POT-Creation-Date: 2026-11-14 11:51+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2325,45 +2325,6 @@ msgstr[1] ""
 msgid "Open Files"
 msgstr ""
 
-#. l10n: The title of the window that gets suggestions for every unit of the file at once
-#: virtaal/plugins/tm/fetchdialog.py
-msgid "Fetch Suggestions"
-msgstr ""
-
-#. l10n: Button: stops asking the services for suggestions
-#: virtaal/plugins/tm/fetchdialog.py virtaal/views/setscanview.py
-msgid "_Stop"
-msgstr ""
-
-#. l10n: Button: asks the ticked services for suggestions for the file
-#: virtaal/plugins/tm/fetchdialog.py
-msgid "_Fetch"
-msgstr ""
-
-#. l10n: Button: forgets every suggestion fetched before, for every file and language
-#: virtaal/plugins/tm/fetchdialog.py
-msgid "C_lear Fetched Suggestions"
-msgstr ""
-
-#. l10n: Tooltip of the button that forgets the suggestions fetched before
-#: virtaal/plugins/tm/fetchdialog.py
-msgid ""
-"Forget the suggestions fetched for every file and language, to ask for them "
-"again."
-msgstr ""
-
-#. l10n: Check box beside Clear Fetched Suggestions: also clear those of services that charge
-#: virtaal/plugins/tm/fetchdialog.py
-msgid "Also clear _paid services"
-msgstr ""
-
-#: virtaal/plugins/tm/fetchdialog.py
-msgid ""
-"Get suggestions now for about the next hour of work, from this unit on: "
-"units still to translate, needing work or failing a quality check. They are "
-"kept to use without a connection."
-msgstr ""
-
 #. l10n: Under the list of services; the characters column shows only for those that charge
 #: virtaal/plugins/tm/fetchdialog.py
 msgid "Services that charge by the character show how many would be sent."
@@ -2419,6 +2380,45 @@ msgid "Next hour (about %(count)s unit)"
 msgid_plural "Next hour (about %(count)s units)"
 msgstr[0] ""
 msgstr[1] ""
+
+#. l10n: The title of the window that gets suggestions for every unit of the file at once
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Fetch Suggestions"
+msgstr ""
+
+#. l10n: Button: stops asking the services for suggestions
+#: virtaal/plugins/tm/fetchdialog.py virtaal/views/setscanview.py
+msgid "_Stop"
+msgstr ""
+
+#. l10n: Button: asks the ticked services for suggestions for the file
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "_Fetch"
+msgstr ""
+
+#. l10n: Button: forgets every suggestion fetched before, for every file and language
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "C_lear Fetched Suggestions"
+msgstr ""
+
+#. l10n: Tooltip of the button that forgets the suggestions fetched before
+#: virtaal/plugins/tm/fetchdialog.py
+msgid ""
+"Forget the suggestions fetched for every file and language, to ask for them "
+"again."
+msgstr ""
+
+#. l10n: Check box beside Clear Fetched Suggestions: also clear those of services that charge
+#: virtaal/plugins/tm/fetchdialog.py
+msgid "Also clear _paid services"
+msgstr ""
+
+#: virtaal/plugins/tm/fetchdialog.py
+msgid ""
+"Get suggestions now for about the next hour of work, from this unit on: "
+"units still to translate, needing work or failing a quality check. They are "
+"kept to use without a connection."
+msgstr ""
 
 #. l10n: Asked before forgetting suggestions fetched from services that charge
 #: virtaal/plugins/tm/fetchdialog.py
@@ -2747,11 +2747,6 @@ msgstr ""
 msgid "_Use matches of at least:"
 msgstr ""
 
-#. l10n: Check box in the Pre-translate window
-#: virtaal/plugins/tm/pretranslatedialog.py
-msgid "Also use _machine translation fetched for these units"
-msgstr ""
-
 #. l10n: Check box in the Pre-translate window: an exact match is marked Translated, not for review
 #: virtaal/plugins/tm/pretranslatedialog.py
 msgid "Mark _exact matches as translated"
@@ -2768,6 +2763,11 @@ msgstr ""
 msgid ""
 "Free online translation memories, such as Amagama, are asked for these units "
 "first."
+msgstr ""
+
+#. l10n: In the Pre-translate window, above the list of machine translation services to tick
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "_Machine translation for the units translation memory doesn’t fill:"
 msgstr ""
 
 #. l10n: In the Pre-translate window, above its progress: online services are being asked for the units' suggestions

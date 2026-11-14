@@ -384,10 +384,17 @@ same way as :menuselection:`File --> Fetch Suggestions for This File…` asks it
 (see :ref:`using_virtaal#fetch_suggestions_for_a_whole_file`); the window shows
 :guilabel:`Fetching suggestions…` meanwhile. If amaGama can't be reached, the
 units are filled from the other sources, and the window says so at the end.
-Machine translation services are not asked: what was fetched from them for
-the file fills a unit with no translation memory match good enough only if
-:guilabel:`Also use machine translation fetched for these units` is ticked, so
-nothing is charged for by pre-translating.
+
+Machine translation fills only the units translation memory left, from the
+services ticked under :guilabel:`Machine translation for the units
+translation memory doesn’t fill`. Once translation memory is done, each ticked
+service is asked for those of these units it wasn't asked for before, as Fetch
+Suggestions for This File asks it. A service that charges by the character is
+never ticked when the window opens. Its :guilabel:`Characters` show what would
+be sent for every unit still to translate, and change to what is sent, for the
+units left, once translation memory is done; it is never sent more than is left
+of its allowance (:guilabel:`Cut to the allowance left`). A free service you
+tick stays ticked next time.
 
 A plural unit is filled only from a match with every one of its forms.
 
@@ -398,8 +405,9 @@ the :guilabel:`Incomplete` mode and the navigation ribbon lead you to them. Tick
 state is filled only with exact matches, and only when that is ticked.
 
 The window shows its progress; :guilabel:`Cancel` stops it, fetching
-included, and nothing is changed. Once it is done, it says how many units it filled from translation
-memory and from machine translation, and how many are still to translate.
+included, and nothing is changed. Once it is done, it says how many units it
+filled from translation memory and from machine translation, and how many are
+still to translate.
 :menuselection:`Edit --> Undo` (:kbd:`Ctrl+Z`) takes every unit it filled back
 at once. The options you chose are kept for next time.
 

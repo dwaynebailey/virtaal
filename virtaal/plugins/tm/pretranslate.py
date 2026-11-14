@@ -8,7 +8,7 @@
 """File > Pre-translate This File…: the units still to translate filled
 with their best suggestion, marked for review, as one undo step. Free
 online translation memories are asked for those units first, in a file
-fetch; machine translation fills from what a file fetch kept."""
+fetch, and the machine translation services ticked for those left."""
 
 import logging
 from typing import NamedTuple
@@ -34,25 +34,28 @@ QUALITIES = (100, 95, 90, 85, 80, 75)
 class Options(NamedTuple):
     min_quality: int = 100
     """The lowest quality of a translation memory match used."""
-    use_mt: bool = False
-    """Whether machine translation fetched with the file is used."""
     exact_translated: bool = False
     """Whether an exact match is marked translated, not for review."""
+    mt_services: tuple = ()
+    """The machine translation services (internal names) asked for the
+    units translation memory leaves."""
 
 
 def load_options(config):
     """The options last used, from the TM's plugins.ini section."""
+    services = str(config.get('pretranslate_mt_services', ''))
     return Options(
         config_int(config.get('pretranslate_quality', 100), 100, 1, 100, 'pretranslate_quality'),
-        config_bool(config.get('pretranslate_mt', False)),
         config_bool(config.get('pretranslate_exact', False)),
+        tuple(name for name in services.split(',') if name),
     )
 
 
 def save_options(config, options):
+    """Keep options; the dialog leaves paid services out of mt_services."""
     config['pretranslate_quality'] = options.min_quality
-    config['pretranslate_mt'] = options.use_mt
     config['pretranslate_exact'] = options.exact_translated
+    config['pretranslate_mt_services'] = ','.join(options.mt_services)
 
 
 def _texts(target):
@@ -100,9 +103,9 @@ def fill_state(unit, exact, options):
     return review_state(unit)
 
 
-def candidates(tm_controller, unit, answers, options):
-    """Every usable match the sources gave for unit, adapted to it as the
-    suggestions are, best first. answers holds (model, matches)."""
+def candidates(tm_controller, unit, answers, options, kind=TM):
+    """Every usable match of kind the sources gave for unit, adapted to it
+    as the suggestions are, best first. answers holds (model, matches)."""
     accel_markers = tm_controller._accel_markers() if tm_controller.abstract_placeables else ()
     found = []
     for model, matches in answers:
@@ -112,10 +115,9 @@ def candidates(tm_controller, unit, answers, options):
             if tm_controller.abstract_placeables:
                 match = tm_controller._adapt(match['query_str'], match, accel_markers, unit)
             match = tm_controller._cap_for_codes(unit, match)
-            kind = TM if match.get('quality') else MT
-            if (kind == MT and options.use_mt) or (
-                kind == TM and match['quality'] >= options.min_quality
-            ):
+            if (TM if match.get('quality') else MT) != kind:
+                continue
+            if kind == MT or match['quality'] >= options.min_quality:
                 found.append(dict(match, pretranslate_kind=kind))
     return sorted(found, key=_rank, reverse=True)
 
@@ -161,9 +163,9 @@ class Fill(NamedTuple):
     kind: str
 
 
-def choose(tm_controller, unit, answers, options):
-    """The Fill for unit from the sources' answers, or None."""
-    for match in candidates(tm_controller, unit, answers, options):
+def choose(tm_controller, unit, answers, options, kind=TM):
+    """The Fill for unit from the sources' answers of kind, or None."""
+    for match in candidates(tm_controller, unit, answers, options, kind):
         target = fill_target(tm_controller, unit, match)
         if target is None:
             continue
@@ -200,50 +202,68 @@ class Result(NamedTuple):
 
 
 class Pretranslation:
-    """Fetches the units' suggestions from the models that fetches_first(),
-    then asks every model for each unit still to translate, a unit at a
-    time from the main loop, and chooses its fill. on_progress(done,
-    total) after each batch fetched (while fetching) and each unit;
-    on_done(Result) at the end, unless cancelled. Nothing is changed
-    until apply_result(). read(index, unit) gives the unit at index of
-    units as read from its file, for a stream's file not read yet."""
+    """Fills the units still to translate in two rounds: translation
+    memory, then the machine translation services ticked for the units
+    it left. Each round first fetches its units' suggestions from the
+    services that take a file fetch (the free online translation
+    memories, then the machine translation services), then asks its
+    models for each unit, a unit at a time from the main loop, and
+    chooses its fill. on_progress(done, total) after each batch fetched
+    and each unit; on_phase() when a fetch or fill starts; on_done(Result)
+    at the end, unless cancelled. Nothing is changed until
+    apply_result(). read(index, unit) gives the unit at index of units as
+    read from its file, for a stream's file not read yet. limits holds
+    the characters a machine translation service may be sent."""
 
-    def __init__(self, tm_controller, models, units, options, on_progress, on_done, read=None):
+    def __init__(
+        self,
+        tm_controller,
+        models,
+        units,
+        options,
+        on_progress,
+        on_done,
+        read=None,
+        limits=None,
+        on_phase=None,
+    ):
         self.tm_controller = tm_controller
-        self.models = list(models)
+        models = list(models)
+        self.tm_models = [m for m in models if not getattr(m, 'machine_translation', False)]
+        self.mt_models = [
+            m
+            for m in models
+            if getattr(m, 'machine_translation', False)
+            and getattr(m, 'internal_name', None) in options.mt_services
+        ]
         self.units = [(index, unit) for index, unit in enumerate(units) if wanted(unit)]
         self._read = read
         self.options = options
+        self.limits = dict(limits or {})
         self.fills = []
-        self.done = 0
         self.cancelled = False
         self._on_progress = on_progress
         self._on_done = on_done
+        self._on_phase = on_phase or (lambda: None)
         self._answers = None
         self._idle = None
+        self._unreachable = []
+        self._read_units = []
+        self.kind = TM
+        self.round = []
+        self.models = []
+        self.done = 0
         self.fetches = []
         self.fetching = self._starting = False
-        self._unreachable = []
+        self.mt_units = None
+        """The units left for machine translation, once known."""
 
     @property
     def total(self):
         return len(self.units)
 
     def start(self):
-        # A fetch can end as it starts: filling waits until all are.
-        self.fetching = self._starting = True
-        sources = [unit.source for _index, unit in self.units]
-        for model in filter(fetches_first, self.models):
-            missing = self.tm_controller.unfetched(model, sources)
-            if missing:
-                self.fetches.append(
-                    self.tm_controller.fetch_sources(
-                        model, missing, self._on_fetched, self._on_fetch_done
-                    )
-                )
-        self._starting = False
-        self._fetch_progress()
-        self._after_fetches()
+        self._start_round(TM, self.units, self.tm_models, filter(fetches_first, self.tm_models))
 
     def cancel(self):
         self.cancelled = True
@@ -252,6 +272,37 @@ class Pretranslation:
         if self._idle is not None:
             GLib.source_remove(self._idle)
             self._idle = None
+
+    def mt_sources(self, model):
+        """What model would be asked for: the sources of the units left
+        for machine translation, or of every unit until they are known,
+        that it has no suggestions fetched for."""
+        units = self.units if self.mt_units is None else self.mt_units
+        return self.tm_controller.unfetched(model, [unit.source for _index, unit in units])
+
+    def _start_round(self, kind, units, models, fetch_from):
+        self.kind, self.round, self.models, self.done = kind, units, models, 0
+        # A fetch can end as it starts: filling waits until all are.
+        self.fetching = self._starting = True
+        self.fetches = []
+        for model in fetch_from:
+            self._fetch(model, [unit.source for _index, unit in units])
+        self._starting = False
+        self._on_phase()
+        self._fetch_progress()
+        self._after_fetches()
+
+    def _fetch(self, model, sources):
+        sources = self.tm_controller.unfetched(model, sources)
+        limit = self.limits.get(model)
+        if limit is not None:
+            sources, _capped = self.tm_controller.cap_characters(model, sources, limit)
+        if sources:
+            self.fetches.append(
+                self.tm_controller.fetch_sources(
+                    model, sources, self._on_fetched, self._on_fetch_done, limit
+                )
+            )
 
     def _fetch_progress(self):
         if self.fetches:
@@ -276,26 +327,42 @@ class Pretranslation:
         if any(fetch.finished is None for fetch in self.fetches):
             return
         self.fetching = False
-        self._on_progress(0, len(self.units))
+        self._on_phase()
+        self._on_progress(0, len(self.round))
         self._idle = GLib.idle_add(self._next)
 
     def _next(self):
         self._idle = None
         if self.cancelled:
             return False
-        if self.done >= len(self.units):
-            self._on_done(Result(self.fills, len(self.units), self.unreachable()))
+        if self.done >= len(self.round):
+            self._end_round()
             return False
-        unit = self._unit(*self.units[self.done])
+        index, unit = self.round[self.done]
+        unit = self._unit(index, unit)
         if unit is None:
             self.done += 1
-            self._on_progress(self.done, len(self.units))
+            self._on_progress(self.done, len(self.round))
             self._idle = GLib.idle_add(self._next)
             return False
+        if self.kind == TM:
+            self._read_units.append((index, unit))
         answers = self._answers = {}
         for model in self.models:
             self._ask(model, unit, answers)
+        if not self.models:
+            self._answered(unit, answers)
         return False
+
+    def _end_round(self):
+        if self.kind == TM and self.mt_models:
+            filled = {id(fill.unit) for fill in self.fills}
+            self.mt_units = [(i, u) for i, u in self._read_units if id(u) not in filled]
+            if self.mt_units:
+                ready = [m for m in self.mt_models if m.BULK_MAX != 0 and m.bulk_ready()]
+                self._start_round(MT, self.mt_units, self.mt_models, ready)
+                return
+        self._on_done(Result(self.fills, len(self.units), self.unreachable()))
 
     def unreachable(self):
         """The names of the services whose fetch failed."""
@@ -323,13 +390,12 @@ class Pretranslation:
             on_done([])
 
     def _answered(self, unit, answers):
-        fill = choose(
-            self.tm_controller, unit, [(m, answers[m]) for m in self.models], self.options
-        )
+        found = [(m, answers[m]) for m in self.models]
+        fill = choose(self.tm_controller, unit, found, self.options, self.kind)
         if fill is not None:
             self.fills.append(fill)
         self.done += 1
-        self._on_progress(self.done, len(self.units))
+        self._on_progress(self.done, len(self.round))
         # Not from inside a model's answer: the next unit's may come at once.
         self._idle = GLib.idle_add(self._next)
 

@@ -66,8 +66,8 @@ class _ExactModel(_Model):
         on_done([m for m in self.matches if m['source'] == unit.source])
 
 
-def _choose(unit, matches, **options):
-    return pretranslate.choose(_tm(), unit, [(_Model(), matches)], Options(**options))
+def _choose(unit, matches, kind=TM, **options):
+    return pretranslate.choose(_tm(), unit, [(_Model(), matches)], Options(**options), kind)
 
 
 # Which units are filled
@@ -133,24 +133,18 @@ def test_a_match_below_the_lowest_quality_is_left_out():
     assert _choose(_po_unit('Open them'), [match]) is None
 
 
-def test_machine_translation_only_fills_when_asked():
-    unit = _po_unit('Open')
-    machine = {'source': 'Open', 'target': 'Oopmaak'}
-
-    assert _choose(unit, [machine]) is None
-    assert _choose(unit, [machine], use_mt=True).kind == MT
-
-
-def test_a_translation_memory_match_beats_machine_translation():
+def test_each_round_fills_from_its_own_kind_of_match():
     unit = _po_unit('Open them')
     matches = [
         {'source': 'Open them', 'target': 'Oopmaak'},
         {'source': 'Open it', 'target': 'Maak dit oop', 'quality': 80},
     ]
 
-    fill = _choose(unit, matches, min_quality=75, use_mt=True)
+    tm = _choose(unit, matches, min_quality=75)
+    mt = _choose(unit, matches, MT, min_quality=75)
 
-    assert (fill.target, fill.kind) == ('Maak dit oop', TM)
+    assert (tm.target, tm.kind) == ('Maak dit oop', TM)
+    assert (mt.target, mt.kind, mt.state) == ('Oopmaak', MT, StateEnum.NEEDS_WORK)
 
 
 def test_the_best_match_is_used():
@@ -241,7 +235,7 @@ def idle(monkeypatch):
     return run
 
 
-def _run(models, units, options=None, read=None, tm=None):
+def _run(models, units, options=None, read=None, tm=None, limits=None):
     progress, results = [], []
     run = pretranslate.Pretranslation(
         tm or _tm(),
@@ -251,6 +245,7 @@ def _run(models, units, options=None, read=None, tm=None):
         lambda done, total: progress.append((done, total)),
         results.append,
         read,
+        limits,
     )
     run.start()
     return run, progress, results
@@ -366,8 +361,9 @@ def _fetching_tm(fetched=()):
     tm = _tm()
     tm.started = []
 
-    def fetch_sources(model, sources, on_progress, on_done):
+    def fetch_sources(model, sources, on_progress, on_done, characters=None):
         tm.started.append(_Fetch(model, sources, on_progress, on_done))
+        tm.started[-1].characters = characters
         return tm.started[-1]
 
     tm.unfetched = lambda model, sources: [s for s in map(str, sources) if s not in fetched]
@@ -448,7 +444,104 @@ def test_cancelling_while_fetching_stops_the_fetch_and_fills_nothing(idle):
 def test_the_options_are_kept_in_the_config():
     config = {}
 
-    pretranslate.save_options(config, Options(95, True, True))
+    pretranslate.save_options(config, Options(95, True, ('apertium', 'moses')))
 
-    assert pretranslate.load_options(config) == Options(95, True, True)
-    assert pretranslate.load_options({}) == Options(100, False, False)
+    assert pretranslate.load_options(config) == Options(95, True, ('apertium', 'moses'))
+    assert pretranslate.load_options({}) == Options(100, False, ())
+
+
+# Machine translation for the units translation memory left
+
+
+class _MT:
+    """A machine translation service whose fetched suggestions are in
+    fetched, {source: [match]}."""
+
+    BULK_MAX = None
+    machine_translation = True
+    online_service = 'MT'
+
+    def __init__(self, name, billed=False):
+        self.internal_name = self.display_name = name
+        self.billed = billed
+        self.fetched = {}
+        self.looked_up = []
+
+    def bulk_ready(self):
+        return True
+
+    def bulk_characters(self, sources):
+        return sum(len(s) for s in sources)
+
+    def lookup(self, unit, on_done):
+        self.looked_up.append(unit.source)
+        on_done(self.fetched.get(unit.source, []))
+
+
+def _answer(fetch):
+    """Answer fetch as its machine translation service would."""
+    fetch.model.fetched.update(
+        {source: [{'source': source, 'target': source[::-1]}] for source in fetch.sources}
+    )
+    fetch.answer()
+
+
+OPEN = {'source': 'Open', 'target': 'Maak oop', 'quality': 100}
+
+
+def test_a_service_not_ticked_is_never_asked(idle):
+    paid = _MT('paid', billed=True)
+    tm = _fetching_tm()
+
+    _run_, _progress, results = _run([_ExactModel([OPEN]), paid], [_po_unit('Close')], tm=tm)
+    idle()
+
+    assert tm.started == [] and paid.looked_up == []
+    assert results[0].fills == []
+
+
+def test_a_ticked_service_is_asked_only_for_the_units_left(idle):
+    paid = _MT('paid', billed=True)
+    tm = _fetching_tm()
+    units = [_po_unit('Open'), _po_unit('Close'), _po_unit('Quit')]
+
+    run, _progress, results = _run(
+        [_ExactModel([OPEN]), paid], units, Options(mt_services=('paid',)), tm=tm
+    )
+    idle()
+    (fetch,) = tm.started
+    assert fetch.sources == ['Close', 'Quit']
+    assert run.mt_sources(paid) == ['Close', 'Quit']
+    _answer(fetch)
+    idle()
+
+    fills = {str(fill.unit.source): (fill.target, fill.kind) for fill in results[0].fills}
+    assert fills == {'Open': ('Maak oop', TM), 'Close': ('esolC', MT), 'Quit': ('tiuQ', MT)}
+    assert paid.looked_up == ['Close', 'Quit']
+
+
+def test_what_was_fetched_before_is_not_asked_again(idle):
+    free = _MT('free')
+    free.fetched = {'Close': [{'source': 'Close', 'target': 'Sluit'}]}
+    tm = _fetching_tm(fetched={'Close'})
+
+    _run_, _progress, results = _run(
+        [free], [_po_unit('Close')], Options(mt_services=('free',)), tm=tm
+    )
+    idle()
+
+    assert tm.started == []
+    assert [fill.target for fill in results[0].fills] == ['Sluit']
+
+
+def test_a_service_is_sent_no_more_than_its_allowance(idle):
+    paid = _MT('paid', billed=True)
+    tm = _fetching_tm()
+    units = [_po_unit('Close'), _po_unit('Quit'), _po_unit('Save')]
+
+    _run([paid], units, Options(mt_services=('paid',)), tm=tm, limits={paid: 9})
+    idle()
+
+    (fetch,) = tm.started
+    assert fetch.sources == ['Close', 'Quit']
+    assert fetch.characters == 9

@@ -13,6 +13,7 @@ from translate.storage import po
 
 from virtaal.controllers.unitcontroller import UnitController
 from virtaal.plugins.tm import pretranslate
+from virtaal.plugins.tm.fetchdialog import COL_AVAILABLE, COL_CHARS, COL_NAME, COL_STATUS, COL_USE
 from virtaal.plugins.tm.pretranslatedialog import RESPONSE_RUN, PretranslateDialog, qualities
 from virtaal.plugins.tm.tmcontroller import TMController
 
@@ -88,9 +89,18 @@ class _Online(_Model):
 
 
 class _Fetch:
-    def __init__(self, model, sources, on_progress, on_done):
+    def __init__(self, model, sources, on_progress, on_done, characters=None):
         self.model, self.total, self.fetched, self.finished = model, len(sources), 0, None
-        self._on_done = on_done
+        self.sources, self.characters = sources, characters
+        self._on_progress, self._on_done = on_progress, on_done
+
+    def answer(self):
+        self.model.fetched.update(
+            {source: [{'source': source, 'target': source[::-1]}] for source in self.sources}
+        )
+        self.fetched = self.total
+        self._on_progress(self)
+        self.end('done')
 
     def end(self, finished):
         self.finished = finished
@@ -101,7 +111,7 @@ class _Fetch:
             self.end('cancelled')
 
 
-def _dialog(store, matches=(), config=None, online=None):
+def _dialog(store, matches=(), config=None, online=None, mt=()):
     tm = TMController.__new__(TMController)
     tm.abstract_placeables = True
     tm.min_quality = 75
@@ -109,10 +119,13 @@ def _dialog(store, matches=(), config=None, online=None):
     plugins = {'tm': _Model(list(matches))}
     if online is not None:
         plugins['amagama'] = online
+    plugins.update((model.internal_name, model) for model in mt)
     tm.plugin_controller = SimpleNamespace(plugins=plugins)
     tm.file_units = lambda: store.units
     tm.fetches = []
-    tm.unfetched = lambda model, sources: list(map(str, sources))
+    tm.unfetched = lambda model, sources: [
+        s for s in map(str, sources) if s not in getattr(model, 'fetched', ())
+    ]
     tm.fetch_sources = lambda *args: tm.fetches.append(_Fetch(*args)) or tm.fetches[-1]
     unit_controller = UnitController.__new__(UnitController)
     tm.main_controller = SimpleNamespace(
@@ -160,12 +173,12 @@ def test_it_remembers_the_options_chosen(idle):
     config = {}
     dialog = _dialog(_store(('Open', '')), config=config)
     dialog.quality.set_active_id('90')
-    dialog.use_mt.set_active(True)
+    dialog.exact_translated.set_active(True)
 
     dialog.dialog.response(RESPONSE_RUN)
     idle()
 
-    assert pretranslate.load_options(config) == pretranslate.Options(90, True, False)
+    assert pretranslate.load_options(config) == pretranslate.Options(90, True)
     assert _dialog(_store(('Open', '')), config=config).quality.get_active_id() == '90'
     dialog.dialog.destroy()
 
@@ -285,3 +298,133 @@ def test_cancelling_while_fetching_changes_nothing(idle):
     assert dialog.tm_controller.fetches[0].finished == 'cancelled'
     assert dialog.main_controller.undo_controller.changes == []
     assert _unit(store, 'Open').target == ''
+
+
+# Machine translation services
+
+
+class _MT:
+    BULK_MAX = None
+    machine_translation = True
+    online_service = 'MT'
+
+    def __init__(self, name, billed=False, allowance=None):
+        self.internal_name = self.display_name = name
+        self.billed = billed
+        self.allowance = allowance
+        self.fetched = {}
+
+    def bulk_ready(self):
+        return True
+
+    def bulk_allowance(self, on_done, on_error):
+        if self.allowance == 'refused':
+            on_error()
+        else:
+            on_done(self.allowance)
+
+    def bulk_characters(self, sources):
+        return sum(len(s) for s in sources)
+
+    def lookup(self, unit, on_done):
+        on_done(self.fetched.get(unit.source, []))
+
+
+def _rows(dialog):
+
+    return {
+        row[COL_NAME]: (row[COL_USE], row[COL_AVAILABLE], row[COL_CHARS], row[COL_STATUS])
+        for row in dialog.liststore
+    }
+
+
+def _tick(dialog, name):
+    path = next(str(row.path) for row in dialog.liststore if row[COL_NAME] == name)
+    dialog._on_toggled(None, path)
+
+
+def test_it_lists_the_machine_translation_services_with_paid_ones_unticked():
+    store = _store(('Open', ''), ('Close', ''))
+    config = {'pretranslate_mt_services': 'free,paid'}
+    dialog = _dialog(store, config=config, mt=[_MT('free'), _MT('paid', billed=True)])
+
+    assert _rows(dialog) == {
+        'free': (True, True, '', ''),
+        'paid': (False, True, '9', ''),
+    }
+    assert dialog.billed_note.get_visible()
+    dialog.dialog.destroy()
+
+
+def test_with_no_machine_translation_on_there_is_no_list():
+    dialog = _dialog(_store(('Open', '')))
+
+    assert len(dialog.liststore) == 0
+    assert dialog.treeview.get_parent() is None
+    dialog.dialog.destroy()
+
+
+def test_a_free_services_tick_is_remembered_and_a_paid_ones_is_not(idle):
+    config = {}
+    models = [_MT('free'), _MT('paid', billed=True)]
+    dialog = _dialog(_store(('Open', '')), config=config, mt=models)
+    _tick(dialog, 'free')
+    _tick(dialog, 'paid')
+
+    dialog.dialog.response(RESPONSE_RUN)
+    idle()
+
+    assert config['pretranslate_mt_services'] == 'free'
+    again = _dialog(_store(('Open', '')), config=config, mt=models)
+    assert [name for name, row in _rows(again).items() if row[0]] == ['free']
+    dialog.dialog.destroy()
+    again.dialog.destroy()
+
+
+def test_a_paid_service_is_sent_only_what_translation_memory_left_and_shown(idle):
+    store = _store(('Open', ''), ('Close', ''), ('Quit', ''))
+    paid = _MT('paid', billed=True)
+    dialog = _dialog(store, [OPEN], mt=[paid])
+    assert _rows(dialog)['paid'][2] == '13'
+    _tick(dialog, 'paid')
+
+    dialog.dialog.response(RESPONSE_RUN)
+    idle()
+    (fetch,) = dialog.tm_controller.fetches
+    assert fetch.sources == ['Close', 'Quit']
+    assert _rows(dialog)['paid'][2:] == ('9', '0 of 2')
+    assert dialog.phase.get_text() == 'Fetching suggestions…'
+    fetch.answer()
+    idle()
+
+    assert _rows(dialog)['paid'][2:] == ('9', 'Fetched')
+    assert [_unit(store, s).target for s in ('Open', 'Close', 'Quit')] == [
+        'Maak oop',
+        'esolC',
+        'tiuQ',
+    ]
+    labels = [child.get_text() for child in reversed(dialog.summary.get_children())]
+    assert labels[:4] == ['From translation memory:', '1', 'From machine translation:', '2']
+    dialog.dialog.destroy()
+
+
+def test_a_service_is_cut_to_its_allowance(idle):
+    store = _store(('Close', ''), ('Quit', ''), ('Save', ''))
+    paid = _MT('paid', billed=True, allowance=9)
+    dialog = _dialog(store, mt=[paid])
+    assert _rows(dialog)['paid'][2:] == ('9 of 9 left', 'Cut to the allowance left')
+    _tick(dialog, 'paid')
+
+    dialog.dialog.response(RESPONSE_RUN)
+    idle()
+
+    (fetch,) = dialog.tm_controller.fetches
+    assert fetch.sources == ['Close', 'Quit'] and fetch.characters == 9
+    dialog.dialog.destroy()
+
+
+def test_a_service_that_wont_say_its_allowance_cant_be_ticked():
+    dialog = _dialog(_store(('Open', '')), mt=[_MT('paid', billed=True, allowance='refused')])
+
+    assert _rows(dialog)['paid'] == (False, False, '', 'Unavailable')
+    dialog.dialog.destroy()
