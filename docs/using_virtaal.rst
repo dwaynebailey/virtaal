@@ -361,6 +361,43 @@ Those of services that charge are kept, since fetching them again is charged
 again, unless :guilabel:`Also clear paid services` is ticked; Virtaal then asks
 first.
 
+.. _using_virtaal#pre_translate:
+
+Pre-translate a File
+--------------------
+To fill every unit still to translate in one step, choose
+:menuselection:`File --> Pre-translate This File…`. With several files open
+together, it fills the units of all of them. Only units with no translation at
+all are filled: a translation you or someone else started, even one needing
+work, is left as it is, and so are locked units.
+
+Each unit gets its best suggestion from your local translation memory, a
+remote translation memory server you set up, the translated units of the files
+open and the translation memory of a translation bundle open, chosen as the
+suggestions list orders them, with the unit's own placeables and inline codes.
+:guilabel:`Use matches of at least` sets the lowest match quality used:
+:guilabel:`100%` (exact matches only) to begin with. Online services such as
+amaGama are not asked: their suggestions are used only for units whose
+suggestions were fetched with :menuselection:`File --> Fetch Suggestions for
+This File…` (see :ref:`using_virtaal#fetch_suggestions_for_a_whole_file`).
+Machine translation fetched that way fills a unit with no translation memory
+match good enough only if :guilabel:`Also use machine translation fetched for
+these units` is ticked, so nothing is sent, or charged for, by pre-translating.
+
+A plural unit is filled only from a match with every one of its forms.
+
+The units filled are marked for review (:guilabel:`Needs review`, or
+:guilabel:`Needs work` in a PO file, where that is a fuzzy translation), so
+the :guilabel:`Incomplete` mode and the navigation ribbon lead you to them. Tick :guilabel:`Mark exact matches as translated` to mark
+100% matches :guilabel:`Translated` instead. A file whose format has no review
+state is filled only with exact matches, and only when that is ticked.
+
+The window shows its progress; :guilabel:`Cancel` stops it, and nothing is
+changed. Once it is done, it says how many units it filled from translation
+memory and from machine translation, and how many are still to translate.
+:menuselection:`Edit --> Undo` (:kbd:`Ctrl+Z`) takes every unit it filled back
+at once. The options you chose are kept for next time.
+
 .. _using_virtaal#search_translation_memory:
 
 Search Translation Memory for a Phrase
