@@ -20,6 +20,15 @@ from virtaal.views.widgets.wayland import set_popup_parent
 from .tmwidgets import TMWindow
 
 
+def match_shortcut(number):
+    """The label of the shortcut that takes suggestion C{number}, as
+    this platform shows it (Ctrl+1, ⌘1)."""
+    found, key = Gtk.AccelMap.lookup_entry("<Virtaal>/TM/Select match %d" % number)
+    if not found or not key.accel_key:
+        return ''
+    return Gtk.accelerator_get_label(key.accel_key, key.accel_mods)
+
+
 def _gtk_text(msgid):
     """GTK's own translation of msgid, kept out of virtaal.pot."""
     return GLib.dgettext('gtk30', msgid)
@@ -489,7 +498,9 @@ class TMView(BaseView, GObjectWrapper):
         for match in matches:
             lines = []
             if len(liststore) < 9:
-                lines.append(_('Ctrl+%(number_key)d') % {"number_key": len(liststore) + 1})
+                shortcut = match_shortcut(len(liststore) + 1)
+                if shortcut:
+                    lines.append(shortcut)
             if match.get('tm_target'):
                 lines.append(
                     _(

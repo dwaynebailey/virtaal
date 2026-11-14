@@ -58,6 +58,24 @@ def test_properties_shortcut_matches_the_platform(
     assert shortcuts['Show file properties and statistics'] == accelerator
 
 
+@pytest.mark.parametrize(
+    'is_mac, accelerator', [(True, '<Primary>comma'), (False, '<Primary>comma')]
+)
+def test_preferences_shortcut_matches_the_platform(
+    monkeypatch, _restore_shortcuts_module, is_mac, accelerator
+):
+    monkeypatch.setattr(platform, 'is_mac', is_mac)
+    module = importlib.reload(shortcutswindow)
+
+    shortcuts = dict(
+        (description, accel)
+        for _title, group in module.SHORTCUT_GROUPS
+        for accel, description in group
+    )
+
+    assert shortcuts['Show preferences dialog'] == accelerator
+
+
 def test_save_as_is_listed():
     shortcuts = dict(
         (description, accel) for _title, group in SHORTCUT_GROUPS for accel, description in group

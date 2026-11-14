@@ -11,6 +11,7 @@ import pytest
 from gi.repository import Gdk, GLib, GObject, Gtk
 
 from virtaal.common import GObjectWrapper
+from virtaal.plugins.tm import tmview
 from virtaal.plugins.tm.tmview import TMView
 
 
@@ -113,7 +114,23 @@ def test_select_match_index_does_nothing_past_the_end_of_the_list():
 # display_matches(): tooltip only names the first nine (Ctrl+1..Ctrl+9)
 
 
-def test_display_matches_adds_a_shortcut_tooltip_for_the_first_nine_only():
+def _ctrl(number):
+    # Ctrl+1 here, ⌃1 on macOS.
+    return Gtk.accelerator_get_label(Gdk.KEY_0 + number, Gdk.ModifierType.CONTROL_MASK)
+
+
+@pytest.fixture
+def match_keys():
+    # What TMView._setup_key_bindings() registers.
+    for number in range(1, 10):
+        Gtk.AccelMap.add_entry(
+            "<Virtaal>/TM/Select match %d" % number,
+            Gdk.KEY_0 + number,
+            Gdk.ModifierType.CONTROL_MASK,
+        )
+
+
+def test_display_matches_adds_a_shortcut_tooltip_for_the_first_nine_only(match_keys):
     view = _tmview()
     shown = []
     view.show = lambda force=False: shown.append('show')
@@ -123,12 +140,12 @@ def test_display_matches_adds_a_shortcut_tooltip_for_the_first_nine_only():
     view.display_matches(matches)
 
     tooltips = [row[1] for row in view.tmwindow.liststore]
-    assert tooltips[:9] == ['Ctrl+%d' % n for n in range(1, 10)]
+    assert tooltips[:9] == [_ctrl(n) for n in range(1, 10)]
     assert tooltips[9:] == ['', '']
     assert shown == ['show', 'geometry']
 
 
-def test_display_matches_shows_the_tm_target_of_an_adapted_match():
+def test_display_matches_shows_the_tm_target_of_an_adapted_match(match_keys):
     view = _tmview()
     view.show = lambda force=False: None
     view.update_geometry = lambda: None
@@ -138,9 +155,25 @@ def test_display_matches_shows_the_tm_target_of_an_adapted_match():
 
     tooltips = [row[1] for row in view.tmwindow.liststore]
     assert tooltips == [
-        'Ctrl+1',
-        'Ctrl+2\nAdapted to this unit from: Klik &lt;strong&gt;hier&lt;/strong&gt;',
+        _ctrl(1),
+        _ctrl(2) + '\nAdapted to this unit from: Klik &lt;strong&gt;hier&lt;/strong&gt;',
     ]
+
+
+def test_the_shortcut_tooltip_shows_the_shortcut_as_registered(monkeypatch):
+    key = Gtk.AccelKey()
+    key.accel_key, key.accel_mods = Gdk.KEY_3, Gdk.ModifierType.MOD1_MASK
+    monkeypatch.setattr(Gtk.AccelMap, 'lookup_entry', lambda path: (True, key))
+
+    assert tmview.match_shortcut(3) == Gtk.accelerator_get_label(
+        Gdk.KEY_3, Gdk.ModifierType.MOD1_MASK
+    )
+
+
+def test_no_shortcut_tooltip_without_a_registered_shortcut(monkeypatch):
+    monkeypatch.setattr(Gtk.AccelMap, 'lookup_entry', lambda path: (False, None))
+
+    assert tmview.match_shortcut(1) == ''
 
 
 def test_display_matches_clears_previous_matches_first():

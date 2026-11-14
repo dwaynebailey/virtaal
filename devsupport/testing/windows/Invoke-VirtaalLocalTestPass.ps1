@@ -710,7 +710,7 @@ Invoke-VirtaalCheck "Ctrl+C doesn't modify, Ctrl+V does" {
 
 Invoke-VirtaalCheck "Alt+Enter opens Properties and closes cleanly" {
     # <Virtaal>/File/Properties (propertiesview.py) - same shape as the
-    # existing Ctrl+P Preferences check.
+    # existing Ctrl+, Preferences check.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
         Add-Result "Alt+Enter opens Properties and closes cleanly" "Fail" "app didn't launch"
@@ -996,9 +996,9 @@ Invoke-VirtaalCheck "Welcome screen: open dialog + Recent Files" {
     }
 }
 
-Invoke-VirtaalCheck "Ctrl+P opens Preferences" {
+Invoke-VirtaalCheck "Ctrl+, opens Preferences" {
     # Reported live, 2026-08-24: the gallery review for this check only
-    # had the launch-moment screenshot, taken before Ctrl+P was even
+    # had the launch-moment screenshot, taken before Ctrl+, was even
     # sent - couldn't confirm the dialog actually rendered correctly
     # either way. Preferences is a real separate top-level window, not
     # part of the main one, so Save-VirtaalScreenshot (which reads
@@ -1006,19 +1006,19 @@ Invoke-VirtaalCheck "Ctrl+P opens Preferences" {
     # the dialog's own HWND rather than the main window's.
     $t = Start-VirtaalTest -ExePath $install.ExePath -Arguments "devsupport\testfiles\checks.po"
     if (-not $t) {
-        Add-Result "Ctrl+P opens Preferences" "Fail" "app didn't launch"
+        Add-Result "Ctrl+, opens Preferences" "Fail" "app didn't launch"
     } else {
-        Send-VirtaalKeys $t "^p"
+        Send-VirtaalKeys $t "^,"
         $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 5
         if (-not $dlg) {
-            Add-Result "Ctrl+P opens Preferences" "Fail" "no dialog appeared"
+            Add-Result "Ctrl+, opens Preferences" "Fail" "no dialog appeared"
         } else {
             $dlgTitle = Get-VirtaalWindowText $dlg
             $shot = Save-VirtaalScreenshot ([PSCustomObject]@{ Hwnd = $dlg })
             Close-VirtaalPopup $t $dlg
             $stillAlive = Get-Process -Id $t.Process.Id -ErrorAction SilentlyContinue
             $logsClean = if ($stillAlive) { Assert-VirtaalLogsClean } else { $false }
-            Add-Result "Ctrl+P opens Preferences" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) "dialog title=`"$dlgTitle`"$(if (-not $stillAlive) { ' - process exited after closing it' } elseif (-not $logsClean) { ' - unexpected log output' }) - screenshot: $shot"
+            Add-Result "Ctrl+, opens Preferences" $(if ($stillAlive -and $logsClean) { "Pass" } else { "Fail" }) "dialog title=`"$dlgTitle`"$(if (-not $stillAlive) { ' - process exited after closing it' } elseif (-not $logsClean) { ' - unexpected log output' }) - screenshot: $shot"
         }
     }
 }

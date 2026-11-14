@@ -14,7 +14,7 @@ import subprocess
 from contextlib import contextmanager
 from functools import cache, cached_property
 
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.common import pan_app
 from virtaal.common.platform import platform
@@ -443,8 +443,12 @@ class MainView(BaseView):
             # macOS already adds its own native "Enter Full Screen" to
             # every resizable window's View menu.
             self.gui.get_object("mnu_fullscreen").hide()
-            # Move the about menu item
+            # Move the about menu item, named as macOS names it.
             mnu_about = self.gui.get_object("mnu_about")
+            if isinstance(mnu_about, Gtk.ImageMenuItem):
+                mnu_about.set_property('use-stock', False)
+            about = 'About %s'  # gtk-mac-integration's message, not Virtaal's
+            mnu_about.set_label(GLib.dgettext('gtk-mac-integration', about) % _("Virtaal"))
             osxapp.insert_app_menu_item(mnu_about, 0)
             self.gui.get_object("separator_mnu_help_1").hide()
             # Move the preferences menu item
@@ -614,11 +618,10 @@ class MainView(BaseView):
         ):
             Gtk.AccelMap.add_entry(path, key, Gdk.ModifierType.CONTROL_MASK)
         if not platform.is_mac:
-            # Ctrl+P here, not the usual Ctrl->Cmd translation above -
-            # macOS keeps its own conventional Cmd+, from virtaal.accel
-            # instead (loaded in _setup_macos_integration()).
+            # macOS keeps Cmd+, from virtaal.accel (loaded in
+            # _setup_macos_integration()).
             Gtk.AccelMap.add_entry(
-                "<Virtaal>/Edit/Preferences", Gdk.KEY_p, Gdk.ModifierType.CONTROL_MASK
+                "<Virtaal>/Edit/Preferences", Gdk.KEY_comma, Gdk.ModifierType.CONTROL_MASK
             )
         if platform.is_mac:
             # Ctrl->Cmd translation doesn't reach shifted keys - see Redo.

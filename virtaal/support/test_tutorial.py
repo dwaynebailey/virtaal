@@ -71,3 +71,21 @@ def test_every_entry_has_a_source_and_a_developer_note(tutorial_store):
     for unit in entries:
         assert unit.source
         assert str(unit.getnotes('developer')).strip()
+
+
+@pytest.mark.parametrize(
+    'source, accelerator',
+    [
+        ('Download the files now', '<Primary>1'),
+        ('Restart the program <b>now</b>.', '<Primary>1'),
+        ('Filter', '<Primary>t'),
+    ],
+)
+def test_the_notes_name_this_platforms_shortcuts(tutorial_store, source, accelerator):
+    from gi.repository import Gtk
+
+    shortcut = Gtk.accelerator_get_label(*Gtk.accelerator_parse(accelerator))
+    notes = [str(u.getnotes('developer')) for u in tutorial_store.units if u.source == source]
+
+    assert any(shortcut in note for note in notes)
+    assert not any('%(key)s' in note for note in notes)

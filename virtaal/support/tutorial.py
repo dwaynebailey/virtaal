@@ -11,8 +11,18 @@ from tempfile import mkdtemp
 from translate.storage import factory
 
 
+def _shortcut(accelerator):
+    """C{accelerator} as this platform shows it: <Primary> is Ctrl, or
+    Cmd on macOS."""
+    from gi.repository import Gtk
+
+    key, mods = Gtk.accelerator_parse(accelerator)
+    return Gtk.accelerator_get_label(key, mods)
+
+
 def create_localized_tutorial():
     """Save on disk a tutorial POT file with comments using current locale."""
+    use_suggestion = _shortcut('<Primary>1')
 
     # All the entries in the tutorial.
     #
@@ -81,14 +91,16 @@ def create_localized_tutorial():
             "",
         ),
         (
+            # l10n: %(key)s is a keyboard shortcut, such as Ctrl+1
             _(
                 "If you translated the previous message you should see a window with "
                 "that translation and a percentage indicating how similar the source "
                 "strings (English) are. It is Virtaal's translation memory at work. "
-                "Press Ctrl+1 to copy the suggested translation to the current "
+                "Press %(key)s to copy the suggested translation to the current "
                 "translation. Remember to always review suggestions before you use "
                 "them."
-            ),
+            )
+            % {'key': use_suggestion},
             "Download the files now",
             "",
         ),
@@ -126,12 +138,14 @@ def create_localized_tutorial():
             "",
         ),
         (
+            # l10n: %(key)s is a keyboard shortcut, such as Ctrl+1
             _(
                 "If the source will remain mostly or completely unchanged it is "
-                "convenient to copy the entire source string with Ctrl+Shift+V. Here "
-                "is almost nothing to translate, so just press Ctrl+Shift+V and make "
+                "convenient to copy the entire source string with %(key)s. Here "
+                "is almost nothing to translate, so just press %(key)s and make "
                 "corrections if necessary."
-            ),
+            )
+            % {'key': _shortcut('<Primary><Shift>v')},
             "<b><a href=\"https://virtaal.translatehouse.org/\">Virtaal</a></b>",
             "",
         ),
@@ -194,12 +208,14 @@ def create_localized_tutorial():
             "",
         ),
         (
+            # l10n: %(key)s is a keyboard shortcut, such as Ctrl+1
             _(
                 "This message is very similar to the previous message. Use the "
-                "suggestion of the previous translation with Ctrl+1. Note how the "
+                "suggestion of the previous translation with %(key)s. Note how the "
                 "only difference is that this one ends with a full stop after the "
                 "last tag."
-            ),
+            )
+            % {'key': use_suggestion},
             "Restart the program <b>now</b>.",
             "",
         ),
@@ -356,12 +372,14 @@ def create_localized_tutorial():
         (_("And another kind of accelerator."), "~File", ""),
         # Entry with context message.
         (
+            # l10n: %(key)s is a keyboard shortcut, such as Ctrl+1
             _(
                 "You can maintain a local terminology file to help you translate "
-                "consistently. To add a term, select a word (or words), press Ctrl+T "
+                "consistently. To add a term, select a word (or words), press %(key)s "
                 "and fill in the details for the new term. Select the text below and "
                 "add a term for it."
-            ),
+            )
+            % {'key': _shortcut('<Primary>t')},
             "Filter",
             "verb",
         ),

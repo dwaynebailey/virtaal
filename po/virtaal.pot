@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 05:37+0000\n"
+"POT-Creation-Date: 2026-11-14 05:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1936,11 +1936,6 @@ msgstr[1] ""
 msgid "Couldn’t import “%(file)s” into the translation memory."
 msgstr ""
 
-#: virtaal/plugins/tm/tmview.py
-#, python-format
-msgid "Ctrl+%(number_key)d"
-msgstr ""
-
 #. l10n: Tooltip on a suggestion whose placeables or accelerator
 #. were changed to fit the current unit. %(target)s is the
 #. suggestion as the translation memory or machine
@@ -2041,10 +2036,11 @@ msgid ""
 msgstr ""
 
 #: virtaal/support/tutorial.py
+#, python-format
 msgid ""
 "If you translated the previous message you should see a window with that "
 "translation and a percentage indicating how similar the source strings "
-"(English) are. It is Virtaal's translation memory at work. Press Ctrl+1 to "
+"(English) are. It is Virtaal's translation memory at work. Press %(key)s to "
 "copy the suggested translation to the current translation. Remember to "
 "always review suggestions before you use them."
 msgstr ""
@@ -2075,10 +2071,11 @@ msgid ""
 msgstr ""
 
 #: virtaal/support/tutorial.py
+#, python-format
 msgid ""
 "If the source will remain mostly or completely unchanged it is convenient to "
-"copy the entire source string with Ctrl+Shift+V. Here is almost nothing to "
-"translate, so just press Ctrl+Shift+V and make corrections if necessary."
+"copy the entire source string with %(key)s. Here is almost nothing to "
+"translate, so just press %(key)s and make corrections if necessary."
 msgstr ""
 
 #: virtaal/support/tutorial.py
@@ -2125,9 +2122,10 @@ msgid ""
 msgstr ""
 
 #: virtaal/support/tutorial.py
+#, python-format
 msgid ""
 "This message is very similar to the previous message. Use the suggestion of "
-"the previous translation with Ctrl+1. Note how the only difference is that "
+"the previous translation with %(key)s. Note how the only difference is that "
 "this one ends with a full stop after the last tag."
 msgstr ""
 
@@ -2255,10 +2253,12 @@ msgid "And another kind of accelerator."
 msgstr ""
 
 #: virtaal/support/tutorial.py
+#, python-format
 msgid ""
 "You can maintain a local terminology file to help you translate "
-"consistently. To add a term, select a word (or words), press Ctrl+T and fill "
-"in the details for the new term. Select the text below and add a term for it."
+"consistently. To add a term, select a word (or words), press %(key)s and "
+"fill in the details for the new term. Select the text below and add a term "
+"for it."
 msgstr ""
 
 #: virtaal/support/tutorial.py
