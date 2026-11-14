@@ -607,3 +607,12 @@ def test_browsing_with_no_server_asks_for_one_first(monkeypatch, tmp_path):
 
 def test_the_plugin_is_off_until_enabled():
     assert pan_app.Settings.plugin_state['weblate'] == 'disabled'
+
+
+def test_the_server_dialog_title_says_add_or_edit(weblate):
+    assert (
+        ServerDialog(None, weblate, '', {'token': 'wlu_x'}).dialog.get_title()
+        == 'Add Weblate Server'
+    )
+    edit = ServerDialog(None, weblate, 'https://w.example.org', {'token': 'wlu_x'})
+    assert edit.dialog.get_title() == 'Edit Weblate Server'

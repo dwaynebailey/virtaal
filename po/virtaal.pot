@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-13 23:07+0000\n"
+"POT-Creation-Date: 2026-11-14 04:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3104,10 +3104,22 @@ msgid_plural "%(left)s of %(limit)s requests left until %(time)s."
 msgstr[0] ""
 msgstr[1] ""
 
+#. l10n: Window title. %(platform)s is the translation platform's name, e.g. Weblate
+#: virtaal/support/platforms/serversdialog.py
+#, python-format
+msgid "Edit %(platform)s Server"
+msgstr ""
+
 #: virtaal/support/platforms/serversdialog.py virtaal/views/mainview.py
 #: virtaal/views/propertiesview.py virtaal/views/widgets/langadddialog.py
 #: virtaal/views/widgets/settingsdialog.py
 msgid "_Save"
+msgstr ""
+
+#. l10n: Window title. %(platform)s is the translation platform's name, e.g. Weblate
+#: virtaal/support/platforms/serversdialog.py
+#, python-format
+msgid "Add %(platform)s Server"
 msgstr ""
 
 #: virtaal/support/platforms/serversdialog.py

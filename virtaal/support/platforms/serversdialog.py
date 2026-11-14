@@ -101,8 +101,16 @@ class ServerDialog(SettingsDialog):
         values = {'url': url, **(credentials or {}), SEND_FINISHED: send_finished, **options}
         fields = (*platform.fields(), *option_fields(platform))
         # A new server is added; a known one, edited, is saved.
-        ok_label = _('_Save') if url else _('_Add')
-        super().__init__(parent, platform.name, fields, values, ok_label)
+        if url:
+            # l10n: Window title. %(platform)s is the translation platform's name, e.g. Weblate
+            title = _('Edit %(platform)s Server')
+            ok_label = _('_Save')
+        else:
+            # l10n: Window title. %(platform)s is the translation platform's name, e.g. Weblate
+            title = _('Add %(platform)s Server')
+            ok_label = _('_Add')
+        title %= {'platform': platform.name}
+        super().__init__(parent, title, fields, values, ok_label)
 
     def problem(self):
         return self.platform.url_problem(self.get_values()['url'])
