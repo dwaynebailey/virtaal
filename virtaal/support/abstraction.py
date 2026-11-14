@@ -269,6 +269,44 @@ def abstract(text):
     return ''.join(out), list(analysis.placeables)
 
 
+def abstract_offsets(text):
+    """(abstract text, offsets) for text, where offsets[i] is the
+    (start, end) in text of the abstract's character i: a placeable's
+    marker covers the placeable, "…" the "..." it stands for."""
+    text = str(text)
+    analysis = _analyse(text)
+    if analysis.raw:
+        return text, [(i, i + 1) for i in range(len(text))]
+    accel = analysis.accelerator
+    out = []
+    offsets = []
+    offset = 0
+    for marker, raw in analysis.pieces:
+        end = offset + len(raw)
+        if marker is not None:
+            out.append(marker)
+            offsets.append((offset, end))
+        else:
+            _text_offsets(text, offset, end, accel, out, offsets)
+        offset = end
+    return ''.join(out), offsets
+
+
+def _text_offsets(text, start, end, accel, out, offsets):
+    i = start
+    while i < end:
+        if accel is not None and i == accel[0]:
+            i += 1
+        elif text.startswith(_ELLIPSIS, i) and i + len(_ELLIPSIS) <= end:
+            out.append('…')
+            offsets.append((i, i + len(_ELLIPSIS)))
+            i += len(_ELLIPSIS)
+        else:
+            out.append(text[i])
+            offsets.append((i, i + 1))
+            i += 1
+
+
 def _by_class(placeables_):
     classes = {}
     for placeable in placeables_:
