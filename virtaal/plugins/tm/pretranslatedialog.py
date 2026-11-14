@@ -8,9 +8,12 @@
 """The Pre-translate dialog: its options, the progress, and what it
 filled."""
 
+import logging
+
 from gi.repository import Gtk
 
 from virtaal.common.pan_app import ngettext
+from virtaal.models.streammodel import PeekUnit
 from virtaal.support.libi18n.numbers import format_number, format_percent
 
 from . import pretranslate
@@ -66,7 +69,8 @@ class PretranslateDialog:
         self.run = None
         self.result = None
         self.options = pretranslate.load_options(tm_controller.config)
-        self.units = [u for u in tm_controller.file_units() if pretranslate.wanted(u)]
+        self.all_units = tm_controller.file_units()
+        self.units = [u for u in self.all_units if pretranslate.wanted(u)]
 
         self.dialog = Gtk.Dialog(
             # l10n: The title of the window that fills the units still to translate with suggestions
@@ -189,13 +193,26 @@ class PretranslateDialog:
         self.run = pretranslate.Pretranslation(
             self.tm_controller,
             models,
-            self.units,
+            self.all_units,
             self.options,
             self._on_progress,
             self._on_done,
+            self._read,
         )
         self._on_progress(0, self.run.total)
         self.run.start()
+
+    def _read(self, index, unit):
+        """The unit at index, from its file if a stream's file isn't read
+        yet."""
+        if not isinstance(unit, PeekUnit):
+            return unit
+        store = self.main_controller.store_controller.get_store()
+        try:
+            return store.get_unit(index)
+        except Exception:
+            logging.exception('Pre-translate could not read the file of unit %d', index)
+            return None
 
     def cancel(self):
         if self.run is not None:

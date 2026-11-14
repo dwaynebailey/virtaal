@@ -241,7 +241,7 @@ def idle(monkeypatch):
     return run
 
 
-def _run(models, units, options=None):
+def _run(models, units, options=None, read=None):
     progress, results = [], []
     run = pretranslate.Pretranslation(
         _tm(),
@@ -250,6 +250,7 @@ def _run(models, units, options=None):
         options or Options(),
         lambda done, total: progress.append((done, total)),
         results.append,
+        read,
     )
     run.start()
     return run, progress, results
@@ -290,6 +291,27 @@ def test_a_cancelled_run_ends_without_a_result(idle):
     idle()
 
     assert results == []
+
+
+def test_a_unit_of_a_file_not_read_yet_is_read_first(idle):
+    from virtaal.models.streammodel import PeekUnit
+
+    exact = {'source': 'Open', 'target': 'Maak oop', 'quality': 100}
+    real = [_po_unit('Open'), _po_unit('Close', 'Sluit')]
+    peeks = [PeekUnit(str(i), 'Open' if i == 0 else 'Close', '', 0) for i in range(2)]
+
+    _run_, _progress, results = _run(
+        [_ExactModel([exact])], peeks, read=lambda index, _unit: real[index]
+    )
+    idle()
+
+    assert [fill.unit for fill in results[0].fills] == [real[0]]
+
+
+def test_the_review_state_of_a_unit_not_read_yet_is_unknown():
+    from virtaal.models.streammodel import PeekUnit
+
+    assert pretranslate.review_state(PeekUnit('1', 'Open', '', 0)) is None
 
 
 def test_a_model_that_fails_counts_as_no_matches(idle):

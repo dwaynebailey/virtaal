@@ -175,3 +175,18 @@ def test_the_file_closing_stops_it(idle):
     idle()
 
     assert dialog.main_controller.undo_controller.changes == []
+
+
+def test_a_unit_of_a_file_not_read_yet_is_read_from_the_stream():
+    from virtaal.models.streammodel import PeekUnit
+
+    store = _store(('Open', ''))
+    dialog = _dialog(store)
+    real = _unit(store, 'Open')
+    dialog.main_controller.store_controller.get_store = lambda: SimpleNamespace(
+        get_unit=lambda index: real
+    )
+
+    assert dialog._read(4, PeekUnit('1', 'Open', '', 0)) is real
+    assert dialog._read(4, real) is real
+    dialog.dialog.destroy()

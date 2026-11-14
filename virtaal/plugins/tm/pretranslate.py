@@ -70,8 +70,12 @@ def wanted(unit):
 def review_state(unit):
     """The state that asks for a review in unit's format: its highest
     below translated (XLIFF's Needs review, PO's fuzzy); None if it has
-    none."""
-    states = [s for s in (unit.STATE or ()) if StateEnum.EMPTY < s < StateEnum.UNREVIEWED]
+    none, or isn't read yet."""
+    states = [
+        s
+        for s in (unit.STATE or ())
+        if isinstance(s, int) and StateEnum.EMPTY < s < StateEnum.UNREVIEWED
+    ]
     return max(states) if states else None
 
 
@@ -184,12 +188,15 @@ class Pretranslation:
     """Asks every model for each unit still to translate, a unit at a
     time from the main loop, and chooses its fill. on_progress(done,
     total) after each unit; on_done(Result) at the end, unless
-    cancelled. Nothing is changed until apply_result()."""
+    cancelled. Nothing is changed until apply_result(). read(index,
+    unit) gives the unit at index of units as read from its file, for
+    a stream's file not read yet."""
 
-    def __init__(self, tm_controller, models, units, options, on_progress, on_done):
+    def __init__(self, tm_controller, models, units, options, on_progress, on_done, read=None):
         self.tm_controller = tm_controller
         self.models = list(models)
-        self.units = [unit for unit in units if wanted(unit)]
+        self.units = [(index, unit) for index, unit in enumerate(units) if wanted(unit)]
+        self._read = read
         self.options = options
         self.fills = []
         self.done = 0
@@ -219,11 +226,23 @@ class Pretranslation:
         if self.done >= len(self.units):
             self._on_done(Result(self.fills, len(self.units)))
             return False
-        unit = self.units[self.done]
+        unit = self._unit(*self.units[self.done])
+        if unit is None:
+            self.done += 1
+            self._on_progress(self.done, len(self.units))
+            self._idle = GLib.idle_add(self._next)
+            return False
         answers = self._answers = {}
         for model in self.models:
             self._ask(model, unit, answers)
         return False
+
+    def _unit(self, index, unit):
+        """unit, read from its file if it wasn't; None if that one isn't
+        wanted after all."""
+        if self._read is not None:
+            unit = self._read(index, unit)
+        return unit if unit is not None and wanted(unit) else None
 
     def _ask(self, model, unit, answers):
         def on_done(matches):

@@ -96,6 +96,52 @@ class TestStreamOpenSave(TestScaffolding):
         assert not self.store_controller.is_modified()
         assert self.store_controller.modified_stream_files() == []
 
+    def test_pre_translate_fills_a_file_not_read_yet_and_saves_it(self, monkeypatch):
+        from gi.repository import GLib
+
+        from virtaal.models.streammodel import PeekUnit
+        from virtaal.plugins.tm import pretranslate
+        from virtaal.plugins.tm.tmcontroller import TMController
+
+        calls = []
+        monkeypatch.setattr(GLib, 'idle_add', lambda func, *a, **k: calls.append(func) or 1)
+        self.store_controller.open_files([str(self.dir)])
+        sc = self.store_controller
+        assert not sc.store.segments[1].loaded
+        tm = TMController.__new__(TMController)
+        tm.abstract_placeables = False
+        tm.main_controller = self.main_controller
+
+        class _Model:
+            display_name = 'A TM'
+
+            def lookup(self, unit, on_done):
+                found = {'One': 'Een', 'Three': 'Drie'}.get(unit.source)
+                on_done([{'source': unit.source, 'target': found, 'quality': 100}] if found else [])
+
+        def read(index, unit):
+            return sc.store.get_unit(index) if isinstance(unit, PeekUnit) else unit
+
+        results = []
+        run = pretranslate.Pretranslation(
+            tm,
+            [_Model()],
+            sc.store.get_units(),
+            pretranslate.Options(),
+            lambda *a: None,
+            results.append,
+            read,
+        )
+        run.start()
+        while calls:
+            calls.pop(0)()
+        pretranslate.apply_result(self.main_controller, results[0])
+        sc.save_file()
+
+        b = factory.getobject(str(self.dir / 'b.po')).units[1]
+        assert (b.target, b.isfuzzy()) == ('Drie', True)
+        assert factory.getobject(str(self.dir / 'a.po')).units[1].target == 'Een'
+
     def test_an_edited_unit_is_found_by_identity_across_files(self):
         self.store_controller.open_files([str(self.dir)])
         sc = self.store_controller
