@@ -247,6 +247,7 @@ def test_run_edit_prefills_the_language_and_fixes_its_name_and_code():
             (
                 clear,
                 dialog.dialog.get_title(),
+                dialog.btn_add_ok.get_label(),
                 dialog.ent_langname.get_sensitive(),
                 dialog.ent_langcode.get_sensitive(),
                 dialog.langname,
@@ -261,9 +262,12 @@ def test_run_edit_prefills_the_language_and_fixes_its_name_and_code():
 
     assert dialog.run_edit('Ukrainian', 'uk', 3, 'n%10==1 ? 0 : 1')
 
-    assert seen == [(False, 'Edit Language', False, False, 'Ukrainian', 'uk', 3, 'n%10==1 ? 0 : 1')]
+    assert seen == [
+        (False, 'Edit Language', '_Save', False, False, 'Ukrainian', 'uk', 3, 'n%10==1 ? 0 : 1')
+    ]
     # Adding a language afterwards gets the add dialog back.
     assert dialog.dialog.get_title() == 'Add Missing Language'
+    assert dialog.btn_add_ok.get_label() == '_Add'
     assert dialog.ent_langname.get_sensitive() and dialog.ent_langcode.get_sensitive()
 
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 05:27+0000\n"
+"POT-Creation-Date: 2026-11-14 05:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -38,6 +38,10 @@ msgstr ""
 
 #: share/virtaal/virtaal.ui
 msgid "Add Missing Language"
+msgstr ""
+
+#: share/virtaal/virtaal.ui
+msgid "_Add"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -101,6 +105,10 @@ msgstr ""
 
 #: share/virtaal/virtaal.ui
 msgid "_Edit Translation Language…"
+msgstr ""
+
+#: share/virtaal/virtaal.ui
+msgid "_Select"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -939,6 +947,10 @@ msgid ""
 "file?"
 msgstr ""
 
+#: virtaal/controllers/maincontroller.py
+msgid "_Reload"
+msgstr ""
+
 #: virtaal/controllers/maincontroller.py virtaal/main.py
 #: virtaal/views/mainview.py
 #, python-format
@@ -1017,6 +1029,10 @@ msgstr ""
 
 #: virtaal/controllers/maincontroller.py
 msgid "Revert to the last saved copy and lose all changes?"
+msgstr ""
+
+#: virtaal/controllers/maincontroller.py
+msgid "_Revert"
 msgstr ""
 
 #. l10n: See http://en.wikipedia.org/wiki/CamelCase
@@ -1473,6 +1489,14 @@ msgstr ""
 
 #: virtaal/plugins/migration.py
 msgid "Import data from other applications?"
+msgstr ""
+
+#: virtaal/plugins/migration.py
+msgid "_Import"
+msgstr ""
+
+#: virtaal/plugins/migration.py
+msgid "_Don’t Import"
 msgstr ""
 
 #: virtaal/plugins/migration.py
@@ -2419,6 +2443,7 @@ msgid "_Don’t Save"
 msgstr ""
 
 #: virtaal/views/mainview.py virtaal/views/propertiesview.py
+#: virtaal/views/widgets/langadddialog.py
 msgid "_Save"
 msgstr ""
 
@@ -2446,6 +2471,10 @@ msgstr ""
 
 #: virtaal/views/mainview.py
 msgid "Please enter the number of noun forms (plurals) to use"
+msgstr ""
+
+#: virtaal/views/mainview.py
+msgid "_Use"
 msgstr ""
 
 #: virtaal/views/mainview.py

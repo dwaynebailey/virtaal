@@ -82,11 +82,23 @@ def test_info_dialog_has_an_ok_button(view):
     assert _button_labels(view.info_dialog) == {'_OK'}
 
 
-def test_prompt_dialog_defaults_to_no(view):
-    dialog = view.prompt_dialog
+def test_prompt_dialog_buttons_name_their_actions_and_default_to_no(view, monkeypatch):
+    _press(monkeypatch, Gtk.ResponseType.YES)
 
-    assert _button_labels(dialog) == {'_No', '_Yes'}
+    assert view.show_prompt_dialog(message='Revert?', yes_label='_Revert')
+    assert view.show_prompt_dialog(message='Import?', yes_label='_Import', no_label='_Skip')
+
+    dialog = view.prompt_dialog
+    assert _button_labels(dialog) == {'_Skip', '_Import'}
     assert dialog.get_widget_for_response(Gtk.ResponseType.NO).has_default()
+    assert dialog.get_widget_for_response(Gtk.ResponseType.YES).get_label() == '_Import'
+
+
+def test_prompt_dialog_offers_cancel_and_ok_by_default(view, monkeypatch):
+    _press(monkeypatch, Gtk.ResponseType.NO)
+
+    assert not view.show_prompt_dialog(message='Go on?')
+    assert _button_labels(view.prompt_dialog) == {'_Cancel', '_OK'}
 
 
 def _button_order(dialog):
@@ -158,10 +170,18 @@ def test_show_input_dialog_returns_the_text_on_ok(view, monkeypatch):
 
     assert view.show_input_dialog(title='Rename', message='<b>New name</b>') == 'Some text'
     dialog = view.input_dialog
+    assert dialog.ok_button.get_label() == '_OK'
     assert dialog.get_title() == 'Rename'
     assert dialog.lbl_message.get_text() == 'New name'
     assert not dialog.get_visible()
     assert view._top_window is view.main_window
+
+
+def test_show_input_dialog_labels_its_button(view, monkeypatch):
+    _press(monkeypatch, Gtk.ResponseType.OK, typed='3')
+
+    assert view.show_input_dialog(message='Plurals', ok_label='_Use') == '3'
+    assert view.input_dialog.ok_button.get_label() == '_Use'
 
 
 @pytest.mark.parametrize('response', [Gtk.ResponseType.CANCEL, Gtk.ResponseType.DELETE_EVENT])

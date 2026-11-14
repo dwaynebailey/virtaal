@@ -239,7 +239,7 @@ class MainController(BaseController):
             promptmsg = _(
                 'You selected the currently open file for opening. Do you want to reload the file?'
             )
-            if not self.show_prompt(msg=promptmsg):
+            if not self.show_prompt(msg=promptmsg, yes_label=_("_Reload")):
                 return False
 
         try:
@@ -376,7 +376,9 @@ class MainController(BaseController):
 
     def revert_file(self, filename=None):
         confirm = self.show_prompt(
-            _("Revert to Saved"), _("Revert to the last saved copy and lose all changes?")
+            _("Revert to Saved"),
+            _("Revert to the last saved copy and lose all changes?"),
+            yes_label=_("_Revert"),
         )
         if not confirm:
             return
@@ -409,7 +411,7 @@ class MainController(BaseController):
             promptmsg = _(
                 'You selected the currently open file for opening. Do you want to reload the file?'
             )
-            if not self.show_prompt(msg=promptmsg):
+            if not self.show_prompt(msg=promptmsg, yes_label=_("_Reload")):
                 return False
 
         try:
@@ -436,9 +438,11 @@ class MainController(BaseController):
         """Shortcut for C{self.view.show_error_dialog()}"""
         return self.view.show_error_dialog(message=msg, parent=parent)
 
-    def show_prompt(self, title='', msg='', parent=None):
+    def show_prompt(self, title='', msg='', parent=None, yes_label='', no_label=''):
         """Shortcut for C{self.view.show_prompt_dialog()}"""
-        return self.view.show_prompt_dialog(title=title, message=msg, parent=parent)
+        return self.view.show_prompt_dialog(
+            title=title, message=msg, parent=parent, yes_label=yes_label, no_label=no_label
+        )
 
     def show_info(self, title='', msg='', parent=None):
         """Shortcut for C{self.view.show_info_dialog()}"""

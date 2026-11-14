@@ -270,6 +270,15 @@ class _FakeMessageDialog:
         self.calls = []
         self._response = response
 
+    def get_widget_for_response(self, response):
+        return None
+
+    def add_button(self, label, response):
+        pass
+
+    def set_default_response(self, response):
+        pass
+
     def set_title(self, title):
         pass
 
@@ -348,6 +357,7 @@ class _FakeInputDialog:
     def __init__(self, response=Gtk.ResponseType.OK, text='typed'):
         self._response = response
         self._text = text
+        self.ok_button = Gtk.Button()
 
     def set_transient_for(self, window):
         pass
@@ -2221,7 +2231,7 @@ def test_ask_plural_info_prompts_for_an_equation_when_the_default_is_a_placehold
     view.controller = SimpleNamespace(
         lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='ar'))
     )
-    view.show_input_dialog = lambda message: 'n % 100 == 1 ? 0 : 1'
+    view.show_input_dialog = lambda message, ok_label: 'n % 100 == 1 ? 0 : 1'
 
     assert view.ask_plural_info() == (3, 'n % 100 == 1 ? 0 : 1')
 
@@ -2236,7 +2246,7 @@ def test_ask_plural_info_prompts_for_a_plural_count_when_the_language_has_none(m
         lang_controller=SimpleNamespace(target_lang=SimpleNamespace(code='xx'))
     )
     prompts = iter(['not a number', '1'])
-    view.show_input_dialog = lambda message: next(prompts)
+    view.show_input_dialog = lambda message, ok_label: next(prompts)
 
     assert view.ask_plural_info() == (1, '0')
 
