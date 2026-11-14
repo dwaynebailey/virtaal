@@ -5,9 +5,9 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""Edit > Search Translation Memory…: a word or phrase in the sources of
-translations that can search for one, listed in a window to insert
-from."""
+"""Edit > Search Translation Memory…: a word or phrase in the files open
+and the sources of translations that can search for one, listed in a
+window to insert from."""
 
 import datetime
 import os
@@ -21,6 +21,9 @@ from virtaal.views import markup
 
 ACCEL_PATH = '<Virtaal>/Edit/Search Translation Memory'
 HIGHLIGHT = 'background="yellow" foreground="black"'
+OPEN_FILES_STEP = 2000
+"""How many units of the files open are searched each time the main loop
+is idle."""
 
 
 def side_name(parts):
@@ -61,6 +64,51 @@ def tooltip(match):
     return GLib.markup_escape_text('\n'.join(lines)) if lines else None
 
 
+def open_files_name():
+    # l10n: In Search Translation Memory: the files being edited, as a source of translations
+    return _("Open Files")
+
+
+def _strings(text):
+    strings = getattr(text, 'strings', None)
+    return [str(string) for string in strings] if strings else [str(text or '')]
+
+
+def unit_paths(store, count):
+    """The path of the file of each of the count units of store."""
+    segments = getattr(store, 'segments', None)
+    if segments is None:
+        return [store.get_filename() or ''] * count
+    paths = []
+    for segment in segments:
+        paths.extend([segment.path] * segment.count)
+    return paths
+
+
+def unit_match(query, sides, unit, index, path):
+    """The match for a translated unit of the files open, at index in
+    their units, if the phrase is in it; else None."""
+    targets = _strings(unit.target)
+    if not any(targets):
+        return None
+    texts = {'source': _strings(unit.source), 'target': targets}
+    if not any(query.maybe(text) for side in sides for text in texts[side] if text):
+        return None
+    found = concordance.match_hits(query, sides, texts)
+    if not found:
+        return None
+    getcontext = getattr(unit, 'getcontext', None)
+    match = {
+        'source': texts['source'][0],
+        'target': targets[0],
+        'context': getcontext() if callable(getcontext) else None,
+        'index': index,
+        'origins': [path] if path else [],
+        'time': 0,
+    }
+    return concordance.describe(match, found, texts)
+
+
 def row_markup(match, side):
     """A match's text of side as markup, with its inline codes and the
     phrase highlighted."""
@@ -94,11 +142,17 @@ class ConcordanceController:
         self._truncated = False
         self._total = 0
         self._sources = []
+        self._scan = None
         mainview = self.main_controller.view
         self.menu_item = mainview.gui.get_object('mnu_search_tm')
         self._activate_id = self.menu_item.connect('activate', self.show)
         self._setup_accelerator(mainview)
         self.menu_item.set_sensitive(True)
+        store_controller = self.main_controller.store_controller
+        self._store_ids = [
+            store_controller.connect(signal, self._on_store_changed)
+            for signal in ('store-loaded', 'store-closed')
+        ]
 
     def _setup_accelerator(self, mainview):
         Gtk.AccelMap.add_entry(ACCEL_PATH, Gdk.KEY_k, Gdk.ModifierType.CONTROL_MASK)
@@ -117,6 +171,8 @@ class ConcordanceController:
 
     def destroy(self):
         self.stop()
+        for signal_id in self._store_ids:
+            self.main_controller.store_controller.disconnect(signal_id)
         self.menu_item.disconnect(self._activate_id)
         self.menu_item.set_sensitive(False)
         if self.view is not None:
@@ -179,6 +235,7 @@ class ConcordanceController:
         self.view.started_search()
         self._sources = list(self._models())
         self._searching = [name for name, _model in self._sources]
+        self._search_open_files(self._generation)
         for name, model in self._sources:
             self._search_model(self._generation, name, model)
         self._update()
@@ -192,6 +249,39 @@ class ConcordanceController:
             if callable(getattr(model, 'concordance', None)):
                 yield getattr(model, 'shortname', None) or model.display_name, model
 
+    def _search_open_files(self, generation):
+        """Search the units of the files open, with their unsaved changes,
+        a slice each time the main loop is idle. The unit being edited is
+        left out."""
+        store = self.main_controller.store_controller.get_store()
+        if store is None:
+            return
+        name = open_files_name()
+        units = store.get_units()
+        paths = unit_paths(store, len(units))
+        current = getattr(self.main_controller.unit_controller, 'current_unit', None)
+        found = []
+        done = [0]
+        self._searching.append(name)
+
+        def step():
+            start, end = done[0], min(done[0] + OPEN_FILES_STEP, len(units))
+            for index in range(start, end):
+                if units[index] is current:
+                    continue
+                match = unit_match(self._query, self._sides, units[index], index, paths[index])
+                if match is not None:
+                    found.append(match)
+            done[0] = end
+            if end < len(units):
+                return True
+            self._scan = None
+            ranked = concordance.rank(found)[: concordance.LIMIT]
+            self._on_found(generation, name, ranked, len(found), True, False)
+            return False
+
+        self._scan = GLib.idle_add(step)
+
     def _search_model(self, generation, name, model):
         first = getattr(model, 'first', None)
         first = bool(first()) if callable(first) else False
@@ -204,6 +294,9 @@ class ConcordanceController:
     def stop(self):
         """Stop every search on its way."""
         self._generation += 1
+        if self._scan is not None:
+            GLib.source_remove(self._scan)
+            self._scan = None
         for _name, model in self._sources:
             cancel = getattr(model, 'cancel_concordance', None)
             if callable(cancel):
@@ -260,6 +353,12 @@ class ConcordanceController:
         return self.matches[index]
 
     # EVENT HANDLERS #
+    def _on_store_changed(self, *_args):
+        """The files open's matches go with them."""
+        self.stop()
+        if self._found.pop(open_files_name(), None) is not None and self.view is not None:
+            self._update()
+
     def _on_found(self, generation, name, matches, total, complete, first):
         if generation != self._generation:
             return

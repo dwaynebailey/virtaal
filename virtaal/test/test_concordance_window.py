@@ -118,7 +118,10 @@ class TestConcordanceWindow(TestScaffolding):
         self.window = self.tm.concordance
         monkeypatch.setattr(self.window, '_models', lambda: iter([('Test TM', self.model)]))
         self.store_controller.close_file()
-        self.store_controller.open_file(_po(tmp_path / 'open.po', [('Open the file', '')]))
+        self.po = _po(
+            tmp_path / 'open.po', [('Open the file', ''), ('Save the file', 'Stoor die lêer')]
+        )
+        self.store_controller.open_file(self.po)
         yield
         self.store_controller.set_modified(False)
         self.store_controller.close_file()
@@ -126,8 +129,8 @@ class TestConcordanceWindow(TestScaffolding):
         for connection, _cursor in tmdb.TMDB._tm_dbs.pop(self.db_path, {}).values():
             connection.close()
 
-    def _load(self):
-        unit = self.store_controller.store.get_units()[0]
+    def _load(self, index=0):
+        unit = self.store_controller.store.get_units()[index]
         view = self.unit_controller.load_unit(unit)
         view._layout_update_targets()
         view.focused_target_n = 0
@@ -140,10 +143,16 @@ class TestConcordanceWindow(TestScaffolding):
         window = self.main_controller.view.main_window
         monkeypatch.setattr(window, 'get_focus', lambda: textbox)
 
+    def _settle(self):
+        context = GLib.MainContext.default()
+        while self.window._scan is not None:
+            context.iteration(False)
+
     def _search(self, text, side=None):
         self.window._view().show()
         self.window.view.set_search(text, side)
         self.window.start()
+        self._settle()
         return [tuple(row) for row in self.window.view.liststore]
 
     def test_a_selected_translation_is_searched_in_the_translations(self, monkeypatch):
@@ -152,11 +161,16 @@ class TestConcordanceWindow(TestScaffolding):
         self._focus(monkeypatch, view.targets[0], 9, 13)
 
         self.window.show()
+        self._settle()
 
         assert self.model.asked[-1]['text'] == 'lêer'
         assert self.model.asked[-1]['side'] == 'target'
         assert self.window.view.ent_search.get_text() == 'lêer'
-        assert [m['target'] for m in self.window.matches] == ['Maak &lêer oop', 'Skrap %d lêers']
+        assert [m['target'] for m in self.window.matches] == [
+            'Maak &lêer oop',
+            'Stoor die lêer',
+            'Skrap %d lêers',
+        ]
         assert self.window.view.dialog.get_visible()
 
     def test_a_selected_source_is_searched_in_the_sources(self, monkeypatch):
@@ -230,6 +244,60 @@ class TestConcordanceWindow(TestScaffolding):
         self.window.insert(0)
 
         assert target.get_text() == 'lêer'
+
+    def test_the_files_open_are_searched_with_their_unsaved_changes(self):
+        self._load(1)
+        self.store_controller.store.get_units()[0].target = 'Maak die lêer oop'
+
+        rows = self._search('the file', 'source')
+
+        assert [(row[0], row[1], row[2]) for row in rows] == [
+            (
+                'Open <span %s>the file</span>' % concordance_window.HIGHLIGHT,
+                'Maak die lêer oop',
+                'open.po',
+            ),
+        ]
+        assert [m['index'] for m in self.window.matches] == [0]
+
+    def test_the_unit_being_edited_is_left_out(self):
+        view = self._load(1)
+        view.targets[0].set_text('Stoor die lêer')
+
+        assert self._search('the file', 'source') == []
+
+    def test_an_untranslated_unit_is_left_out(self):
+        rows = self._search('open the', 'source')
+
+        assert rows == []
+
+    def test_go_to_unit_moves_to_a_match_of_the_files_open(self):
+        self._search('save the', 'source')
+        self.window.view.treeview.get_selection().select_path(Gtk.TreePath(0))
+        assert self.window.view.btn_go_to.get_sensitive()
+
+        self.window.go_to(0)
+
+        assert self.store_controller.cursor.index == 1
+
+    def test_closing_the_files_drops_their_matches(self):
+        self._search('the file', 'source')
+
+        self.store_controller.close_file()
+
+        assert [tuple(row) for row in self.window.view.liststore] == []
+
+    def test_the_files_open_are_searched_a_slice_at_a_time(self, monkeypatch):
+        monkeypatch.setattr(concordance_window, 'OPEN_FILES_STEP', 1)
+        self.window._view()
+        self.window.view.set_search('the file', 'source')
+        self.window.start()
+        context = GLib.MainContext.default()
+        context.iteration(False)
+
+        assert 'Searching Open Files…' in self.window.view.lbl_summary.get_text()
+        self._settle()
+        assert self.window.view.lbl_summary.get_text() == '1 match'
 
     def test_copy_puts_the_translation_on_the_clipboard(self):
         self._search('profile')

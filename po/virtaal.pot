@@ -2319,6 +2319,11 @@ msgid_plural "In %(count)s files:"
 msgstr[0] ""
 msgstr[1] ""
 
+#. l10n: In Search Translation Memory: the files being edited, as a source of translations
+#: virtaal/plugins/tm/concordance.py
+msgid "Open Files"
+msgstr ""
+
 #. l10n: The title of the window that gets suggestions for every unit of the file at once
 #: virtaal/plugins/tm/fetchdialog.py
 msgid "Fetch Suggestions"
