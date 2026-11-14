@@ -107,7 +107,7 @@ msgids = [
     "Choose a Translation File",
     "Machine translation",
     "Save",
-    "Save As…",
+    "Save _As…",
     "Save changes to “%(filename)s”?",
     "If you don’t save, your changes will be lost.",
     # The current file's own label on its suggestions.
@@ -145,7 +145,7 @@ msgids = ["Default", "<b><big>Recent Files</big></b>"]
 [[override]]
 # Help > Show Logs: Windows builds only, so the harvest never sees it.
 priority = "1"
-msgids = ["Show Lo_gs"]
+msgids = ["S_how Logs"]
 
 [[override]]
 # The welcome screen's feature list.

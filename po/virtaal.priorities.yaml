@@ -45,7 +45,6 @@ domains:
     - "Stock label\x04_Copy"
     - "Stock label\x04_Open"
     - "Stock label\x04_Paste"
-    - "Stock label\x04_Preferences"
     - "Stock label\x04_Properties"
     - "Stock label\x04_Quit"
     - "Stock label\x04_Save"
@@ -194,7 +193,7 @@ domains:
     - <u>Open</u>
     - <u>Report a Bug</u>
     - <u>Tutorial</u>
-    - Add _Term…
+    - A_dd Term…
     - Add to Local _TM on Save
     - All
     - 'Checks: %(checker_name)s'
@@ -206,22 +205,22 @@ domains:
     - Keyboard _Shortcuts
     - 'N_avigation:'
     - Needs work
-    - Next Unit
-    - Next Unit and Advance State
-    - Next Unit and Reverse State
+    - Next Unit and Advance _State
+    - Next Unit and Rev_erse State
     - None
     - P_age Up
-    - P_revious Placeable
+    - Pr_eferences
+    - Previ_ous Placeable
     - Priority
     - Quality Checks
     - Re_vert to Saved
     - Report a _Bug
+    - S_how Logs
     - Search
     - Settings…
-    - Show Lo_gs
     - Suggestions for This _Unit
-    - Terminology _Files…
-    - Transfer From Source
+    - Ter_minology Files…
+    - Transfer From _Source
     - Translated
     - Translation _Suggestions
     - Untranslated
@@ -239,6 +238,7 @@ domains:
     - _Localization Guide
     - _Navigation
     - _Next Placeable
+    - _Next Unit
     - _Online Help
     - _Page Down
     - _Quality Checks
@@ -251,7 +251,6 @@ domains:
     - '%(modified_marker)s%(current_file)s - Virtaal'
     - Accelerators
     - Acronyms
-    - Add Term "%(selection)s"…
     - All Files
     - All Supported Files
     - Amagama
@@ -276,7 +275,6 @@ domains:
     - Load Priority File…
     - Local TM
     - Long
-    - Look-up "%(selection)s"
     - Machine translation
     - Many plugins and options for customization
     - Matches
@@ -293,12 +291,12 @@ domains:
     - Qt
     - Quality Check
     - Quality checks
+    - Re_place
     - Repeated word
-    - Replace
-    - Replace _All
-    - Replace with
+    - Replace A_ll
+    - Replace _with
     - Save
-    - Save As…
+    - Save _As…
     - Save changes to “%(filename)s”?
     - Select Checks
     - Select States
@@ -327,6 +325,7 @@ domains:
     - _Regular expression
     - _Reload
     - _Save
+    - _Search
     - printf()
     '2':
     - '%(language)s - %(endonym)s'
@@ -432,6 +431,8 @@ domains:
     - 'Name:'
     - Navigation
     - New Language Pair
+    - Next Unit and Advance State
+    - Next Unit and Reverse State
     - Nothing migrated
     - Numbers
     - OmegaT Glossary
@@ -598,10 +599,8 @@ domains:
     - Bing
     - CONFIG
     - Can only export Gettext PO files
-    - Change Language Pair
     - Checking for thesaurus…
     - Choose a PO Template File
-    - Close
     - Community localization terminology from Mozilla Pontoon
     - Configure…
     - 'Could not export file.
@@ -640,10 +639,7 @@ domains:
     - Couldn't open '%(file)s'.
     - 'Couldn''t open ''%(file)s'': %(reason)s'
     - Depending on the translation task, the plural information might be optional.
-    - Details
     - Double spaces and spaces in unexpected positions
-    - Download
-    - Download %(language)s thesaurus…
     - Downloading %(language)s thesaurus…
     - Edit Language
     - Edit with Virtaal
@@ -656,7 +652,6 @@ domains:
     - File
     - Google Translate
     - Header information
-    - 'ISO code:'
     - Identical entry already exists.
     - LANG
     - LOG
@@ -664,7 +659,6 @@ domains:
     - Language code must be an ASCII string.
     - Language code must be at least 2 characters long.
     - Language code must not contain spaces.
-    - 'Language name:'
     - Loading '%s'…
     - Loading thesaurus…
     - Local Files
@@ -683,14 +677,12 @@ domains:
     - Next state
     - No translation found for language '%(lang)s'
     - Not a valid file.
-    - 'Number of plurals:'
     - PO Template Files
     - Placeable for "alt" attributes (as found in HTML)
     - Placeholders (Drupal)
     - Placeholders in Drupal strings
     - Please enter the number of noun forms (plurals) to use
     - Please enter the plural equation to use
-    - 'Plural expression:'
     - Previous state
     - Previous translations for Free and Open Source Software
     - Previous translations you have made
@@ -699,10 +691,8 @@ domains:
     - Quote Query
     - Rejected
     - 'Rejected:'
-    - Release Notes
     - Remote Server
     - Remote TM
-    - Report This Bug…
     - Restart Virtaal for the new language to take effect.
     - Revert to Saved
     - Revert to the last saved copy and lose all changes?
@@ -718,7 +708,6 @@ domains:
     - Selected localization terminology
     - Source and target language are the same.
     - Spaces
-    - Synonyms
     - Terminology Files
     - The file does not exist, or Virtaal can't reach it from its Flatpak sandbox. Open it with File > Open or from your file manager.
     - The file does not exist.
@@ -727,7 +716,6 @@ domains:
     - This might not affect your current work, but if it keeps happening, reporting it helps get it fixed.
     - Translated units from the currently open file
     - URL
-    - 'URL:'
     - 'Unable to load %(filename)s:
 
 

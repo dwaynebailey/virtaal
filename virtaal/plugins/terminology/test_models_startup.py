@@ -251,7 +251,8 @@ class TestTerminologyModelsStartup(TestScaffolding):
         return [
             item.get_label()
             for item in menu.get_children()
-            if isinstance(item, Gtk.MenuItem) and (item.get_label() or '').startswith('Add Term')
+            if isinstance(item, Gtk.MenuItem)
+            and (item.get_label() or '').replace('_', '').startswith('Add Term')
         ]
 
     def test_source_and_target_context_menus_offer_the_selection_as_a_term(
@@ -263,7 +264,7 @@ class TestTerminologyModelsStartup(TestScaffolding):
             textbox.buffer.select_range(*textbox.buffer.get_bounds())
             text = textbox.get_text()
 
-            assert self._add_term_items(textbox) == ['Add Term "%s"…' % text]
+            assert self._add_term_items(textbox) == ['Add _Term "%s"…' % text]
 
     def test_textboxes_created_later_get_the_context_menu_item(self, tmp_path, monkeypatch):
         widgets = self.unit_view._widgets

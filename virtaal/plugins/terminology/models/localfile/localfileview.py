@@ -48,18 +48,18 @@ class LocalFileView:
         self.menu = self.mnui_edit.get_submenu()
 
         self.mnu_select_files, _menu = self.mainview.find_menu_item(
-            _('Terminology _Files…'), self.mnui_edit
+            _('Ter_minology Files…'), self.mnui_edit
         )
         if not self.mnu_select_files:
             self.mnu_select_files = self.mainview.append_menu_item(
-                _('Terminology _Files…'), self.mnui_edit, after=mnu_transfer
+                _('Ter_minology Files…'), self.mnui_edit, after=mnu_transfer
             )
         self._signal_tracker.connect(self.mnu_select_files, 'activate', self._on_select_term_files)
 
-        self.mnu_add_term, _menu = self.mainview.find_menu_item(_('Add _Term…'), self.mnui_edit)
+        self.mnu_add_term, _menu = self.mainview.find_menu_item(_('A_dd Term…'), self.mnui_edit)
         if not self.mnu_add_term:
             self.mnu_add_term = self.mainview.append_menu_item(
-                _('Add _Term…'), self.mnui_edit, after=mnu_transfer
+                _('A_dd Term…'), self.mnui_edit, after=mnu_transfer
             )
         self._signal_tracker.connect(self.mnu_add_term, 'activate', self._on_add_term)
 
@@ -114,8 +114,8 @@ class LocalFileView:
         if not selection:
             return
 
-        label = _('Add Term "%(selection)s"…') % {'selection': selection}
-        menu_item = Gtk.MenuItem(label=label)
+        label = _('Add _Term "%(selection)s"…') % {'selection': selection.replace('_', '__')}
+        menu_item = Gtk.MenuItem(label=label, use_underline=True)
         # Pango ellipsizes on grapheme clusters, unlike a raw string
         # slice - safer for combining marks (e.g. Arabic niqqud,
         # Devanagari conjuncts) than truncating the string ourselves.

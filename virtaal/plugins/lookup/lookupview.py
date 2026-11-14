@@ -61,8 +61,10 @@ class LookupView(BaseView):
         tgtlang = self.lang_controller.target_lang.code
 
         lookup_menu = Gtk.Menu()
-        selection_entry = _('Look-up "%(selection)s"') % {'selection': selection}
-        menu_item = Gtk.MenuItem(label=selection_entry)
+        selection_entry = _('_Look-up "%(selection)s"') % {
+            'selection': selection.replace('_', '__')
+        }
+        menu_item = Gtk.MenuItem(label=selection_entry, use_underline=True)
         # Pango ellipsizes on grapheme clusters, unlike a raw string
         # slice - safer for combining marks (e.g. Arabic niqqud,
         # Devanagari conjuncts) than truncating the string ourselves.

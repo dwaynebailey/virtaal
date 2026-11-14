@@ -112,7 +112,7 @@ def _show_dialog(full_text):
         )
     )
 
-    expander = Gtk.Expander(label=_("Details"))
+    expander = Gtk.Expander(label=_("_Details"), use_underline=True)
     fix_expander_direction(expander)
     textview = Gtk.TextView(editable=False, monospace=True)
     textview.get_buffer().set_text(full_text)
@@ -123,8 +123,8 @@ def _show_dialog(full_text):
     dialog.get_content_area().pack_start(expander, True, True, 0)
     expander.show_all()
 
-    dialog.add_button(_("Close"), Gtk.ResponseType.CLOSE)
-    dialog.add_button(_("Report This Bug…"), Gtk.ResponseType.ACCEPT)
+    dialog.add_button(_("_Close"), Gtk.ResponseType.CLOSE)
+    dialog.add_button(_("_Report This Bug…"), Gtk.ResponseType.ACCEPT)
     dialog.set_default_response(Gtk.ResponseType.ACCEPT)
 
     # present() only raises/focuses an already-realized window -

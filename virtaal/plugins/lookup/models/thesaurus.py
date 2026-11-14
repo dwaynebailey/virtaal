@@ -193,14 +193,16 @@ class LookupModel(BaseLookupModel):
     def _create_download_item(self, locale_code):
         item = Gtk.MenuItem(
             # l10n: %(language)s is a language name, e.g. "Afrikaans"
-            label=_('Download %(language)s thesaurus…') % {'language': _language_name(locale_code)}
+            label=_('Do_wnload %(language)s thesaurus…')
+            % {'language': _language_name(locale_code)},
+            use_underline=True,
         )
         item.connect('activate', self._on_download, locale_code)
         return item
 
     def _create_synonym_item(self, meanings, textbox):
         # l10n: The menu entry offering synonyms for the selected word.
-        item = Gtk.MenuItem(label=_('Synonyms'))
+        item = Gtk.MenuItem(label=_('S_ynonyms'), use_underline=True)
         submenu = Gtk.Menu()
         for pos, synonyms in meanings:
             if pos and pos != '-':
