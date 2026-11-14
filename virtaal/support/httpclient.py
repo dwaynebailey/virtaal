@@ -302,6 +302,12 @@ class HTTPClient:
         self.run()
         return True
 
+    def cancel(self, request):
+        """Drop request, if still queued: it emits nothing."""
+        if request in self.requests:
+            self.curl.remove_handle(request.curl)
+            self.requests.discard(request)
+
     def run(self):
         """client should not be running when request queue is empty"""
         if self.running:

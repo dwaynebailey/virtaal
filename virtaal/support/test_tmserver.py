@@ -17,7 +17,7 @@ import time
 import urllib.error
 import urllib.request
 from types import SimpleNamespace
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import pytest
 from cheroot import wsgi
@@ -733,3 +733,42 @@ def test_upload_store_imports_a_termbase_in_the_asked_for_pair(tmp_path):
 
     assert status == 200
     assert _translate(port, 'abort', 'en', 'et')[0]['target'] == 'katkestus'
+
+
+def _concordance(port, **params):
+    url = 'http://127.0.0.1:%d/en/af/concordance?%s' % (port, urlencode(params))
+    with urllib.request.urlopen(url, timeout=5) as resp:
+        return json.loads(resp.read().decode('utf-8'))
+
+
+def test_concordance_finds_a_phrase_with_the_options_given(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    units = [
+        {'source': 'Open &File', 'target': 'Maak &lêer oop', 'context': None, 'key': '1'},
+        {'source': 'Profile 100%', 'target': 'Profiel', 'context': None, 'key': '2'},
+    ]
+    app.tmdb.sync_store('/files/app.po', units, 'en', 'af')
+
+    found = _concordance(port, q='open file')
+    whole = _concordance(port, q='file', whole='1')
+    target = _concordance(port, q='LÊER', side='target')
+    cased = _concordance(port, q='file', case='1')
+
+    assert [m['source'] for m in found['matches']] == ['Open &File']
+    assert found['matches'][0]['origins'] == ['/files/app.po']
+    assert found['total'] == 1 and found['complete']
+    assert [m['source'] for m in whole['matches']] == ['Open &File']
+    assert [m['target'] for m in target['matches']] == ['Maak &lêer oop']
+    assert [m['source'] for m in cased['matches']] == ['Profile 100%']
+
+
+def test_concordance_caps_the_limit_asked_for(tmp_path):
+    app, port = _start_server(tmp_path / 'tm.db')
+    units = [
+        {'source': 'File %d' % n, 'target': 'Lêer', 'context': None, 'key': str(n)}
+        for n in range(3)
+    ]
+    app.tmdb.sync_store('/files/app.po', units, 'en', 'af')
+
+    assert len(_concordance(port, q='file', limit='1')['matches']) == 1
+    assert len(_concordance(port, q='file', limit='nonsense')['matches']) == 3

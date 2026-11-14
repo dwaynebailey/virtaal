@@ -640,3 +640,36 @@ def test_get_sources_returns_none_for_a_request_it_could_not_queue(monkeypatch):
     monkeypatch.setattr(client, 'add', lambda request: False)
 
     assert client.get_sources('af') is None
+
+
+def test_concordance_builds_a_get_request_with_the_options(monkeypatch):
+    client, requests = _make_client(monkeypatch)
+    calls = []
+
+    request = client.concordance(
+        'open file',
+        'en',
+        'af',
+        {'side': 'target', 'case': True, 'whole_words': False, 'limit': 50},
+        lambda widget, id, data: calls.append(data),
+    )
+
+    assert request is requests[0]
+    assert request.url == 'http://example.com/en/af/concordance'
+    assert request.id is None
+    assert request.params == {
+        'q': 'open file',
+        'side': 'target',
+        'case': '1',
+        'whole': '0',
+        'limit': 50,
+    }
+    _fire_callback(request, {'matches': []})
+    assert calls == [{'matches': []}]
+
+
+def test_concordance_returns_none_for_a_request_it_could_not_queue(monkeypatch):
+    client, _requests = _make_client(monkeypatch)
+    monkeypatch.setattr(client, 'add', lambda request: False)
+
+    assert client.concordance('open', 'en', 'af', {}) is None

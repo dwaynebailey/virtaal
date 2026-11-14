@@ -92,6 +92,31 @@ class TMClient(HTTPClient):
             request.connect("http-success", _json_callback(callback))
         return request
 
+    def concordance(self, text, source_lang, target_lang, options, callback=None):
+        """Ask for the entries holding the phrase text: options has side
+        ("source", "target" or "both"), case, whole_words and limit.
+        @returns: The request, or None if the queue was too full to send it."""
+        params = {
+            'q': text,
+            'side': options.get('side', 'source'),
+            'case': '1' if options.get('case') else '0',
+            'whole': '1' if options.get('whole_words') else '0',
+            'limit': options.get('limit', 200),
+        }
+        request = RESTRequest(
+            self.base_url + "/%s/%s/concordance" % (source_lang, target_lang),
+            None,
+            "GET",
+            user_agent=self.user_agent,
+            params=params,
+        )
+        request.curl.setopt(pycurl.TIMEOUT, 30)
+        if not self.add(request):
+            return None
+        if callback:
+            request.connect("http-success", _json_callback(callback))
+        return request
+
     def get_sources(self, lang):
         """Ask an amaGama server for its sources, titled in lang.
         @returns: The request, or None if the queue was too full to send it."""

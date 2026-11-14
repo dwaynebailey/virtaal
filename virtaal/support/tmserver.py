@@ -30,6 +30,7 @@ from translate.storage import base, factory
 
 from virtaal.support import (
     catxliff_compat,  # noqa: F401 - applies its patch on import
+    concordance,
     fluent_compat,  # noqa: F401 - applies its patch on import
     poparser_compat,  # noqa: F401 - applies its patch on import
     sdlxliff_compat,  # noqa: F401 - applies its patch on import
@@ -101,6 +102,7 @@ class TMServer:
         self.rest.route(store_path, "DELETE", self.forget_store)
         self.rest.route(f"{prefix}/stores", "GET", self.list_stores)
         self.rest.route(f"{prefix}/<slang>/<tlang>/export", "GET", self.export)
+        self.rest.route(f"{prefix}/<slang>/<tlang>/concordance", "GET", self.concordance)
 
     def _load_files(self, tmfiles, source_lang, target_lang) -> None:
         if not isinstance(tmfiles, list):
@@ -120,6 +122,27 @@ class TMServer:
         if callback:
             body = f"{callback}({body})"
         return body
+
+    def concordance(self, slang, tlang):
+        """The entries holding the phrase ?q=, in ?side= source, target or
+        both, with ?case=1 and ?whole=1 for case sensitive and whole
+        words, up to ?limit=."""
+        query = request.query
+        text = query.getunicode("q") or ""
+        try:
+            limit = max(1, min(int(query.limit or concordance.LIMIT), concordance.LIMIT))
+        except ValueError:
+            limit = concordance.LIMIT
+        found = self.tmdb.concordance(
+            text,
+            slang,
+            tlang,
+            side=query.side or "source",
+            case=query.case == "1",
+            whole_words=query.whole == "1",
+            limit=limit,
+        )
+        return _json_reply(found)
 
     def add_unit(self, slang, tlang, uid):
         response.content_type = "text/plain"

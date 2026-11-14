@@ -614,3 +614,16 @@ def test_speculative_marking_nests_and_ends_on_an_error():
         pass
 
     assert HTTPRequest('https://example.org').headers is None
+
+
+def test_cancel_drops_a_queued_request(monkeypatch):
+    monkeypatch.setattr(GLib, 'timeout_add', lambda interval, func: None)
+    client = _client()
+    request = _FakeRequest(curl='handle')
+    client.add(request)
+
+    client.cancel(request)
+    client.cancel(request)
+
+    assert request not in client.requests
+    assert client.curl.removed == ['handle']
