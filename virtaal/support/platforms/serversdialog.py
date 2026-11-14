@@ -45,6 +45,9 @@ def option_fields(platform):
 
 def error_message(error, platform):
     """What to tell the user about a PlatformError."""
+    own = platform.error_message(error)
+    if own:
+        return own
     if error.kind == AUTH:
         # l10n: A translation server answered that the API token is wrong or expired
         return _('The server refused the token.')
@@ -113,7 +116,8 @@ class ServerDialog(SettingsDialog):
         super().__init__(parent, title, fields, values, ok_label)
 
     def problem(self):
-        return self.platform.url_problem(self.get_values()['url'])
+        values = self.get_values()
+        return self.platform.url_problem(values['url']) or self.platform.credentials_problem(values)
 
     def is_valid(self):
         url = self.get_values()['url']
@@ -257,7 +261,7 @@ class ServersDialog:
         menu.popup_at_widget(self.btn_add, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, None)
 
     def _add(self, platform):
-        found = self._ask(platform, platform.default_url)
+        found = self._ask(platform, platform.default_url, platform.default_credentials)
         server = found and self.servers.put(platform, *found[:2], **found[2])
         if server:
             self._save(server)

@@ -391,6 +391,36 @@ def test_errors_are_worded_by_kind_and_platform(dummy):
     assert error_message(PlatformError('not-platform', 200), dummy) == 'No dummy here.'
 
 
+def test_a_platform_words_its_own_errors(dummy, monkeypatch):
+    monkeypatch.setattr(dummy, 'error_message', lambda e: 'Mine.' if e.kind == AUTH else None)
+    assert error_message(PlatformError(AUTH, 401), dummy) == 'Mine.'
+    assert error_message(PlatformError('not-platform', 200), dummy) == 'No dummy here.'
+
+
+def test_add_starts_with_the_platform_s_credentials(tmp_path, dummy, monkeypatch):
+    servers = ServerList([dummy], str(tmp_path / 'platforms.ini'))
+    monkeypatch.setattr(dummy, 'default_credentials', {'user': 'guest'})
+    seen = []
+    monkeypatch.setattr(ServerDialog, 'run', lambda self: seen.append(self.get_values()['user']))
+
+    ServersDialog(servers).btn_add.clicked()
+
+    assert seen == ['guest']
+
+
+def test_credentials_the_platform_can_t_use_say_why_and_keep_ok_off(dummy, monkeypatch):
+    def problem(values):
+        return 'No guests.' if values['user'] == 'guest' else None
+
+    monkeypatch.setattr(dummy, 'credentials_problem', problem)
+    dialog = ServerDialog(None, dummy, 'dummy://one', {'user': 'guest'})
+    assert dialog.problem_label.get_text() == 'No guests.'
+    assert not dialog.btn_ok.get_sensitive()
+    dialog.entries['user'].set_text('me')
+    assert dialog.btn_ok.get_sensitive()
+    dialog.dialog.destroy()
+
+
 def _browse(servers):
     dialog = BrowseDialog(servers)
     run_until(lambda: not dialog.spinner.get_visible())

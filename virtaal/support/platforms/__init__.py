@@ -384,6 +384,19 @@ class Platform:
         """Why the address can't be used, to tell the user, or None."""
         return None
 
+    default_credentials = {}
+    """The values a new server's credential fields start with."""
+
+    def credentials_problem(self, values):
+        """Why the credential fields' values ({key: text}) can't be used,
+        to tell the user, or None."""
+        return None
+
+    def error_message(self, error):
+        """What to tell the user about a PlatformError of the platform's
+        own, or None for the message every platform gives."""
+        return None
+
     def not_platform_message(self):
         """What to say when something else answers at an address."""
         raise NotImplementedError
