@@ -48,7 +48,7 @@ def _tmview(liststore=None, isvisible=False, active=True, may_show=True, target=
         tvc_match='tvc_match',
         show_all=lambda: None,
         hide=lambda: None,
-        update_geometry=lambda widget: None,
+        update_geometry=lambda widget, keep_above=None: None,
         get_child=lambda: SimpleNamespace(show_all=lambda: None),
         realize=lambda: None,
     )
@@ -287,7 +287,7 @@ def test_show_places_the_window_before_showing_it():
     view = _tmview(target=target)
     view.tmwindow.liststore.append([{'source': 'a'}, ''])
     calls = []
-    view.tmwindow.update_geometry = lambda widget: calls.append(('placed', widget))
+    view.tmwindow.update_geometry = lambda widget, keep_above=None: calls.append(('placed', widget))
     view.tmwindow.show_all = lambda: calls.append('shown')
 
     view.show()
@@ -339,7 +339,7 @@ def test_grab_notify_regained_focus_reshows_a_pending_window():
     shown = []
     view.show = lambda: shown.append('shown')
     geometry_calls = []
-    view.tmwindow.update_geometry = lambda widget: geometry_calls.append(widget)
+    view.tmwindow.update_geometry = lambda widget, keep_above=None: geometry_calls.append(widget)
 
     view._on_grab_notify_mainwindow(None, True)
 
@@ -435,7 +435,7 @@ def test_active_notify_mainwindow_reshows_a_pending_window_when_activated():
     shown = []
     view.show = lambda: shown.append('shown')
     geometry_calls = []
-    view.tmwindow.update_geometry = lambda widget: geometry_calls.append(widget)
+    view.tmwindow.update_geometry = lambda widget, keep_above=None: geometry_calls.append(widget)
 
     view._on_active_notify_mainwindow(SimpleNamespace(props=SimpleNamespace(is_active=True)), None)
 
@@ -485,7 +485,7 @@ def _moving_view(monkeypatch, isvisible=True, is_active=True):
     events = []
     view.hide = lambda: (events.append('hide'), setattr(view, 'isvisible', False))
     view.show = lambda: (events.append('show'), setattr(view, 'isvisible', True))
-    view.tmwindow.update_geometry = lambda widget: events.append('geometry')
+    view.tmwindow.update_geometry = lambda widget, keep_above=None: events.append('geometry')
     view.controller.main_controller = SimpleNamespace(
         view=SimpleNamespace(
             main_window=SimpleNamespace(props=SimpleNamespace(is_active=is_active))
@@ -794,8 +794,11 @@ def test_update_geometry_updates_the_tmwindow_when_a_target_is_focused(monkeypat
     monkeypatch.setattr('virtaal.plugins.tm.tmview.GLib.idle_add', idle_calls.append)
     view = TMView.__new__(TMView)
     view._get_selected_unit_view = lambda: 'the-target'
+    view.controller = SimpleNamespace()
     updated = []
-    view.tmwindow = SimpleNamespace(update_geometry=updated.append)
+    view.tmwindow = SimpleNamespace(
+        update_geometry=lambda widget, keep_above: updated.append(widget)
+    )
 
     view.update_geometry()
 

@@ -523,6 +523,25 @@ class TestConcordancePanel(TestScaffolding):
 
         assert self.model.asked == []
 
+    def test_the_suggestions_follow_the_panel_as_it_moves(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(self.tm.view, 'update_geometry', lambda: calls.append(1))
+        monkeypatch.setattr(self.tm.view, 'isvisible', True)
+        allocation = Gdk.Rectangle()
+        allocation.y, allocation.height = 300, 180
+
+        self.conc.view._on_panel_allocated(self.conc.view.widget, allocation)
+        self.conc.view._on_panel_allocated(self.conc.view.widget, allocation)
+
+        assert calls == [1]
+
+    def test_the_suggestions_keep_above_the_panel_shown(self):
+        assert self.tm.view._keep_above() is None
+
+        self.conc.view.show()
+
+        assert self.tm.view._keep_above() is self.conc.view.widget
+
     def test_ctrl_k_is_the_shortcut(self):
         known, key = Gtk.AccelMap.lookup_entry(concordance.ACCEL_PATH)
 

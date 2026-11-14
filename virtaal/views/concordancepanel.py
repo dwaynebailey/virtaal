@@ -80,6 +80,7 @@ class ConcordancePanel(BaseView):
         self._handle = None
         self._restore_source = None
         self._map_id = None
+        self._placed = None
         self._build_widgets()
         self._place_under_units()
         self._key_id = self.mainview.main_window.connect('key-press-event', self._on_window_key)
@@ -360,6 +361,9 @@ class ConcordancePanel(BaseView):
         """Remember the height the user gave the panel."""
         if widget.get_mapped() and not self._restore and allocation.height > 1:
             pan_app.settings.general['concordancepanelheight'] = allocation.height
+        if (allocation.y, allocation.height) != self._placed:
+            self._placed = (allocation.y, allocation.height)
+            self.controller.panel_moved()
 
     def _on_start(self, _widget):
         if self.can_start():

@@ -799,7 +799,7 @@ class TMView(BaseView, GObjectWrapper):
         if selected is not None:
             self.tmwindow.get_child().show_all()
             self.tmwindow.realize()
-            self.tmwindow.update_geometry(selected)
+            self.tmwindow.update_geometry(selected, self._keep_above())
         self.tmwindow.show_all()
         self.isvisible = True
         self._should_show_tmwindow = False
@@ -810,9 +810,15 @@ class TMView(BaseView, GObjectWrapper):
         def update():
             selected = self._get_selected_unit_view()
             if selected:
-                self.tmwindow.update_geometry(selected)
+                self.tmwindow.update_geometry(selected, self._keep_above())
 
         GLib.idle_add(update)
+
+    def _keep_above(self):
+        """The Translation Memory Search panel, if it is shown: the
+        suggestions mustn't cover it."""
+        view = getattr(getattr(self.controller, 'concordance', None), 'view', None)
+        return view.widget if view is not None and view.shown else None
 
     def _follow_editor(self):
         editor = self.controller.main_controller.unit_controller.view._widgets.get('vbox_editor')
@@ -891,7 +897,7 @@ class TMView(BaseView, GObjectWrapper):
         self.show()
 
         selected = self._get_selected_unit_view()
-        self.tmwindow.update_geometry(selected)
+        self.tmwindow.update_geometry(selected, self._keep_above())
 
     def _on_mainwindow_focus_lost(self):
         self._may_show_tmwindow = False

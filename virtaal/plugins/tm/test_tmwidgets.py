@@ -268,6 +268,54 @@ def test_update_geometry_flips_above_the_source_when_there_is_no_room_below():
     window.destroy()
 
 
+def _make_unit_above_a_panel():
+    """Source and target in the middle of the window, a panel the
+    height of the window's lower half under them."""
+    window = Gtk.Window()
+    window.set_decorated(False)
+    vbox = Gtk.VBox()
+    vbox.pack_start(Gtk.Label(), True, True, 0)
+    boxes = []
+    for _ in range(2):
+        textview = Gtk.TextView()
+        textview.set_size_request(400, 30)
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
+        scrolled.add(textview)
+        vbox.pack_start(scrolled, False, False, 0)
+        boxes.append(textview)
+    source, target = boxes
+    target.selector_textbox = source
+    panel = Gtk.Label(label='panel')
+    panel.set_size_request(-1, WINDOW_HEIGHT // 2)
+    vbox.pack_start(panel, False, False, 0)
+    window.add(vbox)
+    window.set_default_size(400, WINDOW_HEIGHT)
+    window.show_all()
+    _process_events()
+    window.move(*_workarea_origin(target))
+    _process_events()
+    return window, source, target, panel
+
+
+def test_update_geometry_keeps_above_a_panel_under_the_unit():
+    window, source, target, panel = _make_unit_above_a_panel()
+    tmwindow = _make_tmwindow_with_matches(n=3)
+
+    tmwindow.update_geometry(target)
+    _process_events()
+    top, _bottom_ = _popup_span(tmwindow)
+    assert top >= _bottom(target)
+
+    tmwindow.update_geometry(target, keep_above=panel)
+    _process_events()
+    _top_, bottom = _popup_span(tmwindow)
+    assert bottom <= _top(source)
+
+    tmwindow.destroy()
+    window.destroy()
+
+
 # Too many matches to fit above or below a unit in a short window: the
 # popup must shrink rather than cover the unit.
 

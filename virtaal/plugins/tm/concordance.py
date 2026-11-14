@@ -251,6 +251,12 @@ class ConcordanceController:
         if targets:
             targets[min(unit_view.focused_target_n or 0, len(targets) - 1)].grab_focus()
 
+    def panel_moved(self):
+        """Keep the suggestions above the panel as it grows or shrinks."""
+        tm_view = getattr(self.tm_controller, 'view', None)
+        if getattr(tm_view, 'isvisible', False):
+            tm_view.update_geometry()
+
     def _view(self):
         if self.view is None:
             from virtaal.views.concordancepanel import ConcordancePanel

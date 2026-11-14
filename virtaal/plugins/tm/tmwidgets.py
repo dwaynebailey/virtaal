@@ -54,6 +54,23 @@ def _bounds(widget, gdkwin):
     return None
 
 
+def _above(geom, widget):
+    """geom cut off at the top of widget, when it is shown."""
+    if widget is None or not widget.get_mapped():
+        return geom
+    toplevel = widget.get_toplevel()
+    position = widget.translate_coordinates(toplevel, 0, 0)
+    window = toplevel.get_window()
+    if position is None or window is None:
+        return geom
+    top = window.get_origin().y + position[1]
+    if not geom.y < top < geom.y + geom.height:
+        return geom
+    bounds = Gdk.Rectangle()
+    bounds.x, bounds.y, bounds.width, bounds.height = geom.x, geom.y, geom.width, top - geom.y
+    return bounds
+
+
 def _place_vertically(geom, height, min_height, below_y, above_bottom):
     """The popup's y and height: below by default, flipped above when
     below doesn't fit."""
@@ -146,9 +163,10 @@ class TMWindow(Gtk.Window):
 
         return height
 
-    def update_geometry(self, widget):
+    def update_geometry(self, widget, keep_above=None):
         """Move this window to right below the given widget so that C{widget}'s
-        bottom left corner and this window's top left corner line up."""
+        bottom left corner and this window's top left corner line up, and
+        above C{keep_above} if it is shown."""
         if not self.get_realized():
             return
 
@@ -184,6 +202,7 @@ class TMWindow(Gtk.Window):
 
         geom = _bounds(widget, gdkwin)
         if geom is not None:
+            geom = _above(geom, keep_above)
             x = max(geom.x, min(x, geom.x + geom.width - width))
             y, height = _place_vertically(geom, height, self.MIN_HEIGHT, below_y, above_bottom)
 
