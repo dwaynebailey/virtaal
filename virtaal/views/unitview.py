@@ -65,14 +65,14 @@ def dialog_active(widget):
     return _active_dialog(widget) is not None
 
 
-def _clipboard_widgets(widgets):
-    """(one of C{widgets}, a dialog's text field) for the Edit menu's Cut,
-    Copy and Paste."""
+def _clipboard_widgets(widgets, signal='paste-clipboard'):
+    """(one of C{widgets}, a dialog's widget taking C{signal}) for the Edit
+    menu's Cut, Copy and Paste."""
     dialog = _active_dialog(widgets[0]) if widgets else None
     if dialog is None:
         return _get_focused_widget(widgets), None
     focus = dialog.get_focus()
-    if isinstance(focus, (Gtk.Editable, Gtk.TextView)):
+    if focus is not None and GObject.signal_lookup(signal, type(focus)):
         return None, focus
     return None, None
 
@@ -358,13 +358,13 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         )
 
     def _on_cut(self, menuitem):
-        focused, other = _clipboard_widgets(self.targets)
+        focused, other = _clipboard_widgets(self.targets, 'cut-clipboard')
         widget = focused if other is None else other
         if widget is not None:
             widget.emit('cut-clipboard')
 
     def _on_copy(self, menuitem):
-        focused, other = _clipboard_widgets(self.targets + self.sources)
+        focused, other = _clipboard_widgets(self.targets + self.sources, 'copy-clipboard')
         if other is not None:
             other.emit('copy-clipboard')
         elif focused is not None:

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 04:53+0000\n"
+"POT-Creation-Date: 2026-11-14 08:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -215,6 +215,11 @@ msgstr ""
 #. l10n: Runs quality checks on the files of every language opened together
 #: share/virtaal/virtaal.ui virtaal/views/filepanelview.py
 msgid "Check All Lan_guages…"
+msgstr ""
+
+#. l10n: Opens a window that finds a word or phrase in the translation memory and the files open, with its translations
+#: share/virtaal/virtaal.ui
+msgid "Se_arch Translation Memory…"
 msgstr ""
 
 #. l10n: Activating this menu item replaces the target with the whole source. The "copy" is not necessarily the same as the source: language-specific punctuation changes are made automatically.
@@ -2305,6 +2310,15 @@ msgstr ""
 msgid "Could not get the list of projects from Amagama."
 msgstr ""
 
+#. l10n: Followed by the files a translation memory entry came from, one a line
+#. l10n: Followed by the files opened from a translation server, one a line
+#: virtaal/plugins/tm/concordance.py virtaal/support/platforms/submitdialog.py
+#, python-format
+msgid "In %(count)s file:"
+msgid_plural "In %(count)s files:"
+msgstr[0] ""
+msgstr[1] ""
+
 #. l10n: The title of the window that gets suggestions for every unit of the file at once
 #: virtaal/plugins/tm/fetchdialog.py
 msgid "Fetch Suggestions"
@@ -3187,14 +3201,6 @@ msgstr[1] ""
 #: virtaal/support/platforms/submitdialog.py
 msgid "Submit again to send the rest."
 msgstr ""
-
-#. l10n: Followed by the files opened from a translation server, one a line
-#: virtaal/support/platforms/submitdialog.py
-#, python-format
-msgid "In %(count)s file:"
-msgid_plural "In %(count)s files:"
-msgstr[0] ""
-msgstr[1] ""
 
 #. l10n: Follows "N of M requests left until 08:40." when they are fewer than Submit needs
 #: virtaal/support/platforms/submitdialog.py
@@ -4248,9 +4254,34 @@ msgid_plural "%(count)s files could not be read."
 msgstr[0] ""
 msgstr[1] ""
 
+#. l10n: How many translations a search of the translation memory found
+#: virtaal/views/setscanview.py
+#, python-format
+msgid "%(count)s match"
+msgid_plural "%(count)s matches"
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: %(source)s is a source of translations, such as Local TM
+#: virtaal/views/setscanview.py
+#, python-format
+msgid "%(source)s couldn’t be searched."
+msgstr ""
+
+#. l10n: %(source)s is a source of translations, such as Local TM
+#: virtaal/views/setscanview.py
+#, python-format
+msgid "Searching %(source)s…"
+msgstr ""
+
 #. l10n: Window title
 #: virtaal/views/setscanview.py
 msgid "Check All Languages"
+msgstr ""
+
+#. l10n: Window title
+#: virtaal/views/setscanview.py
+msgid "Search Translation Memory"
 msgstr ""
 
 #. l10n: Window title
@@ -4292,6 +4323,11 @@ msgstr ""
 msgid "C_ase sensitive"
 msgstr ""
 
+#. l10n: Check box in Search Translation Memory: find only whole words
+#: virtaal/views/setscanview.py
+msgid "_Whole words"
+msgstr ""
+
 #: virtaal/views/setscanview.py
 msgid "_Find"
 msgstr ""
@@ -4314,6 +4350,21 @@ msgstr ""
 #. l10n: Column heading: the translation of a unit
 #: virtaal/views/setscanview.py
 msgid "Translation"
+msgstr ""
+
+#. l10n: Button in Search Translation Memory: puts the translation chosen at the cursor
+#: virtaal/views/setscanview.py
+msgid "_Insert"
+msgstr ""
+
+#. l10n: Button in Search Translation Memory: moves to the unit of an open file
+#: virtaal/views/setscanview.py
+msgid "_Go to Unit"
+msgstr ""
+
+#. l10n: Column heading in Search Translation Memory: the file or source a translation is from
+#: virtaal/views/setscanview.py
+msgid "Found in"
 msgstr ""
 
 #. l10n: Where a translation in a Trados Studio, Phrase or Wordfast
@@ -4675,6 +4726,10 @@ msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py
 msgid "Add a term to the local terminology file"
+msgstr ""
+
+#: virtaal/views/widgets/shortcutswindow.py
+msgid "Search the translation memory for a word or phrase"
 msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py

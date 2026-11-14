@@ -47,6 +47,7 @@
 (gtk_accel_path "<Virtaal>/Edit/Search: Next" "<Meta>g")
 (gtk_accel_path "<Virtaal>/Edit/Search" "F3")
 (gtk_accel_path "<Virtaal>/Edit/Search Ctrl+F" "<Meta>f")
+(gtk_accel_path "<Virtaal>/Edit/Search Translation Memory" "<Meta>k")
 
 ; Terminology
 (gtk_accel_path "<Virtaal>/Terminology/Add Term" "<Meta>t")

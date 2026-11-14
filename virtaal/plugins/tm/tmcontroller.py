@@ -109,6 +109,8 @@ class TMController(BaseController):
     """The open file's FetchedSuggestions (#1679)."""
     fetch_words = 1000
     """How many source words one fetch asks a service for."""
+    concordance = None
+    """Edit > Search Translation Memory… (concordance.ConcordanceController)."""
     # Replaced, never changed in place: the running file fetch of each model.
     _fetches = {}
     # The quality checks being worked out for a fetch plan, if any.
@@ -181,6 +183,10 @@ class TMController(BaseController):
                 lang_controller.connect(signal, self._on_lang_changed)
                 for signal in ('source-lang-changed', 'target-lang-changed')
             ]
+
+        from .concordance import install
+
+        self.concordance = install(self)
 
     def _load_timing(self):
         """Read the burst threshold (from the desktop's key repeat timing)
@@ -529,10 +535,14 @@ class TMController(BaseController):
             return match
         return dict(match, target_shown_markup=inlinecodes.from_elem(rich))
 
-    def destroy(self):
-        # Destroy the view
+    def _destroy_windows(self):
         self.view.hide()
         self.view.destroy()
+        if self.concordance is not None:
+            self.concordance.destroy()
+
+    def destroy(self):
+        self._destroy_windows()
 
         # Disconnect signals
         self.main_controller.store_controller.disconnect(self._store_loaded_id)

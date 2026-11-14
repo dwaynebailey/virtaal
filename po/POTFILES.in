@@ -41,6 +41,7 @@ virtaal/plugins/terminology/models/pontoon.py
 virtaal/plugins/terminology/termview.py
 virtaal/plugins/tm/__init__.py
 virtaal/plugins/tm/amagamadialog.py
+virtaal/plugins/tm/concordance.py
 virtaal/plugins/tm/fetchdialog.py
 virtaal/plugins/tm/localtmdialog.py
 virtaal/plugins/tm/models/amagama.py

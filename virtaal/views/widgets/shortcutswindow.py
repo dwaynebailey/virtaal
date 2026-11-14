@@ -88,6 +88,7 @@ SHORTCUT_GROUPS = [
             ("<Primary>F9", _("Turn translation suggestions on or off")),
             ("Escape", _("Hide translation suggestions, if shown")),
             ("<Primary>t", _("Add a term to the local terminology file")),
+            ("<Primary>k", _("Search the translation memory for a word or phrase")),
         ],
     ),
     (

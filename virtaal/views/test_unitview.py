@@ -422,6 +422,22 @@ def test_paste_does_nothing_when_the_dialog_has_no_text_field_focused(monkeypatc
     assert target.buffer.paste_calls == []
 
 
+def test_copy_goes_to_a_focused_dialog_widget_that_copies(monkeypatch):
+    # Search Translation Memory's list copies a translation on macOS's Cmd+C.
+    copying = Gtk.Label(selectable=True)
+    dialog = SimpleNamespace(get_focus=lambda: copying)
+    emitted = []
+    monkeypatch.setattr(copying, 'emit', emitted.append)
+    monkeypatch.setattr('virtaal.views.unitview._active_dialog', lambda widget: dialog)
+    view = UnitView.__new__(UnitView)
+    view._widgets = {'targets': [_FakeEditableTextbox(focused=True)], 'sources': []}
+
+    view._on_copy(None)
+    view._on_paste(None)
+
+    assert emitted == ['copy-clipboard']
+
+
 def test_cut_cuts_from_the_focused_target_only():
     view = UnitView.__new__(UnitView)
     unfocused, focused = _FakeEditableTextbox(), _FakeEditableTextbox(focused=True)

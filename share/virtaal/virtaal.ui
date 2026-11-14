@@ -959,6 +959,16 @@ If you are translating from English to French then French would be your translat
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="mnu_search_tm">
+                        <property name="visible">True</property>
+                        <property name="sensitive">False</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="label" translatable="yes" comments="l10n: Opens a window that finds a word or phrase in the translation memory and the files open, with its translations">Se_arch Translation Memory…</property>
+                        <property name="use_underline">True</property>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkSeparatorMenuItem" id="separator_mnu_edit_find">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
