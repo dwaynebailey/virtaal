@@ -12,6 +12,7 @@ from test_scaffolding import TestScaffolding
 from translate.storage import po
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
+from virtaal.models.langmodel import LanguageModel
 
 HEADER = (
     b'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
@@ -25,6 +26,8 @@ class TestPlaceholderNumbering(TestScaffolding):
         PlaceablesController(self.main_controller)
 
     def setup_method(self):
+        # Two forms to edit whatever target language an earlier test left.
+        self.lang_controller._target_lang = LanguageModel('af')
         self.notices = []
         view = self.main_controller.view
         view.show_info_notice = lambda text, action=None, on_close=None: (
