@@ -111,6 +111,26 @@ class TestBundleSources(TestScaffolding):
         ]
         assert self._matches(model, 'Close the window.') == []
 
+    def test_search_translation_memory_finds_a_phrase_in_it(self):
+        _bundle, path = self._bundle()
+        model = self._tm()
+        assert self.main_controller.open_file(path)
+        found = []
+
+        model.concordance(
+            {'text': 'RED button', 'side': 'source'}, lambda *a: found.append(a), None
+        )
+        model.concordance({'text': 'inkinobho', 'side': 'target'}, lambda *a: found.append(a), None)
+        self.store_controller.close_file()
+        model.concordance({'text': 'red button', 'side': 'both'}, lambda *a: found.append(a), None)
+
+        assert [[(m['source'], m['target'], m['hits']) for m in f[0]] for f in found] == [
+            [('Press the red button.', 'Cindezela inkinobho ebomvu.', {'source': [[10, 20]]})],
+            [('Press the red button.', 'Cindezela inkinobho ebomvu.', {'target': [[10, 19]]})],
+            [],
+        ]
+        assert model.first()
+
     def test_its_suggestions_go_when_it_closes_or_another_file_opens(self):
         _bundle, path = self._bundle()
         model = self._tm()

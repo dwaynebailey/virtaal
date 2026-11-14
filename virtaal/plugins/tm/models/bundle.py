@@ -14,6 +14,7 @@ from translate.search import match
 from translate.storage import po
 
 from virtaal.common.pan_app import config_bool
+from virtaal.support import concordance
 from virtaal.support.match_compat import matcher
 from virtaal.views.widgets.settingsdialog import BOOL, Field
 
@@ -42,6 +43,7 @@ class TMModel(BaseTMModel):
         self.internal_name = internal_name
         self.matcher = None
         self.origin = None
+        self.pairs = []
         self.load_config()
         super().__init__(controller)
         store_controller = controller.main_controller.store_controller
@@ -71,6 +73,7 @@ class TMModel(BaseTMModel):
         pairs = bundle.memory(self.target_lang) if bundle and self.target_lang else []
         if not pairs:
             return
+        self.pairs = pairs
         store = po.pofile()
         for source, target in pairs:
             store.addsourceunit(source).target = target
@@ -85,7 +88,22 @@ class TMModel(BaseTMModel):
     def _drop(self, *_args):
         self.matcher = None
         self.origin = None
+        self.pairs = []
         self.cache = {}
+
+    def concordance(self, query, on_done, on_error):
+        """Search the bundle's translations for query's phrase, with
+        TMClient.concordance's options: C{on_done(matches, total, True)}."""
+        phrase = concordance.Query(query['text'], query.get('case'), query.get('whole_words'))
+        sides = concordance.SIDES.get(query.get('side'), concordance.SIDES['source'])
+        found = []
+        for source, target in self.pairs:
+            hits = concordance.match_hits(phrase, sides, {'source': [source], 'target': [target]})
+            if hits:
+                match = {'source': source, 'target': target, 'origins': [], 'time': 0}
+                found.append(concordance.describe(match, hits))
+        ranked = concordance.rank(found)[: query.get('limit', concordance.LIMIT)]
+        on_done(ranked, len(found), True)
 
     def set_source_lang(self, language):
         self._reload()
