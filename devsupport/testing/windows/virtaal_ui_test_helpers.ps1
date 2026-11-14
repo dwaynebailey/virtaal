@@ -199,7 +199,7 @@ function Get-VirtaalWindowText {
     .SYNOPSIS
     Low-level: reads any window's title text via Win32 GetWindowText,
     given a raw HWND (not a Start-VirtaalTest instance) - the primitive
-    Get-VirtaalTitle and the popup-dialog checks (Ctrl+P Preferences,
+    Get-VirtaalTitle and the popup-dialog checks (Ctrl+, Preferences,
     etc.) both build on.
     #>
     param([Parameter(Mandatory)][IntPtr]$Hwnd)
@@ -230,7 +230,7 @@ function Wait-VirtaalPopup {
     <#
     .SYNOPSIS
     Waits for a *different* top-level window than the instance's main
-    one to take the foreground (e.g. after Ctrl+P for Preferences, or
+    one to take the foreground (e.g. after Ctrl+, for Preferences, or
     any other action that opens a dialog) - GTK dialogs on Windows take
     the foreground when they open, so this is simpler and more reliable
     than enumerating all of a process's top-level windows. Returns the

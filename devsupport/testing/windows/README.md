@@ -147,7 +147,7 @@ side without anything needing to be copied out by hand.
 - Menu navigation (every top-level menu opens/closes cleanly).
 - Welcome screen -> a real File > Open dialog (not a CLI argument) ->
   File > Recent Files reopens the same file.
-- Ctrl+P opens Preferences and it closes cleanly.
+- Ctrl+, opens Preferences and it closes cleanly.
 - Ctrl+F's search/filter (`modes/searchmode.py`) doesn't crash.
 - F8's quality-checks panel doesn't crash or log an error against a
   file built to exercise several checks.
@@ -185,7 +185,7 @@ side without anything needing to be copied out by hand.
 - Ctrl+C from a clean state doesn't set the modified marker; Ctrl+V
   right after does - Copy/Paste were previously only checked for "don't
   crash", never that they get the modified flag right.
-- Alt+Enter opens Properties and closes cleanly (same shape as Ctrl+P).
+- Alt+Enter opens Properties and closes cleanly (same shape as Ctrl+,).
 - F11 fullscreen returns the window to its original size afterward
   (reported live to differ, 2026-08-24 - `_on_fullscreen()` is a plain
   passthrough to GTK's own fullscreen()/unfullscreen(), so this is
