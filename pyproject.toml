@@ -76,6 +76,9 @@ dependencies = [
     "PyYAML==6.0.3",
     # Numbers in the UI language's own format (CLDR patterns and symbols).
     "babel==2.18.0",
+    # Git projects without git installed: Git in pure Python (Apache-2.0
+    # or GPL-2.0-or-later). Without it the plug-in says so.
+    "dulwich==1.2.21",
 ]
 
 [project.optional-dependencies]

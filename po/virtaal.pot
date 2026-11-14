@@ -1907,10 +1907,9 @@ msgstr ""
 msgid "No Git repository with this branch answered at this address."
 msgstr ""
 
-#. l10n: %(version)s is the oldest Git version Virtaal can use, such as 2.20
+#. l10n: dulwich is the name of a Python library, not translated
 #: virtaal/plugins/gitproject/backend.py
-#, python-format
-msgid "Git %(version)s or later is needed for Git projects, and wasn’t found."
+msgid "Git projects need the Python library dulwich, which isn’t installed."
 msgstr ""
 
 #: virtaal/plugins/gitproject/backend.py

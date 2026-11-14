@@ -18,7 +18,7 @@ from translate.storage import po
 from translate.storage.workflow import StateEnum
 
 from devsupport.testing.fakeplatform import run_until
-from devsupport.testing.gitremote import Remote, needs_git
+from devsupport.testing.gitremote import Remote, needs_dulwich
 from virtaal.common import pan_app
 from virtaal.plugins.gitproject import backend
 from virtaal.plugins.gitproject.config import ProjectFile
@@ -231,7 +231,7 @@ def test_projects_are_kept_without_secrets(tmp_path, platform):
 
 
 def test_git_s_errors_are_worded_for_git(platform):
-    assert 'Git 2.20 or later' in platform.error_message(PlatformError(backend.GIT_MISSING))
+    assert 'dulwich' in platform.error_message(PlatformError(backend.GIT_MISSING))
     message = platform.error_message(PlatformError(AUTH, detail='Permission denied (publickey).'))
     assert message.startswith('Git couldn’t sign in')
     assert message.endswith('\nPermission denied (publickey).')
@@ -242,7 +242,7 @@ def test_git_s_errors_are_worded_for_git(platform):
 # Browsing and opening #
 
 
-@needs_git
+@needs_dulwich
 def test_the_project_lists_the_languages_its_files_have(platform, remote):
     session = backend.GitSession(platform, remote.url, 'main', 'po/*.po')
     assert call(session.test_connection) == 1
@@ -257,7 +257,7 @@ def test_the_project_lists_the_languages_its_files_have(platform, remote):
     ]
 
 
-@needs_git
+@needs_dulwich
 def test_a_missing_branch_says_so(platform, remote):
     session = backend.GitSession(platform, remote.url, 'nope', 'po/*.po')
     error = call(session.test_connection)
@@ -265,14 +265,14 @@ def test_a_missing_branch_says_so(platform, remote):
     assert 'No Git repository' in platform.not_platform_message()
 
 
-@needs_git
-def test_no_git_says_so(platform, remote, monkeypatch):
-    monkeypatch.setattr(gitrepo, 'executable', lambda: None)
+@needs_dulwich
+def test_no_dulwich_says_so(platform, remote, monkeypatch):
+    monkeypatch.setattr(gitrepo, '_client', None)
     error = call(backend.GitSession(platform, remote.url, 'main', 'po/*.po').test_connection)
     assert error.kind == backend.GIT_MISSING
 
 
-@needs_git
+@needs_dulwich
 def test_opening_a_language_makes_a_work_copy_of_its_file(platform, remote):
     copy = Copy(platform, remote)
     assert copy.copy.record['platform'] == 'git'
@@ -291,7 +291,7 @@ def test_opening_a_language_makes_a_work_copy_of_its_file(platform, remote):
 # Submit #
 
 
-@needs_git
+@needs_dulwich
 def test_submit_commits_only_the_language_s_file_as_the_translator(platform, remote):
     copy = Copy(platform, remote)
     copy.edit('Save', 'Stoor')
@@ -304,24 +304,25 @@ def test_submit_commits_only_the_language_s_file_as_the_translator(platform, rem
     assert server_units(remote)['Save'] == ('Stoor', False)
     assert server_units(remote)['Print'] == ('Druk', False)
     assert remote.changed_files() == ['po/af.po']
-    log = remote.log('-1', '--format=%an <%ae>|%s').strip()
-    assert log == 'Thandi <thandi@example.org>|Update af translation'
+    last = remote.commits()[0]
+    assert last.author == b'Thandi <thandi@example.org>'
+    assert last.message.split(b'\n')[0] == b'Update af translation'
     assert 'Last-Translator: Thandi <thandi@example.org>' in remote.read('po/af.po')
     assert remote.read('README') == 'Read me\n'
     assert copy.copy.pending() == []
 
 
-@needs_git
+@needs_dulwich
 def test_nothing_changed_commits_nothing(platform, remote):
     copy = Copy(platform, remote)
-    before = remote.log('--format=%H')
+    before = remote.tip()
     copy.edit('Open', 'Oop')
     copy.save()
     copy.submit()
-    assert remote.log('--format=%H') == before
+    assert remote.tip() == before
 
 
-@needs_git
+@needs_dulwich
 def test_others_changes_to_other_units_stay(platform, remote):
     copy = Copy(platform, remote)
     copy.edit('Save', 'Stoor')
@@ -335,7 +336,7 @@ def test_others_changes_to_other_units_stay(platform, remote):
     assert server_units(remote)['Quit'] == ('Verlaat', False)
 
 
-@needs_git
+@needs_dulwich
 def test_the_same_unit_changed_by_both_is_a_conflict(platform, remote):
     copy = Copy(platform, remote)
     copy.edit('Save', 'Stoor')
@@ -354,7 +355,7 @@ def test_the_same_unit_changed_by_both_is_a_conflict(platform, remote):
     assert server_units(remote)['Save'] == ('Stoor', False)
 
 
-@needs_git
+@needs_dulwich
 def test_a_push_refused_after_the_branch_moved_on_is_done_again(platform, remote, monkeypatch):
     copy = Copy(platform, remote)
     copy.edit('Save', 'Stoor')
@@ -375,10 +376,10 @@ def test_a_push_refused_after_the_branch_moved_on_is_done_again(platform, remote
     assert result.stop is None and len(pushes) == 2
     assert server_units(remote)['Save'] == ('Stoor', False)
     assert server_units(remote)['Quit'] == ('Verlaat', False)
-    assert remote.log('--format=%s').split('\n')[:2] == ['Update af translation', 'In between']
+    assert remote.subjects()[:2] == ['Update af translation', 'In between']
 
 
-@needs_git
+@needs_dulwich
 def test_the_unit_changed_on_the_branch_mid_submit_stops_it(platform, remote, monkeypatch):
     copy = Copy(platform, remote)
     copy.edit('Save', 'Stoor')
@@ -405,7 +406,7 @@ def test_the_unit_changed_on_the_branch_mid_submit_stops_it(platform, remote, mo
 # Update #
 
 
-@needs_git
+@needs_dulwich
 def test_update_takes_others_changes_and_asks_about_both_changed(platform, remote):
     copy = Copy(platform, remote)
     copy.edit('Save', 'Stoor')
@@ -424,7 +425,7 @@ def test_update_takes_others_changes_and_asks_about_both_changed(platform, remot
     assert str(copy.unit('Save').target) == 'Bewaar'
 
 
-@needs_git
+@needs_dulwich
 def test_update_downloads_again_when_the_strings_changed(platform, remote):
     copy = Copy(platform, remote)
     copy.edit('Save', 'Stoor')

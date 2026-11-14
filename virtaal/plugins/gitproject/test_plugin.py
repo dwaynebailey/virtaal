@@ -14,7 +14,7 @@ import os
 import pytest
 
 from devsupport.testing.fakeplatform import run_until
-from devsupport.testing.gitremote import Remote, needs_git
+from devsupport.testing.gitremote import Remote, needs_dulwich
 from virtaal.common import pan_app
 from virtaal.plugins.gitproject import Plugin, backend
 from virtaal.support.platforms import workcopy
@@ -84,7 +84,7 @@ def _rows(model, parent=None):
         it = model.iter_next(it)
 
 
-@needs_git
+@needs_dulwich
 def test_the_browser_opens_a_language_of_the_repository(tmp_path, platform):
     remote = Remote(tmp_path / 'team', {'po/af.po': PO, 'po/de.po': PO, 'README': 'x\n'})
     servers = ServerList([platform], str(tmp_path / 'platforms.ini'))

@@ -28,8 +28,8 @@ unit changed on the branch since Submit compared it stops Submit before
 anything goes (CHANGED), for Update to bring it in first.
 
 There is no lock, no review, and no state but what the file holds.
-Git's own credentials are used (credential helpers, the SSH agent);
-Virtaal never stores one.
+ssh uses the system's ssh and its agent; Virtaal never stores a
+credential.
 """
 
 import hashlib
@@ -60,7 +60,7 @@ from virtaal.support.platforms.workcopy import strings, text_hash
 from .config import ProjectFile
 
 GIT_MISSING = 'git-missing'
-"""A PlatformError's kind: no git, or one too old."""
+"""A PlatformError's kind: dulwich isn't installed."""
 CHANGED = 'git-changed'
 """A PlatformError's kind: the branch changed a unit Submit was to send."""
 FAILED = 'git-failed'
@@ -207,7 +207,12 @@ def _author():
     from virtaal.common import pan_app
 
     translator = pan_app.settings.translator
-    return (translator.get('name') or '').strip(), (translator.get('email') or '').strip()
+    name = (translator.get('name') or '').strip()
+    email = (translator.get('email') or '').strip()
+    if name:
+        return name, email
+    name, email = gitrepo.identity()
+    return name or 'Virtaal', email
 
 
 def _update_header(store):
@@ -521,10 +526,8 @@ class GitPlatform(Platform):
 
     def error_message(self, error):
         if error.kind == GIT_MISSING:
-            # l10n: %(version)s is the oldest Git version Virtaal can use, such as 2.20
-            return _('Git %(version)s or later is needed for Git projects, and wasn’t found.') % {
-                'version': '%d.%d' % gitrepo.MIN_VERSION
-            }
+            # l10n: dulwich is the name of a Python library, not translated
+            return _('Git projects need the Python library dulwich, which isn’t installed.')
         if error.kind == AUTH:
             # l10n: Git's credentials for a repository (an SSH key, a password a credential helper keeps) are missing or were refused
             message = _(
