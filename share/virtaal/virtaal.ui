@@ -1254,7 +1254,7 @@ If you are translating from English to French then French would be your translat
     <property name="height_request">400</property>
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
-    <property name="title" translatable="yes">Virtaal Preferences</property>
+    <property name="title" translatable="yes">Preferences</property>
     <property name="window_position">center-on-parent</property>
     <property name="type_hint">dialog</property>
     <child internal-child="vbox">
@@ -2782,7 +2782,7 @@ If you are translating from English to French then French would be your translat
     <property name="width_request">300</property>
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
-    <property name="title" translatable="yes">Add URL</property>
+    <property name="title" translatable="yes">Add Web Look-up</property>
     <property name="type_hint">dialog</property>
     <child internal-child="vbox">
       <object class="GtkVBox" id="dialog-vbox7">

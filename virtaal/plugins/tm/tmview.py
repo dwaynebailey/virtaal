@@ -537,7 +537,7 @@ class TMView(BaseView, GObjectWrapper):
             'basetmmodel',
             # l10n: The 'sources' here refer to different translation memory plugins,
             # such as local tm, open-tran.eu, the current file, etc.
-            title=_('Select sources of Translation Memory'),
+            title=_('Select Translation Memory Sources'),
             message=_('Select the sources that should be queried for translation memory'),
             size=(550, 580),
             parent=parent,

@@ -280,7 +280,7 @@ class MainController(BaseController):
             filename = self.store_controller.get_bundle_filename()
             if filename is None:
                 filename = self.get_store_filename() or ''
-            filename = self.view.show_save_dialog(current_filename=filename, title=_("Save"))
+            filename = self.view.show_save_dialog(current_filename=filename, title=_("Save As"))
             if not filename:
                 return False
 

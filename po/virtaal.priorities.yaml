@@ -554,7 +554,6 @@ domains:
     - Universal Terminology eXchange
     - Use _Default Fonts
     - Use the first translation suggestion
-    - Virtaal Preferences
     - Virtaal Translation Tool
     - Virtaal is a program for doing translation.
     - Virtaal is a program for doing translation. It aims for a delightful combination of simplicity and power. It integrates with selected online resources to make translation fun, while helping to improve translation quality.
@@ -591,7 +590,6 @@ domains:
     - A web look-up with this name already exists.
     - Add Files
     - Add Missing Language
-    - Add URL
     - All Checks
     - All States
     - Apertium
@@ -651,7 +649,6 @@ domains:
     - Extendable
     - File
     - Google Translate
-    - Header information
     - Identical entry already exists.
     - LANG
     - LOG
@@ -701,7 +698,6 @@ domains:
     - SDL XLIFF Translation File
     - Select Look-up Services
     - Select Terminology Sources
-    - Select sources of Translation Memory
     - Select the services that should be used to perform look-ups
     - Select the sources of terminology suggestions
     - Select the sources that should be queried for translation memory

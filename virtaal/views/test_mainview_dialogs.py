@@ -158,6 +158,8 @@ def test_input_dialog_is_an_entry_dialog_on_the_main_window(view):
     dialog = view.input_dialog
 
     assert isinstance(dialog, EntryDialog)
+    # Each question gives its own title.
+    assert not dialog.get_title()
     assert dialog.get_transient_for() is view.main_window
     assert _button_labels(dialog) == {'_Cancel', '_OK'}
     assert dialog.get_widget_for_response(Gtk.ResponseType.OK).has_default()

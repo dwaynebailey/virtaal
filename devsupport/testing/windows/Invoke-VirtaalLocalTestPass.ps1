@@ -1440,7 +1440,7 @@ Invoke-VirtaalCheck "Ctrl+S with known translator info saves directly" {
     # Explicitly forces "translator info already known" via
     # Set-VirtaalTranslatorInfo first, rather than depending on
     # whatever this VM's config happens to have from earlier runs -
-    # storemodel.py's own "Header information" prompt (mainview.py's
+    # storemodel.py's own "Header Information" prompt (mainview.py's
     # EntryDialog, shown by _update_header() whenever name/email/team
     # are unset) would otherwise block the save. See the next check for
     # the "info is genuinely missing" path, which the prompt exists for.
@@ -1489,7 +1489,7 @@ Invoke-VirtaalCheck "Ctrl+S with known translator info saves directly" {
 Invoke-VirtaalCheck "Ctrl+S with missing translator info prompts, then saves" {
     # The other half of the case above, requested 2026-08-24: force
     # translator info to genuinely be missing (Set-VirtaalTranslatorInfo
-    # -Missing), confirm mainview.py's "Header information" EntryDialog
+    # -Missing), confirm mainview.py's "Header Information" EntryDialog
     # actually appears, drive through it, and confirm the save still
     # completes afterward. The dialog's own text entry has
     # set_activates_default(True) with Save as the default response, so
@@ -1528,12 +1528,12 @@ Invoke-VirtaalCheck "Ctrl+S with missing translator info prompts, then saves" {
                 $dlg = Wait-VirtaalPopup $t -TimeoutSeconds 3
                 if (-not $dlg) { break }
                 $dlgTitle = Get-VirtaalWindowText $dlg
-                if ($dlgTitle -ne "Header information") { break }
+                if ($dlgTitle -ne "Header Information") { break }
                 $promptCount++
                 Send-VirtaalPopupKeys $dlg "{ENTER}"
             }
             if ($promptCount -eq 0) {
-                Add-Result "Ctrl+S with missing translator info prompts, then saves" "Fail" "no 'Header information' prompt appeared despite translator info being cleared - Set-VirtaalTranslatorInfo -Missing may not have taken effect"
+                Add-Result "Ctrl+S with missing translator info prompts, then saves" "Fail" "no 'Header Information' prompt appeared despite translator info being cleared - Set-VirtaalTranslatorInfo -Missing may not have taken effect"
             } else {
                 $titleAfterSave = Get-VirtaalTitle $t
                 $mtimeAfter = (Get-Item $scratch).LastWriteTimeUtc

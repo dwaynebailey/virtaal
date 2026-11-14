@@ -252,7 +252,7 @@ msgid "Keyboard _Shortcuts"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Virtaal Preferences"
+msgid "Preferences"
 msgstr ""
 
 #: share/virtaal/virtaal.ui virtaal/views/mainview.py
@@ -379,7 +379,7 @@ msgid "Terminology Files"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
-msgid "Add URL"
+msgid "Add Web Look-up"
 msgstr ""
 
 #: share/virtaal/virtaal.ui
@@ -980,8 +980,8 @@ msgid ""
 "Try opening a different file."
 msgstr ""
 
-#: virtaal/controllers/maincontroller.py virtaal/views/mainview.py
-msgid "Save"
+#: virtaal/controllers/maincontroller.py
+msgid "Save As"
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
@@ -1986,7 +1986,7 @@ msgstr ""
 #. l10n: The 'sources' here refer to different translation memory plugins,
 #. such as local tm, open-tran.eu, the current file, etc.
 #: virtaal/plugins/tm/tmview.py
-msgid "Select sources of Translation Memory"
+msgid "Select Translation Memory Sources"
 msgstr ""
 
 #: virtaal/plugins/tm/tmview.py
@@ -2452,6 +2452,10 @@ msgid "PO Template Files"
 msgstr ""
 
 #: virtaal/views/mainview.py
+msgid "Save"
+msgstr ""
+
+#: virtaal/views/mainview.py
 msgid "_Don’t Save"
 msgstr ""
 
@@ -2483,6 +2487,10 @@ msgid "%(modified_marker)s%(current_file)s"
 msgstr ""
 
 #: virtaal/views/mainview.py
+msgid "Number of Plurals"
+msgstr ""
+
+#: virtaal/views/mainview.py
 msgid "Please enter the number of noun forms (plurals) to use"
 msgstr ""
 
@@ -2491,11 +2499,15 @@ msgid "_Use"
 msgstr ""
 
 #: virtaal/views/mainview.py
+msgid "Plural Equation"
+msgstr ""
+
+#: virtaal/views/mainview.py
 msgid "Please enter the plural equation to use"
 msgstr ""
 
 #: virtaal/views/mainview.py
-msgid "Header information"
+msgid "Header Information"
 msgstr ""
 
 #: virtaal/views/mainview.py
