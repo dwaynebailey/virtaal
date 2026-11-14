@@ -133,6 +133,36 @@ class UndoController(BaseController):
         )
         self._update_sensitivity()
 
+    def change_units(self, changes):
+        """Change several units at once, as one undo step: changes holds
+        (unit, before, after), unitsnapshot.Snapshot()s of each."""
+        if not changes:
+            return
+        self._apply_units(changes, after=True)
+        self.model.push({'kind': 'units', 'unit': None, 'changes': changes})
+        self._update_sensitivity()
+
+    def _apply_units(self, changes, after):
+        """Give each changed unit its state before or after the change, as
+        if it was edited and left."""
+        from virtaal.support import unitsnapshot
+
+        self._flush_pending_refresh()
+        unit_controller = self.unit_controller
+        store_controller = self.main_controller.store_controller
+        # Its edit so far goes in first; it is shown again after.
+        unit_controller.finish_current_unit()
+        for unit, before, later in changes:
+            unitsnapshot.restore(unit, later if after else before)
+            store_controller.mark_unit_modified(unit)
+            unit_controller.emit('unit-done', unit, True)
+        unit_controller.finish_current_unit()
+        changed = {id(unit) for unit, _before, _after in changes}
+        units = store_controller.get_store().get_units()
+        store_controller.view.units_changed(
+            [index for index, unit in enumerate(units) if id(unit) in changed]
+        )
+
     def _update_sensitivity(self):
         has_store = self.main_controller.store_controller.store is not None
         self.mnu_undo.set_sensitive(has_store and self.model.can_undo())
@@ -214,6 +244,10 @@ class UndoController(BaseController):
             # Redoing re-applies the deliberate pick - sticky again.
             self.unit_controller.restore_state(undo_info['to_state'], True)
             return None
+
+        if undo_info.get('kind') == 'units':
+            self._apply_units(undo_info['changes'], after=not capture_redo)
+            return dict(undo_info) if capture_redo else None
 
         self._select_unit(undo_info['unit'])
 

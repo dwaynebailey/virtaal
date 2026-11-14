@@ -96,3 +96,51 @@ class TestUndoAcrossUnits(TestScaffolding):
 
         assert self._target().get_text() == before + 'X'
         assert self.undo_controller.model.peek_redo() is None
+
+    def _change_units(self, texts):
+        from virtaal.support import unitsnapshot
+
+        changes = []
+        for unit, text in zip(self.units, texts, strict=False):
+            before = unitsnapshot.take(unit)
+            unit.target = text
+            changes.append((unit, before, unitsnapshot.take(unit)))
+            unitsnapshot.restore(unit, before)
+        self.undo_controller.change_units(changes)
+        self._run_idle()
+
+    def test_units_changed_at_once_are_undone_and_redone_at_once(self):
+        self._select(self.units[0])
+        before = [unit.target for unit in self.units[:2]]
+        self.store_controller.set_modified(False)
+        self.undo_controller.model.mark_clean()
+
+        self._change_units(['Een', 'Twee'])
+        assert [unit.target for unit in self.units[:2]] == ['Een', 'Twee']
+        assert self._target().get_text() == 'Een'
+        assert self.store_controller.is_modified()
+
+        self.undo_controller._on_undo_activated()
+        self._run_idle()
+        assert [unit.target for unit in self.units[:2]] == before
+        assert self._target().get_text() == before[0]
+        assert not self.store_controller.is_modified()
+
+        self.undo_controller._on_redo_activated()
+        self._run_idle()
+        assert [unit.target for unit in self.units[:2]] == ['Een', 'Twee']
+        assert self._target().get_text() == 'Een'
+
+    def test_an_edit_after_units_changed_at_once_is_its_own_step(self):
+        self._select(self.units[1])
+        before = self.units[0].target
+        self._change_units(['Een'])
+        self._type('X')
+
+        self.undo_controller._on_undo_activated()
+        self._run_idle()
+        assert self.units[0].target == 'Een'
+
+        self.undo_controller._on_undo_activated()
+        self._run_idle()
+        assert self.units[0].target == before

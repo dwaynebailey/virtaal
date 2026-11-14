@@ -126,7 +126,12 @@ class UndoModel(BaseModel):
         self._last_pushed_unit = unit
 
     def _navigated_to(self, unit):
-        return self._last_pushed_unit is not None and unit is not self._last_pushed_unit
+        # An act on no one unit (several at once) is reached by no move.
+        return (
+            unit is not None
+            and self._last_pushed_unit is not None
+            and unit is not self._last_pushed_unit
+        )
 
     def _resync_last_pushed_unit(self):
         """Recompute _last_pushed_unit from whatever's actually on top of

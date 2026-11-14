@@ -305,6 +305,21 @@ class StoreTreeView(Gtk.TreeView):
         # for 100,000 units.
         GLib.idle_add(change_cursor, priority=Gdk.PRIORITY_REDRAW + 4)
 
+    def units_changed(self, indices):
+        """Measure and draw again the rows of the units at indices, changed
+        other than in the editor. The row being edited is left alone:
+        row_changed() would end the edit."""
+        model = self.get_model()
+        if not isinstance(model, StoreTreeModel):
+            return
+        for index in indices:
+            path = model.store_index_to_path(index)
+            if path is None:
+                continue
+            it = model.get_iter(path)
+            if not model.get_value(it, COLUMN_EDITABLE):
+                model.row_changed(Gtk.TreePath(path), it)
+
     def refresh_current_row(self):
         """Redo the current row's editing cycle in place, without
         changing which row is selected - e.g. after a plugin has
