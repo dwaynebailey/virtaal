@@ -220,7 +220,7 @@ def test_the_chooser_opens_several_translation_files_from_the_last_folder(tmp_pa
         assert (0, '*.sdltm') in patterns
         assert (0, '*.zip') in patterns
         link = chooser.get_extra_widget()
-        assert link.get_label() == "Get Microsoft's UI strings glossaries"
+        assert link.get_label() == "Get Microsoft’s UI strings glossaries"
         assert link.get_uri() == 'https://my.visualstudio.com/downloads?pid=6822'
         assert folders == [str(tmp_path)]
         accept = chooser.get_widget_for_response(Gtk.ResponseType.ACCEPT)
@@ -303,7 +303,7 @@ def test_a_file_that_cant_be_imported_is_named_in_an_error(run_idle):
     _import(view, '/home/user/a.tmx')
 
     assert mainview.notices == []
-    assert mainview.errors == ["Couldn't import 'a.tmx' into the translation memory."]
+    assert mainview.errors == ["Couldn’t import “a.tmx” into the translation memory."]
 
 
 def test_some_files_imported_and_some_not_shows_both(run_idle):
@@ -314,8 +314,8 @@ def test_some_files_imported_and_some_not_shows_both(run_idle):
 
     assert mainview.notices == ['Added 4 translations to the translation memory.']
     assert mainview.errors == [
-        "Couldn't import 'b.po' into the translation memory.\n"
-        "Couldn't import 'c.xlf' into the translation memory."
+        "Couldn’t import “b.po” into the translation memory.\n"
+        "Couldn’t import “c.xlf” into the translation memory."
     ]
 
 

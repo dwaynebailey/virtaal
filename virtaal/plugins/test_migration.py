@@ -277,7 +277,7 @@ def test_do_lokalize_tm_import_reads_units_and_language_codes(tmp_path):
     ]
     assert plugin.tmdb.stores == [(os.path.realpath(db_path), tmdb.STORE_IMPORTED)]
     assert plugin.migrated == [
-        "Lokalize's Translation Memory: %(database_name)s" % {'database_name': 'project.db'},
+        "Lokalize’s Translation Memory: %(database_name)s" % {'database_name': 'project.db'},
     ]
 
 

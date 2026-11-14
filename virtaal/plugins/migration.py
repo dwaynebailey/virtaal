@@ -133,7 +133,7 @@ class Plugin(BasePlugin):
         return _(
             # l10n: Use Poedit's own translation of its menu names where it
             # has one; the last one is Virtaal's File menu item.
-            "Poedit's translation memory can't be imported directly. In Poedit, "
+            "Poedit’s translation memory can’t be imported directly. In Poedit, "
             "choose Preferences > Translation Memory > Manage… > Export to TMX…, "
             "then add that file in Virtaal with File > Import into Translation Memory…"
         )
@@ -288,6 +288,6 @@ class Plugin(BasePlugin):
                 path.realpath(filename), units, source_lang, target_lang, kind=tmdb.STORE_IMPORTED
             )
             self.migrated.append(
-                _("Lokalize's Translation Memory: %(database_name)s")
+                _("Lokalize’s Translation Memory: %(database_name)s")
                 % {"database_name": path.basename(filename)}
             )

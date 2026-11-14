@@ -344,7 +344,7 @@ class TestTradosRoundTrip(TestScaffolding):
         assert not target.get_editable()
         assert not view._widgets['state'].get_sensitive()
         assert not view.mnu_transfer.get_sensitive()
-        assert "Locked: this translation can't be changed." in (
+        assert "Locked: this translation can’t be changed." in (
             view._widgets['notes']['translator'].get_text()
         )
         # What typing does: GtkTextView inserts only where it is editable.

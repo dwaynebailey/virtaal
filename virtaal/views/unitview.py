@@ -789,7 +789,7 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
             notes.append(
                 _(
                     # l10n: A Trados Studio file can lock a translation.
-                    "Locked: this translation can't be changed."
+                    "Locked: this translation can’t be changed."
                 )
             )
         seg = sdlxliff_compat.segment_def(self.unit)
@@ -890,8 +890,8 @@ class UnitView(Gtk.EventBox, GObjectWrapper, Gtk.CellEditable, BaseView):
         if removed:
             self.controller.main_controller.view.show_info_notice(
                 ngettext(
-                    "Removed %(count)d character this file format can't store.",
-                    "Removed %(count)d characters this file format can't store.",
+                    "Removed %(count)d character this file format can’t store.",
+                    "Removed %(count)d characters this file format can’t store.",
                     removed,
                 )
                 % {'count': removed}

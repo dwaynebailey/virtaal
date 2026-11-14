@@ -317,7 +317,7 @@ class TMView(BaseView, GObjectWrapper):
                 lambda: later(
                     failed,
                     False,
-                    _("Couldn't add '%(file)s' to the translation memory.") % {'file': name},
+                    _("Couldn’t add “%(file)s” to the translation memory.") % {'file': name},
                 ),
             )
             return
@@ -325,7 +325,7 @@ class TMView(BaseView, GObjectWrapper):
         remove_failed = (
             failed,
             True,
-            _("Couldn't remove '%(file)s' from the translation memory.") % {'file': name},
+            _("Couldn’t remove “%(file)s” from the translation memory.") % {'file': name},
         )
 
         def exclude(units):
@@ -343,7 +343,7 @@ class TMView(BaseView, GObjectWrapper):
     def _included(self, store_controller, model, name):
         if store_controller.is_modified():
             self.controller.main_controller.view.show_info_notice(
-                _("'%(file)s' will be added to the translation memory when you save it.")
+                _("“%(file)s” will be added to the translation memory when you save it.")
                 % {'file': name}
             )
         else:
@@ -360,9 +360,9 @@ class TMView(BaseView, GObjectWrapper):
             buttons=Gtk.ButtonsType.NONE,
             text=ngettext(
                 # l10n: After unticking File > Add to Local TM on Save
-                "Stop adding '%(file)s' to the translation memory and remove the "
+                "Stop adding “%(file)s” to the translation memory and remove the "
                 "%(count)d translation it added?",
-                "Stop adding '%(file)s' to the translation memory and remove the "
+                "Stop adding “%(file)s” to the translation memory and remove the "
                 "%(count)d translations it added?",
                 units,
             )
@@ -414,7 +414,7 @@ class TMView(BaseView, GObjectWrapper):
             ms_glossary.DOWNLOAD_URL,
             # l10n: A link in the Import into Translation Memory file chooser to the
             # page where Microsoft offers its translations of its software for download
-            _("Get Microsoft's UI strings glossaries"),
+            _("Get Microsoft’s UI strings glossaries"),
         )
         link.connect('activate-link', lambda button: openmailto.open(button.get_uri()) or True)
         return link
@@ -475,7 +475,7 @@ class TMView(BaseView, GObjectWrapper):
         if failed:
             mainview.show_error_dialog(
                 message='\n'.join(
-                    _("Couldn't import '%(file)s' into the translation memory.")
+                    _("Couldn’t import “%(file)s” into the translation memory.")
                     % {'file': os.path.basename(path)}
                     for path in failed
                 )

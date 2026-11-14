@@ -240,7 +240,7 @@ class MainController(BaseController):
                 return False
 
         try:
-            with self.view.busy(_("Loading '%s'…") % os.path.basename(filename)):
+            with self.view.busy(_("Loading “%s”…") % os.path.basename(filename)):
                 self.store_controller.open_file(filename, uri, forget_dir=forget_dir)
                 self.mode_controller.refresh_mode()
             return True

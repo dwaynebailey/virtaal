@@ -1364,7 +1364,7 @@ class MainView(BaseView):
         if existing is not None:
             return
 
-        label = Gtk.Label(label=_("Loading '%s'…") % filename)
+        label = Gtk.Label(label=_("Loading “%s”…") % filename)
         label.set_halign(Gtk.Align.CENTER)
         label.set_valign(Gtk.Align.CENTER)
         label.show()
@@ -1396,9 +1396,9 @@ class MainView(BaseView):
         infobar.set_message_type(Gtk.MessageType.WARNING)
         infobar.set_show_close_button(True)
         if reason:
-            text = _("Couldn't open '%(file)s': %(reason)s") % {'file': filename, 'reason': reason}
+            text = _("Couldn’t open “%(file)s”: %(reason)s") % {'file': filename, 'reason': reason}
         else:
-            text = _("Couldn't open '%(file)s'.") % {'file': filename}
+            text = _("Couldn’t open “%(file)s”.") % {'file': filename}
         label = Gtk.Label(label=text)
         label.set_line_wrap(True)
         infobar.get_content_area().pack_start(label, True, True, 0)

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 05:36+0000\n"
+"POT-Creation-Date: 2026-11-14 05:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -849,7 +849,7 @@ msgid "Number of plurals"
 msgstr ""
 
 #: virtaal/controllers/checkscontroller.py
-msgid "Don't translate words"
+msgid "Don’t translate words"
 msgstr ""
 
 #: virtaal/controllers/checkscontroller.py
@@ -965,7 +965,7 @@ msgstr ""
 #: virtaal/controllers/maincontroller.py virtaal/main.py
 #: virtaal/views/mainview.py
 #, python-format
-msgid "Loading '%s'…"
+msgid "Loading “%s”…"
 msgstr ""
 
 #: virtaal/controllers/maincontroller.py
@@ -1078,7 +1078,7 @@ msgid "Placeholders (printf)"
 msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
-msgid "Placeholders used in \"printf\" strings"
+msgid "Placeholders used in “printf” strings"
 msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
@@ -1148,11 +1148,11 @@ msgid "Double spaces and spaces in unexpected positions"
 msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
-msgid "\"alt\" Attributes"
+msgid "“alt” Attributes"
 msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
-msgid "Placeable for \"alt\" attributes (as found in HTML)"
+msgid "Placeable for “alt” attributes (as found in HTML)"
 msgstr ""
 
 #: virtaal/controllers/placeablescontroller.py
@@ -1196,7 +1196,7 @@ msgstr ""
 
 #: virtaal/models/storemodel.py
 msgid ""
-"The file does not exist, or Virtaal can't reach it from its Flatpak sandbox. "
+"The file does not exist, or Virtaal can’t reach it from its Flatpak sandbox. "
 "Open it with File > Open or from your file manager."
 msgstr ""
 
@@ -1471,7 +1471,7 @@ msgstr ""
 
 #. l10n: "virtaal-" is a literal prefix - leave it untranslated
 #: virtaal/plugins/lookup/models/weblookup.py
-msgid "Names starting with \"virtaal-\" are reserved."
+msgid "Names starting with “virtaal-” are reserved."
 msgstr ""
 
 #: virtaal/plugins/lookup/models/weblookup.py
@@ -1523,7 +1523,7 @@ msgstr ""
 #. has one; the last one is Virtaal's File menu item.
 #: virtaal/plugins/migration.py
 msgid ""
-"Poedit's translation memory can't be imported directly. In Poedit, choose "
+"Poedit’s translation memory can’t be imported directly. In Poedit, choose "
 "Preferences > Translation Memory > Manage… > Export to TMX…, then add that "
 "file in Virtaal with File > Import into Translation Memory…"
 msgstr ""
@@ -1538,7 +1538,7 @@ msgstr ""
 
 #: virtaal/plugins/migration.py
 #, python-format
-msgid "Lokalize's Translation Memory: %(database_name)s"
+msgid "Lokalize’s Translation Memory: %(database_name)s"
 msgstr ""
 
 #: virtaal/plugins/spellchecker.py
@@ -1583,7 +1583,7 @@ msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
 #, python-format
-msgid "Add _Term \"%(selection)s\"…"
+msgid "Add _Term “%(selection)s”…"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/localfile/localfileview.py
@@ -1644,7 +1644,7 @@ msgid "Microsoft Terminology"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/microsoft.py
-msgid "The terms used in Microsoft's software, in your language"
+msgid "The terms used in Microsoft’s software, in your language"
 msgstr ""
 
 #: virtaal/plugins/terminology/models/pontoon.py
@@ -1711,7 +1711,7 @@ msgid "Type"
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py
-msgid "Couldn't read the local translation memory."
+msgid "Couldn’t read the local translation memory."
 msgstr ""
 
 #. l10n: A file in the translation memory that is no longer on disk
@@ -1723,8 +1723,8 @@ msgstr ""
 #. l10n: %(file)s is a file name, or "Earlier translations (file not recorded)"
 #: virtaal/plugins/tm/localtmdialog.py
 #, python-format
-msgid "Remove %(count)d translation from '%(file)s'?"
-msgid_plural "Remove %(count)d translations from '%(file)s'?"
+msgid "Remove %(count)d translation from “%(file)s”?"
+msgid_plural "Remove %(count)d translations from “%(file)s”?"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -1734,7 +1734,7 @@ msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py virtaal/plugins/tm/tmview.py
 #, python-format
-msgid "Couldn't remove '%(file)s' from the translation memory."
+msgid "Couldn’t remove “%(file)s” from the translation memory."
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py
@@ -1747,12 +1747,12 @@ msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py
 #, python-format
-msgid "Couldn't export the translation memory to '%(file)s'."
+msgid "Couldn’t export the translation memory to “%(file)s”."
 msgstr ""
 
 #: virtaal/plugins/tm/localtmdialog.py
 #, python-format
-msgid "Exported the translation memory to '%(file)s'."
+msgid "Exported the translation memory to “%(file)s”."
 msgstr ""
 
 #. l10n: Try to keep this as short as possible.
@@ -1801,7 +1801,7 @@ msgid "Google Translate"
 msgstr ""
 
 #: virtaal/plugins/tm/models/google_translate.py
-msgid "Unreviewed machine translations from Google's translation service"
+msgid "Unreviewed machine translations from Google’s translation service"
 msgstr ""
 
 #: virtaal/plugins/tm/models/localtm.py
@@ -1894,22 +1894,22 @@ msgstr ""
 
 #: virtaal/plugins/tm/tmview.py
 #, python-format
-msgid "Couldn't add '%(file)s' to the translation memory."
+msgid "Couldn’t add “%(file)s” to the translation memory."
 msgstr ""
 
 #: virtaal/plugins/tm/tmview.py
 #, python-format
-msgid "'%(file)s' will be added to the translation memory when you save it."
+msgid "“%(file)s” will be added to the translation memory when you save it."
 msgstr ""
 
 #. l10n: After unticking File > Add to Local TM on Save
 #: virtaal/plugins/tm/tmview.py
 #, python-format
 msgid ""
-"Stop adding '%(file)s' to the translation memory and remove the %(count)d "
+"Stop adding “%(file)s” to the translation memory and remove the %(count)d "
 "translation it added?"
 msgid_plural ""
-"Stop adding '%(file)s' to the translation memory and remove the %(count)d "
+"Stop adding “%(file)s” to the translation memory and remove the %(count)d "
 "translations it added?"
 msgstr[0] ""
 msgstr[1] ""
@@ -1921,7 +1921,7 @@ msgstr ""
 #. l10n: A link in the Import into Translation Memory file chooser to the
 #. page where Microsoft offers its translations of its software for download
 #: virtaal/plugins/tm/tmview.py
-msgid "Get Microsoft's UI strings glossaries"
+msgid "Get Microsoft’s UI strings glossaries"
 msgstr ""
 
 #: virtaal/plugins/tm/tmview.py
@@ -1933,7 +1933,7 @@ msgstr[1] ""
 
 #: virtaal/plugins/tm/tmview.py
 #, python-format
-msgid "Couldn't import '%(file)s' into the translation memory."
+msgid "Couldn’t import “%(file)s” into the translation memory."
 msgstr ""
 
 #: virtaal/plugins/tm/tmview.py
@@ -2508,12 +2508,12 @@ msgstr ""
 
 #: virtaal/views/mainview.py
 #, python-format
-msgid "Couldn't open '%(file)s': %(reason)s"
+msgid "Couldn’t open “%(file)s”: %(reason)s"
 msgstr ""
 
 #: virtaal/views/mainview.py
 #, python-format
-msgid "Couldn't open '%(file)s'."
+msgid "Couldn’t open “%(file)s”."
 msgstr ""
 
 #: virtaal/views/mainview.py
@@ -2628,7 +2628,7 @@ msgstr ""
 
 #. l10n: A Trados Studio file can lock a translation.
 #: virtaal/views/unitview.py
-msgid "Locked: this translation can't be changed."
+msgid "Locked: this translation can’t be changed."
 msgstr ""
 
 #. l10n: Where Trados Studio's translation came from, e.g.
@@ -2655,8 +2655,8 @@ msgstr ""
 
 #: virtaal/views/unitview.py
 #, python-format
-msgid "Removed %(count)d character this file format can't store."
-msgid_plural "Removed %(count)d characters this file format can't store."
+msgid "Removed %(count)d character this file format can’t store."
+msgid_plural "Removed %(count)d characters this file format can’t store."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -2681,7 +2681,7 @@ msgid "Next state"
 msgstr ""
 
 #: virtaal/views/widgets/aboutdialog.py
-msgid "Copyright © 2007-2026 Zuza Software Foundation"
+msgid "Copyright © 2007–2026 Zuza Software Foundation"
 msgstr ""
 
 #. l10n: Please retain the literal name "Virtaal", but feel free to
@@ -2733,9 +2733,7 @@ msgstr ""
 
 #. l10n: Leave the four characters in quotes as they are.
 #: virtaal/views/widgets/langadddialog.py
-msgid ""
-"Language code can only contain letters, digits, \"_\", \"-\", \"@\" and \"."
-"\"."
+msgid "Language code can only contain letters, digits, “_”, “-”, “@” and “.”."
 msgstr ""
 
 #: virtaal/views/widgets/langadddialog.py
@@ -2939,7 +2937,7 @@ msgid "Jump to the language-pair selector"
 msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py
-msgid "Jump to the \"Navigation:\" mode selector"
+msgid "Jump to the “Navigation:” mode selector"
 msgstr ""
 
 #: virtaal/views/widgets/shortcutswindow.py

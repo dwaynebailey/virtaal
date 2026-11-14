@@ -477,7 +477,7 @@ class WebLookupAddDialog:
     def _name_error(self, url_id):
         if url_id.startswith(BUILTIN_PREFIX):
             # l10n: "virtaal-" is a literal prefix - leave it untranslated
-            return _('Names starting with "virtaal-" are reserved.')
+            return _('Names starting with “virtaal-” are reserved.')
         if url_id in self.taken_ids:
             return _('A web look-up with this name already exists.')
         return ''

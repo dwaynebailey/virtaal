@@ -172,7 +172,7 @@ class Virtaal:
             # Plugins load next, and process the open file.
             import os
 
-            main_controller.view.show_progress(_("Loading '%s'…") % os.path.basename(startupfile))
+            main_controller.view.show_progress(_("Loading “%s”…") % os.path.basename(startupfile))
         else:
             main_controller.welcomescreen_controller.activate()
             main_controller.view.show_startup_open_failure_notice(

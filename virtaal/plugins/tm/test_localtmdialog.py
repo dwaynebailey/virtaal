@@ -249,11 +249,11 @@ def test_confirm_remove_asks_with_the_count_and_the_file(tm, monkeypatch, answer
 
     assert asked == [
         (
-            "Remove 1 translation from 'af.po'?",
+            "Remove 1 translation from “af.po”?",
             'Translations another file also added stay in the translation memory.',
         ),
         (
-            "Remove 3 translations from 'af.po'?",
+            "Remove 3 translations from “af.po”?",
             'Translations another file also added stay in the translation memory.',
         ),
     ]
@@ -272,7 +272,7 @@ def test_a_failed_remove_shows_an_error(tm, tmp_path, monkeypatch):
     pump()
 
     assert model.controller.main_controller.view.errors == [
-        "Couldn't remove 'af.po' from the translation memory."
+        "Couldn’t remove “af.po” from the translation memory."
     ]
     dialog.dialog.destroy()
 
@@ -306,7 +306,7 @@ def test_export_writes_the_selected_files_translations(tm, tmp_path, monkeypatch
         ('cat', 'kat'),
     ]
     assert model.controller.main_controller.view.notices == [
-        "Exported the translation memory to '%s'." % out
+        "Exported the translation memory to “%s”." % out
     ]
     dialog.dialog.destroy()
 
@@ -362,7 +362,7 @@ def test_export_to_a_file_that_cant_be_written_shows_an_error(tm, tmp_path, monk
     _export(dialog, pump, monkeypatch, str(out), False)
 
     view = model.controller.main_controller.view
-    assert view.errors == ["Couldn't export the translation memory to '%s'." % out]
+    assert view.errors == ["Couldn’t export the translation memory to “%s”." % out]
     assert view.notices == []
     dialog.dialog.destroy()
 
@@ -380,13 +380,13 @@ def test_a_server_that_doesnt_answer_shows_an_error(tm, tmp_path, monkeypatch):
     dialog = _open(model, pump)
 
     assert model.controller.main_controller.view.errors == [
-        "Couldn't read the local translation memory."
+        "Couldn’t read the local translation memory."
     ]
     assert len(dialog.liststore) == 0
     out = tmp_path / 'out.tmx'
     _export(dialog, pump, monkeypatch, str(out), False)
     assert model.controller.main_controller.view.errors[1:] == [
-        "Couldn't export the translation memory to '%s'." % out
+        "Couldn’t export the translation memory to “%s”." % out
     ]
     assert not out.exists()
     dialog.dialog.destroy()
