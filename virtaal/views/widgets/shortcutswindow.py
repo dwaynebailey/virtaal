@@ -24,10 +24,7 @@ SHORTCUT_GROUPS = [
             ("<Primary><Shift>s", _("Save the current file under a new name")),
             ("<Primary>w", _("Close the current file")),
             ("<Primary>q", _("Quit Virtaal")),
-            (
-                "<Primary>comma" if platform.is_mac else "<Primary>comma <Primary>p",
-                _("Show preferences dialog"),
-            ),
+            ("<Primary>comma", _("Show preferences dialog")),
             (
                 "<Primary>i" if platform.is_mac else "<Alt>Return",
                 _("Show file properties and statistics"),

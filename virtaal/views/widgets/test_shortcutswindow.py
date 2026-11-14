@@ -59,7 +59,7 @@ def test_properties_shortcut_matches_the_platform(
 
 
 @pytest.mark.parametrize(
-    'is_mac, accelerator', [(True, '<Primary>comma'), (False, '<Primary>comma <Primary>p')]
+    'is_mac, accelerator', [(True, '<Primary>comma'), (False, '<Primary>comma')]
 )
 def test_preferences_shortcut_matches_the_platform(
     monkeypatch, _restore_shortcuts_module, is_mac, accelerator

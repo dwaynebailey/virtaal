@@ -1371,7 +1371,8 @@ def test_setup_key_bindings_registers_preferences_with_ctrl_comma_off_mac(monkey
     assert ("<Virtaal>/Edit/Preferences", Gdk.KEY_comma, Gdk.ModifierType.CONTROL_MASK) in calls
 
 
-def test_ctrl_p_still_opens_preferences_off_mac(monkeypatch):
+def test_ctrl_p_does_not_open_preferences(monkeypatch):
+    # Ctrl+P is Print elsewhere; Preferences is Ctrl+,.
     monkeypatch.setattr(platform, 'is_mac', False)
     view = _real_view_for_key_bindings()
     opened = []
@@ -1380,7 +1381,7 @@ def test_ctrl_p_still_opens_preferences_off_mac(monkeypatch):
     MainView._setup_key_bindings(view)
     Gtk.accel_groups_activate(view.main_window, Gdk.KEY_p, Gdk.ModifierType.CONTROL_MASK)
 
-    assert len(opened) == 1
+    assert opened == []
 
 
 def test_setup_key_bindings_leaves_preferences_alone_on_mac(monkeypatch):

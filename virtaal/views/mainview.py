@@ -263,12 +263,6 @@ def _infobar_text(label):
     return label
 
 
-def _activate_if_sensitive(item):
-    if item.is_sensitive():
-        item.activate()
-    return True
-
-
 def fill_dialog(dialog, title='', message='', markup='', detail=''):
     """Fill a message dialog: C{message} (or C{markup}) is its heading,
     C{detail} the text below it."""
@@ -861,16 +855,9 @@ class MainView(BaseView):
             Gtk.AccelMap.add_entry(path, key, Gdk.ModifierType.CONTROL_MASK)
         if not platform.is_mac:
             # macOS keeps Cmd+, from virtaal.accel (loaded in
-            # _setup_macos_integration()). Ctrl+P works too.
+            # _setup_macos_integration()).
             Gtk.AccelMap.add_entry(
                 "<Virtaal>/Edit/Preferences", Gdk.KEY_comma, Gdk.ModifierType.CONTROL_MASK
-            )
-            mnu_prefs = self.gui.get_object('mnu_prefs')
-            self.accel_group.connect(
-                Gdk.KEY_p,
-                Gdk.ModifierType.CONTROL_MASK,
-                Gtk.AccelFlags.VISIBLE,
-                lambda *_args: _activate_if_sensitive(mnu_prefs),
             )
         if platform.is_mac:
             # Ctrl->Cmd translation doesn't reach shifted keys - see Redo.
