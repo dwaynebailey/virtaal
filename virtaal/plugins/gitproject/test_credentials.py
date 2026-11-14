@@ -114,12 +114,12 @@ def test_git_s_helper_answers_without_a_prompt(monkeypatch):
         out = b'protocol=https\nhost=example.org\nusername=thandi\npassword=token\n'
         return credentials.subprocess.CompletedProcess(args, 0, out, b'')
 
-    monkeypatch.setattr(credentials.shutil, 'which', lambda name: '/usr/bin/git')
+    monkeypatch.setattr(credentials.shutil, 'which', lambda name: '/opt/git/bin/git')
     monkeypatch.setattr(credentials.subprocess, 'run', run)
     found = credentials.from_git_helper(KEY)
     assert (found.username, found.password) == ('thandi', 'token')
     assert ran == [
-        (['/usr/bin/git', 'credential', 'fill'], b'protocol=https\nhost=example.org\n\n', '0')
+        (['/opt/git/bin/git', 'credential', 'fill'], b'protocol=https\nhost=example.org\n\n', '0')
     ]
 
 
