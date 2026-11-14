@@ -8,8 +8,8 @@
 """A Git project against a local bare repository standing in for a
 team's remote: its languages, a language opened as a work copy, Submit
 as one commit of that file alone, others' changes merged unit by unit
-by Update and Submit, a push refused because the branch moved on, and
-a unit changed on the branch mid-Submit."""
+by Update and Submit, a push refused because the branch moved on, a
+unit changed on the branch mid-Submit, and the commit's author."""
 
 from types import SimpleNamespace
 
@@ -18,7 +18,7 @@ from translate.storage import po
 from translate.storage.workflow import StateEnum
 
 from devsupport.testing.fakeplatform import run_until
-from devsupport.testing.gitremote import Remote, needs_dulwich
+from devsupport.testing.gitremote import Remote, isolate_config, needs_dulwich
 from virtaal.common import pan_app
 from virtaal.plugins.gitproject import backend
 from virtaal.plugins.gitproject.config import ProjectFile
@@ -51,6 +51,7 @@ def _settings(tmp_path, monkeypatch):
     monkeypatch.setattr(pan_app, 'ui_language', 'en')
     monkeypatch.setitem(pan_app.settings.translator, 'name', 'Thandi')
     monkeypatch.setitem(pan_app.settings.translator, 'email', 'thandi@example.org')
+    isolate_config(monkeypatch, tmp_path / 'home')
 
 
 @pytest.fixture
@@ -438,3 +439,23 @@ def test_update_downloads_again_when_the_strings_changed(platform, remote):
     assert result.downloaded is not None
     assert [u['id'].split('\n')[1] for u in result.downloaded.units][-1] == 'Help'
     assert [c.index for c in result.carried] == [1]
+
+
+# The author #
+
+
+@needs_dulwich
+def test_git_s_own_identity_is_the_author_before_virtaal_s(tmp_path, platform, remote, monkeypatch):
+    isolate_config(monkeypatch, tmp_path / 'home', 'Sipho', 'sipho@example.org')
+    copy = Copy(platform, remote)
+    copy.edit('Save', 'Stoor')
+    copy.save()
+    copy.submit()
+    assert remote.commits()[0].author == b'Sipho <sipho@example.org>'
+    assert 'Last-Translator: Thandi <thandi@example.org>' in remote.read('po/af.po')
+
+
+def test_without_git_s_identity_or_a_translator_virtaal_signs(monkeypatch):
+    monkeypatch.setitem(pan_app.settings.translator, 'name', '')
+    monkeypatch.setitem(pan_app.settings.translator, 'email', '')
+    assert backend._author() == ('Virtaal', '')

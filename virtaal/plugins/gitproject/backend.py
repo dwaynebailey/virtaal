@@ -21,11 +21,12 @@ work copy's baseline (submit.py, update.py), with the branch's file as
 "the server": changed_since() reads every unit of the file at the
 fetched tip, so others' changes show as conflicts unit by unit, never
 as a Git merge. Submit's units go into the file as the tip has it, as
-one commit by the translator (Virtaal's name and email, else git's
-own), pushed and never forced. A push refused because the branch moved
-on is fetched and done again on the new tip, at most ATTEMPTS times; a
-unit changed on the branch since Submit compared it stops Submit before
-anything goes (CHANGED), for Update to bring it in first.
+one commit by the translator (git's user.name and user.email, else
+Virtaal's translator), pushed and never forced. A push refused because
+the branch moved on is fetched and done again on the new tip, at most
+ATTEMPTS times; a unit changed on the branch since Submit compared it
+stops Submit before anything goes (CHANGED), for Update to bring it in
+first.
 
 There is no lock, no review, and no state but what the file holds.
 ssh uses the system's ssh and its agent; Virtaal never stores a
@@ -203,15 +204,20 @@ def _signature(target, code):
     return text_hash(target), code
 
 
-def _author():
+def _translator():
     from virtaal.common import pan_app
 
     translator = pan_app.settings.translator
-    name = (translator.get('name') or '').strip()
-    email = (translator.get('email') or '').strip()
-    if name:
-        return name, email
+    return (translator.get('name') or '').strip(), (translator.get('email') or '').strip()
+
+
+def _author():
+    """A commit's (name, email): git's user.name and user.email if set,
+    else Virtaal's translator's."""
     name, email = gitrepo.identity()
+    if name:
+        return name, email or _translator()[1]
+    name, email = _translator()
     return name or 'Virtaal', email
 
 
@@ -222,7 +228,7 @@ def _update_header(store):
 
     if not isinstance(store, poheader) or not store.header():
         return
-    name, email = _author()
+    name, email = _translator()
     updates = {
         'PO_Revision_Date': time.strftime('%Y-%m-%d %H:%M') + tzstring(),
         'X_Generator': pan_app.x_generator,
