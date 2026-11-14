@@ -1385,7 +1385,8 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
 
         @return: {"matches": up to limit matches, "total": how many entries
             matched, "complete": False if more may match than were read}"""
-        query = concordance.Query(text, case, whole_words)
+        langs = {"source": source_langs, "target": target_langs}
+        query = concordance.Query(text, case, whole_words, langs)
         sides = concordance.SIDES.get(side, concordance.SIDES["source"])
         if len(query.text.strip()) < concordance.MIN_LENGTH:
             return {"matches": [], "total": 0, "complete": True}
@@ -1470,10 +1471,10 @@ def concordance_sql(query, sides, source_langs, target_langs):
     LIMIT, and its parameters.
 
     A plain scan, never a JOIN on fulltext, whose MATCH SQLite would run
-    once per target. LIKE folds ASCII only, so a phrase with other
-    letters compares case folded (cf). Without its abstract yet, an
-    entry is tried with its accelerator markers taken out, a placeable
-    anywhere."""
+    once per target. LIKE folds ASCII only, so a phrase that may match
+    other letters (Query.is_plain) compares case folded (cf). Without its
+    abstract yet, an entry is tried with its accelerator markers taken
+    out, a placeable anywhere."""
     source_in, source_params = _language_match("s.lang", source_langs)
     target_in, target_params = _language_match("t.lang", target_langs)
     tests = []
@@ -1495,7 +1496,7 @@ def concordance_sql(query, sides, source_langs, target_langs):
 def _concordance_tests(query, text_col, abstract_col, plural_col):
     """The SQL tests finding the phrase in one side's columns, and their
     parameters. An abstract the same as its text is only tested as text."""
-    if not query.is_ascii():
+    if not query.is_plain():
         tested = _folded_test
     elif query.case:
         tested = _exact_test
@@ -1508,13 +1509,13 @@ def _concordance_tests(query, text_col, abstract_col, plural_col):
     tests.append(tested(abstract_col, query.abstract, "%s != %s" % (abstract_col, text_col)))
     stripped = _STRIP_ACCELERATORS % text_col
     loose = query.loose_like()
-    if not query.is_ascii():
+    if not query.is_plain():
         stripped, loose = "cf(%s)" % stripped, concordance.cf(loose)
     tests.append(("(%s IS NULL AND %s LIKE ? ESCAPE '\\')" % (abstract_col, stripped), [loose]))
     tests.append(tested(plural_col, concordance.json_escape(query.text)))
     if concordance.has_markers(query.abstract):
         # Plurals have no abstracts: a placeable anywhere.
-        column = plural_col if query.is_ascii() else "cf(%s)" % plural_col
+        column = plural_col if query.is_plain() else "cf(%s)" % plural_col
         tests.append(("%s LIKE ? ESCAPE '\\'" % column, [loose]))
     return [sql for sql, _params in tests], [param for _sql, params in tests for param in params]
 
@@ -1529,9 +1530,10 @@ def _exact_test(column, text, condition=None):
 
 def _folded_test(column, text, condition=None):
     """column holding text case folded (cf), with a cheaper LIKE first on
-    text's longest run of ASCII letters and digits."""
+    text's longest run of ASCII letters and digits that folds the same in
+    every language."""
     sql, params = "instr(cf(%s), ?) > 0" % column, [concordance.cf(text)]
-    runs = _ASCII_RUN.findall(text)
+    runs = _ASCII_RUN.findall(_UNSURE.sub(" ", text))
     if runs:
         sql = "%s LIKE ? ESCAPE '\\' AND %s" % (column, sql)
         params = [_like(max(runs, key=len)), *params]
@@ -1547,6 +1549,8 @@ def _like(text):
 
 
 _ASCII_RUN = re.compile(r"[A-Za-z0-9]{2,}")
+_UNSURE = re.compile("(?i)ss|i")
+"""What may be "ß", or a dotless or dotted i."""
 
 
 def _concordance_match(query, sides, row):

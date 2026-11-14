@@ -234,3 +234,29 @@ def test_the_query_never_scans_the_fulltext_index(db, side, phrase):
     details = ' '.join(row[-1] for row in plan)
     assert 'fulltext' not in details
     assert 'VIRTUAL TABLE' not in details
+
+
+@pytest.mark.parametrize(
+    ('stored', 'phrase', 'lang'),
+    [
+        ('Yeni kayıt ekle', 'KAYIT', 'tr'),
+        ('Yeni kayıt ekle', 'Kayıt', 'tr'),
+        ('İptal et', 'iptal', 'tr'),
+        ('Die Straße', 'STRASSE', 'de'),
+        ('Die STRASSE', 'straße', 'de'),
+        ('Νέο αρχείο', 'ΑΡΧΕΙΟ', 'el'),
+        ('ΝΕΟ ΑΡΧΕΙΟ', 'αρχείο', 'el'),
+    ],
+)
+def test_a_phrase_is_found_past_case_in_the_source_language(db, stored, phrase, lang):
+    _add(db, [(stored, 'x')], source_lang=lang)
+
+    result = db.concordance(phrase, lang, 'af')
+    assert [m['source'] for m in result['matches']] == [stored]
+
+
+def test_a_turkish_dotless_i_is_only_folded_in_turkish(db):
+    _add(db, [('Yeni kayıt ekle', 'x')], source_lang='tr')
+    _add(db, [('Yeni kayıt ekle', 'x')], path='/other.po', source_lang='en')
+
+    assert db.concordance('KAYIT', 'en', 'af')['matches'] == []

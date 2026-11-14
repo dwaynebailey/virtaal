@@ -95,7 +95,10 @@ class TMModel(BaseTMModel):
     def concordance(self, query, on_done, on_error):
         """Search the bundle's translations for query's phrase, with
         TMClient.concordance's options: C{on_done(matches, total, True)}."""
-        phrase = concordance.Query(query['text'], query.get('case'), query.get('whole_words'))
+        langs = {'source': self.source_lang, 'target': self.target_lang}
+        phrase = concordance.Query(
+            query['text'], query.get('case'), query.get('whole_words'), langs
+        )
         sides = concordance.SIDES.get(query.get('side'), concordance.SIDES['source'])
         found = []
         for source, target in self.pairs:

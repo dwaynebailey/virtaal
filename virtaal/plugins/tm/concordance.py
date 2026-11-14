@@ -257,6 +257,14 @@ class ConcordanceController:
         if getattr(tm_view, 'isvisible', False):
             tm_view.update_geometry()
 
+    def _languages(self):
+        """The language of the source and of the target texts."""
+        tm_controller = self.tm_controller
+        return {
+            'source': tm_controller._source_language(),
+            'target': tm_controller._target_language(),
+        }
+
     def _view(self):
         if self.view is None:
             from virtaal.views.concordancepanel import ConcordancePanel
@@ -282,7 +290,9 @@ class ConcordanceController:
         """Search every source for the phrase in the panel."""
         self.stop()
         search = self.view.search()
-        self._query = concordance.Query(search['text'], search['case'], search['whole_words'])
+        self._query = concordance.Query(
+            search['text'], search['case'], search['whole_words'], self._languages()
+        )
         self._sides = concordance.SIDES[side_name(search['parts'])]
         self._options = {
             'text': search['text'],

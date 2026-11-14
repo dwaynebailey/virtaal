@@ -8,9 +8,9 @@
 """Finding a phrase in translations (a concordance search): where the
 phrase is in a text, how the hits rank, and merging identical pairs.
 
-A text matches in NFD with each character case folded, so a composed
-and a decomposed letter match, and a hit never ends inside a letter's
-marks. A text that doesn't hold the phrase as typed may still hold it
+A text matches in NFKD with each character case folded as the TM folds
+it in the side's language (L{textfold}), so a composed and a decomposed
+letter match, and a hit never ends inside a letter's marks. A text that doesn't hold the phrase as typed may still hold it
 past its placeables and accelerator: "Open File" is in "Open &File" and
 "%s files" in "%d files", through their abstracts (L{abstraction}).
 
@@ -23,7 +23,7 @@ import re
 import unicodedata
 from typing import NamedTuple
 
-from virtaal.support import abstraction
+from virtaal.support import abstraction, textfold
 
 MIN_LENGTH = 2
 """The shortest phrase searched for."""
@@ -47,11 +47,10 @@ class Hit(NamedTuple):
 
 
 def cf(text):
-    """text in NFKC, case folded: what the local TM's SQL compares
-    phrases with non-ASCII letters on."""
-    if text is None:
-        return None
-    return unicodedata.normalize('NFKC', unicodedata.normalize('NFKC', text).casefold())
+    """text case folded for any language, without accents
+    (textfold.loose): what the local TM's SQL compares phrases with
+    non-ASCII letters on before L{Query.find}."""
+    return textfold.loose(text)
 
 
 def like_escape(text):
@@ -83,17 +82,22 @@ def _is_word(char):
     return char.isalnum() or char == '_' or _is_mark(char)
 
 
-def _fold(text, case):
-    """(text in NFD, case folded unless case, offset in text of each of
-    its characters or None for the same offsets)."""
-    if text.isascii():
+def _fold(text, case, rule=None, accents=True):
+    """(text in NFKD, case folded with rule unless case, without accents
+    unless accents, offset in text of each of its characters or None for
+    the same offsets)."""
+    if text.isascii() and (case or rule != textfold.TURKIC_I):
         return (text if case else text.lower()), None
     pieces = []
     where = []
     for i, char in enumerate(text):
-        piece = unicodedata.normalize('NFD', char)
+        if not case and rule == textfold.TURKIC_I:
+            char = textfold.lower(char, 'tr')
+        piece = unicodedata.normalize('NFKD', char)
         if not case:
-            piece = piece.casefold()
+            piece = unicodedata.normalize('NFKD', piece.casefold())
+        if not accents:
+            piece = ''.join(c for c in piece if not _is_mark(c))
         pieces.append(piece)
         where.extend([i] * len(piece))
     return ''.join(pieces), where
@@ -102,21 +106,42 @@ def _fold(text, case):
 class Query:
     """A phrase to find, with the search's options."""
 
-    def __init__(self, text, case=False, whole_words=False):
+    def __init__(self, text, case=False, whole_words=False, langs=None):
         self.text = unicodedata.normalize('NFC', text)
         self.case = case
         self.whole_words = whole_words
+        self.langs = langs or {}
+        """The language of each side's texts."""
         try:
             self.abstract = abstraction.abstract(self.text)[0]
         except Exception:
             self.abstract = self.text
-        self._needle = _fold(self.text, case)[0]
-        self._abstract_needle = _fold(self.abstract, case)[0]
-        self._quick = None if any(map(_is_mark, self.text)) else self._quick_form(self.text)
+        self._needles = {}
+        self._capitals = textfold.is_capitals(self.text)
+        ruled = any(textfold.rule(lang) for lang in self.langs.values())
+        quick = not ruled and not any(map(_is_mark, self.text))
+        self._quick = self._quick_form(self.text) if quick else None
         self._loose = self._loose_pattern()
 
     def _quick_form(self, text):
-        return text if self.case else text.casefold()
+        return unicodedata.normalize('NFKC', text) if self.case else textfold.fold(text)
+
+    def _needle(self, rule, accents):
+        """The phrase and its abstract folded with rule."""
+        key = (rule, accents)
+        if key not in self._needles:
+            self._needles[key] = tuple(
+                _fold(text, self.case, rule, accents)[0] for text in (self.text, self.abstract)
+            )
+        return self._needles[key]
+
+    def _rule(self, lang, text):
+        """(rule, accents) to fold text and the phrase with in lang."""
+        if self.case:
+            return None, True
+        rule = textfold.rule(lang)
+        capitals = self._capitals or textfold.is_capitals(text)
+        return rule, not (rule == textfold.GREEK_CAPITALS and capitals)
 
     def _loose_pattern(self):
         """A regular expression finding the abstract's text in a text
@@ -129,6 +154,18 @@ class Query:
         """Whether the phrase and its abstract's text are ASCII."""
         return self.text.isascii() and _MARKERS.sub('', self.abstract).isascii()
 
+    def is_plain(self):
+        """Whether a text holds the phrase if it does in ASCII letters of
+        any case: an ASCII phrase without "ss" (for "ß"), nor "i" in a
+        language with a dotless i."""
+        if not self.is_ascii():
+            return False
+        if self.case:
+            return True
+        text = (self.text + self.abstract).lower()
+        turkic = any(textfold.rule(lang) == textfold.TURKIC_I for lang in self.langs.values())
+        return 'ss' not in text and not (turkic and 'i' in text)
+
     def loose_like(self):
         """The abstract as a LIKE pattern for a text with its accelerator
         markers taken out, a placeable or "…" anywhere."""
@@ -139,16 +176,18 @@ class Query:
         """Whether text may hold the phrase: false only if it can't."""
         if self._quick is None:
             return True
-        normal = unicodedata.normalize('NFC', text)
-        if self._quick in self._quick_form(normal):
+        if self._quick in self._quick_form(text):
             return True
+        normal = unicodedata.normalize('NFC', text)
         return self._loose.search(strip_accelerators(normal)) is not None
 
-    def find(self, text):
-        """The L{Hit} of the phrase in text, or None."""
+    def find(self, text, lang=None):
+        """The L{Hit} of the phrase in text, in lang, or None."""
         if not text:
             return None
-        hit = self._find(self._needle, self.text, text, None)
+        rule = self._rule(lang, text)
+        needle, abstract_needle = self._needle(*rule)
+        hit = self._find(needle, self.text, text, None, rule)
         if hit is not None:
             return hit
         try:
@@ -157,12 +196,12 @@ class Query:
             return None
         if abstract == text and self.abstract == self.text:
             return None
-        return self._find(self._abstract_needle, self.abstract, abstract, offsets)
+        return self._find(abstract_needle, self.abstract, abstract, offsets, rule)
 
-    def _find(self, needle, phrase, text, offsets):
+    def _find(self, needle, phrase, text, offsets, rule):
         if not needle:
             return None
-        folded, where = _fold(text, self.case)
+        folded, where = _fold(text, self.case, *rule)
         spans = []
         whole = exact = False
         start = folded.find(needle)
@@ -214,7 +253,7 @@ def match_hits(query, sides, texts):
     found = {}
     for side in sides:
         for n, text in enumerate(texts.get(side) or ()):
-            hit = query.find(text)
+            hit = query.find(text, query.langs.get(side))
             if hit is not None:
                 found[side] = (text, n, hit)
                 break

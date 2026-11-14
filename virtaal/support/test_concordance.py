@@ -7,7 +7,7 @@
 
 import pytest
 
-from virtaal.support import abstraction, concordance
+from virtaal.support import abstraction, concordance, textfold
 from virtaal.support.concordance import Query
 
 
@@ -182,3 +182,71 @@ def test_a_source_listed_first_ranks_above_better_hits():
 def test_cf_folds_compatibility_forms_and_case():
     assert concordance.cf('ﬁle Straße') == 'file strasse'
     assert concordance.cf(None) is None
+
+
+@pytest.mark.parametrize(
+    ('phrase', 'text', 'lang', 'spans'),
+    [
+        ('KAYIT', 'Yeni kayıt ekle', 'tr', ['kayıt']),
+        ('iptal', 'İPTAL ET', 'tr', ['İPTAL']),
+        ('KAYIT', 'Yeni kayıt ekle', 'en', []),
+        ('info', 'INFO', 'tr', []),
+        ('ΑΡΧΕΙΟ', 'Νέο αρχείο', 'el', ['αρχείο']),
+        ('αρχείο', 'ΝΕΟ ΑΡΧΕΙΟ', 'el', ['ΑΡΧΕΙΟ']),
+        ('αρχειο', 'Νέο αρχείο', 'el', []),
+        ('ΑΡΧΕΙΟ', 'Νέο αρχείο', 'en', []),
+        ('OK', 'Press ＯＫ', 'en', ['ＯＫ']),
+    ],
+)
+def test_a_phrase_is_found_as_the_tm_folds_its_language(phrase, text, lang, spans):
+    query = Query(phrase, langs={'source': lang})
+    found = concordance.match_hits(query, ('source',), {'source': [text]})
+
+    hit = found.get('source', (None, None, None))[2]
+    assert [text[a:b] for a, b in (hit.spans if hit else ())] == spans
+
+
+def test_a_side_is_folded_in_its_own_language():
+    query = Query('INFO', langs={'source': 'en', 'target': 'tr'})
+    texts = {'source': ['More info'], 'target': ['Daha fazla info']}
+
+    assert set(concordance.match_hits(query, ('source', 'target'), texts)) == {'source'}
+
+
+@pytest.mark.parametrize(
+    ('phrase', 'text', 'lang'),
+    [('KAYIT', 'kayıt', 'tr'), ('ΑΡΧΕΙΟ', 'αρχείο', 'el'), ('STRASSE', 'Straße', 'de')],
+)
+def test_maybe_lets_through_what_find_finds(phrase, text, lang):
+    query = Query(phrase, langs={'source': lang})
+
+    assert query.find(text, lang) and query.maybe(text)
+
+
+@pytest.mark.parametrize(
+    ('phrase', 'langs', 'plain'),
+    [
+        ('file', {}, True),
+        ('Open file', {'source': 'tr'}, False),
+        ('Open', {'source': 'tr'}, True),
+        ('STRASSE', {}, False),
+        ('café', {}, False),
+    ],
+)
+def test_is_plain(phrase, langs, plain):
+    assert Query(phrase, langs=langs).is_plain() == plain
+
+
+@pytest.mark.parametrize(
+    ('stored', 'phrase', 'lang'),
+    [
+        ('Open file', 'OPEN FILE', 'en'),
+        ('Straße', 'STRASSE', 'de'),
+        ('café', 'CAFÉ', 'fr'),
+        ('Kayıt', 'KAYIT', 'tr'),
+        ('Αρχείο', 'ΑΡΧΕΙΟ', 'el'),
+    ],
+)
+def test_concordance_finds_what_the_tm_matches_past_case(stored, phrase, lang):
+    assert textfold.case_only_difference(stored, phrase, lang)
+    assert Query(phrase, langs={'source': lang}).find(stored, lang) is not None
