@@ -51,6 +51,9 @@ class TMModel(remotetm.TMModel):
     _wait_id = None
     # The plain source (inlinecodes.plain_source) of each query to send.
     _plains = {}
+    # The concordance search on its way, and how many were started.
+    _concordance_request = None
+    _concordance_count = 0
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
@@ -212,6 +215,51 @@ class TMModel(remotetm.TMModel):
         return self.tmclient.translate_unit(
             query_str, self.source_lang, self.target_lang, self._handle_matches, params
         )
+
+    def concordance(self, query, on_done, on_error):
+        """Search the local TM for query's phrase (TMClient.concordance's
+        options, and its text): C{on_done(matches, total, complete)}, or
+        C{on_error()}. A new search drops the one before."""
+        self.cancel_concordance()
+        count = self._concordance_count
+
+        def send():
+            if count == self._concordance_count:
+                self._send_concordance(query, on_done, on_error)
+
+        self._when_ready(send)
+
+    def _send_concordance(self, query, on_done, on_error):
+        request = self.tmclient.concordance(
+            query['text'], self.source_lang, self.target_lang, query
+        )
+        if request is None:
+            on_error()
+            return
+        self._concordance_request = request
+
+        def on_success(reply):
+            self._concordance_request = None
+            try:
+                found = json.loads(reply)
+                matches, total, complete = found['matches'], found['total'], found['complete']
+            except (ValueError, KeyError, TypeError):
+                on_error()
+                return
+            on_done(matches, total, complete)
+
+        def on_failure():
+            self._concordance_request = None
+            on_error()
+
+        _on_reply(request, on_success, on_failure, "search")
+
+    def cancel_concordance(self):
+        """Drop the concordance search on its way, if any."""
+        self._concordance_count += 1
+        if self._concordance_request is not None:
+            self.tmclient.cancel(self._concordance_request)
+            self._concordance_request = None
 
     def configure(self, parent):
         from ..localtmdialog import LocalTMDialog

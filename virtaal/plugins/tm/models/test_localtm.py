@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import json
 import logging
 import os
 import signal
@@ -1282,3 +1283,111 @@ def test_the_sources_dialog_offers_configure_only_while_the_local_tm_is_on(monke
         )
 
     assert runs == [{'localtm': model.configure_func}, {'localtm': None}]
+
+
+class _SearchRequest:
+    def __init__(self):
+        self.handlers = {}
+
+    def connect(self, signal, handler):
+        self.handlers[signal] = handler
+
+    def emit(self, signal, *args):
+        self.handlers[signal](self, *args)
+
+
+class _SearchClient:
+    def __init__(self, full=False):
+        self.sent = []
+        self.cancelled = []
+        self.full = full
+
+    def concordance(self, text, source_lang, target_lang, options):
+        if self.full:
+            return None
+        self.sent.append((text, source_lang, target_lang, options))
+        return _SearchRequest()
+
+    def cancel(self, request):
+        self.cancelled.append(request)
+
+
+def _searching_model(client, ready=True):
+    model = TMModel.__new__(TMModel)
+    model.tmclient = client
+    model.source_lang, model.target_lang = 'en', 'af'
+    model._server_ready = ready
+    model._waiting = []
+    return model
+
+
+def _search(model, text='open'):
+    calls = []
+    model.concordance(
+        {'text': text, 'side': 'source'},
+        lambda *found: calls.append(found),
+        lambda: calls.append('error'),
+    )
+    return calls
+
+
+def _request_sent(model):
+    return model._concordance_request
+
+
+def test_concordance_passes_on_what_the_server_found():
+    model = _searching_model(_SearchClient())
+    calls = _search(model)
+
+    reply = {'matches': [{'source': 'Open'}], 'total': 1, 'complete': True}
+    _request_sent(model).emit('http-success', json.dumps(reply).encode())
+
+    assert model.tmclient.sent == [('open', 'en', 'af', {'text': 'open', 'side': 'source'})]
+    assert calls == [([{'source': 'Open'}], 1, True)]
+
+
+@pytest.mark.parametrize('signal', ['http-server-error', 'http-failed'])
+def test_concordance_reports_a_search_the_server_didn_t_answer(signal):
+    model = _searching_model(_SearchClient())
+    calls = _search(model)
+
+    _request_sent(model).emit(signal, 500)
+
+    assert calls == ['error']
+
+
+def test_concordance_reports_a_reply_it_can_t_read():
+    model = _searching_model(_SearchClient())
+    calls = _search(model)
+
+    _request_sent(model).emit('http-success', b'{"matches": []}')
+
+    assert calls == ['error']
+
+
+def test_concordance_reports_a_full_queue():
+    model = _searching_model(_SearchClient(full=True))
+
+    assert _search(model) == ['error']
+
+
+def test_a_new_concordance_search_cancels_the_one_on_its_way():
+    model = _searching_model(_SearchClient())
+    _search(model, 'open')
+    first = _request_sent(model)
+
+    _search(model, 'close')
+
+    assert model.tmclient.cancelled == [first]
+    assert [sent[0] for sent in model.tmclient.sent] == ['open', 'close']
+
+
+def test_a_search_cancelled_before_the_server_is_up_is_never_sent():
+    model = _searching_model(_SearchClient(), ready=False)
+    _search(model)
+
+    model.cancel_concordance()
+    for send in model._waiting:
+        send()
+
+    assert model.tmclient.sent == []
