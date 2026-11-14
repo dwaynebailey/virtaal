@@ -22,10 +22,10 @@ from collections import Counter
 from functools import lru_cache
 from typing import NamedTuple
 
-from translate.search.lshtein import LevenshteinComparer
 from translate.storage.placeables import StringElem, general, parse
 
 from virtaal.support import formatplaceables as fp
+from virtaal.support import textfold
 
 ABSTRACTION_VERSION = 2
 """Changes whenever an abstract of the same text could change: the parser
@@ -391,12 +391,10 @@ def transfer(text, from_source, to_source):
     return result.text
 
 
-_comparer = LevenshteinComparer(max_len=1000)
-
-
-def similarity(a, b):
-    """Levenshtein similarity of a and b, from 0 to 100."""
-    return _comparer.similarity(a, b, 0)
+def similarity(a, b, lang=None):
+    """Levenshtein similarity of a and b in lang, from 0 to 100, past
+    case and Unicode form (L{textfold})."""
+    return textfold.comparer(lang).similarity(a, b, 0)
 
 
 REBUILT_PENALTY = 1
@@ -412,19 +410,19 @@ def _unmatched(query_placeables, source_placeables):
     return (query - source).total() + (source - query).total()
 
 
-def adapt(query, source, target, raw_quality, accel_markers=()):
+def adapt(query, source, target, raw_quality, accel_markers=(), lang=None):
     """A TM match for query (with source and target) adapted to it, as an
     L{Adapted}: the target rebuilt with query's own placeables and
     accelerator, and a quality that is the better of raw_quality and the
     abstract forms' similarity less the penalties for the rebuild and for
-    placeables that query and source don't share. Only a source identical
-    to query scores 100."""
+    placeables that query and source don't share, in query's language
+    lang. Only a source identical to query scores 100."""
     query, source, target = str(query), str(source), str(target)
     query_abstract, query_placeables = abstract(query)
     source_abstract, source_placeables = abstract(source)
     result = rebuild(target, source_placeables, query_placeables, accelerator(query), accel_markers)
     adjusted = round(
-        similarity(query_abstract, source_abstract)
+        similarity(query_abstract, source_abstract, lang)
         - REBUILT_PENALTY * result.rebuilt
         - UNRESOLVED_PENALTY * result.unresolved
         - UNMATCHED_PENALTY * _unmatched(query_placeables, source_placeables)

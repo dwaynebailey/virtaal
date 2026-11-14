@@ -113,7 +113,9 @@ def candidates(tm_controller, unit, answers, options, kind=TM):
         tm_controller._tidy_matches(model, str(unit.source), matches)
         for match in matches:
             if tm_controller.abstract_placeables:
-                match = tm_controller._adapt(match['query_str'], match, accel_markers, unit)
+                match = tm_controller._adapt(
+                    match['query_str'], match, accel_markers, unit, tm_controller._source_language()
+                )
             match = tm_controller._cap_for_codes(unit, match)
             if (TM if match.get('quality') else MT) != kind:
                 continue
@@ -139,7 +141,9 @@ def plural_texts(tm_controller, unit, match):
             return None
         form = {'source': match['plural_source'], 'target': forms[found[0]], 'quality': 100}
         if tm_controller.abstract_placeables:
-            form = tm_controller._adapt(query, form, accel_markers)
+            form = tm_controller._adapt(
+                query, form, accel_markers, lang=tm_controller._source_language()
+            )
         texts.append(str(form['target']))
     return texts
 

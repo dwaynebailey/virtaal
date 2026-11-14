@@ -157,6 +157,18 @@ QUERY = 'Delete %(count)s files'
 STORED = {'source': 'Delete {0} files', 'target': 'Skrap {0} lêers', 'quality': 100}
 
 
+def test_v2_matches_differing_only_in_case_are_near_exact():
+    model, emitted = _v2_model(source_lang='tr')
+
+    model.query(None, SimpleNamespace(source='KAYIT'))
+    model.tmclient.sent[0].reply(
+        {'abstraction': ABSTRACTION_VERSION, 'matches': [{'source': 'Kayıt', 'target': 'x'}]}
+    )
+
+    [(_query_str, [match])] = emitted
+    assert (match['quality'], match['raw_quality']) == (97, 97)
+
+
 def test_sends_the_abstract_to_v2():
     model, _emitted = _v2_model(checker='gnome')
 

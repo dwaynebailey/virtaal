@@ -11,12 +11,11 @@ import time
 
 from gi.repository import GLib, GObject
 from translate.lang.data import normalize
-from translate.search.lshtein import LevenshteinComparer
 from translate.storage.workflow import StateEnum
 
 from virtaal.common import pan_app
 from virtaal.controllers.basecontroller import BaseController
-from virtaal.support import abstraction, catxliff_compat, inlinecodes
+from virtaal.support import abstraction, catxliff_compat, inlinecodes, textfold
 from virtaal.support.httpclient import speculative
 from virtaal.support.translate_compat import forceunicode
 
@@ -333,12 +332,12 @@ class TMController(BaseController):
         query_str = match['query_str']
         adapted = match
         if self.abstract_placeables:
-            adapted = self._adapt(query_str, match, accel_markers, unit)
+            adapted = self._adapt(query_str, match, accel_markers, unit, self._source_language())
         form = self._plural_form(unit, match)
         if form is None:
             return adapted
         if self.abstract_placeables:
-            form = self._adapt(form['query_str'], form, accel_markers)
+            form = self._adapt(form['query_str'], form, accel_markers, lang=self._source_language())
         if form.get('form_penalty'):
             # Scored again on adapting: take the penalty off that score.
             form['quality'] = min(form['quality'] - form['form_penalty'], 99)
@@ -373,7 +372,7 @@ class TMController(BaseController):
             return None
         sources = getattr(unit.source, 'strings', None) or [unit.source]
         query = str(sources[min(1, len(sources) - 1)])
-        quality = int(LevenshteinComparer(1000).similarity(query, source, 0))
+        quality = int(textfold.comparer(self._source_language()).similarity(query, source, 0))
         form = {k: v for k, v in match.items() if k not in ('source_markup', 'target_markup')}
         form.update(
             source=source,
@@ -452,10 +451,15 @@ class TMController(BaseController):
         return pluralmap.gettext_layout(language)
 
     def _target_language(self):
+        return self._language('target_lang')
+
+    def _source_language(self):
+        return self._language('source_lang')
+
+    def _language(self, side):
         main_controller = getattr(self, 'main_controller', None)
         lang_controller = getattr(main_controller, 'lang_controller', None)
-        target = getattr(lang_controller, 'target_lang', None)
-        return getattr(target, 'code', None)
+        return getattr(getattr(lang_controller, side, None), 'code', None)
 
     def _nplurals(self):
         main_controller = getattr(self, 'main_controller', None)
@@ -477,7 +481,7 @@ class TMController(BaseController):
         return tuple(getattr(getattr(checker, 'config', None), 'accelmarkers', None) or ())
 
     @staticmethod
-    def _adapt(query_str, match, accel_markers, unit=None):
+    def _adapt(query_str, match, accel_markers, unit=None, lang=None):
         """match, or a copy with its target rebuilt with the current unit's
         placeables and accelerator, and its quality rescored. Machine
         translations (no quality) are left alone. A match with inline
@@ -489,11 +493,11 @@ class TMController(BaseController):
         source, target = forceunicode(match['source']), forceunicode(match['target'])
         # The local TM scored it on the abstracts already.
         raw_quality = match.get('raw_quality', match['quality'])
-        adapted = abstraction.adapt(query_str, source, target, raw_quality, accel_markers)
+        adapted = abstraction.adapt(query_str, source, target, raw_quality, accel_markers, lang)
         plain = _plain_texts(unit, match)
         extra = {}
         if plain is not None:
-            plain_adapted = abstraction.adapt(*plain, raw_quality, accel_markers)
+            plain_adapted = abstraction.adapt(*plain, raw_quality, accel_markers, lang)
             adapted = adapted._replace(quality=plain_adapted.quality)
             if plain_adapted.target != plain[2]:
                 extra['plain_target'] = plain_adapted.target

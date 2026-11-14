@@ -440,8 +440,11 @@ class TMModel(remotetm.TMModel):
                 and isinstance(match.get('target'), str)
             ):
                 continue
-            raw_quality = abstraction.similarity(query_str, match['source'])
-            adapted = abstraction.adapt(query_str, match['source'], match['target'], raw_quality)
+            lang = self.source_lang
+            raw_quality = abstraction.similarity(query_str, match['source'], lang)
+            adapted = abstraction.adapt(
+                query_str, match['source'], match['target'], raw_quality, lang=lang
+            )
             if adapted.quality < min_quality:
                 continue
             scored.append(dict(match, quality=adapted.quality, raw_quality=adapted.raw_quality))

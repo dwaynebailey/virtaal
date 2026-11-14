@@ -398,3 +398,10 @@ def test_a_format_placeholder_adapts_like_printf(query, source, target, expected
 def test_a_format_placeholder_is_one_variable(text, expected):
     assert [(p.raw, p.start, p.end) for p in placeables(text)] == expected
     assert {p.marker for p in placeables(text)} == {abstraction.VARIABLE}
+
+
+def test_abstracts_are_compared_past_case_in_the_query_language():
+    adapted = abstraction.adapt('KAYIT %s', 'Kayıt %d', 'Opname %d', 0, lang='tr')
+
+    assert (adapted.target, adapted.quality) == ('Opname %s', 96)
+    assert abstraction.adapt('KAYIT %s', 'Kayıt %d', 'Opname %d', 0).quality < 90
