@@ -521,7 +521,8 @@ class MainView(BaseView):
             self.gui.get_object("mnu_fullscreen").hide()
             # Move the about menu item, named as macOS names it.
             mnu_about = self.gui.get_object("mnu_about")
-            mnu_about.set_property('use-stock', False)
+            if isinstance(mnu_about, Gtk.ImageMenuItem):
+                mnu_about.set_property('use-stock', False)
             about = 'About %s'  # gtk-mac-integration's message, not Virtaal's
             mnu_about.set_label(GLib.dgettext('gtk-mac-integration', about) % _("Virtaal"))
             osxapp.insert_app_menu_item(mnu_about, 0)
