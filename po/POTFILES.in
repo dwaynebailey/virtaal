@@ -24,6 +24,8 @@ virtaal/modes/searchmode.py
 virtaal/modes/workflowmode.py
 virtaal/plugins/autocompletor.py
 virtaal/plugins/autocorrector.py
+virtaal/plugins/gitproject/__init__.py
+virtaal/plugins/gitproject/backend.py
 virtaal/plugins/lookup/__init__.py
 virtaal/plugins/lookup/lookupview.py
 virtaal/plugins/lookup/models/thesaurus.py

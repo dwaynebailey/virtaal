@@ -507,6 +507,8 @@ class Settings:
         "weblate": "disabled",
         # Experimental: tested against a fake server only.
         "transifex": "disabled",
+        # Experimental: tested against local repositories only.
+        "gitproject": "disabled",
     }
     undo = {
         "depth": 10000,

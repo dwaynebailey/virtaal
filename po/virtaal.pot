@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 11:51+0000\n"
+"POT-Creation-Date: 2026-11-14 13:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1865,6 +1865,72 @@ msgstr ""
 msgid "AutoCorrector"
 msgstr ""
 
+#. l10n: A plug-in's name in the plug-in list, for one not yet tested on the real service; %(name)s is the service, such as Transifex
+#: virtaal/plugins/gitproject/__init__.py virtaal/plugins/transifex/__init__.py
+#, python-format
+msgid "%(name)s (experimental)"
+msgstr ""
+
+#. l10n: The Git projects plug-in's description in the plug-in list
+#: virtaal/plugins/gitproject/__init__.py
+msgid "Translate files a team keeps in a Git repository"
+msgstr ""
+
+#. l10n: A Git project's branch, such as main
+#: virtaal/plugins/gitproject/backend.py
+msgid "_Branch:"
+msgstr ""
+
+#. l10n: Where a Git project keeps each language's file, such as po/*.po; * stands for the language's code (af, pt_BR)
+#: virtaal/plugins/gitproject/backend.py
+msgid "_Language files (* for the code):"
+msgstr ""
+
+#. l10n: Shown for an address starting http:// instead of https://
+#: virtaal/plugins/gitproject/backend.py virtaal/plugins/transifex/backend.py
+#: virtaal/plugins/weblate/backend.py
+msgid "Use https: the token would be sent unencrypted."
+msgstr ""
+
+#. l10n: A Git project's branch name has characters Git doesn't allow, such as spaces
+#: virtaal/plugins/gitproject/backend.py
+msgid "Git doesn’t allow this branch name."
+msgstr ""
+
+#. l10n: A Git project's language files must have one * where the language's code goes
+#: virtaal/plugins/gitproject/backend.py
+msgid "Use one * for the language’s code, such as po/*.po."
+msgstr ""
+
+#. l10n: No Git repository, or no such branch, at the address given for a Git project
+#: virtaal/plugins/gitproject/backend.py
+msgid "No Git repository with this branch answered at this address."
+msgstr ""
+
+#. l10n: %(version)s is the oldest Git version Virtaal can use, such as 2.20
+#: virtaal/plugins/gitproject/backend.py
+#, python-format
+msgid "Git %(version)s or later is needed for Git projects, and wasn’t found."
+msgstr ""
+
+#: virtaal/plugins/gitproject/backend.py
+msgid ""
+"Git couldn’t sign in to the repository. Set up an SSH key or a Git "
+"credential helper for it, then try again."
+msgstr ""
+
+#: virtaal/plugins/gitproject/backend.py
+msgid ""
+"The repository changed while submitting. Use Update from Server, then Submit "
+"again."
+msgstr ""
+
+#. l10n: %(reason)s is Git's own message, in English
+#: virtaal/plugins/gitproject/backend.py
+#, python-format
+msgid "Git failed: %(reason)s"
+msgstr ""
+
 #: virtaal/plugins/lookup/__init__.py
 msgid "Perform look-ups on selected text"
 msgstr ""
@@ -2923,12 +2989,6 @@ msgstr ""
 msgid "?"
 msgstr ""
 
-#. l10n: A plug-in's name in the plug-in list, for one not yet tested on the real service; %(name)s is the service, such as Transifex
-#: virtaal/plugins/transifex/__init__.py
-#, python-format
-msgid "%(name)s (experimental)"
-msgstr ""
-
 #: virtaal/plugins/transifex/__init__.py
 msgid "Translate projects hosted on Transifex"
 msgstr ""
@@ -2950,11 +3010,6 @@ msgstr ""
 #. l10n: Shows the token's characters instead of dots
 #: virtaal/plugins/transifex/backend.py virtaal/plugins/weblate/backend.py
 msgid "S_how token"
-msgstr ""
-
-#. l10n: Shown for an address starting http:// instead of https://
-#: virtaal/plugins/transifex/backend.py virtaal/plugins/weblate/backend.py
-msgid "Use https: the token would be sent unencrypted."
 msgstr ""
 
 #. l10n: Transifex's API is at https://rest.api.transifex.com/; something else answered
