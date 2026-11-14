@@ -6,9 +6,9 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """File > Pre-translate This File…: the units still to translate filled
-with their best suggestion, from the sources that need nothing sent
-over the network (and what online services gave a file fetch), marked
-for review, as one undo step."""
+with their best suggestion, marked for review, as one undo step. Free
+online translation memories are asked for those units first, in a file
+fetch; machine translation fills from what a file fetch kept."""
 
 import logging
 from typing import NamedTuple
@@ -20,6 +20,7 @@ from translate.storage.workflow import StateEnum
 from virtaal.common.pan_app import config_bool, config_int
 from virtaal.support import catxliff_compat, unitsnapshot
 
+from .bulkfetch import FAILED, REFUSED
 from .tmcontroller import _rank
 
 TM, MT = 'tm', 'mt'
@@ -65,6 +66,18 @@ def wanted(unit):
     if unit.istranslated() or any(_texts(unit.target)):
         return False
     return not catxliff_compat.is_locked(unit) and bool(str(unit.source).strip())
+
+
+def fetches_first(model):
+    """Whether Pre-translate fetches model's suggestions for the units
+    first: a free online translation memory that takes a file fetch."""
+    return (
+        getattr(model, 'online_service', None) is not None
+        and not getattr(model, 'billed', False)
+        and not getattr(model, 'machine_translation', False)
+        and getattr(model, 'BULK_MAX', 0) != 0
+        and model.bulk_ready()
+    )
 
 
 def review_state(unit):
@@ -179,18 +192,21 @@ class Result(NamedTuple):
     fills: list
     wanted: int
     """How many units were still to translate."""
+    unreachable: tuple = ()
+    """The services whose file fetch failed."""
 
     def count(self, kind):
         return sum(1 for fill in self.fills if fill.kind == kind)
 
 
 class Pretranslation:
-    """Asks every model for each unit still to translate, a unit at a
+    """Fetches the units' suggestions from the models that fetches_first(),
+    then asks every model for each unit still to translate, a unit at a
     time from the main loop, and chooses its fill. on_progress(done,
-    total) after each unit; on_done(Result) at the end, unless
-    cancelled. Nothing is changed until apply_result(). read(index,
-    unit) gives the unit at index of units as read from its file, for
-    a stream's file not read yet."""
+    total) after each batch fetched (while fetching) and each unit;
+    on_done(Result) at the end, unless cancelled. Nothing is changed
+    until apply_result(). read(index, unit) gives the unit at index of
+    units as read from its file, for a stream's file not read yet."""
 
     def __init__(self, tm_controller, models, units, options, on_progress, on_done, read=None):
         self.tm_controller = tm_controller
@@ -205,26 +221,70 @@ class Pretranslation:
         self._on_done = on_done
         self._answers = None
         self._idle = None
+        self.fetches = []
+        self.fetching = self._starting = False
+        self._unreachable = []
 
     @property
     def total(self):
         return len(self.units)
 
     def start(self):
-        self._idle = GLib.idle_add(self._next)
+        # A fetch can end as it starts: filling waits until all are.
+        self.fetching = self._starting = True
+        sources = [unit.source for _index, unit in self.units]
+        for model in filter(fetches_first, self.models):
+            missing = self.tm_controller.unfetched(model, sources)
+            if missing:
+                self.fetches.append(
+                    self.tm_controller.fetch_sources(
+                        model, missing, self._on_fetched, self._on_fetch_done
+                    )
+                )
+        self._starting = False
+        self._fetch_progress()
+        self._after_fetches()
 
     def cancel(self):
         self.cancelled = True
+        for fetch in self.fetches:
+            fetch.cancel()
         if self._idle is not None:
             GLib.source_remove(self._idle)
             self._idle = None
+
+    def _fetch_progress(self):
+        if self.fetches:
+            self._on_progress(
+                sum(f.fetched for f in self.fetches), sum(f.total for f in self.fetches)
+            )
+
+    def _on_fetched(self, _fetch):
+        if not self.cancelled:
+            self._fetch_progress()
+
+    def _on_fetch_done(self, fetch):
+        if fetch.finished in (FAILED, REFUSED):
+            logging.info('Pre-translate: %s could not be reached', fetch.model)
+            self._unreachable.append(fetch.model)
+        self._after_fetches()
+
+    def _after_fetches(self):
+        """Fill, once every fetch has ended."""
+        if self.cancelled or self._starting or not self.fetching:
+            return
+        if any(fetch.finished is None for fetch in self.fetches):
+            return
+        self.fetching = False
+        self._on_progress(0, len(self.units))
+        self._idle = GLib.idle_add(self._next)
 
     def _next(self):
         self._idle = None
         if self.cancelled:
             return False
         if self.done >= len(self.units):
-            self._on_done(Result(self.fills, len(self.units)))
+            self._on_done(Result(self.fills, len(self.units), self.unreachable()))
             return False
         unit = self._unit(*self.units[self.done])
         if unit is None:
@@ -236,6 +296,10 @@ class Pretranslation:
         for model in self.models:
             self._ask(model, unit, answers)
         return False
+
+    def unreachable(self):
+        """The names of the services whose fetch failed."""
+        return tuple(m.display_name or m.internal_name for m in self._unreachable)
 
     def _unit(self, index, unit):
         """unit, read from its file if it wasn't; None if that one isn't

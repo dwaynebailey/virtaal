@@ -59,6 +59,13 @@ def summary_heading(result):
     }
 
 
+def unreachable_note(service):
+    # l10n: Pre-translate's result; %(service)s is an online service such as Amagama
+    return _("%(service)s couldn't be reached; only the other sources were used.") % {
+        'service': service
+    }
+
+
 class PretranslateDialog:
     """Asks how to pre-translate the files open, does it, and says what
     it filled."""
@@ -94,6 +101,8 @@ class PretranslateDialog:
         content.pack_start(self.intro, False, False, 0)
         self.options_box = self._options_box()
         content.pack_start(self.options_box, False, False, 0)
+        self.phase = Gtk.Label(xalign=0, no_show_all=True)
+        content.pack_start(self.phase, False, False, 0)
         self.progress = Gtk.ProgressBar(show_text=True, no_show_all=True)
         content.pack_start(self.progress, False, False, 0)
         self.summary = Gtk.Grid(column_spacing=12, row_spacing=6, no_show_all=True)
@@ -157,13 +166,16 @@ class PretranslateDialog:
             # l10n: In the Pre-translate window; %(state)s is a state such as Needs review
             note = _('The units filled are marked “%(state)s”, for you to review.')
             box.pack_start(self._label(note % {'state': state}), False, False, 0)
-        online = _(
-            # l10n: In the Pre-translate window: online services are asked nothing; "Fetch Suggestions for This File" is in the File menu
-            'Online services fill only units whose suggestions were fetched '
-            'with Fetch Suggestions for This File.'
-        )
-        box.pack_start(self._label(online), False, False, 0)
+        if any(map(pretranslate.fetches_first, self._models())):
+            online = _(
+                # l10n: In the Pre-translate window: it sends the units' text to free online translation memories, such as Amagama, before filling them
+                'Free online translation memories, such as Amagama, are asked for these units first.'
+            )
+            box.pack_start(self._label(online), False, False, 0)
         return box
+
+    def _models(self):
+        return list(self.tm_controller.plugin_controller.plugins.values())
 
     def _review_state_name(self):
         for unit in self.units:
@@ -189,17 +201,15 @@ class PretranslateDialog:
         self.options_box.set_sensitive(False)
         self.run_button.set_sensitive(False)
         self.progress.show()
-        models = self.tm_controller.plugin_controller.plugins.values()
         self.run = pretranslate.Pretranslation(
             self.tm_controller,
-            models,
+            self._models(),
             self.all_units,
             self.options,
             self._on_progress,
             self._on_done,
             self._read,
         )
-        self._on_progress(0, self.run.total)
         self.run.start()
 
     def _read(self, index, unit):
@@ -229,7 +239,12 @@ class PretranslateDialog:
 
     def _show_summary(self, result):
         self.intro.set_text(summary_heading(result))
+        for service in result.unreachable:
+            note = self._label(unreachable_note(service))
+            self.dialog.get_content_area().pack_start(note, False, False, 0)
+            note.show()
         self.options_box.hide()
+        self.phase.hide()
         self.progress.hide()
         for row, (text, count) in enumerate(summary_rows(result, self.options)):
             self.summary.attach(Gtk.Label(label=text, xalign=0), 0, row, 1, 1)
@@ -246,6 +261,10 @@ class PretranslateDialog:
 
     # EVENT HANDLERS #
     def _on_progress(self, done, total):
+        fetching = self.run is not None and self.run.fetching
+        # l10n: In the Pre-translate window, above its progress: online services are being asked for the units' suggestions
+        self.phase.set_text(_('Fetching suggestions…') if fetching else '')
+        self.phase.set_visible(fetching)
         self.progress.set_fraction(done / total if total else 1.0)
         self.progress.set_text(_progress_text(done, total))
 

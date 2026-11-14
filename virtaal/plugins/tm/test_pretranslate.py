@@ -241,10 +241,10 @@ def idle(monkeypatch):
     return run
 
 
-def _run(models, units, options=None, read=None):
+def _run(models, units, options=None, read=None, tm=None):
     progress, results = [], []
     run = pretranslate.Pretranslation(
-        _tm(),
+        tm or _tm(),
         models,
         units,
         options or Options(),
@@ -266,7 +266,7 @@ def test_every_unit_still_to_translate_is_asked_for(idle):
     (result,) = results
     assert result.wanted == 2
     assert [fill.unit for fill in result.fills] == [units[0]]
-    assert progress == [(1, 2), (2, 2)]
+    assert progress == [(0, 2), (1, 2), (2, 2)]
 
 
 def test_a_unit_waits_for_every_model(idle):
@@ -323,6 +323,126 @@ def test_a_model_that_fails_counts_as_no_matches(idle):
     idle()
 
     assert results[0].fills == []
+
+
+# Fetching from free online translation memories first
+
+
+class _Online(_ExactModel):
+    """A free online translation memory that takes a file fetch."""
+
+    display_name = 'Online'
+    internal_name = 'online'
+    online_service = 'Online'
+    billed = machine_translation = False
+    BULK_MAX = None
+
+    def bulk_ready(self):
+        return True
+
+
+class _Fetch:
+    def __init__(self, model, sources, on_progress, on_done):
+        self.model, self.sources = model, sources
+        self.total, self.fetched, self.finished = len(sources), 0, None
+        self._on_progress, self._on_done = on_progress, on_done
+
+    def answer(self):
+        self.fetched = self.total
+        self._on_progress(self)
+        self.end('done')
+
+    def end(self, finished):
+        self.finished = finished
+        self._on_done(self)
+
+    def cancel(self):
+        if self.finished is None:
+            self.end('cancelled')
+
+
+def _fetching_tm(fetched=()):
+    """A TM controller whose file fetches wait for the test."""
+    tm = _tm()
+    tm.started = []
+
+    def fetch_sources(model, sources, on_progress, on_done):
+        tm.started.append(_Fetch(model, sources, on_progress, on_done))
+        return tm.started[-1]
+
+    tm.unfetched = lambda model, sources: [s for s in map(str, sources) if s not in fetched]
+    tm.fetch_sources = fetch_sources
+    return tm
+
+
+@pytest.mark.parametrize(
+    'kind, first',
+    [
+        ({}, True),
+        ({'billed': True}, False),
+        ({'machine_translation': True}, False),
+        ({'BULK_MAX': 0}, False),
+        ({'online_service': None}, False),
+    ],
+)
+def test_only_free_online_translation_memories_are_fetched_first(kind, first):
+    model = _Online()
+    for name, value in kind.items():
+        setattr(model, name, value)
+
+    assert pretranslate.fetches_first(model) is first
+
+
+def test_the_units_to_fill_are_fetched_before_any_is_filled(idle):
+    exact = {'source': 'Open', 'target': 'Maak oop', 'quality': 100}
+    online = _Online([exact])
+    tm = _fetching_tm(fetched={'Close'})
+    units = [_po_unit('Open'), _po_unit('Close'), _po_unit('Save', 'Stoor')]
+
+    run, progress, results = _run([online], units, tm=tm)
+    idle()
+    (fetch,) = tm.started
+    assert fetch.sources == ['Open']
+    assert run.fetching and results == [] and progress == [(0, 1)]
+    fetch.answer()
+    idle()
+
+    assert not run.fetching
+    assert [fill.unit for fill in results[0].fills] == [units[0]]
+    assert results[0].unreachable == ()
+
+
+def test_nothing_is_fetched_when_every_unit_was(idle):
+    tm = _fetching_tm(fetched={'Open'})
+
+    _run_, _progress, results = _run([_Online()], [_po_unit('Open')], tm=tm)
+    idle()
+
+    assert tm.started == [] and len(results) == 1
+
+
+@pytest.mark.parametrize('finished', ['failed', 'refused'])
+def test_a_failed_fetch_is_reported_and_the_rest_fills(idle, finished):
+    exact = {'source': 'Open', 'target': 'Maak oop', 'quality': 100}
+    tm = _fetching_tm()
+
+    _run_, _progress, results = _run([_Online(), _ExactModel([exact])], [_po_unit('Open')], tm=tm)
+    tm.started[0].end(finished)
+    idle()
+
+    assert [fill.target for fill in results[0].fills] == ['Maak oop']
+    assert results[0].unreachable == ('Online',)
+
+
+def test_cancelling_while_fetching_stops_the_fetch_and_fills_nothing(idle):
+    tm = _fetching_tm()
+
+    run, _progress, results = _run([_Online()], [_po_unit('Open')], tm=tm)
+    run.cancel()
+    idle()
+
+    assert tm.started[0].finished == 'cancelled'
+    assert results == []
 
 
 def test_the_options_are_kept_in_the_config():

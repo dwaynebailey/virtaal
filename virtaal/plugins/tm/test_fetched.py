@@ -68,6 +68,15 @@ def test_a_service_is_asked_for_each_source_once_in_file_order(fetched):
     assert fetched.plan('amagama', units, 0, 1000) == (['Open', 'Close'], True)
 
 
+def test_what_a_service_was_not_asked_for_is_missing_each_once(fetched):
+    units = [_unit('Open'), _unit('Close')]
+    fetched.load(units, 'en', 'af')
+    fetched.keep('amagama', {'Open': []})
+
+    assert fetched.missing('amagama', ['Open', 'Close', 'Quit', 'Close']) == ['Close', 'Quit']
+    assert fetched.missing('google_translate', ['Open']) == ['Open']
+
+
 WORDY = [_unit('one two'), _unit('three four five'), _unit('six'), _unit('seven eight')]
 
 

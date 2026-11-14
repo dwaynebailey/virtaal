@@ -43,6 +43,7 @@ class TMModel(BaseTMModel):
     description = _("Unreviewed machine translations from Google’s translation service")
     online_service = 'Google'
     billed = True
+    machine_translation = True
     terms_url = 'https://cloud.google.com/terms'
     # Billed per character: off unless turned on.
     PREFETCH_MAX = 2

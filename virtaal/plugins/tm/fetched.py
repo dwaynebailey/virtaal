@@ -193,6 +193,11 @@ class FetchedSuggestions:
             total += count
         return list(sources), True
 
+    def missing(self, service, sources):
+        """Those of sources service has no answer kept for, each once."""
+        have = self.by_service.get(service, {})
+        return list(dict.fromkeys(s for s in map(str, sources) if s not in have))
+
     def keep(self, service, found):
         """Keep found, {source: [match, ...]}, as service's answers."""
         if self._pair is None or not found:

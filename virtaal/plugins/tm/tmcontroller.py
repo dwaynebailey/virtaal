@@ -781,6 +781,20 @@ class TMController(BaseController):
         come to at most characters characters if given;
         on_progress(fetch) after each batch, on_done(fetch) at the end.
         Returns the BulkFetch."""
+        sources, _whole = self.fetch_plan(model)
+        if characters is not None:
+            sources, _capped = self.cap_characters(model, sources, characters)
+        return self.fetch_sources(model, sources, on_progress, on_done, characters)
+
+    def unfetched(self, model, sources):
+        """Those of sources model has no fetched suggestions for, each once."""
+        if self.fetched is None:
+            return []
+        return self.fetched.missing(model.internal_name, sources)
+
+    def fetch_sources(self, model, sources, on_progress, on_done, characters=None):
+        """Start asking model for sources, as fetch_for_file() does, with
+        characters what it may send in all, if it has a limit."""
         from .bulkfetch import BulkFetch
 
         service = model.internal_name
@@ -794,9 +808,6 @@ class TMController(BaseController):
                 self._fetches = {m: f for m, f in self._fetches.items() if m is not model}
             on_done(fetch)
 
-        sources, _whole = self.fetch_plan(model)
-        if characters is not None:
-            sources, _capped = self.cap_characters(model, sources, characters)
         fetch = BulkFetch(model, sources, found, done)
         fetch.characters = characters
         self._fetches = {**self._fetches, model: fetch}

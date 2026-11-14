@@ -376,13 +376,18 @@ remote translation memory server you set up, the translated units of the files
 open and the translation memory of a translation bundle open, chosen as the
 suggestions list orders them, with the unit's own placeables and inline codes.
 :guilabel:`Use matches of at least` sets the lowest match quality used:
-:guilabel:`100%` (exact matches only) to begin with. Online services such as
-amaGama are not asked: their suggestions are used only for units whose
-suggestions were fetched with :menuselection:`File --> Fetch Suggestions for
-This File…` (see :ref:`using_virtaal#fetch_suggestions_for_a_whole_file`).
-Machine translation fetched that way fills a unit with no translation memory
-match good enough only if :guilabel:`Also use machine translation fetched for
-these units` is ticked, so nothing is sent, or charged for, by pre-translating.
+:guilabel:`100%` (exact matches only) to begin with.
+
+If amaGama is one of your translation memory sources, it is asked first for
+the units to fill, those whose suggestions weren't fetched already, in the
+same way as :menuselection:`File --> Fetch Suggestions for This File…` asks it
+(see :ref:`using_virtaal#fetch_suggestions_for_a_whole_file`); the window shows
+:guilabel:`Fetching suggestions…` meanwhile. If amaGama can't be reached, the
+units are filled from the other sources, and the window says so at the end.
+Machine translation services are not asked: what was fetched from them for
+the file fills a unit with no translation memory match good enough only if
+:guilabel:`Also use machine translation fetched for these units` is ticked, so
+nothing is charged for by pre-translating.
 
 A plural unit is filled only from a match with every one of its forms.
 
@@ -392,8 +397,8 @@ the :guilabel:`Incomplete` mode and the navigation ribbon lead you to them. Tick
 100% matches :guilabel:`Translated` instead. A file whose format has no review
 state is filled only with exact matches, and only when that is ticked.
 
-The window shows its progress; :guilabel:`Cancel` stops it, and nothing is
-changed. Once it is done, it says how many units it filled from translation
+The window shows its progress; :guilabel:`Cancel` stops it, fetching
+included, and nothing is changed. Once it is done, it says how many units it filled from translation
 memory and from machine translation, and how many are still to translate.
 :menuselection:`Edit --> Undo` (:kbd:`Ctrl+Z`) takes every unit it filled back
 at once. The options you chose are kept for next time.

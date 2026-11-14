@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 08:55+0000\n"
+"POT-Creation-Date: 2026-11-14 11:30+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2704,6 +2704,12 @@ msgid_plural "Filled %(count)s units."
 msgstr[0] ""
 msgstr[1] ""
 
+#. l10n: Pre-translate's result; %(service)s is an online service such as Amagama
+#: virtaal/plugins/tm/pretranslatedialog.py
+#, python-format
+msgid "%(service)s couldn't be reached; only the other sources were used."
+msgstr ""
+
 #. l10n: The title of the window that fills the units still to translate with suggestions
 #: virtaal/plugins/tm/pretranslatedialog.py
 msgid "Pre-translate"
@@ -2757,11 +2763,16 @@ msgstr ""
 msgid "The units filled are marked “%(state)s”, for you to review."
 msgstr ""
 
-#. l10n: In the Pre-translate window: online services are asked nothing; "Fetch Suggestions for This File" is in the File menu
+#. l10n: In the Pre-translate window: it sends the units' text to free online translation memories, such as Amagama, before filling them
 #: virtaal/plugins/tm/pretranslatedialog.py
 msgid ""
-"Online services fill only units whose suggestions were fetched with Fetch "
-"Suggestions for This File."
+"Free online translation memories, such as Amagama, are asked for these units "
+"first."
+msgstr ""
+
+#. l10n: In the Pre-translate window, above its progress: online services are being asked for the units' suggestions
+#: virtaal/plugins/tm/pretranslatedialog.py
+msgid "Fetching suggestions…"
 msgstr ""
 
 #. l10n: A submenu of the target's context menu: the translation suggestions, to insert

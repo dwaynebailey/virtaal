@@ -26,6 +26,7 @@ class KeyedMTModel(BaseTMModel):
 
     __gtype_name__ = None
 
+    machine_translation = True
     service_name = None
     """The service's name in log messages."""
     STOP_STATUSES = ()

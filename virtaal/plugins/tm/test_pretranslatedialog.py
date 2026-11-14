@@ -75,13 +75,45 @@ def _unit(store, source):
     return next(unit for unit in store.units if unit.source == source)
 
 
-def _dialog(store, matches=(), config=None):
+class _Online(_Model):
+    """A free online translation memory, whose file fetch waits for the
+    test."""
+
+    display_name = internal_name = online_service = 'Amagama'
+    billed = machine_translation = False
+    BULK_MAX = None
+
+    def bulk_ready(self):
+        return True
+
+
+class _Fetch:
+    def __init__(self, model, sources, on_progress, on_done):
+        self.model, self.total, self.fetched, self.finished = model, len(sources), 0, None
+        self._on_done = on_done
+
+    def end(self, finished):
+        self.finished = finished
+        self._on_done(self)
+
+    def cancel(self):
+        if self.finished is None:
+            self.end('cancelled')
+
+
+def _dialog(store, matches=(), config=None, online=None):
     tm = TMController.__new__(TMController)
     tm.abstract_placeables = True
     tm.min_quality = 75
     tm.config = config if config is not None else {}
-    tm.plugin_controller = SimpleNamespace(plugins={'tm': _Model(list(matches))})
+    plugins = {'tm': _Model(list(matches))}
+    if online is not None:
+        plugins['amagama'] = online
+    tm.plugin_controller = SimpleNamespace(plugins=plugins)
     tm.file_units = lambda: store.units
+    tm.fetches = []
+    tm.unfetched = lambda model, sources: list(map(str, sources))
+    tm.fetch_sources = lambda *args: tm.fetches.append(_Fetch(*args)) or tm.fetches[-1]
     unit_controller = UnitController.__new__(UnitController)
     tm.main_controller = SimpleNamespace(
         checks_controller=None,
@@ -190,3 +222,66 @@ def test_a_unit_of_a_file_not_read_yet_is_read_from_the_stream():
     assert dialog._read(4, PeekUnit('1', 'Open', '', 0)) is real
     assert dialog._read(4, real) is real
     dialog.dialog.destroy()
+
+
+ONLINE_NOTE = 'Free online translation memories, such as Amagama, are asked for these units first.'
+
+
+def _texts(box):
+    return [w.get_text() for w in box.get_children() if hasattr(w, 'get_text')]
+
+
+def test_it_says_online_translation_memories_are_asked_only_with_one_on():
+    with_online = _dialog(_store(('Open', '')), online=_Online([]))
+    without = _dialog(_store(('Open', '')))
+
+    assert ONLINE_NOTE in _texts(with_online.options_box)
+    assert ONLINE_NOTE not in _texts(without.options_box)
+    with_online.dialog.destroy()
+    without.dialog.destroy()
+
+
+def test_it_shows_the_fetch_then_fills(idle):
+    store = _store(('Open', ''))
+    dialog = _dialog(store, online=_Online([OPEN]))
+    dialog.show()
+
+    dialog.dialog.response(RESPONSE_RUN)
+    idle()
+    assert dialog.phase.get_visible()
+    assert dialog.phase.get_text() == 'Fetching suggestions…'
+    assert dialog.progress.get_text() == '0 of 1'
+    dialog.tm_controller.fetches[0].end('done')
+    idle()
+
+    assert _unit(store, 'Open').target == 'Maak oop'
+    assert not dialog.phase.get_visible()
+    dialog.dialog.destroy()
+
+
+def test_it_says_which_service_could_not_be_reached(idle):
+    store = _store(('Open', ''))
+    dialog = _dialog(store, [OPEN], online=_Online([]))
+    dialog.show()
+
+    dialog.dialog.response(RESPONSE_RUN)
+    dialog.tm_controller.fetches[0].end('failed')
+    idle()
+
+    texts = _texts(dialog.dialog.get_content_area())
+    assert "Amagama couldn't be reached; only the other sources were used." in texts
+    assert dialog.intro.get_text() == 'Filled 1 unit.'
+    dialog.dialog.destroy()
+
+
+def test_cancelling_while_fetching_changes_nothing(idle):
+    store = _store(('Open', ''))
+    dialog = _dialog(store, [OPEN], online=_Online([OPEN]))
+    dialog.dialog.response(RESPONSE_RUN)
+
+    dialog.dialog.response(-6)
+    idle()
+
+    assert dialog.tm_controller.fetches[0].finished == 'cancelled'
+    assert dialog.main_controller.undo_controller.changes == []
+    assert _unit(store, 'Open').target == ''

@@ -448,6 +448,15 @@ class TMModel(remotetm.TMModel):
         scored.sort(key=lambda match: match['quality'], reverse=True)
         return scored
 
+    def lookup(self, unit, on_done):
+        """For Pre-translate, which fetches the file's suggestions first:
+        those fetched for unit, or found for it this session. Nothing is
+        sent."""
+        matches = self.fetched_matches(unit)
+        if matches is None:
+            matches = self.cache.get(unit.source) or ()
+        on_done([dict(match) for match in matches])
+
     # A file's suggestions (#1679), a unit per request #
     def bulk_send(self, batch):
         if not self._uses_v2():

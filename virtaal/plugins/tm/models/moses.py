@@ -18,6 +18,7 @@ class TMModel(BaseTMModel):
     __gtype_name__ = 'MosesTMModel'
     display_name = _('Moses')
     description = _('Unreviewed machine translations from a Moses server')
+    machine_translation = True
 
     PREFETCH_MAX = 2
     BULK_MAX = None

@@ -132,6 +132,7 @@ class TMModel(BaseTMModel):
     display_name = _('Apertium')
     description = _('Unreviewed machine translations from Apertium')
     online_service = 'Apertium'
+    machine_translation = True
 
     # The public, volunteer-run server: at most one ahead, and only if
     # turned on, and never a whole file. Another server (tm.ini's

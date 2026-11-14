@@ -342,3 +342,28 @@ def test_a_file_fetch_the_server_refuses_on_v2_is_asked_with_v1(status):
     assert model.bulk_wait(request, status) == 0
     assert model.bulk_send([QUERY]).api == 'v1'
     assert model.bulk_parse([QUERY], json.dumps([STORED]).encode())[QUERY][0]['quality'] == 100
+
+
+# lookup(), for Pre-translate: nothing is sent
+
+
+def test_lookup_answers_from_the_file_fetch_then_this_sessions_answers():
+    model = _model()
+    fetched = {'Open': [{'source': 'Open', 'target': 'Maak oop'}]}
+    model.controller = SimpleNamespace(
+        fetched=SimpleNamespace(matches=lambda service, source: fetched.get(source))
+    )
+    model.internal_name = 'amagama'
+    model.cache = {'Close': [{'source': 'Close', 'target': 'Maak toe'}], 'Quit': None}
+    model.tmclient = SimpleNamespace()  # anything sent raises AttributeError
+    found = []
+
+    for source in ('Open', 'Close', 'Quit', 'Save'):
+        model.lookup(SimpleNamespace(source=source), found.append)
+
+    assert [[m['target'] for m in matches] for matches in found] == [
+        ['Maak oop'],
+        ['Maak toe'],
+        [],
+        [],
+    ]

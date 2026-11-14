@@ -61,6 +61,8 @@ class BaseTMModel(BaseModel, Configurable):
     online_service = None
     """The outside service, by name, this backend sends the text being
     translated to; None if it sends none (#1301)."""
+    machine_translation = False
+    """Whether its suggestions are machine translations."""
     terms_url = None
     """That service's terms of service, if it has any."""
     configure_label = None
