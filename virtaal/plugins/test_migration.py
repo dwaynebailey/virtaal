@@ -364,8 +364,8 @@ def _plugin_for_init(tmp_path, has_anything, accepts=True):
     prompted = []
     shown = []
     plugin.main_controller = SimpleNamespace(
-        show_prompt=lambda title, message, **labels: prompted.append((title, message)) or accepts,
-        show_info=lambda title, message: shown.append((title, message)),
+        show_prompt=lambda msg, **kw: prompted.append((msg, kw['detail'])) or accepts,
+        show_info=lambda msg, detail: shown.append((msg, detail)),
     )
     plugin._prompted = prompted
     plugin._shown = shown
@@ -646,8 +646,8 @@ def _start(tmp_path, monkeypatch, accepts):
     settings = _settings(monkeypatch)
     shown = []
     main_controller = SimpleNamespace(
-        show_prompt=lambda title, message, **labels: accepts,
-        show_info=lambda title, message: shown.append(title),
+        show_prompt=lambda msg, **kw: accepts,
+        show_info=lambda msg, detail: shown.append(msg),
     )
     return home, settings, main_controller, shown
 

@@ -73,10 +73,11 @@ class Plugin(BasePlugin):
             pan_app.settings.write()
             return
 
-        message = _('Should Virtaal try to import settings and data from other applications?')
         must_migrate = self.main_controller.show_prompt(
             _('Import data from other applications?'),
-            message,
+            detail=_(
+                'Virtaal can import settings and translation memory from Poedit and Lokalize.'
+            ),
             yes_label=_('_Import'),
             no_label=_('_Don’t Import'),
         )
@@ -93,8 +94,7 @@ class Plugin(BasePlugin):
             self.lokalize_tm_import()
 
             if self.migrated:
-                message = _('Migration was successfully completed') + '\n\n'
-                message += _('The following items were migrated:') + '\n\n'
+                message = _('The following items were migrated:') + '\n\n'
                 message += "\n".join([" • %s" % item for item in self.migrated])
                 #   (we can mark this ^^^ for translation if somebody asks)
                 title = _('Migration completed')
@@ -103,7 +103,7 @@ class Plugin(BasePlugin):
                 title = _('Nothing migrated')
             if self._poedit_tm_exists():
                 message += '\n\n' + self.poedit_tm_hint()
-            self.main_controller.show_info(title, message)
+            self.main_controller.show_info(title, detail=message)
             logging.debug('Migration plugin executed')
 
         pan_app.settings.plugin_state[self.internal_name] = "disabled"

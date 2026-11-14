@@ -73,9 +73,26 @@ def test_message_dialogs_are_modal_on_the_main_window(view, name, message_type):
     assert getattr(view, name) is dialog
 
 
-def test_error_dialog_has_an_ok_button_and_a_title(view):
+def test_error_dialog_has_an_ok_button_and_no_title(view):
     assert _button_labels(view.error_dialog) == {'_OK'}
-    assert view.error_dialog.get_title() == 'Error'
+    assert not view.error_dialog.get_title()
+
+
+@pytest.mark.parametrize('name', ['error', 'prompt', 'info'])
+def test_message_dialogs_show_a_heading_and_the_detail_below_it(view, monkeypatch, name):
+    shown = []
+
+    def run(dialog):
+        shown.append((dialog.props.text, dialog.props.secondary_text))
+        return Gtk.ResponseType.OK
+
+    monkeypatch.setattr(Gtk.Dialog, 'run', run)
+    show = getattr(view, 'show_%s_dialog' % name)
+
+    show(message='Could not open “a.po”', detail='No such file.')
+    show(message='Done')
+
+    assert shown == [('Could not open “a.po”', 'No such file.'), ('Done', None)]
 
 
 def test_info_dialog_has_an_ok_button(view):

@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import locale
+import os
 
 from gi.repository import Gdk, GLib, Gtk, Pango
 from translate.storage import factory as store_factory
@@ -287,8 +288,6 @@ class FileSelectDialog:
                 continue
             # Try and open filename as a translation store
             try:
-                import os.path
-
                 if not os.path.isfile(filename):
                     raise OSError('"%s" is not a usable file.' % filename)
                 store_factory.getobject(filename)
@@ -304,11 +303,11 @@ class FileSelectDialog:
                         'Python module, which is not installed. In MultiTerm, export '
                         'the termbase as MultiTerm XML and add that file instead.'
                     )
-                message = _('Unable to load %(filename)s:\n\n%(errormsg)s') % {
-                    'filename': filename,
-                    'errormsg': errormsg,
-                }
-                mainview.show_error_dialog(title=_('Error opening file'), message=message)
+                mainview.show_error_dialog(
+                    message=_("Could not open “%(filename)s”")
+                    % {'filename': os.path.basename(filename)},
+                    detail=errormsg,
+                )
 
         self.term_model.config['files'] = currfiles
         self.term_model.save_config()
