@@ -41,6 +41,7 @@ Virtaal will make you more productive
    autoterm
    amagama
    weblate
+   git_projects
 
 - Fast and easy navigation within the file
 - Auto-correction of common mistakes
@@ -56,6 +57,8 @@ Virtaal will make you more productive
 - Automatically update the PO header when saving
 - Translate projects on a :doc:`Weblate <weblate>` server, offline, and submit
   your changes when you choose
+- Translate a team's files in a :doc:`Git repository <git_projects>`: commit
+  and push your changes, with others' merged in unit by unit
 - Terminology help. Suggestions can come from:
 
   - Local files on your computer
