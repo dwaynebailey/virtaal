@@ -31,11 +31,26 @@ Adding a project
 
 :guilabel:`Test Connection` checks that the repository has that branch.
 
-Virtaal uses Git itself, version 2.20 or later, which must be installed, and
-Git's own way of signing in: an SSH key in your SSH agent, or a credential
-helper that remembers your password or token. Set that up as you would for the
-command line (once ``git clone`` works without asking, Virtaal works too).
-Virtaal never asks for a password and never stores one.
+Git doesn't need to be installed: Virtaal has Git built in. To sign in, it
+uses:
+
+- For an ``ssh`` or ``git@`` address, your computer's SSH (built into Windows
+  10 and later, macOS and Linux), with your SSH key and SSH agent. Virtaal
+  never asks for an SSH passphrase, so add a key that has one to the agent
+  first (``ssh-add``; on Windows, start the OpenSSH Authentication Agent
+  service).
+- For an ``https`` address, a username and password, or the access token
+  most Git hosts want in its place. Virtaal looks for one in your computer's
+  password store (Windows Credential Manager, the macOS Keychain, GNOME
+  Keyring or KWallet), then asks Git's own credential helper if Git is
+  installed, then asks you. Tick :guilabel:`Remember in this computer’s
+  password store` to have the password store keep it; otherwise Virtaal
+  forgets it when it quits. Virtaal never keeps a password or token in its own
+  settings.
+
+Commits are in your name and email from Git's own settings (``user.name`` and
+``user.email`` in ``~/.gitconfig``), read even without Git installed, else
+those in Virtaal's preferences.
 
 .. _git_projects#opening:
 
@@ -63,9 +78,8 @@ compares each unit you changed with the repository's file:
   :guilabel:`Take theirs` or :guilabel:`Skip`.
 
 Your units then go into the file as the branch has it now, and Virtaal commits
-that one file, in your name and email from Virtaal's settings (else Git's
-``user.name`` and ``user.email``), and pushes it. Nothing else in the
-repository is changed, and a push is never forced. If someone pushed in the
+that one file, in your name and email (see above), and pushes it. Nothing else
+in the repository is changed, and a push is never forced. If someone pushed in the
 meantime, Virtaal fetches again and commits on top of their work; if they
 changed one of the very units you are sending, Submit stops before anything is
 pushed and asks you to update first.
