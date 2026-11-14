@@ -11,6 +11,7 @@ import pytest
 from gi.repository import GLib
 from test_scaffolding import TestScaffolding
 
+from virtaal.common.platform import platform
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.models.streammodel import StreamModel
 from virtaal.support import statsdb, statsworker
@@ -121,19 +122,23 @@ class TestStreamNavigation(TestScaffolding):
         assert cursor.index == 0
 
     @pytest.mark.parametrize(
-        ('item', 'path', 'keyval'),
-        [('mnu_first_of_all', 'FirstOfAll', 'Home'), ('mnu_last_of_all', 'LastOfAll', 'End')],
+        ('item', 'path', 'keyval', 'mac_keyval'),
+        [
+            ('mnu_first_of_all', 'FirstOfAll', 'Home', 'Up'),
+            ('mnu_last_of_all', 'LastOfAll', 'End', 'Down'),
+        ],
     )
-    def test_alt_home_and_end_are_the_items_of_all_files(self, item, path, keyval):
+    def test_alt_home_and_end_are_the_items_of_all_files(self, item, path, keyval, mac_keyval):
         from gi.repository import Gdk, Gtk
 
         path = '<Virtaal>/Navigation/' + path
         _found, key = Gtk.AccelMap.lookup_entry(path)
 
-        assert (key.accel_key, key.accel_mods) == (
-            Gdk.keyval_from_name(keyval),
-            Gdk.ModifierType.MOD1_MASK,
-        )
+        # macOS: Cmd+Option+Up and Down from virtaal.accel.
+        mods = Gdk.ModifierType.MOD1_MASK
+        if platform.is_mac:
+            keyval, mods = mac_keyval, mods | Gdk.ModifierType.META_MASK
+        assert (key.accel_key, key.accel_mods) == (Gdk.keyval_from_name(keyval), mods)
         assert self._item(item).get_accel_path() == path
 
     def test_the_file_items_are_only_for_several_files(self):
