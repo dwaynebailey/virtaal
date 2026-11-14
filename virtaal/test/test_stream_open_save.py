@@ -103,9 +103,10 @@ class TestStreamOpenSave(TestScaffolding):
         from virtaal.plugins.tm import pretranslate
         from virtaal.plugins.tm.tmcontroller import TMController
 
+        self.store_controller.open_files([str(self.dir)])
+        # Only Pre-translate's own callbacks: opening queues others.
         calls = []
         monkeypatch.setattr(GLib, 'idle_add', lambda func, *a, **k: calls.append(func) or 1)
-        self.store_controller.open_files([str(self.dir)])
         sc = self.store_controller
         assert not sc.store.segments[1].loaded
         tm = TMController.__new__(TMController)
