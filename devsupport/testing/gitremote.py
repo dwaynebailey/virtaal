@@ -15,9 +15,11 @@ import contextlib
 import os
 import threading
 import time
-from wsgiref.simple_server import WSGIRequestHandler, make_server
+from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 import pytest
+
+from devsupport.testing.fakeplatform import LoopbackServer
 
 try:
     from dulwich.diff_tree import tree_changes
@@ -145,6 +147,14 @@ class FakeStore:
         self.kept[key] = credential
 
 
+class _Server(WSGIServer):
+    """WSGIServer without the reverse lookup LoopbackServer skips."""
+
+    def server_bind(self):
+        LoopbackServer.server_bind(self)
+        self.setup_environ()
+
+
 class _Quiet(WSGIRequestHandler):
     def log_message(self, *args):
         pass
@@ -169,7 +179,7 @@ def serve(remote, login=None):
             return [b'']
         return app(environ, start_response)
 
-    server = make_server('127.0.0.1', 0, guarded, handler_class=_Quiet)
+    server = make_server('127.0.0.1', 0, guarded, server_class=_Server, handler_class=_Quiet)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
