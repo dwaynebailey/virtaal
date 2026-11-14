@@ -30,7 +30,7 @@ import stat
 import subprocess
 import threading
 import time
-from urllib import parse
+from urllib import parse, request
 
 try:
     from dulwich import client as _client
@@ -173,6 +173,15 @@ def credential_key(url):
     if parts.port:
         host += ':%d' % parts.port
     return '%s://%s' % (parts.scheme.lower(), host)
+
+
+def local_path(url):
+    """The path of a file: URL, else None. dulwich's own conversion
+    uses the deprecated nturl2path on Windows."""
+    parts = parse.urlsplit(url)
+    if parts.scheme.lower() != 'file' or parts.netloc not in ('', 'localhost'):
+        return None
+    return request.url2pathname(parts.path)
 
 
 class Credential:
@@ -323,7 +332,7 @@ class Repository:
         if credential is not None:
             login = {'username': credential.username, 'password': credential.password}
         transport, path = _client.get_transport_and_path(
-            self.url,
+            local_path(self.url) or self.url,
             config=found,
             ssh_command=os.environ.get('GIT_SSH_COMMAND') or None,
             **login,

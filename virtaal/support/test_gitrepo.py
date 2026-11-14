@@ -108,6 +108,7 @@ def test_a_push_after_the_branch_moved_on_is_rejected_not_forced(repo, remote):
 
 def test_a_file_url_works_as_a_path(tmp_path, remote):
     url = pathlib.Path(remote.url).as_uri()
+    assert gitrepo.local_path(url) == remote.url
     repo = gitrepo.Repository(url, 'main', str(tmp_path / 'f.git'))
     assert repo.has_branch()
     assert repo.read(repo.fetch(), 'po/af.po') == PO.encode()
