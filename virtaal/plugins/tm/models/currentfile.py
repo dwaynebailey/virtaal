@@ -270,6 +270,12 @@ class TMModel(BaseTMModel):
         if matches:
             self.emit('match-found', query_str, matches)
 
+    def lookup(self, unit, on_done):
+        if self.matcher is None:
+            on_done([])
+            return
+        on_done(self._filter_for(unit, self._find_matches(unit)) + self._check_alttrans(unit))
+
     def _check_other_units(self, unit):
         return self._filter_for(unit, self._find_matches(unit))
 

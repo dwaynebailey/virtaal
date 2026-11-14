@@ -200,6 +200,16 @@ class TMModel(remotetm.TMModel):
         self._note_plain(unit)
         super().prefetch(unit)
 
+    def lookup(self, unit, on_done):
+        self._when_ready(lambda: super(TMModel, self).lookup(unit, on_done))
+
+    def _lookup_params(self, unit):
+        params = self._params()
+        plain = inlinecodes.plain_source(unit)
+        if plain is not None:
+            params['plain'] = plain
+        return params
+
     def _note_plain(self, unit):
         """Keep unit's source without its codes' native code for its query."""
         plain = inlinecodes.plain_source(unit)

@@ -111,6 +111,20 @@ class TestBundleSources(TestScaffolding):
         ]
         assert self._matches(model, 'Close the window.') == []
 
+    def test_pre_translate_looks_up_its_translations(self):
+        _bundle, path = self._bundle()
+        model = self._tm()
+        assert self.main_controller.open_file(path)
+        unit = self.store_controller.get_store().get_units()[0].copy()
+        unit.source = 'Press the red button.'
+        found = []
+
+        model.lookup(unit, found.append)
+
+        assert [[m['target'] for m in matches] for matches in found] == [
+            ['Cindezela inkinobho ebomvu.']
+        ]
+
     def test_search_translation_memory_finds_a_phrase_in_it(self):
         _bundle, path = self._bundle()
         model = self._tm()

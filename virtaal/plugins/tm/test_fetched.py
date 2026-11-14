@@ -276,6 +276,20 @@ def test_fetched_suggestions_answer_instead_of_the_service(fetched):
     assert model.queried == ['Quit']
 
 
+def test_pre_translate_looks_up_only_what_was_fetched(fetched):
+    fetched.load([_unit('Open'), _unit('Quit')], 'en', 'af')
+    fetched.keep('google_translate', {'Open': [MATCH]})
+    model = _model(fetched)
+    found = []
+
+    for source in ('Open', 'Quit'):
+        model.lookup(_unit(source), found.append)
+
+    assert found == [[MATCH], []]
+    assert found[0][0] is not fetched.matches('google_translate', 'Open')[0]
+    assert model.queried == []
+
+
 def test_a_model_without_fetched_suggestions_is_queried():
     model = _model(None)
 

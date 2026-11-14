@@ -712,3 +712,24 @@ def test_query_gives_no_markup_for_a_po_unit():
 
     assert [m['target'] for m in found] == ['Maak oop']
     assert 'source_markup' not in found[0]
+
+
+def test_lookup_gives_another_units_translation():
+    store = _po_store([(None, 'Open', 'Maak oop'), (None, 'Open', '')])
+    model, _emitted = _model_for(store)
+    found = []
+
+    model.lookup(store.units[1], found.append)
+
+    ((match,),) = found
+    assert (match['target'], int(match['quality'])) == ('Maak oop', 100)
+
+
+def test_lookup_with_no_file_read_gives_nothing():
+    model = _make_model()
+    model.matcher = None
+    found = []
+
+    model.lookup(_FakeUnit('Open'), found.append)
+
+    assert found == [[]]

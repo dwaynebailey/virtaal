@@ -521,3 +521,63 @@ def test_a_file_fetch_waits_when_the_server_is_busy():
 
     assert model.bulk_wait(request, 429) == 12
     assert model.bulk_wait(request, 404) is None
+
+
+# lookup(), for Pre-translate
+
+
+def _lookup(model, source='hello'):
+    found = []
+    model.lookup(_unit(source), found.append)
+    return found
+
+
+def test_lookup_asks_the_server_and_labels_its_matches():
+    model, _emitted = _prefetching_model()
+
+    found = _lookup(model)
+    (request,) = model.tmclient.sent
+    request._fire('http-success', b'[{"source": "hello", "target": "Hallo"}]')
+
+    assert found == [[{'source': 'hello', 'target': 'Hallo', 'tmsource': 'Remote TM'}]]
+
+
+@pytest.mark.parametrize('reply', [b'not json', b'{"a": 1}'])
+def test_lookup_takes_an_unusable_reply_as_no_matches(reply):
+    model, _emitted = _prefetching_model()
+
+    found = _lookup(model)
+    model.tmclient.sent[0]._fire('http-success', reply)
+
+    assert found == [[]]
+
+
+def test_lookup_takes_a_failure_as_no_matches():
+    model, _emitted = _prefetching_model()
+
+    found = _lookup(model)
+    model.tmclient.sent[0].fail('http-failed', None)
+
+    assert found == [[]]
+
+
+def test_lookup_answers_from_the_cache():
+    model, _emitted = _prefetching_model(cache={'hello': [_MATCH], 'bye': None})
+
+    assert _lookup(model) == [[_MATCH]]
+    assert _lookup(model, 'bye') == [[]]
+    assert model.tmclient.sent == []
+
+
+def test_lookup_sends_nothing_for_the_same_languages():
+    model, _emitted = _prefetching_model(target_lang='en')
+
+    assert _lookup(model) == [[]]
+    assert model.tmclient.sent == []
+
+
+def test_lookup_with_a_full_queue_gives_nothing():
+    model, _emitted = _prefetching_model()
+    model.tmclient.full = True
+
+    assert _lookup(model) == [[]]

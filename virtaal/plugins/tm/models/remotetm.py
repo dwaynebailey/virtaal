@@ -179,6 +179,36 @@ class TMModel(BaseTMModel):
             match['tmsource'] = self.shortname
         return matches
 
+    def lookup(self, unit, on_done):
+        """Ask the server for unit, the user's own, for Pre-translate."""
+        query_str = unit.source
+        if self.source_lang == self.target_lang:
+            on_done([])
+            return
+        if query_str in self.cache:
+            on_done(list(self.cache[query_str] or ()))
+            return
+        request = self.tmclient.translate_unit(
+            query_str, self.source_lang, self.target_lang, None, self._lookup_params(unit)
+        )
+        if request is None:
+            on_done([])
+            return
+
+        def found(_request, reply):
+            try:
+                matches = self._usable(json.loads(reply))
+            except ValueError:
+                matches = []
+            on_done(matches)
+
+        request.connect('http-success', found)
+        for signal in ('http-redirect', 'http-client-error', 'http-server-error', 'http-failed'):
+            request.connect(signal, lambda *_args: on_done([]))
+
+    def _lookup_params(self, unit):
+        return self._params()
+
     # A file's suggestions (#1679), a unit per request #
     def bulk_ready(self):
         return bool(self.source_lang) and self.source_lang != self.target_lang

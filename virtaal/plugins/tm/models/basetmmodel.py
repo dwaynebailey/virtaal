@@ -150,6 +150,12 @@ class BaseTMModel(BaseModel, Configurable):
         elif matches:
             self.emit('match-found', unit.source, [dict(match) for match in matches])
 
+    def lookup(self, unit, on_done):
+        """For Pre-translate: call on_done(matches) once with unit's
+        matches that need nothing sent over the network, here those
+        fetched with the file."""
+        on_done([dict(match) for match in self.fetched_matches(unit) or ()])
+
     def match_weight(self, match):
         """How much match is trusted, its quality multiplied by it to
         order suggestions: 1 unless the service weights its sources."""

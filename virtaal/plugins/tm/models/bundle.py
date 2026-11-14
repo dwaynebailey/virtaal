@@ -112,12 +112,19 @@ class TMModel(BaseTMModel):
         self._reload()
 
     def query(self, tmcontroller, unit):
+        found = self._matches(unit)
+        if found:
+            self.emit('match-found', unit.source, found)
+
+    def lookup(self, unit, on_done):
+        on_done(self._matches(unit))
+
+    def _matches(self, unit):
         if self.matcher is None:
-            return
+            return []
         found = []
         for candidate in self.matcher.matches(str(unit.source)):
             found_match = match.unit2dict(candidate)
             found_match['tmsource'] = self.origin
             found.append(found_match)
-        if found:
-            self.emit('match-found', unit.source, found)
+        return found
