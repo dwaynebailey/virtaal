@@ -310,11 +310,6 @@ class ConcordancePanel(BaseView):
         model, itr = self.treeview.get_selection().get_selected()
         return None if itr is None else model.get_path(itr).get_indices()[0]
 
-    def selected_translation(self):
-        """Part of a translation chosen to insert: the panel has no
-        preview to choose from."""
-        return None
-
     def update_match_buttons(self):
         index = self.selected_index()
         self.btn_insert.set_sensitive(self.controller.can_insert(index))

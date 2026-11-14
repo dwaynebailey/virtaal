@@ -2432,6 +2432,32 @@ msgid_plural "In %(count)s files:"
 msgstr[0] ""
 msgstr[1] ""
 
+#. l10n: How many translations a search of the translation memory found
+#: virtaal/plugins/tm/concordance.py
+#, python-format
+msgid "%(count)s match"
+msgid_plural "%(count)s matches"
+msgstr[0] ""
+msgstr[1] ""
+
+#. l10n: Shown after the number of problems or units found, when there are too many to list
+#: virtaal/plugins/tm/concordance.py virtaal/views/setscanview.py
+#, python-format
+msgid "Only the first %(count)s are listed."
+msgstr ""
+
+#. l10n: %(source)s is a source of translations, such as Local TM
+#: virtaal/plugins/tm/concordance.py
+#, python-format
+msgid "%(source)s couldn’t be searched."
+msgstr ""
+
+#. l10n: %(source)s is a source of translations, such as Local TM
+#: virtaal/plugins/tm/concordance.py
+#, python-format
+msgid "Searching %(source)s…"
+msgstr ""
+
 #. l10n: In Search Translation Memory: the files being edited, as a source of translations
 #: virtaal/plugins/tm/concordance.py
 msgid "Open Files"
@@ -3986,14 +4012,12 @@ msgid "C_ase sensitive"
 msgstr ""
 
 #. l10n: Check box in the Translation Memory Search panel: find only whole words
-#. l10n: Check box in Search Translation Memory: find only whole words
-#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+#: virtaal/views/concordancepanel.py
 msgid "_Whole words"
 msgstr ""
 
 #. l10n: The name screen readers give the list of the Translation Memory Search panel
-#. l10n: Window title
-#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+#: virtaal/views/concordancepanel.py
 msgid "Search Translation Memory"
 msgstr ""
 
@@ -4009,21 +4033,18 @@ msgstr ""
 
 #. l10n: Column heading in the Translation Memory Search panel: the file
 #. or source a translation is from
-#. l10n: Column heading in Search Translation Memory: the file or source a translation is from
-#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+#: virtaal/views/concordancepanel.py
 msgid "Found in"
 msgstr ""
 
 #. l10n: Button in the Translation Memory Search panel: puts the
 #. translation chosen at the cursor
-#. l10n: Button in Search Translation Memory: puts the translation chosen at the cursor
-#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+#: virtaal/views/concordancepanel.py
 msgid "_Insert"
 msgstr ""
 
 #. l10n: Button in the Translation Memory Search panel: moves to the unit of an open file
-#. l10n: Button in Search Translation Memory: moves to the unit of an open file
-#: virtaal/views/concordancepanel.py virtaal/views/setscanview.py
+#: virtaal/views/concordancepanel.py
 msgid "_Go to Unit"
 msgstr ""
 
@@ -4499,38 +4520,12 @@ msgid_plural "%(count)s units found"
 msgstr[0] ""
 msgstr[1] ""
 
-#. l10n: Shown after the number of problems or units found, when there are too many to list
-#: virtaal/views/setscanview.py
-#, python-format
-msgid "Only the first %(count)s are listed."
-msgstr ""
-
 #: virtaal/views/setscanview.py
 #, python-format
 msgid "%(count)s file could not be read."
 msgid_plural "%(count)s files could not be read."
 msgstr[0] ""
 msgstr[1] ""
-
-#. l10n: How many translations a search of the translation memory found
-#: virtaal/views/setscanview.py
-#, python-format
-msgid "%(count)s match"
-msgid_plural "%(count)s matches"
-msgstr[0] ""
-msgstr[1] ""
-
-#. l10n: %(source)s is a source of translations, such as Local TM
-#: virtaal/views/setscanview.py
-#, python-format
-msgid "%(source)s couldn’t be searched."
-msgstr ""
-
-#. l10n: %(source)s is a source of translations, such as Local TM
-#: virtaal/views/setscanview.py
-#, python-format
-msgid "Searching %(source)s…"
-msgstr ""
 
 #. l10n: Window title
 #: virtaal/views/setscanview.py

@@ -21,7 +21,7 @@ from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.plugins.tm import concordance
 from virtaal.plugins.tm.tmcontroller import TMController
 from virtaal.support import tmdb
-from virtaal.views import concordancepanel, setscanview
+from virtaal.views import concordancepanel
 from virtaal.views.widgets import shortcutswindow
 
 MODELS = [
@@ -565,7 +565,7 @@ def test_the_shortcuts_window_lists_it():
     ],
 )
 def test_concordance_summary(count, listed, truncated, failed, searching, expected):
-    assert setscanview.concordance_summary(count, listed, truncated, failed, searching) == expected
+    assert concordance.concordance_summary(count, listed, truncated, failed, searching) == expected
 
 
 def test_a_merged_row_says_how_many():

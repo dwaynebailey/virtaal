@@ -65,6 +65,24 @@ def tooltip(match):
     return GLib.markup_escape_text('\n'.join(lines)) if lines else None
 
 
+def concordance_summary(count, listed, truncated, failed, searching):
+    """The status of a search of the translation memory: how many
+    matches, whether some were left out, the sources that couldn't be
+    searched and those still being searched, by name."""
+    # l10n: How many translations a search of the translation memory found
+    text = ngettext("%(count)s match", "%(count)s matches", count)
+    parts = [text % {'count': format_number(count)}]
+    if truncated:
+        parts.append(_("Only the first %(count)s are listed.") % {'count': format_number(listed)})
+    for name in failed:
+        # l10n: %(source)s is a source of translations, such as Local TM
+        parts.append(_("%(source)s couldn’t be searched.") % {'source': name})
+    for name in searching:
+        # l10n: %(source)s is a source of translations, such as Local TM
+        parts.append(_("Searching %(source)s…") % {'source': name})
+    return ' '.join(parts)
+
+
 def open_files_name():
     # l10n: In Search Translation Memory: the files being edited, as a source of translations
     return _("Open Files")
@@ -346,11 +364,6 @@ class ConcordanceController:
             self._searching = []
             self._finish()
 
-    def close(self, _kind=None):
-        self.stop()
-        if self.view is not None:
-            self.view.close()
-
     def can_insert(self, index):
         unit = getattr(self.main_controller.unit_controller, 'current_unit', None)
         return self._match(index) is not None and unit is not None
@@ -360,26 +373,19 @@ class ConcordanceController:
         return match is not None and match.get('index') is not None
 
     def insert(self, index):
-        """Put the translation of the match at index, or the part of it
-        selected in the preview, at the cursor in the translation."""
+        """Put the translation of the match at index at the cursor in the
+        translation."""
         if not self.can_insert(index):
             return
         match = self.matches[index]
-        selected = self.view.selected_translation()
-        if selected:
-            data = {'target': selected}
-        elif concordance.shown(match, 'target') != match['target']:
-            data = {'target': concordance.shown(match, 'target')}
-        else:
-            data = match
-        self.tm_controller.insert_match(data)
-        self.main_controller.view.main_window.present()
+        if concordance.shown(match, 'target') != match['target']:
+            match = {'target': concordance.shown(match, 'target')}
+        self.tm_controller.insert_match(match)
 
     def go_to(self, index):
         if not self.can_go_to(index):
             return
         self.main_controller.store_controller.cursor.force_index(self.matches[index]['index'])
-        self.main_controller.view.main_window.present()
 
     def copy(self, index):
         match = self._match(index)
@@ -455,8 +461,6 @@ class ConcordanceController:
         self.view.set_summary(self._summary())
 
     def _summary(self):
-        from virtaal.views.setscanview import concordance_summary
-
         count = self._total if self._truncated else len(self.matches)
         return concordance_summary(
             count, len(self.matches), self._truncated, self._failed, self._searching
