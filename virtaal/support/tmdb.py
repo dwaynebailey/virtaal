@@ -50,7 +50,7 @@ from translate.misc.xml_helpers import getXMLspace
 from translate.search.lshtein import LevenshteinComparer
 from translate.storage import tmx
 
-from virtaal.support import inlinecodes, shareddb
+from virtaal.support import concordance, inlinecodes, shareddb
 from virtaal.support.abstraction import abstract, adapt
 from virtaal.support.tmx_compat import tuv_lang
 
@@ -1366,6 +1366,58 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         logger.debug("results: %s", results)
         return results
 
+    def concordance(
+        self,
+        text,
+        source_langs,
+        target_langs,
+        side="source",
+        case=False,
+        whole_words=False,
+        limit=concordance.LIMIT,
+    ):
+        """The entries holding the phrase C{text} in their source, their
+        translation or either (C{side} "source", "target" or "both"),
+        past placeables and accelerators, best first (concordance.rank).
+
+        @return: {"matches": up to limit matches, "total": how many entries
+            matched, "complete": False if more may match than were read}"""
+        query = concordance.Query(text, case, whole_words)
+        sides = concordance.SIDES.get(side, concordance.SIDES["source"])
+        if len(query.text.strip()) < concordance.MIN_LENGTH:
+            return {"matches": [], "total": 0, "complete": True}
+        self.connection.create_function("cf", 1, concordance.cf, deterministic=True)
+        sql, params = concordance_sql(query, sides, source_langs, target_langs)
+        rows = self.cursor.execute(sql, (*params, CONCORDANCE_CANDIDATES)).fetchall()
+        matches = [
+            match for match in (_concordance_match(query, sides, row) for row in rows) if match
+        ]
+        listed = concordance.rank(concordance.merge(matches))[:limit]
+        self._add_origins(listed)
+        return {
+            "matches": listed,
+            "total": len(matches),
+            "complete": len(rows) < CONCORDANCE_CANDIDATES,
+        }
+
+    def _add_origins(self, matches):
+        """Give each match the paths of the files its entries came from,
+        newest first, in place of their tids."""
+        tids = [tid for match in matches for tid in match["tids"]]
+        paths = {}
+        for chunk in _chunks(tids, 500):
+            rows = self.cursor.execute(
+                "SELECT o.tid, st.path FROM origins o JOIN stores st ON st.store_id = o.store_id "
+                "WHERE o.tid IN (%s) AND st.path != '' ORDER BY o.time DESC"
+                % ",".join("?" * len(chunk)),
+                chunk,
+            ).fetchall()
+            for tid, path in rows:
+                paths.setdefault(tid, []).append(path)
+        for match in matches:
+            origins = [path for tid in match.pop("tids") for path in paths.get(tid, ())]
+            match["origins"] = list(dict.fromkeys(origins))
+
     def _query_abstract(self, text):
         return _abstract(text) if self.abstract else text
 
@@ -1388,6 +1440,124 @@ DROP TRIGGER IF EXISTS sources_delete_trig;
         if adapted.quality < self.min_similarity:
             return None
         return adapted.quality, adapted.raw_quality
+
+
+CONCORDANCE_CANDIDATES = 1000
+"""The most entries a concordance search reads, shortest sources first."""
+
+# Each side's text, abstract and plural columns.
+_CONCORDANCE_COLUMNS = {
+    "source": ("s.text", "s.abstract", "t.plural_source"),
+    "target": ("t.text", "t.abstract", "t.plural_targets"),
+}
+_STRIP_ACCELERATORS = "replace(replace(replace(%s, '&', ''), '_', ''), '~', '')"
+
+
+def concordance_sql(query, sides, source_langs, target_langs):
+    """The SQL reading the candidates for a concordance search, less its
+    LIMIT, and its parameters.
+
+    A plain scan, never a JOIN on fulltext, whose MATCH SQLite would run
+    once per target. LIKE folds ASCII only, so a phrase with other
+    letters compares case folded (cf). Without its abstract yet, an
+    entry is tried with its accelerator markers taken out, a placeable
+    anywhere."""
+    source_in, source_params = _language_match("s.lang", source_langs)
+    target_in, target_params = _language_match("t.lang", target_langs)
+    tests = []
+    params = [*source_params, *target_params]
+    for side in sides:
+        side_tests, side_params = _concordance_tests(query, *_CONCORDANCE_COLUMNS[side])
+        tests += side_tests
+        params += side_params
+    sql = (
+        "SELECT s.text, t.text, s.context, s.abstract, t.abstract, t.source_markup, "
+        "t.target_markup, t.plural_source, t.plural_targets, %s, t.time, t.tid "
+        "FROM sources s JOIN targets t ON s.sid = t.sid "
+        "WHERE %s AND %s AND (%s) ORDER BY s.length, t.tid LIMIT ?"
+        % (_layout_select(), source_in, target_in, " OR ".join(tests))
+    )
+    return sql, params
+
+
+def _concordance_tests(query, text_col, abstract_col, plural_col):
+    """The SQL tests finding the phrase in one side's columns, and their
+    parameters. An abstract the same as its text is only tested as text."""
+    if not query.is_ascii():
+        tested = _folded_test
+    elif query.case:
+        tested = _exact_test
+    else:
+        tested = _like_test
+    tests = [tested(text_col, query.text)]
+    if query.abstract != query.text and not concordance.has_markers(query.abstract):
+        # Such as "Save…" for "Save...": a text without placeables.
+        tests.append(tested(text_col, query.abstract))
+    tests.append(tested(abstract_col, query.abstract, "%s != %s" % (abstract_col, text_col)))
+    stripped = _STRIP_ACCELERATORS % text_col
+    loose = query.loose_like()
+    if not query.is_ascii():
+        stripped, loose = "cf(%s)" % stripped, concordance.cf(loose)
+    tests.append(("(%s IS NULL AND %s LIKE ? ESCAPE '\\')" % (abstract_col, stripped), [loose]))
+    tests.append(tested(plural_col, concordance.json_escape(query.text)))
+    if concordance.has_markers(query.abstract):
+        # Plurals have no abstracts: a placeable anywhere.
+        column = plural_col if query.is_ascii() else "cf(%s)" % plural_col
+        tests.append(("%s LIKE ? ESCAPE '\\'" % column, [loose]))
+    return [sql for sql, _params in tests], [param for _sql, params in tests for param in params]
+
+
+def _like_test(column, text, condition=None):
+    return _test(condition, "%s LIKE ? ESCAPE '\\'" % column, [_like(text)])
+
+
+def _exact_test(column, text, condition=None):
+    return _test(condition, "instr(%s, ?) > 0" % column, [text])
+
+
+def _folded_test(column, text, condition=None):
+    """column holding text case folded (cf), with a cheaper LIKE first on
+    text's longest run of ASCII letters and digits."""
+    sql, params = "instr(cf(%s), ?) > 0" % column, [concordance.cf(text)]
+    runs = _ASCII_RUN.findall(text)
+    if runs:
+        sql = "%s LIKE ? ESCAPE '\\' AND %s" % (column, sql)
+        params = [_like(max(runs, key=len)), *params]
+    return _test(condition, sql, params)
+
+
+def _test(condition, sql, params):
+    return ("(%s AND %s)" % (condition, sql) if condition else sql), params
+
+
+def _like(text):
+    return "%" + concordance.like_escape(text) + "%"
+
+
+_ASCII_RUN = re.compile(r"[A-Za-z0-9]{2,}")
+
+
+def _concordance_match(query, sides, row):
+    """The match for the entry in row if the phrase is in it, else None."""
+    source, target, context = row[:3]
+    plural_source, plural_targets, layout, when, tid = row[7:12]
+    forms = _forms(plural_source, plural_targets)
+    texts = {
+        "source": [source, plural_source] if forms is not None else [source],
+        "target": forms if forms is not None else [target],
+    }
+    found = concordance.match_hits(query, sides, texts)
+    if not found:
+        return None
+    match = {"source": source, "target": target, "context": context, "time": when, "tids": [tid]}
+    if row[5] is not None and row[6] is not None:
+        match["source_markup"], match["target_markup"] = row[5], row[6]
+    if forms is not None:
+        match["plural_source"] = plural_source
+        match["plural_targets"] = forms
+        if layout:
+            match["plural_layout"] = layout
+    return concordance.describe(match, found, texts)
 
 
 def _match_texts(queries, row):
