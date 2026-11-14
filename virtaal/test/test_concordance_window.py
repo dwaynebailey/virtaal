@@ -16,6 +16,7 @@ from gi.repository import Gdk, GLib, Gtk
 from test_scaffolding import TestScaffolding
 
 from virtaal.common import pan_app
+from virtaal.common.platform import platform
 from virtaal.controllers.placeablescontroller import PlaceablesController
 from virtaal.plugins.tm import concordance as concordance_window
 from virtaal.plugins.tm.tmcontroller import TMController
@@ -344,7 +345,9 @@ class TestConcordanceWindow(TestScaffolding):
         known, key = Gtk.AccelMap.lookup_entry(concordance_window.ACCEL_PATH)
 
         assert known
-        assert (key.accel_key, key.accel_mods) == (Gdk.KEY_k, Gdk.ModifierType.CONTROL_MASK)
+        # Cmd+K from virtaal.accel on macOS.
+        primary = Gdk.ModifierType.META_MASK if platform.is_mac else Gdk.ModifierType.CONTROL_MASK
+        assert (key.accel_key, key.accel_mods) == (Gdk.KEY_k, primary)
         assert self.main_controller.view.gui.get_object('mnu_search_tm').get_sensitive()
 
 
