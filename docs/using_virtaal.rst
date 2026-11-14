@@ -361,6 +361,39 @@ Those of services that charge are kept, since fetching them again is charged
 again, unless :guilabel:`Also clear paid services` is ticked; Virtaal then asks
 first.
 
+.. _using_virtaal#search_translation_memory:
+
+Search Translation Memory for a Phrase
+--------------------------------------
+To see how a word or phrase was translated before (a concordance search),
+select it in the source or the translation and press :kbd:`Ctrl+K`
+(:kbd:`Cmd+K` on macOS), or choose :menuselection:`Edit --> Search Translation
+Memory…`. A selection is searched for at once, in the sources if it is in the
+source and in the translations if it is in the translation. Without one, type
+the phrase in the window and press :kbd:`Enter`.
+
+Virtaal searches your local translation memory, the translated units of the
+files open (with your unsaved changes, leaving out the unit you are in) and the
+translation memory of a translation bundle open, and lists
+each source with its translation, the phrase highlighted, and where it is from:
+the file it came from, or the source. Identical translations are listed once,
+with how many there are; hover over one to see every file it came from.
+Translations where the phrase is a whole word come first, then shorter sources.
+Up to 200 are listed from each source. The phrase is found past accelerator
+keys and :doc:`placeables <placeables>`, so "Open File" finds "Open &File" and
+"%s files" finds "%d files".
+
+Tick :guilabel:`Source` or :guilabel:`Translation` to choose where to search,
+:guilabel:`Case sensitive` to find only the case you typed, and
+:guilabel:`Whole words` to leave out matches inside a longer word.
+
+Select a row to see its whole source and translation below the list.
+:guilabel:`Insert` (or :kbd:`Enter`, or a double-click) puts the translation at
+the cursor in your translation, or only the part of it you selected below the
+list; :kbd:`Ctrl+Z` takes it out again. The window stays open. :kbd:`Ctrl+C`
+copies the translation, and for a match in the files open,
+:guilabel:`Go to Unit` moves to its unit.
+
 .. _using_virtaal#navigation:
 
 Navigation
