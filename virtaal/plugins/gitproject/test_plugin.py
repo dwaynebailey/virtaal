@@ -6,10 +6,12 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """Git projects in the server list and the browser: off until enabled,
-added with a branch and the language files' path, and a language opened
-from a local bare repository with no change to the platform layer."""
+added with a branch and the language files' path, a language opened
+from a local bare repository with no change to the platform layer, and
+the sign-in dialog."""
 
 import os
+import threading
 
 import pytest
 
@@ -17,6 +19,8 @@ from devsupport.testing.fakeplatform import run_until
 from devsupport.testing.gitremote import Remote, needs_dulwich
 from virtaal.common import pan_app
 from virtaal.plugins.gitproject import Plugin, backend
+from virtaal.plugins.gitproject.signin import SignInDialog, asker
+from virtaal.support.gitrepo import Credential
 from virtaal.support.platforms import workcopy
 from virtaal.support.platforms.browsedialog import COL_NAME, BrowseDialog
 from virtaal.support.platforms.servers import ServerList
@@ -109,3 +113,37 @@ def test_the_browser_opens_a_language_of_the_repository(tmp_path, platform):
     assert copy.location() == 'remote'
     assert dialog.opened.endswith(os.path.join('po', 'af.po'))
     dialog.dialog.destroy()
+
+
+def test_the_sign_in_dialog_wants_both_and_offers_to_remember():
+    dialog = SignInDialog(None, 'https://example.org', 'thandi')
+    assert dialog.dialog.get_title() == 'Sign In to https://example.org'
+    assert dialog.intro.get_text() == 'The repository asks for a username and a password or token.'
+    assert list(dialog.switches) == ['remember']
+    assert not dialog.btn_ok.get_sensitive()
+    dialog.entries['password'].set_text('token')
+    assert dialog.btn_ok.get_sensitive()
+    assert not dialog.entries['password'].get_visibility()
+    dialog.dialog.destroy()
+
+    again = SignInDialog(None, 'https://example.org', refused=True, can_remember=False)
+    assert again.switches == {}
+    assert again.intro.get_text() == 'The server refused this username and password or token.'
+    again.dialog.destroy()
+
+
+def test_a_git_thread_asking_waits_for_the_answer_on_the_main_loop(monkeypatch):
+    monkeypatch.setattr(
+        SignInDialog, 'credential', lambda self: Credential('thandi', 'token', True)
+    )
+    ask = asker(lambda: None, lambda: True)
+    answers = []
+    thread = threading.Thread(target=lambda: answers.append(ask('https://h', '', False)))
+    thread.start()
+    run_until(lambda: answers, timeout=10)
+    thread.join()
+    assert (answers[0].username, answers[0].password, answers[0].remember) == (
+        'thandi',
+        'token',
+        True,
+    )

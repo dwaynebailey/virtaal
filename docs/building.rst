@@ -44,6 +44,8 @@ Required Packages
 - `Babel <https://pypi.org/project/babel/>`_
 - `dulwich <https://pypi.org/project/dulwich/>`_ - :doc:`Git projects
   <git_projects>` without git installed (Apache-2.0 or GPL-2.0-or-later)
+- `keyring <https://pypi.org/project/keyring/>`_ - keeps a Git server's
+  password or token in the system's password store (MIT)
 
 The remaining Python packages above are all declared in ``pyproject.toml`` and
 installed automatically by ``pip install .`` - only GTK3/PyGObject/cairo

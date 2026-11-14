@@ -23,7 +23,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, copy_metadata
 
 ROOT = Path(os.getcwd())
 PACKAGING = ROOT / "devsupport" / "packaging" / "macos"
@@ -222,6 +222,10 @@ def _not_enchant_dialog(name):
     )
 
 
+# keyring finds its backends by its entry points, which need its metadata.
+datas += copy_metadata("keyring")
+
+
 a = Analysis(  # noqa: F821
     [str(ROOT / "bin" / "virtaal")],
     pathex=[str(ROOT)],
@@ -236,6 +240,7 @@ a = Analysis(  # noqa: F821
         + collect_submodules("translate.storage")
         # Document converters, imported only when a document opens.
         + collect_submodules("translate.convert")
+        + collect_submodules("keyring.backends")
         + (collect_submodules("enchant", filter=_not_enchant_dialog) if _bundle_enchant else [])
     ),
     hooksconfig={

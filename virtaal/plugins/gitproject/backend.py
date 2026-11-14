@@ -29,8 +29,8 @@ stops Submit before anything goes (CHANGED), for Update to bring it in
 first.
 
 There is no lock, no review, and no state but what the file holds.
-ssh uses the system's ssh and its agent; Virtaal never stores a
-credential.
+ssh uses the system's ssh and its agent; https asks credentials.py,
+which leaves keeping them to the system's password store.
 """
 
 import hashlib
@@ -59,6 +59,7 @@ from virtaal.support.platforms import (
 from virtaal.support.platforms.workcopy import strings, text_hash
 
 from .config import ProjectFile
+from .credentials import GitCredentials
 
 GIT_MISSING = 'git-missing'
 """A PlatformError's kind: dulwich isn't installed."""
@@ -477,6 +478,8 @@ class GitPlatform(Platform):
         self.projects = ProjectFile(path)
         self.clones = clones
         """The folder of the bare clones; the state folder's git/ if None."""
+        self.credentials = GitCredentials()
+        """https credentials, shared by every repository."""
         self._repositories = {}
 
     def repository(self, url, branch):
@@ -488,7 +491,9 @@ class GitPlatform(Platform):
             folder = self.clones or os.path.join(pan_app.get_state_dir(), 'git')
             digest = hashlib.sha256(('%s\n%s' % key).encode('utf-8')).hexdigest()[:16]
             name = '%s-%s.git' % (re.sub(r'[^A-Za-z0-9_.-]', '_', project_name(url))[:40], digest)
-            self._repositories[key] = gitrepo.Repository(url, branch, os.path.join(folder, name))
+            self._repositories[key] = gitrepo.Repository(
+                url, branch, os.path.join(folder, name), self.credentials
+            )
         return self._repositories[key]
 
     def credential_fields(self):
@@ -535,10 +540,10 @@ class GitPlatform(Platform):
             # l10n: dulwich is the name of a Python library, not translated
             return _('Git projects need the Python library dulwich, which isn’t installed.')
         if error.kind == AUTH:
-            # l10n: Git's credentials for a repository (an SSH key, a password a credential helper keeps) are missing or were refused
+            # l10n: The repository refused the user's SSH key, or the username and password or token given for it, or none was given
             message = _(
-                'Git couldn’t sign in to the repository. Set up an SSH key or a Git credential '
-                'helper for it, then try again.'
+                'Virtaal couldn’t sign in to the repository. For an ssh address, add your SSH '
+                'key to your SSH agent; for https, give a username and a password or token.'
             )
             return message + ('\n' + error.detail if error.detail else '')
         if error.kind == CHANGED:

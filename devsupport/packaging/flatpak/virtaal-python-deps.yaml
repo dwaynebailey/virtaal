@@ -176,6 +176,25 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl
         sha256: 0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3
+  - name: python3-keyring
+    buildsystem: simple
+    build-commands:
+      # --no-deps: SecretStorage (and its cryptography) is left out; keyring
+      # reaches the Secret Service through libsecret's GI binding instead.
+      # jaraco.functools and more-itertools come with cheroot.
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} --no-deps "keyring" "jaraco.classes" "jaraco.context"
+        --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/81/db/e655086b7f3a705df045bf0933bdd9c2f79bb3c97bfef1384598bb79a217/keyring-25.7.0-py3-none-any.whl
+        sha256: be4a0b195f149690c166e850609a477c532ddbfbaed96a404d4e43f8d5e2689f
+      - type: file
+        url: https://files.pythonhosted.org/packages/7f/66/b15ce62552d84bbfcec9a4873ab79d993a1dd4edb922cbfccae192bd5b5f/jaraco.classes-3.4.0-py3-none-any.whl
+        sha256: f662826b6bed8cace05e7ff873ce0f9283b5c924470fe664fff1c2f00f581790
+      - type: file
+        url: https://files.pythonhosted.org/packages/f2/58/bc8954bda5fcda97bd7c19be11b85f91973d67a706ed4a3aec33e7de22db/jaraco_context-6.1.2-py3-none-any.whl
+        sha256: bf8150b79a2d5d91ae48629d8b427a8f7ba0e1097dd6202a9059f29a36379535
   - name: python3-pycountry
     buildsystem: simple
     build-commands:

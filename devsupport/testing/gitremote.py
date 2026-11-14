@@ -129,6 +129,22 @@ def isolate_config(monkeypatch, home, name=None, email=None, xdg=False):
         f.write('\n'.join(lines) + '\n')
 
 
+class FakeStore:
+    """A password store in memory: {credential key: Credential}."""
+
+    def __init__(self, kept=None):
+        self.kept = dict(kept or {})
+
+    def usable(self):
+        return True
+
+    def get(self, key):
+        return self.kept.get(key)
+
+    def put(self, key, credential):
+        self.kept[key] = credential
+
+
 class _Quiet(WSGIRequestHandler):
     def log_message(self, *args):
         pass

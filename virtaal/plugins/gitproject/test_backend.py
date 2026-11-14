@@ -9,7 +9,8 @@
 team's remote: its languages, a language opened as a work copy, Submit
 as one commit of that file alone, others' changes merged unit by unit
 by Update and Submit, a push refused because the branch moved on, a
-unit changed on the branch mid-Submit, and the commit's author."""
+unit changed on the branch mid-Submit, the commit's author, and
+signing in to a server wanting a password."""
 
 from types import SimpleNamespace
 
@@ -18,10 +19,11 @@ from translate.storage import po
 from translate.storage.workflow import StateEnum
 
 from devsupport.testing.fakeplatform import run_until
-from devsupport.testing.gitremote import Remote, isolate_config, needs_dulwich
+from devsupport.testing.gitremote import FakeStore, Remote, isolate_config, needs_dulwich, serve
 from virtaal.common import pan_app
 from virtaal.plugins.gitproject import backend
 from virtaal.plugins.gitproject.config import ProjectFile
+from virtaal.plugins.gitproject.credentials import GitCredentials
 from virtaal.support import gitrepo
 from virtaal.support.platforms import AUTH, PlatformError, submit, update, workcopy
 from virtaal.support.platforms.submit import FAILED, KEEP_MINE, TAKE_THEIRS
@@ -69,7 +71,9 @@ def remote(tmp_path):
 
 @pytest.fixture
 def platform(tmp_path):
-    return backend.GitPlatform(str(tmp_path / 'gitprojects.ini'), str(tmp_path / 'clones'))
+    found = backend.GitPlatform(str(tmp_path / 'gitprojects.ini'), str(tmp_path / 'clones'))
+    found.credentials = GitCredentials(FakeStore(), helper=None)
+    return found
 
 
 def call(method, *args):
@@ -234,7 +238,7 @@ def test_projects_are_kept_without_secrets(tmp_path, platform):
 def test_git_s_errors_are_worded_for_git(platform):
     assert 'dulwich' in platform.error_message(PlatformError(backend.GIT_MISSING))
     message = platform.error_message(PlatformError(AUTH, detail='Permission denied (publickey).'))
-    assert message.startswith('Git couldn’t sign in')
+    assert message.startswith('Virtaal couldn’t sign in')
     assert message.endswith('\nPermission denied (publickey).')
     assert 'Update from Server' in platform.error_message(PlatformError(backend.CHANGED))
     assert platform.error_message(PlatformError('network')) is None
@@ -441,7 +445,7 @@ def test_update_downloads_again_when_the_strings_changed(platform, remote):
     assert [c.index for c in result.carried] == [1]
 
 
-# The author #
+# The author and signing in #
 
 
 @needs_dulwich
@@ -459,3 +463,45 @@ def test_without_git_s_identity_or_a_translator_virtaal_signs(monkeypatch):
     monkeypatch.setitem(pan_app.settings.translator, 'name', '')
     monkeypatch.setitem(pan_app.settings.translator, 'email', '')
     assert backend._author() == ('Virtaal', '')
+
+
+@needs_dulwich
+def test_a_kept_credential_signs_in_without_asking(platform, remote):
+    asked = []
+    platform.credentials.ask = lambda *args: asked.append(args)
+    with serve(remote, ('thandi', 'token')) as url:
+        key = url.rpartition('/remote.git')[0]
+        platform.credentials.store.kept[key] = gitrepo.Credential('thandi', 'token')
+        assert call(backend.GitSession(platform, url, 'main', 'po/*.po').test_connection) == 1
+    assert asked == []
+    assert platform.credentials.session[key].password == 'token'
+
+
+@needs_dulwich
+def test_a_server_wanting_a_password_asks_and_may_keep_it(platform, remote):
+    asked = []
+
+    def ask(key, username, refused):
+        asked.append((key, username, refused))
+        password = 'wrong' if not refused else 'token'
+        return gitrepo.Credential('thandi', password, remember=refused)
+
+    platform.credentials.ask = ask
+    with serve(remote, ('thandi', 'token')) as url:
+        key = url.rpartition('/remote.git')[0]
+        session = backend.GitSession(platform, url, 'main', 'po/*.po')
+        assert call(session.test_connection) == 1
+        assert asked == [(key, '', False), (key, 'thandi', True)]
+        assert platform.credentials.store.kept[key].password == 'token'
+        assert call(session.test_connection) == 1
+        assert len(asked) == 2
+
+
+@needs_dulwich
+def test_a_cancelled_sign_in_says_so(platform, remote):
+    platform.credentials.ask = lambda *args: None
+    with serve(remote, ('thandi', 'token')) as url:
+        error = call(backend.GitSession(platform, url, 'main', 'po/*.po').test_connection)
+    assert error.kind == AUTH
+    assert platform.error_message(error).startswith('Virtaal couldn’t sign in')
+    assert platform.credentials.store.kept == {}

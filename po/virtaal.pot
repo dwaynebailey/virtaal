@@ -1914,8 +1914,8 @@ msgstr ""
 
 #: virtaal/plugins/gitproject/backend.py
 msgid ""
-"Git couldn’t sign in to the repository. Set up an SSH key or a Git "
-"credential helper for it, then try again."
+"Virtaal couldn’t sign in to the repository. For an ssh address, add your SSH "
+"key to your SSH agent; for https, give a username and a password or token."
 msgstr ""
 
 #: virtaal/plugins/gitproject/backend.py
@@ -1928,6 +1928,48 @@ msgstr ""
 #: virtaal/plugins/gitproject/backend.py
 #, python-format
 msgid "Git failed: %(reason)s"
+msgstr ""
+
+#. l10n: The user's name on a Git server, such as GitHub's or GitLab's
+#: virtaal/plugins/gitproject/signin.py
+msgid "_Username:"
+msgstr ""
+
+#. l10n: A Git server's password, or an access token it gave the user to use in its place
+#: virtaal/plugins/gitproject/signin.py
+msgid "_Password or token:"
+msgstr ""
+
+#. l10n: Shows the token's characters instead of dots
+#: virtaal/plugins/gitproject/signin.py virtaal/plugins/transifex/backend.py
+#: virtaal/plugins/weblate/backend.py
+msgid "S_how token"
+msgstr ""
+
+#. l10n: Keep this username and password in the computer's own store (Windows Credential Manager, the macOS Keychain, GNOME Keyring), not in Virtaal
+#: virtaal/plugins/gitproject/signin.py
+msgid "_Remember in this computer’s password store"
+msgstr ""
+
+#. l10n: The title of the dialog asking for a Git server's username and password; %(server)s is its address, such as https://gitlab.com
+#: virtaal/plugins/gitproject/signin.py
+#, python-format
+msgid "Sign In to %(server)s"
+msgstr ""
+
+#. l10n: The button sending the username and password typed in
+#: virtaal/plugins/gitproject/signin.py
+msgid "_Sign In"
+msgstr ""
+
+#. l10n: A Git server refused the username and password or token the user gave
+#: virtaal/plugins/gitproject/signin.py
+msgid "The server refused this username and password or token."
+msgstr ""
+
+#. l10n: Above the fields of the dialog asking for a Git server's username and password
+#: virtaal/plugins/gitproject/signin.py
+msgid "The repository asks for a username and a password or token."
 msgstr ""
 
 #: virtaal/plugins/lookup/__init__.py
@@ -3004,11 +3046,6 @@ msgstr ""
 
 #: virtaal/plugins/transifex/backend.py virtaal/plugins/weblate/backend.py
 msgid "_Token:"
-msgstr ""
-
-#. l10n: Shows the token's characters instead of dots
-#: virtaal/plugins/transifex/backend.py virtaal/plugins/weblate/backend.py
-msgid "S_how token"
 msgstr ""
 
 #. l10n: Transifex's API is at https://rest.api.transifex.com/; something else answered
