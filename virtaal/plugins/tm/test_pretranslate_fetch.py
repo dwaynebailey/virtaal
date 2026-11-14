@@ -5,16 +5,16 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""Pre-translate fetching from amaGama first: the real amaGama model and
-HTTP client against a stand-in server on this machine. The GLib timeouts
-and idle callbacks are run by the test, not a main loop."""
+"""Pre-translate fetching from amaGama first: the real amaGama model,
+file fetch and HTTP requests, answered by a stand-in for the server
+instead of the network. The GLib timeouts and idle callbacks are run by
+the test, not a main loop."""
 
-import http.server
+import io
 import json
-import threading
 import time
 from types import SimpleNamespace
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import urlsplit
 
 import pytest
 from gi.repository import GLib
@@ -26,63 +26,71 @@ from virtaal.plugins.tm.fetched import FetchedSuggestions
 from virtaal.plugins.tm.models.amagama import TMModel as AmagamaModel
 from virtaal.plugins.tm.pretranslate import Options
 from virtaal.plugins.tm.tmcontroller import TMController
+from virtaal.support import tmclient
 
 TRANSLATIONS = {'Open': 'Maak oop', 'Close': 'Maak toe', 'Save': 'Stoor'}
+URL = 'https://amagama.example/api/v1/'
 
 
 class _Server:
-    """amaGama's API v2 unit lookup. replies holds (status, headers) to
-    answer with before the usual answers."""
+    """amaGama's API v2 unit lookup, answering each request the HTTP
+    client is given from the main loop. replies holds (status, headers)
+    to answer with before the usual answers; down: no answer at all."""
 
-    def __init__(self):
+    def __init__(self, monkeypatch):
         self.requests = []
         self.replies = []
+        self.down = False
         server = self
 
-        class Handler(http.server.BaseHTTPRequestHandler):
-            def do_GET(self):
-                url = urlsplit(self.path)
-                server.requests.append(
-                    SimpleNamespace(
-                        path=url.path,
-                        q=parse_qs(url.query).get('q', [''])[0],
-                        purpose=self.headers.get('Sec-Purpose'),
-                    )
-                )
-                if server.replies:
-                    status, headers = server.replies.pop(0)
-                    self.send_response(status)
-                    for name, value in headers.items():
-                        self.send_header(name, value)
-                    self.send_header('Content-Length', '0')
-                    self.end_headers()
-                    return
-                q = server.requests[-1].q
-                matches = [{'source': q, 'target': TRANSLATIONS[q]}] if q in TRANSLATIONS else []
-                body = json.dumps({'matches': matches}).encode()
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Content-Length', str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
+        class Request(tmclient.RESTRequest):
+            def __init__(self, url, id, *args, params=None, **kwargs):
+                super().__init__(url, id, *args, params=params, **kwargs)
+                self.sent_to = url
+                self.params = dict(params or {})
 
-            def log_message(self, *args):
-                pass
+        monkeypatch.setattr(tmclient, 'RESTRequest', Request)
+        monkeypatch.setattr(
+            tmclient.TMClient, 'add', lambda client, request: server._add(request) or True
+        )
 
-        self.httpd = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
-        self.url = 'http://127.0.0.1:%d/api/v1/' % self.httpd.server_address[1]
-        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+    def _add(self, request):
+        self.requests.append(
+            SimpleNamespace(
+                path=urlsplit(request.sent_to).path,
+                q=request.params.get('q', ''),
+                purpose=next(
+                    (
+                        h.split(': ', 1)[1]
+                        for h in request.headers or ()
+                        if h.startswith('Sec-Purpose')
+                    ),
+                    None,
+                ),
+            )
+        )
+        GLib.idle_add(self._answer, request)
 
-    def close(self):
-        self.httpd.shutdown()
-        self.httpd.server_close()
+    def _answer(self, request):
+        if self.down:
+            request.emit('http-failed', 'Could not connect to server')
+            return False
+        if self.replies:
+            status, headers = self.replies.pop(0)
+            request.result_headers = io.BytesIO(
+                b''.join(b'%s: %s\r\n' % (k.encode(), v.encode()) for k, v in headers.items())
+            )
+            request.emit('http-client-error', status)
+            return False
+        q = request.params.get('q', '')
+        matches = [{'source': q, 'target': TRANSLATIONS[q]}] if q in TRANSLATIONS else []
+        request.emit('http-success', json.dumps({'matches': matches}).encode())
+        return False
 
 
 @pytest.fixture
-def server():
-    found = _Server()
-    yield found
-    found.close()
+def server(monkeypatch):
+    return _Server(monkeypatch)
 
 
 class _Paid:
@@ -137,7 +145,7 @@ def _controller(tmp_path, units):
     return controller
 
 
-def _amagama(monkeypatch, url, controller):
+def _amagama(monkeypatch, controller, url=URL):
     monkeypatch.setattr(AmagamaModel, '_v1_only', set())
     monkeypatch.setattr(AmagamaModel, '_cached_sources', lambda self: None)
     monkeypatch.setattr(
@@ -200,7 +208,7 @@ def test_it_fetches_only_the_units_to_fill_that_were_not_fetched(
         'amagama', {'Close': [{'source': 'Close', 'target': 'Sluit', 'quality': 100}]}
     )
     paid = _Paid()
-    models = [_amagama(monkeypatch, server.url, controller), paid, _Local()]
+    models = [_amagama(monkeypatch, controller), paid, _Local()]
 
     result = _pretranslate(controller, models, store.units, waits)
 
@@ -220,7 +228,7 @@ def test_it_waits_as_long_as_the_server_asks(tmp_path, monkeypatch, server, wait
     server.replies.append((429, {'Retry-After': '7'}))
     store = _store('Open')
     controller = _controller(tmp_path, store.units)
-    model = _amagama(monkeypatch, server.url, controller)
+    model = _amagama(monkeypatch, controller)
 
     result = _pretranslate(controller, [model], store.units, waits)
 
@@ -233,11 +241,10 @@ def test_it_waits_as_long_as_the_server_asks(tmp_path, monkeypatch, server, wait
 def test_an_unreachable_server_leaves_the_other_sources_to_fill(
     tmp_path, monkeypatch, server, waits
 ):
-    url = server.url
-    server.close()
+    server.down = True
     store = _store('Open', 'Save')
     controller = _controller(tmp_path, store.units)
-    models = [_amagama(monkeypatch, url, controller), _Local()]
+    models = [_amagama(monkeypatch, controller), _Local()]
 
     result = _pretranslate(controller, models, store.units, waits)
 
