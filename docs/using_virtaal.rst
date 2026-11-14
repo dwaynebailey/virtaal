@@ -303,6 +303,13 @@ Your local translation memory finds such a suggestion even when the placeables'
 own text makes the two look quite different. Hover over an adapted suggestion
 to see what the translation memory has.
 
+Text that differs from yours only in case, such as "OPEN FILE" for "Open
+file", or in how its letters are written, such as "Strasse" for "Straße" or
+full-width letters, scores 97%. In Turkish, Azerbaijani and other languages
+with a dotless i, "I" matches "ı" and "İ" matches "i"; in Greek, capitals match
+the same letters with accents. Other accents count: "cafe" and "café" are a
+fuzzy match. A search of earlier translations (below) ignores case the same way.
+
 Your local translation memory also keeps the inline codes (formatting tags) of
 XLIFF and TMX translations. The tags count in the match percentage only when
 the text is the same: then each tag one has and the other lacks takes 1% off
