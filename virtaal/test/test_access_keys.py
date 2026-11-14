@@ -14,6 +14,7 @@ import pytest
 from gi.repository import Gtk
 from test_scaffolding import TestScaffolding
 
+from virtaal.common.platform import platform
 from virtaal.common.signaltracker import SignalTracker
 from virtaal.plugins.terminology.models.localfile.localfileview import LocalFileView
 from virtaal.plugins.tm.tmview import TMView
@@ -72,6 +73,7 @@ def test_access_key_skips_doubled_underscores():
     assert access_key('a__b') is None
 
 
+@pytest.mark.skipif(platform.is_mac, reason="macOS menus have no access keys")
 class TestAccessKeys(TestScaffolding):
     def setup_class(self):
         TestScaffolding.setup_class(self)
