@@ -402,6 +402,12 @@ class Platform:
         the changes, as a pull request does."""
         return True
 
+    def option_applies(self, key, values):
+        """Whether the server option key (send_finished) does anything
+        for a server with values (url and credentials), as the server
+        dialog has them: shown only then."""
+        return True
+
     def fields(self):
         from virtaal.views.widgets.settingsdialog import Field
 

@@ -39,7 +39,8 @@ def valid(field, text):
 
 class SettingsDialog:
     """OK is only sensitive while every field is valid. While problem()
-    has something to say, it is shown below the fields."""
+    has something to say, it is shown below the fields. A check box
+    shows only while shown() says it applies."""
 
     def __init__(self, parent, title, fields, values, ok_label=''):
         self.fields = tuple(fields)
@@ -58,6 +59,7 @@ class SettingsDialog:
             if field.kind == BOOL:
                 check = Gtk.CheckButton.new_with_mnemonic(field.label)
                 check.set_active(bool(values.get(field.key)))
+                check.connect('toggled', lambda _check: self._update_ok())
                 grid.attach(check, 1, row, 1, 1)
                 self.switches[field.key] = check
                 row += 1
@@ -103,6 +105,10 @@ class SettingsDialog:
         """Why the values can't be used, to tell the user, or None."""
         return None
 
+    def shown(self, field, values):
+        """Whether field's check box applies to values, to show it."""
+        return True
+
     def is_valid(self):
         values = self.get_values()
         return all(valid(field, values[field.key]) for field in self.fields) and not self.problem()
@@ -112,6 +118,10 @@ class SettingsDialog:
         text = self.problem() or ''
         self.problem_label.set_text(text)
         self.problem_label.set_visible(bool(text))
+        values = self.get_values()
+        for field in self.fields:
+            if field.key in self.switches:
+                self.switches[field.key].set_visible(self.shown(field, values))
 
     def run(self):
         """@returns: The new values by config key, or C{None} if cancelled."""

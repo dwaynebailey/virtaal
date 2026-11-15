@@ -689,9 +689,15 @@ class GitPlatform(Platform):
     def sends_as_you_go(self, url):
         """Not for a project that submits from the user's fork: nothing
         goes to GitHub before Submit."""
-        if forge.find(url, self.projects.github_hosts) is None:
+        return not self._from_fork(url, _fork_shown(self.projects.settings(url)))
+
+    def option_applies(self, key, values):
+        if key != 'send_finished':
             return True
-        return self.projects.settings(url).get('fork') == 'no'
+        return not self._from_fork(values.get('url', ''), values.get('fork'))
+
+    def _from_fork(self, url, fork):
+        return bool(fork) and forge.find(url, self.projects.github_hosts) is not None
 
     def normalise_url(self, text):
         text = (text or '').strip()

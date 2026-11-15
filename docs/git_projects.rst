@@ -97,8 +97,8 @@ maintainer updated the file from its template), Virtaal offers to open the new
 file and keeps your unsubmitted changes where it can.
 
 With :guilabel:`Send finished units as you go` on for the project, each save
-commits and pushes the units you saved as Translated. A project that submits
-from your fork (below) ignores it: nothing goes to GitHub before Submit.
+commits and pushes the units you saved as Translated. It isn't shown while a
+project submits from your fork (below): nothing goes to GitHub before Submit.
 
 .. _git_projects#fork:
 

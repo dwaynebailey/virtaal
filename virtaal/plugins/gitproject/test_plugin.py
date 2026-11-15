@@ -87,6 +87,31 @@ def test_a_path_without_its_star_says_so_and_can_t_be_added(platform):
     dialog.dialog.destroy()
 
 
+def test_send_finished_shows_only_when_it_does_something(platform):
+    # A GitHub project submitting from the fork sends nothing before Submit.
+    dialog = ServerDialog(
+        None, platform, 'https://github.com/team/program.git', platform.default_credentials
+    )
+    send = dialog.switches['send_finished']
+    assert not send.get_visible()
+    dialog.switches['fork'].set_active(False)
+    assert send.get_visible()
+    dialog.switches['fork'].set_active(True)
+    assert not send.get_visible()
+    dialog.entries['url'].set_text('git@example.org:team/program.git')
+    assert send.get_visible()
+    dialog.entries['url'].set_text('git@github.com:team/program.git')
+    assert not send.get_visible()
+    dialog.dialog.destroy()
+
+
+def test_a_hidden_send_finished_keeps_its_value(platform):
+    url = 'https://github.com/team/program.git'
+    dialog = ServerDialog(None, platform, url, {'fork': True}, send_finished=True)
+    assert dialog.get_values()['send_finished'] is True
+    dialog.dialog.destroy()
+
+
 def _rows(model, parent=None):
     it = model.iter_children(parent)
     while it is not None:

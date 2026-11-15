@@ -107,3 +107,21 @@ def test_a_bool_is_a_check_box_and_always_valid():
     assert dialog.btn_ok.get_sensitive()
     assert dialog.switches['send'].get_label() == '_Send as you go'
     dialog.dialog.destroy()
+
+
+def test_a_check_box_shows_only_while_it_applies():
+    class Linked(SettingsDialog):
+        def shown(self, field, values):
+            return field.key != 'send' or not values['fork']
+
+    fields = (Field('fork', '_Fork', BOOL), Field('send', '_Send as you go', BOOL))
+    dialog = Linked(None, 'Server', fields, {'fork': True, 'send': True})
+    send = dialog.switches['send']
+    assert not send.get_visible()
+    dialog.switches['fork'].set_active(False)
+    assert send.get_visible()
+    dialog.switches['fork'].set_active(True)
+    assert not send.get_visible()
+    # Hidden, it keeps its value.
+    assert dialog.get_values() == {'fork': True, 'send': True}
+    dialog.dialog.destroy()

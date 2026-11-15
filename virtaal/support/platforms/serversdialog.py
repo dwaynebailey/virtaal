@@ -119,6 +119,9 @@ class ServerDialog(SettingsDialog):
         values = self.get_values()
         return self.platform.url_problem(values['url']) or self.platform.credentials_problem(values)
 
+    def shown(self, field, values):
+        return self.platform.option_applies(field.key, values)
+
     def is_valid(self):
         url = self.get_values()['url']
         return super().is_valid() and self.platform.normalise_url(url) is not None

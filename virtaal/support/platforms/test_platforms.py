@@ -281,6 +281,12 @@ def test_submit_as_suggestions_is_offered_only_with_suggestions(weblate, dummy):
     assert [f.key for f in option_fields(dummy)] == ['send_finished']
 
 
+def test_every_option_shows_unless_the_platform_says_it_does_nothing(weblate):
+    dialog = ServerDialog(None, weblate, 'https://w.example.org', {'token': 'wlu_x'})
+    assert all(check.get_visible() for check in dialog.switches.values())
+    dialog.dialog.destroy()
+
+
 def test_editing_a_server_sets_submitting_as_suggestions(servers, weblate, monkeypatch):
     dialog = ServersDialog(servers)
     seen = []
