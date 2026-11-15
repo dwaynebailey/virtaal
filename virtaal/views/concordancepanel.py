@@ -18,8 +18,9 @@ from .baseview import BaseView
 
 COL_SOURCE, COL_TARGET, COL_FOUND_IN, COL_TOOLTIP = range(4)
 
-HEIGHT = 200
 MIN_HEIGHT = 100
+# The rows a panel opened for the first time has room for.
+ROWS = 6
 MIN_LENGTH = 2
 
 
@@ -59,6 +60,53 @@ def swap_widget(old, new):
     parent.reorder_child(new, position)
 
 
+class Options(Gtk.FlowBox):
+    """The search options: on one line beside the entry when there is
+    room, wrapped onto more when the window is narrow. A GTK 3
+    Gtk.FlowBox asks for the width of its widest child alone, so a
+    Gtk.Box gives it one per line."""
+
+    def do_get_preferred_width(self):
+        minimum, natural = Gtk.FlowBox.do_get_preferred_width(self)
+        children = [child for child in self.get_children() if child.get_visible()]
+        if children:
+            widths = sum(child.get_preferred_width()[1] for child in children)
+            natural = widths + self.get_column_spacing() * (len(children) - 1)
+        return minimum, max(minimum, natural)
+
+    def do_get_preferred_width_for_height(self, _height):
+        # What a horizontal Gtk.Box asks when it hands out the widths.
+        return self.do_get_preferred_width()
+
+
+class MatchScroller(Gtk.ScrolledWindow):
+    """The list's scrolled window, wanting room for ROWS rows."""
+
+    def rows_height(self, rows):
+        treeview = self.get_child()
+        header = 0
+        if treeview.get_headers_visible():
+            header = max(
+                col.get_button().get_preferred_height()[1] for col in treeview.get_columns()
+            )
+        row = max(
+            renderer.get_preferred_height(treeview)[1]
+            for col in treeview.get_columns()
+            for renderer in col.get_cells()
+        )
+        row += treeview.style_get_property('vertical-separator')
+        context = self.get_style_context()
+        border = context.get_border(context.get_state())
+        return header + rows * row + border.top + border.bottom
+
+    def do_get_preferred_height(self):
+        minimum, natural = Gtk.ScrolledWindow.do_get_preferred_height(self)
+        return minimum, max(minimum, natural, self.rows_height(ROWS))
+
+    def do_get_preferred_height_for_width(self, _width):
+        return self.do_get_preferred_height()
+
+
 class MatchList(Gtk.TreeView):
     """The matches: Edit > Copy (Cmd+C on macOS, which never reaches the
     list) emits copy-clipboard."""
@@ -86,8 +134,8 @@ class ConcordancePanel(BaseView):
         self._key_id = self.mainview.main_window.connect('key-press-event', self._on_window_key)
 
     def _build_widgets(self):
-        self.widget = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        self.widget.set_border_width(4)
+        self.widget = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.widget.set_border_width(6)
         self.widget.pack_start(self._search_row(), False, False, 0)
         self.widget.pack_start(self._match_results(), True, True, 0)
         self.widget.pack_start(self._action_row(), False, False, 0)
@@ -99,7 +147,7 @@ class ConcordancePanel(BaseView):
     def _search_row(self):
         """The entry and its options, on more lines when the window
         is narrow."""
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         self.ent_search = Gtk.SearchEntry()
         self.ent_search.set_placeholder_text(_("Text to find"))
         self.ent_search.get_accessible().set_name(_("Text to find"))
@@ -108,10 +156,11 @@ class ConcordancePanel(BaseView):
         self.ent_search.connect('activate', self._on_start)
         self.ent_search.connect('changed', self._on_search_changed)
         box.pack_start(self.ent_search, True, True, 0)
-        options = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=False)
+        options = Options(selection_mode=Gtk.SelectionMode.NONE, homogeneous=False)
+        options.set_valign(Gtk.Align.CENTER)
         options.set_min_children_per_line(1)
         options.set_max_children_per_line(4)
-        options.set_column_spacing(6)
+        options.set_column_spacing(12)
         self.chk_source = Gtk.CheckButton(label=plain_label(_("S_ource")), active=True)
         self.chk_target = Gtk.CheckButton(label=plain_label(_("_Translation")), active=True)
         self.chk_case = Gtk.CheckButton(label=plain_label(_('C_ase sensitive')))
@@ -151,7 +200,7 @@ class ConcordancePanel(BaseView):
         column.set_resizable(True)
         column.set_min_width(60)
         self.treeview.append_column(column)
-        scrolled = Gtk.ScrolledWindow()
+        scrolled = MatchScroller()
         scrolled.set_shadow_type(Gtk.ShadowType.IN)
         scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scrolled.add(self.treeview)
@@ -325,18 +374,17 @@ class ConcordancePanel(BaseView):
         self.set_summary(summary)
 
     def _apply_height(self):
-        """Give the panel the height it was last given."""
+        """Give the panel the height it was last given, or the first
+        time the height it wants."""
         total = self.paned.get_allocated_height()
         if not self._restore or not self.widget.get_visible() or total <= 1:
             return
         self._restore = False
-        height = pan_app.config_int(
-            pan_app.settings.general['concordancepanelheight'],
-            HEIGHT,
-            MIN_HEIGHT,
-            32767,
-            'concordancepanelheight',
-        )
+        wanted = self.widget.get_preferred_height_for_width(self.paned.get_allocated_width())[1]
+        saved = pan_app.settings.general['concordancepanelheight']
+        height = wanted
+        if saved != '':
+            height = pan_app.config_int(saved, wanted, MIN_HEIGHT, 32767, 'concordancepanelheight')
         handle = self._handle
         if handle is None:
             handle = self.paned.style_get_property('handle-size')

@@ -482,7 +482,7 @@ class Settings:
         "windowheight": 544,
         "filepanelwidth": 240,
         "concordancepanel": "",
-        "concordancepanelheight": 200,
+        "concordancepanelheight": "",
         "windowx": '',
         "windowy": '',
         "assets_manifest_fetched": "",

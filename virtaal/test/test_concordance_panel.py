@@ -458,6 +458,47 @@ class TestConcordancePanel(TestScaffolding):
 
         assert panel.paned.get_position() == 600 - 5 - 150
 
+    def test_it_first_opens_as_tall_as_it_wants(self, monkeypatch):
+        panel = self.conc._view()
+        pan_app.settings.general['concordancepanelheight'] = ''
+        monkeypatch.setattr(panel.paned, 'get_allocated_height', lambda: 600)
+        monkeypatch.setattr(panel.paned, 'get_allocated_width', lambda: 784)
+        panel._handle = 5
+
+        panel.show()
+
+        wanted = panel.widget.get_preferred_height_for_width(784)[1]
+        assert panel.paned.get_position() == 600 - 5 - wanted
+
+    def test_the_options_sit_beside_the_entry_when_there_is_room(self):
+        panel = self.conc._view()
+        row = panel.ent_search.get_parent()
+        entry = panel.ent_search.get_preferred_height()[1]
+
+        assert row.get_preferred_height_for_width(784)[1] == entry
+        # A narrow window wraps them onto more lines.
+        assert row.get_preferred_height_for_width(300)[1] > entry
+
+    def test_it_wants_room_for_six_rows(self):
+        self._search('file')
+        panel = self.conc.view
+        scrolled = panel.treeview.get_parent()
+        header = panel.treeview.get_column(0).get_button().get_preferred_height()[1]
+        column = panel.treeview.get_column(0)
+        column.cell_set_cell_data(panel.liststore, panel.liststore.get_iter_first(), False, False)
+        row = column.cell_get_size()[3] + panel.treeview.style_get_property('vertical-separator')
+        others = sum(
+            child.get_preferred_height_for_width(784)[1]
+            for child in panel.widget.get_children()
+            if child is not scrolled
+        )
+        spacing = panel.widget.get_spacing() * 2 + panel.widget.get_border_width() * 2
+
+        natural = panel.widget.get_preferred_height_for_width(784)[1]
+
+        assert natural - others - spacing >= header + concordancepanel.ROWS * row
+        assert concordancepanel.ROWS >= 6
+
     def test_it_remembers_the_height_the_user_gives_it(self, monkeypatch):
         panel = self.conc._view()
         panel._restore = False
