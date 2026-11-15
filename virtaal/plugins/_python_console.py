@@ -39,6 +39,7 @@ class PythonConsole(Gtk.ScrolledWindow):
         buffer.create_mark("input-line", buffer.get_end_iter(), True)
         buffer.insert(buffer.get_end_iter(), ">>> ")
         buffer.create_mark("input", buffer.get_end_iter(), True)
+        self._end_mark = buffer.create_mark("end", buffer.get_end_iter(), False)
 
         # Init history
         self.history = ['']
@@ -220,8 +221,7 @@ class PythonConsole(Gtk.ScrolledWindow):
             self.set_command_line(self.history[self.history_pos])
 
     def scroll_to_end(self):
-        iter = self.view.get_buffer().get_end_iter()
-        self.view.scroll_to_iter(iter, 0.0)
+        self.view.scroll_mark_onscreen(self._end_mark)
         return False
 
     def write(self, text, tag=None):
@@ -237,22 +237,18 @@ class PythonConsole(Gtk.ScrolledWindow):
         lin = buffer.get_mark("input-line")
         buffer.delete(buffer.get_iter_at_mark(lin), buffer.get_end_iter())
 
-        if isinstance(command, list) or isinstance(command, tuple):
-            for c in command:
-                if display_command:
-                    self.write(">>> " + c + "\n", self.command)
-                self.__run(c)
-        else:
+        commands = command if isinstance(command, (list, tuple)) else [command]
+        for c in commands:
             if display_command:
                 self.write(">>> " + c + "\n", self.command)
-            self.__run(command)
+            self.__run(c)
 
         cur = buffer.get_end_iter()
         buffer.move_mark_by_name("input-line", cur)
         buffer.insert(cur, ">>> ")
         cur = buffer.get_end_iter()
         buffer.move_mark_by_name("input", cur)
-        self.view.scroll_to_iter(buffer.get_end_iter(), 0.0)
+        self.scroll_to_end()
 
     def __run(self, command):
         sys.stdout, self.stdout = self.stdout, sys.stdout

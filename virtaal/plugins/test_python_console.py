@@ -10,9 +10,10 @@
 Virtaal scaffolding to construct, so these drive it directly with a
 minimal fake Gdk.Event."""
 
+import sys
 import warnings
 
-from gi.repository import Gdk
+from gi.repository import Gdk, GLib
 
 from virtaal.plugins._python_console import PythonConsole
 
@@ -181,3 +182,43 @@ def test_unhandled_key_falls_through():
     console = PythonConsole(namespace={})
 
     assert _send(console, Gdk.KEY_a) is None
+
+
+def _run_idle_callbacks(monkeypatch):
+    # Each command scrolls to the end from an idle callback; an exception
+    # there goes to sys.excepthook, not to the caller.
+    errors = []
+    monkeypatch.setattr(sys, 'excepthook', lambda *exc: errors.append(exc[1]))
+    context = GLib.MainContext.default()
+    while context.iteration(False):
+        pass
+    return errors
+
+
+def test_return_scrolls_to_the_end_without_error(monkeypatch):
+    console = PythonConsole(namespace={})
+    console.view.get_buffer().insert(console.view.get_buffer().get_end_iter(), "1")
+    _run_idle_callbacks(monkeypatch)
+
+    _send(console, Gdk.KEY_Return)
+
+    assert _run_idle_callbacks(monkeypatch) == []
+    assert _text(console) == '>>> 1\n1\n>>> '
+
+
+def test_eval_of_a_string_displays_the_command_and_its_result(monkeypatch):
+    console = PythonConsole(namespace={})
+
+    console.eval("1 + 1", display_command=True)
+
+    assert _run_idle_callbacks(monkeypatch) == []
+    assert _text(console) == '>>> 1 + 1\n2\n>>> '
+
+
+def test_eval_of_a_list_runs_each_command(monkeypatch):
+    console = PythonConsole(namespace={})
+
+    console.eval(["x = 2", "x * 3"], display_command=True)
+
+    assert _run_idle_callbacks(monkeypatch) == []
+    assert _text(console) == '>>> x = 2\n>>> x * 3\n6\n>>> '
