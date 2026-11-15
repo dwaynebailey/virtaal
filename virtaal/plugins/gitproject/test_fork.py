@@ -306,9 +306,13 @@ def test_a_separate_commit_when_asked_with_its_summary(copy, github):
     session.plan_chosen(True, 'Batch of menu strings')
     copy.submit(session=session)
     assert branch_commits(github) == ['Batch of menu strings', 'Update Afrikaans (af) translation']
-    # Remembered for the project; the summary isn't.
-    assert copy.platform.projects.settings(copy.remote.url)['separate'] == 'yes'
-    assert call_plan(copy.session()).option_on is True
+    # For that Submit alone.
+    assert call_plan(session).option_on is False
+    assert 'separate' not in copy.platform.projects.settings(copy.remote.url)
+    copy.edit('Open', 'Maak oop')
+    copy.save()
+    copy.submit(session=session)
+    assert branch_commits(github) == ['Batch of menu strings', 'Update Afrikaans (af) translation']
 
 
 @needs_dulwich

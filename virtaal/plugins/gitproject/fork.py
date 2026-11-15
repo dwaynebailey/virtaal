@@ -18,8 +18,8 @@ old one, only while the fork's branch is still what Virtaal pushed last
 
 A Submit adds a commit on top instead, keeping the reviewer's view,
 when someone other than the user reviewed or commented since the last
-push ("Address review comments"), or when the user chose to (the
-project's separate option, with a summary). Once commits were added, a
+push ("Address review comments"), or when the user chose to for that
+Submit (with a summary). Once commits were added, a
 Submit without new review updates the last of them in place.
 
 Until the pull request is merged, its changes count as the project's
@@ -239,7 +239,8 @@ class Fork:
         self.records = records
         self.pattern = pattern or BRANCH
         self.separate = False
-        """The user's choice for the next Submit: a commit of its own."""
+        """The user's choice for the next Submit alone: a commit of its
+        own."""
         self.summary = ''
         """That commit's subject, if the user gave one."""
 
@@ -356,6 +357,7 @@ class Fork:
         self._pull_request(record, language, path)
         self.records.put(key, record)
         self.session._note_sent(path, units, stored)
+        self.separate, self.summary = False, ''
         return stored
 
     def _start(self, mode, record, tip, path, view):

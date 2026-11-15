@@ -18,10 +18,9 @@ GitPlatform. It holds no secret: git keeps the credentials.
   files = po/*.po
 
 A project on GitHub (forge.py) may also have: fork (yes, no, or empty:
-yes when the user can't push), can_push (the last check), separate
-(Submit adds a commit to the open pull request, instead of updating its
-one), and pull_branch (the fork's branch, * the language's code;
-virtaal/* if not given). [github] maps a GitHub Enterprise host to its
+yes when the user can't push), can_push (the last check) and
+pull_branch (the fork's branch, * the language's code; virtaal/* if not
+given). [github] maps a GitHub Enterprise host to its
 API URL:
 
   [github]
@@ -38,7 +37,7 @@ CONFIG_NAME = 'gitprojects.ini'
 _MAIN = 'gitprojects'
 _PROJECT = 'project %d'
 _GITHUB = 'github'
-OPTIONS = ('fork', 'can_push', 'separate', 'pull_branch')
+OPTIONS = ('fork', 'can_push', 'pull_branch')
 """A project's settings besides its branch and files, kept as written."""
 
 

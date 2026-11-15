@@ -557,8 +557,6 @@ class GitSession(Session):
             if can_push:
                 return False
         self._fork = self._forked(github)
-        separate, summary = self.platform.choice(self.repo.url)
-        self._fork.separate, self._fork.summary = separate, summary
         return True
 
     def budget(self):
@@ -575,7 +573,6 @@ class GitSession(Session):
         self._job(work, on_done, on_error)
 
     def plan_chosen(self, option, text):
-        self.platform.choose(self.repo.url, option, text)
         if self._fork is not None:
             self._fork.separate, self._fork.summary = option, text
 
@@ -683,17 +680,6 @@ class GitPlatform(Platform):
 
         GLib.idle_add(save)
 
-    def choice(self, url):
-        """(separate, summary): the project's choice for Submit to an open
-        pull request; the summary is never kept."""
-        return self.projects.settings(url).get('separate') == 'yes', ''
-
-    def choose(self, url, separate, summary):
-        settings = self.projects.settings(url)
-        if settings and (settings.get('separate') == 'yes') != bool(separate):
-            settings['separate'] = 'yes' if separate else ''
-            self.projects.save()
-
     def repository(self, url, branch):
         """The Repository of a project's branch, one for every session."""
         key = (url, branch)
@@ -798,9 +784,7 @@ class GitPlatform(Platform):
         projects = []
         for url, chosen in servers:
             old = self.projects.settings(url)
-            settings = {
-                k: v for k, v in old.items() if k in ('can_push', 'separate', 'pull_branch')
-            }
+            settings = {k: v for k, v in old.items() if k in ('can_push', 'pull_branch')}
             settings.update(branch=chosen.get('branch', ''), files=chosen.get('files', ''))
             fork_on = bool(chosen.get('fork'))
             unset = not old.get('fork', '') and fork_on == _fork_shown(old)
