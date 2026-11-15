@@ -199,9 +199,9 @@ def state_of(unit):
     return unit.get_state_n() if unit.STATE else None
 
 
-def remote_units(path, store):
+def remote_units(path, store, contested=()):
     """The RemoteUnits of a file: each id the file's path and the unit's
-    id in it."""
+    id in it; those with their id in contested, contested."""
     units = translatable(store)
     return [
         RemoteUnit(
@@ -214,9 +214,15 @@ def remote_units(path, store):
             state_of(unit),
             None,
             False,
+            contested=own in contested,
         )
         for position, (own, unit) in enumerate(zip(unit_ids(units), units, strict=True))
     ]
+
+
+def _by_unit_id(path, store):
+    found = translatable(store)
+    return {'%s\n%s' % (path, own): unit for own, unit in zip(unit_ids(found), found, strict=True)}
 
 
 def _signature(target, code):
@@ -336,19 +342,24 @@ class GitSession(Session):
     def path_of(self, language):
         return self.files.replace(LANGUAGE, language)
 
-    def _units(self, language):
+    def _units(self, language, mine=False):
         """The file's (path, bytes, RemoteUnits) at the tip, with its open
-        pull request's units, noted as seen."""
+        pull request's units, noted as seen. mine: those the project
+        changed too as the pull request has them, else as the project
+        has them, contested."""
         path = self.path_of(language)
         tip = self._tip()
         data = self.repo.read(tip, path)
         if data is None:
             raise FileNotFoundError(path)
+        view = fork.View(data, data, {})
         if self.forge is not None:
-            data = self._forked(self.github()).view(tip, path, data, language)
-        units = remote_units(path, parse_store(path, data))
+            view = self._forked(self.github()).view(tip, path, data, language)
+        units = remote_units(path, parse_store(path, view.read), view.contested)
         self._seen[path] = {u.id: _signature(u.target, u.code) for u in units}
-        return path, data, units
+        if mine and view.contested:
+            return path, view.mine, remote_units(path, parse_store(path, view.mine))
+        return path, view.read, units
 
     # Browsing #
 
@@ -384,7 +395,7 @@ class GitSession(Session):
     def download(self, project, component, language, on_done, on_error):
         def work():
             try:
-                path, data, units = self._units(language)
+                path, data, units = self._units(language, mine=True)
             except FileNotFoundError as error:
                 raise gitrepo.GitError(gitrepo.NOT_FOUND, str(error)) from error
             names = {'project': project_name(self.repo.url), 'component': None}
@@ -465,22 +476,30 @@ class GitSession(Session):
     def _parse(self, path, data):
         return parse_store(path, data)
 
-    def _apply(self, path, store, units, check=True):
-        """units into store, the file at the tip. The state each stored.
-        check: a unit changed there since last read raises Changed."""
-        found = translatable(store)
-        by_id = {
-            '%s\n%s' % (path, own): unit for own, unit in zip(unit_ids(found), found, strict=True)
-        }
+    def _check(self, path, store, units):
+        """Raises Changed for a unit of units changed in store, the file
+        at the tip, since last read."""
+        by_id = _by_unit_id(path, store)
         seen = self._seen.get(path, {})
-        stored = []
         for unit_id, target, code in units:
             unit = by_id.get(unit_id)
             if unit is None:
                 raise Changed(unit_id)
             now = _signature(strings(unit.target), state_of(unit))
             before = seen.get(unit_id)
-            if check and before is not None and now not in (before, _signature(target, code)):
+            if before is not None and now not in (before, _signature(target, code)):
+                raise Changed(unit_id)
+
+    def _apply(self, path, store, units, check=True):
+        """units into store, the file at the tip. The state each stored.
+        check: a unit changed there since last read raises Changed."""
+        if check:
+            self._check(path, store, units)
+        by_id = _by_unit_id(path, store)
+        stored = []
+        for unit_id, target, code in units:
+            unit = by_id.get(unit_id)
+            if unit is None:
                 raise Changed(unit_id)
             _set_target(unit, target)
             if unit.STATE and code is not None:

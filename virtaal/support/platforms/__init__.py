@@ -101,8 +101,8 @@ format."""
 RemoteUnit = namedtuple(
     'RemoteUnit',
     'id position context source target state code last_updated read_only'
-    ' has_suggestion has_comment source_id flags failing checks',
-    defaults=(False, False, None, '', None, ()),
+    ' has_suggestion has_comment source_id flags failing checks contested',
+    defaults=(False, False, None, '', None, (), False),
 )
 """A unit as the platform holds it: its id there, its position in the
 file, its context (PO's msgctxt, a monolingual file's key), its source
@@ -114,7 +114,9 @@ of the unit of its source text that comments on the source are on
 (None if it has none of its own), and for a platform that can_check:
 its check flags (the platform's own text), whether it fails a check
 there (None if unknown) and the ids of the checks it fails, of those
-asked (empty if unknown)."""
+asked (empty if unknown); and whether the user's own change to it waits
+elsewhere (a pull request) with other text: then Update and Submit ask
+about it as a change here, the file's text being the user's."""
 
 Download = namedtuple('Download', 'filename data template units names options', defaults=(None,))
 """A language of a component (or project) as downloaded: the file's

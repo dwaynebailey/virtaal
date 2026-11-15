@@ -414,6 +414,7 @@ class WorkCopy:
         entry.pop('error', None)
         entry.pop('conflict', None)
         entry.pop('accepted', None)
+        entry.pop('resend', None)
         self.write_record()
 
     def mark_failed(self, r, message):
@@ -531,6 +532,13 @@ class WorkCopy:
         self.units[r].pop('conflict', None)
         self.units[r].pop('suggested', None)
         self.units[r].pop('accepted', None)
+        self.units[r].pop('resend', None)
+
+    def resend(self, r):
+        """Notes units[r] to send at the next Submit though the file has
+        the server's text: the user's own change waits elsewhere with
+        other text (a contested RemoteUnit)."""
+        self.units[r].update(changed=True, resend=True)
 
     def mark_submitted(self):
         self.record['submitted_at'] = _now()
@@ -580,8 +588,10 @@ class WorkCopy:
             entry = self.units[r]
             state = unit.get_state_n() if unit.STATE else None
             mine = text_hash(strings(unit.target))
-            entry['changed'] = mine != entry['target_hash'] or (
-                entry.get('virtaal_state') is not None and state != entry['virtaal_state']
+            entry['changed'] = (
+                mine != entry['target_hash']
+                or (entry.get('virtaal_state') is not None and state != entry['virtaal_state'])
+                or bool(entry.get('resend'))
             )
             if entry.get('suggested') is not None:
                 # Suggested: a suggestion goes again once its text changes.

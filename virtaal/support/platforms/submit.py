@@ -25,8 +25,8 @@ the Session of the work copy's server:
    - else someone changed it on the server: a conflict, not sent.
 3. Conflicts, if any, go to on_conflicts(); each answer is KEEP_MINE
    (sent anyway, over theirs), TAKE_THEIRS (the server's text and state
-   into the file, and as the baseline) or SKIP (left as it is, to come
-   up again next time).
+   into the file, and as the baseline; a contested RemoteUnit's is sent
+   too) or SKIP (left as it is, to come up again next time).
 4. The units are sent one at a time, or for a platform with a
    batch_size, that many at once (Session.submit_units()). Each one sent is noted in the side
    record at once, so Submit, cut short by Cancel, the budget, an error
@@ -386,7 +386,11 @@ class Submission:
                 self._queue.append(r)
             elif decision == TAKE_THEIRS:
                 self.result.file_changed |= self.copy.take(r, remote)
-                self.result.taken += 1
+                if remote.contested:
+                    # Sent, for the user's change waiting elsewhere to take it too.
+                    self._queue.append(r)
+                else:
+                    self.result.taken += 1
             else:
                 self.result.skipped += 1
         self._remote = {}

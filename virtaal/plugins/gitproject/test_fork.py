@@ -397,6 +397,95 @@ def test_update_reads_the_project_and_keeps_the_pull_request_s_units(copy, githu
     assert str(copy.unit('Save').target) == 'Stoor'
 
 
+def both_changed(copy, github):
+    """The pull request has Open as "Maak oop"; then the project's branch
+    has it as "Open maak". The index of Open in the side record."""
+    copy.edit('Open', 'Maak oop')
+    copy.save()
+    copy.submit()
+    text = Remote(github).read('po/af.po').replace('msgstr "Oop"', 'msgstr "Open maak"')
+    github.commit(PROJECT, {'po/af.po': text}, 'Lindiwe')
+    return next(r for r, u in enumerate(copy.copy.units) if u['id'].endswith('\nOpen'))
+
+
+def fork_unit(github, source):
+    return str(
+        unit_of(github.read(FORK, 'refs/heads/virtaal/af', 'po/af.po').decode(), source).target
+    )
+
+
+@needs_dulwich
+def test_update_asks_about_a_unit_the_project_changed_in_the_pull_request(copy, github):
+    r = both_changed(copy, github)
+    result = copy.update()
+    assert [tuple(c[:4]) for c in copy.conflicts] == [(r, 'Open', ['Maak oop'], ['Open maak'])]
+    assert result.skipped == 1
+    # Skipped, it comes up again, and the pull request keeps its text.
+    copy.update()
+    assert len(copy.conflicts) == 1
+    assert fork_unit(github, 'Open') == 'Maak oop'
+
+
+@needs_dulwich
+def test_keep_mine_keeps_the_pull_request_s_text(copy, github):
+    r = both_changed(copy, github)
+    copy.update({r: submit.KEEP_MINE})
+    copy.save()
+    assert str(copy.unit('Open').target) == 'Maak oop'
+    assert copy.copy.unsubmitted() == 1
+    copy.edit('Quit', 'Verlaat')
+    copy.save()
+    assert copy.submit().sent == 2
+    assert fork_unit(github, 'Open') == 'Maak oop'
+    assert fork_unit(github, 'Quit') == 'Verlaat'
+    # Answered: asked no more, until the project changes it again.
+    assert copy.update().changed is False and copy.conflicts == []
+    text = Remote(github).read('po/af.po').replace('"Open maak"', '"Oopmaak"')
+    github.commit(PROJECT, {'po/af.po': text}, 'Lindiwe')
+    copy.update()
+    assert [c.theirs for c in copy.conflicts] == [['Oopmaak']]
+
+
+@needs_dulwich
+def test_take_theirs_drops_the_unit_from_the_pull_request(copy, github):
+    r = both_changed(copy, github)
+    copy.update({r: submit.TAKE_THEIRS})
+    copy.save()
+    assert str(copy.unit('Open').target) == 'Open maak'
+    assert fork_unit(github, 'Open') == 'Maak oop'
+    # The next Submit takes it out of the pull request.
+    assert copy.copy.unsubmitted() == 1
+    copy.edit('Quit', 'Verlaat')
+    copy.save()
+    copy.submit()
+    assert fork_unit(github, 'Open') == unit_of(Remote(github).read('po/af.po'), 'Open').target
+    assert fork_unit(github, 'Quit') == 'Verlaat'
+    assert copy.copy.unsubmitted() == 0
+    copy.update()
+    assert copy.conflicts == []
+    assert str(copy.unit('Open').target) == 'Open maak'
+
+
+@needs_dulwich
+def test_a_submit_before_the_answer_keeps_the_question(copy, github):
+    both_changed(copy, github)
+    copy.edit('Quit', 'Verlaat')
+    copy.save()
+    copy.submit()
+    assert fork_unit(github, 'Open') == 'Maak oop'
+    copy.update()
+    assert [c.mine for c in copy.conflicts] == [['Maak oop']]
+
+
+@needs_dulwich
+def test_a_file_opened_again_has_the_pull_request_s_text_and_the_question(copy, github):
+    both_changed(copy, github)
+    again = Copy(copy.platform, Remote(github))
+    assert str(again.unit('Open').target) == 'Maak oop'
+    again.update()
+    assert [c.theirs for c in again.conflicts] == [['Open maak']]
+
+
 # Rate limits and tokens #
 
 

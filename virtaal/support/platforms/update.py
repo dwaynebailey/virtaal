@@ -50,6 +50,10 @@ copy's server, and is Submit's comparison the other way round:
       with the server's as its baseline, so the next Submit sends it
       over theirs; TAKE_THEIRS takes the server's; SKIP leaves it to
       come up again.
+    A contested unit (RemoteUnit's) counts as changed here. Once it
+    has the server's text (TAKE_THEIRS, or already), the next Submit
+    still sends it (WorkCopy.resend()), for the user's change waiting
+    elsewhere (a pull request) to take it too.
 
 4. For a platform that can_check, which units fail a check on the
    server now (Session.checks()), into the side record; a new download
@@ -210,12 +214,13 @@ class Update:
                 continue
             if r not in self.copy.matched:
                 continue
-            if not entry.get('changed'):
+            if not entry.get('changed') and not remote.contested:
                 self._take(r, remote)
                 continue
             target, _state, code = self._mine(r)
             if (text_hash(remote.target), remote.code) == (text_hash(target), code):
                 self.copy.adopt(r, remote)
+                self._resend(r, remote)
                 self.result.adopted += 1
             else:
                 self._conflicts[r] = remote
@@ -243,6 +248,7 @@ class Update:
                 self.result.kept += 1
             elif decision == TAKE_THEIRS:
                 self._take(r, remote)
+                self._resend(r, remote)
             else:
                 self.result.skipped += 1
         self.copy.write_record()
@@ -252,6 +258,12 @@ class Update:
         changed = self.copy.take(r, remote)
         self.result.file_changed |= changed
         self.result.taken += changed
+
+    def _resend(self, r, remote):
+        """A contested unit with the server's text in the file still goes
+        at the next Submit, for the user's change elsewhere to follow."""
+        if remote.contested:
+            self.copy.resend(r)
 
     # A new download #
 

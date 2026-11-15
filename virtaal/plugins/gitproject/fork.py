@@ -24,9 +24,13 @@ Submit without new review updates the last of them in place.
 
 Until the pull request is merged, its changes count as the project's
 for Update and Submit (view()): a unit the pull request changed takes
-its text there, unless someone changed it on the branch too. Once it
-is merged, the next Submit starts again: a new commit on the tip, a new
-pull request.
+its text there. One someone changed on the branch too reads as theirs,
+contested, for Update to ask about with the pull request's text as the
+user's, while the pull request keeps its own: Keep mine sends it again
+(noted as kept over theirs), Take theirs sends theirs, which drops the
+unit from the pull request. A Submit before the answer leaves it open.
+Once it is merged, the next Submit starts again: a new commit on the
+tip, a new pull request.
 
 Each language's pull request is kept in pulls.json beside the clones.
 """
@@ -35,9 +39,11 @@ import json
 import logging
 import os
 import threading
+from collections import namedtuple
 
 from virtaal.support import gitrepo
 from virtaal.support.gitrepo import Credential
+from virtaal.support.platforms.workcopy import text_hash
 
 from .forge import MOVED, ForgeError
 
@@ -138,27 +144,68 @@ def summary(translated, updated):
     return ', '.join(parts) or 'No strings changed'
 
 
-def overlay(tip_data, base_data, head_data, path):
-    """The file as the project's tip has it with a pull request's units
-    (those its head changed from its base), unless the tip changed them
-    too. Bytes."""
+View = namedtuple('View', 'read mine contested')
+"""A file as the project's tip has it with a pull request's units: as
+Update and Submit read it (bytes), as the pull request has it (bytes),
+and {id in the file: the project's text hash} of the units the project
+changed too, unanswered, which read as the project's."""
+
+
+def overlay(tip_data, base_data, head_data, path, record=None):
+    """The View of the file at the project's tip with a pull request's
+    units (those its head changed from its base, or left open, record's
+    'open'). The project's own change to one of them is contested until
+    the user keeps the pull request's (record's 'kept') or takes the
+    project's; the pull request keeps its text meanwhile."""
     from . import backend
 
-    if tip_data == base_data:
-        return head_data
-    store = backend.parse_store(path, tip_data)
+    record = record or {}
+    held = set(record.get('open') or ())
+    if tip_data == base_data and not held:
+        return View(head_data, head_data, {})
+    kept = record.get('kept') or {}
+    read = backend.parse_store(path, tip_data)
+    mine = backend.parse_store(path, tip_data)
     base = _by_id(backend.parse_store(path, base_data))
     head = _by_id(backend.parse_store(path, head_data))
-    changed = False
-    for own, unit in _by_id(store).items():
-        theirs, mine = base.get(own), head.get(own)
-        if theirs is None or mine is None or _same(theirs, mine) or not _same(unit, theirs):
+    contested = {}
+    for (own, theirs), other in zip(_by_id(read).items(), _by_id(mine).values(), strict=True):
+        was, now = base.get(own), head.get(own)
+        if was is None or now is None or (own not in held and _same(was, now)):
             continue
-        backend._set_target(unit, backend.strings(mine.target))
-        if unit.STATE and mine.STATE:
-            unit.set_state_n(mine.get_state_n())
-        changed = True
-    return bytes(store) if changed else tip_data
+        if _same(theirs, now):
+            continue
+        _take(other, now)
+        text = text_hash(backend.strings(theirs.target))
+        if (own in held or not _same(theirs, was)) and kept.get(own) != text:
+            contested[own] = text
+        else:
+            _take(theirs, now)
+    if not contested and bytes(mine) == bytes(read):
+        return View(bytes(mine), bytes(mine), {})
+    return View(bytes(read), bytes(mine), contested)
+
+
+def _take(unit, other):
+    """other's text and state into unit."""
+    from . import backend
+
+    backend._set_target(unit, backend.strings(other.target))
+    if unit.STATE and other.STATE:
+        unit.set_state_n(other.get_state_n())
+
+
+def _answered(record, contested, units):
+    """Notes in record which contested units (View's) units answer: one
+    sent with other text than the project's is kept over it; the rest
+    stay open."""
+    sent = {unit_id.partition('\n')[2]: target for unit_id, target, _code in units}
+    kept = dict(record.get('kept') or {})
+    for own, theirs in contested.items():
+        if own in sent and text_hash(sent[own]) != theirs:
+            kept[own] = theirs
+    record['kept'] = kept
+    record['open'] = sorted(set(contested) - set(sent))
 
 
 def _by_id(store):
@@ -242,21 +289,24 @@ class Fork:
 
     # Reading #
 
-    def view(self, tip, path, data, language):
-        """data, path's file at the project's tip, with the open (or
-        closed, not merged) pull request's units."""
-        record = self.records.get(self.key(language))
+    def view(self, tip, path, data, language, record=None):
+        """The View of data, path's file at the project's tip, with the
+        open (or closed, not merged) pull request's units: record's, else
+        the one kept."""
+        if record is None:
+            record = self.records.get(self.key(language))
+        plain = View(data, data, {})
         if not record.get('head') or record.get('state') == 'merged':
-            return data
+            return plain
         try:
             base = self.repo.read(record['base'], path)
             head = self.repo.read(record['head'], path)
         except (KeyError, gitrepo.GitError) as error:
             logging.warning('The pull request of %s is not in the clone: %s', path, error)
-            return data
+            return plain
         if base is None or head is None:
-            return data
-        return overlay(data, base, head, path)
+            return plain
+        return overlay(data, base, head, path, record)
 
     # Submit #
 
@@ -272,10 +322,21 @@ class Fork:
             allowed = {None, record.get('head')}
             record = {'fork': record['fork']} if record.get('fork') else {}
         tip = self.session._tip(fresh=True)
-        parent, data, check = self._start(mode, record, tip, path, language)
+        tip_data = self.repo.read(tip, path)
+        if tip_data is None:
+            from .backend import Changed
+
+            raise Changed(path)
+        view = self.view(tip, path, tip_data, language, record)
+        parent, data, against = self._start(mode, record, tip, path, view)
         store = self.session._parse(path, data)
-        stored = self.session._apply(path, store, units, check)
+        if against is not None:
+            self.session._check(path, self.session._parse(path, against), units)
+        stored = self.session._apply(path, store, units, check=False)
+        _answered(record, view.contested, units)
         if bytes(store) == data:
+            if record.get('head'):
+                self.records.put(key, record)
             self.session._note_sent(path, units, stored)
             return stored
         from . import backend
@@ -291,21 +352,16 @@ class Fork:
         self.session._note_sent(path, units, stored)
         return stored
 
-    def _start(self, mode, record, tip, path, language):
-        """(parent, the file's bytes to put the units into, whether to
-        check them against the tip) for mode."""
+    def _start(self, mode, record, tip, path, view):
+        """(parent, the file's bytes to put the units into, the bytes to
+        check them against or None) for mode."""
         head = record.get('head')
         if mode in (REVIEW, SEPARATE):
-            return head, self.repo.read(head, path), False
+            return head, self.repo.read(head, path), None
         if mode == AMEND and record.get('commits', 1) > 1:
             parent = self.repo.parents(head)[0]
-            return parent, self.repo.read(head, path), False
-        data = self.repo.read(tip, path)
-        if data is None:
-            from .backend import Changed
-
-            raise Changed(path)
-        return tip, self.view(tip, path, data, language), True
+            return parent, self.repo.read(head, path), None
+        return tip, view.mine, view.read
 
     def _title(self, mode, record, language):
         """The commit's subject: the last commit's when it is made again
