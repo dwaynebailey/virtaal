@@ -519,6 +519,26 @@ class Repository:
             if refused:
                 raise GitError(REJECTED, '[remote rejected] %s (%s)' % (branch, refused))
 
+    def fetch_from(self, url, branch, credentials=None):
+        """branch's head on another remote at url (a fork), its commits
+        fetched into the clone, or None when it has no such branch."""
+        head = ('refs/heads/' + branch).encode('utf-8')
+        with self._repo() as repo:
+
+            def wants(refs, depth=None):
+                found = refs.get(head)
+                return [found] if found is not None and found not in repo.object_store else []
+
+            result = self._remote(
+                lambda transport, path: transport.fetch(
+                    path, repo, determine_wants=wants, ref_prefix=[head]
+                ),
+                url,
+                credentials,
+            )
+        found = result.refs.get(head)
+        return found.decode('ascii') if found else None
+
     def has_branch(self):
         """Whether the remote has the branch."""
         head = self._head

@@ -126,6 +126,17 @@ def test_a_push_to_another_remote_holds_to_its_lease(tmp_path, repo, remote):
     assert remote.subjects() == ['Start']
 
 
+def test_another_remote_s_branch_is_fetched(tmp_path, repo, remote):
+    other = Remote(tmp_path / 'fork', {'README': 'fork\n'})
+    assert repo.fetch_from(other.url, 'virtaal/af') is None
+    other.branch = 'virtaal/af'
+    other.commit({'po/af.po': 'theirs\n'}, 'Someone else')
+    head = repo.fetch_from(other.url, 'virtaal/af')
+    assert head == other.tip().decode('ascii')
+    assert repo.read(head, 'po/af.po') == b'theirs\n'
+    assert repo.fetch_from(other.url, 'virtaal/af') == head
+
+
 def test_a_file_url_works_as_a_path(tmp_path, remote):
     url = pathlib.Path(remote.url).as_uri()
     assert gitrepo.local_path(url) == remote.url
