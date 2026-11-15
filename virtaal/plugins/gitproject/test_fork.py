@@ -204,7 +204,9 @@ def test_submit_forks_waits_pushes_a_branch_and_opens_a_pull_request(copy, githu
     [pull] = github.pulls
     assert (pull['head_ref'], pull['base_ref'], pull['user']) == ('virtaal/af', 'main', USER)
     assert pull['title'] == 'Update Afrikaans (af) translation'
-    assert pull['body'].startswith('1 string translated.')
+    assert pull['body'] == (
+        'Updates the Afrikaans (af) translation in po/af.po.\n\nSubmitted from Virtaal.\n'
+    )
 
 
 @needs_dulwich
@@ -370,6 +372,9 @@ def test_a_closed_pull_request_is_a_notice_and_the_next_submit_opens_another(cop
     assert [p['state'] for p in github.pulls] == ['closed', 'open']
     text = github.read(FORK, 'refs/heads/virtaal/af', 'po/af.po').decode()
     assert [unit_of(text, s).target for s in ('Save', 'Quit')] == ['Stoor', 'Verlaat']
+    # The description counts nothing, so the new one says the same.
+    first, second = (p['body'] for p in github.pulls)
+    assert first == second and not any(c.isdigit() for c in first)
 
 
 @needs_dulwich

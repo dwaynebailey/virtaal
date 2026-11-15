@@ -144,6 +144,12 @@ def summary(translated, updated):
     return ', '.join(parts) or 'No strings changed'
 
 
+def body(name, path):
+    """A pull request's description, in English: nothing in it goes
+    stale as later Submits change the pull request."""
+    return 'Updates the %s translation in %s.\n\nSubmitted from Virtaal.\n' % (name, path)
+
+
 View = namedtuple('View', 'read mine contested')
 """A file as the project's tip has it with a pull request's units: as
 Update and Submit read it (bytes), as the pull request has it (bytes),
@@ -347,7 +353,7 @@ class Fork:
         commit = self.repo.commit_file(parent, path, bytes(store), message, backend._author())
         self._push(record, language, commit, allowed)
         record.update(self._record(mode, record, tip, commit), title=title)
-        self._pull_request(record, language, path, tip, store)
+        self._pull_request(record, language, path)
         self.records.put(key, record)
         self.session._note_sent(path, units, stored)
         return stored
@@ -410,17 +416,17 @@ class Fork:
             return {'head': commit}
         return {'base': tip, 'head': commit, 'commits': 1}
 
-    def _pull_request(self, record, language, path, tip, store):
+    def _pull_request(self, record, language, path):
         """record's pull request: the open one, else a new one."""
         login = self.github.login()
         if record.get('number') and record.get('state') == 'open':
             found = None
         else:
             head = '%s:%s' % (login, self.branch(language))
-            before = self.session._parse(path, self.repo.read(tip, path) or b'')
-            title = 'Update %s (%s) translation' % (language_name(language), language)
-            body = '%s.\n\nSubmitted from Virtaal.\n' % summary(*counts(before, store))
-            found = self.github.create_pull(head, self.repo.branch, title, body)
+            name = '%s (%s)' % (language_name(language), language)
+            found = self.github.create_pull(
+                head, self.repo.branch, 'Update %s translation' % name, body(name, path)
+            )
             record.update(
                 number=found['number'],
                 url=found.get('html_url', ''),
