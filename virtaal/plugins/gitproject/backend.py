@@ -593,6 +593,9 @@ def plan_of(mode, separate):
     if mode == fork.REVIEW:
         # l10n: Asking to Submit to an open pull request someone reviewed since the last Submit
         return SubmitPlan(_('Adds a commit for the review comments.'), entry=_commit_summary())
+    if mode == fork.AFTER:
+        # l10n: Asking to Submit to an open pull request, with the option "Add as a separate commit" on
+        return SubmitPlan(_('Adds a commit to your pull request.'), entry=_commit_summary())
     return SubmitPlan(
         # l10n: Asking to Submit to an open pull request: its one commit is made again with the changes
         _('Updates your pull request’s commit.'),
@@ -738,12 +741,6 @@ class GitPlatform(Platform):
         if error.kind == forge.FORK_TIMEOUT:
             # l10n: GitHub makes the user's copy (fork) of a repository a while after asking
             return _('GitHub hasn’t finished making your fork. Submit again in a minute.')
-        if error.kind == forge.MOVED:
-            return _(
-                # l10n: %(branch)s is a branch of the user's fork on GitHub, such as virtaal/af; Virtaal pushes to it only while it has nothing but Virtaal's commits
-                'Your fork’s branch %(branch)s has commits Virtaal didn’t push, so Virtaal '
-                'left it alone. Remove them on GitHub, then Submit again.'
-            ) % {'branch': error.detail}
         return None
 
     def load_servers(self):

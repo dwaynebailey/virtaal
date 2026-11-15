@@ -486,6 +486,7 @@ class FakeForge:
                 'ref': pull['head_ref'],
                 'label': '%s:%s' % (pull['head_repo'].split('/')[0], pull['head_ref']),
                 'repo': {'full_name': pull['head_repo']},
+                'sha': self.refs(pull['head_repo']).get('refs/heads/' + pull['head_ref']),
             },
             'base': {'ref': pull['base_ref'], 'repo': {'full_name': pull['base_repo']}},
         }

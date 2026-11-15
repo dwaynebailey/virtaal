@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-15 05:41+0000\n"
+"POT-Creation-Date: 2026-11-15 07:41+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1891,6 +1891,11 @@ msgstr ""
 msgid "Adds a commit for the review comments."
 msgstr ""
 
+#. l10n: Asking to Submit to an open pull request, with the option "Add as a separate commit" on
+#: virtaal/plugins/gitproject/backend.py
+msgid "Adds a commit to your pull request."
+msgstr ""
+
 #. l10n: Asking to Submit to an open pull request: its one commit is made again with the changes
 #: virtaal/plugins/gitproject/backend.py
 msgid "Updates your pull request’s commit."
@@ -1899,11 +1904,6 @@ msgstr ""
 #. l10n: An option when submitting to an open pull request: the changes go as a commit of their own
 #: virtaal/plugins/gitproject/backend.py
 msgid "Add as a _separate commit"
-msgstr ""
-
-#. l10n: Asking to Submit to an open pull request, with the option "Add as a separate commit" on
-#: virtaal/plugins/gitproject/backend.py
-msgid "Adds a commit to your pull request."
 msgstr ""
 
 #. l10n: The optional first line of a Git commit's message, typed when submitting
@@ -1991,14 +1991,6 @@ msgstr ""
 #. l10n: GitHub makes the user's copy (fork) of a repository a while after asking
 #: virtaal/plugins/gitproject/backend.py
 msgid "GitHub hasn’t finished making your fork. Submit again in a minute."
-msgstr ""
-
-#. l10n: %(branch)s is a branch of the user's fork on GitHub, such as virtaal/af; Virtaal pushes to it only while it has nothing but Virtaal's commits
-#: virtaal/plugins/gitproject/backend.py
-#, python-format
-msgid ""
-"Your fork’s branch %(branch)s has commits Virtaal didn’t push, so Virtaal "
-"left it alone. Remove them on GitHub, then Submit again."
 msgstr ""
 
 #. l10n: The user's name on a Git server, such as GitHub's or GitLab's

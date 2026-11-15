@@ -349,18 +349,43 @@ def test_a_separate_commit_when_asked_with_its_summary(copy, github):
 
 
 @needs_dulwich
-def test_a_fork_branch_someone_else_pushed_to_is_left_alone(copy, github):
+def test_after_someone_else_s_commit_on_the_branch_a_commit_goes_on_top(copy, github):
     copy.edit('Save', 'Stoor')
     copy.save()
     copy.submit()
-    github.commit(FORK, {'NOTES': 'mine\n'}, 'Someone else', 'virtaal/af')
-    moved = github.refs(FORK)['refs/heads/virtaal/af']
+    text = github.read(FORK, 'refs/heads/virtaal/af', 'po/af.po').decode()
+    github.commit(
+        FORK, {'po/af.po': text.replace('"Druk"', '"Druk af"')}, 'Maintainer', 'virtaal/af'
+    )
+    theirs = github.refs(FORK)['refs/heads/virtaal/af']
     copy.edit('Quit', 'Verlaat')
     copy.save()
-    result = copy.submit()
-    assert (result.stop, result.error.kind) == (submit.FAILED, forge.MOVED)
-    assert github.refs(FORK)['refs/heads/virtaal/af'] == moved
-    assert 'virtaal/af' in copy.platform.error_message(result.error)
+    session = copy.session()
+    assert call_plan(session).text == 'Adds a commit to your pull request.'
+    assert copy.submit(session=session).sent == 1
+    assert branch_commits(github) == [
+        'Update Afrikaans (af) translation',
+        'Maintainer',
+        'Update Afrikaans (af) translation',
+    ]
+    assert [p[4] for p in fork_pushes(github)] == [False, False]
+    assert github.commits(FORK, 'refs/heads/virtaal/af')[1].id.decode() == theirs
+    [record] = copy.platform.records()._all().values()
+    assert record['head'] == github.refs(FORK)['refs/heads/virtaal/af']
+    # Then Virtaal's commit is made again in place, over theirs.
+    copy.edit('Open', 'Maak oop')
+    copy.save()
+    copy.submit()
+    assert len(branch_commits(github)) == 3
+    assert fork_pushes(github)[-1][4] is True
+    assert github.commits(FORK, 'refs/heads/virtaal/af')[1].id.decode() == theirs
+    text = github.read(FORK, 'refs/heads/virtaal/af', 'po/af.po').decode()
+    assert [unit_of(text, s).target for s in ('Save', 'Print', 'Quit', 'Open')] == [
+        'Stoor',
+        'Druk af',
+        'Verlaat',
+        'Maak oop',
+    ]
 
 
 @needs_dulwich

@@ -43,9 +43,6 @@ ACCOUNT = 'token'
 
 FORK_TIMEOUT = 'forge-fork-timeout'
 """A PlatformError's kind: GitHub didn't finish making the fork in time."""
-MOVED = 'forge-moved'
-"""A PlatformError's kind: the fork's pull request branch has commits
-Virtaal didn't push."""
 
 TIMEOUT = 60
 _BUSY = (502, 503, 504)

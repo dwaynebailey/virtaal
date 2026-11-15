@@ -15,13 +15,15 @@ branch has it now with the pull request's changes and the new ones,
 committed onto the project's tip. Each Submit while the pull request is
 open makes that commit again on the newest tip and pushes it over the
 old one, only while the fork's branch is still what Virtaal pushed last
-(a lease; MOVED otherwise). Nothing is ever pushed to the project.
+(a lease). Nothing is ever pushed to the project.
 
 A Submit adds a commit on top instead, keeping the reviewer's view,
 when someone other than the user reviewed or commented since the last
-push ("Address review comments"), or when the user chose to for that
-Submit (with a summary). Once commits were added, a
-Submit without new review updates the last of them in place.
+push ("Address review comments"), when the user chose to for that
+Submit (with a summary), or when someone else pushed to the fork's
+branch (AFTER: on top of their commits). Once commits were added, a
+Submit without new review updates the last of them (Virtaal's, the
+record's head) in place.
 
 Until the pull request is merged, its changes count as the project's
 for Update and Submit (view()): a unit the pull request changed takes
@@ -46,8 +48,6 @@ from virtaal.support import gitrepo
 from virtaal.support.gitrepo import Credential
 from virtaal.support.platforms.workcopy import text_hash
 
-from .forge import MOVED, ForgeError
-
 FRESH = 'fresh'
 """A new branch and pull request."""
 AMEND = 'amend'
@@ -56,8 +56,11 @@ REVIEW = 'review'
 """A commit added for the review."""
 SEPARATE = 'separate'
 """A commit added because the user asked for one."""
+AFTER = 'after'
+"""A commit added after commits someone else pushed to the branch."""
 REVIEW_MESSAGE = 'Address review comments'
 BRANCH = 'virtaal/*'
+ATTEMPTS = 3
 
 _lock = threading.Lock()
 
@@ -267,6 +270,7 @@ class Fork:
             return record
         record['state'] = 'merged' if found.get('merged') else found.get('state', 'open')
         record['url'] = found.get('html_url') or record.get('url')
+        record['branch_head'] = (found.get('head') or {}).get('sha')
         return record
 
     def state(self, language):
@@ -292,8 +296,12 @@ class Fork:
         return AMEND
 
     def plan(self, language):
-        """What the next Submit of language does: a mode."""
-        return self.mode(self.refresh(self.records.get(self.key(language))))
+        """What the next Submit of language does: a mode, AFTER when
+        GitHub says the branch has another head than Virtaal pushed."""
+        record = self.refresh(self.records.get(self.key(language)))
+        mode = self.mode(record)
+        moved = record.get('branch_head') not in (None, record.get('head'))
+        return AFTER if mode != FRESH and moved else mode
 
     # Reading #
 
@@ -324,10 +332,8 @@ class Fork:
         key = self.key(language)
         record = self.refresh(self.records.get(key))
         mode = self.mode(record)
-        allowed = {record.get('head')}
+        last = record.get('head')
         if mode == FRESH:
-            # A merged pull request's branch may still be there, or not.
-            allowed = {None, record.get('head')}
             record = {'fork': record['fork']} if record.get('fork') else {}
         tip = self.session._tip(fresh=True)
         tip_data = self.repo.read(tip, path)
@@ -336,35 +342,66 @@ class Fork:
 
             raise Changed(path)
         view = self.view(tip, path, tip_data, language, record)
-        parent, data, against = self._start(mode, record, tip, path, view)
-        store = self.session._parse(path, data)
-        if against is not None:
-            self.session._check(path, self.session._parse(path, against), units)
-        stored = self.session._apply(path, store, units, check=False)
+        stored = self._send(mode, record, tip, path, view, units, language, last)
         _answered(record, view.contested, units)
-        if bytes(store) == data:
-            if record.get('head'):
-                self.records.put(key, record)
-            self.session._note_sent(path, units, stored)
+        if record.get('head'):
+            self.records.put(key, record)
+        self.session._note_sent(path, units, stored)
+        self.separate, self.summary = False, ''
+        return stored
+
+    def _send(self, mode, record, tip, path, view, units, language, last):
+        """units into path as mode has it, pushed under a lease (the
+        branch gone, or last, Virtaal's head) and noted in record. After
+        commits someone else pushed to the fork's branch, a commit on top
+        of them (AFTER). The state each stored."""
+        for _attempt in range(ATTEMPTS):
+            on = None if mode == FRESH else self._outside(record, language)
+            allowed = {None, on or last}
+            now = AFTER if on else mode
+            parent, data, against = self._start(now, record, tip, path, view, on)
+            store = self.session._parse(path, data)
+            if against is not None:
+                self.session._check(path, self.session._parse(path, against), units)
+            stored = self.session._apply(path, store, units, check=False)
+            if bytes(store) == data:
+                return stored
+            commit, title = self._commit(now, record, parent, path, store, language)
+            try:
+                self._push(record, language, commit, allowed)
+            except gitrepo.GitError as error:
+                if error.kind != gitrepo.REJECTED or mode == FRESH:
+                    raise
+                continue
+            record.update(self._record(now, record, tip, commit), title=title)
+            self._pull_request(record, language, path)
             return stored
+        raise gitrepo.GitError(gitrepo.REJECTED)
+
+    def _outside(self, record, language):
+        """The fork branch's head, fetched, when someone else pushed to it
+        since Virtaal pushed record's head; else None."""
+        record['fork'] = record.get('fork') or self._fork()
+        found = self.repo.fetch_from(
+            record['fork']['push_url'], self.branch(language), self._credentials()
+        )
+        return found if found not in (None, record.get('head')) else None
+
+    def _commit(self, mode, record, parent, path, store, language):
+        """(commit, its subject) of store onto parent."""
         from . import backend
 
         backend._update_header(store)
         title = self._title(mode, record, language)
         message = self._message(title, parent, path, store)
-        commit = self.repo.commit_file(parent, path, bytes(store), message, backend._author())
-        self._push(record, language, commit, allowed)
-        record.update(self._record(mode, record, tip, commit), title=title)
-        self._pull_request(record, language, path)
-        self.records.put(key, record)
-        self.session._note_sent(path, units, stored)
-        self.separate, self.summary = False, ''
-        return stored
+        return self.repo.commit_file(parent, path, bytes(store), message, backend._author()), title
 
-    def _start(self, mode, record, tip, path, view):
+    def _start(self, mode, record, tip, path, view, on=None):
         """(parent, the file's bytes to put the units into, the bytes to
-        check them against or None) for mode."""
+        check them against or None) for mode; AFTER on the commit on."""
         head = record.get('head')
+        if mode == AFTER:
+            return on, self.repo.read(on, path), None
         if mode in (REVIEW, SEPARATE):
             return head, self.repo.read(head, path), None
         if mode == AMEND and record.get('commits', 1) > 1:
@@ -377,7 +414,7 @@ class Fork:
         on top of others."""
         if mode == REVIEW:
             return self.summary or REVIEW_MESSAGE
-        if mode == SEPARATE and self.summary:
+        if mode in (SEPARATE, AFTER) and self.summary:
             return self.summary
         if mode == AMEND and record.get('commits', 1) > 1 and record.get('title'):
             return record['title']
@@ -387,21 +424,14 @@ class Fork:
         before = self.session._parse(path, self.repo.read(parent, path) or b'')
         return '%s\n\n%s in %s.\n' % (title, summary(*counts(before, store)), path)
 
+    def _credentials(self):
+        return ForkCredentials(self.github.login(), self.github._token.password)
+
     def _push(self, record, language, commit, allowed):
-        fork = record.get('fork') or self._fork()
-        record['fork'] = fork
-        try:
-            self.repo.push_to(
-                fork['push_url'],
-                self.branch(language),
-                commit,
-                allowed,
-                ForkCredentials(self.github.login(), self.github._token.password),
-            )
-        except gitrepo.GitError as error:
-            if error.kind == gitrepo.REJECTED:
-                raise ForgeError(MOVED, detail=self.branch(language)) from error
-            raise
+        record['fork'] = record.get('fork') or self._fork()
+        self.repo.push_to(
+            record['fork']['push_url'], self.branch(language), commit, allowed, self._credentials()
+        )
 
     def _fork(self):
         """The fork's name and the URL to push to."""
@@ -413,7 +443,7 @@ class Fork:
     def _record(self, mode, record, tip, commit):
         if mode == FRESH:
             return {'base': tip, 'head': commit, 'commits': 1, 'reviewed': []}
-        if mode in (REVIEW, SEPARATE):
+        if mode in (REVIEW, SEPARATE, AFTER):
             return {'head': commit, 'commits': record.get('commits', 1) + 1}
         if record.get('commits', 1) > 1:
             return {'head': commit}
