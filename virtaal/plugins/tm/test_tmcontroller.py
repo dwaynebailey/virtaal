@@ -348,6 +348,7 @@ def test_destroy_tears_down_the_view_and_all_registered_signals():
         lang_controller=SimpleNamespace(disconnect=lambda sid: calls.append(('lang', sid))),
     )
     controller._store_loaded_id = 'store-id'
+    controller._store_closed_id = 'closed-id'
     controller._cursor_changed_id = 'cursor-id'
     controller._mode_selected_id = 'mode-id'
     controller._context_selected_id = 'context-id'
@@ -362,6 +363,7 @@ def test_destroy_tears_down_the_view_and_all_registered_signals():
         'hide',
         'destroy',
         ('store', 'store-id'),
+        ('store', 'closed-id'),
         ('cursor', 'cursor-id'),
         ('mode', 'mode-id'),
         ('mode', 'context-id'),
@@ -383,11 +385,12 @@ def test_destroy_skips_optional_signals_that_were_never_connected():
         store_controller=SimpleNamespace(disconnect=lambda sid: calls.append(('store', sid))),
     )
     controller._store_loaded_id = 'store-id'
+    controller._store_closed_id = 'closed-id'
     controller.plugin_controller = SimpleNamespace(shutdown=lambda: calls.append('shutdown'))
 
     controller.destroy()
 
-    assert calls == ['hide', 'destroy', ('store', 'store-id'), 'shutdown']
+    assert calls == ['hide', 'destroy', ('store', 'store-id'), ('store', 'closed-id'), 'shutdown']
 
 
 # select_match() #

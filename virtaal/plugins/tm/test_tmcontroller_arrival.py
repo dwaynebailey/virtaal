@@ -202,7 +202,9 @@ def test_connect_plugin_listens_for_keys_and_buttons_let_go():
 
 
 def test_destroy_stops_listening_for_keys_and_buttons_let_go():
-    controller = _bare_controller(_release_ids=['key-id', 'button-id'], _store_loaded_id='id')
+    controller = _bare_controller(
+        _release_ids=['key-id', 'button-id'], _store_loaded_id='id', _store_closed_id='id'
+    )
     disconnected = []
     controller.view = SimpleNamespace(hide=lambda: None, destroy=lambda: None)
     controller.main_controller = SimpleNamespace(

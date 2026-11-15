@@ -10,6 +10,7 @@ them, on a real main controller with a file open."""
 
 import subprocess
 import sys
+import warnings
 
 import pytest
 from gi.repository import GLib, GObject
@@ -233,6 +234,18 @@ class TestTMStartup(TestScaffolding):
 
         assert view._move_settle_id is None
         assert GLib.MainContext.default().find_source_by_id(pending) is None
+
+    def test_closing_a_file_after_turning_the_plugin_off_warns_nothing(self):
+        # #4803: GLib warns about disconnecting a handler twice.
+        self._remove(self._controller('currentfile'))
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter('always')
+                self.store_controller.close_file()
+        finally:
+            self.store_controller.open_file(self.testfile[1])
+
+        assert [str(w.message) for w in caught] == []
 
     def test_suggestions_are_not_placed_for_a_target_that_isnt_shown(self):
         view = self._controller('currentfile').view

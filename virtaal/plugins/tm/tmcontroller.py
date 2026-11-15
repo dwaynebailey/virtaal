@@ -258,8 +258,10 @@ class TMController(BaseController):
 
         # Disconnect signals
         self.main_controller.store_controller.disconnect(self._store_loaded_id)
+        self.main_controller.store_controller.disconnect(self._store_closed_id)
         if getattr(self, '_cursor_changed_id', None):
             self.main_controller.store_controller.cursor.disconnect(self._cursor_changed_id)
+            self._cursor_changed_id = 0
         if getattr(self, '_mode_selected_id', None):
             self.main_controller.mode_controller.disconnect(self._mode_selected_id)
         if getattr(self, '_context_selected_id', None):
