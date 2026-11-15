@@ -14,7 +14,7 @@ import sys
 import warnings
 from types import SimpleNamespace
 
-from gi.repository import Gdk, GLib
+from gi.repository import Gdk, GLib, Gtk
 
 from virtaal.plugins._python_console import Plugin, PythonConsole
 
@@ -277,3 +277,43 @@ def test_writelines_writes_every_line():
     console.stdout.writelines(['a\n', 'b\n'])
 
     assert _text(console) == '>>> a\nb\n'
+
+
+def test_destroy_removes_the_menu_item_accelerator_and_window():
+    main_window = Gtk.Window()
+    menu = Gtk.Menu()
+    view = SimpleNamespace(
+        main_window=main_window,
+        gui=SimpleNamespace(get_object=lambda name: menu),
+        add_accel_group=main_window.add_accel_group,
+        remove_accel_group=main_window.remove_accel_group,
+        sync_menubar=lambda: None,
+    )
+    controller = SimpleNamespace(
+        view=view,
+        store_controller=SimpleNamespace(view=None),
+        unit_controller=SimpleNamespace(view=None),
+    )
+    plugin = Plugin('python_console', controller)
+    try:
+        accel_group = plugin.accel_group
+        plugin.show_console()
+        destroyed = []
+        plugin.window.connect('destroy', lambda w: destroyed.append(w))
+        assert len(menu.get_children()) == 1
+        assert accel_group in Gtk.accel_groups_from_object(main_window)
+
+        plugin.destroy()
+
+        assert menu.get_children() == []
+        assert menu.get_accel_group() is None
+        assert accel_group not in Gtk.accel_groups_from_object(main_window)
+        assert plugin.window is None
+        assert len(destroyed) == 1
+
+        plugin.destroy()
+    finally:
+        if plugin.window is not None:
+            plugin.window.destroy()
+        main_window.destroy()
+        menu.destroy()

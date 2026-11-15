@@ -369,6 +369,18 @@ class Plugin(BasePlugin):
 
         self.menuitem.connect('activate', self._on_menuitem_activated)
 
+    def destroy(self):
+        self._close_console()
+        if self.menuitem is not None:
+            self.menuitem.destroy()
+            self.menuitem = None
+            self.main_controller.view.sync_menubar()
+        if self.accel_group is not None:
+            if self.menu.get_accel_group() is self.accel_group:
+                self.menu.set_accel_group(None)
+            self.main_controller.view.remove_accel_group(self.accel_group)
+            self.accel_group = None
+
     # METHODS #
     def show_console(self, *args):
         if not self.window:
