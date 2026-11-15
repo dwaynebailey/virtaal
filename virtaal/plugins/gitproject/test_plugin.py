@@ -66,7 +66,13 @@ def test_add_asks_for_the_branch_and_files_already_filled_in(tmp_path, platform,
     assert asked == [
         (
             'Add Git Server',
-            {'url': '', 'branch': 'main', 'files': 'po/*.po', 'send_finished': False},
+            {
+                'url': '',
+                'branch': 'main',
+                'files': 'po/*.po',
+                'fork': False,
+                'send_finished': False,
+            },
         )
     ]
 

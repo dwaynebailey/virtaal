@@ -10,8 +10,9 @@
 The plug-in adds Git to the translation platforms
 (virtaal.support.platforms), which own the server list, File > Open
 from Translation Server… and the work copies opened from it; Submit
-commits and pushes, Update fetches and merges unit by unit (backend.py).
-A server wanting a password asks for it (signin.py). Experimental: tested against local repositories only. Off until enabled
+commits and pushes, Update fetches and merges unit by unit (backend.py);
+on GitHub, Submit can go as a pull request from the user's fork
+(fork.py). A server wanting a password or token asks for it (signin.py). Experimental: tested against local repositories only. Off until enabled
 (pan_app.Settings' plugin_state).
 """
 
@@ -19,7 +20,7 @@ from virtaal.controllers.baseplugin import BasePlugin
 from virtaal.support.platforms import registry
 
 from .backend import GitPlatform
-from .signin import asker
+from .signin import asker, token_asker
 
 
 class Plugin(BasePlugin):
@@ -37,6 +38,8 @@ class Plugin(BasePlugin):
         self.platform = GitPlatform()
         credentials = self.platform.credentials
         credentials.ask = asker(lambda: main_controller.view.main_window, credentials.store.usable)
+        tokens = self.platform.tokens
+        tokens.ask = token_asker(lambda: main_controller.view.main_window, tokens.store.usable)
         registry.add(self.platform, main_controller)
 
     # METHODS #

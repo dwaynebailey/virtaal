@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-14 14:00+0000\n"
+"POT-Creation-Date: 2026-11-15 05:41+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1881,6 +1881,54 @@ msgstr ""
 msgid "Translate files a team keeps in a Git repository"
 msgstr ""
 
+#. l10n: Asking to Submit a Git project on GitHub the user can't push to
+#: virtaal/plugins/gitproject/backend.py
+msgid "Submit pushes to your fork and opens a pull request."
+msgstr ""
+
+#. l10n: Asking to Submit to an open pull request someone reviewed since the last Submit
+#: virtaal/plugins/gitproject/backend.py
+msgid "Adds a commit for the review comments."
+msgstr ""
+
+#. l10n: Asking to Submit to an open pull request: its one commit is made again with the changes
+#: virtaal/plugins/gitproject/backend.py
+msgid "Updates your pull request’s commit."
+msgstr ""
+
+#. l10n: An option when submitting to an open pull request: the changes go as a commit of their own
+#: virtaal/plugins/gitproject/backend.py
+msgid "Add as a _separate commit"
+msgstr ""
+
+#. l10n: Asking to Submit to an open pull request, with the option "Add as a separate commit" on
+#: virtaal/plugins/gitproject/backend.py
+msgid "Adds a commit to your pull request."
+msgstr ""
+
+#. l10n: The optional first line of a Git commit's message, typed when submitting
+#: virtaal/plugins/gitproject/backend.py
+msgid "Commit _summary (optional):"
+msgstr ""
+
+#. l10n: A notice in the main window; %(number)s is the pull request's number on GitHub
+#: virtaal/plugins/gitproject/backend.py
+#, python-format
+msgid "Your pull request #%(number)s was merged."
+msgstr ""
+
+#. l10n: A notice in the main window: the pull request was closed without being merged; %(number)s is its number on GitHub
+#: virtaal/plugins/gitproject/backend.py
+#, python-format
+msgid "Your pull request #%(number)s was closed."
+msgstr ""
+
+#. l10n: A notice in the main window; %(number)s is the pull request's number on GitHub
+#: virtaal/plugins/gitproject/backend.py
+#, python-format
+msgid "Your pull request #%(number)s is open."
+msgstr ""
+
 #. l10n: A Git project's branch, such as main
 #: virtaal/plugins/gitproject/backend.py
 msgid "_Branch:"
@@ -1889,6 +1937,11 @@ msgstr ""
 #. l10n: Where a Git project keeps each language's file, such as po/*.po; * stands for the language's code (af, pt_BR)
 #: virtaal/plugins/gitproject/backend.py
 msgid "_Language files (* for the code):"
+msgstr ""
+
+#. l10n: A Git project's option, for one on GitHub: Submit pushes to the user's own copy (fork) of the repository and asks the project to take the change (a pull request). On by itself when the user may not push to the project
+#: virtaal/plugins/gitproject/backend.py
+msgid "Submit as a _pull request from my fork"
 msgstr ""
 
 #. l10n: Shown for an address starting http:// instead of https://
@@ -1935,6 +1988,19 @@ msgstr ""
 msgid "Git failed: %(reason)s"
 msgstr ""
 
+#. l10n: GitHub makes the user's copy (fork) of a repository a while after asking
+#: virtaal/plugins/gitproject/backend.py
+msgid "GitHub hasn’t finished making your fork. Submit again in a minute."
+msgstr ""
+
+#. l10n: %(branch)s is a branch of the user's fork on GitHub, such as virtaal/af; Virtaal pushes to it only while it has nothing but Virtaal's commits
+#: virtaal/plugins/gitproject/backend.py
+#, python-format
+msgid ""
+"Your fork’s branch %(branch)s has commits Virtaal didn’t push, so Virtaal "
+"left it alone. Remove them on GitHub, then Submit again."
+msgstr ""
+
 #. l10n: The user's name on a Git server, such as GitHub's or GitLab's
 #: virtaal/plugins/gitproject/signin.py
 msgid "_Username:"
@@ -1975,6 +2041,25 @@ msgstr ""
 #. l10n: Above the fields of the dialog asking for a Git server's username and password
 #: virtaal/plugins/gitproject/signin.py
 msgid "The repository asks for a username and a password or token."
+msgstr ""
+
+#: virtaal/plugins/gitproject/signin.py virtaal/plugins/transifex/backend.py
+#: virtaal/plugins/weblate/backend.py
+msgid "_Token:"
+msgstr ""
+
+#. l10n: A translation server answered that the API token is wrong or expired
+#: virtaal/plugins/gitproject/signin.py
+#: virtaal/support/platforms/serversdialog.py
+msgid "The server refused the token."
+msgstr ""
+
+#. l10n: Above the field of the dialog asking for a GitHub token; %(server)s is GitHub's address, such as github.com. Personal access token is GitHub's name for it, under Settings, Developer settings
+#: virtaal/plugins/gitproject/signin.py
+#, python-format
+msgid ""
+"Submitting to %(server)s needs a personal access token that may push to your "
+"fork and open pull requests."
 msgstr ""
 
 #: virtaal/plugins/lookup/__init__.py
@@ -3075,10 +3160,6 @@ msgid ""
 "Adds the servers and tokens saved by tx, Transifex’s command-line client"
 msgstr ""
 
-#: virtaal/plugins/transifex/backend.py virtaal/plugins/weblate/backend.py
-msgid "_Token:"
-msgstr ""
-
 #. l10n: Transifex's API is at https://rest.api.transifex.com/; something else answered
 #: virtaal/plugins/transifex/backend.py
 msgid "No Transifex API answered at this address."
@@ -3301,11 +3382,6 @@ msgstr ""
 #. l10n: A translation server's option, for a user who may suggest translations there but not change them: Submit sends each change as a suggestion for others to accept
 #: virtaal/support/platforms/serversdialog.py
 msgid "Submit as su_ggestions"
-msgstr ""
-
-#. l10n: A translation server answered that the API token is wrong or expired
-#: virtaal/support/platforms/serversdialog.py
-msgid "The server refused the token."
 msgstr ""
 
 #. l10n: %(reason)s is the network library's own message, in English

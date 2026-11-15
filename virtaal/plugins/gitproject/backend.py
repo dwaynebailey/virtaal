@@ -31,6 +31,10 @@ first.
 There is no lock, no review, and no state but what the file holds.
 ssh uses the system's ssh and its agent; https asks credentials.py,
 which leaves keeping them to the system's password store.
+
+A project on GitHub the user can't push to (or set to) submits as a
+pull request from the user's fork instead (fork.py, forge.py): Update
+still reads the project's branch, with the open pull request's units.
 """
 
 import hashlib
@@ -56,9 +60,11 @@ from virtaal.support.platforms import (
     PlatformError,
     RemoteUnit,
     Session,
+    SubmitPlan,
 )
 from virtaal.support.platforms.workcopy import strings, text_hash
 
+from . import forge, fork
 from .config import ProjectFile
 from .credentials import GitCredentials
 
@@ -260,6 +266,8 @@ def _set_target(unit, forms):
 
 
 def _platform_error(error):
+    if isinstance(error, forge.ForgeError):
+        return error.error
     if isinstance(error, gitrepo.GitError):
         return PlatformError(_ERRORS.get(error.kind, FAILED), detail=error.detail)
     if isinstance(error, Changed):
@@ -281,6 +289,11 @@ class GitSession(Session):
         self._seen = {}
         """{path: {unit id: (target hash, state)}} as last read: what
         Submit compared its units with."""
+        self.forge = forge.find(url, platform.projects.github_hosts)
+        """The repository on GitHub, or None."""
+        self._github = None
+        self._fork = None
+        """The fork.Fork Submit goes through, once it is known to."""
 
     # Running git #
 
@@ -296,7 +309,7 @@ class GitSession(Session):
             try:
                 with self.repo.lock:
                     result = work()
-            except Exception as error:  # Git's, or a file translate-toolkit can't read.
+            except Exception as error:  # Git's, GitHub's, or a file translate-toolkit can't read.
                 GLib.idle_add(deliver, on_error, _platform_error(error))
             else:
                 GLib.idle_add(deliver, on_done, result)
@@ -324,11 +337,15 @@ class GitSession(Session):
         return self.files.replace(LANGUAGE, language)
 
     def _units(self, language):
-        """The file's (path, bytes, RemoteUnits) at the tip, noted as seen."""
+        """The file's (path, bytes, RemoteUnits) at the tip, with its open
+        pull request's units, noted as seen."""
         path = self.path_of(language)
-        data = self.repo.read(self._tip(), path)
+        tip = self._tip()
+        data = self.repo.read(tip, path)
         if data is None:
             raise FileNotFoundError(path)
+        if self.forge is not None:
+            data = self._forked(self.github()).view(tip, path, data, language)
         units = remote_units(path, parse_store(path, data))
         self._seen[path] = {u.id: _signature(u.target, u.code) for u in units}
         return path, data, units
@@ -413,6 +430,11 @@ class GitSession(Session):
 
     def _submit(self, units):
         path = units[0][0].partition('\n')[0]
+        if self._through_fork():
+            return self._fork.submit(path, units, self._language(path))
+        return self._push_upstream(path, units)
+
+    def _push_upstream(self, path, units):
         for _attempt in range(ATTEMPTS):
             tip = self._tip(fresh=True)
             data = self.repo.read(tip, path)
@@ -431,14 +453,21 @@ class GitSession(Session):
                     if error.kind == gitrepo.REJECTED:
                         continue
                     raise
-            seen = self._seen.setdefault(path, {})
-            for (unit_id, target, _code), code in zip(units, stored, strict=True):
-                seen[unit_id] = _signature(target, code)
+            self._note_sent(path, units, stored)
             return stored
         raise gitrepo.GitError(gitrepo.REJECTED)
 
-    def _apply(self, path, store, units):
-        """units into store, the file at the tip. The state each stored."""
+    def _note_sent(self, path, units, stored):
+        seen = self._seen.setdefault(path, {})
+        for (unit_id, target, _code), code in zip(units, stored, strict=True):
+            seen[unit_id] = _signature(target, code)
+
+    def _parse(self, path, data):
+        return parse_store(path, data)
+
+    def _apply(self, path, store, units, check=True):
+        """units into store, the file at the tip. The state each stored.
+        check: a unit changed there since last read raises Changed."""
         found = translatable(store)
         by_id = {
             '%s\n%s' % (path, own): unit for own, unit in zip(unit_ids(found), found, strict=True)
@@ -451,7 +480,7 @@ class GitSession(Session):
                 raise Changed(unit_id)
             now = _signature(strings(unit.target), state_of(unit))
             before = seen.get(unit_id)
-            if before is not None and now not in (before, _signature(target, code)):
+            if check and before is not None and now not in (before, _signature(target, code)):
                 raise Changed(unit_id)
             _set_target(unit, target)
             if unit.STATE and code is not None:
@@ -475,6 +504,121 @@ class GitSession(Session):
                 return code
         return path
 
+    # Through a fork #
+
+    def github(self):
+        if self._github is None:
+            self._github = forge.GitHub(self.forge, self.platform.tokens, self.platform.budgets)
+        return self._github
+
+    def _forked(self, github):
+        settings = self.platform.projects.settings(self.repo.url)
+        return fork.Fork(self, github, self.platform.records(), settings.get('pull_branch'))
+
+    def _through_fork(self):
+        """Whether Submit goes through the user's fork: the project's
+        setting, else whether the user can't push (asked of GitHub, with
+        a token). No token given: straight to the branch."""
+        if self.forge is None:
+            return False
+        if self._fork is not None:
+            return True
+        setting = self.platform.projects.settings(self.repo.url).get('fork', '')
+        if setting == 'no':
+            return False
+        github = self.github()
+        if setting != 'yes':
+            try:
+                can_push = github.can_push()
+            except forge.ForgeError as error:
+                if error.error.kind != AUTH:
+                    raise
+                return False
+            self.platform.note_can_push(self.repo.url, can_push)
+            if can_push:
+                return False
+        self._fork = self._forked(github)
+        separate, summary = self.platform.choice(self.repo.url)
+        self._fork.separate, self._fork.summary = separate, summary
+        return True
+
+    def budget(self):
+        return self._github.budget() if self._github is not None else None
+
+    def submit_plan(self, project, component, language, on_done, on_error):
+        """on_done(SubmitPlan or None): what Submit of language does."""
+
+        def work():
+            if not self._through_fork():
+                return None
+            return plan_of(self._fork.plan(language), self._fork.separate)
+
+        self._job(work, on_done, on_error)
+
+    def plan_chosen(self, option, text):
+        self.platform.choose(self.repo.url, option, text)
+        if self._fork is not None:
+            self._fork.separate, self._fork.summary = option, text
+
+    def notice(self, project, component, language, on_done, on_error):
+        """on_done((text, URL) or None): the state of the language's pull
+        request, with a token already given."""
+
+        def work():
+            if self.forge is None:
+                return None
+            github = self.github()
+            github.ask = False
+            try:
+                found = self._forked(github).state(language)
+            finally:
+                github.ask = True
+            return found and notice_of(*found)
+
+        def failed(error):
+            on_done(None)
+
+        self._job(work, on_done, failed)
+
+
+def plan_of(mode, separate):
+    """The SubmitPlan for a fork.Fork's mode."""
+    if mode == fork.FRESH:
+        # l10n: Asking to Submit a Git project on GitHub the user can't push to
+        return SubmitPlan(_('Submit pushes to your fork and opens a pull request.'))
+    if mode == fork.REVIEW:
+        # l10n: Asking to Submit to an open pull request someone reviewed since the last Submit
+        return SubmitPlan(_('Adds a commit for the review comments.'), entry=_commit_summary())
+    return SubmitPlan(
+        # l10n: Asking to Submit to an open pull request: its one commit is made again with the changes
+        _('Updates your pull request’s commit.'),
+        # l10n: An option when submitting to an open pull request: the changes go as a commit of their own
+        _('Add as a _separate commit'),
+        # l10n: Asking to Submit to an open pull request, with the option "Add as a separate commit" on
+        _('Adds a commit to your pull request.'),
+        mode == fork.SEPARATE or separate,
+        _commit_summary(),
+    )
+
+
+def _commit_summary():
+    # l10n: The optional first line of a Git commit's message, typed when submitting
+    return _('Commit _summary (optional):')
+
+
+def notice_of(state, number, url):
+    """(text, URL) for a pull request's state."""
+    if state == 'merged':
+        # l10n: A notice in the main window; %(number)s is the pull request's number on GitHub
+        text = _('Your pull request #%(number)s was merged.')
+    elif state == 'closed':
+        # l10n: A notice in the main window: the pull request was closed without being merged; %(number)s is its number on GitHub
+        text = _('Your pull request #%(number)s was closed.')
+    else:
+        # l10n: A notice in the main window; %(number)s is the pull request's number on GitHub
+        text = _('Your pull request #%(number)s is open.')
+    return text % {'number': number}, url
+
 
 class GitPlatform(Platform):
     id = 'git'
@@ -482,6 +626,7 @@ class GitPlatform(Platform):
     has_components = False
     supports_search = False
     can_submit = True
+    has_notices = True
     batch_size = BATCH
     """Every change of a file goes as one commit."""
     default_credentials = {'branch': 'main', 'files': 'po/*.po'}
@@ -492,15 +637,49 @@ class GitPlatform(Platform):
         """The folder of the bare clones; the state folder's git/ if None."""
         self.credentials = GitCredentials()
         """https credentials, shared by every repository."""
+        self.tokens = forge.Tokens()
+        """GitHub's tokens, shared by every project on one host."""
+        self.budgets = {}
         self._repositories = {}
+
+    def _clones(self):
+        from virtaal.common import pan_app
+
+        return self.clones or os.path.join(pan_app.get_state_dir(), 'git')
+
+    def records(self):
+        """The pull requests from the user's forks (fork.Records)."""
+        return fork.Records(self._clones())
+
+    def note_can_push(self, url, can_push):
+        """Keeps whether the user can push to url's project, which an
+        unset fork setting follows; saved on the main loop."""
+
+        def save():
+            settings = self.projects.settings(url)
+            if settings:
+                settings['can_push'] = 'yes' if can_push else 'no'
+                self.projects.save()
+            return False
+
+        GLib.idle_add(save)
+
+    def choice(self, url):
+        """(separate, summary): the project's choice for Submit to an open
+        pull request; the summary is never kept."""
+        return self.projects.settings(url).get('separate') == 'yes', ''
+
+    def choose(self, url, separate, summary):
+        settings = self.projects.settings(url)
+        if settings and (settings.get('separate') == 'yes') != bool(separate):
+            settings['separate'] = 'yes' if separate else ''
+            self.projects.save()
 
     def repository(self, url, branch):
         """The Repository of a project's branch, one for every session."""
         key = (url, branch)
         if key not in self._repositories:
-            from virtaal.common import pan_app
-
-            folder = self.clones or os.path.join(pan_app.get_state_dir(), 'git')
+            folder = self._clones()
             digest = hashlib.sha256(('%s\n%s' % key).encode('utf-8')).hexdigest()[:16]
             name = '%s-%s.git' % (re.sub(r'[^A-Za-z0-9_.-]', '_', project_name(url))[:40], digest)
             self._repositories[key] = gitrepo.Repository(
@@ -509,13 +688,19 @@ class GitPlatform(Platform):
         return self._repositories[key]
 
     def credential_fields(self):
-        from virtaal.views.widgets.settingsdialog import Field
+        from virtaal.views.widgets.settingsdialog import BOOL, Field
 
         return (
             # l10n: A Git project's branch, such as main
             Field('branch', _('_Branch:'), required=True),
             # l10n: Where a Git project keeps each language's file, such as po/*.po; * stands for the language's code (af, pt_BR)
             Field('files', _('_Language files (* for the code):'), required=True),
+            Field(
+                'fork',
+                # l10n: A Git project's option, for one on GitHub: Submit pushes to the user's own copy (fork) of the repository and asks the project to take the change (a pull request). On by itself when the user may not push to the project
+                _('Submit as a _pull request from my fork'),
+                BOOL,
+            ),
         )
 
     def normalise_url(self, text):
@@ -567,19 +752,43 @@ class GitPlatform(Platform):
         if error.kind == FAILED:
             # l10n: %(reason)s is Git's own message, in English
             return _('Git failed: %(reason)s') % {'reason': error.detail}
+        return self._forge_message(error)
+
+    def _forge_message(self, error):
+        if error.kind == forge.FORK_TIMEOUT:
+            # l10n: GitHub makes the user's copy (fork) of a repository a while after asking
+            return _('GitHub hasn’t finished making your fork. Submit again in a minute.')
+        if error.kind == forge.MOVED:
+            return _(
+                # l10n: %(branch)s is a branch of the user's fork on GitHub, such as virtaal/af; Virtaal pushes to it only while it has nothing but Virtaal's commits
+                'Your fork’s branch %(branch)s has commits Virtaal didn’t push, so Virtaal '
+                'left it alone. Remove them on GitHub, then Submit again.'
+            ) % {'branch': error.detail}
         return None
 
     def load_servers(self):
         self.projects.load()
-        return [(url, dict(settings)) for url, settings in self.projects.projects], (
-            self.projects.last_url
-        )
+        return [
+            (url, {'branch': s['branch'], 'files': s['files'], 'fork': _fork_shown(s)})
+            for url, s in self.projects.projects
+        ], self.projects.last_url
 
     def save_servers(self, servers, last_url):
-        self.projects.projects = [
-            (url, {'branch': c.get('branch', ''), 'files': c.get('files', '')})
-            for url, c in servers
-        ]
+        """An unset fork setting stays unset while its check box is as
+        it was shown: the user may push or not."""
+        projects = []
+        for url, chosen in servers:
+            old = self.projects.settings(url)
+            settings = {
+                k: v for k, v in old.items() if k in ('can_push', 'separate', 'pull_branch')
+            }
+            settings.update(branch=chosen.get('branch', ''), files=chosen.get('files', ''))
+            fork_on = bool(chosen.get('fork'))
+            unset = not old.get('fork', '') and fork_on == _fork_shown(old)
+            if not unset:
+                settings['fork'] = 'yes' if fork_on else 'no'
+            projects.append((url, settings))
+        self.projects.projects = projects
         self.projects.last_url = last_url
         self.projects.save()
 
@@ -587,3 +796,12 @@ class GitPlatform(Platform):
         return GitSession(
             self, url, credentials.get('branch') or 'main', credentials.get('files') or ''
         )
+
+
+def _fork_shown(settings):
+    """The fork check box as shown: the setting, else on if the user
+    couldn't push when last asked."""
+    fork_setting = settings.get('fork', '')
+    if fork_setting:
+        return fork_setting == 'yes'
+    return settings.get('can_push') == 'no'

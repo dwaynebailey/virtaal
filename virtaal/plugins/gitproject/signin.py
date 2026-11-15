@@ -5,9 +5,10 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-"""The dialog asking for a Git server's username and password or
-token, for this session, or kept in the system's password store if the
-user ticks it. Asked from a git thread, answered on the main loop."""
+"""The dialogs asking for a Git server's username and password or
+token, and for GitHub's token (forge.py), for this session, or kept in
+the system's password store if the user ticks it. Asked from a git
+thread, answered on the main loop."""
 
 import threading
 
@@ -68,15 +69,65 @@ class SignInDialog(SettingsDialog):
         return Credential(values['username'], values['password'], values.get('remember', False))
 
 
+class TokenDialog(SettingsDialog):
+    """GitHub's personal access token, for submitting from a fork."""
+
+    def __init__(self, parent, host, refused=False, can_remember=True):
+        fields = [Field('token', _('_Token:'), SECRET, required=True, reveal=_('S_how token'))]
+        if can_remember:
+            fields.append(Field('remember', _('_Remember in this computer’s password store'), BOOL))
+        super().__init__(
+            parent, _('Sign In to %(server)s') % {'server': host}, fields, {}, _('_Sign In')
+        )
+        if refused:
+            text = _('The server refused the token.')
+        else:
+            text = _(
+                # l10n: Above the field of the dialog asking for a GitHub token; %(server)s is GitHub's address, such as github.com. Personal access token is GitHub's name for it, under Settings, Developer settings
+                'Submitting to %(server)s needs a personal access token that may push to your '
+                'fork and open pull requests.'
+            ) % {'server': host}
+        self.intro = Gtk.Label(label=text, wrap=True, xalign=0, max_width_chars=40)
+        for side in ('start', 'end', 'top'):
+            getattr(self.intro, 'set_margin_' + side)(12)
+        area = self.dialog.get_content_area()
+        area.pack_start(self.intro, False, False, 0)
+        area.reorder_child(self.intro, 0)
+        self.intro.show()
+
+    def credential(self):
+        """The answer (its password the token), or None if cancelled."""
+        values = self.run()
+        if values is None:
+            return None
+        return Credential('', values['token'], values.get('remember', False))
+
+
+def token_asker(parent_of, can_remember):
+    """ask() for forge.Tokens: the token dialog, as asker()'s."""
+    return _on_main_loop(
+        lambda host, refused: TokenDialog(parent_of(), host, refused, can_remember()).credential()
+    )
+
+
 def asker(parent_of, can_remember):
     """ask() for GitCredentials: the dialog over parent_of()'s window,
     run on the main loop while the git thread asking waits."""
+    return _on_main_loop(
+        lambda key, username, refused: SignInDialog(
+            parent_of(), key, username, refused, can_remember()
+        ).credential()
+    )
 
-    def ask(key, username, refused):
+
+def _on_main_loop(dialog):
+    """ask(*args): dialog(*args)'s answer, run on the main loop while the
+    thread asking waits."""
+
+    def ask(*args):
         def show():
             try:
-                dialog = SignInDialog(parent_of(), key, username, refused, can_remember())
-                answer.append(dialog.credential())
+                answer.append(dialog(*args))
             finally:
                 done.set()
             return False
