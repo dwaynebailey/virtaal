@@ -360,7 +360,7 @@ class TMController(BaseController):
         if getattr(self, '_delay_id', None):
             GLib.source_remove(self._delay_id)
             self._delay_id = None
-        self.view.hide()
+        self.view.clear()
 
     def summon(self):
         """Show suggestions for the current unit once, whether or not they
@@ -391,7 +391,7 @@ class TMController(BaseController):
         self._popup_toggled_id = self.unit_view.connect(
             'editor-popup-toggled', self._on_editor_popup_toggled
         )
-        self.view.hide()
+        self.view.clear()
 
         def start_query():
             self._delay_id = None

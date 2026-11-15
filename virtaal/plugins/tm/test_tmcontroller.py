@@ -521,7 +521,7 @@ def _controller_for_start_query(**overrides):
         storecursor=SimpleNamespace(deref=lambda: pytest.fail('must not re-derive a cached unit')),
         **overrides,
     )
-    controller.view = SimpleNamespace(hide=lambda: None)
+    controller.view = SimpleNamespace(clear=lambda: None)
     return controller
 
 
@@ -555,7 +555,7 @@ def test_start_query_derives_the_unit_from_the_cursor_when_none_cached(monkeypat
     controller.main_controller = SimpleNamespace(
         unit_controller=SimpleNamespace(view=SimpleNamespace(connect=lambda *a: 'sig'))
     )
-    controller.view = SimpleNamespace(hide=lambda: None)
+    controller.view = SimpleNamespace(clear=lambda: None)
 
     controller.start_query()
 
@@ -648,7 +648,7 @@ def _suggestions_controller(unit, active=True, summoned=False, isvisible=False):
         active=active,
         summoned=summoned,
         isvisible=isvisible,
-        hide=lambda: events.append('hide'),
+        clear=lambda: events.append('clear'),
         mnu_suggestions=SimpleNamespace(
             set_active=lambda v: pytest.fail('must not change the toggle')
         ),
@@ -660,9 +660,9 @@ def _suggestions_controller(unit, active=True, summoned=False, isvisible=False):
     'translated, active, expected',
     [
         (False, True, ['query']),
-        (True, True, ['hide']),  # translated units only get suggestions on request
-        (False, False, ['hide']),
-        (True, False, ['hide']),
+        (True, True, ['clear']),  # translated units only get suggestions on request
+        (False, False, ['clear']),
+        (True, False, ['clear']),
     ],
 )
 def test_on_cursor_changed_never_changes_the_toggle(translated, active, expected):
@@ -689,7 +689,7 @@ def test_a_locked_trados_segment_gets_no_suggestions_unasked():
 
     controller.update_suggestions()
 
-    assert events == ['hide']
+    assert events == ['clear']
 
 
 @pytest.mark.parametrize('active', [True, False])

@@ -664,9 +664,11 @@ class TMView(BaseView, GObjectWrapper):
         # moving real WM focus off the main window, so is-active can't
         # see it - that's what grab-notify handles. A real focus change
         # (e.g. Alt+Tab) never takes a grab; see
-        # _on_active_notify_mainwindow below.
+        # _on_active_notify_mainwindow below. A grab ending in another
+        # window of the app is not the main window coming back.
         if was_grabbed:
-            self._on_mainwindow_focus_gained()
+            if widget.props.is_active:
+                self._on_mainwindow_focus_gained()
         else:
             if isinstance(Gtk.grab_get_current(), Gtk.Menu):
                 # A plain popup menu (e.g. the Workflow/Quality-Check mode

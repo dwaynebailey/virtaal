@@ -12,6 +12,7 @@ from gi.repository import Gdk, GLib, GObject, Gtk
 
 from virtaal.common import GObjectWrapper
 from virtaal.plugins.tm import tmview
+from virtaal.plugins.tm.tmcontroller import TMController
 from virtaal.plugins.tm.tmview import TMView
 
 
@@ -320,6 +321,8 @@ def test_clear_empties_the_matches_and_hides_the_window():
 
 
 _STORECURSOR = object()
+_ACTIVE = SimpleNamespace(props=SimpleNamespace(is_active=True))
+_INACTIVE = SimpleNamespace(props=SimpleNamespace(is_active=False))
 
 
 def _view_for_grab_notify(should_show=False, isvisible=False, storecursor=_STORECURSOR):
@@ -337,7 +340,7 @@ def test_grab_notify_regained_focus_reshows_a_pending_window():
     geometry_calls = []
     view.tmwindow.update_geometry = lambda widget: geometry_calls.append(widget)
 
-    view._on_grab_notify_mainwindow(None, True)
+    view._on_grab_notify_mainwindow(_ACTIVE, True)
 
     assert view._may_show_tmwindow is True
     assert shown == ['shown']
@@ -349,7 +352,7 @@ def test_grab_notify_regained_focus_skips_show_when_nothing_was_pending():
     shown = []
     view.show = lambda: shown.append('shown')
 
-    view._on_grab_notify_mainwindow(None, True)
+    view._on_grab_notify_mainwindow(_ACTIVE, True)
 
     assert shown == []
 
@@ -359,7 +362,7 @@ def test_grab_notify_regained_focus_skips_show_when_already_visible():
     shown = []
     view.show = lambda: shown.append('shown')
 
-    view._on_grab_notify_mainwindow(None, True)
+    view._on_grab_notify_mainwindow(_ACTIVE, True)
 
     assert shown == []
 
@@ -369,9 +372,23 @@ def test_grab_notify_regained_focus_skips_show_without_a_loaded_store():
     shown = []
     view.show = lambda: shown.append('shown')
 
-    view._on_grab_notify_mainwindow(None, True)
+    view._on_grab_notify_mainwindow(_ACTIVE, True)
 
     assert shown == []
+
+
+def test_grab_notify_ending_in_another_window_shows_nothing_over_it():
+    # #4797: a menu or dialog closing in another Virtaal window (same
+    # window group) ends a grab while the main window stays inactive.
+    view = _view_for_grab_notify(should_show=True, isvisible=False)
+    view._may_show_tmwindow = False
+    shown = []
+    view.show = lambda: shown.append('shown')
+
+    view._on_grab_notify_mainwindow(_INACTIVE, True)
+
+    assert shown == []
+    assert view._may_show_tmwindow is False
 
 
 def test_grab_notify_shadowed_hides_a_visible_window_and_marks_it_pending():
@@ -379,7 +396,7 @@ def test_grab_notify_shadowed_hides_a_visible_window_and_marks_it_pending():
     hidden = []
     view.hide = lambda: hidden.append('hidden')
 
-    view._on_grab_notify_mainwindow(None, False)
+    view._on_grab_notify_mainwindow(_ACTIVE, False)
 
     assert view._may_show_tmwindow is False
     assert hidden == ['hidden']
@@ -391,7 +408,7 @@ def test_grab_notify_shadowed_does_nothing_when_already_hidden():
     hidden = []
     view.hide = lambda: hidden.append('hidden')
 
-    view._on_grab_notify_mainwindow(None, False)
+    view._on_grab_notify_mainwindow(_ACTIVE, False)
 
     assert hidden == []
     assert view._may_show_tmwindow is False
@@ -438,6 +455,51 @@ def test_active_notify_mainwindow_reshows_a_pending_window_when_activated():
     assert view._may_show_tmwindow is True
     assert shown == ['shown']
     assert geometry_calls == ['the-selected-view']
+
+
+# #4797: a unit change while the main window is inactive must not leave
+# the previous unit's matches to show when it is active again.
+
+
+def _view_hidden_by_another_window():
+    view = _view_for_grab_notify(isvisible=True)
+    view.tmwindow.liststore.append([{'target': 'Maak oop'}, ''])
+    view._on_active_notify_mainwindow(_INACTIVE, None)
+    assert view._should_show_tmwindow is True
+    return view
+
+
+def _controller_for(view, unit, monkeypatch):
+    monkeypatch.setattr(
+        'virtaal.plugins.tm.tmcontroller.GLib.timeout_add', lambda delay, cb: 'timeout-id'
+    )
+    controller = TMController.__new__(TMController)
+    controller.view = view
+    controller.storecursor = object()
+    controller.unit = unit
+    controller._delay_id = None
+    controller.main_controller = SimpleNamespace(
+        unit_controller=SimpleNamespace(view=SimpleNamespace(connect=lambda *a: 'sig'))
+    )
+    return controller
+
+
+@pytest.mark.parametrize('translated', [True, False])
+def test_refocus_after_a_unit_change_shows_no_earlier_matches(translated, monkeypatch):
+    # Translated: no query at all. Untranslated: refocused before the
+    # new query is sent.
+    view = _view_hidden_by_another_window()
+    view.mnu_suggestions = SimpleNamespace(get_active=lambda: True)
+    unit = SimpleNamespace(istranslated=lambda: translated)
+    controller = _controller_for(view, unit, monkeypatch)
+    shown = []
+    view.show = lambda: shown.append('shown')
+
+    controller.update_suggestions()
+    view._on_active_notify_mainwindow(_ACTIVE, None)
+
+    assert shown == []
+    assert len(view.tmwindow.liststore) == 0
 
 
 # _on_configure_mainwindow(): recompute geometry only for a pending
@@ -788,7 +850,7 @@ def test_grab_notify_shadowed_by_a_popup_menu_does_not_hide(monkeypatch):
     view.hide = lambda: hidden.append('hidden')
     monkeypatch.setattr(Gtk, 'grab_get_current', lambda: Gtk.Menu())
 
-    view._on_grab_notify_mainwindow(None, False)
+    view._on_grab_notify_mainwindow(_ACTIVE, False)
 
     assert hidden == []
 
