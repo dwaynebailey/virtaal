@@ -106,6 +106,26 @@ def test_a_push_after_the_branch_moved_on_is_rejected_not_forced(repo, remote):
     assert remote.read('po/de.po') == PO + '\n'
 
 
+def test_a_push_to_another_remote_holds_to_its_lease(tmp_path, repo, remote):
+    other = Remote(tmp_path / 'fork', {'README': 'fork\n'})
+    tip = repo.fetch()
+    first = repo.commit_file(tip, 'po/af.po', b'one\n', 'One', ('T', 't@x.org'))
+    repo.push_to(other.url, 'virtaal/af', first, {None})
+    # Over the old commit, not after it: allowed while the head is it.
+    second = repo.commit_file(tip, 'po/af.po', b'two\n', 'Two', ('T', 't@x.org'))
+    repo.push_to(other.url, 'virtaal/af', second, {first})
+    other.branch = 'virtaal/af'
+    assert other.read('po/af.po') == 'two\n'
+    third = repo.commit_file(tip, 'po/af.po', b'three\n', 'Three', ('T', 't@x.org'))
+    with pytest.raises(gitrepo.GitError) as raised:
+        repo.push_to(other.url, 'virtaal/af', third, {first})
+    assert raised.value.kind == gitrepo.REJECTED
+    assert other.read('po/af.po') == 'two\n'
+    with pytest.raises(gitrepo.GitError):
+        repo.push_to(remote.url, 'main', third, {tip})
+    assert remote.subjects() == ['Start']
+
+
 def test_a_file_url_works_as_a_path(tmp_path, remote):
     url = pathlib.Path(remote.url).as_uri()
     assert gitrepo.local_path(url) == remote.url

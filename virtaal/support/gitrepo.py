@@ -14,7 +14,8 @@ one file's new contents committed straight onto the branch's tip
 (commit_file()) and pushed, never forced. Nothing else in the
 repository is ever written. A push the remote refuses because the
 branch moved on raises REJECTED: fetch again and redo the change on the
-new tip.
+new tip. push_to() pushes to another remote, such as the user's fork,
+only while its branch is as last pushed (a lease).
 
 ssh addresses go through the system's ssh, with its keys and agent and
 never a prompt (BatchMode). https asks a Credentials for a username and
@@ -326,13 +327,14 @@ class Repository:
         """The bare clone, made if it isn't there yet."""
         self._repo().close()
 
-    def _transport(self, credential):
+    def _transport(self, credential, url=None):
+        url = url or self.url
         found = config()
         login = {}
         if credential is not None:
             login = {'username': credential.username, 'password': credential.password}
         transport, path = _client.get_transport_and_path(
-            local_path(self.url) or self.url,
+            local_path(url) or url,
             config=found,
             ssh_command=os.environ.get('GIT_SSH_COMMAND') or None,
             **login,
@@ -343,21 +345,23 @@ class Repository:
             transport._timeout = TIMEOUT
         return transport, path
 
-    def _remote(self, request):
-        """request(transport, path)'s answer, signing in when the remote
-        asks."""
+    def _remote(self, request, url=None, credentials=None):
+        """request(transport, path)'s answer from url (the repository's
+        own by default), signing in when the remote asks."""
         if not available():
             raise GitError(MISSING)
-        credential = self.credentials.known(self.url)
+        url = url or self.url
+        credentials = credentials or self.credentials
+        credential = credentials.known(url)
         offers = None
         for _attempt in range(ATTEMPTS + 1):
             try:
-                answer = request(*self._transport(credential))
+                answer = request(*self._transport(credential, url))
             except _client.HTTPUnauthorized as error:
                 if credential is not None:
-                    self.credentials.refused(self.url, credential)
+                    credentials.refused(url, credential)
                 if offers is None:
-                    offers = self.credentials.candidates(self.url)
+                    offers = credentials.candidates(url)
                 credential = next(offers, None)
                 if credential is None:
                     raise GitError(AUTH, _first_line(str(error))) from error
@@ -365,7 +369,7 @@ class Repository:
             except Exception as error:
                 raise _git_error(error) from error
             if credential is not None:
-                self.credentials.accepted(self.url, credential)
+                credentials.accepted(url, credential)
             return answer
         raise GitError(AUTH)
 
@@ -416,6 +420,11 @@ class Repository:
         except (KeyError, NotTreeError):
             return None
         return (mode, sha) if stat.S_ISREG(mode) else None
+
+    def parents(self, commit):
+        """The ids of commit's parents."""
+        with self._repo() as repo:
+            return [p.decode('ascii') for p in repo[commit.encode('ascii')].parents]
 
     def read(self, commit, path):
         """The bytes of path in commit, or None if it has no such file."""
@@ -476,6 +485,39 @@ class Repository:
             if refused:
                 raise GitError(REJECTED, '[remote rejected] %s (%s)' % (self.branch, refused))
             repo.refs[self.ref.encode('utf-8')] = new
+
+    def push_to(self, url, branch, commit, allowed, credentials=None):
+        """commit as branch's head on another remote at url (a fork),
+        only while that head is one of allowed (commit ids, None for no
+        such branch yet): a lease, never the repository's own remote.
+        Raises REJECTED when the head is something else."""
+        if url == self.url:
+            raise GitError(FAILED, 'not a push to the project')
+        head = ('refs/heads/' + branch).encode('utf-8')
+        allowed = {a.encode('ascii') if a else None for a in allowed}
+        with self._repo() as repo:
+            new = commit.encode('ascii')
+            found = []
+
+            def update_refs(refs):
+                del found[:]
+                if refs.get(head) not in allowed:
+                    found.append(refs.get(head))
+                    return {}
+                return {head: new}
+
+            result = self._remote(
+                lambda transport, path: transport.send_pack(
+                    path, update_refs, repo.generate_pack_data
+                ),
+                url,
+                credentials,
+            )
+            if found:
+                raise GitError(REJECTED, '[rejected] %s (stale info)' % branch)
+            refused = (result.ref_status or {}).get(head)
+            if refused:
+                raise GitError(REJECTED, '[remote rejected] %s (%s)' % (branch, refused))
 
     def has_branch(self):
         """Whether the remote has the branch."""
