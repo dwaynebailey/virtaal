@@ -11,10 +11,11 @@ involved. Fixture content is the same real, live-fetched af-ZA
 DocumentList.xml excerpt test_autocorrect_source.py already uses."""
 
 import os
+import warnings
 from types import SimpleNamespace
 
 import pytest
-from gi.repository import Gtk
+from gi.repository import GObject, Gtk
 
 from virtaal.common import pan_app
 from virtaal.plugins.autocorrector import AutoCorrector, Plugin
@@ -463,6 +464,7 @@ def _plugin_main_controller(store=None, targets=None, target_lang_code='af'):
     )
     lang_controller = SimpleNamespace(
         connect=lambda signal, handler: calls.append((signal, handler)) or 'lang-sig',
+        disconnect=lambda sig_id: calls.append(('disconnect', sig_id)),
         target_lang=SimpleNamespace(code=target_lang_code),
     )
     unitview = SimpleNamespace(targets=targets or [])
@@ -759,6 +761,35 @@ def test_plugin_destroy_skips_the_optional_cursor_disconnect_when_never_set(monk
     plugin.destroy()  # must not raise despite no _cursor_changed_id ever set
 
     assert ('disconnect', 'store-sig') in calls
+
+
+class _LangController(GObject.GObject):
+    __gsignals__ = {'target-lang-changed': (GObject.SignalFlags.RUN_FIRST, None, (str,))}
+
+    def __init__(self, code):
+        super().__init__()
+        self.target_lang = SimpleNamespace(code=code)
+
+
+def test_turning_the_plugin_off_stops_its_target_language_handler(monkeypatch, tmp_path):
+    plugin, main_controller, calls = _init_plugin(
+        monkeypatch, tmp_path, store=None, targets=[], target_lang_code='af'
+    )
+    main_controller.lang_controller = lang_controller = _LangController('en')
+    plugin._target_lang_changed_id = lang_controller.connect(
+        'target-lang-changed', next(h for s, h in calls if s == 'target-lang-changed')
+    )
+    loaded = []
+    monkeypatch.setattr(plugin.autocorr, 'load_dictionary', lambda *a, **kw: loaded.append(a))
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        plugin.destroy()
+        lang_controller.emit('target-lang-changed', 'af')
+        plugin.destroy()
+
+    assert loaded == []
+    assert [str(w.message) for w in caught] == []
 
 
 def test_the_plugin_reads_the_asset_manifest_from_the_config_dir(tmp_path, monkeypatch):
