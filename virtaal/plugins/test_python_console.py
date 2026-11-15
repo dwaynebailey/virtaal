@@ -12,10 +12,11 @@ minimal fake Gdk.Event."""
 
 import sys
 import warnings
+from types import SimpleNamespace
 
 from gi.repository import Gdk, GLib
 
-from virtaal.plugins._python_console import PythonConsole
+from virtaal.plugins._python_console import Plugin, PythonConsole
 
 
 class _FakeEvent:
@@ -222,3 +223,25 @@ def test_eval_of_a_list_runs_each_command(monkeypatch):
 
     assert _run_idle_callbacks(monkeypatch) == []
     assert _text(console) == '>>> x = 2\n>>> x * 3\n6\n>>> '
+
+
+def test_ctrl_d_closes_the_console_window():
+    plugin = Plugin.__new__(Plugin)
+    plugin.window = None
+    plugin.main_controller = SimpleNamespace(
+        store_controller=SimpleNamespace(view=None),
+        unit_controller=SimpleNamespace(view=None),
+        view=SimpleNamespace(main_window=None),
+    )
+    plugin.show_console()
+    window = plugin.window
+    destroyed = []
+    window.connect('destroy', lambda w: destroyed.append(w))
+    try:
+        _send(window.get_child(), Gdk.KEY_d, Gdk.ModifierType.CONTROL_MASK)
+
+        assert destroyed == [window]
+        assert plugin.window is None
+    finally:
+        if not destroyed:
+            window.destroy()

@@ -379,7 +379,7 @@ class Plugin(BasePlugin):
                 'sv': self.main_controller.store_controller.view,
                 'uv': self.main_controller.unit_controller.view,
             }
-            console = PythonConsole(namespace=ns, destroy_cb=self._on_console_destroyed)
+            console = PythonConsole(namespace=ns, destroy_cb=self._close_console)
             console.set_size_request(600, 400)
 
             self.window = Gtk.Window()
@@ -389,6 +389,10 @@ class Plugin(BasePlugin):
             self.window.connect('destroy', self._on_console_destroyed)
         self.window.show_all()
         self.window.grab_focus()
+
+    def _close_console(self):
+        if self.window:
+            self.window.destroy()
 
     # EVENT HANDLERS #
     def _on_console_destroyed(self, *args):
