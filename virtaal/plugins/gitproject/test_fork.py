@@ -25,7 +25,8 @@ from virtaal.plugins.gitproject import backend, forge, fork
 from virtaal.plugins.gitproject.credentials import GitCredentials
 from virtaal.plugins.gitproject.test_backend import AF, Copy, call, po_file
 from virtaal.support.gitrepo import Credential
-from virtaal.support.platforms import AUTH, HTTP, SubmitPlan, submit
+from virtaal.support.platforms import AUTH, HTTP, SubmitPlan, submit, trickle
+from virtaal.support.platforms.servers import Server
 
 PROJECT = 'team/program'
 FORK = '%s/program' % USER
@@ -221,6 +222,19 @@ def test_without_a_token_submit_asks_for_one(tmp_path, github):
     assert copy.submit().sent == 1
     assert asked == [github.host, github.host]
     assert len(github.pulls) == 1
+
+
+@needs_dulwich
+def test_nothing_goes_to_github_as_it_is_saved(tmp_path, copy, github):
+    server = Server(copy.platform, copy.remote.url, {}, send_finished=True)
+    trickler = trickle.Trickler(lambda _copy: server, print, print)
+    copy.edit('Save', 'Stoor')
+    copy.save()
+    trickler.saved(copy.copy)
+    assert not trickler.running and not github.pushes and not github.pulls
+    direct = maintainer_platform(tmp_path / 'direct', github, 'no')
+    assert direct.sends_as_you_go(github.clone_url(PROJECT))
+    assert backend.GitPlatform(str(tmp_path / 'other.ini')).sends_as_you_go('/srv/git/a.git')
 
 
 @needs_dulwich

@@ -12,7 +12,9 @@ With it on, each save of a work copy from that server queues the units
 saved at Translated or above (finished()) and sends them in the
 background, through Submit's own Submission: the same per-unit change,
 conflict check and pacing. Drafts and Needs work units wait for Submit,
-and Submit still sends whatever is left. Without it, Save never sends.
+and Submit still sends whatever is left. Without it, or for a server
+that doesn't take units as they are saved (Platform.sends_as_you_go()),
+Save never sends.
 
 The queue is the side record's "queue" (the units' ids), written at
 each save, so it outlasts a restart: opening the work copy again sends
@@ -82,7 +84,9 @@ class Trickler:
 
     def _server(self, copy):
         server = self.server_of(copy) if copy is not None else None
-        return server if server is not None and server.send_finished else None
+        if server is None or not server.send_finished:
+            return None
+        return server if server.platform.sends_as_you_go(server.url) else None
 
     def queue(self, copy):
         """The indexes in copy's side record of the units queued."""

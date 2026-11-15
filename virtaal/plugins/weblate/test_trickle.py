@@ -50,7 +50,7 @@ class Trickling:
         self.conflicts = []
         self.waits = []
         self.server = SimpleNamespace(
-            send_finished=on, platform=copy.platform, session=copy.session
+            send_finished=on, platform=copy.platform, session=copy.session, url=''
         )
         self.trickler = trickle.Trickler(
             lambda _copy: self.server, self.sent.append, self.conflicts.append

@@ -105,7 +105,9 @@ class Trickling:
         self.sent = []
         self.conflicts = []
         self.waits = []
-        server = SimpleNamespace(send_finished=True, platform=copy.platform, session=copy.session)
+        server = SimpleNamespace(
+            send_finished=True, platform=copy.platform, session=copy.session, url=''
+        )
         self.trickler = trickle.Trickler(
             lambda _copy: server, self.sent.append, self.conflicts.append
         )

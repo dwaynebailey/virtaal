@@ -686,6 +686,13 @@ class GitPlatform(Platform):
             ),
         )
 
+    def sends_as_you_go(self, url):
+        """Not for a project that submits from the user's fork: nothing
+        goes to GitHub before Submit."""
+        if forge.find(url, self.projects.github_hosts) is None:
+            return True
+        return self.projects.settings(url).get('fork') == 'no'
+
     def normalise_url(self, text):
         text = (text or '').strip()
         if not text or text.startswith('-') or re.search(r'\s', text):

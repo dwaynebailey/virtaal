@@ -396,6 +396,12 @@ class Platform:
         the credentials dict is."""
         return ()
 
+    def sends_as_you_go(self, url):
+        """Whether the server at url may take units as they are saved
+        (its send_finished option): not when Submit asks others to take
+        the changes, as a pull request does."""
+        return True
+
     def fields(self):
         from virtaal.views.widgets.settingsdialog import Field
 
