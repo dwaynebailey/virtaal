@@ -148,6 +148,14 @@ csv...) and what to send to ask whether it changed (such as its
 Last-Modified), or None."""
 
 
+SubmitPlan = namedtuple(
+    'SubmitPlan', 'text option option_text option_on entry', defaults=(None, None, False, None)
+)
+"""What a Submit will do, said when asking to send: its text; a check
+box the platform offers for it (its label, the text instead with it on,
+whether it starts on), or None; and the label of a text entry for it
+(used with the check box on, or always without one), or None."""
+
 Budget = namedtuple('Budget', 'left reset_in limit', defaults=(None,))
 """A server's request budget as it last said: requests left, seconds
 until that count starts again, and how many it allows in all (None if
@@ -250,6 +258,20 @@ class Session:
         """The Budget as the server last said, to this session or another
         of the same server and credentials, or None if it doesn't say."""
         return None
+
+    def submit_plan(self, project, component, language, on_done, on_error):
+        """on_done(SubmitPlan or None): what Submit of a language will do,
+        when the platform has more to say than how many units go."""
+        on_done(None)
+
+    def plan_chosen(self, option, text):
+        """The user's answer to a SubmitPlan: its check box and text."""
+
+    def notice(self, project, component, language, on_done, on_error):
+        """on_done((text, URL) or None), for a platform that has_notices:
+        something about a language to show in the main window, such as
+        the state of a pull request, and a link to it."""
+        on_done(None)
 
     # Review (a platform that can_suggest or can_comment) #
     #
@@ -363,6 +385,9 @@ class Platform:
     """Its sessions give a project's glossaries (Session.glossaries()),
     whose terms show in the terminology pane for its work copies
     (glossary.py)."""
+    has_notices = False
+    """Its sessions have notices about a work copy (Session.notice()),
+    shown once it is opened and after Submit when no other notice is."""
 
     def credential_fields(self):
         """The fields a server needs besides its URL: Field()s, keyed as
@@ -504,6 +529,11 @@ class Registry:
         self._notice = None
         self._shown = []
         """The work copies open, as last seen."""
+        self._asked = 0
+        """Counts the times platforms' notices were asked for: only the
+        last answers count, while the file asked about is open."""
+        self._platform_notice = False
+        """The notice showing is a platform's."""
         self._reminded = False
         self.review = None
         """The ReviewPanel (reviewview.py) in the unit editor."""
@@ -672,6 +702,8 @@ class Registry:
         result = SubmitDialogs(self, copies, self._parent(parent)).run()
         self._sync_notice()
         self._review_changed()
+        if result is not None:
+            self._platform_notices(copies)
         return result
 
     def _review_changed(self):
@@ -750,10 +782,37 @@ class Registry:
 
     # Unsubmitted work #
 
-    def _show_notice(self, text, actions):
+    def _platform_notices(self, copies):
+        """Each work copy's platform's notice (Session.notice()), shown
+        when it comes, unless another kind of notice is showing by then."""
+        self._asked += 1
+        asked = self._asked
+        for copy in copies:
+            platform = self.platform_of(copy)
+            server = platform.has_notices and self._server_of(copy)
+            if not server:
+                continue
+            session = server.session()
+            if not hasattr(session, 'notice'):
+                continue
+
+            def show(found):
+                if not found or asked != self._asked:
+                    return
+                if self._notice is None or self._platform_notice:
+                    self._show_notice(found[0], [], link=found[1])
+                    self._platform_notice = True
+
+            record = copy.record
+            session.notice(
+                record['project'], record.get('component'), record['language'], show, show
+            )
+
+    def _show_notice(self, text, actions, link=None):
         """A dismissable notice below the menu bar, in place of the last
-        one this showed; actions are (label, function) buttons."""
-        from gi.repository import Gtk
+        one this showed; actions are (label, function) buttons, and link
+        a URL shown after the text."""
+        from gi.repository import GLib, Gtk
 
         self._hide_notice()
         vbox = self.main_controller.view.gui.get_object('vbox_main')
@@ -763,6 +822,12 @@ class Registry:
         infobar.set_message_type(Gtk.MessageType.INFO)
         label = Gtk.Label(label=text, wrap=True, xalign=0)
         infobar.get_content_area().pack_start(label, True, True, 0)
+        if link:
+            shown = GLib.markup_escape_text(link)
+            url = Gtk.Label(xalign=0, selectable=True)
+            url.set_markup('<a href="%s">%s</a>' % (shown, shown))
+            url.connect('activate-link', lambda _label, uri: _open_link(uri))
+            infobar.get_content_area().pack_start(url, False, False, 0)
         for number, (button, _action) in enumerate(actions):
             infobar.add_button(button, number)
 
@@ -778,6 +843,7 @@ class Registry:
         vbox.reorder_child(infobar, 1)
 
     def _hide_notice(self):
+        self._platform_notice = False
         if self._notice is not None:
             self._notice.destroy()
             self._notice = None
@@ -795,12 +861,16 @@ class Registry:
         copies = self._open_copies()
         left = self._shown
         self._shown = copies
+        if signal == 'store-closed':
+            self._asked += 1
         if copies:
             count = waiting_count(copies)
             if signal == 'store-loaded' or (count and self._notice is not None):
                 self._notice_open(copies, count)
             elif not count:
                 self._hide_notice()
+            if signal == 'store-loaded' and not count:
+                self._platform_notices(copies)
             return
         if signal in ('store-loaded', 'store-closed') and left:
             from . import workcopy
@@ -883,6 +953,13 @@ class Registry:
         if path is None:
             return False
         return bool(self._open_paths(dialog.opened_all or [path]))
+
+
+def _open_link(uri):
+    from virtaal.support import openmailto
+
+    openmailto.open(uri)
+    return True
 
 
 def _add_check(check):

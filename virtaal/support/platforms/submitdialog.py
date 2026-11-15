@@ -439,6 +439,8 @@ class SubmitDialogs(CopyDialogs):
     """How many of the changes fail a check the server enforces."""
     coarsened = 0
     """How many of the changes are in a state the server doesn't store."""
+    plan = None
+    """What the server's session says the Submit does (a SubmitPlan)."""
 
     def confirm(self, count):
         dialog = Gtk.MessageDialog(
@@ -465,7 +467,10 @@ class SubmitDialogs(CopyDialogs):
             lines.append(enforced_message(self.failing))
         if self.coarsened:
             lines.append(coarsened_message(self.coarsened, self.copy.platform_name()))
+        if self.plan is not None:
+            lines.append(self.plan.text)
         dialog.format_secondary_text('\n\n'.join(lines))
+        chosen = self._plan_widgets(dialog, lines)
         dialog.add_button(_('_Cancel'), Gtk.ResponseType.CANCEL)
         # l10n: Submit to a translation server although some changes fail checks it enforces
         dialog.add_button(
@@ -473,8 +478,72 @@ class SubmitDialogs(CopyDialogs):
         )
         dialog.set_default_response(Gtk.ResponseType.OK)
         response = run_dialog(dialog)
+        if response == Gtk.ResponseType.OK and chosen is not None:
+            self.session.plan_chosen(*chosen())
         dialog.destroy()
         return response == Gtk.ResponseType.OK
+
+    def _plan_widgets(self, dialog, lines):
+        """The plan's check box and entry in dialog; a function giving
+        the user's (option, text), or None without a plan."""
+        plan = self.plan
+        if plan is None or (plan.option is None and plan.entry is None):
+            return None
+        area = dialog.get_message_area()
+        check = entry = None
+        if plan.option is not None:
+            check = Gtk.CheckButton.new_with_mnemonic(plan.option)
+            check.set_active(plan.option_on)
+            area.pack_start(check, False, False, 0)
+        if plan.entry is not None:
+            label = Gtk.Label(label=plan.entry, use_underline=True, xalign=0)
+            entry = Gtk.Entry(activates_default=True)
+            label.set_mnemonic_widget(entry)
+            box = Gtk.Box(spacing=6)
+            box.pack_start(label, False, False, 0)
+            box.pack_start(entry, True, True, 0)
+            area.pack_start(box, False, False, 0)
+
+        def toggled(*_args):
+            on = check is None or check.get_active()
+            shown = plan.option_text if check is not None and on else plan.text
+            dialog.format_secondary_text('\n\n'.join([*lines[:-1], shown]))
+            if entry is not None:
+                entry.get_parent().set_sensitive(on)
+
+        if check is not None:
+            check.connect('toggled', toggled)
+        toggled()
+        area.show_all()
+        return lambda: (
+            bool(check and check.get_active()),
+            entry.get_text().strip() if entry is not None else '',
+        )
+
+    def _ask_plan(self, items):
+        """The plan of the one server's session, or None."""
+        if len(items) != 1 or not hasattr(items[0][2], 'submit_plan'):
+            return None
+        copy, _platform, session = items[0]
+        record = copy.record
+        loop = GLib.MainLoop()
+        answer = []
+
+        def done(plan):
+            answer.append(plan)
+            if loop.is_running():
+                loop.quit()
+
+        session.submit_plan(
+            record['project'],
+            record.get('component'),
+            record['language'],
+            done,
+            lambda _error: done(None),
+        )
+        if not answer:
+            loop.run()
+        return answer[0]
 
     def _failing_enforced(self):
         """How many changes fail, as Virtaal checks them, a check their
@@ -512,6 +581,7 @@ class SubmitDialogs(CopyDialogs):
         self.failing = self._failing_enforced()
         if not self._as_suggestions():
             self.coarsened = submit.coarsened(self.sending, self.registry.platform_of)
+        self.plan = self._ask_plan(items)
         if not self.confirm(sum(len(c.pending()) for c in self.sending)):
             return None
         if len(items) == 1:
