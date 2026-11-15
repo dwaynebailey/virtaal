@@ -56,10 +56,11 @@ class PythonConsole(Gtk.ScrolledWindow):
         buffer.connect("mark-set", self.__mark_set_cb)
 
     def __key_press_event_cb(self, view, event):
-        if event.keyval == Gdk.KEY_d and event.get_state() == Gdk.ModifierType.CONTROL_MASK:
+        mods = event.get_state() & Gtk.accelerator_get_default_mod_mask()
+        if event.keyval == Gdk.KEY_d and mods == Gdk.ModifierType.CONTROL_MASK:
             self.destroy()
 
-        elif event.keyval == Gdk.KEY_Return and event.get_state() == Gdk.ModifierType.CONTROL_MASK:
+        elif event.keyval == Gdk.KEY_Return and mods == Gdk.ModifierType.CONTROL_MASK:
             return self.__on_key_ctrl_return(view)
 
         elif event.keyval == Gdk.KEY_Return:
@@ -79,7 +80,7 @@ class PythonConsole(Gtk.ScrolledWindow):
             return self.__on_key_left_or_backspace(view)
 
         elif event.keyval == Gdk.KEY_Home:
-            return self.__on_key_home(view, event)
+            return self.__on_key_home(view, mods)
 
     def __on_key_ctrl_return(self, view):
         # Get the command
@@ -170,12 +171,12 @@ class PythonConsole(Gtk.ScrolledWindow):
         cur = buffer.get_iter_at_mark(buffer.get_insert())
         return inp.compare(cur) == 0
 
-    def __on_key_home(self, view, event):
+    def __on_key_home(self, view, mods):
         # Go to the begin of the command instead of the begin of
         # the line
         buffer = view.get_buffer()
         inp = buffer.get_iter_at_mark(buffer.get_mark("input"))
-        if event.get_state() == Gdk.ModifierType.SHIFT_MASK:
+        if mods == Gdk.ModifierType.SHIFT_MASK:
             buffer.move_mark_by_name("insert", inp)
         else:
             buffer.place_cursor(inp)

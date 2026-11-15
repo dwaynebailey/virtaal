@@ -247,6 +247,30 @@ def test_ctrl_d_closes_the_console_window():
             window.destroy()
 
 
+def test_lock_modifiers_do_not_change_key_handling():
+    # NumLock (MOD2) or Caps Lock (LOCK) on adds a bit to every event's state.
+    locks = Gdk.ModifierType.MOD2_MASK | Gdk.ModifierType.LOCK_MASK
+    ctrl = Gdk.ModifierType.CONTROL_MASK | locks
+    console = PythonConsole(namespace={})
+    buf = console.view.get_buffer()
+    buf.insert(buf.get_end_iter(), "  x = 1")
+
+    _send(console, Gdk.KEY_Return, ctrl)
+    assert _text(console) == '>>>   x = 1\n...   '
+
+    buf.insert(buf.get_end_iter(), "y")
+    _send(console, Gdk.KEY_Home, Gdk.ModifierType.SHIFT_MASK | locks)
+    start, end = buf.get_selection_bounds()
+    assert buf.get_text(start, end, True) == '  y'
+
+    destroyed = []
+    console.destroy_cb = lambda: destroyed.append(True)
+    _send(console, Gdk.KEY_d, ctrl | Gdk.ModifierType.SHIFT_MASK)
+    assert destroyed == []
+    _send(console, Gdk.KEY_d, ctrl)
+    assert destroyed == [True]
+
+
 def test_writelines_writes_every_line():
     console = PythonConsole(namespace={})
 
