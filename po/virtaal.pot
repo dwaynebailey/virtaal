@@ -1881,7 +1881,7 @@ msgstr ""
 msgid "Translate files a team keeps in a Git repository"
 msgstr ""
 
-#. l10n: Asking to Submit a Git project on GitHub the user can't push to
+#. l10n: Asking to Submit a Git project on GitHub, as a pull request from the user's fork
 #: virtaal/plugins/gitproject/backend.py
 msgid "Submit pushes to your fork and opens a pull request."
 msgstr ""
@@ -1939,7 +1939,7 @@ msgstr ""
 msgid "_Language files (* for the code):"
 msgstr ""
 
-#. l10n: A Git project's option, for one on GitHub: Submit pushes to the user's own copy (fork) of the repository and asks the project to take the change (a pull request). On by itself when the user may not push to the project
+#. l10n: A Git project's option, for one on GitHub: Submit pushes to the user's own copy (fork) of the repository and asks the project to take the change (a pull request). Off, Submit pushes to the project's branch itself
 #: virtaal/plugins/gitproject/backend.py
 msgid "Submit as a _pull request from my fork"
 msgstr ""

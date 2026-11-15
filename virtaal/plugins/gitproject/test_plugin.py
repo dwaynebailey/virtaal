@@ -70,7 +70,7 @@ def test_add_asks_for_the_branch_and_files_already_filled_in(tmp_path, platform,
                 'url': '',
                 'branch': 'main',
                 'files': 'po/*.po',
-                'fork': False,
+                'fork': True,
                 'send_finished': False,
             },
         )

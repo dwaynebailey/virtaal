@@ -155,39 +155,72 @@ def test_github_and_configured_hosts_are_found_from_the_url():
     assert forge.find('https://h.example/a/b', {'h.example': 'http://h.example/api'}) is None
 
 
-def test_a_github_project_s_fork_option_follows_whether_the_user_can_push(tmp_path, github):
+def test_a_github_project_s_fork_option_is_on_unless_turned_off(tmp_path, github):
     platform = platform_for(tmp_path, github)
+    assert platform.default_credentials['fork'] is True
     servers, _last = platform.load_servers()
-    assert servers[0][1]['fork'] is False
-    # Shown as it was, an unset option stays unset; changed, it is kept.
+    assert servers[0][1]['fork'] is True
     platform.save_servers(servers, '')
     assert 'fork' not in platform.projects.settings(servers[0][0])
-    platform.projects.settings(servers[0][0])['can_push'] = 'no'
-    platform.projects.save()
-    assert platform.load_servers()[0][0][1]['fork'] is True
     url, credentials = servers[0]
     platform.save_servers([(url, dict(credentials, fork=False))], '')
     assert platform.projects.settings(url)['fork'] == 'no'
     assert 'fork = no' in (tmp_path / 'gitprojects.ini').read_text(encoding='utf-8')
+    assert platform.load_servers()[0][0][1]['fork'] is False
+
+
+def maintainer_platform(tmp_path, github, fork_setting=''):
+    platform = platform_for(tmp_path, github, token=MAINTAINER_TOKEN, fork_setting=fork_setting)
+    platform.credentials = GitCredentials(
+        FakeStore({'http://' + github.host: Credential('maintainer', MAINTAINER_TOKEN)}),
+        helper=None,
+    )
+    return platform
 
 
 # Submit through the fork #
 
 
 @needs_dulwich
-def test_a_user_who_may_push_pushes_to_the_project(tmp_path, github):
-    platform = platform_for(tmp_path, github, token=MAINTAINER_TOKEN)
-    platform.credentials = GitCredentials(
-        FakeStore({'http://' + github.host: Credential('maintainer', MAINTAINER_TOKEN)}),
-        helper=None,
-    )
-    copy = Copy(platform, Remote(github))
+def test_a_project_set_to_push_directly_is_pushed_to(tmp_path, github):
+    copy = Copy(maintainer_platform(tmp_path, github, 'no'), Remote(github))
     copy.edit('Save', 'Stoor')
     copy.save()
     assert copy.submit().sent == 1
     assert github.subjects(PROJECT, 'refs/heads/main')[0] == 'Update af translation'
     assert not github.pulls and FORK not in github.repos
-    assert platform.projects.settings(github.clone_url(PROJECT))['can_push'] == 'yes'
+
+
+@needs_dulwich
+def test_a_user_who_may_push_still_submits_from_a_fork(tmp_path, github):
+    copy = Copy(maintainer_platform(tmp_path, github), Remote(github))
+    copy.edit('Save', 'Stoor')
+    copy.save()
+    assert copy.submit().sent == 1
+    assert github.subjects(PROJECT, 'refs/heads/main') == ['Start']
+    assert [p['user'] for p in github.pulls] == [fakeforge.MAINTAINER]
+
+
+@needs_dulwich
+def test_without_a_token_submit_asks_for_one(tmp_path, github):
+    platform = platform_for(tmp_path, github, token=None)
+    asked = []
+
+    def ask(host, refused):
+        asked.append(host)
+        return Credential('', TOKEN) if len(asked) > 1 else None
+
+    platform.tokens.ask = ask
+    copy = Copy(platform, Remote(github))
+    copy.edit('Save', 'Stoor')
+    copy.save()
+    # None given: nothing goes anywhere.
+    result = copy.submit()
+    assert (result.stop, result.error.kind) == (submit.FAILED, AUTH)
+    assert github.subjects(PROJECT, 'refs/heads/main') == ['Start'] and not github.pulls
+    assert copy.submit().sent == 1
+    assert asked == [github.host, github.host]
+    assert len(github.pulls) == 1
 
 
 @needs_dulwich

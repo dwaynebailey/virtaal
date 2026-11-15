@@ -6,7 +6,8 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 """Submit as a pull request from the user's fork, for a Git project on
-GitHub the user can't push to (forge.py). Runs in a git thread.
+GitHub (forge.py) the user didn't choose to push to directly. Runs in a
+git thread.
 
 Each language has a branch of its own on the fork (virtaal/<code>). Its
 pull request holds one commit: the language's file as the project's

@@ -32,9 +32,10 @@ There is no lock, no review, and no state but what the file holds.
 ssh uses the system's ssh and its agent; https asks credentials.py,
 which leaves keeping them to the system's password store.
 
-A project on GitHub the user can't push to (or set to) submits as a
-pull request from the user's fork instead (fork.py, forge.py): Update
-still reads the project's branch, with the open pull request's units.
+A project on GitHub submits as a pull request from the user's fork
+instead (fork.py, forge.py), unless the user chose to push to it
+directly: Update still reads the project's branch, with the open pull
+request's units.
 """
 
 import hashlib
@@ -535,28 +536,15 @@ class GitSession(Session):
         return fork.Fork(self, github, self.platform.records(), settings.get('pull_branch'))
 
     def _through_fork(self):
-        """Whether Submit goes through the user's fork: the project's
-        setting, else whether the user can't push (asked of GitHub, with
-        a token). No token given: straight to the branch."""
+        """Whether Submit goes through the user's fork: always for a
+        project on GitHub, unless the user chose to push to it directly
+        (fork = no)."""
         if self.forge is None:
             return False
-        if self._fork is not None:
-            return True
-        setting = self.platform.projects.settings(self.repo.url).get('fork', '')
-        if setting == 'no':
-            return False
-        github = self.github()
-        if setting != 'yes':
-            try:
-                can_push = github.can_push()
-            except forge.ForgeError as error:
-                if error.error.kind != AUTH:
-                    raise
+        if self._fork is None:
+            if self.platform.projects.settings(self.repo.url).get('fork') == 'no':
                 return False
-            self.platform.note_can_push(self.repo.url, can_push)
-            if can_push:
-                return False
-        self._fork = self._forked(github)
+            self._fork = self._forked(self.github())
         return True
 
     def budget(self):
@@ -600,7 +588,7 @@ class GitSession(Session):
 def plan_of(mode, separate):
     """The SubmitPlan for a fork.Fork's mode."""
     if mode == fork.FRESH:
-        # l10n: Asking to Submit a Git project on GitHub the user can't push to
+        # l10n: Asking to Submit a Git project on GitHub, as a pull request from the user's fork
         return SubmitPlan(_('Submit pushes to your fork and opens a pull request.'))
     if mode == fork.REVIEW:
         # l10n: Asking to Submit to an open pull request someone reviewed since the last Submit
@@ -645,7 +633,7 @@ class GitPlatform(Platform):
     has_notices = True
     batch_size = BATCH
     """Every change of a file goes as one commit."""
-    default_credentials = {'branch': 'main', 'files': 'po/*.po'}
+    default_credentials = {'branch': 'main', 'files': 'po/*.po', 'fork': True}
 
     def __init__(self, path=None, clones=None):
         self.projects = ProjectFile(path)
@@ -666,19 +654,6 @@ class GitPlatform(Platform):
     def records(self):
         """The pull requests from the user's forks (fork.Records)."""
         return fork.Records(self._clones())
-
-    def note_can_push(self, url, can_push):
-        """Keeps whether the user can push to url's project, which an
-        unset fork setting follows; saved on the main loop."""
-
-        def save():
-            settings = self.projects.settings(url)
-            if settings:
-                settings['can_push'] = 'yes' if can_push else 'no'
-                self.projects.save()
-            return False
-
-        GLib.idle_add(save)
 
     def repository(self, url, branch):
         """The Repository of a project's branch, one for every session."""
@@ -702,7 +677,7 @@ class GitPlatform(Platform):
             Field('files', _('_Language files (* for the code):'), required=True),
             Field(
                 'fork',
-                # l10n: A Git project's option, for one on GitHub: Submit pushes to the user's own copy (fork) of the repository and asks the project to take the change (a pull request). On by itself when the user may not push to the project
+                # l10n: A Git project's option, for one on GitHub: Submit pushes to the user's own copy (fork) of the repository and asks the project to take the change (a pull request). Off, Submit pushes to the project's branch itself
                 _('Submit as a _pull request from my fork'),
                 BOOL,
             ),
@@ -779,17 +754,14 @@ class GitPlatform(Platform):
         ], self.projects.last_url
 
     def save_servers(self, servers, last_url):
-        """An unset fork setting stays unset while its check box is as
-        it was shown: the user may push or not."""
+        """The fork setting is kept only when off (no): direct push."""
         projects = []
         for url, chosen in servers:
             old = self.projects.settings(url)
-            settings = {k: v for k, v in old.items() if k in ('can_push', 'pull_branch')}
+            settings = {k: v for k, v in old.items() if k == 'pull_branch'}
             settings.update(branch=chosen.get('branch', ''), files=chosen.get('files', ''))
-            fork_on = bool(chosen.get('fork'))
-            unset = not old.get('fork', '') and fork_on == _fork_shown(old)
-            if not unset:
-                settings['fork'] = 'yes' if fork_on else 'no'
+            if not chosen.get('fork', True):
+                settings['fork'] = 'no'
             projects.append((url, settings))
         self.projects.projects = projects
         self.projects.last_url = last_url
@@ -802,9 +774,5 @@ class GitPlatform(Platform):
 
 
 def _fork_shown(settings):
-    """The fork check box as shown: the setting, else on if the user
-    couldn't push when last asked."""
-    fork_setting = settings.get('fork', '')
-    if fork_setting:
-        return fork_setting == 'yes'
-    return settings.get('can_push') == 'no'
+    """The fork check box as shown: on unless the user chose direct push."""
+    return settings.get('fork', '') != 'no'

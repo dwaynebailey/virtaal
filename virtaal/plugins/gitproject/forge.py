@@ -369,13 +369,6 @@ class GitHub:
         status, data = self.get('/repos/%s' % full_name)
         return data if status == 200 and isinstance(data, dict) else None
 
-    def can_push(self):
-        """Whether the user may push to the project's repository."""
-        data = self.repository(self.forge.full_name)
-        if data is None:
-            raise ForgeError(NOT_PLATFORM, 404)
-        return bool((data.get('permissions') or {}).get('push'))
-
     # The fork #
 
     def _forks_of_project(self, data):
