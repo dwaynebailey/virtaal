@@ -308,7 +308,8 @@ class gtkoutfile:
         self.console.write(s, self.tag)
 
     def writelines(self, lines):
-        self.console.write(lines, self.tag)
+        for line in lines:
+            self.write(line)
 
     def seek(self, a):
         raise OSError(29, 'Illegal seek')

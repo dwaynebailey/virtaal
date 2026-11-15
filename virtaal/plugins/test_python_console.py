@@ -245,3 +245,11 @@ def test_ctrl_d_closes_the_console_window():
     finally:
         if not destroyed:
             window.destroy()
+
+
+def test_writelines_writes_every_line():
+    console = PythonConsole(namespace={})
+
+    console.stdout.writelines(['a\n', 'b\n'])
+
+    assert _text(console) == '>>> a\nb\n'
