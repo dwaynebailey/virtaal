@@ -97,18 +97,19 @@ maintainer updated the file from its template), Virtaal offers to open the new
 file and keeps your unsubmitted changes where it can.
 
 With :guilabel:`Send finished units as you go` on for the project, each save
-commits and pushes the units you saved as Translated.
+commits and pushes the units you saved as Translated. A project that submits
+from your fork (below) ignores it: nothing goes to GitHub before Submit.
 
 .. _git_projects#fork:
 
 Submitting from your fork (GitHub)
 ==================================
 
-Most translators can't push to a project's repository. For a project on
-GitHub, Virtaal can submit your work as a pull request from your own copy of
-the repository (your fork) instead: tick :guilabel:`Submit as a pull request
-from my fork` for the project. Left as it is, Virtaal asks GitHub whether you
-may push, and submits from your fork if you may not.
+Most translators can't push to a project's repository, so for a project on
+GitHub, Virtaal submits your work as a pull request from your own copy of the
+repository (your fork): :guilabel:`Submit as a pull request from my fork` is
+on for a new project. Turn it off only if you want Submit to push to the
+project's branch itself.
 
 GitHub needs a personal access token for this, which you make on GitHub under
 :menuselection:`Settings --> Developer settings --> Personal access tokens`:
@@ -118,34 +119,48 @@ GitHub needs a personal access token for this, which you make on GitHub under
   exist yet), or
 - a classic token with the ``public_repo`` scope.
 
-Virtaal asks for it the first time, and keeps it for the session, or in your
-computer's password store if you tick :guilabel:`Remember in this computer’s
-password store` (as ``Virtaal GitHub github.com``), never in its own settings.
-Signing in with your browser instead of a token isn't available yet.
+Virtaal asks for it at the first Submit, and keeps it for the session, or in
+your computer's password store if you tick :guilabel:`Remember in this
+computer’s password store` (as ``Virtaal GitHub github.com``), never in its
+own settings. Signing in with your browser instead of a token isn't available
+yet.
 
-The first Submit makes your fork if you have none, waits until GitHub has it
-ready, pushes your language's file to a branch of its own on the fork
-(``virtaal/af`` for Afrikaans) and opens a pull request against the project's
-branch. The pull request holds one commit: each later Submit while it is open
-makes that commit again on the project's newest work, with all your changes,
-and replaces it on the branch, so the maintainers see one clean change. Virtaal
-only replaces the branch while it holds nothing but what Virtaal pushed; if
-someone else pushed to it, Submit stops and says so. Nothing is ever pushed to
-the project itself.
+Saving only writes your copy; nothing reaches GitHub until you Submit. The
+first Submit makes your fork if you have none, waits until GitHub has it ready,
+pushes your language's file to a branch of its own on the fork (``virtaal/af``
+for Afrikaans) and opens a pull request against the project's branch, titled
+"Update Afrikaans (af) translation". Its description names the language and
+the file and says it was submitted from Virtaal; the commit message counts
+the strings translated and updated. Nothing is ever pushed to the project
+itself.
 
-Submit adds a commit on top instead, so a reviewer sees what changed:
+The pull request holds one commit: each later Submit while it is open makes
+that commit again on the project's newest work, with all your changes, and
+replaces it on the branch, so the maintainers see one clean change. Submit
+adds a commit on top instead:
 
 - when someone reviewed or commented on the pull request since your last
   Submit: the commit is "Address review comments", or the summary you type;
 - when you tick :guilabel:`Add as a separate commit` in Submit's question,
-  for a deliberate batch, with an optional :guilabel:`Commit summary`.
-  Virtaal remembers the choice for the project.
+  for a deliberate batch, with an optional :guilabel:`Commit summary`. The
+  choice is for that Submit only;
+- when someone else pushed to the branch (a maintainer, or an edit on
+  GitHub): your commit goes after theirs, never over them.
 
-Submit's question says which it will do. Update from Server still brings in
-the project's own branch, unit by unit, and keeps the changes waiting in your
-pull request. When you open the file, and after each Submit, a notice says
-whether your pull request is open, was merged or was closed, with its link.
-Once it is merged, the next Submit starts a new branch and pull request.
+Later Submits then update your newest commit in place, until the next
+review or outside commit. Submit's question says which it will do.
+
+Update from Server still brings in the project's own branch, unit by unit, and
+keeps the changes waiting in your pull request. If the project changed a
+unit your pull request changes too, Changed on the Server shows your pull
+request's text as yours and the project's as theirs: :guilabel:`Keep mine`
+keeps your text in the pull request, :guilabel:`Take theirs` takes the
+project's, and the next Submit takes the unit out of the pull request.
+Until you choose, the pull request keeps your text.
+
+When you open the file, and after each Submit, a notice says whether your pull
+request is open, was merged or was closed, with its link. Once it is merged,
+the next Submit starts a new branch and pull request.
 
 For GitHub Enterprise, add its API to the ``[github]`` section of
 ``gitprojects.ini`` in Virtaal's settings folder::
