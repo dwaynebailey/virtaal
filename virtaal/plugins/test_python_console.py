@@ -249,7 +249,10 @@ def test_ctrl_d_closes_the_console_window():
 
 def test_lock_modifiers_do_not_change_key_handling():
     # NumLock (MOD2) or Caps Lock (LOCK) on adds a bit to every event's state.
-    locks = Gdk.ModifierType.MOD2_MASK | Gdk.ModifierType.LOCK_MASK
+    # On macOS MOD2 is Command, a real modifier, and there is no NumLock.
+    locks = Gdk.ModifierType.LOCK_MASK
+    if not Gtk.accelerator_get_default_mod_mask() & Gdk.ModifierType.MOD2_MASK:
+        locks |= Gdk.ModifierType.MOD2_MASK
     ctrl = Gdk.ModifierType.CONTROL_MASK | locks
     console = PythonConsole(namespace={})
     buf = console.view.get_buffer()
