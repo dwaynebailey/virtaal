@@ -37,8 +37,36 @@ class TMClient(HTTPClient):
         HTTPClient.__init__(self)
         self.base_url = base_url
 
-    def translate_unit(self, unit_source, source_lang, target_lang, callback=None, params=None):
-        """suggest translations from TM"""
+    def get_languages(self, callback, error_callback=None):
+        """Ask the server which languages it has (not all servers support it).
+
+        C{callback} gets the decoded JSON response."""
+        request = RESTRequest(
+                self.base_url.rstrip('/') + "/languages/",
+                None, "GET",
+                user_agent=self.user_agent,
+        )
+        request.curl.setopt(pycurl.TIMEOUT, 30)
+        self.add(request)
+        def on_success(widget, response):
+            try:
+                data = json.loads(response)
+            except ValueError:
+                if error_callback:
+                    error_callback(widget, None)
+                return
+            callback(widget, data)
+        request.connect("http-success", on_success)
+        if error_callback:
+            request.connect("http-client-error", error_callback)
+            request.connect("http-server-error", error_callback)
+
+    def translate_unit(self, unit_source, source_lang, target_lang, callback=None, params=None, error_callback=None):
+        """suggest translations from TM
+
+        C{error_callback}, if given, is called as
+        C{error_callback(request, unit_source, http_status)} on a 4xx or 5xx
+        response."""
         request = RESTRequest(
                 self.base_url + "/%s/%s/unit" % (source_lang, target_lang),
                 unit_source, "GET",
@@ -54,6 +82,12 @@ class TMClient(HTTPClient):
                 "http-success",
                 lambda widget, response: callback(widget, widget.id, json.loads(response))
             )
+        if error_callback:
+            for signal in ("http-client-error", "http-server-error"):
+                request.connect(
+                    signal,
+                    lambda widget, status: error_callback(widget, widget.id, status)
+                )
 
     def add_unit(self, unit, source_lang, target_lang, callback=None):
         request = RESTRequest(
