@@ -18,8 +18,16 @@ from virtaal.views.rendering import (
 
 
 def _count_anchors(buffer, itr):
-    anchor_text = buffer.get_slice(buffer.get_start_iter(), itr, include_hidden_chars=True)
-    return anchor_text.count('\ufffc')
+    # GTK shows a child anchor as U+FFFC, but the text can have its own
+    # U+FFFC too (#4854): count only the positions with an anchor.
+    text = buffer.get_slice(buffer.get_start_iter(), itr, include_hidden_chars=True)
+    count = 0
+    offset = text.find('\ufffc')
+    while offset >= 0:
+        if buffer.get_iter_at_offset(offset).get_child_anchor() is not None:
+            count += 1
+        offset = text.find('\ufffc', offset + 1)
+    return count
 
 
 class StringElemGUI:

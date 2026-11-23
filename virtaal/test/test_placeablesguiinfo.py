@@ -9,7 +9,7 @@ import cairo
 import pytest
 from gi.repository import Gdk, Gtk
 from test_scaffolding import TestScaffolding
-from translate.storage import factory
+from translate.storage import factory, po
 from translate.storage.placeables.strelem import StringElem
 
 from virtaal.controllers.placeablescontroller import PlaceablesController
@@ -160,6 +160,15 @@ def test_count_anchors_counts_child_anchors_before_the_iter():
     assert _count_anchors(buffer, buffer.get_iter_at_offset(2)) == 1
 
 
+def test_count_anchors_skips_a_literal_object_replacement_character():
+    buffer = Gtk.TextBuffer()
+    buffer.set_text('a\ufffcb')
+    buffer.create_child_anchor(buffer.get_iter_at_offset(3))
+
+    assert _count_anchors(buffer, buffer.get_iter_at_offset(3)) == 0
+    assert _count_anchors(buffer, buffer.get_end_iter()) == 1
+
+
 # Real rendering, via a real PlaceablesController and the placeables.po/xliff fixtures #
 
 
@@ -252,6 +261,18 @@ class TestRealPlaceableRendering(TestScaffolding):
         textbox = self._target_for(self.po_store, '%s files copied')
 
         assert textbox.elem.gui_info.gui_to_tree_index(5) == 5
+
+    def test_a_literal_object_replacement_character_keeps_offsets(self):
+        store = po.pofile.parsestring(
+            b'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+            b'msgid "a %s b"\nmsgstr "\xef\xbf\xbc %s b"\n'
+        )
+        textbox = self._target_for(store, 'a %s b')
+        gui_info = textbox.elem.gui_info
+
+        for index in range(len(textbox.elem) + 1):
+            assert gui_info.gui_to_tree_index(index) == index
+            assert gui_info.treeindex_to_iter(index).get_offset() == index
 
     def test_treeindex_to_iter_matches_when_there_are_no_widgets(self):
         textbox = self._target_for(self.po_store, '%s files copied')
