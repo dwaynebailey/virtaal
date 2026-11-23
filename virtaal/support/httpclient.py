@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import collections
 import contextlib
 import logging
 from io import BytesIO
@@ -280,33 +281,64 @@ _LINUX_RELEASE_FILES = (
 class HTTPClient:
     """Non-blocking client that can handle multiple (asynchronous) HTTP requests."""
 
+    MAX_ACTIVE = 16
+    """The most requests sent at once; more wait their turn."""
+    MAX_WAITING = 64
+    """The most requests waiting their turn; more are refused."""
+
     def __init__(self):
         # state variable used to add and remove dispatcher to gtk event loop
         self.running = False
 
         # Since pycurl doesn't keep references to requests, requests
         # get garbage collected before they are done. We need to keep requests in
-        # a set and destroy them manually.
+        # a set and destroy them manually. It holds those waiting too.
         self.requests = set()
+        self._waiting = collections.deque()
         self.curl = pycurl.CurlMulti()
         self.user_agent = None
 
     def add(self, request):
-        """add a request to the queue
-        @returns: False if it was dropped instead."""
-        # First ensure that we're not piling up on unanswered requests:
-        if len(self.requests) > 15:
+        """add a request to the queue: sent now, or once one of the
+        MAX_ACTIVE sent is answered (#4866).
+        @returns: False if it was refused instead, the queue being full."""
+        if self._active() < self.MAX_ACTIVE:
+            self.curl.add_handle(request.curl)
+        elif len(self._waiting) < self.MAX_WAITING:
+            logging.debug('%s waits for a free connection', loggable_url(request.url))
+            self._waiting.append(request)
+        else:
+            logging.warning('Too many web requests waiting: %s refused', loggable_url(request.url))
+            # From the main loop: get() connects the callbacks after add().
+            GLib.idle_add(self._fail_refused, request)
             return False
-        self.curl.add_handle(request.curl)
         self.requests.add(request)
         self.run()
         return True
 
+    @staticmethod
+    def _fail_refused(request):
+        request.emit('http-failed', 'too many requests waiting')
+        return False
+
+    def _active(self):
+        """How many requests were sent and not yet answered."""
+        return len(self.requests) - len(self._waiting)
+
+    def _start_waiting(self):
+        """Send waiting requests while there is room."""
+        while self._waiting and self._active() < self.MAX_ACTIVE:
+            self.curl.add_handle(self._waiting.popleft().curl)
+
     def cancel(self, request):
         """Drop request, if still queued: it emits nothing."""
-        if request in self.requests:
+        if request in self._waiting:
+            self._waiting.remove(request)
+            self.requests.discard(request)
+        elif request in self.requests:
             self.curl.remove_handle(request.curl)
             self.requests.discard(request)
+            self._start_waiting()
 
     def run(self):
         """client should not be running when request queue is empty"""
@@ -332,13 +364,13 @@ class HTTPClient:
     def perform(self):
         """main event loop function, non blocking execution of all queued requests"""
         ret, num_handles = self.curl.perform()
-        if ret != pycurl.E_CALL_MULTI_PERFORM and num_handles == 0:
-            self.running = False
         num, completed, failed = self.curl.info_read()
         [self.close_request(com) for com in completed]
         [self.close_failed_request(fail) for fail in failed]
-        if not self.running:
-            # we are done with this batch what do we do?
+        self._start_waiting()
+        # A callback above may have sent a request: it keeps this running.
+        if ret != pycurl.E_CALL_MULTI_PERFORM and num_handles == 0 and not self._active():
+            self.running = False
             return False
         return True
 
