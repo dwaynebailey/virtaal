@@ -57,18 +57,37 @@ def test_disable_all_clears_the_language_set():
 # query()
 
 
-def test_query_sends_nothing_for_a_source_over_googles_url_limit():
+def test_query_posts_a_source_over_googles_url_limit():
     # Google's Terms of Service caps the whole URL at 2000 characters, and
-    # the translation of a cut string would not be the unit's.
+    # a long unit was never shown (#4896).
     added = []
     model = _model()
-    model.client = SimpleNamespace(add=lambda req: added.append(req))
-    room = 2000 - len(model.translate_url)
+    model.client = SimpleNamespace(add=added.append)
+    emitted = []
+    model.connect('match-found', lambda m, q, r: emitted.append((q, r[0]['target'])))
+    short, long = 'x' * 100, 'é' * 1000
 
-    model.query(None, SimpleNamespace(source='x' * (room + 1)))
-    model.query(None, SimpleNamespace(source='x' * room))
+    model.query(None, SimpleNamespace(source=short))
+    model.query(None, SimpleNamespace(source=long))
 
-    assert len(added) == 1
+    assert [r.url for r in added][0].startswith('https://www.googleapis.com/')
+    assert len(added[0].url) < 2000 and 'q=' in added[0].url
+    assert added[1].url == model.batch_url % {'key': 'test-key'}
+    assert json.loads(added[1].data)['q'] == [long]
+    reply = {'data': {'translations': [{'translatedText': 'lank'}]}}
+    added[1].emit('http-success', json.dumps(reply))
+    assert emitted == [(long, 'lank')]
+
+
+def test_query_sends_nothing_for_a_source_over_googles_request_limit(monkeypatch):
+    monkeypatch.setattr(TMModel, 'MAX_CHARS', 3000)
+    added = []
+    model = _model()
+    model.client = SimpleNamespace(add=added.append)
+
+    model.query(None, SimpleNamespace(source='word ' * 700))
+
+    assert added == []
 
 
 def test_query_translates_language_codes_before_checking_support():
@@ -245,12 +264,22 @@ def test_got_languages_disables_all_on_a_malformed_response():
 # got_error()
 
 
-def test_got_error_disables_all_queries():
+def test_got_error_disables_all_queries_for_a_refused_key():
     model = _model()
 
-    model.got_error('500 server error', 'hello')
+    model.got_error(403, 'hello')
 
     assert model._languages == set()
+
+
+def test_got_error_leaves_the_service_on_for_one_refused_string():
+    # #4896: a 413 or a 429 turned Google off until a restart.
+    for status in (413, 429, 500, 503):
+        model = _model()
+
+        model.got_error(status, 'hello')
+
+        assert model._languages == {'en', 'af'}
 
 
 # Setting the API key from Configure… (#1519).
