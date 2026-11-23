@@ -291,6 +291,17 @@ def test_create_menu_items_returns_nothing_for_an_unknown_word():
     assert model.create_menu_items('notaword', 'source', 'pl_PL', 'en', None) == []
 
 
+def test_create_menu_items_looks_up_a_several_word_selection_as_a_whole():
+    dat = b'UTF-8\nbig|1\n-|large\nice cream|1\n-|gelato\n'
+    model = _make_model()
+    model._thesauruses['pl_PL'] = mythes.parse_thesaurus(dat)
+
+    assert model.create_menu_items('big house', 'source', 'pl_PL', 'en', None) == []
+    items = model.create_menu_items(' ice  cream ', 'source', 'pl_PL', 'en', None)
+    labels = [i.get_label() for i in items[0].get_submenu().get_children()]
+    assert labels == ['gelato']
+
+
 def test_create_menu_items_returns_nothing_for_an_empty_selection(monkeypatch, tmp_path):
     monkeypatch.setattr(thesaurus_module, 'thesaurus_cache_dir', lambda: str(tmp_path))
     model = _make_model()
@@ -332,6 +343,18 @@ def test_replace_selection_swaps_the_selected_text_and_records_undo():
     assert buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False) == 'a sukmana b'
     assert model.controller.main_controller.undo_controller.calls == ['start', 'stop']
     assert textbox.emitted == ['changed']
+
+
+def test_replace_selection_keeps_the_spaces_around_the_selected_word():
+    buf = Gtk.TextBuffer()
+    buf.set_text('a big house')
+    buf.select_range(buf.get_iter_at_offset(1), buf.get_iter_at_offset(6))
+    textbox = _Textbox(buf)
+
+    model = _make_model()
+    model._replace_selection(textbox, 'large')
+
+    assert buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False) == 'a large house'
 
 
 def test_replace_selection_leaves_source_text_untouched():
