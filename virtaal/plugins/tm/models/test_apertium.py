@@ -668,3 +668,22 @@ def test_an_own_server_may_be_asked_as_much_as_any(monkeypatch, config_dir):
     model.client.added[0].emit('http-success', _pairs_reply(('eng', 'afr')))
     assert _saved(config_dir) == {'pairs': [['eng', 'spa']]}
     assert model.bulk_ready()
+
+
+# A reply asked for before a language change (#4878)
+
+
+def test_a_reply_for_the_previous_target_language_is_dropped():
+    added = []
+    model = _model()
+    model.client = SimpleNamespace(add=added.append)
+    emitted = []
+    model.connect('match-found', lambda m, q, r: emitted.append(q))
+    model.query(None, SimpleNamespace(source='hello'))
+
+    model._set_target_lang(None, 'nl')
+    reply = {'responseStatus': 200, 'responseData': {'translatedText': 'Hallo'}}
+    added[0].emit('http-success', json.dumps(reply))
+
+    assert emitted == []
+    assert model.cache == {}

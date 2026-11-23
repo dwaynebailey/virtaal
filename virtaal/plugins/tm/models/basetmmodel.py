@@ -199,6 +199,15 @@ class BaseTMModel(BaseModel, Configurable):
         """How many of this model's requests are still unanswered."""
         return 0
 
+    def still_wanted(self, cache):
+        """Whether a reply to a query sent while self.cache was cache is
+        still for these languages, style and settings: each change starts
+        a new cache (#4878)."""
+        if cache is None or cache is self.cache:
+            return True
+        logging.debug('%s: dropping a reply asked for before a change', self)
+        return False
+
     def hold_until_languages_known(self, tmcontroller, unit):
         """True if the model knows its languages. Otherwise keep this query
         to run once they are known, and return False (#4677)."""

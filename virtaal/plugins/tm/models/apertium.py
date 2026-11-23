@@ -217,8 +217,10 @@ class TMModel(BaseTMModel):
         else:
             req = RESTRequest(self._translate_url(query_str, pair), '')
             self.client.add(req)
+            cache = self.cache
             req.connect(
-                'http-success', lambda req, response: self.got_translation(response, query_str)
+                'http-success',
+                lambda req, response: self.got_translation(response, query_str, cache),
             )
         if self._refresh_due:
             self._request_language_pairs()
@@ -270,8 +272,10 @@ class TMModel(BaseTMModel):
             self._refreshing = False
             self.set_languages_known()
 
-    def got_translation(self, val, query_str):
+    def got_translation(self, val, query_str, cache=None):
         """Handle the response from the web service now that it came in."""
+        if not self.still_wanted(cache):
+            return
         try:
             match = self._match(val, query_str)
         except (ValueError, KeyError, TypeError) as exc:

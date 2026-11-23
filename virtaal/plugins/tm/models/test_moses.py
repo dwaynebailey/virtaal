@@ -128,7 +128,28 @@ def test_query_delegates_to_the_matching_language_pairs_client():
 
     model.query(None, SimpleNamespace(source='bonjour'))
 
-    assert client.translated == [('bonjour', model._handle_response, 'en')]
+    assert [(q, t) for q, _callback, t in client.translated] == [('bonjour', 'en')]
+    emitted = []
+    model.connect('match-found', lambda m, q, r: emitted.append((q, r[0]['target'])))
+    client.translated[0][1]('bonjour', 'hello')
+    assert emitted == [('bonjour', 'hello')]
+
+
+def test_a_reply_for_the_previous_target_language_is_dropped():
+    # #4878
+    model = _model()
+    model.source_lang, model.target_lang = 'fr', 'en'
+    client = _FakeMosesClient('http://a')
+    model.clients = {'fr': {'en': client, 'de': client}}
+    emitted = []
+    model.connect('match-found', lambda m, q, r: emitted.append(q))
+    model.query(None, SimpleNamespace(source='bonjour'))
+
+    model._set_target_lang(None, 'de')
+    client.translated[0][1]('bonjour', 'hello')
+
+    assert emitted == []
+    assert model.cache == {}
 
 
 @pytest.mark.parametrize('configured', ['pt_BR->fr', 'pt_br->fr'])

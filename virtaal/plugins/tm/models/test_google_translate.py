@@ -425,3 +425,22 @@ def test_a_file_fetch_stops_for_a_refused_key():
 
     assert model.bulk_wait(request, 403) is None
     assert not model.bulk_ready()
+
+
+# A reply asked for before a language change (#4878)
+
+
+def test_a_reply_for_the_previous_target_language_is_dropped():
+    added = []
+    model = _model()
+    model.client = SimpleNamespace(add=added.append)
+    emitted = []
+    model.connect('match-found', lambda m, q, r: emitted.append(q))
+    model.query(None, SimpleNamespace(source='hello'))
+
+    model._set_target_lang(None, 'de')
+    reply = {'data': {'translations': [{'translatedText': 'Hallo'}]}}
+    added[0].emit('http-success', json.dumps(reply))
+
+    assert emitted == []
+    assert model.cache == {}
