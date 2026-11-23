@@ -288,7 +288,7 @@ class PhGUI(StringElemGUI):
 
 
 class BxGUI(StringElemGUI):
-    bg = '#E6E6FA'
+    bg = theme.current_theme['bx_placeable_bg']
 
     def create_repr_widgets(self):
         self.widgets.append(Gtk.Label(label='(('))
@@ -302,7 +302,7 @@ class BxGUI(StringElemGUI):
 
 
 class ExGUI(StringElemGUI):
-    bg = '#E6E6FA'
+    bg = theme.current_theme['bx_placeable_bg']
 
     def create_repr_widgets(self):
         self.widgets.append(Gtk.Label(label='))'))
@@ -363,7 +363,7 @@ class UrlGUI(StringElemGUI):
 
 
 class GPlaceableGUI(StringElemGUI):
-    bg = '#ffd27f'
+    bg = theme.current_theme['g_placeable_bg']
 
     def create_repr_widgets(self):
         self.widgets.append(Gtk.Label(label='<'))
@@ -380,7 +380,7 @@ class GPlaceableGUI(StringElemGUI):
 
 
 class XPlaceableGUI(StringElemGUI):
-    bg = '#ff7fef'
+    bg = theme.current_theme['x_placeable_bg']
 
     def create_repr_widgets(self):
         lbl = Gtk.Label(label='[]')
@@ -396,7 +396,7 @@ class XPlaceableGUI(StringElemGUI):
 
 
 class UnknownXMLGUI(StringElemGUI):
-    bg = '#add8e6'
+    bg = theme.current_theme['xml_placeable_bg']
 
     def create_repr_widgets(self):
         self.widgets.append(Gtk.Label(label='{'))
@@ -461,6 +461,10 @@ def update_style(widget):
     StringElemGUI.bg = theme.rgba_to_str(bg)
     PhGUI.fg = theme.current_theme['markup_warning_fg']
     PhGUI.bg = theme.current_theme['ph_placeable_bg']
+    BxGUI.bg = ExGUI.bg = theme.current_theme['bx_placeable_bg']
+    GPlaceableGUI.bg = theme.current_theme['g_placeable_bg']
+    XPlaceableGUI.bg = theme.current_theme['x_placeable_bg']
+    UnknownXMLGUI.bg = theme.current_theme['xml_placeable_bg']
     UrlGUI.fg = theme.current_theme['url_fg']
     NewlineGUI.fg = theme.current_theme['subtle_fg']
     InvisibleGUI.fg = theme.current_theme['subtle_fg']

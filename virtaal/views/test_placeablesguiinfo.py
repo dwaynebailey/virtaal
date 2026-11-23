@@ -34,3 +34,26 @@ def test_code_marks_colour_codes_as_the_editor_does():
 
     assert 'background="%s"' % GPlaceableGUI.bg in g[4]
     assert 'background="%s"' % UnknownXMLGUI.bg in ph[4]
+
+
+@pytest.mark.parametrize('dark', [False, True])
+def test_inline_code_colours_follow_the_theme(dark):
+    from gi.repository import Gtk
+
+    from virtaal.views import theme
+
+    fg = '#eeeeec' if dark else '#000000'
+    try:
+        theme.set_inverse() if dark else theme.set_default()
+        placeablesguiinfo.update_style(Gtk.TextView())
+        for gui in (
+            placeablesguiinfo.BxGUI,
+            placeablesguiinfo.ExGUI,
+            GPlaceableGUI,
+            placeablesguiinfo.XPlaceableGUI,
+            UnknownXMLGUI,
+        ):
+            assert theme.has_good_contrast(gui.bg, fg), gui
+    finally:
+        theme.set_default()
+        placeablesguiinfo.update_style(Gtk.TextView())

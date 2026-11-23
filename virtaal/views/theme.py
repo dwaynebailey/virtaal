@@ -69,6 +69,11 @@ _default_theme = {
     # Red warning foreground colour for things like XML markup
     'markup_warning_fg': '#8b0000',  # darkred/#8b0000
     'ph_placeable_bg': '#f7f7f7',
+    # XLIFF inline codes
+    'bx_placeable_bg': '#e6e6fa',
+    'g_placeable_bg': '#ffd27f',
+    'x_placeable_bg': '#ff7fef',
+    'xml_placeable_bg': '#add8e6',
     # warning background for things like no search result
     'warning_bg': '#f66',
     # row colour for fuzzy strings
@@ -105,6 +110,10 @@ _inverse_theme = {
     'selected_placeable_bg': '#007010',
     'markup_warning_fg': '#ffa0a0',
     'ph_placeable_bg': '#101010',
+    'bx_placeable_bg': '#4a3a70',
+    'g_placeable_bg': '#664400',
+    'x_placeable_bg': '#702060',
+    'xml_placeable_bg': '#204a60',
     'warning_bg': '#900',
     'fuzzy_row_bg': '#474747',
     'context_gap': '#a0a0a0',
