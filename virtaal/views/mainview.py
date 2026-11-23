@@ -1047,6 +1047,11 @@ class MainView(BaseView):
         @type accel_group: Gtk.AccelGroup"""
         self.main_window.add_accel_group(accel_group)
 
+    def remove_accel_group(self, accel_group):
+        """Remove an accelerator group add_accel_group() added.
+        @type accel_group: Gtk.AccelGroup"""
+        self.main_window.remove_accel_group(accel_group)
+
     def sync_menubar(self):
         """On macOS, push a plugin's own accelerator (added to the
         native menu bar after GtkosxApplication.ready() already

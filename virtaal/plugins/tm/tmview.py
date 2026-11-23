@@ -356,6 +356,11 @@ class TMView(BaseView, GObjectWrapper):
         self.remove_import_menu_item()
         self.remove_exclude_menu_item()
         self._match_menu.destroy()
+        # Its shortcuts would still act on this view (#4898).
+        if self.menu.get_accel_group() is self.accel_group:
+            self.menu.set_accel_group(None)
+        self.controller.main_controller.view.remove_accel_group(self.accel_group)
+        self.tmwindow.destroy()
 
     def _add_fetch_menu_item(self, mainview):
         """Offer File > Fetch Suggestions for This File… (#1679)."""

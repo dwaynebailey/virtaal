@@ -747,17 +747,42 @@ def test_destroy_disconnects_signals_and_removes_the_suggestions_menu_item():
     disconnected = []
     view._signal_tracker = SimpleNamespace(disconnect_all=lambda: disconnected.append(True))
     removed = []
-    view.menu = SimpleNamespace(remove=removed.append)
+    view.accel_group = Gtk.AccelGroup()
+    view.menu = SimpleNamespace(remove=removed.append, get_accel_group=lambda: None)
     view.mnu_suggestions = object()
     view.mnu_translated = object()
     view.mnu_summon = object()
     destroyed = []
-    view._match_menu = SimpleNamespace(destroy=lambda: destroyed.append(True))
+    view._match_menu = SimpleNamespace(destroy=lambda: destroyed.append('menu'))
+    view.tmwindow = SimpleNamespace(destroy=lambda: destroyed.append('window'))
+    removed_groups = []
+    view.controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            view=SimpleNamespace(remove_accel_group=removed_groups.append)
+        )
+    )
 
     view.destroy()
 
     assert disconnected == [True]
     assert removed == [view.mnu_suggestions, view.mnu_translated, view.mnu_summon]
+    assert destroyed == ['menu', 'window']
+    assert removed_groups == [view.accel_group]
+
+
+def test_destroy_takes_its_shortcuts_and_window_away():
+    # #4898: after turning the plug-in off, Ctrl+1 still acted on the
+    # destroyed view, and its suggestions window stayed.
+    view, main_window, _added = _real_tmview()
+    main_window.add_accel_group(view.accel_group)
+    view.controller.main_controller.view.remove_accel_group = main_window.remove_accel_group
+    destroyed = []
+    view.tmwindow.connect('destroy', lambda *_args: destroyed.append(True))
+
+    view.destroy()
+
+    assert view.accel_group not in Gtk.accel_groups_from_object(main_window)
+    assert view.menu.get_accel_group() is not view.accel_group
     assert destroyed == [True]
 
 
