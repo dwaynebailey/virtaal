@@ -762,12 +762,11 @@ class TextBox(Gtk.TextView):
         if recording:
             self.undo_controller.record_start()
 
+        # The delete updates the tree at once: no main loop to run here,
+        # which would run keys pressed meanwhile, such as Enter (#4856).
         selection = self.buffer.get_selection_bounds()
         if selection:
             self.buffer.delete(*selection)
-
-        while Gtk.events_pending():
-            Gtk.main_iteration()
 
         cursor_pos = self.buffer.props.cursor_position
         if isinstance(translation, StringElem):

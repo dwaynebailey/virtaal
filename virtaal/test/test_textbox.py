@@ -9,7 +9,7 @@ from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
-from gi.repository import Gdk, GObject, Gtk
+from gi.repository import Gdk, GLib, GObject, Gtk
 from test_scaffolding import TestScaffolding
 from translate.storage import factory, po, xliff
 from translate.storage.placeables import general, parse
@@ -695,6 +695,32 @@ class TestTextBox(TestScaffolding):
         textbox.refresh(update=True)
 
         assert textbox.get_text() == original_text
+
+    def test_insert_translation_runs_no_key_queued_meanwhile(self):
+        # #4856: a nested main loop ran an Enter pressed during the insert,
+        # which put the rest of the insert into the next unit.
+        textbox = self._po_target(b'#, c-format\nmsgid "%s files"\nmsgstr "%s lers"\n')
+        unit = self.unit_controller.current_unit
+        textbox.buffer.select_range(textbox.buffer.get_start_iter(), textbox.buffer.get_end_iter())
+        placeable = next(
+            e for e in textbox.elem.depth_first() if e.__class__ not in textbox.unselectables
+        )
+        other = po.pofile(BytesIO(b'msgid "Tea"\nmsgstr "Tee"\n')).units[-1]
+
+        def enter():
+            self.unit_controller.load_unit(other)
+            return False
+
+        source = GLib.timeout_add(0, enter)
+        try:
+            textbox.insert_translation(placeable)
+        finally:
+            if GLib.MainContext.default().find_source_by_id(source):
+                GLib.source_remove(source)
+
+        assert self.unit_controller.current_unit is unit
+        assert str(unit.target) == '%s'
+        assert other.target == 'Tee'
 
     def test_undo_restores_deleted_newlines_where_they_were(self, monkeypatch):
         # #4176: typing builds nested elements, so a deleted newline's
