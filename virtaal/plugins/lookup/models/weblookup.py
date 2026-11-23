@@ -21,6 +21,44 @@ def _fill_url(url, values):
     return _PLACEHOLDER_RE.sub(lambda m: values[m.group(1)] if m.group(1) else '%', url)
 
 
+# Wikimedia sites whose subdomain isn't the language's own code.
+_WIKI_SUBDOMAINS = {
+    'be@tarask': 'be-tarask',
+    'be_tarask': 'be-tarask',
+    'nb': 'no',
+    'nds_nl': 'nds-nl',
+}
+_WIKI_SUBDOMAINS_BY_SITE = {
+    'wikipedia': {
+        'gsw': 'als',
+        'lzh': 'zh-classical',
+        'nan': 'zh-min-nan',
+        'rup': 'roa-rup',
+        'sgs': 'bat-smg',
+        'vro': 'fiu-vro',
+        'yue': 'zh-yue',
+    },
+    'wiktionary': {
+        'nan': 'zh-min-nan',
+        'rup': 'roa-rup',
+    },
+}
+
+
+def wiki_subdomain(code, site):
+    """The subdomain of C{site} (wikipedia, wiktionary) for a language
+    code: pt_BR -> pt, sr@latin -> sr, yue -> zh-yue."""
+    if not code:
+        return code
+    code = code.lower().replace('-', '_')
+    by_site = _WIKI_SUBDOMAINS_BY_SITE.get(site, {})
+    for candidate in (code, code.split('@')[0], code.split('@')[0].split('_')[0]):
+        subdomain = by_site.get(candidate) or _WIKI_SUBDOMAINS.get(candidate)
+        if subdomain:
+            return subdomain
+    return candidate
+
+
 def _slugify(display_name):
     """A stable id derived from a user's own typed name, so they're
     never asked for one directly - "My Site" -> "my_site"."""
@@ -69,6 +107,7 @@ class LookupModel(BaseLookupModel):
             'display_name': _('Wikipedia'),
             'url': 'https://%(querylang)s.wikipedia.org/wiki/%(query)s',
             'quoted': False,
+            'wiki': 'wikipedia',
             'enabled': True,
         },
         {
@@ -76,6 +115,7 @@ class LookupModel(BaseLookupModel):
             'display_name': _('Wiktionary'),
             'url': 'https://%(querylang)s.wiktionary.org/wiki/%(query)s',
             'quoted': False,
+            'wiki': 'wiktionary',
             'enabled': True,
         },
         # Redundant with Google for the search-engine case - shipped
@@ -107,6 +147,8 @@ class LookupModel(BaseLookupModel):
         variables.
     * C{quoted}: Whether or not the query string should be put in quotes (").
     * C{enabled}: Whether this look-up is offered at all.
+    * C{wiki}: For a Wikimedia site, its name: the languages are then
+        its subdomains (see L{wiki_subdomain}).
 
     Valid template variables in 'url' fields are:
     * C{%(query)s}: The selected text that makes up the look-up query.
@@ -190,17 +232,17 @@ class LookupModel(BaseLookupModel):
             if 'quoted' in urlinfo and urlinfo['quoted']:
                 uquery = '"' + uquery + '"'
 
+            langs = {
+                'querylang': querylang,
+                'nonquerylang': nonquerylang,
+                'srclang': srclang,
+                'tgtlang': tgtlang,
+            }
+            if urlinfo.get('wiki'):
+                langs = {k: wiki_subdomain(v, urlinfo['wiki']) for k, v in langs.items()}
+
             i = Gtk.MenuItem(label=urlinfo['display_name'])
-            lookup_str = _fill_url(
-                urlinfo['url'],
-                {
-                    'query': uquery,
-                    'querylang': querylang,
-                    'nonquerylang': nonquerylang,
-                    'srclang': srclang,
-                    'tgtlang': tgtlang,
-                },
-            )
+            lookup_str = _fill_url(urlinfo['url'], {'query': uquery, **langs})
             i.connect('activate', self._on_lookup, lookup_str)
             items.append(i)
         return items

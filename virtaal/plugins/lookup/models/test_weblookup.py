@@ -313,6 +313,44 @@ def test_create_menu_items_treats_a_missing_enabled_key_as_enabled(monkeypatch, 
     assert [i.get_label() for i in items] == ['Custom']
 
 
+@pytest.mark.parametrize(
+    ('code', 'site', 'subdomain'),
+    [
+        ('af', 'wikipedia', 'af'),
+        ('pt_BR', 'wikipedia', 'pt'),
+        ('zh_CN', 'wiktionary', 'zh'),
+        ('ca@valencia', 'wikipedia', 'ca'),
+        ('sr@latin', 'wiktionary', 'sr'),
+        ('sr-Latn', 'wikipedia', 'sr'),
+        ('nb', 'wikipedia', 'no'),
+        ('nb_NO', 'wiktionary', 'no'),
+        ('nds_NL', 'wikipedia', 'nds-nl'),
+        ('be@tarask', 'wikipedia', 'be-tarask'),
+        ('yue', 'wikipedia', 'zh-yue'),
+        ('yue', 'wiktionary', 'yue'),
+        ('nan', 'wiktionary', 'zh-min-nan'),
+        ('', 'wikipedia', ''),
+    ],
+)
+def test_wiki_subdomain(code, site, subdomain):
+    assert weblookup.wiki_subdomain(code, site) == subdomain
+
+
+def test_wikipedia_and_wiktionary_look_up_in_the_wikis_language(monkeypatch, tmp_path):
+    opened = []
+    monkeypatch.setattr('virtaal.support.openmailto.open', opened.append)
+    model = _model(monkeypatch, tmp_path)
+
+    for item in model.create_menu_items('palavra', 'target', 'en', 'pt_BR', None):
+        if item.get_label() in ('Wikipedia', 'Wiktionary'):
+            item.activate()
+
+    assert opened == [
+        'https://pt.wikipedia.org/wiki/palavra',
+        'https://pt.wiktionary.org/wiki/palavra',
+    ]
+
+
 def _lookup_urls(monkeypatch, tmp_path, urls, query='word', role='source'):
     model = _model(monkeypatch, tmp_path)
     model.URLDATA = [
