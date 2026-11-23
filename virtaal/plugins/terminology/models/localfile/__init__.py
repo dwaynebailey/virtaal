@@ -5,6 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import json
 import logging
 import os
 
@@ -135,7 +136,7 @@ class TerminologyModel(BaseTerminologyModel):
     def load_config(self):
         super().load_config()
         conffiles = []
-        for filename in self.config['files'].split(','):
+        for filename in _config_files(self.config['files']):
             if os.path.exists(filename):
                 conffiles.append(filename)
         self.config['files'] = conffiles
@@ -148,6 +149,13 @@ class TerminologyModel(BaseTerminologyModel):
 
         if self.config['extendfile'] not in self.config['files']:
             self.config['files'].append(self.config['extendfile'])
+
+    def save_config(self):
+        config = dict(self.config)
+        if isinstance(config['files'], list):
+            config['files'] = json.dumps(config['files'], ensure_ascii=False)
+        config_file = os.path.join(pan_app.get_config_dir(), self.CONFIG_FILENAME)
+        pan_app.save_config(config_file, config, self.internal_name)
 
     def load_files(self):
         """Load the configured files, reading only those not loaded yet."""
@@ -173,3 +181,15 @@ class TerminologyModel(BaseTerminologyModel):
         self.stores = list(loaded.values())
         self.matcher = terminologymatcher(self.stores)
         TerminologyPlaceable.matchers.append(self.matcher)
+
+
+def _config_files(value):
+    """The files setting: a JSON list, so a path may have a comma in it
+    (#4892), or comma-joined as it was before."""
+    try:
+        files = json.loads(value)
+    except ValueError:
+        return value.split(',')
+    if isinstance(files, list) and all(isinstance(f, str) for f in files):
+        return files
+    return value.split(',')

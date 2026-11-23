@@ -239,6 +239,41 @@ def test_load_config_keeps_only_existing_files(monkeypatch, tmp_path):
     assert model.config['files'] == [str(real_file)]
 
 
+def test_a_path_with_a_comma_survives_saving_and_loading(monkeypatch, tmp_path):
+    # It was split in two at the comma and dropped (#4892).
+    glossary = tmp_path / 'Glossaries, 2026' / 'terms.po'
+    glossary.parent.mkdir()
+    glossary.write_text('')
+    other = tmp_path / 'other.po'
+    other.write_text('')
+    monkeypatch.setattr('virtaal.common.pan_app.get_config_dir', lambda: str(tmp_path))
+    model = TerminologyModel.__new__(TerminologyModel)
+    model.internal_name = 'localfile'
+    model.config = {'files': [str(glossary), str(other)], 'extendfile': str(other)}
+
+    model.save_config()
+    model.load_config()
+
+    assert model.config['files'] == [str(glossary), str(other)]
+
+
+def test_load_config_reads_the_old_comma_joined_files(monkeypatch, tmp_path):
+    first = tmp_path / 'first.po'
+    second = tmp_path / 'second.po'
+    first.write_text('')
+    second.write_text('')
+    (tmp_path / 'terminology.ini').write_text(
+        '[localfile]\nfiles = %s,%s\nextendfile = %s\n' % (first, second, first)
+    )
+    monkeypatch.setattr('virtaal.common.pan_app.get_config_dir', lambda: str(tmp_path))
+    model = TerminologyModel.__new__(TerminologyModel)
+    model.internal_name = 'localfile'
+
+    model.load_config()
+
+    assert model.config['files'] == [str(first), str(second)]
+
+
 def test_load_config_falls_back_extendfile_to_the_first_configured_file(monkeypatch, tmp_path):
     real_file = tmp_path / 'real.po'
     real_file.write_text('')
