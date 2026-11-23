@@ -425,3 +425,32 @@ def test_on_lang_changed_updates_the_relevant_language_and_refetches(tmp_path):
 
     assert model.target_lang == 'fr'
     assert calls == [('en', 'fr')]
+
+
+# destroy(): turning the source off (#4882).
+
+
+def _turned_off(tmp_path, monkeypatch):
+    model = _model(tmp_path, source_lang='en', target_lang='af')
+    model._signal_tracker = SimpleNamespace(disconnect_all=lambda: None)
+    monkeypatch.setattr(model, 'save_config', lambda: None)
+    model.init_matcher()
+    model.destroy()
+    return model
+
+
+def test_destroy_stops_matching_its_terms(tmp_path, monkeypatch):
+    model = _turned_off(tmp_path, monkeypatch)
+
+    assert model.matcher not in TerminologyPlaceable.matchers
+
+
+def test_a_download_finishing_after_destroy_is_ignored(tmp_path, monkeypatch):
+    model = _turned_off(tmp_path, monkeypatch)
+    before = list(TerminologyPlaceable.matchers)
+    localfile = str(tmp_path / 'en__af.tbx')
+
+    model._process_header(_FakeRequest(), b'<tbx/>', localfile=localfile)
+
+    assert TerminologyPlaceable.matchers == before
+    assert not os.path.exists(localfile)

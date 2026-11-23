@@ -5,7 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from gi.repository import GObject
+from gi.repository import GLib, GObject
 from translate.storage.placeables import parse as elem_parse
 from translate.storage.placeables import terminology
 
@@ -27,6 +27,7 @@ class TerminologyController(BaseController):
     # INITIALIZERS #
     def __init__(self, main_controller, config=None):
         GObjectWrapper.__init__(self)
+        self._destroyed = False
 
         self.config = config if config is not None else {}
         self.main_controller = main_controller
@@ -66,11 +67,16 @@ class TerminologyController(BaseController):
             lambda *args: self.disabled_model_names,
         )
         self.plugin_controller.connect('plugin-enabled', lambda *args: self.rescan_current_unit())
+        self._disabled_id = self.plugin_controller.connect(
+            'plugin-disabled', self._on_plugin_disabled
+        )
         self.plugin_controller.load_plugins()
 
     # METHODS #
     def destroy(self):
+        self._destroyed = True
         self.view.destroy()
+        self.plugin_controller.disconnect(self._disabled_id)
         self.plugin_controller.shutdown()
         self.placeables_controller.remove_parsers(terminology.parsers)
 
@@ -98,6 +104,15 @@ class TerminologyController(BaseController):
         store_controller.view._treeview.refresh_current_row()
 
     # EVENT HANDLERS #
+    def _on_plugin_disabled(self, _plugin_controller, _plugin):
+        # Emitted before the source is destroyed and drops its terms.
+        GLib.idle_add(self._rescan_unless_destroyed)
+
+    def _rescan_unless_destroyed(self):
+        if not self._destroyed:
+            self.rescan_current_unit()
+        return False
+
     def _on_placeables_changed(self, placeables_controller):
         for term_parser in terminology.parsers:
             if term_parser not in placeables_controller.parsers:

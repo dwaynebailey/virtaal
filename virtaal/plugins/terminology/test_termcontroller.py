@@ -261,3 +261,34 @@ def test_on_style_set_updates_the_terminology_gui_info(monkeypatch):
     controller._on_style_set(main_controller.view.main_window)
 
     assert calls == [main_controller.view.main_window]
+
+
+def test_turning_a_source_off_rescans_once_it_is_gone(monkeypatch):
+    # Its terms go when it's destroyed, after plugin-disabled (#4882).
+    controller, main_controller = _make_controller()
+    idles = []
+    monkeypatch.setattr(termcontroller.GLib, 'idle_add', idles.append)
+    rescans = []
+    monkeypatch.setattr(controller, 'rescan_current_unit', lambda: rescans.append(True))
+
+    controller.plugin_controller.emit('plugin-disabled', object())
+    assert rescans == []
+    assert [idle() for idle in idles] == [False]
+
+    assert rescans == [True]
+
+
+def test_no_rescan_after_the_controller_is_destroyed(monkeypatch):
+    controller, main_controller = _make_controller()
+    idles = []
+    monkeypatch.setattr(termcontroller.GLib, 'idle_add', idles.append)
+    rescans = []
+    monkeypatch.setattr(controller, 'rescan_current_unit', lambda: rescans.append(True))
+    controller.plugin_controller.emit('plugin-disabled', object())
+    monkeypatch.setattr(controller.view, 'destroy', lambda: None)
+
+    controller.destroy()
+    for idle in idles:
+        idle()
+
+    assert rescans == []

@@ -38,6 +38,7 @@ class CachedRemoteTerminologyModel(BaseTerminologyModel):
     """Extension for a language pair with no cached file yet."""
     REFRESH_AGE = THREE_DAYS
     """Seconds before a cached file is checked again."""
+    _destroyed = False
 
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
@@ -84,6 +85,12 @@ class CachedRemoteTerminologyModel(BaseTerminologyModel):
         self.store.makeindex()
         self.matcher = terminologymatcher(self.store)
         TerminologyPlaceable.matchers.append(self.matcher)
+
+    def destroy(self):
+        self._destroyed = True
+        if self.matcher in TerminologyPlaceable.matchers:
+            TerminologyPlaceable.matchers.remove(self.matcher)
+        super().destroy()
 
     # HOOKS #
     def _load_store(self, filename):
@@ -215,6 +222,9 @@ class CachedRemoteTerminologyModel(BaseTerminologyModel):
         return None
 
     def _process_header(self, request, result, localfile=None):
+        if self._destroyed:
+            # Turned off while it downloaded.
+            return
         if request.status == 304:
             logging.debug('ETag matches for file %s :)' % (localfile))
         elif request.status == 200:
