@@ -5,9 +5,15 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-from gi.repository import GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
-from virtaal.views.widgets.util import forall_widgets, get_children, run_dialog, tell
+from virtaal.views.widgets.util import (
+    disconnect_accel_path,
+    forall_widgets,
+    get_children,
+    run_dialog,
+    tell,
+)
 
 
 def test_get_children_default_is_empty():
@@ -113,3 +119,26 @@ def test_tell_shows_the_first_line_as_the_heading(monkeypatch):
         ('Submitted 3 units.', 'Submit again to send the rest.', Gtk.MessageType.WARNING),
         ('Nothing to submit.', None, Gtk.MessageType.INFO),
     ]
+
+
+def test_disconnect_accel_path_leaves_other_shortcuts_alone():
+    path = '<Test>/Disconnect/Mine'
+    window = Gtk.Window()
+    group = Gtk.AccelGroup()
+    window.add_accel_group(group)
+    Gtk.AccelMap.add_entry(path, Gdk.KEY_k, Gdk.ModifierType.CONTROL_MASK)
+    calls = []
+    group.connect_by_path(path, lambda *args: calls.append('mine') or True)
+    group.connect(
+        Gdk.KEY_j, Gdk.ModifierType.CONTROL_MASK, 0, lambda *args: calls.append('other') or True
+    )
+
+    disconnect_accel_path(group, path)
+
+    assert not Gtk.accel_groups_activate(window, Gdk.KEY_k, Gdk.ModifierType.CONTROL_MASK)
+    assert Gtk.accel_groups_activate(window, Gdk.KEY_j, Gdk.ModifierType.CONTROL_MASK)
+    assert calls == ['other']
+
+
+def test_disconnect_accel_path_ignores_an_unknown_path():
+    disconnect_accel_path(Gtk.AccelGroup(), '<Test>/Disconnect/Unknown')

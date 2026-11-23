@@ -5,7 +5,7 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
-__all__ = ['forall_widgets', 'run_dialog']
+__all__ = ['disconnect_accel_path', 'forall_widgets', 'run_dialog']
 
 import functools
 
@@ -26,6 +26,20 @@ def forall_widgets(f, widget):
     f(widget)
     for child in get_children(widget):
         forall_widgets(f, child)
+
+
+def disconnect_accel_path(accel_group, accel_path):
+    """Undo accel_group.connect_by_path(accel_path, ...).
+
+    disconnect() wants the closure, which PyGObject made from the
+    callback and never returns."""
+    found, key = Gtk.AccelMap.lookup_entry(accel_path)
+    if not found:
+        return
+    quark = GLib.quark_from_string(accel_path)
+    for entry in accel_group.query(key.accel_key, key.accel_mods) or []:
+        if entry.accel_path_quark == quark:
+            accel_group.disconnect(entry.closure)
 
 
 def run_dialog(dialog, show_all=False):

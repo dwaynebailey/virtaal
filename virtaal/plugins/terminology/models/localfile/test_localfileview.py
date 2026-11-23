@@ -9,7 +9,7 @@ import os
 from types import SimpleNamespace
 
 import pytest
-from gi.repository import Gtk, Pango
+from gi.repository import Gdk, Gtk, Pango
 
 from virtaal.plugins.terminology.models.localfile import localfileview
 from virtaal.plugins.terminology.models.localfile.localfileview import (
@@ -398,11 +398,34 @@ def test_destroy_disconnects_signals_and_removes_menu_items():
     view.menu = SimpleNamespace(remove=removed.append)
     view.mnu_select_files = 'select-files-item'
     view.mnu_add_term = 'add-term-item'
+    view._accel_group = Gtk.AccelGroup()
 
     view.destroy()
 
     assert disconnected == [True]
     assert removed == ['select-files-item', 'add-term-item']
+
+
+def test_destroy_stops_ctrl_t_opening_add_term():
+    # It opened the turned-off source's Add Term (#4890).
+    path = '<Virtaal>/Terminology/Add Term'
+    window = Gtk.Window()
+    accel_group = Gtk.AccelGroup()
+    window.add_accel_group(accel_group)
+    view = LocalFileView.__new__(LocalFileView)
+    opened = []
+    view._on_add_term = lambda *args: opened.append(True)
+    view._signal_tracker = SimpleNamespace(disconnect_all=lambda: None)
+    view.menu = SimpleNamespace(remove=lambda item: None)
+    view.mnu_select_files = view.mnu_add_term = None
+    Gtk.AccelMap.add_entry(path, Gdk.KEY_t, Gdk.ModifierType.CONTROL_MASK)
+    accel_group.connect_by_path(path, view._on_add_term)
+    view._accel_group = accel_group
+
+    view.destroy()
+
+    assert not Gtk.accel_groups_activate(window, Gdk.KEY_t, Gdk.ModifierType.CONTROL_MASK)
+    assert opened == []
 
 
 # LocalFileView.addterm / .fileselect properties #

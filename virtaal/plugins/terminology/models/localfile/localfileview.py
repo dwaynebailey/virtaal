@@ -16,7 +16,7 @@ from virtaal.support.multiterm import MissingReaderError
 from virtaal.support.trados_compat import TERMINOLOGY_FORMATS
 from virtaal.views.baseview import BaseView
 from virtaal.views.theme import current_theme, set_widget_bg_color
-from virtaal.views.widgets.util import run_dialog
+from virtaal.views.widgets.util import disconnect_accel_path, run_dialog
 from virtaal.views.widgets.wordatcursor import WordAtCursorSelector
 
 from .extendable import is_extendable
@@ -83,9 +83,11 @@ class LocalFileView:
         # activates straight off the accel_group instead, same as
         # _python_console.py/tmview.py.
         accel_group.connect_by_path("<Virtaal>/Terminology/Add Term", self._on_add_term)
+        self._accel_group = accel_group
 
     def destroy(self):
         self._signal_tracker.disconnect_all()
+        disconnect_accel_path(self._accel_group, "<Virtaal>/Terminology/Add Term")
 
         self.menu.remove(self.mnu_select_files)
         self.menu.remove(self.mnu_add_term)
