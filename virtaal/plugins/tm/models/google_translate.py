@@ -129,9 +129,12 @@ class TMModel(BaseTMModel):
             # Google's Terms of Service says we need a proper HTTP referrer
             req.curl.setopt(pycurl.REFERER, virtaal_referrer)
             key = self.config['api_key']
+            cache = self.cache
             req.connect(
                 'http-success',
-                self._for_key(key, lambda response: self.got_translation(response, query_str)),
+                self._for_key(
+                    key, lambda response: self.got_translation(response, query_str, cache)
+                ),
             )
             for signal in ('http-client-error', 'http-server-error'):
                 req.connect(
@@ -151,8 +154,10 @@ class TMModel(BaseTMModel):
         client = getattr(self, 'client', None)
         return len(client.requests) if client is not None else 0
 
-    def got_translation(self, val, query_str):
+    def got_translation(self, val, query_str, cache=None):
         """Handle the response from the web service now that it came in."""
+        if not self.still_wanted(cache):
+            return
         # In December 2011 version 1 of the API was deprecated, and we had to
         # release code to handle the eminent disappearance of the API. Although
         # version 2 is now supported, the code is a bit more careful (as most

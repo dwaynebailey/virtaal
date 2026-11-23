@@ -63,14 +63,19 @@ class TMModel(BaseTMModel):
         if query_str in self.cache:
             self.emit('match-found', query_str, [self.cache[query_str]])
             return
-        self._client().translate_unit(query_str, self._handle_response, self.target_lang)
+        cache = self.cache
+        self._client().translate_unit(
+            query_str,
+            lambda id, response: self._handle_response(id, response, cache),
+            self.target_lang,
+        )
 
     def requests_in_flight(self):
         clients = {id(c): c for targets in self.clients.values() for c in targets.values()}
         return sum(len(c.requests) for c in clients.values())
 
-    def _handle_response(self, id, response):
-        if not response:
+    def _handle_response(self, id, response, cache=None):
+        if not response or not self.still_wanted(cache):
             return
         result = _match(id, response)
         self.cache[id] = result
