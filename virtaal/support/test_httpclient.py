@@ -160,14 +160,74 @@ class _FakeRequest:
 
 def test_add_declines_once_the_queue_is_full(monkeypatch):
     monkeypatch.setattr(GLib, 'timeout_add', lambda interval, func: None)
+    idle = []
+    monkeypatch.setattr(GLib, 'idle_add', lambda func, *args: idle.append((func, args)))
     client = _client()
-    client.requests = {object() for _ in range(16)}
+    for n in range(client.MAX_ACTIVE + client.MAX_WAITING):
+        assert client.add(_FakeRequest(curl=n)) is True
     request = _FakeRequest(curl='handle')
 
     assert client.add(request) is False
 
     assert request not in client.requests
-    assert client.curl.added == []
+    assert 'handle' not in client.curl.added
+    # Later, so that a caller connecting after add() hears of it.
+    assert request.emitted == []
+    for func, args in idle:
+        func(*args)
+    assert request.emitted == [('http-failed', 'too many requests waiting')]
+
+
+def _sent(client, count):
+    requests = [_FakeRequest(curl='handle %d' % n) for n in range(count)]
+    for request in requests:
+        assert client.add(request) is True
+    return requests
+
+
+def test_a_request_past_the_most_sent_at_once_waits_its_turn(monkeypatch):
+    # #4866: it was dropped, and its caller waited for good.
+    monkeypatch.setattr(GLib, 'timeout_add', lambda interval, func: None)
+    client = _client()
+    requests = _sent(client, client.MAX_ACTIVE + 2)
+    first, waiting = requests[0], requests[-2:]
+    assert client.curl.added == [r.curl for r in requests[:-2]]
+    assert set(waiting) <= client.requests
+
+    first.handle_result = lambda: None
+    client.curl.info_read_result = (0, [SimpleNamespace(request=first)], [])
+    client.curl.perform_result = (pycurl.E_MULTI_OK, 0)
+
+    assert client.perform() is True
+    assert client.curl.added[-1] == waiting[0].curl
+    assert waiting[1].curl not in client.curl.added
+    assert first not in client.requests
+
+
+def test_a_waiting_request_is_sent_when_one_sent_fails(monkeypatch):
+    monkeypatch.setattr(GLib, 'timeout_add', lambda interval, func: None)
+    client = _client()
+    requests = _sent(client, client.MAX_ACTIVE + 1)
+
+    handle = SimpleNamespace(request=requests[0])
+    client.curl.info_read_result = (0, [], [(handle, 7, 'refused')])
+    client.perform()
+
+    assert client.curl.added[-1] == requests[-1].curl
+
+
+def test_cancel_drops_a_waiting_request_without_sending_it(monkeypatch):
+    monkeypatch.setattr(GLib, 'timeout_add', lambda interval, func: None)
+    client = _client()
+    requests = _sent(client, client.MAX_ACTIVE + 2)
+
+    client.cancel(requests[-2])
+    client.cancel(requests[0])
+
+    assert requests[-2] not in client.requests
+    assert client.curl.removed == [requests[0].curl]
+    assert client.curl.added[-1] == requests[-1].curl
+    assert requests[-2].curl not in client.curl.added
 
 
 def test_add_queues_the_request_and_starts_the_pump(monkeypatch):
