@@ -212,10 +212,12 @@ def test_remove_widget_does_nothing_without_a_dictionary(tmp_path):
     corrector.remove_widget(object())  # must not raise
 
 
-def test_init_falls_back_to_curdir_for_a_missing_acorpath():
-    corrector = AutoCorrector(main_controller=None, acorpath='/no/such/path/at/all')
+def test_init_keeps_an_acorpath_that_does_not_exist_yet(tmp_path):
+    acorpath = str(tmp_path / 'autocorrect')
+    corrector = AutoCorrector(main_controller=None, acorpath=acorpath)
 
-    assert corrector.acorpath == os.path.curdir
+    assert corrector.acorpath == acorpath
+    assert corrector.correctiondict == {}
 
 
 def test_read_document_list_returns_none_when_acorpath_is_not_a_directory(tmp_path):
@@ -567,6 +569,27 @@ def test_maybe_download_reloads_and_reattaches_when_the_download_completes(monke
     cursor, _ = _fake_cursor()
 
     on_store_loaded(SimpleNamespace(cursor=cursor))
+
+    assert plugin.autocorr.lang == 'xx'
+    assert 'adt' in plugin.autocorr.correctiondict
+
+
+def test_a_download_into_a_new_autocorrect_folder_is_used_at_once(monkeypatch, tmp_path):
+    acorpath = tmp_path / 'autocorrect'
+
+    def fake_start(self):
+        _FakeAutocorrectDownloader.started.append(self.lang)
+        _write_document_list(acorpath, self.lang)  # creates the folder
+        self.on_done(True)
+
+    monkeypatch.setattr(_FakeAutocorrectDownloader, 'start', fake_start)
+    monkeypatch.chdir(tmp_path)
+    plugin, main_controller, calls = _init_plugin(
+        monkeypatch, acorpath, store=None, targets=[], target_lang_code='xx'
+    )
+    on_store_loaded = next(h for s, h in calls if s == 'store-loaded')
+
+    on_store_loaded(SimpleNamespace(cursor=_fake_cursor()[0]))
 
     assert plugin.autocorr.lang == 'xx'
     assert 'adt' in plugin.autocorr.correctiondict
