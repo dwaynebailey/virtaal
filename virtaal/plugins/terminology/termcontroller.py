@@ -9,7 +9,7 @@ from gi.repository import GLib, GObject
 from translate.storage.placeables import parse as elem_parse
 from translate.storage.placeables import terminology
 
-from virtaal.common import GObjectWrapper
+from virtaal.common import GObjectWrapper, SignalTracker
 from virtaal.controllers.basecontroller import BaseController
 from virtaal.controllers.plugincontroller import PluginController
 from virtaal.views import placeablesguiinfo
@@ -28,6 +28,7 @@ class TerminologyController(BaseController):
     def __init__(self, main_controller, config=None):
         GObjectWrapper.__init__(self)
         self._destroyed = False
+        self._signal_tracker = SignalTracker()
 
         self.config = config if config is not None else {}
         self.main_controller = main_controller
@@ -36,9 +37,10 @@ class TerminologyController(BaseController):
         self.disabled_model_names = ['basetermmodel'] + self.config.get('disabled_models', [])
         self.placeables_controller.add_parsers(*terminology.parsers)
         self.placeables_controller.non_target_placeables.append(terminology.TerminologyPlaceable)
-        self.placeables_controller.connect('parsers-changed', self._on_placeables_changed)
-        main_controller.view.main_window.connect('style-set', self._on_style_set)
-        main_controller.view.main_window.connect('style-updated', self._on_style_set)
+        track = self._signal_tracker.connect
+        track(self.placeables_controller, 'parsers-changed', self._on_placeables_changed)
+        track(main_controller.view.main_window, 'style-set', self._on_style_set)
+        track(main_controller.view.main_window, 'style-updated', self._on_style_set)
         self._on_style_set(main_controller.view.main_window, None)
 
         if (
@@ -55,8 +57,10 @@ class TerminologyController(BaseController):
 
     def _connect_signals(self):
         lang_controller = self.main_controller.lang_controller
-        lang_controller.connect('source-lang-changed', lambda *args: self.rescan_current_unit())
-        lang_controller.connect('target-lang-changed', lambda *args: self.rescan_current_unit())
+        for signal in ('source-lang-changed', 'target-lang-changed'):
+            self._signal_tracker.connect(
+                lang_controller, signal, lambda *args: self.rescan_current_unit()
+            )
 
     def _load_models(self):
         self.plugin_controller = PluginController.for_backend(
@@ -66,19 +70,26 @@ class TerminologyController(BaseController):
             BaseTerminologyModel,
             lambda *args: self.disabled_model_names,
         )
-        self.plugin_controller.connect('plugin-enabled', lambda *args: self.rescan_current_unit())
-        self._disabled_id = self.plugin_controller.connect(
-            'plugin-disabled', self._on_plugin_disabled
+        self._signal_tracker.connect(
+            self.plugin_controller, 'plugin-enabled', lambda *args: self.rescan_current_unit()
+        )
+        self._signal_tracker.connect(
+            self.plugin_controller, 'plugin-disabled', self._on_plugin_disabled
         )
         self.plugin_controller.load_plugins()
 
     # METHODS #
     def destroy(self):
         self._destroyed = True
+        # First, or parsers-changed puts the parsers back.
+        self._signal_tracker.disconnect_all()
         self.view.destroy()
-        self.plugin_controller.disconnect(self._disabled_id)
         self.plugin_controller.shutdown()
-        self.placeables_controller.remove_parsers(terminology.parsers)
+        self.placeables_controller.remove_parsers(*terminology.parsers)
+        if terminology.TerminologyPlaceable in self.placeables_controller.non_target_placeables:
+            self.placeables_controller.non_target_placeables.remove(
+                terminology.TerminologyPlaceable
+            )
 
     def rescan_current_unit(self):
         """Force the current unit's terminology to be re-scanned (#3240).

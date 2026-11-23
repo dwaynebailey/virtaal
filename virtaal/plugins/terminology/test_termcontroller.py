@@ -38,12 +38,19 @@ class _FakePlaceablesController:
         self.added_parsers.extend(parsers)
         self.parsers.extend(parsers)
 
-    def remove_parsers(self, parsers):
-        self.removed_parsers.append(parsers)
+    def remove_parsers(self, *parsers):
+        self.removed_parsers.extend(parsers)
+        for parser in parsers:
+            self.parsers.remove(parser)
+        for _signal, handler in self.connected:
+            handler(self)
 
     def connect(self, signal, handler):
         self.connected.append((signal, handler))
         return len(self.connected)
+
+    def disconnect(self, signal_id):
+        self.connected[signal_id - 1] = (None, lambda *args: None)
 
 
 class _FakeSignalSource:
@@ -53,6 +60,9 @@ class _FakeSignalSource:
     def connect(self, signal, handler):
         self.connected.append((signal, handler))
         return len(self.connected)
+
+    def disconnect(self, signal_id):
+        self.connected[signal_id - 1] = (None, None)
 
 
 def _make_main_controller():
@@ -155,7 +165,29 @@ def test_destroy_tears_down_the_view_and_plugins(monkeypatch):
     controller.destroy()
 
     assert calls == ['view', 'plugins']
-    assert main_controller.placeables_controller.removed_parsers == [terminology.parsers]
+
+
+def test_destroy_removes_the_terminology_parsers(monkeypatch):
+    # Each one, and they stay out (#4889).
+    controller, main_controller = _make_controller()
+    placeables_controller = main_controller.placeables_controller
+    monkeypatch.setattr(controller.view, 'destroy', lambda: None)
+
+    controller.destroy()
+
+    assert placeables_controller.removed_parsers == list(terminology.parsers)
+    assert placeables_controller.parsers == []
+    assert terminology.TerminologyPlaceable not in placeables_controller.non_target_placeables
+
+
+def test_destroy_disconnects_its_handlers(monkeypatch):
+    controller, main_controller = _make_controller()
+    monkeypatch.setattr(controller.view, 'destroy', lambda: None)
+
+    controller.destroy()
+
+    assert [s for s, _handler in main_controller.lang_controller.connected] == [None, None]
+    assert controller._signal_tracker._ids == []
 
 
 def test_rescan_current_unit_does_nothing_without_a_unit_controller():
