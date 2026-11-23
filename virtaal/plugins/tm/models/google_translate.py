@@ -54,6 +54,9 @@ class TMModel(BaseTMModel):
     # The API reads the text as HTML.
     protection = Spans('<span translate="no">', '</span>', always=True)
 
+    MAX_CHARS = 30000
+    """The most characters Google translates in one request."""
+
     translate_url = "https://www.googleapis.com/language/translate/v2?key=%(key)s&q=%(message)s&source=%(from)s&target=%(to)s"
     batch_url = "https://www.googleapis.com/language/translate/v2?key=%(key)s"
     languages_url = "https://www.googleapis.com/language/translate/v2/languages?key=%(key)s"
@@ -79,7 +82,12 @@ class TMModel(BaseTMModel):
         self.client.add(langreq)
         langreq.connect('http-success', self._for_key(key, self.got_languages))
         for signal in ('http-client-error', 'http-server-error'):
-            langreq.connect(signal, self._for_key(key, lambda status: self.got_error(status, None)))
+            langreq.connect(
+                signal,
+                self._for_key(
+                    key, lambda status: self._disable_all("Got an error response: %s" % status)
+                ),
+            )
 
     def _for_key(self, key, handler):
         """A signal handler calling handler(value), unless the key changed since."""
@@ -101,9 +109,8 @@ class TMModel(BaseTMModel):
 
         query_str = unit.source
         protected = self.protection.protect(query_str)
-        # Google's Terms of Service says the whole URL must be less than "2K"
-        # characters. A cut translation would not be of this string.
-        if len(protected.text) > 2000 - len(self.translate_url):
+        if len(protected.text) > self.MAX_CHARS:
+            # Google answers 400, which is also how it refuses a key.
             logging.debug('Too long for Google Translate: %d characters', len(protected.text))
             return
         pair = self._pair()
@@ -123,11 +130,16 @@ class TMModel(BaseTMModel):
                 'from': source_lang,
                 'to': target_lang,
             }
-
-            req = RESTRequest(real_url, '')
-            self.client.add(req)
-            # Google's Terms of Service says we need a proper HTTP referrer
-            req.curl.setopt(pycurl.REFERER, virtaal_referrer)
+            # Google's Terms of Service says the whole URL must be less
+            # than "2K" characters: a longer text is posted instead.
+            if len(real_url) < 2000:
+                req = RESTRequest(real_url, '')
+                req.curl.setopt(pycurl.REFERER, virtaal_referrer)
+                self.client.add(req)
+            else:
+                req = self._post([protected.text], pair)
+            if req is None:
+                return
             key = self.config['api_key']
             cache = self.cache
             req.connect(
@@ -213,8 +225,12 @@ class TMModel(BaseTMModel):
         pair = self._pair()
         if pair is None:
             return None
+        return self._post([self.protection.protect(source).text for source in batch], pair)
+
+    def _post(self, texts, pair):
+        """A POST request for texts, or None if the client's queue was full."""
         body = {
-            'q': [self.protection.protect(source).text for source in batch],
+            'q': texts,
             'source': pair[0],
             'target': pair[1],
             'format': 'html',
@@ -241,9 +257,11 @@ class TMModel(BaseTMModel):
                 self.cache[source] = found[source]
         return found
 
+    STOP_STATUSES = (400, 401, 403)
+    """HTTP statuses for a refused key or a used-up quota: no more queries."""
+
     def bulk_wait(self, request, status):
-        if status in (400, 401, 403):
-            # A refused key or used-up quota.
+        if status in self.STOP_STATUSES:
             self._disable_all("Got an error response: %s" % status)
         return super().bulk_wait(request, status)
 
@@ -260,7 +278,12 @@ class TMModel(BaseTMModel):
         self.set_languages_known()
 
     def got_error(self, val, query_str):
-        self._disable_all("Got an error response: %s" % val)
+        """One query refused: stop only for a refused key or a used-up
+        quota, not for a string too long or too many requests (#4896)."""
+        if val in self.STOP_STATUSES:
+            self._disable_all("Got an error response: %s" % val)
+        else:
+            logging.debug('Google Translate: no translation (HTTP %s)', val)
 
     def _disable_all(self, reason):
         self._languages = set()
