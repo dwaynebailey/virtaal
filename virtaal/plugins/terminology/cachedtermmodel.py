@@ -110,7 +110,18 @@ class CachedRemoteTerminologyModel(BaseTerminologyModel):
         return os.path.basename(localfile)
 
     def _accepts_response(self, content, ext):
-        """Whether a 200 response is worth saving as an C{ext} file."""
+        """Whether a 200 response is worth saving as an C{ext} file.
+
+        A captive portal or proxy answers with its own page and a 200
+        status, so it must parse before it replaces the cached file."""
+        from io import BytesIO
+
+        buf = BytesIO(content)
+        buf.name = 'dummy.%s' % (ext)
+        try:
+            factory.getobject(buf)
+        except Exception:
+            return False
         return True
 
     # ACCESSORS #

@@ -385,9 +385,39 @@ def test_process_header_falls_back_to_po_when_no_extension_can_be_determined(tmp
     model.init_matcher = lambda filename='': None
     request = _FakeRequest(effective_url='https://pontoon.mozilla.org/terminology/af', headers=b'')
 
-    model._process_header(request, b'not a recognizable store format', localfile=None)
+    model._process_header(request, b'msgid "Hello"\nmsgstr "Hallo"\n', localfile=None)
 
     assert (tmp_path / 'en__af.po').is_file()
+
+
+_PORTAL_PAGE = b'<html><body><p>Please log in to continue</p></body></html>'
+
+
+@pytest.mark.parametrize('content', [_PORTAL_PAGE, b'Please log in', b''])
+def test_process_header_keeps_the_cached_file_when_the_reply_is_not_tbx(tmp_path, content):
+    # A captive portal answers 200 with its own page (#4884).
+    good = _tbx(_concept_entry([('en', 'Hello'), ('af', 'Hallo')]))
+    localfile = tmp_path / 'en__af.tbx'
+    localfile.write_bytes(good)
+    os.utime(str(localfile), (1, 1))
+    model = _model(tmp_path, source_lang='en', target_lang='af')
+
+    model._process_header(_FakeRequest(), content, localfile=str(localfile))
+
+    assert localfile.read_bytes() == good
+    assert os.stat(str(localfile)).st_mtime == 1
+    assert [unit.target for unit in model.store.getunits()] == ['Hallo']
+    assert model.config == {}
+
+
+def test_process_header_saves_a_tbx_reply_with_no_terms(tmp_path):
+    # Pontoon's file for a locale with no terminology yet.
+    localfile = tmp_path / 'en__af.tbx'
+    model = _model(tmp_path, source_lang='en', target_lang='af')
+
+    model._process_header(_FakeRequest(), _tbx(), localfile=str(localfile))
+
+    assert localfile.read_bytes() == _tbx()
 
 
 def test_process_header_records_no_etag_when_the_response_has_none(tmp_path):

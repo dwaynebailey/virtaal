@@ -7,8 +7,6 @@
 
 import os
 
-from translate.storage import factory
-
 from virtaal.common import pan_app
 
 from ..cachedtermmodel import CachedRemoteTerminologyModel
@@ -28,21 +26,3 @@ class TerminologyModel(CachedRemoteTerminologyModel):
     # METHODS #
     def _etag_key(self, localfile):
         return os.path.abspath(localfile)
-
-    def _accepts_response(self, content, ext):
-        return self._parses_as(content, ext)
-
-    def _parses_as(self, content, ext):
-        """A captive-portal/signon network responds with its own login
-        page instead of the real file, but still with a normal 200
-        status - check the response actually parses as the format
-        we're about to save it as before trusting it."""
-        from io import BytesIO
-
-        buf = BytesIO(content)
-        buf.name = 'dummy.%s' % (ext)
-        try:
-            factory.getobject(buf)
-        except Exception:
-            return False
-        return True

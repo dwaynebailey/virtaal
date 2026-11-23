@@ -166,7 +166,7 @@ def test_process_header_defaults_to_po_when_nothing_can_be_guessed(tmp_path):
         fake_self, _FakeRequest(effective_url='http://x/download'), garbage, localfile=None
     )
 
-    # _parses_as() rejects it before a file ever gets written, but the
+    # _accepts_response() rejects it before a file ever gets written, but the
     # ext-guessing still had to fall all the way through to the 'po'
     # default first - exercised via init_matcher() not raising.
     assert not os.listdir(str(tmp_path))

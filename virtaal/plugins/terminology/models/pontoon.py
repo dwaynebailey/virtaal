@@ -77,6 +77,12 @@ class TerminologyModel(CachedRemoteTerminologyModel):
     def _url_lang_code(self, langcode):
         return _pontoon_locale_code(langcode)
 
+    def _accepts_response(self, content, ext):
+        if ext.lower() != 'tbx':
+            return super()._accepts_response(content, ext)
+        # _parse_tbx_basic() takes anything, as an empty store.
+        return _is_tbx(content)
+
 
 def _is_english(langcode):
     """Whether the given language code is some variety of English
@@ -109,6 +115,17 @@ def _pontoon_locale_code(langcode):
 # TerminologyModel's own docstring).
 _TBX_BASIC_NS = 'urn:iso:std:iso:30042:ed-2'
 _XML_NS = 'http://www.w3.org/XML/1998/namespace'
+
+
+def _is_tbx(content):
+    """Whether content is a TBX document, not a captive portal's page."""
+    from lxml import etree
+
+    try:
+        root = etree.fromstring(content)
+    except (etree.Error, ValueError):
+        return False
+    return etree.QName(root).localname == 'tbx'
 
 
 def _parse_tbx_basic(content):
