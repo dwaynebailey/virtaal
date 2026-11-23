@@ -79,6 +79,32 @@ def test_accept_response_coerces_a_string_quality_to_int():
     assert controller.matches[0]['quality'] == 90
 
 
+def test_accept_response_takes_a_quality_with_a_fraction():
+    # #4879: int('85.5') showed the crash dialog.
+    controller = _make_controller()
+
+    controller.accept_response(_tmmodel(), 'hello', [{'target': 'hallo', 'quality': '85.5'}])
+
+    assert controller.matches[0]['quality'] == 85
+
+
+def test_accept_response_leaves_out_a_match_it_cannot_read():
+    # #4879: a reply from a server can hold anything.
+    controller = _make_controller()
+    matches = [
+        {'source': 'hello', 'target': 42, 'quality': 90},
+        {'source': 7, 'target': 'hallo', 'quality': 90},
+        {'source': 'hello', 'target': 'hallo', 'quality': 'high'},
+        {'source': 'hello', 'target': 'hallo', 'quality': [90]},
+        {'source': 'hello', 'quality': 90},
+        {'source': 'hello', 'target': 'hallo daar', 'quality': 80},
+    ]
+
+    controller.accept_response(_tmmodel(), 'hello', matches)
+
+    assert [m['target'] for m in controller.matches] == ['hallo daar']
+
+
 _XLIFF = """<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
 <file original="a" source-language="en" target-language="af" datatype="plaintext"><body>
