@@ -1644,9 +1644,9 @@ class MainView(BaseView):
         infobar.set_message_type(Gtk.MessageType.INFO)
         infobar.set_show_close_button(True)
         # The tag is v1.0.0; ver has no v.
-        label = Gtk.Label(
-            label=_('Virtaal %s is available (you have %s)') % (tag_name.removeprefix('v'), ver)
-        )
+        # l10n: %(new)s is the new release's version, %(current)s the installed one
+        text = _('Virtaal %(new)s is available (you have %(current)s)')
+        label = Gtk.Label(label=text % {'new': tag_name.removeprefix('v'), 'current': ver})
         infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
         if asset_url:
             infobar.add_button(_('Release _Notes'), Gtk.ResponseType.HELP)

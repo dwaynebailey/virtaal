@@ -750,7 +750,7 @@ domains:
     - Unreviewed machine translations from Apertium
     - Unreviewed machine translations from a Moses server
     - 'Untranslated:'
-    - Virtaal %s is available (you have %s)
+    - Virtaal %(new)s is available (you have %(current)s)
     - Virtaal hit an unexpected error
     - Web Look-up
     - Web Look-ups

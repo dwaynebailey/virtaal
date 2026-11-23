@@ -2025,6 +2025,36 @@ def test_show_update_notice_names_both_versions_without_a_v(monkeypatch):
     assert labels == ['Virtaal 1.0.0-rc2 is available (you have 1.0.0-rc1)']
 
 
+def test_show_update_notice_lets_a_translation_reorder_the_versions(monkeypatch):
+    import builtins
+
+    from virtaal import __version__
+
+    monkeypatch.setattr(__version__, 'ver', '1.0.0')
+    real = builtins._
+    monkeypatch.setattr(
+        builtins,
+        '_',
+        lambda s: (
+            '(%(current)s) %(new)s'
+            if s == 'Virtaal %(new)s is available (you have %(current)s)'
+            else real(s)
+        ),
+    )
+    view = _real_view_for_update_notice()
+
+    MainView.show_update_notice(
+        view, 'v1.1.0', 'https://github.com/translate/virtaal/releases/tag/v1.1.0'
+    )
+
+    (infobar,) = _update_bars(view)
+    labels = [
+        w.get_text() for w in infobar.get_content_area().get_children() if isinstance(w, Gtk.Label)
+    ]
+    infobar.destroy()
+    assert labels == ['(1.0.0) 1.1.0']
+
+
 def _update_bars(view):
     vbox_main = view.gui.get_object('vbox_main')
     return [c for c in vbox_main.get_children() if isinstance(c, Gtk.InfoBar)]

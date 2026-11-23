@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-15 07:41+0000\n"
+"POT-Creation-Date: 2026-11-23 15:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4340,9 +4340,10 @@ msgstr ""
 msgid "Save changes to “%(filename)s”?"
 msgstr ""
 
+#. l10n: %(new)s is the new release's version, %(current)s the installed one
 #: virtaal/views/mainview.py
 #, python-format
-msgid "Virtaal %s is available (you have %s)"
+msgid "Virtaal %(new)s is available (you have %(current)s)"
 msgstr ""
 
 #: virtaal/views/mainview.py
