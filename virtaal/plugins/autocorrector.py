@@ -234,30 +234,44 @@ class AutoCorrector:
             offset = elem.gui_info.gui_to_tree_index(cursorpos)
             reprange, replacement = self.autocorrect(bufftext, offset, text)
             if reprange is not None:
+                word = bufftext[reprange[0] : reprange[1]]
+                generation = getattr(textbox, 'text_generation', None)
+
                 # Updating of the buffer is deferred until after this signal
                 # and its side effects are taken care of. We abuse
                 # GLib.idle_add for that.
                 def correct_text():
+                    # Keys typed meanwhile may have changed the word, or
+                    # another unit is shown (#4902).
+                    if (
+                        getattr(textbox, 'text_generation', None) != generation
+                        or str(elem)[reprange[0] : reprange[1]] != word
+                    ):
+                        return False
                     buffer = textbox.buffer
                     start_iter = elem.gui_info.treeindex_to_iter(reprange[0])
                     end_iter = elem.gui_info.treeindex_to_iter(
                         reprange[1], (reprange[0], start_iter)
                     )
+                    start, end = start_iter.get_offset(), end_iter.get_offset()
+                    cursor = buffer.props.cursor_position
+                    if cursor >= end:
+                        cursor += len(replacement) - (end - start)
+                    elif cursor > start:
+                        cursor = start + len(replacement)
 
                     self.main_controller.undo_controller.record_start()
                     buffer.delete(start_iter, end_iter)
                     buffer.insert(end_iter, replacement)
                     self.main_controller.undo_controller.record_stop()
-
-                    newcursorpos = (
-                        elem.gui_info.treeindex_to_iter(reprange[0]).get_offset()
-                        + len(replacement)
-                        + len(text)
-                    )
+                    textbox.refresh_cursor_pos = -1
+                    buffer.place_cursor(buffer.get_iter_at_offset(cursor))
 
                     def refresh():
-                        textbox.refresh_cursor_pos = newcursorpos
-                        textbox.refresh()
+                        if getattr(textbox, 'text_generation', None) == generation:
+                            textbox.refresh_cursor_pos = buffer.props.cursor_position
+                            textbox.refresh()
+                        return False
 
                     GLib.idle_add(refresh)
                     return False

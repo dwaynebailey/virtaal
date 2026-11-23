@@ -241,6 +241,8 @@ class TextBox(Gtk.TextView):
         # Counts the texts set (another unit, say): set_text() keeps the
         # same self.elem, so deferred work checks this instead (#4855).
         self.text_generation = 0
+        # Counts every edit and text set, for work deferred from one (#4902).
+        self.edit_count = 0
         self.main_controller = main_controller
         self.placeables_controller = main_controller.placeables_controller
         self.refresh_cursor_pos = -1
@@ -441,6 +443,7 @@ class TextBox(Gtk.TextView):
         if text is not self.elem:
             # If text is self.elem, we are busy with a refresh and we should remember the selected element.
             self.text_generation += 1
+            self.edit_count += 1
             self.selected_elem = None
             self.selected_elem_index = None
 
@@ -778,6 +781,7 @@ class TextBox(Gtk.TextView):
             self.elem.insert(insert_offset, translation)
             self.elem.prune()
 
+            self.edit_count += 1
             self.emit('text-inserted', translation, cursor_pos, self.elem)
 
             if hasattr(translation, 'gui_info'):
@@ -1405,6 +1409,7 @@ class TextBox(Gtk.TextView):
         if structural or not self._matches_tree(remaining, remaining_len):
             self._structural_change_pending = True
         self.elem_before_edit = before
+        self.edit_count += 1
         self.emit(
             'text-deleted', deleted, parent, index, self.buffer.props.cursor_position, self.elem
         )
@@ -1497,6 +1502,7 @@ class TextBox(Gtk.TextView):
             self._live_insert_pending = (tree_offset, unlocked)
             # logging.debug('text-inserted: %s@%d of %s' % (ins_text, iter.get_offset(), repr(self.elem)))
             self.elem_before_edit = before
+            self.edit_count += 1
             self.emit('text-inserted', ins_text, buff_offset, self.elem)
         else:
             # GTK still inserts the text: rebuild the buffer from the tree.

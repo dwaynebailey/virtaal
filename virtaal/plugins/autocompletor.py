@@ -527,8 +527,11 @@ class AutoCompletor:
                 self._suggestion(word, rest, prefix, insert_offset) for word, rest in completions
             ]
             suggestion = dict(candidates[0], candidates=candidates)
+            edits = getattr(textbox, 'edit_count', None)
 
             def suggest_completion():
+                if getattr(textbox, 'edit_count', None) != edits:
+                    return False  # typed on, or another unit (#4902)
                 if getattr(textbox, '_render_pending', False):
                     # A typed placeable (a digit, say) re-renders the text
                     # first, which would drop the suggestion's selection.

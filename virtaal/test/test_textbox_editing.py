@@ -912,6 +912,100 @@ class TestTextBoxEditing(TestScaffolding):
         assert modified == []
         assert editor.cursor == 0
 
+    def _type_ahead(self, editor, text):
+        """Type text with no idle callback run in between: keys queued
+        while the main loop is busy."""
+        for char in text:
+            editor.buffer.begin_user_action()
+            editor.buffer.insert_interactive_at_cursor(char, -1, True)
+            editor.buffer.end_user_action()
+
+    def test_autocorrect_keeps_text_typed_before_it_runs(self, tmp_path, monkeypatch):
+        # #4902
+        from virtaal.plugins import autocorrector
+        from virtaal.support.test_autocorrect_source import AF_ZA_DOCUMENT_LIST
+
+        (tmp_path / 'af').mkdir()
+        (tmp_path / 'af' / 'DocumentList.xml').write_bytes(AF_ZA_DOCUMENT_LIST)
+        corrector = autocorrector.AutoCorrector(self.main_controller, 'af', str(tmp_path))
+        path = tmp_path / 'one.po'
+        path.write_text(_ONE_UNIT_PO % 'Ek ', encoding='utf-8')
+        editor = self._editor(str(path), 0)
+        corrector.add_widget(editor.textbox)
+        try:
+            editor.place(editor.buffer.get_char_count())
+            self._type_ahead(editor, 'adt ko')
+            editor.run_idle()
+        finally:
+            corrector.clear_widgets()
+
+        assert editor.text == 'Ek dat ko'
+        assert editor.cursor == len('Ek dat ko')
+        editor.check()
+
+    def test_autocomplete_drops_a_completion_put_off_past_the_next_key(self, tmp_path, monkeypatch):
+        # #4902: it went in at its own key's offset, inside the word.
+        from virtaal.plugins.autocompletor import AutoCompletor
+
+        monkeypatch.setattr(
+            GLib, 'idle_add', lambda func, *args, **kw: self.idle_calls.append(lambda: func(*args))
+        )
+
+        path = tmp_path / 'one.po'
+        path.write_text(
+            'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+            'msgid "Download everything"\nmsgstr ""\n',
+            encoding='utf-8',
+        )
+        editor = self._editor(str(path), 0)
+        completor = AutoCompletor(self.main_controller)
+        completor.set_unit(self.unit_controller.current_unit)
+        completor.add_widget(editor.textbox)
+        try:
+            self._type_ahead(editor, 'Down')
+            # A typed placeable's render pending puts the completion off,
+            # behind the next key's.
+            editor.textbox._render_pending = True
+            self.idle_calls.pop(0)()
+            editor.textbox._render_pending = False
+            put_off = self.idle_calls.pop(0)
+            self._type_ahead(editor, 'l')
+            editor.run_idle()
+            put_off()
+            suggestion = editor.textbox.suggestion
+            shown = editor.textbox.get_text()
+        finally:
+            editor.textbox.suggestion = None
+            completor.clear_widgets()
+
+        assert editor.text == 'Downl'
+        assert (suggestion['offset'], suggestion['text']) == (5, 'oad')
+        assert shown == 'Download'
+
+    def test_autocorrect_skips_a_word_changed_before_it_runs(self, tmp_path):
+        # #4902
+        from virtaal.plugins import autocorrector
+        from virtaal.support.test_autocorrect_source import AF_ZA_DOCUMENT_LIST
+
+        (tmp_path / 'af').mkdir()
+        (tmp_path / 'af' / 'DocumentList.xml').write_bytes(AF_ZA_DOCUMENT_LIST)
+        corrector = autocorrector.AutoCorrector(self.main_controller, 'af', str(tmp_path))
+        path = tmp_path / 'one.po'
+        path.write_text(_ONE_UNIT_PO % 'Ek ', encoding='utf-8')
+        editor = self._editor(str(path), 0)
+        corrector.add_widget(editor.textbox)
+        try:
+            editor.place(editor.buffer.get_char_count())
+            self._type_ahead(editor, 'adt ')
+            editor.place(len('Ek '))
+            editor.textbox.emit('delete-from-cursor', Gtk.DeleteType.CHARS, 1)
+            editor.run_idle()
+        finally:
+            corrector.clear_widgets()
+
+        assert editor.text == 'Ek dt '
+        editor.check()
+
     @pytest.mark.parametrize(
         'target, search, found',
         [
