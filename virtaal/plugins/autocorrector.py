@@ -167,10 +167,14 @@ class AutoCorrector:
 
         # Add auto-correction regex for each loaded word.
         for key, value in self.correctiondict.items():
+            # \b needs a word character after it, so a key starting with
+            # punctuation, like "(c)" or "->", starts a line or follows
+            # a space instead (#4895).
+            start = r'\b' if re.match(r'\w', key) else r'(?:^|(?<=\s))'
             # lxml gives bytestrings for ASCII only values
             self.correctiondict[key] = (
                 str(value),
-                re.compile(r'\b%s$' % (re.escape(key)), re.UNICODE),
+                re.compile(start + re.escape(key) + '$', re.UNICODE),
             )
 
         self.lang = lang
