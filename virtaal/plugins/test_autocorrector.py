@@ -157,6 +157,34 @@ def test_autocorrect_replaces_a_known_abbreviation(tmp_path):
     assert reprange == (3, 6)
 
 
+PUNCTUATION_DOCUMENT_LIST = b"""<?xml version="1.0" encoding="utf-8"?>
+<block-list:block-list xmlns:block-list="http://openoffice.org/2001/block-list">
+  <block-list:block block-list:abbreviated-name="(c)" block-list:name="\xc2\xa9"/>
+  <block-list:block block-list:abbreviated-name="-&gt;" block-list:name="\xe2\x86\x92"/>
+  <block-list:block block-list:abbreviated-name="adt" block-list:name="dat"/>
+</block-list:block-list>
+"""
+
+
+@pytest.mark.parametrize(
+    ('text', 'expected'),
+    [
+        ('(c)', ((0, 3), '\u00a9')),
+        ('Copyright (c)', ((10, 13), '\u00a9')),
+        ('a -> b ->', ((7, 9), '\u2192')),
+        ('abc(c)', (None, '')),
+        ('xadt', (None, '')),
+        ('(adt', ((1, 4), 'dat')),
+    ],
+)
+def test_autocorrect_keys_starting_with_punctuation(tmp_path, text, expected):
+    _write_document_list(tmp_path, 'xx', PUNCTUATION_DOCUMENT_LIST)
+    corrector = AutoCorrector(main_controller=None, acorpath=str(tmp_path))
+    corrector.load_dictionary('xx')
+
+    assert corrector.autocorrect(text, len(text)) == expected
+
+
 def test_autocorrect_with_no_dictionary_does_nothing(tmp_path):
     corrector = AutoCorrector(main_controller=None, acorpath=str(tmp_path))
 
