@@ -149,10 +149,11 @@ class LookupModel(BaseLookupModel):
 
     # METHODS #
     def create_menu_items(self, query, role, srclang, tgtlang, textbox):
-        word = query.strip().split(None, 1)[:1]
+        # The whole selection is replaced, so look up all of it: MyThes
+        # has entries of several words too (#4893).
+        word = ' '.join(query.split())
         if not word:
             return []
-        word = word[0]
         locale_code = (srclang if role == 'source' else tgtlang).replace('-', '_')
 
         if locale_code in self._thesauruses:
@@ -231,7 +232,13 @@ class LookupModel(BaseLookupModel):
         buf = textbox.buffer
         if not buf.get_has_selection():
             return
-        start, end = (itr.get_offset() for itr in buf.get_selection_bounds())
+        start_iter, end_iter = buf.get_selection_bounds()
+        selected = buf.get_text(start_iter, end_iter, True)
+        # Keep the spaces around the selected word.
+        start = start_iter.get_offset() + len(selected) - len(selected.lstrip())
+        end = end_iter.get_offset() - len(selected) + len(selected.rstrip())
+        if start >= end:
+            return
         undo_controller = self.controller.main_controller.undo_controller
         undo_controller.record_start()
         start_iter = buf.get_iter_at_offset(start)
