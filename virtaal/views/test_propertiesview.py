@@ -436,6 +436,19 @@ def test_show_sets_file_type_and_location():
     assert view._widgets['lbl_location'].get_tooltip_text() == '/tmp/x.po'
 
 
+def test_show_clears_the_previous_files_location_and_size():
+    view = _show_ready_view()
+    view.data = {'file_type': 'PO', 'file_location': '/tmp/x.po', 'file_size': 2048}
+    view.show()
+
+    view.data = {'file_type': 'PO'}
+    view.show()
+
+    assert view._widgets['lbl_location'].get_text() == ''
+    assert view._widgets['lbl_location'].get_tooltip_text() is None
+    assert view._widgets['lbl_filesize'].get_text() == ''
+
+
 def test_show_translates_the_file_type(monkeypatch):
     import builtins
 
@@ -469,6 +482,15 @@ def test_show_sets_file_size_when_present():
     assert '2.0' in view._widgets['lbl_filesize'].get_text()
 
 
+def test_show_sets_the_size_of_an_empty_file():
+    view = _show_ready_view()
+    view.data = {'file_type': 'PO', 'file_size': 0}
+
+    view.show()
+
+    assert view._widgets['lbl_filesize'].get_text().startswith('0')
+
+
 def test_show_gives_a_large_file_size_in_a_larger_unit():
     view = _show_ready_view()
     view.data = {'file_type': 'PO', 'file_size': 5_242_880}
@@ -488,17 +510,6 @@ def test_show_gives_the_file_size_in_the_ui_languages_digits(monkeypatch):
     view.show()
 
     assert view._widgets['lbl_filesize'].get_text() == '१८.७ kB'
-
-
-def test_show_leaves_file_size_untouched_when_absent():
-    view = _show_ready_view()
-    view.data = {'file_type': 'PO'}
-    view.show()
-    view._widgets['lbl_filesize'].set_text('previous')
-
-    view.show()
-
-    assert view._widgets['lbl_filesize'].get_text() == 'previous'
 
 
 def test_show_focuses_close_and_hides_the_single_tab():

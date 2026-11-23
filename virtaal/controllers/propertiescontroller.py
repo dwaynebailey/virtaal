@@ -30,6 +30,8 @@ class PropertiesController(BaseController):
         import os.path
 
         filename = os.path.abspath(self.main_controller.store_controller.get_store().get_filename())
+        self.view.data.pop('file_location', None)
+        self.view.data.pop('file_size', None)
         if os.path.exists(filename):
             self.view.data['file_location'] = filename
             self.view.data['file_size'] = os.path.getsize(filename)

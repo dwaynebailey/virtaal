@@ -273,11 +273,9 @@ class PropertiesView(BaseView, GObjectWrapper):
         self._widgets['lbl_type'].set_text(_(self.data['file_type']))
         filename = self.data.get('file_location', '')
         self._widgets['lbl_location'].set_text(filename)
-        if filename:
-            self._widgets['lbl_location'].set_tooltip_text(filename)
-        file_size = self.data.get('file_size', 0)
-        if file_size:
-            self._widgets['lbl_filesize'].set_text(format_size(file_size))
+        self._widgets['lbl_location'].set_tooltip_text(filename or None)
+        file_size = self.data.get('file_size')
+        self._widgets['lbl_filesize'].set_text('' if file_size is None else format_size(file_size))
 
     # EVENT HANDLERS #
     def _show_properties(self, *args):

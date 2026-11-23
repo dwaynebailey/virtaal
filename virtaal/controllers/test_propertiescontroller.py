@@ -53,6 +53,21 @@ def test_update_gui_data_skips_file_info_for_a_missing_file(tmp_path):
     assert controller.view.stats == {'total': 0}
 
 
+def test_update_gui_data_drops_the_previous_files_info_for_a_missing_file(tmp_path):
+    store = SimpleNamespace(
+        get_filename=lambda: str(tmp_path / "does-not-exist.po"),
+        get_store_type=lambda: 'po',
+        get_stats_totals=lambda: {'total': 0},
+    )
+    controller = _controller(store)
+    controller.view.data.update(file_location='/tmp/old.po', file_size=10)
+
+    controller.update_gui_data()
+
+    assert 'file_location' not in controller.view.data
+    assert 'file_size' not in controller.view.data
+
+
 def _store(tmp_path):
     return SimpleNamespace(
         get_filename=lambda: str(tmp_path / "file.po"),
