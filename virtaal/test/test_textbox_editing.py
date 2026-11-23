@@ -884,6 +884,34 @@ class TestTextBoxEditing(TestScaffolding):
         assert editor.text == 'Café %s café'
         assert self.unit_controller.current_unit.target == 'Café %s café'
 
+    def test_a_placeables_deferred_render_skips_the_next_unit(self, tmp_path):
+        # #4855: Enter right after typing a placeable loads the next unit
+        # before its deferred render runs.
+        path = tmp_path / 'two.po'
+        path.write_text(
+            _ONE_UNIT_PO % 'Koffie ' + '\nmsgid "Tea"\nmsgstr "Tee"\n', encoding='utf-8'
+        )
+        editor = self._editor(str(path), 0)
+        first = self.unit_controller.current_unit
+        second = factory.getobject(str(path)).getunits()[1]
+        editor.place(editor.buffer.get_char_count())
+        editor.type('%')
+        editor.buffer.begin_user_action()
+        editor.buffer.insert_interactive_at_cursor('s', -1, True)
+        editor.buffer.end_user_action()
+        assert self.idle_calls  # the placeable's render waits
+
+        view = self.unit_controller.load_unit(second)
+        modified = []
+        view.connect('modified', lambda *args: modified.append(True))
+        editor.buffer.place_cursor(editor.buffer.get_start_iter())
+        editor.run_idle()
+
+        assert first.target == 'Koffie %s'
+        assert second.target == 'Tee'
+        assert modified == []
+        assert editor.cursor == 0
+
     @pytest.mark.parametrize(
         'target, search, found',
         [

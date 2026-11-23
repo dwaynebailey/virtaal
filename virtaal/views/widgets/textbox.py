@@ -238,6 +238,9 @@ class TextBox(Gtk.TextView):
         self.set_input_hints(self.get_input_hints() | Gtk.InputHints.NO_EMOJI)
         self.buffer = self.get_buffer()
         self.elem = None
+        # Counts the texts set (another unit, say): set_text() keeps the
+        # same self.elem, so deferred work checks this instead (#4855).
+        self.text_generation = 0
         self.main_controller = main_controller
         self.placeables_controller = main_controller.placeables_controller
         self.refresh_cursor_pos = -1
@@ -437,6 +440,7 @@ class TextBox(Gtk.TextView):
 
         if text is not self.elem:
             # If text is self.elem, we are busy with a refresh and we should remember the selected element.
+            self.text_generation += 1
             self.selected_elem = None
             self.selected_elem_index = None
 
@@ -1569,14 +1573,16 @@ class TextBox(Gtk.TextView):
         target_cursor_pos = cursor_pos + (affected_leaf.gui_info.length() - plain_len)
         self.refresh_cursor_pos = target_cursor_pos
 
-        scheduled_elem = self.elem
+        generation = self.text_generation
         self._render_pending = True
 
         def do_refresh():
             self._render_pending = False
-            if self.elem is scheduled_elem:
+            if self.text_generation == generation:
                 self.refresh(update=True)
                 self.place_cursor(target_cursor_pos)
+            elif self.refresh_cursor_pos == target_cursor_pos:
+                self.refresh_cursor_pos = -1
             return False
 
         GLib.idle_add(do_refresh)
