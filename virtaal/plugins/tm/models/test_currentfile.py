@@ -477,14 +477,15 @@ def test_reopening_a_file_after_edits_offers_only_the_saved_version():
     assert _offered(model, emitted, reopened.units[1]) == [('Maak oop', 100)]
 
 
-def test_reopening_keeps_translations_from_a_previous_file():
-    # Deliberate since 04056a02: the matcher remembers earlier files.
+def test_opening_another_file_drops_the_previous_files_translations():
+    # #4880: they were offered as "This file" suggestions, even for a file
+    # in another language.
     model, emitted = _model_for(_po_store([(None, 'Save', 'Stoor')]))
 
-    reopened = _po_store([(None, 'Save', '')])
-    _reopen(model, reopened)
+    other = _po_store([(None, 'Save', '')])
+    _reopen(model, other)
 
-    assert _offered(model, emitted, reopened.units[0]) == [('Stoor', 100)]
+    assert _offered(model, emitted, other.units[0]) == []
 
 
 # Other plural forms (#874) #

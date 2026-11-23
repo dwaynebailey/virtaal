@@ -98,14 +98,6 @@ class _UnitMatcher(_matcher):
         del units[next(i for i, c in enumerate(units) if c is candidate)]
         del self._shared[candidate.unit_key]
 
-    def release(self):
-        """Stop tying candidates to units, e.g. those of a closed file;
-        they stay as memory until a unit sharing one is edited."""
-        for candidate in self.candidates.units:
-            candidate.unit_refs = []
-            candidate.unit_ref = None
-        self._by_unit = {}
-
     def buildunits(self, candidates):
         units = super().buildunits(candidates)
         for unit, (_score, candidate) in zip(units, candidates, strict=True):
@@ -187,23 +179,20 @@ class TMModel(BaseTMModel):
         time, so that a large file doesn't freeze the window."""
         self._stop_loading()
         store = storecontroller.get_store()._trans_store
-        if self.matcher is None:
-            options = {
-                'max_length': pan_app.config_int(
-                    self.config['max_length'],
-                    self.default_config['max_length'],
-                    1,
-                    1000000,
-                    'max_length',
-                ),
-                'max_candidates': self.controller.max_matches,
-                'min_similarity': self.controller.min_quality,
-            }
-            self.matcher = _UnitMatcher([], lang=self.source_lang, **options)
-        else:
-            # Earlier files' translations stay as memory, no longer tied to
-            # a unit.
-            self.matcher.release()
+        # A new matcher for each file: an earlier file's translations
+        # aren't "This file" ones, and may be in another language.
+        options = {
+            'max_length': pan_app.config_int(
+                self.config['max_length'],
+                self.default_config['max_length'],
+                1,
+                1000000,
+                'max_length',
+            ),
+            'max_candidates': self.controller.max_matches,
+            'min_similarity': self.controller.min_quality,
+        }
+        self.matcher = _UnitMatcher([], lang=self.source_lang, **options)
         self.cache = {}
         loading = self._loading = SimpleNamespace(
             # No store while a folder's files all wait to be paired.
