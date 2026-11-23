@@ -35,6 +35,7 @@ __all__ = ['open', 'mailto']
 import logging
 import os
 import sys
+import threading
 
 from virtaal.common.platform import platform
 
@@ -54,6 +55,12 @@ class BaseController:
 
     def open(self, filename):
         raise NotImplementedError
+
+
+def _reap(pipe, name):
+    returncode = pipe.wait()
+    if returncode:
+        logging.warning('%s exited with status %d', name, returncode)
 
 
 class Controller(BaseController):
@@ -105,11 +112,10 @@ class Controller(BaseController):
             env=helperprocess.host_env(),
         )
 
-        # It is assumed that this kind of tools (gnome-open, kfmclient,
-        # exo-open, xdg-open and open for OSX) immediately exit after launching
-        # the specific application
-        returncode = pipe.wait()
-        return not returncode
+        # xdg-open without a desktop environment runs $BROWSER in the
+        # foreground, so wait off the main thread.
+        threading.Thread(target=_reap, args=(pipe, cmdline[0]), daemon=True).start()
+        return True
 
     def open(self, filename):
         if isinstance(filename, str):
@@ -162,7 +168,12 @@ else:
             return _controllers['xdg-open'].open
         import webbrowser
 
-        return webbrowser.open
+        def open_in_thread(url):
+            # webbrowser waits for a $BROWSER command to exit.
+            threading.Thread(target=webbrowser.open, args=(url,), daemon=True).start()
+            return True
+
+        return open_in_thread
 
     _open = get()
 

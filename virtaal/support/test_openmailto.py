@@ -6,8 +6,11 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import importlib
+import logging
 import shutil
 import subprocess
+import threading
+import time
 
 import pytest
 
@@ -94,10 +97,25 @@ def test_invoke_returns_true_on_a_successful_command():
     assert controller._invoke(['true']) is True
 
 
-def test_invoke_returns_false_on_a_failing_command():
+def test_invoke_logs_a_failing_command(caplog):
     controller = openmailto.Controller('false')
 
-    assert controller._invoke(['false']) is False
+    with caplog.at_level(logging.WARNING):
+        assert controller._invoke(['false']) is True
+        deadline = time.monotonic() + 10
+        while not caplog.records and time.monotonic() < deadline:
+            time.sleep(0.05)
+
+    assert caplog.messages == ['false exited with status 1']
+
+
+def test_invoke_returns_while_the_program_still_runs():
+    # xdg-open runs $BROWSER in the foreground when it finds no desktop.
+    controller = openmailto.Controller('sleep')
+    start = time.monotonic()
+
+    assert controller._invoke(['sleep', '5']) is True
+    assert time.monotonic() - start < 2
 
 
 def test_invoke_leaves_stdio_untouched_for_a_tty_program(monkeypatch):
@@ -312,9 +330,13 @@ def test_unix_branch_opens_with_xdg_open_without_an_x_display(reloaded_as, monke
 def test_unix_branch_falls_back_to_webbrowser_without_xdg_open(reloaded_as, monkeypatch):
     monkeypatch.setattr(shutil, 'which', lambda cmd: None)
 
-    module = reloaded_as(is_windows=False, is_mac=False)
-
     import webbrowser
 
+    opened = threading.Event()
+    monkeypatch.setattr(webbrowser, 'open', lambda url: opened.wait(10))
+
+    module = reloaded_as(is_windows=False, is_mac=False)
+
     assert module._controllers == {}
-    assert module._open is webbrowser.open
+    assert module._open('https://example.com/') is True
+    opened.set()
