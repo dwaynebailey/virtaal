@@ -202,6 +202,39 @@ def test_lokalize_settings_import_does_nothing_without_an_rc_file(tmp_path):
     assert plugin.migrated == []
 
 
+def test_lokalize_settings_import_reads_a_percent_and_skips_missing_keys(tmp_path, monkeypatch):
+    settings = _settings(monkeypatch)
+    plugin = _plugin(tmp_path)
+    plugin.migrated = []
+    (tmp_path / 'lokalizerc').write_text('[State]\nProject=/home/jane/100%/foo.lokalize\n')
+
+    plugin.lokalize_settings_import()
+
+    assert settings.general == {'lastdir': '/home/jane/100%'}
+    assert settings.translator == {}
+    assert plugin.migrated == ['Lokalize settings']
+
+
+def test_lokalize_settings_import_records_nothing_without_its_sections(tmp_path, monkeypatch):
+    _settings(monkeypatch)
+    plugin = _plugin(tmp_path)
+    plugin.migrated = []
+    (tmp_path / 'lokalizerc').write_text('[General]\nFoo=bar\n')
+
+    plugin.lokalize_settings_import()
+
+    assert plugin.migrated == []
+
+
+def test_poedit_settings_import_reads_a_percent(tmp_path, monkeypatch):
+    settings = _settings(monkeypatch)
+    plugin = _poedit_plugin(tmp_path, monkeypatch=monkeypatch, content='last_file_path = /a/100%\n')
+
+    plugin.poedit_settings_import()
+
+    assert settings.general == {'lastdir': '/a/100%'}
+
+
 # lokalize_tm_import(): only "*.db" files that aren't sqlite's own
 # "*-journal.db" companion are real Lokalize TM databases (a
 # "*.remotedb" just points at a remote server, nothing local to read).
@@ -431,6 +464,39 @@ def test_init_plugin_shows_nothing_migrated_when_all_imports_find_nothing(tmp_pa
     assert plugin._shown == [
         ('Nothing migrated', 'Virtaal was not able to migrate any settings or data')
     ]
+
+
+def test_init_plugin_imports_the_rest_and_asks_once_when_a_source_fails(tmp_path, monkeypatch):
+    disabled = {}
+    monkeypatch.setattr(migration.pan_app.settings, 'plugin_state', disabled)
+    monkeypatch.setattr(migration.pan_app.settings, 'write', lambda: None)
+    plugin = _plugin_for_init(tmp_path, has_anything=True, accepts=True)
+    plugin.poedit_settings_import = lambda: 1 / 0
+    plugin.lokalize_settings_import = lambda: plugin.migrated.append('Lokalize settings')
+    plugin.lokalize_tm_import = lambda: None
+
+    plugin._init_plugin()
+
+    assert [title for title, _detail in plugin._shown] == ['Migration completed']
+    assert disabled['migration'] == 'disabled'
+
+
+def test_lokalize_tm_import_goes_on_after_an_unreadable_database(tmp_path, monkeypatch):
+    plugin = _plugin(tmp_path)
+    (tmp_path / 'lokalize_tm').mkdir()
+    (tmp_path / 'lokalize_tm' / 'a.db').write_text('not sqlite')
+    (tmp_path / 'lokalize_tm' / 'b.db').write_text('not sqlite')
+    tried = []
+
+    def fail(filename):
+        tried.append(os.path.basename(filename))
+        raise sqlite3.DatabaseError('file is not a database')
+
+    plugin.do_lokalize_tm_import = fail
+
+    plugin.lokalize_tm_import()
+
+    assert sorted(tried) == ['a.db', 'b.db']
 
 
 # Poedit's translation memory: a Lucene index Virtaal can't read, so the

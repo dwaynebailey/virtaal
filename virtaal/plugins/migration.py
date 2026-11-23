@@ -92,30 +92,36 @@ class Plugin(BasePlugin):
         if not must_migrate:
             logging.debug('Migration not done due to user choice')
         else:
-            # We'll store the tm here:
-            self.tmdb = tmdb.TMDB(self.config["tmdb"])
-            # We actually need source, target, context, targetlanguage
-            self.migrated = []
-
-            self.poedit_settings_import()
-            self.lokalize_settings_import()
-            self.lokalize_tm_import()
-
-            if self.migrated:
-                message = _('The following items were migrated:') + '\n\n'
-                message += "\n".join([" • %s" % item for item in self.migrated])
-                #   (we can mark this ^^^ for translation if somebody asks)
-                title = _('Migration completed')
-            else:
-                message = _("Virtaal was not able to migrate any settings or data")
-                title = _('Nothing migrated')
-            if self._poedit_tm_exists():
-                message += '\n\n' + self.poedit_tm_hint()
-            self.main_controller.show_info(title, detail=message)
-            logging.debug('Migration plugin executed')
+            self._migrate()
 
         pan_app.settings.plugin_state[self.internal_name] = "disabled"
         pan_app.settings.write()
+
+    def _migrate(self):
+        self.migrated = []
+        for source in (
+            self.poedit_settings_import,
+            self.lokalize_settings_import,
+            self.lokalize_tm_import,
+        ):
+            # One broken source doesn't stop the others.
+            try:
+                source()
+            except Exception:
+                logging.exception('Migration: %s failed', source.__name__)
+
+        if self.migrated:
+            message = _('The following items were migrated:') + '\n\n'
+            message += "\n".join([" • %s" % item for item in self.migrated])
+            #   (we can mark this ^^^ for translation if somebody asks)
+            title = _('Migration completed')
+        else:
+            message = _("Virtaal was not able to migrate any settings or data")
+            title = _('Nothing migrated')
+        if self._poedit_tm_exists():
+            message += '\n\n' + self.poedit_tm_hint()
+        self.main_controller.show_info(title, detail=message)
+        logging.debug('Migration plugin executed')
 
     def _has_anything_to_migrate(self):
         """Cheap existence-only checks (no parsing) for whether *any*
@@ -188,7 +194,7 @@ class Plugin(BasePlugin):
         else:
             config_filename = path.join(self.poedit_dir, 'config')
         if path.exists(config_filename):
-            self.poedit_config = ConfigParser.ConfigParser()
+            self.poedit_config = ConfigParser.RawConfigParser(strict=False)
             with open(config_filename, encoding='utf-8') as poedit_config_file:
                 contents = StringIO('[poedit_headerless_file]\n' + poedit_config_file.read())
             self.poedit_config.read_file(contents)
@@ -229,19 +235,22 @@ class Plugin(BasePlugin):
         if not path.exists(self.lokalize_rc):
             return
 
-        lokalize_config = ConfigParser.ConfigParser()
-        lokalize_config.read(self.lokalize_rc)
-        lokalize_identity = dict(lokalize_config.items('Identity'))
-
-        pan_app.settings.translator['name'] = lokalize_identity['authorname']
-        pan_app.settings.translator['email'] = lokalize_identity['authoremail']
-        pan_app.settings.translator['team'] = lokalize_identity['defaultmailinglist']
-        pan_app.settings.general['lastdir'] = path.dirname(
-            dict(lokalize_config.items('State'))['project']
-        )
-
-        pan_app.settings.write()
-        self.migrated.append(_("Lokalize settings"))
+        lokalize_config = ConfigParser.RawConfigParser(strict=False)
+        lokalize_config.read(self.lokalize_rc, encoding='utf-8')
+        found = False
+        for section, key, settings, name in (
+            ('Identity', 'authorname', pan_app.settings.translator, 'name'),
+            ('Identity', 'authoremail', pan_app.settings.translator, 'email'),
+            ('Identity', 'defaultmailinglist', pan_app.settings.translator, 'team'),
+            ('State', 'project', pan_app.settings.general, 'lastdir'),
+        ):
+            value = lokalize_config.get(section, key, fallback=None)
+            if value:
+                settings[name] = path.dirname(value) if key == 'project' else value
+                found = True
+        if found:
+            pan_app.settings.write()
+            self.migrated.append(_("Lokalize settings"))
 
     def lokalize_tm_import(self):
         """Attempt to import the Translation Memory used in Lokalize."""
@@ -257,8 +266,12 @@ class Plugin(BasePlugin):
             if not name.endswith('.db') or name.endswith('-journal.db'):
                 continue
             filename = path.join(self.lokalize_tm_dir, name)
-            if path.isfile(filename):
+            if not path.isfile(filename):
+                continue
+            try:
                 self.do_lokalize_tm_import(filename)
+            except Exception:
+                logging.exception('Migration: could not import %s', filename)
 
     def do_lokalize_tm_import(self, filename):
         """Import the given Translation Memory file used by Lokalize."""
@@ -294,6 +307,8 @@ class Plugin(BasePlugin):
             connection.close()
 
         if units:
+            if getattr(self, 'tmdb', None) is None:
+                self.tmdb = tmdb.TMDB(self.config["tmdb"])
             self.tmdb.sync_store(
                 path.realpath(filename), units, source_lang, target_lang, kind=tmdb.STORE_IMPORTED
             )
