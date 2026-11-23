@@ -70,6 +70,18 @@ def _choose(unit, matches, kind=TM, **options):
     return pretranslate.choose(_tm(), unit, [(_Model(), matches)], Options(**options), kind)
 
 
+def test_a_match_it_cannot_read_is_left_out():
+    # #4879
+    matches = [
+        {'source': 'Open', 'target': 'Oop', 'quality': 'high'},
+        {'source': 'Open', 'target': 'Maak oop', 'quality': '100.0'},
+    ]
+
+    found = pretranslate.candidates(_tm(), _po_unit('Open'), [(_Model(), matches)], Options())
+
+    assert [(m['target'], m['quality']) for m in found] == [('Maak oop', 100)]
+
+
 # Which units are filled
 
 

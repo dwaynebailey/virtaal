@@ -270,7 +270,7 @@ class TMController(BaseController):
         query_str = forceunicode(query_str)
         if query_str != self.current_query or not matches:
             return
-        self._tidy_matches(tmmodel, query_str, matches)
+        matches = self._tidy_matches(tmmodel, query_str, matches)
         unit = getattr(self, '_queried_unit', None)
         accel_markers = self._accel_markers() if self.abstract_placeables else ()
         matches = [self._for_form(unit, match, accel_markers) for match in matches]
@@ -291,16 +291,31 @@ class TMController(BaseController):
 
     @staticmethod
     def _tidy_matches(tmmodel, query_str, matches):
-        """Give every match an int quality, a TM source, the query and
-        the weight its source has with tmmodel."""
+        """The usable matches, each given an int quality, a TM source, the
+        query and the weight its source has with tmmodel. A server's
+        reply can hold anything: a match without a text source and target
+        or a number for its quality is left out (#4879)."""
         match_weight = getattr(tmmodel, 'match_weight', None)
+        usable = []
         for match in matches:
+            if not (
+                isinstance(match.get('source', ''), str) and isinstance(match.get('target'), str)
+            ):
+                logging.debug('%s: a match without a text source or target', tmmodel)
+                continue
+            quality = match.get('quality', 0)
+            if not isinstance(quality, int) or isinstance(quality, bool):
+                try:
+                    match['quality'] = int(float(quality or 0))
+                except (TypeError, ValueError, OverflowError):
+                    logging.debug('%s: a match with quality %r', tmmodel, quality)
+                    continue
             match['weight'] = match_weight(match) if match_weight else 1.0
-            if not isinstance(match.get('quality', 0), int):
-                match['quality'] = int(match['quality'] or 0)
             if 'tmsource' not in match or match['tmsource'] is None:
                 match['tmsource'] = tmmodel.display_name
             match['query_str'] = query_str
+            usable.append(match)
+        return usable
 
     def _add_match(self, match):
         """Add match unless one with its target is already there, which

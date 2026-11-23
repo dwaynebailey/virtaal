@@ -110,7 +110,7 @@ def candidates(tm_controller, unit, answers, options, kind=TM):
     found = []
     for model, matches in answers:
         matches = [dict(match) for match in matches if match.get('target')]
-        tm_controller._tidy_matches(model, str(unit.source), matches)
+        matches = tm_controller._tidy_matches(model, str(unit.source), matches)
         for match in matches:
             if tm_controller.abstract_placeables:
                 match = tm_controller._adapt(
