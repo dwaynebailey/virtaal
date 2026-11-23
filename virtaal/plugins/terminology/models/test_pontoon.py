@@ -330,13 +330,39 @@ def test_check_for_update_requests_the_pontoon_locale_with_the_cached_etag(tmp_p
     requests = []
     model = _model(
         tmp_path,
-        config={'en_US__pt_BR.tbx': 'abc123'},
+        # As the config file gives it back (#4897).
+        config={'en_us__pt_br.tbx': 'abc123'},
         client=SimpleNamespace(
             get=lambda url, callback, etag, **kwargs: requests.append((url, etag))
         ),
     )
 
     model._check_for_update('en_US', 'pt_BR')
+
+    assert requests == [('https://pontoon.mozilla.org/terminology/pt-BR.tbx', 'abc123')]
+
+
+def test_the_etag_for_a_mixed_case_code_is_sent_after_a_restart(tmp_path):
+    # Saved and read back through the config file, which lowercases
+    # its keys (#4897).
+    from virtaal.common import pan_app
+
+    localfile = tmp_path / 'en__pt_BR.tbx'
+    model = _model(tmp_path, source_lang='en', target_lang='pt_BR')
+    model.init_matcher = lambda filename='': None
+    model._process_header(_FakeRequest(), _tbx(), localfile=str(localfile))
+    ini = str(tmp_path / 'terminology.ini')
+    pan_app.save_config(ini, model.config, 'pontoon')
+    requests = []
+    model = _model(
+        tmp_path,
+        config=pan_app.load_config(ini, 'pontoon'),
+        client=SimpleNamespace(
+            get=lambda url, callback, etag, **kwargs: requests.append((url, etag))
+        ),
+    )
+
+    model._check_for_update('en', 'pt_BR')
 
     assert requests == [('https://pontoon.mozilla.org/terminology/pt-BR.tbx', 'abc123')]
 

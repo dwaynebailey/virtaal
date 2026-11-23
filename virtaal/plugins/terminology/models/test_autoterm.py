@@ -180,7 +180,7 @@ def test_process_header_saves_the_etag_from_the_response_headers(tmp_path):
         fake_self, _FakeRequest(headers=b'ETag: "abc123"\r\n'), GOOD_PO, localfile=localfile
     )
 
-    assert fake_self.config[os.path.abspath(localfile)] == 'abc123'
+    assert fake_self.config[os.path.abspath(localfile).lower()] == 'abc123'
 
 
 def test_process_header_an_unhandled_status_keeps_the_cached_terms(tmp_path):
@@ -340,7 +340,7 @@ def test_check_for_update_sends_a_known_etag(tmp_path):
     fake_self = _fake_self()
     localfile = os.path.join(str(tmp_path), 'en__fr.po')
     open(localfile, 'w').close()
-    fake_self.config = {os.path.abspath(localfile): '"abc123"'}
+    fake_self.config = {os.path.abspath(localfile).lower(): '"abc123"'}
     fake_self.client = _FakeClient()
 
     TerminologyModel._check_for_update(fake_self, 'en', 'fr')

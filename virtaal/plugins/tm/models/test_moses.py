@@ -8,6 +8,7 @@
 import xmlrpc.client as xmlrpclib
 from types import SimpleNamespace
 
+import pytest
 from gi.repository import GObject
 
 from virtaal.plugins.tm._testhelpers import fake_controller
@@ -128,6 +129,22 @@ def test_query_delegates_to_the_matching_language_pairs_client():
     model.query(None, SimpleNamespace(source='bonjour'))
 
     assert client.translated == [('bonjour', model._handle_response, 'en')]
+
+
+@pytest.mark.parametrize('configured', ['pt_BR->fr', 'pt_br->fr'])
+def test_a_mixed_case_language_pair_is_used(monkeypatch, tmp_path, configured):
+    # The config file lowercases its keys (#4897).
+    from virtaal.common import pan_app
+
+    ini = str(tmp_path / 'tm.ini')
+    pan_app.save_config(ini, {configured: 'http://a'}, 'moses')
+    model = _model()
+    _init_plugin(monkeypatch, model, pan_app.load_config(ini, 'moses'))
+    model.source_lang, model.target_lang = 'pt_BR', 'fr'
+
+    model.query(None, SimpleNamespace(source='olá'))
+
+    assert [q for q, _callback, _target in model._client().translated] == ['olá']
 
 
 def test_one_unknown_system_leaves_the_other_pairs_on_a_shared_server(monkeypatch):

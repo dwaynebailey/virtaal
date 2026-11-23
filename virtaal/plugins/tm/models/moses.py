@@ -42,7 +42,8 @@ class TMModel(BaseTMModel):
         # let's map servers to clients to detect duplicates
         client_map = {}
         for lang_pair, server in self.config.items():
-            pair = lang_pair.split("->")
+            # The config file lowercases its keys (#4897).
+            pair = lang_pair.lower().split("->")
             if len(pair) != 2:
                 continue
             if self.clients.get(pair[0]) is None:
@@ -78,7 +79,9 @@ class TMModel(BaseTMModel):
 
     # A file's suggestions (#1679), a unit per request #
     def _client(self):
-        return self.clients.get(self.source_lang, {}).get(self.target_lang)
+        source = (self.source_lang or '').lower()
+        target = (self.target_lang or '').lower()
+        return self.clients.get(source, {}).get(target)
 
     def bulk_ready(self):
         client = self._client()

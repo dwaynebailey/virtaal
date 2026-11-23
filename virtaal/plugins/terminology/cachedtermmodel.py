@@ -106,8 +106,9 @@ class CachedRemoteTerminologyModel(BaseTerminologyModel):
         return langcode
 
     def _etag_key(self, localfile):
-        """The config key the cached file's ETag is stored under."""
-        return os.path.basename(localfile)
+        """The config key the cached file's ETag is stored under, in
+        lowercase as the config file stores it (#4897)."""
+        return os.path.basename(localfile).lower()
 
     def _accepts_response(self, content, ext):
         """Whether a 200 response is worth saving as an C{ext} file.

@@ -25,4 +25,4 @@ class TerminologyModel(CachedRemoteTerminologyModel):
 
     # METHODS #
     def _etag_key(self, localfile):
-        return os.path.abspath(localfile)
+        return os.path.abspath(localfile).lower()
