@@ -261,8 +261,10 @@ class CachedRemoteTerminologyModel(BaseTerminologyModel):
                 etag = etagline[0][7:-1].decode('ascii', errors='replace')
             self.config[self._etag_key(localfile)] = etag
         else:
+            # Keep the cached copy, and try again next time.
             logging.debug('Unhandled status code: %d' % (request.status))
-            localfile = ''
+            self.init_matcher(localfile or '')
+            return
 
         if os.path.isfile(localfile):
             # Update mtime
@@ -271,7 +273,10 @@ class CachedRemoteTerminologyModel(BaseTerminologyModel):
 
     def _update_term_file(self, srclang, tgtlang):
         """Update the terminology file for the given languages."""
-        self.init_matcher()  # Make sure that the matcher is empty until we have an update
+        # The cached copy until a download replaces it: a failed one may
+        # never call back.
+        localfile = os.path.join(self.TERMDIR, self._get_curr_term_filename(srclang, tgtlang))
+        self.init_matcher(localfile)
         self._check_for_update(srclang, tgtlang)
 
     # SIGNAL HANDLERS #

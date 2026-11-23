@@ -400,7 +400,7 @@ def test_process_header_records_no_etag_when_the_response_has_none(tmp_path):
     assert model.config == {'en__af.tbx': ''}
 
 
-def test_process_header_clears_the_matcher_on_an_unhandled_status(tmp_path):
+def test_process_header_keeps_the_cached_file_on_an_unhandled_status(tmp_path):
     model = _model(tmp_path)
     matched = []
     model.init_matcher = lambda filename='': matched.append(filename)
@@ -408,8 +408,36 @@ def test_process_header_clears_the_matcher_on_an_unhandled_status(tmp_path):
 
     model._process_header(request, b'', localfile='/tmp/unused.tbx')
 
-    assert matched == ['']
+    assert matched == ['/tmp/unused.tbx']
     assert model.config == {}
+
+
+def test_process_header_uses_an_empty_store_on_an_unhandled_status_with_no_cache(tmp_path):
+    model = _model(tmp_path)
+    matched = []
+    model.init_matcher = lambda filename='': matched.append(filename)
+
+    model._process_header(SimpleNamespace(status=503), b'', localfile=None)
+
+    assert matched == ['']
+
+
+def test_a_stale_cached_file_stays_in_use_while_offline(tmp_path):
+    # The download fails without calling back (#4883).
+    localfile = tmp_path / 'en__af.tbx'
+    localfile.write_bytes(_tbx(_concept_entry([('en-US', 'Hello'), ('af', 'Hallo')])))
+    stale = time.time() - (60 * 60 * 24 * 4)
+    os.utime(str(localfile), (stale, stale))
+    model = _model(
+        tmp_path,
+        source_lang='en',
+        target_lang='af',
+        client=SimpleNamespace(get=lambda *args, **kwargs: None),
+    )
+
+    model.update_terms('en', 'af')
+
+    assert [unit.target for unit in model.store.getunits()] == ['Hallo']
 
 
 # _on_lang_changed(): re-fetches terminology for whichever side of the
