@@ -51,7 +51,8 @@ class AutoCorrector:
         self.lang = None
         self.unreadable = False
         """Whether the last list loaded couldn't be read (#4431)"""
-        if acorpath is None or not os.path.isdir(acorpath):
+        # The folder may not exist yet: a download creates it (#4888).
+        if acorpath is None:
             acorpath = os.path.curdir
         self.acorpath = acorpath
         self.load_dictionary(lang)
