@@ -142,3 +142,14 @@ def test_saved_config_remembers_paid_mt_was_offered(monkeypatch, isolated_config
 
     assert 'deepl' not in captured['config']['disabled_models']
     assert 'microsoft_translator' in captured['config']['disabled_models']
+
+
+def test_saved_config_remembers_the_online_services_told_of(monkeypatch):
+    plugin, captured = _init(monkeypatch)
+    assert captured['config']['told_online'] == []
+    captured['config']['told_online'] = ['amaGama', 'tm.example.org']
+    plugin.save_config()
+
+    _plugin, captured = _init(monkeypatch)
+
+    assert captured['config']['told_online'] == ['amaGama', 'tm.example.org']

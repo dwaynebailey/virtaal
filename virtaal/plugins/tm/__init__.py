@@ -24,6 +24,7 @@ class Plugin(BasePlugin):
             '_dummytm,remotetm,apertium,google_translate,moses,deepl,microsoft_translator'
         ),
         'known_models': '',
+        'told_online': '',
         'max_matches': '5',
         'min_quality': '70',
         'abstract_placeables': 'True',
@@ -45,6 +46,8 @@ class Plugin(BasePlugin):
             )
         self.load_config()
         self.config['disabled_models'] = self.config['disabled_models'].split(',')
+        # The online services the user said not to be told about again.
+        self.config['told_online'] = [n for n in self.config['told_online'].split(',') if n]
         self._keep_off_until_enabled(OFF_UNTIL_ENABLED)
         self._config_int('max_matches', 0, 1000)
         # A quality of 0 divides by zero when matching.

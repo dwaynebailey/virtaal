@@ -55,6 +55,10 @@ class TMModel(remotetm.TMModel):
     _concordance_request = None
     _concordance_count = 0
 
+    def sends_text_to(self):
+        # Its server runs on this computer.
+        return ()
+
     # INITIALIZERS #
     def __init__(self, internal_name, controller):
         self.internal_name = internal_name

@@ -6,7 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 
-from .basetmmodel import BaseTMModel
+from .basetmmodel import BaseTMModel, outside_host
 
 
 class TMModel(BaseTMModel):
@@ -57,6 +57,14 @@ class TMModel(BaseTMModel):
             self.clients[pair[0]].update({pair[1]: client})
 
     # METHODS #
+    def sends_text_to(self):
+        hosts = (
+            outside_host(str(server))
+            for lang_pair, server in self.config.items()
+            if len(lang_pair.split("->")) == 2
+        )
+        return tuple(sorted({host for host in hosts if host}))
+
     def query(self, tmcontroller, unit):
         if not self.bulk_ready():
             return

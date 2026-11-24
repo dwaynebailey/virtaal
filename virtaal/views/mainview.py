@@ -2011,6 +2011,43 @@ class MainView(BaseView):
                 grid.attach(label, column, row, 1, 1)
         return grid
 
+    def show_online_notice(self, text, on_sources, on_never):
+        """Show a dismissable notice with C{text}, saying where the text
+        being translated is sent; on_sources runs on Select Sources…,
+        on_never on Don't Show Again; either closes it."""
+        self.hide_online_notice()
+
+        infobar = Gtk.InfoBar()
+        infobar.set_message_type(Gtk.MessageType.INFO)
+        infobar.set_show_close_button(True)
+        label = Gtk.Label(label=text)
+        infobar.get_content_area().pack_start(_infobar_text(label), True, True, 0)
+        infobar.add_button(_('_Select Sources…'), Gtk.ResponseType.OK)
+        infobar.add_button(_('_Don’t Show Again'), Gtk.ResponseType.REJECT)
+
+        def on_response(infobar, response_id):
+            self.hide_online_notice(infobar)
+            if response_id == Gtk.ResponseType.OK:
+                on_sources()
+            elif response_id == Gtk.ResponseType.REJECT:
+                on_never()
+
+        infobar.connect('response', on_response)
+
+        self._online_infobar = infobar
+        infobar.show_all()
+        vbox_main = self.gui.get_object('vbox_main')
+        vbox_main.pack_start(infobar, False, False, 0)
+        vbox_main.reorder_child(infobar, 1)  # directly below the menu bar
+        return infobar
+
+    def hide_online_notice(self, notice=None):
+        """Hide the notice, or only C{notice} if it is still showing."""
+        infobar = getattr(self, '_online_infobar', None)
+        if infobar is not None and notice in (None, infobar):
+            self._online_infobar = None
+            infobar.destroy()
+
     def show_same_lang_notice(self, on_change_pair):
         """Show a dismissable notice that source and target language are
         the same; on_change_pair runs if its button is clicked."""
