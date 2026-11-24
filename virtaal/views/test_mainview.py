@@ -4023,3 +4023,53 @@ def test_info_bar_text_starts_at_the_start_and_wraps():
 
     assert label.get_xalign() == 0
     assert label.get_line_wrap()
+
+
+def _online_notice(view, calls):
+    view.show_online_notice(
+        'Sent to amaGama.', lambda: calls.append('sources'), lambda: calls.append('never')
+    )
+    return view._online_infobar
+
+
+def test_online_notice_offers_the_sources_and_not_again():
+    view, vbox = _view_for_read_only_notice()
+
+    infobar = _online_notice(view, [])
+
+    assert vbox.packed == [infobar]
+    assert infobar.get_message_type() == Gtk.MessageType.INFO
+    assert infobar.get_show_close_button() is True
+    label = infobar.get_content_area().get_children()[0]
+    assert label.get_text() == 'Sent to amaGama.'
+    buttons = infobar.get_action_area().get_children()
+    assert sorted(b.get_label() for b in buttons) == ['_Don’t Show Again', '_Select Sources…']
+
+
+@pytest.mark.parametrize(
+    ('response', 'called'),
+    [
+        (Gtk.ResponseType.OK, ['sources']),
+        (Gtk.ResponseType.REJECT, ['never']),
+        (Gtk.ResponseType.CLOSE, []),
+    ],
+)
+def test_online_notice_closes_on_each_answer(response, called):
+    view, _vbox = _view_for_read_only_notice()
+    calls = []
+    infobar = _online_notice(view, calls)
+
+    infobar.emit('response', response)
+
+    assert calls == called
+    assert view._online_infobar is None
+
+
+def test_online_notice_replaces_the_last_one():
+    view, vbox = _view_for_read_only_notice()
+    first = _online_notice(view, [])
+
+    second = _online_notice(view, [])
+
+    assert view._online_infobar is second is not first
+    assert len(vbox.packed) == 2

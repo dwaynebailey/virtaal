@@ -719,6 +719,18 @@ class TMView(BaseView, GObjectWrapper):
         parent = self.controller.main_controller.view.main_window
         PretranslateDialog(self.controller, parent).show()
 
+    def show_online_notice(self, services, on_sources, on_never):
+        """Say that the text is sent to the online C{services} (#4903)."""
+        self.controller.main_controller.view.show_online_notice(
+            # l10n: Shown when a file opens. %(services)s lists, separated by
+            # ", ", the online services that give suggestions: names such as
+            # amaGama or Google, or a server's address, such as tm.example.org
+            _("The source text of each unit you visit is sent to %(services)s for suggestions.")
+            % {'services': ', '.join(services)},
+            on_sources,
+            on_never,
+        )
+
     def select_backends(self, parent):
         from virtaal.views.backendselect import select_backends
 

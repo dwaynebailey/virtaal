@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Virtaal 1.0.0-rc3\n"
 "Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\n"
-"POT-Creation-Date: 2026-11-15 07:41+0000\n"
+"POT-Creation-Date: 2026-11-24 06:29+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3110,6 +3110,16 @@ msgstr ""
 msgid "Adapted to this unit from: %(target)s"
 msgstr ""
 
+#. l10n: Shown when a file opens. %(services)s lists, separated by
+#. ", ", the online services that give suggestions: names such as
+#. amaGama or Google, or a server's address, such as tm.example.org
+#: virtaal/plugins/tm/tmview.py
+#, python-format
+msgid ""
+"The source text of each unit you visit is sent to %(services)s for "
+"suggestions."
+msgstr ""
+
 #. l10n: The 'sources' here refer to different translation memory plugins,
 #. such as local tm, open-tran.eu, the current file, etc.
 #: virtaal/plugins/tm/tmview.py
@@ -4461,6 +4471,14 @@ msgstr ""
 #. l10n: Row heading: total number of units in the file
 #: virtaal/views/mainview.py
 msgid "Total"
+msgstr ""
+
+#: virtaal/views/mainview.py
+msgid "_Select Sources…"
+msgstr ""
+
+#: virtaal/views/mainview.py
+msgid "_Don’t Show Again"
 msgstr ""
 
 #: virtaal/views/mainview.py

@@ -5,9 +5,11 @@
 # later license. See the LICENSE file for a copy of the license and
 # the AUTHORS.md file for copyright and authorship information.
 
+import ipaddress
 import logging
 import re
 from html import entities as htmlentitydefs
+from urllib.parse import urlsplit
 
 from gi.repository import GObject
 
@@ -32,6 +34,21 @@ def unescape_html_entities(text):
         return text
 
     return re.sub(r"&(#[0-9]+|\w+);", fixup, text)
+
+
+def outside_host(address):
+    """The host in C{address} (a host name or a URL), if it isn't this
+    computer; None for this computer."""
+    host = urlsplit(address).hostname if '//' in address else address.strip().strip('[]')
+    host = (host or '').lower()
+    if not host or host == 'localhost' or host.endswith('.localhost'):
+        return None
+    try:
+        if ipaddress.ip_address(host).is_loopback:
+            return None
+    except ValueError:
+        pass
+    return host
 
 
 class BaseTMModel(BaseModel, Configurable):
@@ -113,6 +130,11 @@ class BaseTMModel(BaseModel, Configurable):
             self.configure_func = self.configure
 
     # METHODS #
+    def sends_text_to(self):
+        """The names of the services outside this computer this source
+        sends the text being translated to (#4903)."""
+        return (self.online_service,) if self.online_service else ()
+
     def destroy(self):
         self.save_config()
         self._signal_tracker.disconnect_all()

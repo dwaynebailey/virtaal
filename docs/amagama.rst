@@ -12,6 +12,12 @@ therefore take a moment before they are displayed. Also keep in mind that your
 source text is sent unencrypted over the Internet, and therefore no
 confidential translation should be done using this plug-in.
 
+When you open a file, a notice names the online services, such as Amagama,
+that the sources you have on send your text to. :guilabel:`Select Sources…`
+opens the list of sources, where you can switch them off. After that, or
+after :guilabel:`Don’t Show Again`, the notice only comes back when you switch
+on another online service.
+
 Where the server supports it, Virtaal sends your text with each placeable
 (a variable, tag, URL, e-mail address, file name or number) replaced by a
 marker, so those never leave your computer. Amagama then also finds

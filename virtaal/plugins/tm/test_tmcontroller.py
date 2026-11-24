@@ -15,6 +15,7 @@ from virtaal.plugins.tm.tmcontroller import TMController
 
 def _bare_controller(**overrides):
     controller = TMController.__new__(TMController)
+    controller.config = {}
     for name, value in overrides.items():
         setattr(controller, name, value)
     return controller

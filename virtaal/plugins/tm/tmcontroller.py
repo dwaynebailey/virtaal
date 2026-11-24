@@ -114,6 +114,8 @@ class TMController(BaseController):
     _fetches = {}
     # The quality checks being worked out for a fetch plan, if any.
     _checks = None
+    # The online services this session's notice named (#4903).
+    _told_online = ()
 
     # INITIALIZERS #
     def __init__(self, main_controller, config=None):
@@ -542,6 +544,12 @@ class TMController(BaseController):
     def _destroy_windows(self):
         self.view.hide()
         self.view.destroy()
+        # Its buttons are the plug-in's.
+        hide_notice = getattr(
+            getattr(self.main_controller, 'view', None), 'hide_online_notice', None
+        )
+        if hide_notice is not None:
+            hide_notice()
         if self.concordance is not None:
             self.concordance.destroy()
 
@@ -1052,10 +1060,53 @@ class TMController(BaseController):
         self.load_fetched()
 
         def handle_first_unit():
+            # After the sources queued to load before it.
+            self.tell_online_services()
             self._on_cursor_changed(self.storecursor)
             return False
 
         GLib.idle_add(handle_first_unit)
+
+    def online_services(self):
+        """The names of the services outside this computer the sources
+        switched on send the text being translated to, sorted."""
+        plugins = getattr(getattr(self, 'plugin_controller', None), 'plugins', {})
+        names = {name for model in plugins.values() for name in model.sends_text_to()}
+        return sorted(names, key=str.casefold)
+
+    def tell_online_services(self):
+        """Say which online services the text is sent to, unless this
+        session already did or the user said not to for each of them
+        (#4903)."""
+        services = self.online_services()
+        told = list(self.config.get('told_online', [])) + list(self._told_online)
+        if all(name in told for name in services):
+            return
+        self._told_online = tuple(told + services)
+        self.view.show_online_notice(
+            services, self._select_from_notice, lambda: self._stop_telling(services)
+        )
+
+    def _select_from_notice(self):
+        # Those still on after the user chose are no news next time.
+        self.select_sources()
+        self._stop_telling(self.online_services())
+
+    def _stop_telling(self, services):
+        told = self.config.get('told_online', [])
+        self.config['told_online'] = told + [name for name in services if name not in told]
+        plugin = getattr(self.main_controller.plugin_controller, 'plugins', {}).get('tm')
+        if plugin is not None:
+            plugin.save_config()
+
+    def select_sources(self):
+        """Show the sources dialog, as Preferences' Configure… does."""
+        plugin = getattr(self.main_controller.plugin_controller, 'plugins', {}).get('tm')
+        parent = self.main_controller.view.main_window
+        if plugin is not None:
+            plugin.configure(parent)
+        else:
+            self.view.select_backends(parent)
 
     def _on_unit_done(self, _unit_controller, unit, _modified):
         # A translated unit's fetched suggestions have served their turn.

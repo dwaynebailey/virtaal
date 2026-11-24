@@ -13,7 +13,7 @@ from datetime import timezone
 
 from virtaal.views.widgets.settingsdialog import PORT, Field
 
-from .basetmmodel import BaseTMModel
+from .basetmmodel import BaseTMModel, outside_host
 
 
 class TMModel(BaseTMModel):
@@ -65,6 +65,10 @@ class TMModel(BaseTMModel):
         self.tmclient.set_virtaal_useragent()
 
     # METHODS #
+    def sends_text_to(self):
+        host = outside_host(str(self.config.get("host", "")))
+        return (host,) if host else ()
+
     def apply_settings(self):
         # Answers still due from the previous server are dropped.
         self.cache = {}
