@@ -6,6 +6,7 @@
 # the AUTHORS.md file for copyright and authorship information.
 
 import bisect
+import collections
 import itertools
 import time
 import weakref
@@ -116,6 +117,10 @@ def _add_markup(match_data, unit):
         match_data['target_markup'] = target_markup
 
 
+def _code(language):
+    return language.replace('-', '_').lower()
+
+
 def _offered_to(unit, ref):
     """Whether a 100% match from the unit behind ref helps unit: not its
     own translation, and not one for a different context."""
@@ -142,6 +147,8 @@ class TMModel(BaseTMModel):
     LOAD_CHUNK = 500  # Units read per extendtm() call.
     LOAD_BUDGET = 0.02  # Seconds of the main loop each loading step takes.
     _loading = None  # The file being read, if any.
+    _stream = None  # (The files opened together, the handler of their file-loaded.)
+    _label = None  # What the matches are said to come from.
     matcher = None
     source_lang = None
 
@@ -155,7 +162,7 @@ class TMModel(BaseTMModel):
 
         store_controller = self.controller.main_controller.store_controller
         self._signal_tracker.connect(store_controller, 'store-loaded', self.recreate_matcher)
-        self._signal_tracker.connect(store_controller, 'store-closed', self._stop_loading)
+        self._signal_tracker.connect(store_controller, 'store-closed', self._on_store_closed)
         if self.controller.main_controller.store_controller.get_store() is not None:
             self.recreate_matcher(self.controller.main_controller.store_controller)
 
@@ -167,7 +174,7 @@ class TMModel(BaseTMModel):
 
     # METHODS #
     def destroy(self):
-        self._stop_loading()
+        self._on_store_closed()
         super().destroy()
 
     def set_source_lang(self, language):
@@ -176,9 +183,28 @@ class TMModel(BaseTMModel):
 
     def recreate_matcher(self, storecontroller):
         """Read the file's translations from the main loop, a step at a
-        time, so that a large file doesn't freeze the window."""
-        self._stop_loading()
-        store = storecontroller.get_store()._trans_store
+        time, so that a large file doesn't freeze the window. For files
+        opened together, each one's as it is read."""
+        self._on_store_closed()
+        opened = storecontroller.get_store()
+        segments = getattr(opened, 'segments', None)
+        # l10n: Try to keep this as short as possible.
+        self._label = _('This file')
+        if segments is None:
+            store = opened._trans_store
+            # No store while a folder's files all wait to be paired.
+            units = list(store.units) if store is not None else []
+        else:
+            if len(segments) > 1:
+                # l10n: Where a suggestion comes from: the files opened together, as opposed to "This file". Try to keep this as short as possible.
+                self._label = _('These files')
+            self._stream = (opened, opened.connect('file-loaded', self._on_file_loaded))
+            units = [
+                unit
+                for model in opened.loaded_models()
+                if self._in_language(opened, model)
+                for unit in model._trans_store.units
+            ]
         # A new matcher for each file: an earlier file's translations
         # aren't "This file" ones, and may be in another language.
         options = {
@@ -193,15 +219,46 @@ class TMModel(BaseTMModel):
             'min_similarity': self.controller.min_quality,
         }
         self.matcher = _UnitMatcher([], lang=self.source_lang, **options)
+        self._add_units(units)
+
+    def _add_units(self, units):
+        """Read units into the matcher a step at a time, after those
+        still being read."""
         self.cache = {}
+        if self._loading is not None:
+            self._loading.pending.append(units)
+            return
+        pending = collections.deque([units])
+
+        def queued():
+            while pending:
+                yield from pending.popleft()
+
         loading = self._loading = SimpleNamespace(
-            # No store while a folder's files all wait to be paired.
-            units=iter(list(store.units) if store is not None else []),
+            units=queued(),
+            pending=pending,
             sorted=True,
             query=None,
             source_id=None,
         )
         loading.source_id = GLib.idle_add(self._load_step)
+
+    @staticmethod
+    def _in_language(stream, model):
+        """Whether a file of the stream is in its target language."""
+        expected, found = stream.get_target_language(), model.get_target_language()
+        return not (expected and found and _code(expected) != _code(found))
+
+    def _on_file_loaded(self, stream, number, _peek):
+        model = stream.segments[number].model
+        if self._in_language(stream, model):
+            self._add_units(list(model._trans_store.units))
+
+    def _on_store_closed(self, *_args):
+        self._stop_loading()
+        stream, self._stream = self._stream, None
+        if stream is not None:
+            stream[0].disconnect(stream[1])
 
     def _load_step(self):
         """Read units for up to LOAD_BUDGET seconds. @returns: Whether
@@ -286,8 +343,7 @@ class TMModel(BaseTMModel):
             self._sort_candidates(self._loading)
         for candidate in self.matcher.matches(query_str):
             m = match.unit2dict(candidate)
-            # l10n: Try to keep this as short as possible.
-            m['tmsource'] = _('This file')
+            m['tmsource'] = self._label or _('This file')
             ref = getattr(candidate, 'unit_ref', None)
             _add_markup(m, ref() if ref is not None else None)
             found.append((m, ref))

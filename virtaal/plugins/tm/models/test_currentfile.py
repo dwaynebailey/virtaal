@@ -757,3 +757,166 @@ def test_lookup_folds_a_dotless_i_in_the_source_language():
         model.lookup(store.units[1], found.append)
 
     assert [[int(m['quality']) for m in matches] for matches in found] == [[77], [97]]
+
+
+# Files opened together: each one's units as it is read
+
+
+def _stream(tmp_path, files, language='af'):
+    from translate.storage import po
+
+    from virtaal.models.fileset import FileSet
+    from virtaal.models.langmodel import LanguageModel
+    from virtaal.models.streammodel import StreamModel
+
+    for name, entries in files.items():
+        store = po.pofile()
+        store.updateheader(add=True, Content_Type='text/plain; charset=UTF-8')
+        if language is not None:
+            store.settargetlanguage(entries.get('language', language))
+        for source, target in entries['units']:
+            store.addsourceunit(source).target = target
+        store.savefile(str(tmp_path / name))
+    controller = SimpleNamespace(
+        main_controller=SimpleNamespace(
+            get_translator_details=lambda: ('Tester', 'tester@example.org', ''),
+            lang_controller=SimpleNamespace(target_lang=LanguageModel('af')),
+            checks_controller=SimpleNamespace(code=None),
+        )
+    )
+    return StreamModel(FileSet.from_paths([str(tmp_path)]), controller)
+
+
+def _model_for_stream(stream):
+    model, emitted = _model_for(_po_store([]))
+    model.recreate_matcher(SimpleNamespace(get_store=lambda: stream))
+    _load(model)
+    return model, emitted
+
+
+def _offered_from(model, _emitted, unit):
+    """(target, source label) of each match offered for unit."""
+    emitted = []
+    model.emit = lambda signal, query_str, matches: emitted.append(
+        [(m['target'], m['tmsource']) for m in matches]
+    )
+    model.query(None, unit)
+    return emitted[0] if emitted else []
+
+
+def test_a_unit_gets_a_match_from_another_file_opened_with_it(tmp_path):
+    from virtaal.support import statsworker
+
+    stream = _stream(
+        tmp_path,
+        {'a.po': {'units': [('Open', 'Maak oop')]}, 'b.po': {'units': [('Open', '')]}},
+    )
+    model, emitted = _model_for_stream(stream)
+
+    unit = stream[1]  # Reads b.po.
+    _load(model)
+
+    assert _offered_from(model, emitted, unit) == [('Maak oop', 'These files')]
+    statsworker.wait()
+
+
+def test_a_file_read_later_gives_its_translations_too(tmp_path):
+    from virtaal.support import statsworker
+
+    stream = _stream(
+        tmp_path,
+        {'a.po': {'units': [('Open', '')]}, 'b.po': {'units': [('Open', 'Maak oop')]}},
+    )
+    model, emitted = _model_for_stream(stream)
+
+    stream[1]  # Reads b.po.
+    _load(model)
+
+    assert _offered_from(model, emitted, stream[0]) == [('Maak oop', 'These files')]
+    statsworker.wait()
+
+
+def test_a_file_not_read_yet_gives_nothing(tmp_path):
+    from virtaal.support import statsworker
+
+    stream = _stream(
+        tmp_path,
+        {'a.po': {'units': [('Open', '')]}, 'b.po': {'units': [('Open', 'Maak oop')]}},
+    )
+    model, emitted = _model_for_stream(stream)
+
+    assert not stream.segments[1].loaded
+    assert _offered_from(model, emitted, stream[0]) == []
+    statsworker.wait()
+
+
+def test_a_file_in_another_language_gives_nothing(tmp_path):
+    from virtaal.support import statsworker
+
+    stream = _stream(
+        tmp_path,
+        {
+            'a.po': {'units': [('Open', '')]},
+            'b.po': {'units': [('Open', 'Ouvrir')], 'language': 'fr'},
+        },
+        language='af',
+    )
+    stream.language = 'af'
+    model, emitted = _model_for_stream(stream)
+
+    stream[1]
+    assert model._loading is None
+
+    assert _offered_from(model, emitted, stream[0]) == []
+    statsworker.wait()
+
+
+def test_an_edit_in_one_file_is_offered_in_another(tmp_path):
+    from virtaal.support import statsworker
+
+    stream = _stream(
+        tmp_path, {'a.po': {'units': [('Open', '')]}, 'b.po': {'units': [('Open', '')]}}
+    )
+    model, emitted = _model_for_stream(stream)
+    other = stream[1]
+    _load(model)
+
+    _edit(model, stream[0], 'Maak oop')
+    _edit(model, stream[0], 'Open maak')
+
+    assert _offered_from(model, emitted, other) == [('Open maak', 'These files')]
+    assert _offered_from(model, emitted, stream[0]) == []
+    statsworker.wait()
+
+
+def test_a_stream_of_one_file_says_this_file(tmp_path):
+    from virtaal.support import statsworker
+
+    stream = _stream(tmp_path, {'a.po': {'units': [('Open', 'Maak oop'), ('Open', '')]}})
+    model, emitted = _model_for_stream(stream)
+
+    assert _offered_from(model, emitted, stream[1]) == [('Maak oop', 'This file')]
+    statsworker.wait()
+
+
+def test_opening_other_files_starts_afresh(tmp_path):
+    from virtaal.support import statsworker
+
+    (tmp_path / 'one').mkdir()
+    (tmp_path / 'two').mkdir()
+    first = _stream(
+        tmp_path / 'one',
+        {'a.po': {'units': [('Open', 'Maak oop')]}, 'b.po': {'units': [('Save', '')]}},
+    )
+    model, emitted = _model_for_stream(first)
+    second = _stream(
+        tmp_path / 'two', {'a.po': {'units': [('Open', '')]}, 'b.po': {'units': [('Save', '')]}}
+    )
+
+    model.recreate_matcher(SimpleNamespace(get_store=lambda: second))
+    _load(model)
+    first[1]  # The first stream's file-loaded is no longer heard.
+
+    assert model._loading is None
+    assert _offered_from(model, emitted, second[0]) == []
+    statsworker.wait()
