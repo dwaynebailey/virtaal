@@ -62,7 +62,7 @@ footer a{color:var(--fg2)}
 <header>
   <div class="eyebrow">GitHub releases · SourceForge files</div>
   <h1>Virtaal downloads</h1>
-  <p class="lede">Downloads of the Virtaal 1.0 pre-releases from GitHub, tracked daily since <span id="fGhStartLong"></span>, followed by the full SourceForge history of the 0.x releases from <span id="fSfStartYear"></span> on.</p>
+  <p class="lede">Downloads of Virtaal 1.0 and its betas and release candidates from GitHub, tracked daily since <span id="fGhStartLong"></span>, followed by the full SourceForge history of the 0.x releases from <span id="fSfStartYear"></span> on.</p>
 </header>
 
 <div class="part">
@@ -74,7 +74,7 @@ footer a{color:var(--fg2)}
 
 <section class="card">
   <h2>Running total</h2>
-  <p class="sub">All GitHub release assets, one point per daily snapshot. Orange ticks mark new release candidates. Hover for the day's total.</p>
+  <p class="sub">All GitHub release assets, one point per daily snapshot. Orange ticks mark releases published while tracking ran. Hover for the day's total.</p>
   <div class="chart" id="ghcum"></div>
 </section>
 
@@ -247,6 +247,8 @@ function longD(d,full){const[y,mo,da]=d.split('-');return (+da)+' '+(full?['Janu
 })();
 
 // ---------- GitHub ----------
+// v1.0.0 -> 1.0.0, v1.0.0-rc3 -> 1.0 rc3 (or rc3 when short).
+function tagLabel(t,short){const m=t.match(/^v(\d+\.\d+)\.\d+-(.+)$/);return m?(short?m[2]:m[1]+' '+m[2]):t.replace(/^v/,'')}
 (function(){
  const cum=GH.cum, last=cum[cum.length-1][1], first=cum[0][1];
  const top=GH.byTag.filter(t=>t[0].startsWith('v1')).reduce((a,b)=>b[1]>a[1]?b:a);
@@ -265,8 +267,8 @@ function longD(d,full){const[y,mo,da]=d.split('-');return (+da)+' '+(full?['Janu
   const tk=ticks(last);const ym=tk[tk.length-1];const n=cum.length;
   const x=i=>L+i*(W-L-R)/(n-1),y=v=>T+(H-T-B)*(1-v/ym);
   tk.forEach(v=>{el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:'var(--grid)'},svg);el('text',{x:L-8,y:y(v)+4,'text-anchor':'end'},svg).textContent=v});
-  cum.forEach((d,i)=>{if(i%7===0||i===n-1)el('text',{x:x(i),y:H-8,'text-anchor':i===n-1?'end':'middle'},svg).textContent=dl(d[0])});
-  const rel={};GH.released.forEach(([t,d])=>{rel[d]=t;const i=cum.findIndex(c=>c[0]===d);el('line',{x1:x(i),x2:x(i),y1:H-B,y2:H-B-8,stroke:'var(--mark)','stroke-width':2},svg);el('text',{x:x(i),y:H-B-12,'text-anchor':'middle'},svg).textContent=t.replace('v1.0.0-','')});
+  cum.forEach((d,i)=>{if((i%7===0&&n-1-i>=4)||i===n-1)el('text',{x:x(i),y:H-8,'text-anchor':i===n-1?'end':'middle'},svg).textContent=dl(d[0])});
+  const rel={};GH.released.forEach(([t,d])=>{rel[d]=t;const i=cum.findIndex(c=>c[0]===d);el('line',{x1:x(i),x2:x(i),y1:H-B,y2:H-B-8,stroke:'var(--mark)','stroke-width':2},svg);el('text',{x:x(i),y:H-B-12,'text-anchor':n-1-i<2?'end':'middle'},svg).textContent=tagLabel(t,true)});
   const pts=cum.map((d,i)=>[x(i),y(d[1])]);
   el('path',{d:'M'+pts.map(p=>p.join(',')).join('L')+`L${x(n-1)},${y(0)}L${x(0)},${y(0)}Z`,fill:'var(--series-soft)'},svg);
   el('path',{d:'M'+pts.map(p=>p.join(',')).join('L'),fill:'none',stroke:'var(--series)','stroke-width':2,'stroke-linejoin':'round'},svg);
@@ -300,7 +302,7 @@ function longD(d,full){const[y,mo,da]=d.split('-');return (+da)+' '+(full?['Janu
   el('line',{x1:L,x2:W-R,y1:y(0),y2:y(0),stroke:'var(--rule)'},svg);
   document.getElementById('ghdailyTbl').innerHTML='<table><tr><th>Date</th>'+P.map(p=>`<th>${p}</th>`).join('')+'<th>Total</th></tr>'+rows.map((r,i)=>[r,i]).reverse().map(([r,i])=>`<tr><td>${r[0]}</td>${r.slice(1).map(v=>`<td>${v}</td>`).join('')}<td>${sums[i]}</td></tr>`).join('')+'</table>';}
 
- const tags=GH.byTag.filter(t=>t[0].startsWith('v1')).map(t=>[t[0].replace('v1.0.0-','1.0 '),t[1]]);
+ const tags=GH.byTag.filter(t=>t[0].startsWith('v1')).map(t=>[tagLabel(t[0]),t[1]]);
  const old=GH.byTag.filter(t=>!t[0].startsWith('v1')).reduce((s,t)=>s+t[1],0);
  hbars('ghtags',tags.reverse().concat([[`0.x (${GH.byTag.length-tags.length} releases)`,old]]),'GitHub downloads by release');
  hbars('ghplat',GH.byPlatform,'GitHub downloads by platform');

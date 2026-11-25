@@ -71,6 +71,13 @@ def platform(asset):
     return "Source & notes"
 
 
+def version_key(tag):
+    """Sort key that puts 1.0.0-beta1 < 1.0.0-rc3 < 1.0.0 < 1.0.1."""
+    base, _, suffix = tag.lstrip("v").partition("-")
+    numbers = tuple(int(n) if n.isdigit() else 0 for n in base.split("."))
+    return numbers, (0, suffix) if suffix else (1, "")
+
+
 def github_data(csv_text):
     rows = list(csv.DictReader(io.StringIO(csv_text)))
     if not rows:
@@ -98,7 +105,7 @@ def github_data(csv_text):
         "cum": [[date, sum(cumulative[date].values())] for date in dates],
         "daily": daily,
         "byPlatform": [[p, cumulative[last][p]] for p in PLATFORMS],
-        "byTag": sorted(by_tag.items()),
+        "byTag": sorted(by_tag.items(), key=lambda item: version_key(item[0])),
         # Tags that first appear after the first snapshot were released
         # while tracking was running; the page marks them on the timeline.
         "released": [[t, d] for t, d in first_seen.items() if d != dates[0]],
